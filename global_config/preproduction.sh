@@ -1,0 +1,7 @@
+CONFIG=preproduction
+ENVIRONMENT=preproduction
+CONFIG_SHORT=pp
+AZURE_SUBSCRIPTION=s189-teacher-services-cloud-production
+AZURE_RESOURCE_PREFIX=s189p01
+ENABLE_KV_DIAGNOSTICS=true
+TERRAFORM_MODULES_TAG=stable-azurerm-v4

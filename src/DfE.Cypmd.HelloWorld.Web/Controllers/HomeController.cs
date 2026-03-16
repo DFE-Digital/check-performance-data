@@ -1,13 +1,27 @@
 using System.Diagnostics;
+using DfE.Cypmd.HelloWorld.Data;
+using DfE.Cypmd.HelloWorld.Data.Entities;
 using Microsoft.AspNetCore.Mvc;
 using DfE.Cypmd.HelloWorld.Web.Models;
 
 namespace DfE.Cypmd.HelloWorld.Web.Controllers;
 
-public class HomeController : Controller
+public class HomeController(PortalDbContext context) : Controller
 {
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
+        var workflows = context.Workflows.ToList();
+
+        var wf = new Workflow()
+        {
+            Id = 1,
+            Name = "Dave"
+        };
+        
+        context.Workflows.Add(wf);
+        
+        await context.SaveChangesAsync();
+        
         return View();
     }
 

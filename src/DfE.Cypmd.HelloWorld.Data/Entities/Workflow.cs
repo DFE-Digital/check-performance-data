@@ -1,12 +1,7 @@
-using Microsoft.EntityFrameworkCore;
+namespace DfE.Cypmd.HelloWorld.Data.Entities;
 
 public class Workflow
 {
     public int Id { get; set; }
-    public int Name { get; set; }
-}
-
-public class PortalDbContext : DbContext
-{
-    public DbSet<Workflow> Workflows { get; set; }
+    public string Name { get; set; }
 }

@@ -1,9 +1,14 @@
+using DfE.Cypmd.HelloWorld.Data;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<PortalDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddGovUkFrontend(options => options.Rebrand = true);
 

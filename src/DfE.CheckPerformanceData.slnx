@@ -1,0 +1,11 @@
+<Solution>
+    <Folder Name="/Solution Items/">
+        <File Path="../.env" />
+        <File Path="../.github/workflows/build.yml" />
+        <File Path="../docker-compose.yaml" />
+        <File Path="Directory.Packages.props" />
+    </Folder>
+    <Project Path="DfE.CheckPerformanceData.Data/DfE.CheckPerformanceData.Data.csproj" />
+    <Project Path="DfE.CheckPerformanceData.RulesEngineWorker/DfE.CheckPerformanceData.RulesEngineWorker.csproj" />
+    <Project Path="DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj" />
+</Solution>

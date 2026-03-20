@@ -1,0 +1,62 @@
+﻿services:
+  web:
+    container_name: cypd_web
+    build:
+      context: ./src
+      dockerfile: DfE.CheckPerformanceData.Web/Dockerfile
+    image: cypd_web:latest
+    ports: 
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
+    depends_on:
+      - db
+      - azurite
+
+  rules_engine:
+    container_name: cypd_rules_engine
+    build:
+      context: ./src
+      dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+    image: cypd_rules_engine:latest
+    environment:
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
+      - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME}
+      - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS}
+      - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL}
+      - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS}
+      - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT}
+    depends_on:
+      - db
+      - azurite
+    command: printenv ConnectionStrings_AzureStorage
+
+  db:
+    container_name: cypd_db
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=helloworld
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  azurite:
+    container_name: cypd_azurite
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10000:10000"  # Blob
+      - "10001:10001"  # Queue
+    volumes:
+      - azurite_data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log
+
+volumes:
+  postgres_data:
+  azurite_data:

@@ -1,0 +1,58 @@
+﻿@{
+    Layout = "_GovUkPageTemplate";
+}
+
+@section BodyStart {
+    @* <govuk-cookie-banner aria-label="Cookie on [name of service]"> *@
+    @*     <govuk-cookie-banner-message> *@
+    @*         <govuk-cookie-banner-message-heading>Cookies on [name of service]</govuk-cookie-banner-message-heading> *@
+    @*         <govuk-cookie-banner-message-content> *@
+    @*             <p class="govuk-body">We use some essential cookies to make this service work.</p> *@
+    @*             <p class="govuk-body">We’d also like to use analytics cookies so we can understand how you use the service and make improvements.</p> *@
+    @*         </govuk-cookie-banner-message-content> *@
+    @*         <govuk-cookie-banner-message-actions> *@
+    @*             <govuk-cookie-banner-message-action text="Accept analytics cookies" type="button"/> *@
+    @*             <govuk-cookie-banner-message-action text="Reject analytics cookies" type="button"/> *@
+    @*             <govuk-cookie-banner-message-action-link text="View cookies" href="#"/> *@
+    @*         </govuk-cookie-banner-message-actions> *@
+    @*     </govuk-cookie-banner-message> *@
+    @* </govuk-cookie-banner> *@
+}
+
+@section Header {
+    <govuk-header home-page-url="https://gov.uk/" />
+
+    <govuk-service-navigation service-name="Check Performance Data" service-url="#">
+        @* <govuk-service-navigation-nav> *@
+        @*     <govuk-service-navigation-nav-item href="#">Navigation item 1</govuk-service-navigation-nav-item> *@
+        @*     <govuk-service-navigation-nav-item href="#" active="true">Navigation item 2</govuk-service-navigation-nav-item> *@
+        @*     <govuk-service-navigation-nav-item href="#">Navigation item 3</govuk-service-navigation-nav-item> *@
+        @* </govuk-service-navigation-nav> *@
+    </govuk-service-navigation>
+}
+
+@RenderBody()
+
+@section Footer {
+    <govuk-footer>
+        <govuk-footer-nav width="two-thirds" columns="2">
+            <govuk-footer-nav-title>Two column list</govuk-footer-nav-title>
+            <govuk-footer-nav-items>
+                <govuk-footer-nav-item href="#">Navigation item 1</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 2</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 3</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 4</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 5</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 6</govuk-footer-nav-item>
+            </govuk-footer-nav-items>
+        </govuk-footer-nav>
+        <govuk-footer-nav width="one-third">
+            <govuk-footer-nav-title>Single column list</govuk-footer-nav-title>
+            <govuk-footer-nav-items>
+                <govuk-footer-nav-item href="#">Navigation item 1</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 2</govuk-footer-nav-item>
+                <govuk-footer-nav-item href="#">Navigation item 3</govuk-footer-nav-item>
+            </govuk-footer-nav-items>
+        </govuk-footer-nav>
+    </govuk-footer>
+}

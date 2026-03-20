@@ -1,0 +1,25 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="govuk-width-container">
+    <a href="#" class="govuk-back-link">Back</a>
+    <main class="govuk-main-wrapper">
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-two-thirds">
+                <h1 class="govuk-heading-xl">Two-thirds column</h1>
+                
+                    <form asp-action="SendRequest" asp-controller="Home" method="post">
+                        @Html.AntiForgeryToken()
+                        
+                        <govuk-button is-start-button="true" type="submit"> Send Test Message</govuk-button>
+                    </form>
+                
+            </div>
+            <div class="govuk-grid-column-one-third">
+                <h2 class="govuk-heading-m">One-third column</h2>
+                <p class="govuk-body"></p>
+            </div>
+        </div>
+    </main>
+</div>

@@ -1,23 +1,42 @@
 ﻿services:
   web:
-    container_name: helloworld_web
+    container_name: cypd_web
     build:
       context: ./src
-      dockerfile: DfE.Cypmd.HelloWorld.Web/Dockerfile
-    image: helloworld:latest
+      dockerfile: DfE.CheckPerformanceData.Web/Dockerfile
+    image: cypd_web:latest
     ports: 
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=db;Database=helloworld;Username=postgres;Password=postgres
-      - ConnectionStrings__AzureStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OGLjX+N6VYGE7ewHXXTm/8bLpEi0m5eKg==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
     depends_on:
       - db
       - azurite
 
+  rules_engine:
+    container_name: cypd_rules_engine
+    build:
+      context: ./src
+      dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+    image: cypd_rules_engine:latest
+    environment:
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
+      - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME}
+      - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS}
+      - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL}
+      - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS}
+      - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT}
+    depends_on:
+      - db
+      - azurite
+    command: printenv ConnectionStrings_AzureStorage
+
   db:
-    container_name: helloworld_db
+    container_name: cypd_db
     image: postgres:16
     environment:
       - POSTGRES_DB=helloworld
@@ -29,7 +48,7 @@
       - postgres_data:/var/lib/postgresql/data
 
   azurite:
-    container_name: helloworld_azurite
+    container_name: cypd_azurite
     image: mcr.microsoft.com/azure-storage/azurite:latest
     ports:
       - "10000:10000"  # Blob

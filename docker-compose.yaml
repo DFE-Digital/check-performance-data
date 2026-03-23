@@ -8,10 +8,10 @@
     ports: 
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=helloworld;Username=postgres;Password=postgres}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
     depends_on:
       - db
       - azurite
@@ -23,13 +23,13 @@
       dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
     image: cypd_rules_engine:latest
     environment:
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING}
-      - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME}
-      - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS}
-      - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL}
-      - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS}
-      - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT}
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=helloworld;Username=postgres;Password=postgres}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME:-requests}
+      - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS:-1000}
+      - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}
+      - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS:-1000}
+      - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT:-3}
     depends_on:
       - db
       - azurite

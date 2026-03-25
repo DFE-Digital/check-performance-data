@@ -484,3 +484,10 @@ $RECYCLE.BIN/
 appsettings.Development.json
 
 .vscode/
+
+# Terraform
+.terraform
+terraform/application/vendor
+terraform/domains/environment_domains/vendor
+terraform/domains/infrastructure/vendor
+terraform.tfstate*

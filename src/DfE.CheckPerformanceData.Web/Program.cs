@@ -1,12 +1,19 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Data;
+using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
+using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services
+    .AddDfeApiClient(builder.Configuration)
+    .AddDfeSignInAuthentication(builder.Configuration)
+    .AddGovUkFrontend(options => options.Rebrand = true);
 
 builder.Services.AddDbContext<PortalDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
@@ -17,7 +24,7 @@ builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.
         MessageEncoding = QueueMessageEncoding.Base64
     }));
 
-builder.Services.AddGovUkFrontend(options => options.Rebrand = true);
+builder.Services.AddControllersWithViews();
 
 builder.Services.AddHealthChecks();
 
@@ -38,6 +45,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();

@@ -20,6 +20,8 @@ public class HomeController(PortalDbContext context, QueueServiceClient queueSer
     {
         var client = queueServiceClient.GetQueueClient("requests");
 
+        await client.CreateIfNotExistsAsync();
+        
         await client.SendMessageAsync($"Hello, World! Time is {DateTime.Now.ToShortTimeString()}");
         
         // Handle the POST here

@@ -5,7 +5,9 @@
         <File Path="../docker-compose.yaml" />
         <File Path="Directory.Packages.props" />
     </Folder>
+    <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Data/DfE.CheckPerformanceData.Data.csproj" />
+    <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />
     <Project Path="DfE.CheckPerformanceData.RulesEngineWorker/DfE.CheckPerformanceData.RulesEngineWorker.csproj" />
     <Project Path="DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj" />
 </Solution>

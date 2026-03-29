@@ -12,9 +12,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Identity.Web" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference
       Include="..\DfE.CheckPerformanceData.Data\DfE.CheckPerformanceData.Data.csproj" />
+    <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

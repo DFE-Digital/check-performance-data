@@ -1,5 +1,5 @@
 
-namespace DfE.CheckPerformanceData.Data.Entities;
+namespace DfE.CheckPerformanceData.Domain.Entities;
 
 public class Workflow
 {

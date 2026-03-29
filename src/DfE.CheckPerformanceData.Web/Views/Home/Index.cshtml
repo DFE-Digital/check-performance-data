@@ -9,11 +9,13 @@
             <div class="govuk-grid-column-two-thirds">
                 <h1 class="govuk-heading-xl">Two-thirds column</h1>
                 
-                    <form asp-action="SendRequest" asp-controller="Home" method="post">
-                        @Html.AntiForgeryToken()
+                <form asp-action="SendRequest" asp-controller="Home" method="post">
+                    @Html.AntiForgeryToken()
                         
-                        <govuk-button is-start-button="true" type="submit"> Send Test Message</govuk-button>
-                    </form>
+                    <govuk-button is-start-button="true" type="submit"> Send Test Message</govuk-button>
+                </form>
+                
+                <a asp-controller="Secret">Secret page</a>
                 
             </div>
             <div class="govuk-grid-column-one-third">

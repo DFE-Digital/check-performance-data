@@ -1,7 +1,8 @@
 using Azure.Storage.Queues;
-using DfE.CheckPerformanceData.Data;
+using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Persistence;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +15,8 @@ builder.Services
 
 builder.Services.AddDbContext<PortalDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+
+builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
 
 builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
     new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)

@@ -1,4 +1,4 @@
-namespace DfE.CheckPerformanceData.Web.Controllers;
+namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public class SecretViewModel
 {

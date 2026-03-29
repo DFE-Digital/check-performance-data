@@ -1,6 +1,7 @@
 ﻿using System.Security.Claims;
 using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

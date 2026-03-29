@@ -3,10 +3,7 @@ using DfE.CheckPerformanceData.Data;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 var builder = WebApplication.CreateBuilder(args);
 

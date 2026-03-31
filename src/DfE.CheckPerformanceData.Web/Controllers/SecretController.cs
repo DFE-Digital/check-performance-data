@@ -2,6 +2,9 @@
 using System.Text.Json.Nodes;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,9 +33,23 @@ public class SecretController : Controller
         var vm = new SecretViewModel()
         {
             UserName = User.FindFirstValue(ClaimTypes.GivenName) + " " + User.FindFirstValue(ClaimTypes.Surname),
-            OrganisationName = organisation?.Name
+            Organisation = organisation
         };
         
         return View(vm);
+    }
+
+    public async Task<IActionResult> SignOut()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+        return SignOut(
+            new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("Index", "Home")
+            },
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            OpenIdConnectDefaults.AuthenticationScheme
+        );
     }
 }

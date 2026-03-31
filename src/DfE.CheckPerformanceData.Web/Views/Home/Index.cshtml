@@ -2,26 +2,55 @@
     ViewData["Title"] = "Home Page";
 }
 
-<div class="govuk-width-container">
-    <a href="#" class="govuk-back-link">Back</a>
-    <main class="govuk-main-wrapper">
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
-                <h1 class="govuk-heading-xl">Two-thirds column</h1>
+                <h1 class="govuk-heading-xl">Check your performance measures data</h1>
                 
-                <form asp-action="SendRequest" asp-controller="Home" method="post">
+                <p class="govuk-body">
+                    Review and confirm the pupil data that will be used to calculate your school or college's performance measures.
+                </p>
+                
+                <p class="govuk-body">
+                    Use this service to:
+                </p>
+                <ul class="govuk-list govuk-list--bullet">
+                    <li>check which pupils are included in your performance data</li>
+                    <li>request changes if a pupil should not be counted</li>
+                    <li>upload evidence to support removal requests</li>
+                    <li>review summary information before it is finalised</li>
+                </ul>
+                <p class="govuk-body">
+                    This helps make sure your school's published performance data is accurate and up to date.
+                </p>
+                <p class="govuk-body">
+                    You can use this service if you are:
+                </p>
+                <ul class="govuk-list govuk-list--bullet">
+                    <li>a school or college with pupils included in performance measures</li>
+                    <li>responsible for checking or submitting data (for example, headteacher or data manager)</li>
+                </ul>
+                
+                @*<form asp-action="SendRequest" asp-controller="Home" method="post">
                     @Html.AntiForgeryToken()
                         
                     <govuk-button is-start-button="true" type="submit"> Send Test Message</govuk-button>
-                </form>
+                </form>*@
+
+                <a href="@Url.Action("Index", "Secret")" role="button" draggable="false" class="govuk-button govuk-button--start">
+                    Start now
+                    <svg class="govuk-button__start-icon" xmlns="http://www.w3.org/2000/svg" width="17.5" height="19" viewBox="0 0 33 40" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M0 0h13l20 20-20 20H0l20-20z" />
+                    </svg>
+                </a>
                 
-                <a asp-controller="Secret">Secret page</a>
-                
+                <p class="govuk-body">
+                    Sign up to <a href="#" class="govuk-link">get email notifications</a> about this service. 
+                </p>
             </div>
             <div class="govuk-grid-column-one-third">
-                <h2 class="govuk-heading-m">One-third column</h2>
-                <p class="govuk-body"></p>
+                <h2 class="govuk-heading-m">Guidance</h2>
+                <p class="govuk-body">
+                    <a href="#" class="govuk-link">How to check your performance data</a>
+                </p>
             </div>
         </div>
-    </main>
-</div>

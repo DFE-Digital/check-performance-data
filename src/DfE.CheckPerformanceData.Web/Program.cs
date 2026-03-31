@@ -57,7 +57,16 @@ try
 
     var app = builder.Build();
 
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("RequestPath", httpContext.Request.Path);
+            diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
+            diagnosticContext.Set("RequestMethod", httpContext.Request.Method);
+            diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
+        };
+    });
     
     app.UseGovUkFrontend();
 

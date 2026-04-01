@@ -24,18 +24,18 @@ try
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
-        
+
         configuration
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
-            .WriteTo.Console(isDevelopment 
-                ?  new ExpressionTemplate(
+            .WriteTo.Console(isDevelopment
+                ? new ExpressionTemplate(
                     "[{@t:HH:mm:ss} {@l:u3}] {SourceContext}\n  {@m}\n{@x}",
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
     });
-    
+
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
@@ -59,7 +59,7 @@ try
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
-    
+
     app.UseSerilogRequestLogging(options =>
     {
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -70,7 +70,7 @@ try
             diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
         };
     });
-    
+
     app.UseGovUkFrontend();
 
     app.UseHealthChecks("/healthcheck");
@@ -101,6 +101,9 @@ try
 }
 catch (Exception e)
 {
-    Console.WriteLine(e);
-    throw;
+    Log.Fatal(e, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();   
 }

@@ -7,8 +7,8 @@ public static class MigrationExtensions
 {
     public static async Task MigrateDatabaseAsync(this WebApplication app)
     {
-        if (!app.Environment.IsDevelopment())
-            return;
+        // if (!app.Environment.IsDevelopment())
+        //     return;
 
         await using var scope = app.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PortalDbContext>();

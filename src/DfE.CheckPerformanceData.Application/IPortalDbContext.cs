@@ -5,6 +5,6 @@ namespace DfE.CheckPerformanceData.Application;
 
 public interface IPortalDbContext
 {
-    DbSet<Workflow> Workflows { get; }
+    DbSet<CheckingWindow> CheckingWindows { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

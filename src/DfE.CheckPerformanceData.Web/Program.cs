@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
+using DfE.CheckPerformanceData.Web.Extensions;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -57,6 +58,8 @@ try
 
     var app = builder.Build();
 
+    await app.MigrateDatabaseAsync();
+    
     app.UseSerilogRequestLogging(options =>
     {
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>

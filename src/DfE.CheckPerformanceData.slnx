@@ -6,6 +6,9 @@
         <File Path="../README.md" />
         <File Path="Directory.Packages.props" />
     </Folder>
+    <Project Path="../docker-compose.dcproj" Id="1fcbe191-34fe-4b2e-8915-ca81553958ad">
+        <Build />
+    </Project>
     <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />
     <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />

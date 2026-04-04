@@ -21,7 +21,7 @@ git clone https://github.com/DFE-Digital/check-performance-data
 Build the C#/.NET solution
 ```sh
 dotnet build
-``` 
+```
 
 Confirm tests are passing locally
 ```sh
@@ -30,4 +30,4 @@ dotnet test
 
 ```sh
 docker compose up --build -d
-``` 
+```

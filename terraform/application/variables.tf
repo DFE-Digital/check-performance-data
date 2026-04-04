@@ -82,5 +82,10 @@ locals {
 
 variable "enable_logit" { default = true }
 
+variable "replicas" {
+  default = 1
+  type = number
+}
+
 
 

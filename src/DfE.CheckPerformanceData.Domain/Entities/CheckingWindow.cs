@@ -11,7 +11,7 @@ public class CheckingWindow
 
 public enum OrganisationTypes
 {
-    KS2,
-    KS4,
-    Post16
+    KS2, //3-11
+    KS4, //11-16
+    Post16 //16-18
 }

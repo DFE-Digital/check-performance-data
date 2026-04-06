@@ -1,5 +1,6 @@
 ﻿services:
   web:
+    profiles: [web, all]
     container_name: cypd_web
     build:
       context: ./src
@@ -24,6 +25,7 @@
       - azurite
 
   rules_engine:
+    profiles: [rules_engine, all]
     container_name: cypd_rules_engine
     build:
       context: ./src

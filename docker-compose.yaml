@@ -1,5 +1,6 @@
 ﻿services:
   web:
+    profiles: [web, all]
     container_name: cypd_web
     build:
       context: ./src
@@ -10,7 +11,7 @@
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=helloworld;Username=postgres;Password=postgres}
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
@@ -24,6 +25,7 @@
       - azurite
 
   rules_engine:
+    profiles: [rules_engine, all]
     container_name: cypd_rules_engine
     build:
       context: ./src
@@ -52,7 +54,7 @@
     container_name: cypd_db
     image: postgres:16
     environment:
-      - POSTGRES_DB=helloworld
+      - POSTGRES_DB=cypd
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     ports:

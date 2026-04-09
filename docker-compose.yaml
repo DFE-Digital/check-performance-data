@@ -50,7 +50,7 @@
 
   db:
     container_name: cypd_db
-    image: postgres:16
+    image: postgres:18.1-alpine
     environment:
       - POSTGRES_DB=helloworld
       - POSTGRES_USER=postgres

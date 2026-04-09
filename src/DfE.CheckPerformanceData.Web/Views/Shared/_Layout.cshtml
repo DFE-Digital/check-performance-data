@@ -3,6 +3,7 @@
 }
 
 @section BodyStart {
+    <link rel="stylesheet" href="~/css/site.css" />
     @* <govuk-cookie-banner aria-label="Cookie on [name of service]"> *@
     @*     <govuk-cookie-banner-message> *@
     @*         <govuk-cookie-banner-message-heading>Cookies on [name of service]</govuk-cookie-banner-message-heading> *@
@@ -23,6 +24,7 @@
     <govuk-header home-page-url="https://gov.uk/"/>
     <govuk-service-navigation service-name="Check Performance Data" service-url="#">
         <govuk-service-navigation-nav>
+            <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
             @if (@User.Identity is { IsAuthenticated: true })
             {
                 <govuk-service-navigation-nav-item href="@Url.Action("SignOut", "Secret")">Sign out
@@ -107,4 +109,8 @@
             </div>
         </div>
     </footer>
+}
+
+@section BodyEnd {
+    <script src="~/js/site.js"></script>
 }

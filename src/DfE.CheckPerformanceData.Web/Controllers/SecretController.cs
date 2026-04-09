@@ -10,15 +10,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class SecretController : Controller
+public sealed class SecretController(IDfESignInApiClient dfeSignInApiClient) : Controller
 {
-    private readonly IDfESignInApiClient _dfeSignInApiClient;
-
-    public SecretController(IDfESignInApiClient dfeSignInApiClient)
-    {
-        _dfeSignInApiClient = dfeSignInApiClient;
-    }
-    
     [Authorize]
     public async Task<IActionResult> Index()
     {
@@ -28,7 +21,7 @@ public class SecretController : Controller
         var org = JsonNode.Parse(orgJson);
         var orgId = org["id"]?.ToString() ?? string.Empty;
         
-        var organisation = await _dfeSignInApiClient.GetOrganisationAsync(userid, orgId);
+        var organisation = await dfeSignInApiClient.GetOrganisationAsync(userid, orgId);
 
         var vm = new SecretViewModel()
         {

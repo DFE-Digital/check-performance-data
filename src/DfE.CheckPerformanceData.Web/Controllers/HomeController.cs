@@ -6,7 +6,7 @@ using DfE.CheckPerformanceData.Web.Models;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class HomeController(IPortalDbContext context, QueueServiceClient queueServiceClient) : Controller
+public sealed class HomeController(IPortalDbContext context, QueueServiceClient queueServiceClient) : Controller
 {
     public async Task<IActionResult> Index()
     {

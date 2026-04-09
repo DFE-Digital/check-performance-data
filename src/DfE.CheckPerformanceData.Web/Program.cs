@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
+using DfE.CheckPerformanceData.Infrastructure.Wiki;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -51,6 +52,8 @@ try
             MessageEncoding = QueueMessageEncoding.Base64
         }));
 
+    builder.Services.AddWikiService();
+
     builder.Services.AddControllersWithViews();
 
     builder.Services.AddHealthChecks();
@@ -87,6 +90,11 @@ try
     app.UseAuthorization();
 
     app.MapStaticAssets();
+
+    app.MapControllerRoute(
+        name: "wiki",
+        pattern: "help/{**slugPath}",
+        defaults: new { controller = "Help", action = "Index" });
 
     app.MapControllerRoute(
             name: "default",

@@ -1,0 +1,56 @@
+@using DfE.CheckPerformanceData.Application.Wiki
+@model List<WikiPageTreeNodeDto>
+@{
+    var isEditMode = ViewData["IsEditMode"] is true;
+    var currentSlugPath = (string)(ViewData["CurrentSlugPath"] ?? string.Empty);
+    var editSuffix = isEditMode ? "?edit" : "";
+    var depth = ViewData["TreeDepth"] is int d ? d : 0;
+    var isRoot = depth == 0;
+}
+
+<ul class="tv @(isRoot ? "tv-root" : "")">
+    @foreach (var node in Model)
+    {
+        var isActive = node.SlugPath == currentSlugPath;
+        var hasChildren = node.Children.Count > 0;
+        var isLast = node == Model.Last();
+
+        <li class="tv-item @(isLast ? "tv-item-last" : "")">
+            <div class="tv-row" data-page-id="@node.Id" data-parent-id="@node.ParentId" data-sort="@node.SortOrder" draggable="@(isEditMode ? "true" : "false")">
+                @if (hasChildren)
+                {
+                    <button class="tv-toggle" type="button" aria-expanded="true" aria-label="Toggle @node.Title">
+                        <span class="tv-icon tv-icon-minus"></span>
+                    </button>
+                }
+                else
+                {
+                    <span class="tv-connector"></span>
+                }
+
+                <a href="/help/@node.SlugPath@editSuffix" class="tv-link @(isActive ? "tv-link-active" : "") @(hasChildren ? "tv-link-parent" : "")" @(isActive ? "aria-current=page" : "")>@node.Title</a>
+
+                @if (isEditMode)
+                {
+                    <form action="/help/delete/@node.Id" method="post" class="tv-del-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="editMode" value="true" />
+                        <button type="submit" class="tv-del" aria-label="Delete @node.Title"
+                                onclick="return confirm('Delete \u0022@node.Title\u0022 and all child pages?');">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </form>
+                }
+            </div>
+
+            @if (hasChildren)
+            {
+                var childViewData = new ViewDataDictionary(ViewData);
+                childViewData["TreeDepth"] = depth + 1;
+                <ul class="tv tv-children">
+                    @await Html.PartialAsync("_WikiTree", node.Children, childViewData)
+                </ul>
+            }
+        </li>
+    }
+</ul>

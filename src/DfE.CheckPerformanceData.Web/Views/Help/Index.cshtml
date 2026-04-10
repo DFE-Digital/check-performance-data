@@ -72,18 +72,30 @@
     <main class="wiki-main">
         <div class="wiki-toolbar">
             <button class="wiki-sidebar-toggle" type="button" id="wiki-sidebar-toggle" aria-expanded="true" aria-controls="wiki-sidebar" title="Toggle navigation">
-                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M1 2h14M1 8h14M1 14h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                <svg class="wiki-sidebar-toggle-icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                    <path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                 </svg>
             </button>
             <div class="wiki-mode-toggle">
             @if (Model.IsEditMode)
             {
-                <a href="/help/@Model.CurrentSlugPath" class="govuk-link">View mode</a>
+                <a href="/help/@Model.CurrentSlugPath" class="govuk-link wiki-mode-link">
+                    <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                        <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"></circle>
+                    </svg>
+                    <span>View mode</span>
+                </a>
             }
             else
             {
-                <a href="/help/@(string.IsNullOrEmpty(Model.CurrentSlugPath) ? "?edit" : Model.CurrentSlugPath + "?edit")" class="govuk-link">Edit mode</a>
+                <a href="/help/@(string.IsNullOrEmpty(Model.CurrentSlugPath) ? "?edit" : Model.CurrentSlugPath + "?edit")" class="govuk-link wiki-mode-link">
+                    <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M11.5 1.5l3 3L5 14l-3.5.5L2 11l9.5-9.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                        <path d="M9.5 3.5l3 3" fill="none" stroke="currentColor" stroke-width="1.4"></path>
+                    </svg>
+                    <span>Edit mode</span>
+                </a>
             }
             </div>
         </div>

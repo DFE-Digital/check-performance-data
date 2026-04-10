@@ -45,6 +45,16 @@
   text-align: right;
 }
 
+.wiki-mode-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-mode-icon {
+  flex-shrink: 0;
+}
+
 .wiki-sidebar-toggle {
   display: inline-flex;
   align-items: center;
@@ -69,6 +79,14 @@
 .wiki-sidebar-toggle:focus-visible {
   outline: 3px solid #ffdd00;
   box-shadow: 0 0 0 1px #0b0c0c;
+}
+
+.wiki-sidebar-toggle-icon {
+  transition: transform .25s ease;
+}
+
+.wiki-sidebar-toggle[aria-expanded="false"] .wiki-sidebar-toggle-icon {
+  transform: rotate(180deg);
 }
 
 /* ==========================================================================

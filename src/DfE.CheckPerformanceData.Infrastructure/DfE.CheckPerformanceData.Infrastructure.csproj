@@ -7,6 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <Compile Remove="Persistence\Repositories\**" />
+      <EmbeddedResource Remove="Persistence\Repositories\**" />
+      <None Remove="Persistence\Repositories\**" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
       <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
     </ItemGroup>
@@ -24,10 +30,6 @@
       <PackageReference Include="Markdig" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Persistence\Repositories\" />
     </ItemGroup>
 
 </Project>

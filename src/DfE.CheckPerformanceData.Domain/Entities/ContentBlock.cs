@@ -10,5 +10,5 @@ public sealed class ContentBlock
     public string? CreatedBy { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
-    public List<ContentBlockVersion> Versions { get; set; } = [];
+    public ICollection<ContentBlockVersion> Versions { get; set; } = [];
 }

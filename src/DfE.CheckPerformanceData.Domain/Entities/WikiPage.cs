@@ -8,12 +8,12 @@ public sealed class WikiPage
     public string? Content { get; set; }
     public int? ParentId { get; set; }
     public WikiPage? Parent { get; set; }
-    public List<WikiPage> Children { get; set; } = [];
+    public ICollection<WikiPage> Children { get; set; } = [];
     public int SortOrder { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }
     public DateTime UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
-    public List<WikiPageVersion> Versions { get; set; } = [];
+    public ICollection<WikiPageVersion> Versions { get; set; } = [];
 }

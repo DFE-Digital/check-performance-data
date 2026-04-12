@@ -10,7 +10,7 @@
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=helloworld;Username=postgres;Password=postgres}
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
@@ -22,6 +22,8 @@
     depends_on:
       - db
       - azurite
+    networks:
+      - cypmd
 
   rules_engine:
     container_name: cypd_rules_engine
@@ -30,7 +32,7 @@
       dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
     image: cypd_rules_engine:latest
     environment:
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=helloworld;Username=postgres;Password=postgres}
+      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=https://test-api.signin.education.gov.uk/
       - DfeSignIn__ClientId=CheckPerformanceData
@@ -47,18 +49,38 @@
       - db
       - azurite
     command: printenv ConnectionStrings_AzureStorage
+    networks:
+      - cypmd
 
   db:
     container_name: cypd_db
     image: postgres:18.1-alpine
     environment:
-      - POSTGRES_DB=helloworld
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-cypd}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cypmd
+
+  pgadmin:
+    image: dpage/pgadmin4:${PGADMIN_IMAGE_TAG:-latest}
+    container_name: cypd_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin/data
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - cypmd
 
   azurite:
     container_name: cypd_azurite
@@ -69,7 +91,14 @@
     volumes:
       - azurite_data:/data
     command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log
+    networks:
+      - cypmd
 
 volumes:
   postgres_data:
   azurite_data:
+  pgadmin_data:
+
+networks:
+  cypmd:
+    driver: bridge

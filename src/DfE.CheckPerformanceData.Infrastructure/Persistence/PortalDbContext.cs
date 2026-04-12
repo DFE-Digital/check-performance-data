@@ -9,6 +9,8 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
     public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
+    public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
+    public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +38,22 @@ public sealed class PortalDbContext(DbContextOptions<PortalDbContext> options) :
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(v => new { v.WikiPageId, v.VersionNumber })
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<ContentBlock>(entity =>
+        {
+            entity.HasIndex(b => b.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<ContentBlockVersion>(entity =>
+        {
+            entity.HasOne(v => v.ContentBlock)
+                .WithMany(b => b.Versions)
+                .HasForeignKey(v => v.ContentBlockId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(v => new { v.ContentBlockId, v.VersionNumber })
                 .IsUnique();
         });
     }

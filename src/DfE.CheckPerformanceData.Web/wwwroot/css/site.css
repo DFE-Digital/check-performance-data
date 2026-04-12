@@ -382,3 +382,29 @@
 .wiki-content table { border-collapse: collapse; margin-bottom: 15px; }
 .wiki-content th, .wiki-content td { border: 1px solid #b1b4b6; padding: 8px 12px; }
 .wiki-content th { background: #f3f2f1; font-weight: 700; }
+
+/* ==========================================================================
+   Content Blocks — inline editable sections
+   ========================================================================== */
+
+.content-block {
+  position: relative;
+}
+
+.content-block__edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #505a5f;
+  text-decoration: none;
+  margin-bottom: 10px;
+}
+
+.content-block__edit-link:hover {
+  color: #1d70b8;
+}
+
+.content-block__edit-icon {
+  flex-shrink: 0;
+}

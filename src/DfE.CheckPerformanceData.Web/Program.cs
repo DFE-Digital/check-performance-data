@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
+using DfE.CheckPerformanceData.Infrastructure.ContentBlocks;
 using DfE.CheckPerformanceData.Infrastructure.Wiki;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
@@ -53,6 +54,7 @@ try
         }));
 
     builder.Services.AddWikiService();
+    builder.Services.AddContentBlockService();
 
     builder.Services.AddControllersWithViews();
 

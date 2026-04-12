@@ -1,0 +1,55 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ContentBlockVersionsViewModel
+@{
+    ViewData["Title"] = $"Version history - {Model.Block.Key}";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <a href="javascript:history.back()" class="govuk-back-link">Back</a>
+
+        <h1 class="govuk-heading-l">Version history: @Model.Block.Key</h1>
+
+        @if (Model.Versions.Count == 0)
+        {
+            <p class="govuk-body">No versions recorded.</p>
+        }
+        else
+        {
+            <table class="govuk-table">
+                <caption class="govuk-table__caption govuk-table__caption--m">Content block versions</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Version</th>
+                        <th scope="col" class="govuk-table__header">Date</th>
+                        <th scope="col" class="govuk-table__header">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var version in Model.Versions)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@version.VersionNumber</td>
+                            <td class="govuk-table__cell">@version.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                            <td class="govuk-table__cell">
+                                @if (version.VersionNumber != Model.Versions[0].VersionNumber)
+                                {
+                                    <form action="/content-block/revert/@Model.Block.Key/@version.Id" method="post" style="display:inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                                                onclick="return confirm('Revert to version @version.VersionNumber?');">
+                                            Revert
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <strong class="govuk-tag">Current</strong>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

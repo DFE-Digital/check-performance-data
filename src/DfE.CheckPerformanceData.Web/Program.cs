@@ -43,7 +43,7 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend(options => options.Rebrand = true);
 
-    if (builder.Environment.IsDevelopment()) 
+    //if (builder.Environment.IsDevelopment()) 
         builder.Services.AddScoped<DevDataSeeder>();
     
     builder.Services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();

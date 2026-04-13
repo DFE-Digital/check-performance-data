@@ -1,0 +1,49 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.LandingPageViewModel
+
+@{
+    ViewBag.Title = "title";
+    Layout = "_Layout";
+}
+
+<h2 class="govuk-heading-l">@Model.OrganisationName</h2>
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Establishment LAESTAB</dt>
+        <dd class="govuk-summary-list__value">@Model.OrganisationLaestab</dd>
+    </div>
+
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Establishment URN</dt>
+        <dd class="govuk-summary-list__value">@(Model.OrganisationUrn)</dd>
+    </div>
+
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Data checking</dt>
+        <dd class="govuk-summary-list__value">
+            @Model.KeyStages
+        </dd>
+    </div>
+</dl>
+
+
+@if (Model.Windows.Any())
+{
+    <div class="dfe-grid-container">
+    @foreach (var openWindow in Model.Windows)
+    {
+        <div class="dfe-card">
+            <div class="dfe-card-container">
+                <h3 class="govuk-heading-m">@openWindow.Title</h3>
+                <p>You have until 5pm on @openWindow.EndDate.ToString("dddd d MMMM yyyy") to review your data.</p>
+                
+                <div>
+                    <a href="#" role="button" class="govuk-button">
+                        Continue
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+    </div>
+}

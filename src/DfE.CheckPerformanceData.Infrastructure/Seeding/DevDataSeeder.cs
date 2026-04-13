@@ -8,8 +8,7 @@ public class DevDataSeeder(IPortalDbContext dbContext)
 {
     public async Task SeedAsync()
     {
-        if (await dbContext.CheckingWindows.AnyAsync())
-            return;
+        await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
         await dbContext.CheckingWindows.AddRangeAsync(
             new CheckingWindow()
@@ -17,7 +16,7 @@ public class DevDataSeeder(IPortalDbContext dbContext)
                 Id = 1,
                 StartDate = DateTime.UtcNow.AddDays(-1),
                 EndDate = DateTime.UtcNow.AddDays(+13), 
-                OrganisationType = OrganisationTypes.KS4, 
+                KeyStage = KeyStages.KS4, 
                 Title = "KS4 June"
             },
             new CheckingWindow()
@@ -25,8 +24,16 @@ public class DevDataSeeder(IPortalDbContext dbContext)
                 Id = 2,
                 StartDate = DateTime.UtcNow.AddDays(-3),
                 EndDate = DateTime.UtcNow.AddDays(+11), 
-                OrganisationType = OrganisationTypes.KS2, 
+                KeyStage = KeyStages.KS2, 
                 Title = "KS2"
+            },
+            new CheckingWindow()
+            {
+                Id = 3,
+                StartDate = DateTime.UtcNow.AddDays(-5),
+                EndDate = DateTime.UtcNow.AddDays(-5).AddDays(+14), 
+                KeyStage = KeyStages.Post16, 
+                Title = "16-18"
             }
         );
         

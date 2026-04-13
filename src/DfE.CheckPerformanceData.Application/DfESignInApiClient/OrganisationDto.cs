@@ -18,6 +18,14 @@ public class OrganisationDto
     public string? Telephone { get; init; }
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }
+    
+    public List<OrganisationKeyStageDto> KeyStages =>
+        StatutoryLowAge is null || StatutoryHighAge is null
+            ? []
+            : OrganisationKeyStages.All
+                .Where(ks => StatutoryLowAge  < ks.HighAge
+                             && StatutoryHighAge > ks.LowAge)
+                .ToList();
     public string? LegacyId { get; init; }
     public string? CompanyRegistrationNumber { get; init; }
     

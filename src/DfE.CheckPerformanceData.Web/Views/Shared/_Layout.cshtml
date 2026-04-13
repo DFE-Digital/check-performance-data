@@ -2,6 +2,12 @@
     Layout = "_GovUkPageTemplate";
 }
 
+@section Head {
+    <link href="/govuk-frontend.min.css?v=5.14.0" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+}
+
 @section BodyStart {
     @* <govuk-cookie-banner aria-label="Cookie on [name of service]"> *@
     @*     <govuk-cookie-banner-message> *@

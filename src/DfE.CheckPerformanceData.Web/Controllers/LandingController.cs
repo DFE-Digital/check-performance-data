@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Features.LandingPage;
-using DfE.CheckPerformanceData.Domain.Entities;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;

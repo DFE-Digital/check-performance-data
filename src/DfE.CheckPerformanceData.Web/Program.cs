@@ -22,7 +22,9 @@ try
     Log.Information("Starting application");
 
     var builder = WebApplication.CreateBuilder(args);
-
+    
+    Log.Information("Environment is {Environment}", builder.Environment.EnvironmentName);
+    
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();

@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
 using DfE.CheckPerformanceData.Infrastructure.ContentBlocks;
 using DfE.CheckPerformanceData.Infrastructure.Wiki;
+using DfE.CheckPerformanceData.Web.Services;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -37,6 +38,9 @@ try
                 : new CompactJsonFormatter());
     });
     
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)

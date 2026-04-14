@@ -17,6 +17,7 @@
     <PackageReference Include="Serilog.Expressions" />
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.PostgreSQL.Alternative" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />

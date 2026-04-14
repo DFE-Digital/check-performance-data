@@ -1,6 +1,7 @@
 ﻿services:
   web:
     container_name: cypd_web
+    restart: unless-stopped
     build:
       context: ./src
       dockerfile: DfE.CheckPerformanceData.Web/Dockerfile
@@ -23,10 +24,11 @@
       - db
       - azurite
     networks:
-      - cypmd
+      - cypd
 
   rules_engine:
     container_name: cypd_rules_engine
+    restart: unless-stopped
     build:
       context: ./src
       dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
@@ -50,10 +52,11 @@
       - azurite
     command: printenv ConnectionStrings_AzureStorage
     networks:
-      - cypmd
+      - cypd
 
   db:
     container_name: cypd_db
+    restart: unless-stopped
     image: postgres:18.1-alpine
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-cypd}
@@ -64,7 +67,7 @@
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - cypmd
+      - cypd
 
   pgadmin:
     image: dpage/pgadmin4:${PGADMIN_IMAGE_TAG:-latest}
@@ -80,10 +83,11 @@
     depends_on:
       - db
     networks:
-      - cypmd
+      - cypd
 
   azurite:
     container_name: cypd_azurite
+    restart: unless-stopped
     image: mcr.microsoft.com/azure-storage/azurite:latest
     ports:
       - "10000:10000"  # Blob
@@ -92,7 +96,7 @@
       - azurite_data:/data
     command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log
     networks:
-      - cypmd
+      - cypd
 
 volumes:
   postgres_data:
@@ -100,5 +104,5 @@ volumes:
   pgadmin_data:
 
 networks:
-  cypmd:
+  cypd:
     driver: bridge

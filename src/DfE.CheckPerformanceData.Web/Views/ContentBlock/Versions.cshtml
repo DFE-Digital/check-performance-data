@@ -1,21 +1,30 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ContentBlockVersionsViewModel
 @{
     ViewData["Title"] = $"Version history - {Model.Block.Key}";
+    var isContentBlock = Model.Block.BlockType == "Content";
 }
 
 <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-full">
         <a href="javascript:history.back()" class="govuk-back-link">Back</a>
 
         <h1 class="govuk-heading-l">Version history: @Model.Block.Key</h1>
+    </div>
+</div>
 
-        @if (Model.Versions.Count == 0)
-        {
+@if (Model.Versions.Count == 0)
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-two-thirds">
             <p class="govuk-body">No versions recorded.</p>
-        }
-        else
-        {
-            <table class="govuk-table">
+        </div>
+    </div>
+}
+else
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-half">
+            <table class="govuk-table" id="versions-table">
                 <caption class="govuk-table__caption govuk-table__caption--m">Content block versions</caption>
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
@@ -27,7 +36,9 @@
                 <tbody class="govuk-table__body">
                     @foreach (var version in Model.Versions)
                     {
-                        <tr class="govuk-table__row">
+                        <tr class="govuk-table__row version-row" data-version-id="@version.Id" tabindex="0"
+                            role="button" aria-controls="version-preview-@version.Id"
+                            aria-label="View version @version.VersionNumber">
                             <td class="govuk-table__cell">@version.VersionNumber</td>
                             <td class="govuk-table__cell">@version.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
                             <td class="govuk-table__cell">
@@ -50,6 +61,81 @@
                     }
                 </tbody>
             </table>
-        }
+        </div>
+
+        <div class="govuk-grid-column-one-half">
+            <div id="version-preview-container">
+                <div class="version-preview-placeholder" id="version-preview-empty">
+                    <p class="govuk-body govuk-!-colour-secondary">Select a version from the table to preview its content.</p>
+                </div>
+
+                @foreach (var version in Model.Versions)
+                {
+                    <div class="version-preview-panel" id="version-preview-@version.Id" hidden>
+                        <h2 class="govuk-heading-m">Version @version.VersionNumber</h2>
+                        <p class="govuk-body-s govuk-!-colour-secondary govuk-!-margin-bottom-4">
+                            @version.CreatedAt.ToString("d MMM yyyy HH:mm")
+                        </p>
+                        <div class="version-preview-content wiki-content">
+                            @if (isContentBlock)
+                            {
+                                @Html.Raw(version.Value)
+                            }
+                            else
+                            {
+                                <p class="govuk-body-l govuk-!-font-weight-bold">@version.Value</p>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
-</div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var rows = document.querySelectorAll('.version-row');
+            var panels = document.querySelectorAll('.version-preview-panel');
+            var placeholder = document.getElementById('version-preview-empty');
+
+            if (!rows.length || !panels.length) return;
+
+            function selectVersion(versionId) {
+                // Deselect all rows
+                rows.forEach(function (r) { r.classList.remove('version-row--selected'); });
+                // Hide all panels
+                panels.forEach(function (p) { p.hidden = true; });
+
+                // Select clicked row and show matching panel
+                var row = document.querySelector('.version-row[data-version-id="' + versionId + '"]');
+                var panel = document.getElementById('version-preview-' + versionId);
+
+                if (row) row.classList.add('version-row--selected');
+                if (panel) {
+                    panel.hidden = false;
+                    if (placeholder) placeholder.hidden = true;
+                }
+            }
+
+            rows.forEach(function (row) {
+                row.style.cursor = 'pointer';
+
+                row.addEventListener('click', function (e) {
+                    // Don't intercept clicks on buttons or form elements
+                    if (e.target.closest('button, form, a')) return;
+                    selectVersion(row.getAttribute('data-version-id'));
+                });
+
+                row.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.target.closest('button, form, a')) return;
+                        e.preventDefault();
+                        selectVersion(row.getAttribute('data-version-id'));
+                    }
+                });
+            });
+        })();
+    </script>
+}

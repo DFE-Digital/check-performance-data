@@ -52,6 +52,11 @@ public partial class ContentBlockService(IPortalDbContext context) : IContentBlo
         }
         else
         {
+            if (block.Value == dto.Value)
+            {
+                return ToDto(block);
+            }
+
             block.Value = dto.Value;
             block.UpdatedAt = DateTime.UtcNow;
 

@@ -428,3 +428,37 @@
 .content-block__edit-icon {
   flex-shrink: 0;
 }
+
+/* ==========================================================================
+   Version History — row selection + preview panel
+   ========================================================================== */
+
+.version-row--selected {
+  background: #dce9f5;
+}
+
+.version-row--selected td {
+  border-bottom-color: #1d70b8;
+}
+
+#version-preview-container {
+  margin-top: 40px;
+}
+
+.version-preview-placeholder {
+  border: 1px dashed #b1b4b6;
+  border-radius: 4px;
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.version-preview-panel {
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  padding: 20px;
+}
+
+.version-preview-content {
+  border-top: 1px solid #d5d8da;
+  padding-top: 15px;
+}

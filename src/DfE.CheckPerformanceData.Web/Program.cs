@@ -43,7 +43,9 @@ try
         .AddGovUkFrontend(options => options.Rebrand = true);
 
     builder.Services.AddDbContext<PortalDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres"))
+               .ConfigureWarnings(w => w.Ignore(
+                   Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
     builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
 
@@ -61,6 +63,12 @@ try
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<PortalDbContext>();
+        await db.Database.MigrateAsync();
+    }
 
     app.UseSerilogRequestLogging(options =>
     {

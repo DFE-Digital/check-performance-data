@@ -3,7 +3,7 @@
 }
 
         <div class="govuk-grid-row">
-            <div class="govuk-grid-column-two-thirds govuk-body">
+            <div class="govuk-grid-column-two-thirds">
                 @await Component.InvokeAsync("EditableTitle", new {
                     key = "home-title",
                     defaultText = "Check your performance measures data",
@@ -15,26 +15,26 @@
                     key = "home-content",
                     defaultHtml = @"<p class=""govuk-body"">
                     Review and confirm the pupil data that will be used to calculate your school or college's performance measures.
-                </p>
-                <p class=""govuk-body"">
-                    Use this service to:
-                </p>
-                <ul class=""govuk-list govuk-list--bullet"">
-                    <li>check which pupils are included in your performance data</li>
-                    <li>request changes if a pupil should not be counted</li>
-                    <li>upload evidence to support removal requests</li>
-                    <li>review summary information before it is finalised</li>
-                </ul>
-                <p class=""govuk-body"">
-                    This helps make sure your school's published performance data is accurate and up to date.
-                </p>
-                <p class=""govuk-body"">
-                    You can use this service if you are:
-                </p>
-                <ul class=""govuk-list govuk-list--bullet"">
-                    <li>a school or college with pupils included in performance measures</li>
-                    <li>responsible for checking or submitting data (for example, headteacher or data manager)</li>
-                </ul>"
+                    </p>
+                    <p class=""govuk-body"">
+                        Use this service to:
+                    </p>
+                    <ul class=""govuk-list govuk-list--bullet"">
+                        <li>check which pupils are included in your performance data</li>
+                        <li>request changes if a pupil should not be counted</li>
+                        <li>upload evidence to support removal requests</li>
+                        <li>review summary information before it is finalised</li>
+                    </ul>
+                    <p class=""govuk-body"">
+                        This helps make sure your school's published performance data is accurate and up to date.
+                    </p>
+                    <p class=""govuk-body"">
+                        You can use this service if you are:
+                    </p>
+                    <ul class=""govuk-list govuk-list--bullet"">
+                        <li>a school or college with pupils included in performance measures</li>
+                        <li>responsible for checking or submitting data (for example, headteacher or data manager)</li>
+                    </ul>"
                 })
 
                 <a href="@Url.Action("Index", "Secret")" role="button" draggable="false" class="govuk-button govuk-button--start">

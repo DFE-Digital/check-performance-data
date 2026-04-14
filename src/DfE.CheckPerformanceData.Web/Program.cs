@@ -6,12 +6,20 @@ using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
 using DfE.CheckPerformanceData.Infrastructure.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.ZendeskClient.Refit;
+using DotNetEnv;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using Refit;
+
+
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+using System.Net.Http.Headers;
+using System.Text;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -58,6 +66,35 @@ try
         {
             MessageEncoding = QueueMessageEncoding.Base64
         }));
+
+    // todo setup options when refactoring to clean architecture after choosing the best client approach
+    //Install-Package DotNetEnv
+    //if(builder.Environment.IsDevelopment())
+    //var env =    Env.Load(@"C:\Users\paulc\source\repos\dfe\check-performance-data\.env").ToDictionary();
+    
+    
+    var zendeskSubdomain =  Environment.GetEnvironmentVariable("ZENDESK_SUBDOMAIN") ?? builder.Configuration["ZENDESK_SUBDOMAIN"] ?? "example";
+    var zendeskDomain = builder.Configuration["ZENDESK_DOMAIN"] ?? "domain";
+    var zendeskEmail = builder.Configuration["ZENDESK_EMAIL"];
+    var zendeskApiToken = builder.Configuration["ZENDESK_API_TOKEN"];
+    
+    builder.Services.AddTransient<LoggingHandler>();
+
+
+    builder.Services.AddRefitClient<IZendeskApi>(new RefitSettings
+    {
+        ContentSerializer = new NewtonsoftJsonContentSerializer()
+    })
+
+       .ConfigureHttpClient(c =>
+       {
+           c.BaseAddress = new Uri($"https://{zendeskSubdomain}.{zendeskDomain}.com");
+           var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{zendeskEmail}/token:{zendeskApiToken}"));
+           c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+           c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+       })
+       .AddHttpMessageHandler<LoggingHandler>();
+    
 
     builder.Services.AddControllersWithViews();
 

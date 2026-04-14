@@ -1,0 +1,27 @@
+﻿@model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.UserFieldsResponse
+
+@{
+    ViewBag.Title = "title";
+    Layout = "_Layout";
+}
+
+<h2 class="govuk-heading-m">Custom Fields</h2>
+
+<dl class="govuk-summary-list">
+    @foreach(var field in Model.UserFields)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">@field.Title</dt>
+            <dd class="govuk-summary-list__value">@field.Id</dd>
+        </div>
+        @foreach(var option in field.CustomFieldOptions)
+        {
+            <div class="govuk-summary-list__row">
+                <dt class="govuk-summary-list__key"> >> @option.Name</dt>
+                <dd class="govuk-summary-list__value">@option.Id</dd>
+            </div>
+        }
+    }
+  
+
+</dl>

@@ -14,4 +14,5 @@
     <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />
     <Project Path="DfE.CheckPerformanceData.RulesEngineWorker/DfE.CheckPerformanceData.RulesEngineWorker.csproj" />
     <Project Path="DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj" />
+    <Project Path="DfE.CheckPerformanceData.ZendeskClient/DfE.CheckPerformanceData.ZendeskClient.csproj" Id="90e8e934-f8a5-4dcd-939c-92bfd97dcadf" />
 </Solution>

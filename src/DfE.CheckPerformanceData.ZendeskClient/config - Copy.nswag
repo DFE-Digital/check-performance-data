@@ -1,0 +1,26 @@
+{
+  "runtime": "Net100",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "https://raw.githubusercontent.com/troystaylor/SharingIsCaring/refs/heads/main/Zendesk/apiDefinition.swagger.json",
+      "output": null
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "className": "ZendeskClient",
+      "namespace": "DfE.CheckPerformanceData.ZendeskClient",
+      "generateClientClasses": true,
+      "generateDtoTypes": true,
+      "generateOptionalParameters": true,
+      "generateSeparateFiles": true,
+      "output": "ZendeskClient.cs",
+     
+      "generateContractsOutput": true,
+      "contractsOutputFilePath": "Models\\{controller}\\{model}.cs",
+      "clientBaseClass": ""
+      
+    }
+  }
+}

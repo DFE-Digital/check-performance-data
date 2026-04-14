@@ -1,0 +1,109 @@
+﻿using Refit;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+
+namespace DfE.CheckPerformanceData.ZendeskClient.Refit
+{
+    public interface IZendeskApi
+    {
+        [Post("/api/v2/tickets.json")]
+        Task<CreateTicketResponse> CreateTicket([Body] CreateTicketRequest request);
+
+        [Post("/api/v2/uploads.json")]
+        Task<UploadResponse> UploadAttachment([Query] string filename, [Body] byte[] fileBytes);
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="query">Use the ListViewsRequest Model with the ToDictionary extension</param>
+        /// <returns></returns>
+        [Get("/api/v2/views.json")]
+        Task<ListViewsResponse> GetViews([Query] Dictionary<string, object>? query = null);
+        [Get("/api/v2/views.json")]
+        Task<ListViewsResponse> GetViews([Query] int? per_page = null);
+
+        [Get("/api/v2/views/{view_id}/tickets")]
+        Task<ListViewTicketsResponse> GetTicketsForView(long view_id, [Query] Dictionary<string, object>? query = null);
+
+        [Get("/api/v2/user_fields.json")]
+ 
+        Task <UserFieldsResponse> GetUserFields();
+
+        /*
+         * eg
+        var fields = await _zendeskApi.GetTicketFields();
+        var lookup = fields.TicketFields.ToDictionary(f => f.Id);
+
+        foreach (var cf in ticket.CustomFields)
+        {
+            if (lookup.TryGetValue(cf.Id, out var fieldMeta))
+            {
+                Console.WriteLine($"{fieldMeta.Title}: {cf.Value}");
+            }
+        }
+         * 
+         */
+    }
+}
+/*
+ * usage:
+ * 
+ * services.AddRefitClient<IZendeskApi>()
+        .ConfigureHttpClient(c =>
+        {
+            c.BaseAddress = new Uri("https://yourdomain.zendesk.com");
+            var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes("email/token:apitoken"));
+            c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+        });
+
+
+ * var zendesk = RestService.For<IZendeskApi>("https://yourdomain.zendesk.com");
+ * await zendesk.CreateTicket(new CreateTicketRequest { ... });
+ * 
+ * 
+ * 
+ * 
+ * tactical methods and endpoints:
+ * 
+ * get_ticket_ids_from_view
+ * url = f"{self.base_url}/views/{view_id}/tickets.json"
+ * 
+ * check_for_attachments
+ *  url = f"{self.base_url}/tickets/{ticket_id}/comments.json"
+ *  
+ *  get_ticket_attachments
+ *  url = f"{self.base_url}/tickets/{ticket_id}/comments.json"
+ *  
+ *  get_ticket_field_mapping:  Retrieves the ID, title, and selection options of custom fields.
+ *  url = f"{self.base_url}/ticket_fields.json"
+ *  
+ *  get_tickets:  Retrieve tickets from Zendesk and map custom fields to readable names.
+ *  url = f"{self.base_url}/tickets/show_many?ids={id_list}"
+ *  
+ *  get_ticket_comments
+ *  url = f"{self.base_url}/tickets/{ticket_id}/comments.json"
+ *  
+ *  update_ticket
+ *   url = f"{self.base_url}/tickets/{ticket_id}.json"
+ *   
+ *   
+ *   tag_ticket
+ *   url = f"{self.base_url}/tickets/{ticket_id}/tags.json"
+ *   
+ *   create_ticket
+ *   url = f"{self.base_url}/tickets.json"  
+ *   
+ *   change_ticket_requester
+ *   ticket_url = f'{self.base_url}/tickets/{ticket_id}.json'
+ *   
+ *   get_customer_details
+ *    url = f"{self.base_url}/tickets/{ticket_id}.json"
+ *    
+ *    print_field_ids_for_form
+ *    url = f"{self.base_url}/ticket_forms/{ticket_form_id}.json"
+ *    
+ *    
+ */

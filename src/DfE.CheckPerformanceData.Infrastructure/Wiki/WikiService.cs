@@ -205,19 +205,21 @@ public partial class WikiService(IPortalDbContext context) : IWikiService
 
     public async Task<List<WikiPageVersionDto>> GetPageVersionsAsync(int pageId)
     {
-        return await context.WikiPageVersions
+        var versions = await context.WikiPageVersions
             .Where(v => v.WikiPageId == pageId)
             .OrderByDescending(v => v.VersionNumber)
-            .Select(v => new WikiPageVersionDto
-            {
-                Id = v.Id,
-                VersionNumber = v.VersionNumber,
-                Title = v.Title,
-                Content = v.Content,
-                CreatedAt = v.CreatedAt,
-                CreatedBy = v.CreatedBy
-            })
             .ToListAsync();
+
+        return versions.Select(v => new WikiPageVersionDto
+        {
+            Id = v.Id,
+            VersionNumber = v.VersionNumber,
+            Title = v.Title,
+            Content = v.Content,
+            ContentHtml = RenderContentHtml(v.Content),
+            CreatedAt = v.CreatedAt,
+            CreatedBy = v.CreatedBy
+        }).ToList();
     }
 
     public async Task<WikiPageDto> RevertToVersionAsync(int pageId, int versionId)

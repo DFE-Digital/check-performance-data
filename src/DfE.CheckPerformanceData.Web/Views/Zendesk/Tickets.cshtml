@@ -1,11 +1,7 @@
-﻿@*
-    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
-*@
-@{
-}
+﻿@model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.ListViewTicketsResponse
+@using  DfE.CheckPerformanceData.Web.Controllers
 
-
-<table class="govuk-table">
+<table class="govuk-table govuk-table--small-text-until-tablet">
     <caption class="govuk-table__caption govuk-table__caption--m">Months and rates</caption>
     <thead class="govuk-table__head">
         <tr class="govuk-table__row">
@@ -13,12 +9,45 @@
             <th scope="col" class="govuk-table__header govuk-table__header--numeric">DfE Establishment Number</th>
             <th scope="col" class="govuk-table__header govuk-table__header--numeric">Assignee</th>
             <th scope="col" class="govuk-table__header">Requested</th>
-            <th scope="col" class="govuk-table__header">Reason for Removal</th>
+            <th scope="col" class="govuk-table__header govuk-!-width-one-quarter">Reason for Removal</th>
             <th scope="col" class="govuk-table__header">Decision Status</th>
             <th scope="col" class="govuk-table__header">UPN</th>
+            <th></th>
         </tr>
     </thead>
     <tbody class="govuk-table__body">
+        <form method="get">
+        @foreach (var item in Model.Tickets)
+        {
+            <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header">@item.Id</th>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@(item.StudentDfEEN?.ToString() ?? string.Empty)</td>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@(item.AssigneeId?.ToString() ?? " - ")</td>
+                <td class="govuk-table__cell">@item.CreatedAt?.ToString("dd MMM")</td>
+                <td class="govuk-table__cell-!-width-one-quarter">@item.ReasonForRemoval</td>
+                <td class="govuk-table__cell">@item.StudentDfEEN</td>
+                <td class="govuk-table__cell">@item.StudentUPN</td>
+                <td>
+                    <button asp-action="@nameof(ZendeskController.ViewTicket)" asp-route-id="@item.Id" type="submit" class="govuk-button" data-module="govuk-button">
+                        Select
+                    </button>
+                </td>
+            </tr>
+        }
+        </form>
+        @*         @foreach(var item in Model)
+        {
+            <tr class="govuk-table__row">
+                <th scope="row" class="govuk-table__header">@item.Id</th>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@item.EstablishmentNumber</td>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@item.AssigneeName</td>
+                <td class="govuk-table__cell">@item.RequestedDate.ToString("dd/MM/yyyy")</td>
+                <td class="govuk-table__cell">@item.ReasonForRemoval</td>
+                <td class="govuk-table__cell">@item.DecisionStatus</td>
+                <td class="govuk-table__cell">@item.Upn</td>
+            </tr>
+        }
+        ) *@
 @*         <tr class="govuk-table__row">
             <th scope="row" class="govuk-table__header">January</th>
             <td class="govuk-table__cell govuk-table__cell--numeric">£85</td>

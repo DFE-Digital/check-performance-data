@@ -1,0 +1,157 @@
+﻿@using DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+@model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.GetTicketViewModel
+<a asp-action="Index" class="govuk-back-link">Back</a>
+<div class="govuk-tabs" data-module="govuk-tabs">
+    <h2 class="govuk-tabs__title">
+        Contents
+    </h2>
+    <ul class="govuk-tabs__list">
+        <li class="govuk-tabs__list-item govuk-tabs__list-item--selected">
+            <a class="govuk-tabs__tab" href="#description">
+                Description fields
+            </a>
+        </li>
+        <li class="govuk-tabs__list-item">
+            <a class="govuk-tabs__tab" href="#tags">
+                Tags
+            </a>
+        </li>
+        <li class="govuk-tabs__list-item">
+            <a class="govuk-tabs__tab" href="#custom-fields">
+                Custom fields
+            </a>
+        </li>
+        <li class="govuk-tabs__list-item">
+            <a class="govuk-tabs__tab" href="#notes">
+                Notes
+            </a>
+        </li>
+        <li class="govuk-tabs__list-item">
+            <a class="govuk-tabs__tab" href="#attachments">
+                Attachments
+            </a>
+        </li>
+    </ul>
+    <div class="govuk-tabs__panel" id="description">
+        <h2 class="govuk-heading-l">Description</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Field</th>
+                    <th scope="col" class="govuk-table__header">Value</th>
+                  
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach(var kvp in Model.Ticket.DescriptionFields)
+                {
+                    
+                
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@kvp.Key</td>
+                        <td class="govuk-table__cell">@kvp.Value</td>
+                
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="tags">
+        <h2 class="govuk-heading-l">Tags</h2>
+        <p class="govuk-body">In no particular order:</p>
+        <ul class="govuk-list govuk-list--bullet">
+           @foreach(var tag in Model.Ticket.Tags)
+            {
+                <li>@tag</li>
+            }
+        </ul>
+    </div>
+    <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="custom-fields">
+        <h2 class="govuk-heading-l">Custom Fields</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Field</th>
+                    <th scope="col" class="govuk-table__header">Name</th>
+                    <th scope="col" class="govuk-table__header">Value</th>
+                  
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var field in Model.Ticket.AllCustomFields)
+                {
+                    var fieldMeta = Model.UserFields.FirstOrDefault(x => x.Id == field.Id);
+                    var option = fieldMeta?.CustomFieldOptions?
+                        .FirstOrDefault(o => o.Value == (string)field.Value);
+
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@field.Id</td>
+                        <td class="govuk-table__cell">
+                            @(
+                                option?.Name               // dropdown option name
+                                ?? fieldMeta?.Title        // field title
+                                ?? "(unknown field)"       // fallback
+                            )
+                        </td>
+                        <td class="govuk-table__cell">@field.Value</td>
+                    </tr>
+                }
+            </tbody>
+
+        </table>
+ 
+    </div>
+    <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="notes">
+        <h2 class="govuk-heading-l">Notes</h2>
+        @foreach(var comment in Model.Comments)
+        {
+            <div class="govuk-inset-text">
+               
+                <p><strong>@comment.AuthorId</strong> (@comment.CreatedAt.ToString("dd MMM yyyy, HH:mm"))</p>
+                <p>@comment.HtmlBody</p>
+            </div>
+        }
+        )
+    </div>
+    <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="attachments">
+        <h2 class="govuk-heading-l">Comment Attachments</h2>
+
+        <ul class="govuk-list govuk-list--bullet">
+      
+       
+        @foreach (var comment in Model.Comments)
+        @foreach (var attachment in comment.Attachments)
+        {
+            Console.WriteLine($"File: {attachment.FileName}");
+            Console.WriteLine($"Download: {attachment.ContentUrl}");
+                    <li>@attachment.FileName <a href="@attachment.ContentUrl">Download attachment</a></li>
+        }
+        </ul>
+        @* <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Case manager</th>
+                    <th scope="col" class="govuk-table__header">Cases opened</th>
+                    <th scope="col" class="govuk-table__header">Cases closed</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">David Francis</td>
+                    <td class="govuk-table__cell">1380</td>
+                    <td class="govuk-table__cell">1472</td>
+                </tr>
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">Paul Farmer</td>
+                    <td class="govuk-table__cell">1129</td>
+                    <td class="govuk-table__cell">1083</td>
+                </tr>
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">Rita Patel</td>
+                    <td class="govuk-table__cell">1539</td>
+                    <td class="govuk-table__cell">1265</td>
+                </tr>
+            </tbody>
+        </table> *@
+    </div>
+</div>

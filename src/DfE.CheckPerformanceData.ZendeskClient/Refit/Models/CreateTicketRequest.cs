@@ -43,9 +43,9 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public string Priority { get; set; }   // optional
     }
 
-    public class TicketComment
-    {
-        [JsonProperty("body")]
-        public string Body { get; set; }
-    }
+    //public class TicketComment
+    //{
+    //    [JsonProperty("body")]
+    //    public string Body { get; set; }
+    //}
 }

@@ -43,7 +43,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         public async Task<IActionResult> Tickets(long viewId, int pageSize, int PageNumber)
         {
             var results = await zendeskApi.GetTicketsForView(viewId, new ListViewTicketsRequest { PerPage = pageSize, Page = PageNumber }.ToQueryDictionary());
-            return View();
+            return View(results);
         }
 
         public async Task<IActionResult> UserFields()
@@ -51,6 +51,26 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             var fields = await zendeskApi.GetUserFields();
             return View(fields);
 
+        }
+
+        public async Task<IActionResult> ViewTicket(long id)
+        {
+            var ticket = await zendeskApi.GetTicket(id);
+            var model = new GetTicketViewModel
+            {
+                Ticket = ticket.Ticket,
+                UserFields = (await zendeskApi.GetTicketFields()).TicketFields,
+                Comments = (await zendeskApi.GetTicketComments(id)).Comments
+                //.Where(f => ticket.Ticket.CustomFields.Any(cf => cf.Id == f.Id))
+                //.Select(f => new UserField
+                //{
+                //    Id = f.Id,
+                //    Key = f.Key,
+                //    Title = f.Title,
+                //    Type = f.Type
+                //})
+            };
+            return View(model);
         }
     }
 }

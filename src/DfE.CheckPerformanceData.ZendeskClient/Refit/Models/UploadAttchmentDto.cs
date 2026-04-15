@@ -20,12 +20,12 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public List<Attachment> Attachments { get; set; }
     }
 
-    public class Attachment
-    {
-        [JsonProperty("id")]
-        public long Id { get; set; }
+    //public class Attachment
+    //{
+    //    [JsonProperty("id")]
+    //    public long Id { get; set; }
 
-        [JsonProperty("file_name")]
-        public string FileName { get; set; }
-    }
+    //    [JsonProperty("file_name")]
+    //    public string FileName { get; set; }
+    //}
 }

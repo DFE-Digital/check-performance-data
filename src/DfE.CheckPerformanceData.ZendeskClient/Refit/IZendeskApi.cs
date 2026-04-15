@@ -1,8 +1,9 @@
-﻿using Refit;
+﻿using DfE.CheckPerformanceData.ZendeskClient.Models;
+using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+using Refit;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
 
 namespace DfE.CheckPerformanceData.ZendeskClient.Refit
 {
@@ -28,25 +29,40 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit
         [Get("/api/v2/views/{view_id}/tickets")]
         Task<ListViewTicketsResponse> GetTicketsForView(long view_id, [Query] Dictionary<string, object>? query = null);
 
+        [Get("/api/v2/tickets/{ticket_id}")]
+        Task<GetTicketResponse> GetTicket(long ticket_id);
+
         [Get("/api/v2/user_fields.json")]
  
         Task <UserFieldsResponse> GetUserFields();
 
-        /*
-         * eg
-        var fields = await _zendeskApi.GetTicketFields();
-        var lookup = fields.TicketFields.ToDictionary(f => f.Id);
+        [Get("/api/v2/ticket_fields.json")]
+        Task<TicketFieldsResponse> GetTicketFields();
 
-        foreach (var cf in ticket.CustomFields)
+        [Get("/api/v2/tickets/{ticket_id}/comments.json")]
+        Task<TicketCommentsResponse> GetTicketComments(long ticket_id);
+
+        // adding an attachment is a 2 step process. first upload a file to get an upload token:
+        //POST /api/v2/uploads.json? filename = { fileName }
+        //Content-Type: application/binary
+        // then add a comment that refernces the upload token:
+        //POST /api/v2/tickets/{ticket_id}.json
+
+    /*
+     * eg
+    var fields = await _zendeskApi.GetTicketFields();
+    var lookup = fields.TicketFields.ToDictionary(f => f.Id);
+
+    foreach (var cf in ticket.CustomFields)
+    {
+        if (lookup.TryGetValue(cf.Id, out var fieldMeta))
         {
-            if (lookup.TryGetValue(cf.Id, out var fieldMeta))
-            {
-                Console.WriteLine($"{fieldMeta.Title}: {cf.Value}");
-            }
+            Console.WriteLine($"{fieldMeta.Title}: {cf.Value}");
         }
-         * 
-         */
     }
+     * 
+     */
+}
 }
 /*
  * usage:

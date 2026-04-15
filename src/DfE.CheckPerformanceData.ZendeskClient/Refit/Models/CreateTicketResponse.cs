@@ -67,6 +67,15 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
                 if (string.IsNullOrWhiteSpace(Description))
                     return _descriptionFieldsCache = new Dictionary<string, string>();
 
+                //return _descriptionFieldsCache =
+                //    Description
+                //        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                //        .Select(line => line.Split(':', 2))
+                //        .Where(parts => parts.Length == 2)
+                //        .ToDictionary(
+                //            parts => parts[0].Trim(),
+                //            parts => parts[1].Trim()
+                //        );
                 return _descriptionFieldsCache =
                     Description
                         .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -74,7 +83,15 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
                         .Where(parts => parts.Length == 2)
                         .ToDictionary(
                             parts => parts[0].Trim(),
-                            parts => parts[1].Trim()
+                            parts =>
+                            {
+                                var value = parts[1].Trim();
+
+                                // Normalize "null" (string) to actual null
+                                return string.Equals(value, "null", StringComparison.OrdinalIgnoreCase)
+                                    ? null
+                                    : value;
+                            }
                         );
             }
         }
@@ -117,6 +134,9 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 
         [JsonProperty("group_id")]
         public long? GroupId { get; set; }
+
+        [JsonProperty("created_at")]
+        public DateTime? CreatedAt { get; set; }
 
         [JsonProperty("updated_at")]
         public string UpdatedAt { get; set; }

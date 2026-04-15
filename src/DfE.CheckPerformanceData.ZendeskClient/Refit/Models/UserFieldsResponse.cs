@@ -11,19 +11,19 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
     //    public List<UserField>? UserFields { get; set; }
     //}
 
-    public class UserFieldsResponse
+    public class UserFieldsResponse :BasePagedModelResponse
     {
         [JsonProperty("user_fields")]
         public List<UserField> UserFields { get; set; }
 
-        [JsonProperty("next_page")]
-        public string NextPage { get; set; }
+        //[JsonProperty("next_page")]
+        //public string NextPage { get; set; }
 
-        [JsonProperty("previous_page")]
-        public string PreviousPage { get; set; }
+        //[JsonProperty("previous_page")]
+        //public string PreviousPage { get; set; }
 
-        [JsonProperty("count")]
-        public int Count { get; set; }
+        //[JsonProperty("count")]
+        //public int Count { get; set; }
 
         [JsonProperty("max_user_field_limit")]
         public int MaxUserFieldLimit { get; set; }

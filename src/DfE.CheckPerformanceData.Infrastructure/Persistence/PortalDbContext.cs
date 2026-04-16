@@ -11,6 +11,8 @@ public sealed class PortalDbContext(
     DbContextOptions<PortalDbContext> options,
     ICurrentUserService currentUserService) : DbContext(options), IPortalDbContext
 {
+    public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
+}
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();

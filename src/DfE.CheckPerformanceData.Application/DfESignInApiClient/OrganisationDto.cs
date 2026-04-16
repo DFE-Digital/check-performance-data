@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
 public class OrganisationDto
@@ -18,6 +20,9 @@ public class OrganisationDto
     public int? StatutoryHighAge { get; init; }
     public string? LegacyId { get; init; }
     public string? CompanyRegistrationNumber { get; init; }
+    
+    [JsonIgnore]
+    public string? LAESTAB { get; set; }
 }
 
 

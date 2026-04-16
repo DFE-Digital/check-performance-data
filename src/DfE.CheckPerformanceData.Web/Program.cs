@@ -1,11 +1,14 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Persistence;
 using DfE.CheckPerformanceData.Infrastructure.ContentBlocks;
 using DfE.CheckPerformanceData.Infrastructure.Wiki;
 using DfE.CheckPerformanceData.Web.Services;
+using DfE.CheckPerformanceData.Infrastructure.Seeding;
+using DfE.CheckPerformanceData.Web.Extensions;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -26,13 +29,13 @@ try
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
-        
+
         configuration
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
-            .WriteTo.Console(isDevelopment 
-                ?  new ExpressionTemplate(
+            .WriteTo.Console(isDevelopment
+                ? new ExpressionTemplate(
                     "[{@t:HH:mm:ss} {@l:u3}] {SourceContext}\n  {@m}\n{@x}",
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
@@ -46,6 +49,11 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend(options => options.Rebrand = true);
 
+    if (builder.Environment.IsDevelopment()) 
+        builder.Services.AddScoped<DevDataSeeder>();
+    
+    builder.Services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
+    
     builder.Services.AddDbContext<PortalDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres"))
                .ConfigureWarnings(w => w.Ignore(
@@ -68,11 +76,7 @@ try
 
     var app = builder.Build();
 
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<PortalDbContext>();
-        await db.Database.MigrateAsync();
-    }
+    await app.MigrateDatabaseAsync();
 
     app.UseSerilogRequestLogging(options =>
     {
@@ -84,7 +88,7 @@ try
             diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
         };
     });
-    
+
     app.UseGovUkFrontend();
 
     app.UseHealthChecks("/healthcheck");
@@ -95,6 +99,11 @@ try
         app.UseExceptionHandler("/Home/Error");
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
+    }
+    else
+    {
+        using var scope = app.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
     }
 
     app.UseHttpsRedirection();
@@ -120,6 +129,9 @@ try
 }
 catch (Exception e)
 {
-    Console.WriteLine(e);
-    throw;
+    Log.Fatal(e, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();   
 }

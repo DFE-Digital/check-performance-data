@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using System.Text.Json.Nodes;
+using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authentication;
@@ -7,11 +8,21 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class SecretController(IDfESignInApiClient dfeSignInApiClient) : Controller
+public class SecretController : Controller
 {
+    private readonly IDfESignInApiClient _dfeSignInApiClient;
+    private readonly IPortalDbContext _dbContext;
+
+    public SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
+    {
+        _dfeSignInApiClient = dfeSignInApiClient;
+        _dbContext = dbContext;
+    }
+    
     [Authorize]
     public async Task<IActionResult> Index()
     {
@@ -28,6 +39,10 @@ public sealed class SecretController(IDfESignInApiClient dfeSignInApiClient) : C
             UserName = User.FindFirstValue(ClaimTypes.GivenName) + " " + User.FindFirstValue(ClaimTypes.Surname),
             Organisation = organisation
         };
+
+        var now = DateTime.UtcNow;
+        var currentWindowsForUser = await _dbContext.CheckingWindows.Where(w => w.StartDate <= now && w.EndDate >= now)
+            .AsNoTracking().ToListAsync();
         
         return View(vm);
     }

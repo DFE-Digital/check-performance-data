@@ -10,5 +10,6 @@ public interface IPortalDbContext
     DbSet<WikiPageVersion> WikiPageVersions { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
+    DbSet<CheckingWindow> CheckingWindows { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

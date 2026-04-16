@@ -1,12 +1,7 @@
 using Azure.Storage.Queues;
-using DfE.CheckPerformance.Persistence;
 using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
-using DfE.CheckPerformanceData.Application.Common;
-using DfE.CheckPerformanceData.Application.ContentBlocks;
-using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Infrastructure.Seeding;
 using DfE.CheckPerformanceData.Persistence;
@@ -33,11 +28,11 @@ try
         .AddEnvironmentVariables()
         .Build();
 
-    builder.Host.UseSerilog((context, services, configuration) =>
+    builder.Host.UseSerilog((context, services, config) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
 
-        configuration
+        config
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()

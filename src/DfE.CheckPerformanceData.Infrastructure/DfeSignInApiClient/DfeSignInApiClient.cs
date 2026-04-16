@@ -9,8 +9,7 @@ public sealed class DfeSignInApiClient(HttpClient httpClient) : IDfESignInApiCli
 {
     public async Task<OrganisationDto?> GetOrganisationAsync(string userId, string organisationId)
     {
-        //var organisationsJson = await _httpClient.GetStringAsync($"users/{userId}/organisations");
-        var userOrganisations = await _httpClient.GetFromJsonAsync<List<OrganisationDto>>($"users/{userId}/organisations", 
+        var userOrganisations = await httpClient.GetFromJsonAsync<List<OrganisationDto>>($"users/{userId}/organisations", 
             new JsonSerializerOptions()
             {
                 Converters = { new OrganisationDtoJsonConverter() }

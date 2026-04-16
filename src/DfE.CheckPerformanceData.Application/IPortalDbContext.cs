@@ -5,7 +5,6 @@ namespace DfE.CheckPerformanceData.Application;
 
 public interface IPortalDbContext
 {
-    DbSet<Workflow> Workflows { get; }
     DbSet<WikiPage> WikiPages { get; }
     DbSet<WikiPageVersion> WikiPageVersions { get; }
     DbSet<ContentBlock> ContentBlocks { get; }

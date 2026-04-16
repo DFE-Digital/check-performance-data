@@ -12,17 +12,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class SecretController : Controller
+public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
+    : Controller
 {
-    private readonly IDfESignInApiClient _dfeSignInApiClient;
-    private readonly IPortalDbContext _dbContext;
-
-    public SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
-    {
-        _dfeSignInApiClient = dfeSignInApiClient;
-        _dbContext = dbContext;
-    }
-    
     [Authorize]
     public async Task<IActionResult> Index()
     {
@@ -41,7 +33,7 @@ public class SecretController : Controller
         };
 
         var now = DateTime.UtcNow;
-        var currentWindowsForUser = await _dbContext.CheckingWindows.Where(w => w.StartDate <= now && w.EndDate >= now)
+        var currentWindowsForUser = await dbContext.CheckingWindows.Where(w => w.StartDate <= now && w.EndDate >= now)
             .AsNoTracking().ToListAsync();
         
         return View(vm);

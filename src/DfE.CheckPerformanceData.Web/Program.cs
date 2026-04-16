@@ -67,11 +67,7 @@ try
         {
             MessageEncoding = QueueMessageEncoding.Base64
         }));
-
-    builder.Services.AddSingleton<HtmlRenderingService>();
-    builder.Services.AddScoped<IWikiService, WikiService>();
-    builder.Services.AddScoped<IContentBlockService, ContentBlockService>();
-
+    
     builder.Services.AddControllersWithViews();
 
     builder.Services.AddHealthChecks();

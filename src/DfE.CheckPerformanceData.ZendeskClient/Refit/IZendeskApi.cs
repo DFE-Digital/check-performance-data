@@ -1,4 +1,4 @@
-﻿using DfE.CheckPerformanceData.ZendeskClient.Models;
+﻿
 using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
 using Refit;
 using System;
@@ -12,8 +12,8 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit
         [Post("/api/v2/tickets.json")]
         Task<CreateTicketResponse> CreateTicket([Body] CreateTicketRequest request);
 
-        [Post("/api/v2/uploads.json")]
-        Task<UploadResponse> UploadAttachment([Query] string filename, [Body] byte[] fileBytes);
+        //[Post("/api/v2/uploads.json")]
+        //Task<UploadResponse> UploadAttachment([Query] string filename, [Body] byte[] fileBytes);
 
 
         /// <summary>
@@ -48,21 +48,46 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit
         // then add a comment that refernces the upload token:
         //POST /api/v2/tickets/{ticket_id}.json
 
-    /*
-     * eg
-    var fields = await _zendeskApi.GetTicketFields();
-    var lookup = fields.TicketFields.ToDictionary(f => f.Id);
 
-    foreach (var cf in ticket.CustomFields)
-    {
-        if (lookup.TryGetValue(cf.Id, out var fieldMeta))
+        // Step 1: Upload file
+        //[Post("/api/v2/uploads.json")]
+        //Task<UploadResponse> UploadFile(
+        //    [AliasAs("filename")] string fileName,
+        //    [Body] Stream fileContent
+        //);
+
+        [Headers("Content-Type: application/binary")]
+        [Post("/api/v2/uploads.json?filename={fileName}")]
+        Task<UploadResponse> UploadFile(
+            string fileName,
+            [Body] Stream fileContent
+        );
+
+
+        // Step 2: Add comment with attachment
+        [Put("/api/v2/tickets/{ticketId}.json")]
+        Task<UpdateTicketResponse> AddCommentWithAttachment(
+            long ticketId,
+            [Body] UpdateTicketRequest request
+        );
+
+
+
+        /*
+         * eg 76218
+        var fields = await _zendeskApi.GetTicketFields();
+        var lookup = fields.TicketFields.ToDictionary(f => f.Id);
+
+        foreach (var cf in ticket.CustomFields)
         {
-            Console.WriteLine($"{fieldMeta.Title}: {cf.Value}");
+            if (lookup.TryGetValue(cf.Id, out var fieldMeta))
+            {
+                Console.WriteLine($"{fieldMeta.Title}: {cf.Value}");
+            }
         }
+         * 
+         */
     }
-     * 
-     */
-}
 }
 /*
  * usage:

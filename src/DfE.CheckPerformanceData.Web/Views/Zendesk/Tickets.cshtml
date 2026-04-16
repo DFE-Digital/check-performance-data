@@ -2,7 +2,7 @@
 @using  DfE.CheckPerformanceData.Web.Controllers
 
 <table class="govuk-table govuk-table--small-text-until-tablet">
-    <caption class="govuk-table__caption govuk-table__caption--m">Months and rates</caption>
+    <caption class="govuk-table__caption govuk-table__caption--m">Tickets</caption>
     <thead class="govuk-table__head">
         <tr class="govuk-table__row">
             <th scope="col" class="govuk-table__header">ID</th>
@@ -65,3 +65,9 @@
         </tr> *@
     </tbody>
 </table>
+
+<form method="get">
+    <button asp-action="@nameof(ZendeskController.CreateTicket)"  type="submit" class="govuk-button" data-module="govuk-button">
+        Create New ticket (from 76218)
+    </button>
+</form>

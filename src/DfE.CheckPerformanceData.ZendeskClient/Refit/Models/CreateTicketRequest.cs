@@ -33,6 +33,15 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         [JsonProperty("subject")]
         public string Subject { get; set; }
 
+        [JsonProperty("status")]
+        public string Status { get; set; }
+        [JsonProperty("group_id")]
+        public long? GroupId { get; set; }
+
+
+        [JsonProperty("type")]
+        public string? Type { get; set; }
+
         [JsonProperty("comment")]
         public TicketComment Comment { get; set; }
 
@@ -40,7 +49,13 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public long? RequesterId { get; set; }
 
         [JsonProperty("priority")]
-        public string Priority { get; set; }   // optional
+        public string? Priority { get; set; }   // optional
+
+        [JsonProperty("description")]
+        public string? Description { get; set; }
+
+        [JsonProperty("custom_fields")]
+        public List<CustomField> CustomFields { get; set; } = new List<CustomField>();
     }
 
     //public class TicketComment

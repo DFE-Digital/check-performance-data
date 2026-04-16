@@ -123,6 +123,9 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         [JsonProperty("status")]
         public string Status { get; set; }
 
+        [JsonProperty("type")]
+        public string? Type { get; set; }
+
         [JsonProperty("priority")]
         public string Priority { get; set; }
 
@@ -148,8 +151,6 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public string[]? Tags { get; set; }
 
         [JsonProperty("custom_fields")]
-        //public Dictionary<long, object>? CustomFields { get;  set; }
-
         public List<CustomField> CustomFields { get; set; } = new List<CustomField>();
 
 

@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace DfE.CheckPerformanceData.Infrastructure.Seeding;
+namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public class DevDataSeeder(IPortalDbContext dbContext)
 {

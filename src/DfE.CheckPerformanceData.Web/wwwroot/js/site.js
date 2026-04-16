@@ -82,7 +82,10 @@
     function movePage(pageId, newParentId, newSortOrder) {
         fetch('/help/move', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-XSRF-TOKEN': getToken()
+            },
             body: JSON.stringify({ id: pageId, newParentId: newParentId, newSortOrder: newSortOrder })
         }).then(function (r) {
             if (r.ok) {

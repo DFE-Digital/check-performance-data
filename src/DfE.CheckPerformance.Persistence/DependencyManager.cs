@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
+using DfE.CheckPerformanceData.Persistence.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,10 @@ namespace DfE.CheckPerformanceData.Persistence;
 
 public static class DependencyManager
 {
-    public static IServiceCollection AddPersistenceDependencies(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddPersistenceDependencies(
+        this IServiceCollection services, 
+        IConfiguration configuration, 
+        bool isDevelopmentEnvironment = false)
     {
         services.AddDbContext<PortalDbContext>(options =>
         {
@@ -24,6 +28,9 @@ public static class DependencyManager
                 .ConfigureWarnings(w => w.Ignore(
                     Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
+
+        if(isDevelopmentEnvironment)
+            services.AddScoped<DevDataSeeder>();
 
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<IWikiRepository, WikiRepository>();

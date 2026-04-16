@@ -41,6 +41,21 @@ public sealed class PortalDbContext(
         return result;
     }
 
+    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        => await Database.BeginTransactionAsync(cancellationToken);
+
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (Database.CurrentTransaction != null)
+            await Database.CurrentTransaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (Database.CurrentTransaction != null)
+            await Database.CurrentTransaction.RollbackAsync(cancellationToken);
+    }
+
     private List<(AuditEntry Audit, EntityEntry Entry, bool HasTempKey)> CollectAuditEntries()
     {
         ChangeTracker.DetectChanges();

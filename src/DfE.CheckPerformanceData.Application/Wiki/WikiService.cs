@@ -7,6 +7,8 @@ public sealed partial class WikiService(
     IWikiRepository repository,
     IHtmlRenderingService htmlRenderer) : IWikiService
 {
+    private const int MaxDepth = 10;
+
     public async Task<List<WikiPageTreeNodeDto>> GetNavigationTreeAsync()
     {
         var pages = await repository.GetAllOrderedAsync();
@@ -15,8 +17,10 @@ public sealed partial class WikiService(
             .Select(p => new { p.Id, p.Title, p.Slug, p.ParentId, p.SortOrder })
             .ToLookup(p => p.ParentId);
 
-        List<WikiPageTreeNodeDto> BuildChildren(int? parentId, string parentSlugPath)
+        List<WikiPageTreeNodeDto> BuildChildren(int? parentId, string parentSlugPath, int depth)
         {
+            if (depth >= MaxDepth) return [];
+
             return lookup[parentId]
                 .Select(p =>
                 {
@@ -32,13 +36,13 @@ public sealed partial class WikiService(
                         SlugPath = slugPath,
                         ParentId = p.ParentId,
                         SortOrder = p.SortOrder,
-                        Children = BuildChildren(p.Id, slugPath)
+                        Children = BuildChildren(p.Id, slugPath, depth + 1)
                     };
                 })
                 .ToList();
         }
 
-        return BuildChildren(null, string.Empty);
+        return BuildChildren(null, string.Empty, 0);
     }
 
     public async Task<WikiPageDto?> GetPageBySlugPathAsync(string slugPath)
@@ -77,12 +81,21 @@ public sealed partial class WikiService(
 
         var maxSortOrder = await repository.GetMaxSortOrderAsync(dto.ParentId);
 
-        var page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1);
+        await repository.BeginTransactionAsync();
+        try
+        {
+            var page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1);
+            await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
+            await repository.CommitTransactionAsync();
 
-        await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
-
-        var slugPath = await BuildSlugPathAsync(page);
-        return EnrichDto(page, slugPath);
+            var slugPath = await BuildSlugPathAsync(page);
+            return EnrichDto(page, slugPath);
+        }
+        catch
+        {
+            await repository.RollbackTransactionAsync();
+            throw;
+        }
     }
 
     public async Task<WikiPageDto> UpdatePageAsync(int id, UpdateWikiPageDto dto)
@@ -163,13 +176,15 @@ public sealed partial class WikiService(
     {
         var slugs = new List<string> { page.Slug };
         var currentParentId = page.ParentId;
+        var depth = 0;
 
-        while (currentParentId.HasValue)
+        while (currentParentId.HasValue && depth < MaxDepth)
         {
             var parent = await repository.GetByIdAsync(currentParentId.Value);
             if (parent == null) break;
             slugs.Insert(0, parent.Slug);
             currentParentId = parent.ParentId;
+            depth++;
         }
 
         return string.Join("/", slugs);

@@ -25,4 +25,7 @@ public interface IWikiRepository
     Task ReorderSiblingsSequentialAsync(int? parentId, int excludeId);
 
     Task SaveChangesAsync();
+    Task BeginTransactionAsync();
+    Task CommitTransactionAsync();
+    Task RollbackTransactionAsync();
 }

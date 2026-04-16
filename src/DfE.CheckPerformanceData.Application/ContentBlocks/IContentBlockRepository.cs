@@ -14,4 +14,7 @@ public interface IContentBlockRepository
     Task UpdateValueAsync(int id, string newValue);
 
     Task SaveChangesAsync();
+    Task BeginTransactionAsync();
+    Task CommitTransactionAsync();
+    Task RollbackTransactionAsync();
 }

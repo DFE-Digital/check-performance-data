@@ -1,10 +1,9 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
-using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Services;
-using DfE.CheckPerformanceData.Infrastructure.Seeding;
 using DfE.CheckPerformanceData.Persistence;
+using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using GovUk.Frontend.AspNetCore;
 using Serilog;
@@ -50,9 +49,6 @@ try
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend(options => options.Rebrand = true);
-
-    if (builder.Environment.IsDevelopment()) 
-        builder.Services.AddScoped<DevDataSeeder>();
     
     builder.Services.AddPersistenceDependencies(configuration);
     builder.Services.AddApplicationDependencies();
@@ -63,6 +59,11 @@ try
             MessageEncoding = QueueMessageEncoding.Base64
         }));
     
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.HeaderName = "X-XSRF-TOKEN";
+    });
+
     builder.Services.AddControllersWithViews();
 
     builder.Services.AddHealthChecks();
@@ -100,6 +101,23 @@ try
     }
 
     app.UseHttpsRedirection();
+
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com/ajax/libs/tinymce/; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data:; " +
+            "font-src 'self'; " +
+            "connect-src 'self'; " +
+            "frame-src 'none'; " +
+            "object-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'");
+        await next();
+    });
+
     app.UseRouting();
 
     app.UseAuthentication();

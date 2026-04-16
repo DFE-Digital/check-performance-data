@@ -18,9 +18,19 @@ public sealed class ContentBlockService(
 
         if (existing == null)
         {
-            var block = await repository.AddBlockAsync(dto.Key, dto.BlockType, dto.Value);
-            await repository.AddVersionAsync(block.Id, dto.Value, 1);
-            return EnrichDto(block);
+            await repository.BeginTransactionAsync();
+            try
+            {
+                var block = await repository.AddBlockAsync(dto.Key, dto.BlockType, dto.Value);
+                await repository.AddVersionAsync(block.Id, dto.Value, 1);
+                await repository.CommitTransactionAsync();
+                return EnrichDto(block);
+            }
+            catch
+            {
+                await repository.RollbackTransactionAsync();
+                throw;
+            }
         }
 
         if (existing.Value == dto.Value)

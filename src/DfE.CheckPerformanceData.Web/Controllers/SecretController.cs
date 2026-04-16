@@ -27,7 +27,7 @@ public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbC
         
         var organisation = await dfeSignInApiClient.GetOrganisationAsync(userid, orgId);
 
-        var vm = new SecretViewModel()
+        var vm = new SecretViewModel
         {
             UserName = User.FindFirstValue(ClaimTypes.GivenName) + " " + User.FindFirstValue(ClaimTypes.Surname),
             Organisation = organisation

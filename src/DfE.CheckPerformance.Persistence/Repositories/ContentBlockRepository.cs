@@ -81,4 +81,13 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     public async Task SaveChangesAsync() =>
         await context.SaveChangesAsync();
+
+    public async Task BeginTransactionAsync() =>
+        await context.BeginTransactionAsync();
+
+    public async Task CommitTransactionAsync() =>
+        await context.CommitTransactionAsync();
+
+    public async Task RollbackTransactionAsync() =>
+        await context.RollbackTransactionAsync();
 }

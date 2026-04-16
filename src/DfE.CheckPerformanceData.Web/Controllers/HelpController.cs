@@ -81,7 +81,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
     }
 
     [HttpPost("help/move")]
-    [IgnoreAntiforgeryToken]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move([FromBody] MovePageRequest request)
     {
         await wikiService.MovePageAsync(request.Id, request.NewParentId, request.NewSortOrder);

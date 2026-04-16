@@ -1,6 +1,8 @@
-namespace DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformance.Persistence.Entities;
 
-internal sealed class WikiPage
+namespace DfE.CheckPerformanceData.Persistence.Entities;
+
+public sealed class WikiPage
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;

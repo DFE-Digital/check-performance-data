@@ -1,8 +1,8 @@
-﻿using DfE.CheckPerformance.Persistence.Entities;
+﻿using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace DfE.CheckPerformance.Persistence.Configurations;
+namespace DfE.CheckPerformanceData.Persistence.Configurations;
 
 internal sealed class WikiPageConfiguration : IEntityTypeConfiguration<WikiPage>
 {

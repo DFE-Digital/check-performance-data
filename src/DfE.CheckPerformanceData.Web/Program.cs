@@ -4,14 +4,14 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
-using DfE.CheckPerformanceData.Infrastructure.Persistence;
-using DfE.CheckPerformanceData.Infrastructure.ContentBlocks;
-using DfE.CheckPerformanceData.Infrastructure.Wiki;
+using DfE.CheckPerformanceData.Application.Common;
+using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Infrastructure.Seeding;
+using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Web.Extensions;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
@@ -59,12 +59,8 @@ try
     if (builder.Environment.IsDevelopment()) 
         builder.Services.AddScoped<DevDataSeeder>();
     
-    builder.Services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
-    
-    
     builder.Services.AddPersistenceDependencies(configuration);
-
-    builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
+    builder.Services.AddApplicationDependencies();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
@@ -72,8 +68,9 @@ try
             MessageEncoding = QueueMessageEncoding.Base64
         }));
 
-    builder.Services.AddWikiService();
-    builder.Services.AddContentBlockService();
+    builder.Services.AddSingleton<HtmlRenderingService>();
+    builder.Services.AddScoped<IWikiService, WikiService>();
+    builder.Services.AddScoped<IContentBlockService, ContentBlockService>();
 
     builder.Services.AddControllersWithViews();
 

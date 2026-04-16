@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace DfE.CheckPerformance.Persistence.Configurations;
+namespace DfE.CheckPerformanceData.Persistence.Configurations;
 
 internal sealed class WikiPageVersionConfiguration : IEntityTypeConfiguration<WikiPageVersion>
 {

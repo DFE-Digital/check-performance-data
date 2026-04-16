@@ -57,6 +57,7 @@
       - cypd
 
   db:
+    profiles: [database, all]
     container_name: cypd_db
     restart: unless-stopped
     image: postgres:18.1-alpine
@@ -72,6 +73,7 @@
       - cypd
 
   pgadmin:
+    profiles: [database, all]
     image: dpage/pgadmin4:${PGADMIN_IMAGE_TAG:-latest}
     container_name: cypd_pgadmin
     restart: unless-stopped
@@ -88,6 +90,7 @@
       - cypd
 
   azurite:
+    profiles: [storage, all]
     container_name: cypd_azurite
     restart: unless-stopped
     image: mcr.microsoft.com/azure-storage/azurite:latest

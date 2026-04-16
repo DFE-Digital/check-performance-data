@@ -1,6 +1,8 @@
+using DfE.CheckPerformanceData.Persistence.Entities;
+
 namespace DfE.CheckPerformance.Persistence.Entities;
 
-internal sealed class WikiPageVersion
+public sealed class WikiPageVersion
 {
     public int Id { get; set; }
     public int WikiPageId { get; set; }

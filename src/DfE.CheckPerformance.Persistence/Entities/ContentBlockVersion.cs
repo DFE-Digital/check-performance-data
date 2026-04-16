@@ -1,6 +1,6 @@
-namespace DfE.CheckPerformance.Persistence.Entities;
+namespace DfE.CheckPerformanceData.Persistence.Entities;
 
-internal sealed class ContentBlockVersion
+public sealed class ContentBlockVersion
 {
     public int Id { get; set; }
     public int ContentBlockId { get; set; }

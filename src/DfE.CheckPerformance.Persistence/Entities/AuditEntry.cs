@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformance.Persistence.Entities;
 
-internal sealed class AuditEntry
+public sealed class AuditEntry
 {
     public long Id { get; set; }
     public string EntityType { get; set; } = string.Empty;

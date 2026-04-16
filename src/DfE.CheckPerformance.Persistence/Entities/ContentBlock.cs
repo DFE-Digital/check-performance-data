@@ -1,6 +1,6 @@
-namespace DfE.CheckPerformance.Persistence.Entities;
+namespace DfE.CheckPerformanceData.Persistence.Entities;
 
-internal sealed class ContentBlock
+public sealed class ContentBlock
 {
     public int Id { get; set; }
     public string Key { get; set; } = string.Empty;

@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace DfE.CheckPerformanceData.Infrastructure.Migrations
+namespace DfE.CheckPerformance.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

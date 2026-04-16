@@ -1,4 +1,4 @@
-namespace DfE.CheckPerformanceData.Application;
+namespace DfE.CheckPerformanceData.Web.Services;
 
 public interface ICurrentUserService
 {

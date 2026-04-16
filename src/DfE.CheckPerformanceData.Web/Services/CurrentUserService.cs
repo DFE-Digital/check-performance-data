@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using DfE.CheckPerformanceData.Application;
 
 namespace DfE.CheckPerformanceData.Web.Services;
 

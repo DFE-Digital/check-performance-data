@@ -1,4 +1,6 @@
-﻿using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+﻿using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
@@ -55,7 +57,20 @@ public static class DfeSignInAuthExtensions
                 {
                     //ctx.HttpContext.Response.Headers.Add("Cache-Control", "no-store");
                     return Task.CompletedTask;
-                };        
+                };
+
+                options.Events.OnUserInformationReceived = ctx =>
+                {
+                    return Task.CompletedTask;
+                };
+
+                options.Events.OnTokenValidated = async ctx =>
+                {
+                    var enrichmentService = ctx.HttpContext.RequestServices
+                        .GetRequiredService<IClaimsEnrichmentService>();
+
+                    await enrichmentService.EnrichAsync((ClaimsIdentity)ctx.Principal!.Identity!);
+                };
             });
         
         return services;

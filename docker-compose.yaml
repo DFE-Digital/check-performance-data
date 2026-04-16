@@ -1,5 +1,6 @@
 ﻿services:
   web:
+    profiles: [web, all]
     container_name: cypd_web
     restart: unless-stopped
     build:
@@ -27,6 +28,7 @@
       - cypd
 
   rules_engine:
+    profiles: [rules_engine, all]
     container_name: cypd_rules_engine
     restart: unless-stopped
     build:
@@ -36,12 +38,12 @@
     environment:
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
-      - DfeSignIn__BaseUrl=https://test-api.signin.education.gov.uk/
-      - DfeSignIn__ClientId=CheckPerformanceData
-      - DfeSignIn__ApiClientSecret=kineplasty-sickened-camomile-sestine
-      - DfeSignIn__Audience=signin.education.gov.uk
-      - DfeSignIn__MetadataAddress=https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration
-      - DfeSignIn__ClientSecret=inelegant-provide-joining-atheism
+      - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
+      - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
+      - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
+      - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
+      - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
+      - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
       - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME:-requests}
       - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS:-1000}
       - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}

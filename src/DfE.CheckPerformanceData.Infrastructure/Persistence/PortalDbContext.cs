@@ -11,11 +11,11 @@ public sealed class PortalDbContext(
     DbContextOptions<PortalDbContext> options,
     ICurrentUserService currentUserService) : DbContext(options), IPortalDbContext
 {
+    public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
-    public DbSet<Workflow> Workflows => Set<Workflow>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -45,7 +45,7 @@ public sealed class PortalDbContext(
         ChangeTracker.DetectChanges();
         var entries = new List<(AuditEntry, EntityEntry, bool)>();
 
-        foreach (var entry in ChangeTracker.Entries())
+        foreach (var entry in ChangeTracker.Entries().ToList())
         {
             if (entry.Entity is AuditEntry) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;

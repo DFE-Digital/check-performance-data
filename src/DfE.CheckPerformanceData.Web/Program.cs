@@ -1,4 +1,5 @@
 using Azure.Storage.Queues;
+using DfE.CheckPerformance.Persistence;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
@@ -23,6 +24,12 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    var configuration = builder.Configuration
+        .SetBasePath(builder.Environment.ContentRootPath)
+        .AddJsonFile("appsettings.json", false, true)
+        .AddEnvironmentVariables()
+        .Build();
+
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
@@ -46,10 +53,7 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend(options => options.Rebrand = true);
 
-    builder.Services.AddDbContext<PortalDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres"))
-               .ConfigureWarnings(w => w.Ignore(
-                   Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
+    builder.Services.AddPersistenceDependencies(configuration);
 
     builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
 

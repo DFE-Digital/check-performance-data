@@ -63,9 +63,6 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 
     }
 
-    //public static class QueryExtensions
-    //{
-
-    //}
+ 
 
 }

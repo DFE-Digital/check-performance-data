@@ -11,10 +11,4 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public string? SortBy { get; set; }
         public string? SortOrder { get; set; }
     }
-
-    //public static class QueryExtensions
-    //{
-  
-    //}
-
 }

@@ -5,25 +5,10 @@ using System.Text;
 
 namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 {
-    //public class UserFieldsResponse
-    //{
-    //    [JsonProperty("user_fields")]
-    //    public List<UserField>? UserFields { get; set; }
-    //}
-
     public class UserFieldsResponse :BasePagedModelResponse
     {
         [JsonProperty("user_fields")]
         public List<UserField> UserFields { get; set; }
-
-        //[JsonProperty("next_page")]
-        //public string NextPage { get; set; }
-
-        //[JsonProperty("previous_page")]
-        //public string PreviousPage { get; set; }
-
-        //[JsonProperty("count")]
-        //public int Count { get; set; }
 
         [JsonProperty("max_user_field_limit")]
         public int MaxUserFieldLimit { get; set; }
@@ -92,34 +77,4 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         [JsonProperty("value")]
         public string Value { get; set; }
     }
-
-    //public class UserField
-    //{
-    //    [JsonProperty("id")]
-    //    public long Id { get; set; }
-
-    //    [JsonProperty("type")]
-    //    public string Type { get; set; }
-
-    //    [JsonProperty("title")]
-    //    public string Title { get; set; }
-
-    //    [JsonProperty("description")]
-    //    public string Description { get; set; }
-
-    //    [JsonProperty("custom_field_options")]
-    //    public List<CustomFieldOption> Options { get; set; }
-    //}
-
-    //public class CustomFieldOption
-    //{
-    //    [JsonProperty("id")]
-    //    public long Id { get; set; }
-
-    //    [JsonProperty("name")]
-    //    public string Name { get; set; }
-
-    //    [JsonProperty("value")]
-    //    public string Value { get; set; }
-    //}
 }

@@ -7,50 +7,8 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         [JsonProperty("ticket")]
         public Ticket Ticket { get; set; }
     }
-
-    //public class Ticket
-    //{
-    //    [JsonProperty("id")]
-    //    public long Id { get; set; }
-
-    //    [JsonProperty("subject")]
-    //    public string Subject { get; set; }
-
-    //    [JsonProperty("status")]
-    //    public string Status { get; set; }
-
-    //    [JsonProperty("priority")]
-    //    public string Priority { get; set; }
-    //}
-
-    // for list view tickets response, we need more fields to be able to check for attachments and get the attachments
     public class Ticket
     {
-
-
-        //[JsonIgnore]
-        //private readonly Lazy<Dictionary<string, string>> _descriptionFields;
-
-        //public Ticket()
-        //{
-        //    _descriptionFields = new Lazy<Dictionary<string, string>>(() =>
-        //    {
-        //        if (string.IsNullOrWhiteSpace(Description))
-        //            return new Dictionary<string, string>();
-
-        //        return Description
-        //            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-        //            .Select(line => line.Split(':', 2))
-        //            .Where(parts => parts.Length == 2)
-        //            .ToDictionary(
-        //                parts => parts[0].Trim(),
-        //                parts => parts[1].Trim()
-        //            );
-        //    });
-        //}
-
-        //[JsonIgnore]
-        //public Dictionary<string, string> DescriptionFields => _descriptionFields.Value;
 
         // example of lazy loading embedded fields
         [JsonIgnore]
@@ -67,15 +25,7 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
                 if (string.IsNullOrWhiteSpace(Description))
                     return _descriptionFieldsCache = new Dictionary<string, string>();
 
-                //return _descriptionFieldsCache =
-                //    Description
-                //        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                //        .Select(line => line.Split(':', 2))
-                //        .Where(parts => parts.Length == 2)
-                //        .ToDictionary(
-                //            parts => parts[0].Trim(),
-                //            parts => parts[1].Trim()
-                //        );
+     
                 return _descriptionFieldsCache =
                     Description
                         .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -104,12 +54,10 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public string? Outcome => DescriptionFields.TryGetValue("request_Outcome", out var v)
             ? v
             : null;
-        //nrequest_StudentDfEEN
         public string? StudentDfEEN => DescriptionFields.TryGetValue("request_StudentDfEEN", out var v)
             ? v
             : null;
 
-        //nrequest_StudentUPN
         public string? StudentUPN => DescriptionFields.TryGetValue("request_StudentUPN", out var v)
             ? v
             : null;
@@ -145,7 +93,7 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         public string UpdatedAt { get; set; }
 
         [JsonProperty("description")]
-        public string? Description { get; set; }   // to do seperate create and list models if needed and add property to split this into a list
+        public string? Description { get; set; }  
 
         [JsonProperty("tags")]
         public string[]? Tags { get; set; }
@@ -159,24 +107,6 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 
         public List<CustomField> AllCustomFields => CustomFields.Concat(Fields).ToList();
 
-        //[JsonIgnore]
-        //public Lazy<Dictionary<string, string>> DescriptionFields =>
-        //new Lazy<Dictionary<string, string>>(() =>
-        //{
-        //    if (string.IsNullOrWhiteSpace(Description))
-        //        return new Dictionary<string, string>();
-
-        //    return Description
-        //        .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-        //        .Select(line => line.Split(':', 2))
-        //        .Where(parts => parts.Length == 2)
-        //        .ToDictionary(
-        //            parts => parts[0].Trim(),
-        //            parts => parts[1].Trim()
-        //        );
-        //});
-
-        //public string Reason => DescriptionFields.Value["request_StudentRemoveCategoryUnderscore"];
 
 
     }

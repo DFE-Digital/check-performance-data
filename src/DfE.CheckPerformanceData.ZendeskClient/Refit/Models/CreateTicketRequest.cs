@@ -1,24 +1,4 @@
-﻿//using System;
-//using System.Collections.Generic;
-//using System.Text;
-
-//namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
-//{
-//    public class CreateTicketRequest
-//    {
-//        public TicketWrapper Ticket { get; set; }
-//    }
-
-//    public class TicketWrapper
-//    {
-//        public string Subject { get; set; }
-//        public string Comment { get; set; }
-//        public long? RequesterId { get; set; }
-//    }
-//}
-
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 
 namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 {
@@ -57,10 +37,4 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
         [JsonProperty("custom_fields")]
         public List<CustomField> CustomFields { get; set; } = new List<CustomField>();
     }
-
-    //public class TicketComment
-    //{
-    //    [JsonProperty("body")]
-    //    public string Body { get; set; }
-    //}
 }

@@ -40,22 +40,38 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
                         );
             }
         }
-    
-        public string? ReasonForRemoval =>
+        [JsonIgnore]
+        public string? DescriptionReasonForRemoval =>
             DescriptionFields.TryGetValue("request_StudentRemoveCategoryUnderscore", out var v)
             ? v
             : null;
+        [JsonIgnore]
+        public string? DescriptionOutcome => DescriptionFields.TryGetValue("request_Outcome", out var v)
+            ? v
+            : null;
+        [JsonIgnore]
+        public string? DescriptionStudentDfEEN => DescriptionFields.TryGetValue("request_StudentDfEEN", out var v)
+            ? v
+            : null;
+        
+        public string? CustomFieldsStudentUPN(List<CustomFieldMetaData> meta)
+        {
+            // the long ids of the fields vary from environment to environment so cant be used as constants. Using environment variables may be a better approach.
+            var field = meta.FirstOrDefault(x => x.Title == "UPN");
+            if (field == null)
+                return null;
+            return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString() ?? null;
+        }
 
-        public string? Outcome => DescriptionFields.TryGetValue("request_Outcome", out var v)
-            ? v
-            : null;
-        public string? StudentDfEEN => DescriptionFields.TryGetValue("request_StudentDfEEN", out var v)
+        [JsonIgnore]
+        public string? DescriptionStudentUPN => DescriptionFields.TryGetValue("request_StudentUPN", out var v)
             ? v
             : null;
 
-        public string? StudentUPN => DescriptionFields.TryGetValue("request_StudentUPN", out var v)
-            ? v
-            : null;
+        //private const long AutoRejectedId = 19056253670034;
+        //private const long AutoApprovedId = 19056253670034;
+        private const long OutcomeCustomFieldId = 19056253670034;
+        public string? CustomFieldsOutcome { get => this.AllCustomFields.FirstOrDefault(x => x.Id == OutcomeCustomFieldId)?.Value?.ToString(); }
 
         [JsonProperty("id")]
         public long Id { get; set; }

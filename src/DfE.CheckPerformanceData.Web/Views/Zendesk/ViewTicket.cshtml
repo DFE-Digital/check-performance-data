@@ -2,6 +2,33 @@
 @using DfE.CheckPerformanceData.Web.Controllers
 @model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.GetTicketViewModel
 <a asp-action="Index" class="govuk-back-link">Back</a>
+
+@* <div class="govuk-checkboxes__item">
+    <input class="govuk-checkboxes__input" id="waste" name="ShowNullValues" type="checkbox" value="ShowNullValues" 
+    checked="@ViewBag.ShowNullValues"
+           asp-action="@nameof(ZendeskController.ViewTicket)"
+           asp-route-id" @Model.Ticket.Id"
+           asp-route-ShowNullValues="true">
+    <label class="govuk-label govuk-checkboxes__label" for="ShowNullValues">
+        Show Null Values
+    </label>
+</div> *@
+<form method="get" asp-action="ViewTicket" asp-route-id="@Model.Ticket.Id">
+    <div class="govuk-checkboxes__item">
+        <input class="govuk-checkboxes__input"
+               id="ShowNullValues"
+               name="showNullValues"
+               type="checkbox"
+               value="true"
+        @(ViewBag.ShowNullValues ? "checked" : "")
+               onchange="this.form.submit()" />
+
+        <label class="govuk-label govuk-checkboxes__label" for="ShowNullValues">
+            Show Null Values
+        </label>
+    </div>
+</form>
+
 <div class="govuk-tabs" data-module="govuk-tabs">
     <h2 class="govuk-tabs__title">
         Contents
@@ -44,7 +71,7 @@
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
-                @foreach(var kvp in Model.Ticket.DescriptionFields)
+                @foreach(var kvp in ViewBag.ShowNullValues ? Model.Ticket.DescriptionFields : Model.Ticket.DescriptionFields.Where( x => x.Value != null))
                 {
                     
                 
@@ -79,7 +106,7 @@
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
-                @foreach (var field in Model.Ticket.AllCustomFields)
+                @foreach (var field in ViewBag.ShowNullValues ? Model.Ticket.AllCustomFields : Model.Ticket.AllCustomFields.Where(x => x.Value != null))
                 {
                     var fieldMeta = Model.UserFields.FirstOrDefault(x => x.Id == field.Id);
                     var option = fieldMeta?.CustomFieldOptions?

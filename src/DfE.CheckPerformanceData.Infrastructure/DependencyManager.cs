@@ -46,7 +46,7 @@ public static class DependencyManager
                 options.ClientId = settings.ClientId;
                 options.ClientSecret = settings.ClientSecret;
                 options.ResponseType = OpenIdConnectResponseType.Code;
-                options.RequireHttpsMetadata = true;
+                options.RequireHttpsMetadata = settings.RequireHttpsMetadata;
                 options.GetClaimsFromUserInfoEndpoint = true;
                 options.SaveTokens = true;
                 options.CallbackPath = "/auth/callback";

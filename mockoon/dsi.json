@@ -1,0 +1,272 @@
+{
+  "uuid": "896e90cc-42f1-447d-8ce1-cf5de75fdac9",
+  "lastMigration": 33,
+  "name": "DfE Sign-in Mock",
+  "endpointPrefix": "",
+  "latency": 0,
+  "port": 8000,
+  "hostname": "0.0.0.0",
+  "folders": [],
+  "routes": [
+    {
+      "uuid": "75032013-d0ac-4576-bcb9-f0e31629d5e9",
+      "type": "http",
+      "documentation": "OIDC Discovery Endpoint",
+      "method": "get",
+      "endpoint": ".well-known/openid-configuration",
+      "responses": [
+        {
+          "uuid": "06074d0d-3709-454d-811a-32312993b137",
+          "body": "{\n  \"issuer\": \"http://localhost:8000\",\n  \"authorization_endpoint\": \"http://localhost:8000/connect/authorize\",\n  \"token_endpoint\": \"http://localhost:8000/connect/token\",\n  \"userinfo_endpoint\": \"http://localhost:8000/connect/userinfo\",\n  \"jwks_uri\": \"http://localhost:8000/.well-known/jwks\",\n  \"response_types_supported\": [\"code\", \"id_token\"],\n  \"subject_types_supported\": [\"public\"],\n  \"id_token_signing_alg_values_supported\": [\"RS256\"],\n  \"scopes_supported\": [\"openid\", \"profile\", \"email\", \"organisation\"],\n  \"token_endpoint_auth_methods_supported\": [\"client_secret_post\"],\n  \"claims_supported\": [\"sub\", \"name\", \"given_name\", \"surname\", \"email\", \"organisation\"]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "7e206da1-347f-4901-880e-c54d6bfef9c5",
+      "type": "http",
+      "documentation": "JWKS Endpoint",
+      "method": "get",
+      "endpoint": ".well-known/jwks",
+      "responses": [
+        {
+          "uuid": "ac53fad5-5205-4b6c-ae7b-853d910ab0da",
+          "body": "{\n  \"keys\": [\n    {\n      \"kty\": \"RSA\",\n      \"use\": \"sig\",\n      \"kid\": \"mock-key-id\",\n      \"alg\": \"RS256\",\n      \"n\": \"y_mock_n_value_that_is_long_enough_to_be_plausible_for_an_RSA_modulus_and_base64url_encoded\",\n      \"e\": \"AQAB\"\n    }\n  ]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "a5c47f15-a524-41f5-b646-f46c6b6d4d07",
+      "type": "http",
+      "documentation": "Authorization Endpoint",
+      "method": "get",
+      "endpoint": "connect/authorize",
+      "responses": [
+        {
+          "uuid": "ad4cd113-d8a0-4b1b-8ef7-ed1047bded7a",
+          "body": "",
+          "latency": 0,
+          "statusCode": 302,
+          "label": "",
+          "headers": [
+            {
+              "key": "Location",
+              "value": "{{queryParam 'redirect_uri'}}?code=mock_auth_code&state={{queryParam 'state'}}"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "175c965a-faed-46e2-8c6b-48dcf820575e",
+      "type": "http",
+      "documentation": "Token Endpoint",
+      "method": "post",
+      "endpoint": "connect/token",
+      "responses": [
+        {
+          "uuid": "aea874b6-6d35-4fce-8e4b-2ec5d1deaa5d",
+          "body": "{\n  \"access_token\": \"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDAiLCJhdWQiOiJDaGVja1BlcmZvcm1hbmNlRGF0YSIsInN1YiI6Im1vY2tvb24tdXNlci0xMjMiLCJuYW1lIjoiTW9ja29vbiBVc2VyIiwiZ2l2ZW5fbmFtZSI6Ik1vY2tvb24iLCJzdXJuYW1lIjoiVXNlciIsImVtYWlsIjoibW9jay51c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE5MTYyMzkwMjIsIm9yZ2FuaXNhdGlvbiI6IntcImlkXCI6XCJtb2Nrb29uLW9yZy00NTZcIixcIm5hbWVcIjpcIk1vY2tvb24gT3JnYW5pc2F0aW9uXCJ9In0.\",\n  \"id_token\": \"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwOi8vbG9jYWxob3N0OjgwMDAiLCJhdWQiOiJDaGVja1BlcmZvcm1hbmNlRGF0YSIsInN1YiI6Im1vY2tvb24tdXNlci0xMjMiLCJuYW1lIjoiTW9ja29vbiBVc2VyIiwiZ2l2ZW5fbmFtZSI6Ik1vY2tvb24iLCJzdXJuYW1lIjoiVXNlciIsImVtYWlsIjoibW9jay51c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE5MTYyMzkwMjIsIm9yZ2FuaXNhdGlvbiI6IntcImlkXCI6XCJtb2Nrb29uLW9yZy00NTZcIixcIm5hbWVcIjpcIk1vY2tvb24gT3JnYW5pc2F0aW9uXCJ9In0.\",\n  \"token_type\": \"Bearer\",\n  \"expires_in\": 3600\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "4cfb353f-52df-46c3-b63c-6febc986dbae",
+      "type": "http",
+      "documentation": "User Info Endpoint",
+      "method": "get",
+      "endpoint": "connect/userinfo",
+      "responses": [
+        {
+          "uuid": "91e6dd48-a316-4ba7-8d5f-f2213766b6e7",
+          "body": "{\n  \"sub\": \"mockoon-user-123\",\n  \"name\": \"Mock User\",\n  \"given_name\": \"Mock\",\n  \"surname\": \"User\",\n  \"email\": \"mock.user@education.gov.uk\",\n  \"organisation\": {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mock Organisation\"\n  }\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "Success",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    },
+    {
+      "uuid": "875fde29-81cb-4a2d-a2db-c5b3b7c8b65f",
+      "type": "http",
+      "documentation": "User Organisations Endpoint",
+      "method": "get",
+      "endpoint": "users/:userId/organisations",
+      "responses": [
+        {
+          "uuid": "79079f03-74b4-4952-b47d-1006fa373afb",
+          "body": "[\n  {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n]",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    }
+  ],
+  "proxyMode": false,
+  "proxyHost": "",
+  "proxyRemovePrefix": false,
+  "tlsOptions": {
+    "enabled": false,
+    "type": "CERT",
+    "pfxPath": "",
+    "certPath": "",
+    "keyPath": "",
+    "caPath": "",
+    "passphrase": ""
+  },
+  "cors": true,
+  "headers": [],
+  "proxyReqHeaders": [],
+  "proxyResHeaders": [],
+  "callbacks": [],
+  "rootChildren": [
+    {
+      "type": "route",
+      "uuid": "75032013-d0ac-4576-bcb9-f0e31629d5e9"
+    },
+    {
+      "type": "route",
+      "uuid": "7e206da1-347f-4901-880e-c54d6bfef9c5"
+    },
+    {
+      "type": "route",
+      "uuid": "a5c47f15-a524-41f5-b646-f46c6b6d4d07"
+    },
+    {
+      "type": "route",
+      "uuid": "175c965a-faed-46e2-8c6b-48dcf820575e"
+    },
+    {
+      "type": "route",
+      "uuid": "4cfb353f-52df-46c3-b63c-6febc986dbae"
+    },
+    {
+      "type": "route",
+      "uuid": "875fde29-81cb-4a2d-a2db-c5b3b7c8b65f"
+    }
+  ],
+  "data": []
+}

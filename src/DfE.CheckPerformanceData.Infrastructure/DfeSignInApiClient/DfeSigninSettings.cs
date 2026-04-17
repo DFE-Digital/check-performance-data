@@ -9,4 +9,5 @@ public class DfeSigninSettings
     public string Audience { get; set; }
     public string? MetadataAddress { get; set; }
     public string? ClientSecret { get; set; }
+    public bool RequireHttpsMetadata { get; set; } = true;
 }

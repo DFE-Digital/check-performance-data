@@ -15,7 +15,7 @@ public class LandingController(IMediator mediator) : Controller
      
         var landingPageViewModel = new LandingPageViewModel(
             result.OpenWindows.Select(w => new LandingPageWindowViewModel
-                { Title = w.Title, EndDate = w.EndDate, KeyStage = w.KeyStage }),
+                { Title = w.Title, EndDate = w.EndDate }),
             result.OrganisationName,
             result.OrganisationUrn,
             result.OrganisationLaestab, string.Join(',', result.KeyStages.Select(ks => ks.Title)));

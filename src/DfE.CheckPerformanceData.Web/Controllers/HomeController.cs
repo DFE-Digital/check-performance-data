@@ -1,33 +1,15 @@
 using System.Diagnostics;
-using Azure.Storage.Queues;
-using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.AspNetCore.Mvc;
 using DfE.CheckPerformanceData.Web.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class HomeController(PortalDbContext context, QueueServiceClient queueServiceClient) : Controller
+public sealed class HomeController : Controller
 {
     public async Task<IActionResult> Index()
-    {
-        return View();
-    }
-    
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendRequest()
-    {
-        var client = queueServiceClient.GetQueueClient("requests");
-
-        await client.CreateIfNotExistsAsync();
-        
-        await client.SendMessageAsync($"Hello, World! Time is {DateTime.Now.ToShortTimeString()}");
-        
-        // Handle the POST here
-        return RedirectToAction(nameof(Index));
-    }
-
-    public IActionResult Privacy()
     {
         return View();
     }
@@ -36,5 +18,19 @@ public sealed class HomeController(PortalDbContext context, QueueServiceClient q
     public IActionResult Error()
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+    
+    public async Task<IActionResult> DfeSignOut()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+        return SignOut(
+            new AuthenticationProperties
+            {
+                RedirectUri = Url.Action("Index", "Home")
+            },
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            OpenIdConnectDefaults.AuthenticationScheme
+        );
     }
 }

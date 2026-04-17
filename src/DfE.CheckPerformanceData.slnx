@@ -6,13 +6,13 @@
         <File Path="../README.md" />
         <File Path="Directory.Packages.props" />
     </Folder>
-    <Project Path="../docker-compose.dcproj" Id="1fcbe191-34fe-4b2e-8915-ca81553958ad">
+    <Project Path="../docker-compose.dcproj">
         <Build />
     </Project>
     <Folder Name="/Tests/">
-        <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" Id="3aca5563-7aab-435a-b5d3-21da95648da3" />
+        <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" />
     </Folder>
-    <Project Path="DfE.CheckPerformance.Persistence/DfE.CheckPerformanceData.Persistence.csproj" Id="ea0c6de2-1b09-4cfd-8d58-2fed8d63c7fe" />
+    <Project Path="DfE.CheckPerformanceData.Persistence/DfE.CheckPerformanceData.Persistence.csproj"  />
     <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />
     <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />

@@ -21,7 +21,7 @@
     <PackageReference Include="Serilog.Sinks.PostgreSQL.Alternative" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DfE.CheckPerformance.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
+    <ProjectReference Include="..\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
   </ItemGroup>
@@ -76,5 +76,6 @@
     <_ContentIncludedByDefault Remove="wwwroot\lib\jquery-validation\dist\jquery.validate.js" />
     <_ContentIncludedByDefault Remove="wwwroot\lib\jquery-validation\dist\jquery.validate.min.js" />
     <_ContentIncludedByDefault Remove="wwwroot\lib\jquery-validation\LICENSE.md" />
+    <_ContentIncludedByDefault Remove="Views\Secret\Index.cshtml" />
   </ItemGroup>
 </Project>

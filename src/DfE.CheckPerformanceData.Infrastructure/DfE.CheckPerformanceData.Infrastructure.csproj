@@ -27,8 +27,4 @@
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Persistence\" />
-    </ItemGroup>
-
 </Project>

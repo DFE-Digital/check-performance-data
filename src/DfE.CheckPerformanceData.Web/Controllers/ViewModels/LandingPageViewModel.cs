@@ -18,7 +18,6 @@ public class LandingPageViewModel(
 
 public class LandingPageWindowViewModel
 {
-    public string Title { get; set; }
-    public DateTime EndDate { get; set; }
-    public KeyStages KeyStage { get; set; }
+    public required string Title { get; init; }
+    public required DateTime EndDate { get; init; }
 }

@@ -3,7 +3,7 @@ using MediatR;
 
 namespace DfE.CheckPerformanceData.Application.Features.LandingPage;
 
-public record GetLandingPageDataQuery(string UserId, string OrganisationId) : IRequest<LandingPageResult>;
+public record GetLandingPageDataQuery : IRequest<LandingPageResult>;
 
 public class LandingPageResult
 {
@@ -11,5 +11,5 @@ public class LandingPageResult
     public string OrganisationLaestab { get; set; }
     public string OrganisationUrn { get; set; }
     public List<OrganisationKeyStageDto> KeyStages { get; set; }
-    public List<OpenWindowDto> OpenWindows { get; set; }
+    public List<OpenCheckingWindowDto> OpenWindows { get; set; }
 }

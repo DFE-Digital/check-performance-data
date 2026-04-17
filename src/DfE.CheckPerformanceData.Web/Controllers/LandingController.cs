@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Features.LandingPage;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using MediatR;
@@ -12,10 +11,7 @@ public class LandingController(IMediator mediator) : Controller
     [Authorize]
     public async Task<IActionResult> Index()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var organisationId = User.FindFirst("organisation_id")?.Value;
-
-        var result = await mediator.Send(new GetLandingPageDataQuery(userId, organisationId));
+        var result = await mediator.Send(new GetLandingPageDataQuery());
      
         var landingPageViewModel = new LandingPageViewModel(
             result.OpenWindows.Select(w => new LandingPageWindowViewModel

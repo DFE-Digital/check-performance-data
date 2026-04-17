@@ -1,13 +1,12 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
-using DfE.CheckPerformanceData.Infrastructure.DfeSignIn;
-using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
-using DfE.CheckPerformanceData.Infrastructure.Persistence;
-using DfE.CheckPerformanceData.Infrastructure.Seeding;
+using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Web.Services;
+using DfE.CheckPerformanceData.Persistence;
+using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
@@ -25,11 +24,19 @@ try
     
     Log.Information("Environment is {Environment}", builder.Environment.EnvironmentName);
     
-    builder.Host.UseSerilog((context, services, configuration) =>
+    // builder.Host.UseSerilog((context, services, configuration) =>
+
+    var configuration = builder.Configuration
+        .SetBasePath(builder.Environment.ContentRootPath)
+        .AddJsonFile("appsettings.json", false, true)
+        .AddEnvironmentVariables()
+        .Build();
+
+    builder.Host.UseSerilog((context, services, config) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
 
-        configuration
+        config
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
             .Enrich.FromLogContext()
@@ -39,7 +46,9 @@ try
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
     });
-
+    
+    builder.Services.AddHttpContextAccessor();
+   
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
@@ -48,24 +57,26 @@ try
     //if (builder.Environment.IsDevelopment()) 
         builder.Services.AddScoped<DevDataSeeder>();
     
-    builder.Services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
-    
-    builder.Services.AddDbContext<PortalDbContext>(options =>
-        options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
-
-    builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
+    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
+    builder.Services.AddApplicationDependencies();
+    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
         {
             MessageEncoding = QueueMessageEncoding.Base64
         }));
+    
+    builder.Services.AddAntiforgery(options =>
+    {
+        options.HeaderName = "X-XSRF-TOKEN";
+    });
 
     builder.Services.AddControllersWithViews();
 
     builder.Services.AddHealthChecks();
 
-    builder.Services.AddMediatR(config => config.RegisterServicesFromAssembly(typeof(IPortalDbContext).Assembly));
+    builder.Services.AddMediatR(config => config.RegisterServicesFromAssembly(typeof(ApplicationAssemblyMarker).Assembly));
     
     var app = builder.Build();
 
@@ -100,12 +111,34 @@ try
     //}
 
     app.UseHttpsRedirection();
+
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
+            "img-src 'self' data: blob:; " +
+            "font-src 'self' data: https://cdnjs.cloudflare.com; " +
+            "connect-src 'self'; " +
+            "frame-src 'self'; " +
+            "object-src 'none'; " +
+            "base-uri 'self'; " +
+            "form-action 'self'");
+        await next();
+    });
+
     app.UseRouting();
 
     app.UseAuthentication();
     app.UseAuthorization();
 
     app.MapStaticAssets();
+
+    app.MapControllerRoute(
+        name: "wiki",
+        pattern: "help/{**slugPath}",
+        defaults: new { controller = "Help", action = "Index" });
 
     app.MapControllerRoute(
             name: "default",

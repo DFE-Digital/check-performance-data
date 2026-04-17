@@ -2,3 +2,467 @@
     .govuk-heading-m {
     color: #347CA9;
 }}  
+/* ==========================================================================
+   Wiki Layout — collapsible sidebar + main content
+   ========================================================================== */
+
+.wiki-layout {
+  display: flex;
+  gap: 0;
+  min-height: 400px;
+}
+
+.wiki-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width .25s ease, opacity .2s ease;
+}
+
+.wiki-sidebar--collapsed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wiki-main {
+  flex: 1;
+  min-width: 0;
+  padding-left: 15px;
+}
+
+.wiki-sidebar--collapsed + .wiki-main {
+  padding-left: 0;
+}
+
+/* Toolbar: toggle button + edit/view mode link */
+.wiki-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.wiki-toolbar .wiki-mode-toggle {
+  margin-left: auto;
+  margin-bottom: 0;
+  text-align: right;
+}
+
+.wiki-mode-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wiki-mode-icon {
+  flex-shrink: 0;
+}
+
+.wiki-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #b1b4b6;
+  background: #fff;
+  cursor: pointer;
+  color: #505a5f;
+  border-radius: 4px;
+  transition: background .1s, color .1s, border-color .1s;
+}
+
+.wiki-sidebar-toggle:hover {
+  background: #f3f2f1;
+  color: #0b0c0c;
+  border-color: #0b0c0c;
+}
+
+.wiki-sidebar-toggle:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 0 0 1px #0b0c0c;
+}
+
+.wiki-sidebar-toggle-icon {
+  transition: transform .25s ease;
+}
+
+.wiki-sidebar-toggle[aria-expanded="false"] .wiki-sidebar-toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* ==========================================================================
+   Treeview  (.tv)
+   Bootstrap-style treeview with +/- circles and connector lines
+   ========================================================================== */
+
+.wiki-navigation {
+  padding: 12px 16px 12px 0;
+  min-height: 400px;
+  border-right: 1px solid #b1b4b6;
+}
+
+/* ---- List reset & tree lines -------------------------------------------- */
+.tv {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 0 0 20px !important;
+  position: relative;
+}
+
+.tv-root {
+  padding-left: 0 !important;
+}
+
+/* Vertical line running down the left side of each nested list */
+.tv-children {
+  position: relative;
+}
+
+.tv-children::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  bottom: 16px;
+  width: 1px;
+  background: #1d70b8;
+}
+
+/* ---- Each tree item ----------------------------------------------------- */
+.tv-item {
+  position: relative;
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none !important;
+}
+
+/* Horizontal connector line from the vertical to the node */
+.tv-children > .tv-item::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: -10px;
+  width: 10px;
+  height: 0;
+  border-top: 1px solid #1d70b8;
+}
+
+/* For the last item, cut the vertical line short */
+.tv-children > .tv-item-last::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: -11px;
+  bottom: 0;
+  width: 3px;
+  background: #fff;
+}
+
+/* ---- Row ---------------------------------------------------------------- */
+.tv-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  min-height: 32px;
+}
+
+/* ---- +/- Toggle icon ---------------------------------------------------- */
+.tv-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-right: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.tv-toggle:focus-visible {
+  outline: 3px solid #ffdd00;
+  border-radius: 50%;
+}
+
+/* The circle icon */
+.tv-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #1d70b8;
+  position: relative;
+}
+
+/* Horizontal bar (always present for both + and -) */
+.tv-icon::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  right: 5px;
+  height: 2px;
+  margin-top: -1px;
+  background: #fff;
+}
+
+/* Vertical bar (only on collapsed = plus icon) */
+.tv-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+  transition: transform .2s ease, opacity .2s ease;
+}
+
+/* When expanded, hide the vertical bar to show minus */
+.tv-toggle[aria-expanded="true"] .tv-icon::after {
+  transform: rotate(90deg);
+  opacity: 0;
+}
+
+/* Connector for leaf nodes (horizontal stub line) */
+.tv-connector {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+/* ---- Collapsed children ------------------------------------------------- */
+.tv-children.tv-collapsed {
+  display: none;
+}
+
+/* ---- Page link ---------------------------------------------------------- */
+.tv {
+  font-family: "GDS Transport", arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tv-link {
+  color: #1d70b8;
+  text-decoration: none;
+  font-family: "GDS Transport", arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.25;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.tv-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tv-link:focus-visible {
+  outline: 3px solid #ffdd00;
+  background: #ffdd00;
+  box-shadow: 0 2px 0 #0b0c0c;
+  text-decoration: none;
+  color: #0b0c0c;
+}
+
+/* Parent nodes: bold */
+.tv-link-parent {
+  font-weight: 700;
+}
+
+/* Active page */
+.tv-link-active {
+  color: #0b0c0c;
+  font-weight: 700;
+  background: #dce9f5;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+/* ---- Delete button (edit mode) ------------------------------------------ */
+.tv-del-form {
+  display: inline-flex;
+  margin: 0 0 0 8px;
+  padding: 0;
+}
+
+.tv-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #aaa;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity .15s, color .1s, background .1s;
+}
+
+.tv-row:hover .tv-del {
+  opacity: 1;
+}
+
+.tv-del:hover {
+  color: #d4351c;
+  background: #fce5e1;
+}
+
+.tv-del:focus-visible {
+  opacity: 1;
+  outline: 3px solid #ffdd00;
+  color: #d4351c;
+}
+
+/* ==========================================================================
+   Drag & Drop
+   ========================================================================== */
+
+.tv-row.tv-dragging {
+  opacity: .3;
+}
+
+.tv-row.tv-drop-into {
+  background: #cce2f5;
+  outline: 2px dashed #1d70b8;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.tv-drop-line {
+  height: 2px;
+  background: #1d70b8;
+  margin: 0;
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+/* ---- Add page section --------------------------------------------------- */
+.wiki-add-page-details {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #d5d8da;
+}
+
+/* ==========================================================================
+   Wiki Content Area
+   ========================================================================== */
+
+.wiki-mode-toggle {
+  margin-bottom: 20px;
+  text-align: right;
+}
+
+.wiki-content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 20px; }
+.wiki-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 30px; margin-bottom: 15px; }
+.wiki-content h3 { font-size: 1.25rem; font-weight: 700; margin-top: 20px; margin-bottom: 10px; }
+.wiki-content p { margin-bottom: 15px; }
+.wiki-content ul, .wiki-content ol { margin-bottom: 15px; padding-left: 20px; }
+.wiki-content code { background: #f3f2f1; padding: 2px 4px; font-size: 0.9em; }
+.wiki-content pre { background: #f3f2f1; padding: 15px; overflow-x: auto; margin-bottom: 15px; }
+.wiki-content pre code { background: none; padding: 0; }
+.wiki-content blockquote {
+  border-left: 4px solid #b1b4b6;
+  padding: 10px 15px;
+  margin: 0 0 15px 0;
+  color: #505a5f;
+}
+.wiki-content table { border-collapse: collapse; margin-bottom: 15px; }
+.wiki-content th, .wiki-content td { border: 1px solid #b1b4b6; padding: 8px 12px; }
+.wiki-content th { background: #f3f2f1; font-weight: 700; }
+
+/* ==========================================================================
+   Content Blocks — inline editable sections
+   ========================================================================== */
+
+.content-block {
+  position: relative;
+  padding-right: 32px;
+}
+
+.content-block__edit-link {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: #505a5f;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity .15s ease, background-color .15s ease;
+}
+
+.content-block:hover .content-block__edit-link,
+.content-block__edit-link:focus {
+  opacity: 1;
+}
+
+.content-block__edit-link:hover {
+  color: #1d70b8;
+  background-color: #f3f2f1;
+}
+
+.content-block__edit-link:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  color: #0b0c0c;
+  background-color: #fd0;
+}
+
+.content-block__edit-icon {
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Version History — row selection + preview panel
+   ========================================================================== */
+
+.version-row--selected {
+  background: #dce9f5;
+}
+
+.version-row--selected td {
+  border-bottom-color: #1d70b8;
+}
+
+#version-preview-container {
+  margin-top: 40px;
+}
+
+.version-preview-placeholder {
+  border: 1px dashed #b1b4b6;
+  border-radius: 4px;
+  padding: 30px 20px;
+  text-align: center;
+}
+
+.version-preview-panel {
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  padding: 20px;
+}
+
+.version-preview-content {
+  border-top: 1px solid #d5d8da;
+  padding-top: 15px;
+}

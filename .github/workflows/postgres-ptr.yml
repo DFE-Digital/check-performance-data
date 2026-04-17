@@ -40,6 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     concurrency: deploy_${{ inputs.environment }}
+    permissions:
+      id-token: write
+      pull-requests: write
 
     steps:
     - uses: actions/checkout@v4

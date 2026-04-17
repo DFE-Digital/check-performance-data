@@ -1,4 +1,4 @@
-using DfE.CheckPerformanceData.Domain.Entities;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.DfESignInApiClient;
 

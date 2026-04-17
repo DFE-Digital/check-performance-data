@@ -1,0 +1,41 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.EditableTitleViewModel
+
+@if (Model.IsEditing)
+{
+    <form action="/content-block/save" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="Key" value="@Model.Key" />
+        <input type="hidden" name="BlockType" value="Title" />
+        <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+
+        <div class="govuk-form-group">
+            <label class="govuk-label govuk-label--m" for="cb-@Model.Key">Title</label>
+            <input class="govuk-input" id="cb-@Model.Key" name="Value" type="text" value="@Model.Value" required>
+        </div>
+
+        <div class="govuk-button-group">
+            <button type="submit" class="govuk-button" data-module="govuk-button">Save</button>
+            <a href="@(Context.Request.Path)" class="govuk-link">Cancel</a>
+        </div>
+
+        @if (Model.HasSavedContent)
+        {
+            <p class="govuk-body-s">
+                <a href="/content-block/versions/@Model.Key" class="govuk-link">Version history</a>
+            </p>
+        }
+    </form>
+}
+else
+{
+    <div class="content-block content-block--title">
+        @Html.Raw($"<{Model.HeadingLevel} class=\"{Html.Encode(Model.CssClass)}\">{Html.Encode(Model.Value)}</{Model.HeadingLevel}>")
+        <a href="?edit=@Model.Key" class="content-block__edit-link govuk-link">
+            <svg class="content-block__edit-icon" width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M11.5 1.5l3 3L5 14l-3.5.5L2 11l9.5-9.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                <path d="M9.5 3.5l3 3" fill="none" stroke="currentColor" stroke-width="1.4"></path>
+            </svg>
+            <span class="govuk-visually-hidden">Edit @Model.Key</span>
+        </a>
+    </div>
+}

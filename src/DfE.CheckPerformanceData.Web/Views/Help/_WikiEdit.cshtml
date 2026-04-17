@@ -1,0 +1,67 @@
+@using DfE.CheckPerformanceData.Application.Wiki
+@model WikiPageDto
+
+<h1 class="govuk-heading-l">Edit: @Model.Title</h1>
+
+<form action="/help/edit/@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="editMode" value="true" />
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--m" for="page-title">Page title</label>
+        <input class="govuk-input" id="page-title" name="Title" type="text" value="@Model.Title" required>
+    </div>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--m" for="page-content">Page content</label>
+        <div class="govuk-hint">You can type directly, use Markdown, or paste formatted text from Word.</div>
+        <textarea class="govuk-textarea" id="page-content" name="Content" rows="15">@Model.Content</textarea>
+    </div>
+
+    <div class="govuk-button-group">
+        <button type="submit" class="govuk-button" data-module="govuk-button">
+            Save page
+        </button>
+        <a href="/help/@Model.SlugPath" class="govuk-link">Cancel</a>
+    </div>
+</form>
+
+<hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
+
+<p class="govuk-body">
+    <a href="/help/versions/@Model.Id" class="govuk-link">View version history</a>
+</p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.6.1/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    (function () {
+        'use strict';
+        if (typeof tinymce === 'undefined') return;
+
+        tinymce.init({
+            selector: '#page-content',
+            height: 400,
+            menubar: true,
+            plugins: 'lists link table code wordcount searchreplace fullscreen',
+            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | code fullscreen',
+            style_formats: [
+                { title: 'Heading 2', block: 'h2' },
+                { title: 'Heading 3', block: 'h3' },
+                { title: 'Heading 4', block: 'h4' },
+                { title: 'Paragraph', block: 'p' }
+            ],
+            paste_as_text: false,
+            paste_merge_formats: true,
+            paste_tab_spaces: 4,
+            content_css: 'default',
+            branding: false,
+            promotion: false,
+            license_key: 'gpl',
+            setup: function (editor) {
+                editor.on('change', function () {
+                    editor.save();
+                });
+            }
+        });
+    })();
+</script>

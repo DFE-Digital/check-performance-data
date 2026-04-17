@@ -1,4 +1,4 @@
-﻿using DfE.CheckPerformanceData.Infrastructure.Persistence;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Extensions;

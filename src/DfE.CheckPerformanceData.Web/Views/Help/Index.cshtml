@@ -1,0 +1,123 @@
+@using DfE.CheckPerformanceData.Application.Wiki
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.HelpViewModel
+@{
+    ViewData["Title"] = Model.CurrentPage != null ? $"{Model.CurrentPage.Title} - Help" : "Help";
+
+    IEnumerable<(int Id, string Title, int Depth)> FlattenTree(List<WikiPageTreeNodeDto> nodes, int depth)
+    {
+        foreach (var node in nodes)
+        {
+            yield return (node.Id, node.Title, depth);
+            foreach (var child in FlattenTree(node.Children, depth + 1))
+                yield return child;
+        }
+    }
+
+    var flatPages = FlattenTree(Model.NavigationTree, 0).ToList();
+}
+
+<div class="wiki-layout">
+    <aside class="wiki-sidebar" id="wiki-sidebar" aria-label="Help pages navigation">
+        <nav class="wiki-navigation">
+            <h2 class="govuk-heading-s">Help pages</h2>
+
+            @if (Model.NavigationTree.Count > 0)
+            {
+                @await Html.PartialAsync("_WikiTree", Model.NavigationTree, new ViewDataDictionary(ViewData)
+                {
+                    { "CurrentSlugPath", Model.CurrentSlugPath },
+                    { "IsEditMode", Model.IsEditMode }
+                })
+            }
+            else
+            {
+                <p class="govuk-body govuk-body-s">No pages yet.</p>
+            }
+
+            @if (Model.IsEditMode)
+            {
+                <details class="govuk-details wiki-add-page-details" data-module="govuk-details">
+                    <summary class="govuk-details__summary">
+                        <span class="govuk-details__summary-text">Add new page</span>
+                    </summary>
+                    <div class="govuk-details__text">
+                        <form asp-controller="Help" asp-action="Create" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="editMode" value="true" />
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="new-page-title">Page title</label>
+                                <input class="govuk-input govuk-input--width-20" id="new-page-title" name="Title" type="text" required>
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="new-page-parent">Parent page (optional)</label>
+                                <select class="govuk-select" id="new-page-parent" name="ParentId">
+                                    <option value="">None (root level)</option>
+                                    @foreach (var item in flatPages)
+                                    {
+                                        var indent = new string('\u00A0', item.Depth * 2);
+                                        <option value="@item.Id">@indent@item.Title</option>
+                                    }
+                                </select>
+                            </div>
+                            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+                                Add page
+                            </button>
+                        </form>
+                    </div>
+                </details>
+            }
+        </nav>
+    </aside>
+
+    <main class="wiki-main">
+        <div class="wiki-toolbar">
+            <button class="wiki-sidebar-toggle" type="button" id="wiki-sidebar-toggle" aria-expanded="true" aria-controls="wiki-sidebar" title="Toggle navigation">
+                <svg class="wiki-sidebar-toggle-icon" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false">
+                    <path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </button>
+            <div class="wiki-mode-toggle">
+            @if (Model.IsEditMode)
+            {
+                <a href="/help/@Model.CurrentSlugPath" class="govuk-link wiki-mode-link">
+                    <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                        <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"></circle>
+                    </svg>
+                    <span>View mode</span>
+                </a>
+            }
+            else
+            {
+                <a href="/help/@(string.IsNullOrEmpty(Model.CurrentSlugPath) ? "?edit" : Model.CurrentSlugPath + "?edit")" class="govuk-link wiki-mode-link">
+                    <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M11.5 1.5l3 3L5 14l-3.5.5L2 11l9.5-9.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+                        <path d="M9.5 3.5l3 3" fill="none" stroke="currentColor" stroke-width="1.4"></path>
+                    </svg>
+                    <span>Edit mode</span>
+                </a>
+            }
+            </div>
+        </div>
+
+        @if (Model.CurrentPage != null)
+        {
+            @if (Model.IsEditMode)
+            {
+                @await Html.PartialAsync("_WikiEdit", Model.CurrentPage)
+            }
+            else
+            {
+                <h1 class="govuk-heading-l">@Model.CurrentPage.Title</h1>
+                <div class="wiki-content govuk-body">
+                    @Html.Raw(Model.CurrentPage.ContentHtml)
+                </div>
+            }
+        }
+        else
+        {
+            <h1 class="govuk-heading-l">Help</h1>
+            <p class="govuk-body">Welcome to the help section. @(Model.NavigationTree.Count == 0 ? "Switch to edit mode to create the first page." : "Select a page from the navigation.")</p>
+        }
+    </main>
+</div>

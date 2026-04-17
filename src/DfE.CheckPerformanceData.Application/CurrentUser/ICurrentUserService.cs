@@ -4,5 +4,5 @@ public interface ICurrentUserService
 {
     string UserId { get; }
     string DisplayName { get; }
-    string? OrganisationId { get; }
+    string OrganisationId { get; }
 }

@@ -70,7 +70,7 @@ public static class DependencyManager
                     var enrichmentService = ctx.HttpContext.RequestServices
                         .GetRequiredService<IClaimsEnrichmentService>();
 
-                    await enrichmentService.EnrichAsync((ClaimsIdentity)ctx.Principal!.Identity!);
+                    enrichmentService.EnrichAsync((ClaimsIdentity)ctx.Principal!.Identity!);
                 };
             });
 

@@ -6,13 +6,19 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class LandingController(IMediator mediator) : Controller
+public class LandingController(IMediator mediator, ILogger<LandingController> logger) : Controller
 {
     [Authorize]
     public async Task<IActionResult> Index()
     {
         var result = await mediator.Send(new GetLandingPageDataQuery());
-     
+
+        if (result == null)
+        {
+            logger.LogWarning("No landing page data found for the current user");
+            return RedirectToAction("DfeSignOut", "Home");
+        }
+        
         var landingPageViewModel = new LandingPageViewModel(
             result.OpenWindows.Select(w => new LandingPageWindowViewModel
                 { Title = w.Title, EndDate = w.EndDate }),

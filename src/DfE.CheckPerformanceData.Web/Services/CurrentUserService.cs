@@ -13,7 +13,7 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         httpContextAccessor.HttpContext?.User.Identity?.Name
         ?? "System";
 
-    public string? OrganisationId =>
+    public string OrganisationId =>
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_id")?.Value
-        ?? null;
+        ?? "";
 }

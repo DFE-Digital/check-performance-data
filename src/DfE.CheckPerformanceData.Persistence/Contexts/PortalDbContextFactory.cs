@@ -10,6 +10,6 @@ public class PortalDbContextFactory : IDesignTimeDbContextFactory<PortalDbContex
         var optionsBuilder = new DbContextOptionsBuilder<PortalDbContext>();
         optionsBuilder.UseNpgsql("Host=localhost;Database=cypd;Username=postgres;Password=postgres");
 
-        return new PortalDbContext(optionsBuilder.Options, null);
+        return new PortalDbContext(optionsBuilder.Options, null!);
     }
 }

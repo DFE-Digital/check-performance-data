@@ -82,12 +82,3 @@ public sealed class RulesEngineWorker : BackgroundService
         }
     }
 }
-
-public sealed class RulesEngineOptions
-{
-    public int RetryDelayMs { get; set; }
-    public string QueueName { get; set; }
-    public int MaxMessagesPerPoll { get; set; }
-    public int EmptyQueueDelayMs { get; set; }
-    public long MaxDequeueCount { get; set; }
-}

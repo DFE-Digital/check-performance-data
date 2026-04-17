@@ -6,12 +6,17 @@ namespace DfE.CheckPerformanceData.Application.Features.LandingPage;
 
 public class GetLandingPageDataQueryHandler(ILandingPageRepository landingPageRepository, TimeProvider timeProvider, 
     IDfESignInApiClient dfESignInApiClient, ICurrentUserService currentUserService) 
-    : IRequestHandler<GetLandingPageDataQuery, LandingPageResult>
+    : IRequestHandler<GetLandingPageDataQuery, LandingPageResult?>
 {
-    public async Task<LandingPageResult> Handle(GetLandingPageDataQuery request, CancellationToken cancellationToken)
+    public async Task<LandingPageResult?> Handle(GetLandingPageDataQuery request, CancellationToken cancellationToken)
     {
         var organisation =
             await dfESignInApiClient.GetOrganisationAsync(currentUserService.UserId, currentUserService.OrganisationId);
+
+        if (organisation == null)
+        {
+            return null;
+        }
         
         var now = timeProvider.GetUtcNow();
         var windows = await landingPageRepository.GetOpenWindowsAsync(now,
@@ -20,7 +25,7 @@ public class GetLandingPageDataQueryHandler(ILandingPageRepository landingPageRe
         var result = new LandingPageResult
         {
             OrganisationName = organisation.Name,
-            OrganisationLaestab = organisation.LAESTAB,
+            OrganisationLaestab = organisation.Laestab,
             OrganisationUrn = organisation.Urn,
             KeyStages = organisation.KeyStages,
             OpenWindows = windows

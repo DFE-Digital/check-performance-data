@@ -28,16 +28,15 @@ public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
         
         var dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
         
-        
         if (root.TryGetProperty("localAuthority", out var localAuthorityElement))
         {
             var orgCode = localAuthorityElement.GetProperty("code").GetString();
             var orgId = root.GetProperty("establishmentNumber").GetString();
         
-            dto.LAESTAB = $"{orgCode}{orgId}";   
+            dto!.Laestab = $"{orgCode}{orgId}";   
         }
         
-        return dto;
+        return dto!;
     }
 
     public override void Write(Utf8JsonWriter writer, OrganisationDto value, JsonSerializerOptions options) => 

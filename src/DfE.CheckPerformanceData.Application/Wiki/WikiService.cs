@@ -81,21 +81,15 @@ public sealed partial class WikiService(
 
         var maxSortOrder = await repository.GetMaxSortOrderAsync(dto.ParentId);
 
-        await repository.BeginTransactionAsync();
-        try
+        WikiPageDto? page = null;
+        await repository.ExecuteInTransactionAsync(async () =>
         {
-            var page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1);
+            page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1);
             await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
-            await repository.CommitTransactionAsync();
+        });
 
-            var slugPath = await BuildSlugPathAsync(page);
-            return EnrichDto(page, slugPath);
-        }
-        catch
-        {
-            await repository.RollbackTransactionAsync();
-            throw;
-        }
+        var slugPath = await BuildSlugPathAsync(page!);
+        return EnrichDto(page!, slugPath);
     }
 
     public async Task<WikiPageDto> UpdatePageAsync(int id, UpdateWikiPageDto dto)

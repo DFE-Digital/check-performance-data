@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 
 namespace DfE.CheckPerformanceData.Web.Services;
 

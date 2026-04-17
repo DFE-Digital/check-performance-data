@@ -14,6 +14,9 @@ public class ContentBlockServiceTests
     public ContentBlockServiceTests()
     {
         _sut = new ContentBlockService(_repository, _htmlRenderer);
+
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
+            .Returns(ci => ((Func<Task>)ci[0])());
     }
 
     // --- GetByKeyAsync ---

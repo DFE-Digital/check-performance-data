@@ -1,5 +1,6 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
@@ -43,15 +44,15 @@ try
     });
     
     builder.Services.AddHttpContextAccessor();
-    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-
+   
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend(options => options.Rebrand = true);
     
-    builder.Services.AddPersistenceDependencies(configuration);
+    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
     builder.Services.AddApplicationDependencies();
+    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
@@ -106,12 +107,12 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com/ajax/libs/tinymce/; " +
-            "style-src 'self' 'unsafe-inline'; " +
-            "img-src 'self' data:; " +
-            "font-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
+            "img-src 'self' data: blob:; " +
+            "font-src 'self' data: https://cdnjs.cloudflare.com; " +
             "connect-src 'self'; " +
-            "frame-src 'none'; " +
+            "frame-src 'self'; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'");

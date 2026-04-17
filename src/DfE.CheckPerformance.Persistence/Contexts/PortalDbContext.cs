@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Persistence.Configurations;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -41,19 +42,15 @@ public sealed class PortalDbContext(
         return result;
     }
 
-    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
-        => await Database.BeginTransactionAsync(cancellationToken);
-
-    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
-        if (Database.CurrentTransaction != null)
-            await Database.CurrentTransaction.CommitAsync(cancellationToken);
-    }
-
-    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
-    {
-        if (Database.CurrentTransaction != null)
-            await Database.CurrentTransaction.RollbackAsync(cancellationToken);
+        var strategy = Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+            await work();
+            await transaction.CommitAsync(cancellationToken);
+        });
     }
 
     private List<(AuditEntry Audit, EntityEntry Entry, bool HasTempKey)> CollectAuditEntries()

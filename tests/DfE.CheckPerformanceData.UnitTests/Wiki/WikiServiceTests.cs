@@ -15,6 +15,9 @@ public sealed class WikiServiceTests
     {
         _htmlRenderer.RenderHtml(Arg.Any<string?>()).Returns(ci => $"<p>{ci.Arg<string?>()}</p>");
         _sut = new WikiService(_repository, _htmlRenderer);
+
+        _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
+            .Returns(ci => ((Func<Task>)ci[0])());
     }
 
     // --- GetNavigationTreeAsync ---

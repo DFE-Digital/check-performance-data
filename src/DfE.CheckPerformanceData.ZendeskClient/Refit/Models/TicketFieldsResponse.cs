@@ -9,6 +9,6 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
     public class TicketFieldsResponse
     {
         [JsonProperty("ticket_fields")]
-        public List<UserField> TicketFields { get; set; }
+        public List<CustomFieldMetaData> TicketFields { get; set; }
     }
 }

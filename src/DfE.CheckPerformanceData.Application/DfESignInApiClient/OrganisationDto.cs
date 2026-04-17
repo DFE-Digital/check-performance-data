@@ -7,10 +7,11 @@ public class OrganisationDto
     public required string Id { get; init; }
     public string Name { get; init; } = string.Empty;
     [JsonIgnore]
-    public required string Laestab { get; set; }
+    public string Laestab { get; set; } = null!;
+
     public required string Urn { get; init; }
-    public int StatutoryLowAge { get; init; }
-    public int StatutoryHighAge { get; init; }
+    public int? StatutoryLowAge { get; init; }
+    public int? StatutoryHighAge { get; init; }
     
     public List<OrganisationKeyStageDto> KeyStages =>
         OrganisationKeyStages.All

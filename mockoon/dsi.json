@@ -197,7 +197,7 @@
       "responses": [
         {
           "uuid": "79079f03-74b4-4952-b47d-1006fa373afb",
-          "body": "[\n  {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n]",
+          "body": "[\n  {{ (dataRaw 'User4to16') }}\n]",
           "latency": 0,
           "statusCode": 200,
           "label": "",
@@ -207,12 +207,12 @@
               "value": "application/json"
             }
           ],
-          "bodyType": "INLINE",
+          "bodyType": "DATABUCKET",
           "filePath": "",
           "rules": [],
           "rulesOperator": "OR",
           "disableTemplating": false,
-          "databucketID": "",
+          "databucketID": "w3gi",
           "sendFileAsBody": false,
           "fallbackTo404": false,
           "default": false,
@@ -268,5 +268,20 @@
       "uuid": "875fde29-81cb-4a2d-a2db-c5b3b7c8b65f"
     }
   ],
-  "data": []
+  "data": [
+    {
+      "uuid": "d02fb2e5-e7c6-443e-bcf6-15d3e7968874",
+      "id": "97jr",
+      "name": "User4to16",
+      "documentation": "",
+      "value": "[{\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 4,\n    \"statutoryHighAge\": 16, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n  ]"
+    },
+    {
+      "uuid": "808588ff-4654-49b4-93d0-56cb4731b561",
+      "id": "w3gi",
+      "name": "User11to18",
+      "documentation": "",
+      "value": "[\n  {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 11,\n    \"statutoryHighAge\": 18, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n]"
+    }
+  ]
 }

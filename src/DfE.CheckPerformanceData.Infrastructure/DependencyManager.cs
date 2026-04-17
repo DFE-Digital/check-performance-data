@@ -12,6 +12,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
@@ -58,6 +59,23 @@ public static class DependencyManager
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("organisationid");
+                
+                if (!settings.RequireHttpsMetadata)
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = false,
+                        ValidateIssuerSigningKey = false,
+                        RequireSignedTokens = false,
+                        SignatureValidator = delegate (string token, TokenValidationParameters _)
+                        {
+                            return new JsonWebToken(token);
+                        }
+                    };
+                    options.ProtocolValidator.RequireNonce = false;
+                }
 
                 options.Events.OnTokenResponseReceived = ctx 
                     => Task.CompletedTask;

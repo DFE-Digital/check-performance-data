@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Application.DfESignInApiClient;
@@ -13,9 +14,9 @@ public class OrganisationDto
     public string? Upin { get; init; }
     public string? Ukprn { get; init; }
     public string? EstablishmentNumber { get; init; }
-    
     public string? Address { get; init; }
     public string? Telephone { get; init; }
+    //We are going to need to validate the model as we can't show data beyond the age limits
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }
     public string? LegacyId { get; init; }

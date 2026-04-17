@@ -1,17 +1,16 @@
 using DfE.CheckPerformanceData.Application.Features.LandingPage;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class LandingController(IMediator mediator, ILogger<LandingController> logger) : Controller
+public class LandingController(ILogger<LandingController> logger, ILandingPageService landingPageService) : Controller
 {
     [Authorize]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new GetLandingPageDataQuery());
+        var result = await landingPageService.GetLandingPageDataAsync(cancellationToken);
 
         if (result == null)
         {

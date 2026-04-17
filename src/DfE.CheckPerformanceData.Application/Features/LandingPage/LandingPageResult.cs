@@ -1,9 +1,6 @@
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using MediatR;
 
 namespace DfE.CheckPerformanceData.Application.Features.LandingPage;
-
-public record GetLandingPageDataQuery : IRequest<LandingPageResult?>;
 
 public class LandingPageResult
 {

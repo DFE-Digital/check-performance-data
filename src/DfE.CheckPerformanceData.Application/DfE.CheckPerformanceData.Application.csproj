@@ -9,7 +9,6 @@
     <ItemGroup>
       <PackageReference Include="HtmlSanitizer" />
       <PackageReference Include="Markdig" />
-      <PackageReference Include="MediatR" />
       <PackageReference Include="Microsoft.EntityFrameworkCore" />
     </ItemGroup>
 

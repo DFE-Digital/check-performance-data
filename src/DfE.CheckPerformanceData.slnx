@@ -12,7 +12,7 @@
     <Folder Name="/Tests/">
         <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" />
     </Folder>
-    <Project Path="DfE.CheckPerformanceData.Persistence/DfE.CheckPerformanceData.Persistence.csproj"  />
+    <Project Path="DfE.CheckPerformanceData.Persistence/DfE.CheckPerformanceData.Persistence.csproj" />
     <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />
     <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />

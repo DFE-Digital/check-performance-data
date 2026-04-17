@@ -72,8 +72,6 @@ try
 
     builder.Services.AddHealthChecks();
 
-    builder.Services.AddMediatR(config => config.RegisterServicesFromAssembly(typeof(ApplicationAssemblyMarker).Assembly));
-    
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();

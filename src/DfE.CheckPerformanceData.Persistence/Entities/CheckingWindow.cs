@@ -4,9 +4,9 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 
 public sealed class CheckingWindow
 {
-    public int Id { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public KeyStages KeyStage { get; set; }
-    public required string Title { get; set; }
+    public Guid Id { get; init; }
+    public DateOnly StartDate { get; init; }
+    public DateOnly EndDate { get; init; }
+    public KeyStages KeyStage { get; init; }
+    public string Title { get; init; } = string.Empty;
 }

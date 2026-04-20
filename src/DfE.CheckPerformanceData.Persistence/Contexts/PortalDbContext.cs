@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Persistence.Configurations;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -19,14 +20,20 @@ public sealed class PortalDbContext(
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    
+    public DbSet<CheckingWindowDefinition> CheckingWindowDefinitions => Set<CheckingWindowDefinition>();
+    public DbSet<CheckingWindowStep> CheckingWindowSteps => Set<CheckingWindowStep>();
+    public DbSet<AmendmentRequest> AmendmentRequests => Set<AmendmentRequest>();
+    public DbSet<StepResponse> StepResponses => Set<StepResponse>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
-        modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
-        modelBuilder.ApplyConfiguration(new WikiPageConfiguration());
-        modelBuilder.ApplyConfiguration(new WikiPageVersionConfiguration());
-        modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(PortalDbContext).Assembly);
+        // modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
+        // modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
+        // modelBuilder.ApplyConfiguration(new WikiPageConfiguration());
+        // modelBuilder.ApplyConfiguration(new WikiPageVersionConfiguration());
+        // modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

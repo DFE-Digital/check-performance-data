@@ -19,5 +19,5 @@ public class LandingPageViewModel(
 public class LandingPageWindowViewModel
 {
     public required string Title { get; init; }
-    public required DateTime EndDate { get; init; }
+    public required DateOnly EndDate { get; init; }
 }

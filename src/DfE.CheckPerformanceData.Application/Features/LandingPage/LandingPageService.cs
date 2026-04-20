@@ -22,7 +22,7 @@ public class LandingPageService(ILandingPageRepository landingPageRepository, Ti
         }
         
         var now = timeProvider.GetUtcNow();
-        var windows = await landingPageRepository.GetOpenWindowsAsync(now,
+        var windows = await landingPageRepository.GetOpenWindowsAsync(DateOnly.FromDateTime(now.DateTime),
             organisation.KeyStages.Select(k => k.KeyStage), cancellationToken);
 
         var result = new LandingPageResult

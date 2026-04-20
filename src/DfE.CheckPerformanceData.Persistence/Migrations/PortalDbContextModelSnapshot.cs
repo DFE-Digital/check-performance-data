@@ -66,7 +66,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
 
                     b.HasIndex("Timestamp");
 
-                    b.ToTable("AuditEntries");
+                    b.ToTable("AuditEntries", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.WikiPageVersion", b =>
@@ -101,7 +101,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                     b.HasIndex("WikiPageId", "VersionNumber")
                         .IsUnique();
 
-                    b.ToTable("WikiPageVersions");
+                    b.ToTable("WikiPageVersions", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
@@ -127,7 +127,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CheckingWindows");
+                    b.ToTable("CheckingWindows", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>
@@ -167,7 +167,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("ContentBlocks");
+                    b.ToTable("ContentBlocks", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlockVersion", b =>
@@ -199,7 +199,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                     b.HasIndex("ContentBlockId", "VersionNumber")
                         .IsUnique();
 
-                    b.ToTable("ContentBlockVersions");
+                    b.ToTable("ContentBlockVersions", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", b =>
@@ -250,7 +250,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.ToTable("WikiPages");
+                    b.ToTable("WikiPages", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.WikiPageVersion", b =>

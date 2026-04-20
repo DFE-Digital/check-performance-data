@@ -36,5 +36,7 @@ namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
 
         [JsonProperty("custom_fields")]
         public List<CustomField> CustomFields { get; set; } = new List<CustomField>();
+        [JsonProperty("brand_id")]
+        public long? BrandId { get; set; }
     }
 }

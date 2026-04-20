@@ -243,7 +243,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                             Value = "229520"
                         }
 
-                    ]
+                    ],
+                    BrandId = 16853215883538
                 }
             };
             var response =await zendeskApi.CreateTicket(request);

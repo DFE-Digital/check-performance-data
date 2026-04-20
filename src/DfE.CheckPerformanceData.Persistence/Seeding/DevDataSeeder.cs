@@ -12,15 +12,34 @@ public class DevDataSeeder(PortalDbContext dbContext)
     {
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
-        await dbContext.CheckingWindows.AddRangeAsync(
-            new CheckingWindow
+        var ks4JuneCheckingWindow = new CheckingWindow
             {
                 Id = Guid.NewGuid(),
                 StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
                 EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(+13)),
                 KeyStage = KeyStages.KS4,
-                Title = "KS4 June"
-            },
+                Title = "KS4 June",
+                CheckingWindowRequestSteps =
+                [
+                    new CheckingWindowStep
+                    {
+                        RequestType = RequestTypes.Add,
+                        StepType = CheckingWindowStepType.NewLearner,
+                        Order = 1,
+                        IsRequired = true
+                    },
+                    new CheckingWindowStep
+                    {
+                        RequestType = RequestTypes.Add,
+                        StepType = CheckingWindowStepType.FurtherDetails,
+                        Order = 2,
+                        IsRequired = false
+                    },
+                ]
+            };
+
+        await dbContext.CheckingWindows.AddRangeAsync(
+            ks4JuneCheckingWindow,
             new CheckingWindow
             {
                 Id = Guid.NewGuid(),
@@ -47,85 +66,20 @@ public class DevDataSeeder(PortalDbContext dbContext)
             }
         );
 
-        foreach (var definition in BuildDefinitions())
-        {
-            var exists = await dbContext.CheckingWindowDefinitions.AnyAsync(d =>
-                d.Title == definition.Title &&
-                d.RequestType == definition.RequestType);
-
-            if (!exists)
-                dbContext.CheckingWindowDefinitions.Add(definition);
-        }
-
         await dbContext.SaveChangesAsync();
-    }
 
-    private static List<CheckingWindowDefinition> BuildDefinitions() =>
-    [
-        BuildDefinition("KS2 2025 Add",
-            CheckingWindowRequestType.Add,
-            CheckingWindowType.KS2,
-            [
-                (CheckingWindowStepType.Date, "Date of Change"),
-                (CheckingWindowStepType.FurtherDetails, "Reason for Addition"),
-                (CheckingWindowStepType.EvidenceUpload, "Upload Evidence"),
-                (CheckingWindowStepType.CheckBox, "Confirm Declaration"),
-            ]),
 
-        BuildDefinition("KS2 2025 Remove",
-            CheckingWindowRequestType.Remove,
-            CheckingWindowType.KS2,
-            [
-                (CheckingWindowStepType.Date, "Date of Change"),
-                (CheckingWindowStepType.CheckBox, "Parental Consent"),
-                (CheckingWindowStepType.EvidenceUpload, "Upload Evidence"),
-                (CheckingWindowStepType.FurtherDetails, "Further Details"),
-            ]),
 
-        BuildDefinition("KS4 2025 Add",
-            CheckingWindowRequestType.Add,
-            CheckingWindowType.KS4June,
-            [
-                (CheckingWindowStepType.FurtherDetails, "Reason for Addition"),
-                (CheckingWindowStepType.Date, "Date of Change"),
-                (CheckingWindowStepType.EvidenceUpload, "Upload Evidence"),
-                (CheckingWindowStepType.CheckBox, "Confirm Declaration"),
-            ]),
+        // foreach (var definition in BuildDefinitions())
+        // {
+        //     var exists = await dbContext.CheckingWindowDefinitions.AnyAsync(d =>
+        //         d.Title == definition.Title &&
+        //         d.RequestType == definition.RequestType);
 
-        BuildDefinition("KS4 2025 Add",
-            CheckingWindowRequestType.Add,
-            CheckingWindowType.KS4Autumn,
-            [
-                (CheckingWindowStepType.FurtherDetails, "Reason for Addition"),
-                (CheckingWindowStepType.Date, "Date of Change"),
-                (CheckingWindowStepType.EvidenceUpload, "Upload Evidence"),
-                (CheckingWindowStepType.CheckBox, "Confirm Declaration"),
-            ]),
-    ];
+        //     if (!exists)
+        //         dbContext.CheckingWindowDefinitions.Add(definition);
+        // }
 
-    private static CheckingWindowDefinition BuildDefinition(
-        string title,
-        CheckingWindowRequestType requestType,
-        CheckingWindowType windowType,
-        (CheckingWindowStepType StepType, string Title)[] steps)
-    {
-        var definitionId = Guid.NewGuid();
-
-        return new CheckingWindowDefinition
-        {
-            Id = definitionId,
-            Title = title,
-            RequestType = requestType,
-            WindowType = windowType,
-            Steps = steps.Select((s, index) => new CheckingWindowStep
-            {
-                Id = Guid.NewGuid(),
-                CheckingWindowDefinitionId = definitionId,
-                CheckingWindowStepType = s.StepType,
-                Title = s.Title,
-                Order = index,
-                IsRequired = true
-            }).ToList()
-        };
+        
     }
 }

@@ -21,10 +21,10 @@ public sealed class PortalDbContext(
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     
-    public DbSet<CheckingWindowDefinition> CheckingWindowDefinitions => Set<CheckingWindowDefinition>();
+    // public DbSet<CheckingWindowDefinition> CheckingWindowDefinitions => Set<CheckingWindowDefinition>();
     public DbSet<CheckingWindowStep> CheckingWindowSteps => Set<CheckingWindowStep>();
-    public DbSet<AmendmentRequest> AmendmentRequests => Set<AmendmentRequest>();
-    public DbSet<StepResponse> StepResponses => Set<StepResponse>();
+    // public DbSet<AmendmentRequest> AmendmentRequests => Set<AmendmentRequest>();
+    // public DbSet<StepResponse> StepResponses => Set<StepResponse>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

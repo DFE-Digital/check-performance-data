@@ -1,0 +1,6 @@
+namespace DfE.CheckPerformanceData.Application.Queries.GetOpenWindows;
+
+public class GetOpenWindowsQuery : IRequest<List<WindowDto>>
+{
+    
+}

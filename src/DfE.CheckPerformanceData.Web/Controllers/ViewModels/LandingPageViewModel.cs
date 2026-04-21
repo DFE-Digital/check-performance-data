@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
@@ -20,4 +21,5 @@ public class LandingPageWindowViewModel
 {
     public required string Title { get; init; }
     public required DateOnly EndDate { get; init; }
+    public required Guid Id { get; init; }
 }

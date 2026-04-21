@@ -1,4 +1,6 @@
 ﻿using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow;
 
@@ -12,12 +14,14 @@ public sealed class CheckingWindow
     public ICollection<CheckingWindowStep> CheckingWindowRequestSteps {get;init;} = [];
 }
 
-public class CheckingWindowStep
+public class CheckingWindowConfiguration : IEntityTypeConfiguration<CheckingWindow>
 {
-    public Guid Id { get; init; }
-    public Guid CheckingWindowId { get; init; }
-    public RequestTypes RequestType {get; init;} // Add, Include, Remove
-    public CheckingWindowStepType StepType {get; init;} // Date, Upload, More Details etc
-    public int Order { get; init; } 
-    public bool IsRequired {get; init;}
+    public void Configure(EntityTypeBuilder<CheckingWindow> builder)
+    {
+        builder.HasKey(w => w.Id);
+
+        builder.Property(w => w.Title)
+            .IsRequired()
+            .HasMaxLength(200);
+    }
 }

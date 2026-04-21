@@ -18,6 +18,6 @@ public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepo
                    && organisationKeyStages.Contains(window.KeyStage)
             )
             .Select(w => new OpenCheckingWindowDto()
-                { EndDate = w.EndDate, KeyStage = w.KeyStage, Title = w.Title })
+                { EndDate = w.EndDate, KeyStage = w.KeyStage, Title = w.Title, Id = w.Id })
             .ToListAsync(cancellationToken);
 }

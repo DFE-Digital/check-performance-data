@@ -20,7 +20,7 @@ public class LandingController(ILogger<LandingController> logger, ILandingPageSe
         
         var landingPageViewModel = new LandingPageViewModel(
             result.OpenWindows.Select(w => new LandingPageWindowViewModel
-                { Title = w.Title, EndDate = w.EndDate }),
+                { Title = w.Title, EndDate = w.EndDate, Id = w.Id }),
             result.OrganisationName,
             result.OrganisationUrn,
             result.OrganisationLaestab, string.Join(',', result.KeyStages.Select(ks => ks.Title)));

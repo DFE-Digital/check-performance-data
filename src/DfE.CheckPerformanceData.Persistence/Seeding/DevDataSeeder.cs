@@ -25,15 +25,46 @@ public class DevDataSeeder(PortalDbContext dbContext)
                     {
                         RequestType = RequestTypes.Add,
                         StepType = CheckingWindowStepType.NewLearner,
-                        Order = 1,
-                        IsRequired = true
+                        Order = 0,
+                        IsRequired = true,
+                        Title = "New Pupil Details",
+                        Explanation = "Please enter the details of the new pupil."
                     },
                     new CheckingWindowStep
                     {
                         RequestType = RequestTypes.Add,
                         StepType = CheckingWindowStepType.FurtherDetails,
+                        Order = 1,
+                        IsRequired = false,
+                        Title = "Further Details",
+                        Explanation = "Please include any other information you think is important."
+                    },
+                    new CheckingWindowStep
+                    {
+                        RequestType = RequestTypes.Remove,
+                        StepType = CheckingWindowStepType.Date,
+                        Order = 0,
+                        IsRequired = true,
+                        Title = "Enter a date",
+                        Explanation = "Some date or other."
+                    },
+                    new CheckingWindowStep
+                    {
+                        RequestType = RequestTypes.Remove,
+                        StepType = CheckingWindowStepType.CheckBox,
+                        Order = 1,
+                        IsRequired = true,
+                        Title = "Is this true?",
+                        Explanation = "Check the box is this is true."
+                    },
+                    new CheckingWindowStep
+                    {
+                        RequestType = RequestTypes.Remove,
+                        StepType = CheckingWindowStepType.FurtherDetails,
                         Order = 2,
-                        IsRequired = false
+                        IsRequired = false,
+                        Title = "Some Further Details",
+                        Explanation = "This is your last chance to talk."
                     },
                 ]
             };
@@ -67,19 +98,5 @@ public class DevDataSeeder(PortalDbContext dbContext)
         );
 
         await dbContext.SaveChangesAsync();
-
-
-
-        // foreach (var definition in BuildDefinitions())
-        // {
-        //     var exists = await dbContext.CheckingWindowDefinitions.AnyAsync(d =>
-        //         d.Title == definition.Title &&
-        //         d.RequestType == definition.RequestType);
-
-        //     if (!exists)
-        //         dbContext.CheckingWindowDefinitions.Add(definition);
-        // }
-
-        
     }
 }

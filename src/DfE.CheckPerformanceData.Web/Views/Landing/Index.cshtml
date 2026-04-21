@@ -38,7 +38,7 @@
                 <p>You have until 5pm on @openWindow.EndDate.ToString("dddd d MMMM yyyy") to review your data.</p>
                 
                 <div>
-                    <a href="#" role="button" class="govuk-button">
+                    <a asp-action="Index" asp-controller="DataCheck" asp-route-windowId="@openWindow.Id" role="button" class="govuk-button">
                         Continue
                     </a>
                 </div>

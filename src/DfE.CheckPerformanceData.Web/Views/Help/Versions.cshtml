@@ -1,0 +1,132 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WikiPageVersionsViewModel
+@{
+    ViewData["Title"] = $"Version history - {Model.Page.Title}";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <a href="/help/@Model.Page.SlugPath" class="govuk-back-link">Back to page</a>
+
+        <h1 class="govuk-heading-l">Version history: @Model.Page.Title</h1>
+    </div>
+</div>
+
+@if (Model.Versions.Count == 0)
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-two-thirds">
+            <p class="govuk-body">No versions recorded.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-half">
+            <table class="govuk-table" id="versions-table">
+                <caption class="govuk-table__caption govuk-table__caption--m">Page versions</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Version</th>
+                        <th scope="col" class="govuk-table__header">Title</th>
+                        <th scope="col" class="govuk-table__header">Date</th>
+                        <th scope="col" class="govuk-table__header">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var version in Model.Versions)
+                    {
+                        <tr class="govuk-table__row version-row" data-version-id="@version.Id" tabindex="0"
+                            role="button" aria-controls="version-preview-@version.Id"
+                            aria-label="View version @version.VersionNumber">
+                            <td class="govuk-table__cell">@version.VersionNumber</td>
+                            <td class="govuk-table__cell">@version.Title</td>
+                            <td class="govuk-table__cell">@version.CreatedAt.ToString("d MMM yyyy HH:mm")</td>
+                            <td class="govuk-table__cell">
+                                @if (version.VersionNumber != Model.Versions[0].VersionNumber)
+                                {
+                                    <form action="/help/revert/@Model.Page.Id/@version.Id" method="post" style="display:inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                                                onclick="return confirm('Revert to version @version.VersionNumber?');">
+                                            Revert
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <strong class="govuk-tag">Current</strong>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="govuk-grid-column-one-half">
+            <div id="version-preview-container">
+                <div class="version-preview-placeholder" id="version-preview-empty">
+                    <p class="govuk-body govuk-!-colour-secondary">Select a version from the table to preview its content.</p>
+                </div>
+
+                @foreach (var version in Model.Versions)
+                {
+                    <div class="version-preview-panel" id="version-preview-@version.Id" hidden>
+                        <h2 class="govuk-heading-m">Version @version.VersionNumber</h2>
+                        <p class="govuk-body-s govuk-!-colour-secondary govuk-!-margin-bottom-4">
+                            @version.CreatedAt.ToString("d MMM yyyy HH:mm")
+                        </p>
+                        <h3 class="govuk-heading-s">@version.Title</h3>
+                        <div class="version-preview-content wiki-content">
+                            @Html.Raw(version.ContentHtml)
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            'use strict';
+
+            var rows = document.querySelectorAll('.version-row');
+            var panels = document.querySelectorAll('.version-preview-panel');
+            var placeholder = document.getElementById('version-preview-empty');
+
+            if (!rows.length || !panels.length) return;
+
+            function selectVersion(versionId) {
+                rows.forEach(function (r) { r.classList.remove('version-row--selected'); });
+                panels.forEach(function (p) { p.hidden = true; });
+
+                var row = document.querySelector('.version-row[data-version-id="' + versionId + '"]');
+                var panel = document.getElementById('version-preview-' + versionId);
+
+                if (row) row.classList.add('version-row--selected');
+                if (panel) {
+                    panel.hidden = false;
+                    if (placeholder) placeholder.hidden = true;
+                }
+            }
+
+            rows.forEach(function (row) {
+                row.style.cursor = 'pointer';
+
+                row.addEventListener('click', function (e) {
+                    if (e.target.closest('button, form, a')) return;
+                    selectVersion(row.getAttribute('data-version-id'));
+                });
+
+                row.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        if (e.target.closest('button, form, a')) return;
+                        e.preventDefault();
+                        selectVersion(row.getAttribute('data-version-id'));
+                    }
+                });
+            });
+        })();
+    </script>
+}

@@ -1,2 +1,5 @@
 ---
-EXAMPLE_KEY: example value 2
+DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
+DfeSignIn__ClientId: CheckPerformanceData
+DfeSignIn__Audience: signin.education.gov.uk
+DfeSignIn__MetadataAddress: https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration

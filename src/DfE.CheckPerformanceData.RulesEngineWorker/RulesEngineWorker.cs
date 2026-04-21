@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker;
 
-public class RulesEngineWorker : BackgroundService
+public sealed class RulesEngineWorker : BackgroundService
 {
     private readonly ILogger<RulesEngineWorker> _logger;
     private readonly QueueClient _queueClient;
@@ -83,7 +83,7 @@ public class RulesEngineWorker : BackgroundService
     }
 }
 
-public class RulesEngineOptions
+public sealed class RulesEngineOptions
 {
     public int RetryDelayMs { get; set; }
     public string QueueName { get; set; }

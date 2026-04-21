@@ -48,10 +48,11 @@ try
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
-        .AddGovUkFrontend(options => options.Rebrand = true);
+        .AddGovUkFrontend();
 
     //if (builder.Environment.IsDevelopment()) 
         builder.Services.AddScoped<DevDataSeeder>();
+        
     
     builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
     builder.Services.AddApplicationDependencies();

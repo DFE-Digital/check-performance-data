@@ -1,24 +1,74 @@
-@model DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindow
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.CheckYourPupilDataViewModel
 
 @{
-    ViewBag.Title = "title";
+    ViewBag.Title = "Check Your Pupil Data";
     Layout = "_Layout";
 }
 
-<h2 class="govuk-heading-l">@Model.Title</h2>
-@* *@
-@* <div> *@
-@*     <a asp-action="Step" asp-controller="DataCheck" asp-route-windowId="@Model.Id" asp-route-requestType="Add" role="button" class="govuk-button"> *@
-@*         Add *@
-@*     </a> *@
-@* </div> *@
-@* <div> *@
-@*     <a asp-action="Step" asp-controller="DataCheck" asp-route-windowId="@Model.Id" asp-route-requestType="Remove" role="button" class="govuk-button"> *@
-@*         Remove *@
-@*     </a> *@
-@* </div> *@
-@* <div> *@
-@*     <a asp-action="Step" asp-controller="DataCheck" asp-route-windowId="@Model.Id" asp-route-requestType="Include" role="button" class="govuk-button"> *@
-@*         Include *@
-@*     </a> *@
-@* </div> *@
+<h1 class="govuk-heading-xl">Check your pupil data</h1>
+
+<govuk-tabs>
+    <govuk-tabs-item id="pupils" label="Pupils">
+        <h2 class="govuk-heading-l">Pupils</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th class="govuk-table__header" scope="col">Name</th>
+                    <th class="govuk-table__header" scope="col">Date of birth</th>
+                    <th class="govuk-table__header" scope="col">PINCL</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var pupil in Model.Pupils)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@pupil.Firstname @pupil.Surname</td>
+                        <td class="govuk-table__cell">@pupil.DateOfBirth</td>
+                        <td class="govuk-table__cell">@pupil.Pincl</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @await Html.PartialAsync("_Pagination", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.PaginationViewModel
+        {
+            CurrentPage = Model.PupilsPage,
+            TotalPages = Model.PupilsTotalPages,
+            WindowId = Model.WindowId,
+            OtherPage = Model.ResultsPage,
+            PageParam = "pupilsPage",
+            TabAnchor = "#pupils"
+        })
+    </govuk-tabs-item>
+
+    <govuk-tabs-item id="results" label="Assessment results">
+        <h2 class="govuk-heading-l">Assessment results</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th class="govuk-table__header" scope="col">Name</th>
+                    <th class="govuk-table__header" scope="col">Subject</th>
+                    <th class="govuk-table__header" scope="col">Outcome</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var result in Model.Results)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@result.Name</td>
+                        <td class="govuk-table__cell">@result.Subject</td>
+                        <td class="govuk-table__cell">@result.Outcome</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @await Html.PartialAsync("_Pagination", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.PaginationViewModel
+        {
+            CurrentPage = Model.ResultsPage,
+            TotalPages = Model.ResultsTotalPages,
+            WindowId = Model.WindowId,
+            OtherPage = Model.PupilsPage,
+            PageParam = "resultsPage",
+            TabAnchor = "#results"
+        })
+    </govuk-tabs-item>
+</govuk-tabs>

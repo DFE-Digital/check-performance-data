@@ -89,6 +89,29 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return Ok(new { slugPath = page?.SlugPath ?? "" });
     }
 
+    [HttpGet("help/deleted")]
+    public async Task<IActionResult> Deleted()
+    {
+        var deletedPages = await wikiService.GetDeletedPagesAsync();
+        var availableParents = await wikiService.GetAvailableParentsAsync();
+
+        var vm = new DeletedWikiPagesViewModel
+        {
+            DeletedPages = deletedPages,
+            AvailableParents = availableParents
+        };
+
+        return View(vm);
+    }
+
+    [HttpPost("help/restore/{id:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restore(int id, int? newParentId)
+    {
+        var page = await wikiService.RestorePageAsync(id, newParentId);
+        return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+    }
+
     [HttpGet("help/versions/{id:int}")]
     public async Task<IActionResult> Versions(int id)
     {

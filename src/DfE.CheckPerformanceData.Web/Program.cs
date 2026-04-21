@@ -7,7 +7,7 @@ using DfE.CheckPerformanceData.Infrastructure.Persistence;
 using DfE.CheckPerformanceData.Infrastructure.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.ZendeskClient.Refit;
-using DotNetEnv;
+
 using GovUk.Frontend.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using Refit;
@@ -67,11 +67,6 @@ try
             MessageEncoding = QueueMessageEncoding.Base64
         }));
 
-    // todo setup options when refactoring to clean architecture after choosing the best client approach
-    //Install-Package DotNetEnv
-    //if(builder.Environment.IsDevelopment())
-    //var env =    Env.Load(@"C:\Users\paulc\source\repos\dfe\check-performance-data\.env").ToDictionary();
-    
     
     var zendeskSubdomain =  Environment.GetEnvironmentVariable("ZENDESK_SUBDOMAIN") ?? builder.Configuration["ZENDESK_SUBDOMAIN"] ?? "example";
     var zendeskDomain = builder.Configuration["ZENDESK_DOMAIN"] ?? "domain";

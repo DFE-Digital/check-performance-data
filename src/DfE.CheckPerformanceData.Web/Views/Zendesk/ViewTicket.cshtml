@@ -3,16 +3,6 @@
 @model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.GetTicketViewModel
 <a asp-action="Index" class="govuk-back-link">Back</a>
 
-@* <div class="govuk-checkboxes__item">
-    <input class="govuk-checkboxes__input" id="waste" name="ShowNullValues" type="checkbox" value="ShowNullValues" 
-    checked="@ViewBag.ShowNullValues"
-           asp-action="@nameof(ZendeskController.ViewTicket)"
-           asp-route-id" @Model.Ticket.Id"
-           asp-route-ShowNullValues="true">
-    <label class="govuk-label govuk-checkboxes__label" for="ShowNullValues">
-        Show Null Values
-    </label>
-</div> *@
 <form method="get" asp-action="ViewTicket" asp-route-id="@Model.Ticket.Id">
     <div class="govuk-checkboxes__item">
         <input class="govuk-checkboxes__input"

@@ -50,7 +50,7 @@ try
     });
     
     builder.Services.AddHttpContextAccessor();
-   
+
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)

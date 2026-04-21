@@ -32,11 +32,13 @@
 
                 @if (isEditMode)
                 {
+                    var confirmMsg = System.Text.Json.JsonSerializer.Serialize(
+                        $"Delete \"{node.Title}\" and all child pages?");
                     <form action="/help/delete/@node.Id" method="post" class="tv-del-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="editMode" value="true" />
                         <button type="submit" class="tv-del" aria-label="Delete @node.Title"
-                                onclick="return confirm('Delete \u0022@node.Title\u0022 and all child pages?');">
+                                onclick="return confirm(@confirmMsg);">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </form>

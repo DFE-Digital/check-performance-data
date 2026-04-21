@@ -3,11 +3,6 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
 namespace DfE.CheckPerformanceData.Application.Features.LandingPage;
 
-public interface ILandingPageService
-{
-    Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken);
-}
-
 public class LandingPageService(ILandingPageRepository landingPageRepository, TimeProvider timeProvider, 
     IDfESignInApiClient dfESignInApiClient, ICurrentUserService currentUserService) : ILandingPageService
 {
@@ -31,7 +26,8 @@ public class LandingPageService(ILandingPageRepository landingPageRepository, Ti
             OrganisationLaestab = organisation.Laestab,
             OrganisationUrn = organisation.Urn,
             KeyStages = organisation.KeyStages,
-            OpenWindows = windows
+            OpenWindows = windows,
+            OrganisationAddress =  organisation.Address
         };
         
         return result;

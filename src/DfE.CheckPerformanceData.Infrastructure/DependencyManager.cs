@@ -12,11 +12,27 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
 public static class DependencyManager
 {
+    public static IServiceCollection AddFakeSignInAuthentication(this IServiceCollection services,
+        IConfiguration config)
+    {
+        services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = FakeAuthenticationHandler.SchemeName;
+                options.DefaultChallengeScheme = FakeAuthenticationHandler.SchemeName;
+                options.DefaultSignInScheme = FakeAuthenticationHandler.SchemeName;
+            })
+            .AddScheme<AuthenticationSchemeOptions, FakeAuthenticationHandler>(
+                FakeAuthenticationHandler.SchemeName, _ => { });
+
+        return services;
+    }
+    
     public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
     {
         var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>();
@@ -77,6 +93,12 @@ public static class DependencyManager
         return services;
     }
 
+    public static IServiceCollection AddFakeDfeApiClient(this IServiceCollection services)
+    {
+        services.AddScoped<IDfESignInApiClient, FakeDfeSignInApiClient>();
+        return services;
+    }
+    
     public static IServiceCollection AddDfeApiClient(this IServiceCollection services, IConfiguration config)
     {
         services.Configure<DfeSigninSettings>(config.GetSection(DfeSigninSettings.SectionName));

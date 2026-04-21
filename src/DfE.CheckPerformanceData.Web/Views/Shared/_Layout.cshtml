@@ -30,7 +30,10 @@
     <govuk-header home-page-url="https://gov.uk/"/>
     <govuk-service-navigation service-name="Check Performance Data" service-url="#">
         <govuk-service-navigation-nav>
-            <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
+            <govuk-service-navigation-nav-item href="#" active="true">Home</govuk-service-navigation-nav-item>
+            <govuk-service-navigation-nav-item href="#">Pupils</govuk-service-navigation-nav-item>
+            <govuk-service-navigation-nav-item href="#">Change requests</govuk-service-navigation-nav-item>
+            <govuk-service-navigation-nav-item href="/help">Guidance</govuk-service-navigation-nav-item>
             @if (@User.Identity is { IsAuthenticated: true })
             {
                 <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Home")">Sign out
@@ -41,7 +44,7 @@
     <div class="govuk-phase-banner govuk-width-container">
         <p class="govuk-phase-banner__content">
             <strong class="govuk-tag govuk-phase-banner__content__tag">
-                Beta
+                Alpha
             </strong>
             <span class="govuk-phase-banner__text">
                 This is a new service – your <a class="govuk-link" href="#">feedback</a> will help us to improve it.

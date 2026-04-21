@@ -16,4 +16,8 @@
       <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Features\CheckingWindows\" />
+    </ItemGroup>
+
 </Project>

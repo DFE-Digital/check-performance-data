@@ -46,8 +46,10 @@ try
     builder.Services.AddHttpContextAccessor();
    
     builder.Services
-        .AddDfeApiClient(builder.Configuration)
-        .AddDfeSignInAuthentication(builder.Configuration)
+        //.AddDfeApiClient(builder.Configuration)
+        //.AddDfeSignInAuthentication(builder.Configuration)
+        .AddFakeDfeApiClient()
+        .AddFakeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend();
 
     //if (builder.Environment.IsDevelopment()) 

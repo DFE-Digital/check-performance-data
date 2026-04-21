@@ -12,6 +12,8 @@ public class OrganisationDto
     public required string Urn { get; init; }
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }
+
+    public string Address { get; init; } = string.Empty;
     
     public List<OrganisationKeyStageDto> KeyStages =>
         OrganisationKeyStages.All

@@ -1,31 +1,41 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.LandingPageViewModel
 
 @{
-    ViewBag.Title = "title";
+    ViewBag.Title = "Check Performance Data - Check Data";
     Layout = "_Layout";
 }
 
-<h2 class="govuk-heading-l">@Model.OrganisationName</h2>
+<h1 class="govuk-heading-xl">@Model.OrganisationName</h1>
 
-<dl class="govuk-summary-list">
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Establishment LAESTAB</dt>
-        <dd class="govuk-summary-list__value">@Model.OrganisationLaestab</dd>
-    </div>
+<div class="school-details">
+    <dl class="govuk-summary-list">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Address</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationAddress</dd>
+        </div>
+        
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Establishment LAESTAB</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationLaestab</dd>
+        </div>
 
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Establishment URN</dt>
-        <dd class="govuk-summary-list__value">@(Model.OrganisationUrn)</dd>
-    </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Establishment URN</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationUrn</dd>
+        </div>
 
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Data checking</dt>
-        <dd class="govuk-summary-list__value">
-            @Model.KeyStages
-        </dd>
-    </div>
-</dl>
+        @* <div class="govuk-summary-list__row"> *@
+        @*     <dt class="govuk-summary-list__key">Data checking</dt> *@
+        @*     <dd class="govuk-summary-list__value"> *@
+        @*         @Model.KeyStages *@
+        @*     </dd> *@
+        @* </div> *@
+    </dl>
+</div>
 
+<hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible">
+
+<h2 class="govuk-heading-m">Check data</h2>
 
 @if (Model.Windows.Any())
 {
@@ -38,7 +48,7 @@
                 <p>You have until 5pm on @openWindow.EndDate.ToString("dddd d MMMM yyyy") to review your data.</p>
                 
                 <div>
-                    <a asp-action="Index" asp-controller="DataCheck" asp-route-windowId="@openWindow.Id" role="button" class="govuk-button">
+                    <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@openWindow.Id" role="button" class="govuk-button">
                         Continue
                     </a>
                 </div>

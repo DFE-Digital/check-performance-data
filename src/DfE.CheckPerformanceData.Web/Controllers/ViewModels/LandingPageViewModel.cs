@@ -8,13 +8,15 @@ public class LandingPageViewModel(
     string? organisationName,
     string? organisationUrn,
     string? organisationLaestab,
-    string? keyStages)
+    string? keyStages,
+    string address)
 {
     public IEnumerable<LandingPageWindowViewModel> Windows { get; } = windows;
     public string? OrganisationName { get; } = organisationName;
     public string? OrganisationUrn { get; } = organisationUrn;
     public string? OrganisationLaestab { get; } = organisationLaestab;
     public string? KeyStages { get; } = keyStages;
+    public string OrganisationAddress { get; } = address;
 }
 
 public class LandingPageWindowViewModel

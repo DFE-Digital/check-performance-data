@@ -9,4 +9,5 @@ public class LandingPageResult
     public required string OrganisationUrn { get; set; }
     public required List<OrganisationKeyStageDto> KeyStages { get; set; }
     public required List<OpenCheckingWindowDto> OpenWindows { get; set; }
+    public string OrganisationAddress { get; set; } = string.Empty;
 }

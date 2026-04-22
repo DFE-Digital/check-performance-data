@@ -3,7 +3,7 @@
 }
 
 @section Head {
-    <link href="/govuk-frontend.min.css?v=5.14.0" rel="stylesheet">
+    @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
     <link rel="stylesheet" href="~/css/site.css" />
 }
@@ -53,7 +53,9 @@
     </div>
 }
 
+@Html.GovUkFrontendJsEnabledScript()
 @RenderBody()
+@Html.GovUkFrontendScriptImports()
 
 @section Footer {
     <footer class="govuk-footer">
@@ -121,6 +123,5 @@
 }
 
 @section BodyEnd {
-    @Html.GovUkFrontendScriptImports()
     <script src="~/js/site.js"></script>
 }

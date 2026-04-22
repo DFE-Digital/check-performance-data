@@ -1,0 +1,82 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DeletedWikiPagesViewModel
+@{
+    ViewData["Title"] = "Deleted pages - Help";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <a href="/help?edit" class="govuk-back-link">Back to wiki</a>
+
+        <h1 class="govuk-heading-l">Deleted pages</h1>
+
+        @if (Model.DeletedPages.Count == 0)
+        {
+            <p class="govuk-body">No deleted pages.</p>
+        }
+        else
+        {
+            <p class="govuk-body">
+                Each row below represents a page that was deleted. Restoring a page also restores any of its
+                child pages that were deleted at the same time.
+            </p>
+
+            <table class="govuk-table">
+                <caption class="govuk-table__caption govuk-visually-hidden">Deleted wiki pages</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Title</th>
+                        <th scope="col" class="govuk-table__header">Path at deletion</th>
+                        <th scope="col" class="govuk-table__header">Deleted</th>
+                        <th scope="col" class="govuk-table__header">Child pages</th>
+                        <th scope="col" class="govuk-table__header">Restore</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var deleted in Model.DeletedPages)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@deleted.Title</td>
+                            <td class="govuk-table__cell"><code>/@deleted.OriginalSlugPath</code></td>
+                            <td class="govuk-table__cell">
+                                @(deleted.DeletedAt.HasValue
+                                    ? deleted.DeletedAt.Value.ToString("d MMM yyyy HH:mm")
+                                    : "Unknown")
+                            </td>
+                            <td class="govuk-table__cell">
+                                @(deleted.DescendantCount == 0
+                                    ? "—"
+                                    : deleted.DescendantCount == 1
+                                        ? "1 page"
+                                        : $"{deleted.DescendantCount} pages")
+                            </td>
+                            <td class="govuk-table__cell">
+                                <form action="/help/restore/@deleted.Id" method="post" class="wiki-restore-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="editMode" value="true" />
+                                    <div class="govuk-form-group govuk-!-margin-bottom-2">
+                                        <label class="govuk-label govuk-label--s" for="parent-@deleted.Id">
+                                            Restore under
+                                        </label>
+                                        <select class="govuk-select" id="parent-@deleted.Id" name="newParentId">
+                                            <option value="">Top level</option>
+                                            @foreach (var option in Model.AvailableParents)
+                                            {
+                                                var indent = new string('\u00A0', option.Depth * 2);
+                                                <option value="@option.Id">@indent@option.Title</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <button type="submit"
+                                            class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                                            data-module="govuk-button">
+                                        Restore
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DfE.CheckPerformance.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260422093922_AddWikiPageDeletionAudit")]
+    partial class AddWikiPageDeletionAudit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,7 +25,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Domain.Entities.AuditEntry", b =>
+            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.AuditEntry", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -112,156 +115,22 @@ namespace DfE.CheckPerformance.Persistence.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Content")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("VersionNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("WikiPageId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("WikiPageId", "VersionNumber")
-                        .IsUnique();
-
-                    b.ToTable("WikiPageVersions");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.AmendmentRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("CurrentStepIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("OrganisationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("OrganisationUrn")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AmendmentRequest");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.AmendmentRequestStepResponse", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AmendmentRequestId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ResponseData")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<int>("StepIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StepType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AmendmentRequestId");
-
-                    b.ToTable("AmendmentRequestStepResponse");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly>("EndDate")
-                        .HasColumnType("date");
 
                     b.Property<int>("KeyStage")
                         .HasColumnType("integer");
 
-                    b.Property<DateOnly>("StartDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.ToTable("CheckingWindows");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindowStep", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Explanation")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("RequestType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("StepType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CheckingWindowId", "RequestType", "Order")
-                        .IsUnique();
-
-                    b.ToTable("CheckingWindowSteps");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>
@@ -336,58 +205,6 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                     b.ToTable("ContentBlockVersions");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Pupil", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Age")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DateOfBirth")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<string>("FirstLanguage")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Firstname")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Laestab")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("Pincl")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Sex")
-                        .IsRequired()
-                        .HasMaxLength(1)
-                        .HasColumnType("character varying(1)");
-
-                    b.Property<string>("Surname")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CheckingWindowId", "Laestab", "Pincl", "Surname", "Firstname");
-
-                    b.ToTable("Pupils");
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", b =>
                 {
                     b.Property<int>("Id")
@@ -457,24 +274,6 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                     b.Navigation("WikiPage");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.AmendmentRequestStepResponse", b =>
-                {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.AmendmentRequest", null)
-                        .WithMany("StepResponses")
-                        .HasForeignKey("AmendmentRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindowStep", b =>
-                {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindow", null)
-                        .WithMany("CheckingWindowRequestSteps")
-                        .HasForeignKey("CheckingWindowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlockVersion", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", "ContentBlock")
@@ -495,16 +294,6 @@ namespace DfE.CheckPerformance.Persistence.Migrations
                         .HasConstraintName("FK_WikiPage_WikiPage_ParentId");
 
                     b.Navigation("Parent");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.AmendmentRequest", b =>
-                {
-                    b.Navigation("StepResponses");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowWorkflow.CheckingWindow", b =>
-                {
-                    b.Navigation("CheckingWindowRequestSteps");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>

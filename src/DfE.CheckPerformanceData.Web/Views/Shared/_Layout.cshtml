@@ -1,7 +1,9 @@
 ﻿@{
     Layout = "_GovUkPageTemplate";
 }
-
+<head>
+    @Html.GovUkFrontendStyleImports()
+</head>
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" />
     @* <govuk-cookie-banner aria-label="Cookie on [name of service]"> *@
@@ -44,7 +46,9 @@
     </div>
 }
 
+@Html.GovUkFrontendJsEnabledScript()
 @RenderBody()
+@Html.GovUkFrontendScriptImports()
 
 @section Footer {
     <footer class="govuk-footer">

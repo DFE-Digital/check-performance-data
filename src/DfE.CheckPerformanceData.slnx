@@ -11,6 +11,7 @@
     </Project>
     <Folder Name="/Tests/">
         <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" Id="3aca5563-7aab-435a-b5d3-21da95648da3" />
+        <Project Path="../tests/DfE.CheckPerformanceData.IntegrationTests/DfE.CheckPerformanceData.IntegrationTests.csproj" />
     </Folder>
     <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />

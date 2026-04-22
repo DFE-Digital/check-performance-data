@@ -5,9 +5,7 @@
       "commandVersion": "1.0",
       "composeProfile": {
         "includes": [
-          "all",
-          "rules_engine",
-          "web"
+          "all"
         ]
       }
     }

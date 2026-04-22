@@ -1,7 +1,5 @@
-﻿@using GovUk.Frontend.AspNetCore
-@{
+﻿@{
     Layout = "_GovUkPageTemplate";
-    
 }
 <head>
     @Html.GovUkFrontendStyleImports()
@@ -47,9 +45,11 @@
         </p>
     </div>
 }
+
 @Html.GovUkFrontendJsEnabledScript()
 @RenderBody()
 @Html.GovUkFrontendScriptImports()
+
 @section Footer {
     <footer class="govuk-footer">
         <div class="govuk-width-container">
@@ -117,5 +117,4 @@
 
 @section BodyEnd {
     <script src="~/js/site.js"></script>
-  
 }

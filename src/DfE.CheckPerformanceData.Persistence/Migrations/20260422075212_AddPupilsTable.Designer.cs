@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DfE.CheckPerformance.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260422075212_AddPupilsTable")]
+    partial class AddPupilsTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,7 +351,7 @@ namespace DfE.CheckPerformance.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CheckingWindowId", "Laestab", "Pincl", "Surname", "Firstname");
+                    b.HasIndex("CheckingWindowId", "Laestab", "Pincl");
 
                     b.ToTable("Pupils");
                 });

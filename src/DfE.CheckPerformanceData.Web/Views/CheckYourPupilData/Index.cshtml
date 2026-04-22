@@ -5,70 +5,64 @@
     Layout = "_Layout";
 }
 
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+
 <h1 class="govuk-heading-xl">Check your pupil data</h1>
 
 <govuk-tabs>
-    <govuk-tabs-item id="pupils" label="Pupils">
-        <h2 class="govuk-heading-l">Pupils</h2>
-        <table class="govuk-table">
-            <thead class="govuk-table__head">
-                <tr class="govuk-table__row">
-                    <th class="govuk-table__header" scope="col">Name</th>
-                    <th class="govuk-table__header" scope="col">Date of birth</th>
-                    <th class="govuk-table__header" scope="col">PINCL</th>
-                </tr>
-            </thead>
-            <tbody class="govuk-table__body">
-                @foreach (var pupil in Model.Pupils)
-                {
-                    <tr class="govuk-table__row">
-                        <td class="govuk-table__cell">@pupil.Firstname @pupil.Surname</td>
-                        <td class="govuk-table__cell">@pupil.DateOfBirth</td>
-                        <td class="govuk-table__cell">@pupil.Pincl</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        @await Html.PartialAsync("_Pagination", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.PaginationViewModel
+    <govuk-tabs-item id="included" label="Included pupils">
+        <h2 class="govuk-heading-l">Pupil included</h2>
+        @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
         {
-            CurrentPage = Model.PupilsPage,
-            TotalPages = Model.PupilsTotalPages,
             WindowId = Model.WindowId,
-            OtherPage = Model.ResultsPage,
-            PageParam = "pupilsPage",
-            TabAnchor = "#pupils"
+            InputId = "includedSearch",
+            InputName = "includedSearch",
+            CurrentValue = Model.IncludedSearch,
+            ActiveTab = "included",
+            OtherPageName = "nonIncludedPage",
+            OtherPage = Model.NonIncludedPupilsPage,
+            OtherSearchName = "nonIncludedSearch",
+            OtherSearch = Model.NonIncludedSearch
+        })
+        @await Html.PartialAsync("_PupilTable", Model.IncludedPupils)
+        @await Html.PartialAsync("_Pagination", new PaginationViewModel
+        {
+            CurrentPage = Model.IncludedPupilsPage,
+            TotalPages = Model.IncludedPupilsTotalPages,
+            WindowId = Model.WindowId,
+            OtherPage = Model.NonIncludedPupilsPage,
+            PageParam = "includedPage",
+            TabAnchor = "#included",
+            IncludedSearch = Model.IncludedSearch,
+            NonIncludedSearch = Model.NonIncludedSearch
         })
     </govuk-tabs-item>
 
-    <govuk-tabs-item id="results" label="Assessment results">
-        <h2 class="govuk-heading-l">Assessment results</h2>
-        <table class="govuk-table">
-            <thead class="govuk-table__head">
-                <tr class="govuk-table__row">
-                    <th class="govuk-table__header" scope="col">Name</th>
-                    <th class="govuk-table__header" scope="col">Subject</th>
-                    <th class="govuk-table__header" scope="col">Outcome</th>
-                </tr>
-            </thead>
-            <tbody class="govuk-table__body">
-                @foreach (var result in Model.Results)
-                {
-                    <tr class="govuk-table__row">
-                        <td class="govuk-table__cell">@result.Name</td>
-                        <td class="govuk-table__cell">@result.Subject</td>
-                        <td class="govuk-table__cell">@result.Outcome</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-        @await Html.PartialAsync("_Pagination", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.PaginationViewModel
+    <govuk-tabs-item id="nonIncluded" label="Non-included pupils">
+        <h2 class="govuk-heading-l">Pupil non-include</h2>
+        @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
         {
-            CurrentPage = Model.ResultsPage,
-            TotalPages = Model.ResultsTotalPages,
             WindowId = Model.WindowId,
-            OtherPage = Model.PupilsPage,
-            PageParam = "resultsPage",
-            TabAnchor = "#results"
+            InputId = "nonIncludedSearch",
+            InputName = "nonIncludedSearch",
+            CurrentValue = Model.NonIncludedSearch,
+            ActiveTab = "nonIncluded",
+            OtherPageName = "includedPage",
+            OtherPage = Model.IncludedPupilsPage,
+            OtherSearchName = "includedSearch",
+            OtherSearch = Model.IncludedSearch
+        })
+        @await Html.PartialAsync("_PupilTable", Model.NonIncludedPupils)
+        @await Html.PartialAsync("_Pagination", new PaginationViewModel
+        {
+            CurrentPage = Model.NonIncludedPupilsPage,
+            TotalPages = Model.NonIncludedPupilsTotalPages,
+            WindowId = Model.WindowId,
+            OtherPage = Model.IncludedPupilsPage,
+            PageParam = "nonIncludedPage",
+            TabAnchor = "#nonIncluded",
+            IncludedSearch = Model.IncludedSearch,
+            NonIncludedSearch = Model.NonIncludedSearch
         })
     </govuk-tabs-item>
 </govuk-tabs>

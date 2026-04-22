@@ -1,0 +1,29 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.PupilSearchViewModel
+
+<div class="pupil-search">
+    <form method="get" action="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        <input type="hidden" name="@Model.OtherPageName" value="@Model.OtherPage" />
+        <input type="hidden" name="@Model.OtherSearchName" value="@Model.OtherSearch" />
+        <input type="hidden" name="activeTab" value="@Model.ActiveTab" />
+        <div class="govuk-form-group">
+            <label class="govuk-label" for="@Model.InputId">
+                Search for a pupil by first or last name
+            </label>
+            <div class="pupil-search__row">
+                <input class="govuk-input" id="@Model.InputId" name="@Model.InputName" type="text" value="@Model.CurrentValue" />
+                <button class="govuk-button" data-module="govuk-button">Search</button>
+                @if (!string.IsNullOrWhiteSpace(Model.CurrentValue))
+                {
+                    var clearRouteValues = new Microsoft.AspNetCore.Routing.RouteValueDictionary
+                    {
+                        ["windowId"] = Model.WindowId,
+                        ["activeTab"] = Model.ActiveTab,
+                        [Model.OtherPageName] = Model.OtherPage,
+                        [Model.OtherSearchName] = Model.OtherSearch
+                    };
+                    <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "CheckYourPupilData", clearRouteValues)">Clear</a>
+                }
+            </div>
+        </div>
+    </form>
+</div>

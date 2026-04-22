@@ -14,6 +14,7 @@ public sealed class PortalDbContext(
     DbContextOptions<PortalDbContext> options,
     ICurrentUserService currentUserService) : DbContext(options)
 {
+    public DbSet<Pupil> Pupils => Set<Pupil>();
     public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();

@@ -166,7 +166,10 @@ public sealed partial class WikiService(
         return EnrichDto(page, slugPath);
     }
 
-    private async Task<string> BuildSlugPathAsync(WikiPageDto page)
+    private async Task<string> BuildSlugPathAsync(WikiPageDto page) =>
+        await BuildSlugPathAsync(page, includeDeleted: false);
+
+    private async Task<string> BuildSlugPathAsync(WikiPageDto page, bool includeDeleted)
     {
         var slugs = new List<string> { page.Slug };
         var currentParentId = page.ParentId;
@@ -174,7 +177,9 @@ public sealed partial class WikiService(
 
         while (currentParentId.HasValue && depth < MaxDepth)
         {
-            var parent = await repository.GetByIdAsync(currentParentId.Value);
+            var parent = includeDeleted
+                ? await repository.GetByIdIncludingDeletedAsync(currentParentId.Value)
+                : await repository.GetByIdAsync(currentParentId.Value);
             if (parent == null) break;
             slugs.Insert(0, parent.Slug);
             currentParentId = parent.ParentId;
@@ -182,6 +187,99 @@ public sealed partial class WikiService(
         }
 
         return string.Join("/", slugs);
+    }
+
+    public async Task<List<DeletedWikiPageDto>> GetDeletedPagesAsync()
+    {
+        var roots = await repository.GetDeletedRootsAsync();
+        var result = new List<DeletedWikiPageDto>(roots.Count);
+
+        foreach (var root in roots)
+        {
+            var pathStub = new WikiPageDto
+            {
+                Id = root.Id,
+                Slug = root.Slug,
+                ParentId = root.ParentId
+            };
+            var originalPath = await BuildSlugPathAsync(pathStub, includeDeleted: true);
+            var descendantCount = await repository.CountDeletedDescendantsAsync(root.Id);
+
+            result.Add(new DeletedWikiPageDto
+            {
+                Id = root.Id,
+                Title = root.Title,
+                OriginalSlugPath = originalPath,
+                DeletedAt = root.DeletedAt,
+                DeletedBy = root.DeletedBy,
+                DescendantCount = descendantCount
+            });
+        }
+
+        return result
+            .OrderByDescending(r => r.DeletedAt)
+            .ThenBy(r => r.Title)
+            .ToList();
+    }
+
+    public async Task<List<WikiParentOptionDto>> GetAvailableParentsAsync()
+    {
+        var pages = await repository.GetLivePagesForParentPickerAsync();
+        var lookup = pages.ToLookup(p => p.ParentId);
+        var options = new List<WikiParentOptionDto>();
+
+        void Walk(int? parentId, string parentPath, int depth)
+        {
+            if (depth >= MaxDepth) return;
+
+            foreach (var page in lookup[parentId].OrderBy(p => p.SortOrder).ThenBy(p => p.Title))
+            {
+                var slugPath = string.IsNullOrEmpty(parentPath) ? page.Slug : $"{parentPath}/{page.Slug}";
+                options.Add(new WikiParentOptionDto
+                {
+                    Id = page.Id,
+                    Title = page.Title,
+                    SlugPath = slugPath,
+                    Depth = depth
+                });
+                Walk(page.Id, slugPath, depth + 1);
+            }
+        }
+
+        Walk(null, string.Empty, 0);
+        return options;
+    }
+
+    public async Task<WikiPageDto> RestorePageAsync(int rootId, int? newParentId)
+    {
+        var root = await repository.GetByIdIncludingDeletedAsync(rootId)
+            ?? throw new InvalidOperationException($"Wiki page {rootId} not found.");
+
+        if (newParentId.HasValue)
+        {
+            var parent = await repository.GetByIdAsync(newParentId.Value)
+                ?? throw new InvalidOperationException(
+                    $"Target parent {newParentId.Value} is not available (missing or deleted).");
+        }
+
+        var slug = root.Slug;
+        if (await repository.SlugExistsAsync(slug, newParentId))
+            slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+
+        var maxSortOrder = await repository.GetMaxSortOrderAsync(newParentId);
+        var sortOrder = maxSortOrder + 1;
+
+        await repository.ExecuteInTransactionAsync(async () =>
+        {
+            await repository.RestoreSubtreeAsync(rootId, newParentId, slug, sortOrder);
+            await repository.SaveChangesAsync();
+        });
+
+        var restored = await repository.GetByIdAsync(rootId)
+            ?? throw new InvalidOperationException($"Wiki page {rootId} not found after restore.");
+
+        var slugPath = await BuildSlugPathAsync(restored);
+        return EnrichDto(restored, slugPath);
     }
 
     private WikiPageDto EnrichDto(WikiPageDto page, string slugPath) => new()

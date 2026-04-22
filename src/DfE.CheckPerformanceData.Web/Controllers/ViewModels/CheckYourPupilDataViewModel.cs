@@ -13,6 +13,7 @@ public class CheckYourPupilDataViewModel
     public string? NonIncludedSearch { get; init; }
     public required string WindowEndDate { get; init; }
     public required string WindowTitle { get; init; }
+    public string? SelectedNextStep { get; init; }
 }
 
 public class PupilRow

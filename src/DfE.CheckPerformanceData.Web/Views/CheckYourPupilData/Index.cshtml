@@ -100,8 +100,8 @@ else
         </govuk-tabs-item>
     </govuk-tabs>
 
-    <form method="post">
-        <govuk-radios name="what-would-you-like-to-do">
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
                 <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
                     What would you like to do?
@@ -111,9 +111,9 @@ else
                     Select one option.
                 </govuk-radios-hint>
 
-                <govuk-radios-item value="northern-ireland">Request a change to pupil data</govuk-radios-item>
+                <govuk-radios-item value="change">Request a change to pupil data</govuk-radios-item>
                 <govuk-radios-divider>or</govuk-radios-divider>
-                <govuk-radios-item value="abroad">Confirm pupil data is correct</govuk-radios-item>
+                <govuk-radios-item value="confirm">Confirm pupil data is correct</govuk-radios-item>
             </govuk-radios-fieldset>
         </govuk-radios>
 

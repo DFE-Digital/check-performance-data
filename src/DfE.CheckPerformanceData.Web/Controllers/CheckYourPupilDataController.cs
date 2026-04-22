@@ -18,11 +18,36 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         string? includedSearch = null,
         string? nonIncludedSearch = null)
     {
+        var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
+        return View(model);
+    }
+
+    [HttpPost]
+    [Route("CheckYourPupilData/{windowId}/nextstep")]
+    public async Task<IActionResult> NextStep(Guid windowId, string? selectedNextStep)
+    {
+        if (string.IsNullOrEmpty(selectedNextStep))
+        {
+            ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
+            var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
+            return View("Index", model);
+        }
+
+        return RedirectToAction(nameof(Index), new { windowId });
+    }
+
+    private async Task<CheckYourPupilDataViewModel> BuildIndexModelAsync(
+        Guid windowId,
+        int includedPage,
+        int nonIncludedPage,
+        string? includedSearch,
+        string? nonIncludedSearch)
+    {
         var (included, includedTotal) = await checkYourPupilDataService.GetIncludedPupilsAsync(windowId, includedSearch, includedPage, PageSize);
         var (nonIncluded, nonIncludedTotal) = await checkYourPupilDataService.GetNonIncludedPupilsAsync(windowId, nonIncludedSearch, nonIncludedPage, PageSize);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
-        var model = new CheckYourPupilDataViewModel
+        return new CheckYourPupilDataViewModel
         {
             WindowId = windowId.ToString(),
             WindowEndDate = window.EndDate.ToString("dddd d MMMM yyyy"),
@@ -36,8 +61,6 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
             NonIncludedPupilsTotalPages = TotalPages(nonIncludedTotal),
             NonIncludedSearch = nonIncludedSearch
         };
-
-        return View(model);
     }
 
     private static PupilRow ToPupilRow(PupilDto p) => new()

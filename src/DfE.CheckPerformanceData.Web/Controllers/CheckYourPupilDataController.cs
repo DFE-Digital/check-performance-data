@@ -1,9 +1,11 @@
 using DfE.CheckPerformanceData.Application.Features.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[Authorize]
 public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService) : Controller
 {
     private const int PageSize = 10;
@@ -18,10 +20,13 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
     {
         var (included, includedTotal) = await checkYourPupilDataService.GetIncludedPupilsAsync(windowId, includedSearch, includedPage, PageSize);
         var (nonIncluded, nonIncludedTotal) = await checkYourPupilDataService.GetNonIncludedPupilsAsync(windowId, nonIncludedSearch, nonIncludedPage, PageSize);
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         var model = new CheckYourPupilDataViewModel
         {
             WindowId = windowId.ToString(),
+            WindowEndDate = window.EndDate.ToString("dddd d MMMM yyyy"),
+            WindowTitle = window.Title,
             IncludedPupils = included.Select(ToPupilRow).ToList(),
             IncludedPupilsPage = includedPage,
             IncludedPupilsTotalPages = TotalPages(includedTotal),

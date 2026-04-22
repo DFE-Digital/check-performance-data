@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.CheckYourPupilDataViewModel
 
 @{
@@ -5,64 +6,118 @@
     Layout = "_Layout";
 }
 
-@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
-
 <h1 class="govuk-heading-xl">Check your pupil data</h1>
 
-<govuk-tabs>
-    <govuk-tabs-item id="included" label="Included pupils">
-        <h2 class="govuk-heading-l">Pupil included</h2>
-        @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
-        {
-            WindowId = Model.WindowId,
-            InputId = "includedSearch",
-            InputName = "includedSearch",
-            CurrentValue = Model.IncludedSearch,
-            ActiveTab = "included",
-            OtherPageName = "nonIncludedPage",
-            OtherPage = Model.NonIncludedPupilsPage,
-            OtherSearchName = "nonIncludedSearch",
-            OtherSearch = Model.NonIncludedSearch
-        })
-        @await Html.PartialAsync("_PupilTable", Model.IncludedPupils)
-        @await Html.PartialAsync("_Pagination", new PaginationViewModel
-        {
-            CurrentPage = Model.IncludedPupilsPage,
-            TotalPages = Model.IncludedPupilsTotalPages,
-            WindowId = Model.WindowId,
-            OtherPage = Model.NonIncludedPupilsPage,
-            PageParam = "includedPage",
-            TabAnchor = "#included",
-            IncludedSearch = Model.IncludedSearch,
-            NonIncludedSearch = Model.NonIncludedSearch
-        })
-    </govuk-tabs-item>
+@if (Model is { IncludedPupilsTotalPages: 0, NonIncludedPupilsTotalPages: 0 })
+{
+    <p class="govuk-body">No pupils to check for your school.</p>
 
-    <govuk-tabs-item id="nonIncluded" label="Non-included pupils">
-        <h2 class="govuk-heading-l">Pupil non-include</h2>
-        @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
-        {
-            WindowId = Model.WindowId,
-            InputId = "nonIncludedSearch",
-            InputName = "nonIncludedSearch",
-            CurrentValue = Model.NonIncludedSearch,
-            ActiveTab = "nonIncluded",
-            OtherPageName = "includedPage",
-            OtherPage = Model.IncludedPupilsPage,
-            OtherSearchName = "includedSearch",
-            OtherSearch = Model.IncludedSearch
-        })
-        @await Html.PartialAsync("_PupilTable", Model.NonIncludedPupils)
-        @await Html.PartialAsync("_Pagination", new PaginationViewModel
-        {
-            CurrentPage = Model.NonIncludedPupilsPage,
-            TotalPages = Model.NonIncludedPupilsTotalPages,
-            WindowId = Model.WindowId,
-            OtherPage = Model.IncludedPupilsPage,
-            PageParam = "nonIncludedPage",
-            TabAnchor = "#nonIncluded",
-            IncludedSearch = Model.IncludedSearch,
-            NonIncludedSearch = Model.NonIncludedSearch
-        })
-    </govuk-tabs-item>
-</govuk-tabs>
+    <p>The @Model.WindowTitle checking window is open, but there are currently no pupils included for your school. 
+        This means there’s nothing you need to check or submit during this window.</p>
+
+    <p>If you believe this is incorrect, <a href="#">contact us</a></p>
+}
+else
+{
+    <p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
+        file. You must request any changes to pupil data before 5pm on @Model.WindowEndDate</p>
+
+    <p class="govuk-body">
+        <a href="#">Download all CSV files as a ZIP file</a>
+    </p>
+
+    <govuk-tabs>
+        <govuk-tabs-item id="included" label="Included pupils">
+            <h2 class="govuk-heading-l">Pupil included</h2>
+            @if (Model.IncludedPupilsTotalPages == 0)
+            {
+                <p class="govuk-body">No included pupils</p>
+            }
+            else
+            {
+                <p class="govuk-body">Download <a href="#">pupil included</a> as a CSV file.</p>
+                @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
+                {
+                    WindowId = Model.WindowId,
+                    InputId = "includedSearch",
+                    InputName = "includedSearch",
+                    CurrentValue = Model.IncludedSearch,
+                    ActiveTab = "included",
+                    OtherPageName = "nonIncludedPage",
+                    OtherPage = Model.NonIncludedPupilsPage,
+                    OtherSearchName = "nonIncludedSearch",
+                    OtherSearch = Model.NonIncludedSearch
+                })
+                @await Html.PartialAsync("_PupilTable", Model.IncludedPupils)
+                @await Html.PartialAsync("_Pagination", new PaginationViewModel
+                {
+                    CurrentPage = Model.IncludedPupilsPage,
+                    TotalPages = Model.IncludedPupilsTotalPages,
+                    WindowId = Model.WindowId,
+                    OtherPage = Model.NonIncludedPupilsPage,
+                    PageParam = "includedPage",
+                    TabAnchor = "#included",
+                    IncludedSearch = Model.IncludedSearch,
+                    NonIncludedSearch = Model.NonIncludedSearch
+                })   
+            }
+        </govuk-tabs-item>
+
+        <govuk-tabs-item id="nonIncluded" label="Non-included pupils">
+            <h2 class="govuk-heading-l">Pupil non-include</h2>
+            @if (Model.NonIncludedPupilsTotalPages == 0)
+            {
+                <p class="govuk-body">No non-included pupils</p>
+            }
+            else
+            {
+                <p class="govuk-body">Download <a href="#">pupil non-included</a> as a CSV file.</p>
+                @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
+                {
+                    WindowId = Model.WindowId,
+                    InputId = "nonIncludedSearch",
+                    InputName = "nonIncludedSearch",
+                    CurrentValue = Model.NonIncludedSearch,
+                    ActiveTab = "nonIncluded",
+                    OtherPageName = "includedPage",
+                    OtherPage = Model.IncludedPupilsPage,
+                    OtherSearchName = "includedSearch",
+                    OtherSearch = Model.IncludedSearch
+                })
+                @await Html.PartialAsync("_PupilTable", Model.NonIncludedPupils)
+                @await Html.PartialAsync("_Pagination", new PaginationViewModel
+                {
+                    CurrentPage = Model.NonIncludedPupilsPage,
+                    TotalPages = Model.NonIncludedPupilsTotalPages,
+                    WindowId = Model.WindowId,
+                    OtherPage = Model.IncludedPupilsPage,
+                    PageParam = "nonIncludedPage",
+                    TabAnchor = "#nonIncluded",
+                    IncludedSearch = Model.IncludedSearch,
+                    NonIncludedSearch = Model.NonIncludedSearch
+                })
+            }
+        </govuk-tabs-item>
+    </govuk-tabs>
+
+    <form method="post">
+        <govuk-radios name="what-would-you-like-to-do">
+            <govuk-radios-fieldset>
+                <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                    What would you like to do?
+                </govuk-radios-fieldset-legend>
+
+                <govuk-radios-hint>
+                    Select one option.
+                </govuk-radios-hint>
+
+                <govuk-radios-item value="northern-ireland">Request a change to pupil data</govuk-radios-item>
+                <govuk-radios-divider>or</govuk-radios-divider>
+                <govuk-radios-item value="abroad">Confirm pupil data is correct</govuk-radios-item>
+            </govuk-radios-fieldset>
+        </govuk-radios>
+
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
+}
+

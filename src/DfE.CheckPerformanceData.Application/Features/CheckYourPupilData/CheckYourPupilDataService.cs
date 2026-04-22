@@ -20,6 +20,9 @@ public sealed class CheckYourPupilDataService(
         return await repository.GetNonIncludedPupilsAsync(windowId, laestab, search, page, pageSize);
     }
 
+    public Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
+        => repository.GetCheckingWindowAsync(windowId);
+
     private async Task<string> GetLaestabAsync()
     {
         var organisation = await apiClient.GetOrganisationAsync(

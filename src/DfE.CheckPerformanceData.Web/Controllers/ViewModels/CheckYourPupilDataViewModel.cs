@@ -11,6 +11,8 @@ public class CheckYourPupilDataViewModel
     public required int NonIncludedPupilsPage { get; init; }
     public required int NonIncludedPupilsTotalPages { get; init; }
     public string? NonIncludedSearch { get; init; }
+    public required string WindowEndDate { get; init; }
+    public required string WindowTitle { get; init; }
 }
 
 public class PupilRow

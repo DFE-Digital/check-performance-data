@@ -6,11 +6,25 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public class CheckYourPupilDataRepository(PortalDbContext dbContext) : ICheckYourPupilDataRepository
 {
+    public async Task<DateOnly> GetWindowEndDateAsync(Guid windowId)
+        => await dbContext.CheckingWindows
+            .AsNoTracking()
+            .Where(w => w.Id == windowId)
+            .Select(w => w.EndDate)
+            .SingleAsync();
+
     public async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize)
         => await GetPageAsync(windowId, laestab, pincl: 200, search, page, pageSize);
 
     public async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetNonIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize)
         => await GetPageAsync(windowId, laestab, pincl: 400, search, page, pageSize);
+
+    public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
+        => await dbContext.CheckingWindows
+            .AsNoTracking()
+            .Where(w => w.Id == windowId)
+            .Select(w => new CheckingWindowDto{EndDate = w.EndDate, Title = w.Title})
+            .SingleAsync();
 
     private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string laestab, int pincl, string? search, int page, int pageSize)
     {

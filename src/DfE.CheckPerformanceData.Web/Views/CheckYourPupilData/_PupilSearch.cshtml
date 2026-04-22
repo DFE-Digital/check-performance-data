@@ -14,7 +14,7 @@
                 <button class="govuk-button" data-module="govuk-button">Search</button>
                 @if (!string.IsNullOrWhiteSpace(Model.CurrentValue))
                 {
-                    var clearRouteValues = new Microsoft.AspNetCore.Routing.RouteValueDictionary
+                    var clearRouteValues = new RouteValueDictionary
                     {
                         ["windowId"] = Model.WindowId,
                         ["activeTab"] = Model.ActiveTab,

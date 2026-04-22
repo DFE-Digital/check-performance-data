@@ -20,8 +20,8 @@
     <PackageReference Include="Serilog.Sinks.PostgreSQL.Alternative" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DfE.CheckPerformance.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
+    <ProjectReference Include="..\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
   </ItemGroup>
 </Project>

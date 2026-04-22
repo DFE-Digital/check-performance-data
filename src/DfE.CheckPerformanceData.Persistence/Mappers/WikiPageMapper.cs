@@ -23,6 +23,8 @@ internal static partial class WikiPageMapper
     [MapperIgnoreSource(nameof(WikiPage.Children))]
     [MapperIgnoreSource(nameof(WikiPage.Versions))]
     [MapperIgnoreSource(nameof(WikiPage.IsDeleted))]
+    [MapperIgnoreSource(nameof(WikiPage.DeletedAt))]
+    [MapperIgnoreSource(nameof(WikiPage.DeletedBy))]
     [MapperIgnoreSource(nameof(WikiPage.CreatedAt))]
     [MapperIgnoreSource(nameof(WikiPage.CreatedBy))]
     [MapperIgnoreSource(nameof(WikiPage.UpdatedAt))]

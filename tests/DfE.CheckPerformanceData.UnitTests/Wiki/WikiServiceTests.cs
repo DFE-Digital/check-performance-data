@@ -215,6 +215,26 @@ public sealed class WikiServiceTests
     }
 
     [Fact]
+    public async Task UpdatePageAsync_WhenNoExistingVersions_BaselinesCurrentPageAsV1()
+    {
+        var existing = MakePage(id: 5, title: "Original Title", slug: "original-title", content: "Original content");
+        var updated = MakePage(id: 5, title: "Updated Title", slug: "updated-title", content: "Updated content");
+        var dto = new UpdateWikiPageDto { Title = "Updated Title", Content = "Updated content" };
+
+        _repository.GetByIdAsync(5).Returns(existing, updated);
+        _repository.GetMaxVersionNumberAsync(5).Returns(0);
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title");
+        Received.InOrder(() =>
+        {
+            _repository.AddVersionAsync(5, "Original Title", "Original content", 1);
+            _repository.AddVersionAsync(5, "Updated Title", "Updated content", 2);
+        });
+    }
+
+    [Fact]
     public async Task UpdatePageAsync_Throws_WhenPageNotFoundAfterUpdate()
     {
         var dto = new UpdateWikiPageDto { Title = "Title", Content = "Content" };

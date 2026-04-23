@@ -17,7 +17,8 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
         {
             Key = model.Key,
             BlockType = model.BlockType,
-            Value = model.Value
+            Value = model.Value,
+            OriginalValue = model.OriginalValue
         });
 
         var returnUrl = RemoveEditParam(model.ReturnUrl ?? "/");

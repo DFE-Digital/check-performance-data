@@ -96,10 +96,24 @@ public sealed partial class WikiService(
     {
         var slug = GenerateSlug(dto.Title);
 
-        await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+        await repository.ExecuteInTransactionAsync(async () =>
+        {
+            var maxVersion = await repository.GetMaxVersionNumberAsync(id);
 
-        var maxVersion = await repository.GetMaxVersionNumberAsync(id);
-        await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
+            if (maxVersion == 0)
+            {
+                var existing = await repository.GetByIdAsync(id)
+                    ?? throw new InvalidOperationException($"Wiki page {id} not found.");
+                await repository.AddVersionAsync(id, existing.Title, existing.Content, 1);
+                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+                await repository.AddVersionAsync(id, dto.Title, dto.Content, 2);
+            }
+            else
+            {
+                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+                await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
+            }
+        });
 
         var page = await repository.GetByIdAsync(id)
             ?? throw new InvalidOperationException($"Wiki page {id} not found.");

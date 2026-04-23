@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DfE.CheckPerformanceData.ZendeskClient.Refit
 {
-    public class LoggingHandler : DelegatingHandler
+    public class RefitLoggingHandler : DelegatingHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {

@@ -27,6 +27,6 @@
     <ProjectReference Include="..\DfE.CheckPerformance.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
-    <ProjectReference Include="..\DfE.CheckPerformanceData.ZendeskClient\DfE.CheckPerformanceData.ZendeskClient.csproj" />
+    <ProjectReference Include="..\DfE.CheckPerformanceData.ZendeskClient\DfE.CheckPerformanceData.Infrastructure.ZendeskClient.csproj" />
   </ItemGroup>
 </Project>

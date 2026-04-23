@@ -6,8 +6,17 @@
       "composeProfile": {
         "includes": [
           "all"
-        ]
+        ],
+
+        "launchBrowser": true,
+        "launchUrl": "http://localhost:8080",
+        "applicationUrl": "https://localhost:8080",
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+
       }
     }
   }
 }
+

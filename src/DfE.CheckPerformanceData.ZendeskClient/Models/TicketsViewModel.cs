@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class TicketsViewModel
     {

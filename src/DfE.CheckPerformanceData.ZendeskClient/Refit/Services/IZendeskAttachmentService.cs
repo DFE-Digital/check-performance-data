@@ -1,4 +1,4 @@
-﻿using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+﻿using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 
 namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Services
 {

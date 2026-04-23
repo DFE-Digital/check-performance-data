@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class Ticket
     {

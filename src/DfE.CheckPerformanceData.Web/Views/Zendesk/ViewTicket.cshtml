@@ -1,6 +1,6 @@
-﻿@using DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+﻿
 @using DfE.CheckPerformanceData.Web.Controllers
-@model DfE.CheckPerformanceData.ZendeskClient.Refit.Models.GetTicketViewModel
+@model GetTicketViewModel
 <a asp-action="Index" class="govuk-back-link">Back</a>
 
 <form method="get" asp-action="ViewTicket" asp-route-id="@Model.Ticket.Id">

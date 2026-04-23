@@ -1,4 +1,6 @@
-﻿using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+﻿//using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Application;
+using DfE.CheckPerformanceData.Application.ZendeskApi;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;

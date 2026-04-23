@@ -1,5 +1,5 @@
-﻿using DfE.CheckPerformanceData.ZendeskClient.Refit;
-using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+﻿using DfE.CheckPerformanceData.Application.ZendeskApi;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.ZendeskClient.Refit.Services;
 using Microsoft.AspNetCore.Mvc;
 

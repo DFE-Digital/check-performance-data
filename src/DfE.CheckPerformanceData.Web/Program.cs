@@ -17,6 +17,9 @@ using Serilog.Templates;
 using Serilog.Templates.Themes;
 using System.Net.Http.Headers;
 using System.Text;
+using DfE.CheckPerformanceData.Application.ZendeskApi;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -53,6 +56,7 @@ try
 
     builder.Services
         .AddDfeApiClient(builder.Configuration)
+        .AddZendeskApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend();
     
@@ -67,27 +71,27 @@ try
         }));
 
     
-    var zendeskSubdomain =  Environment.GetEnvironmentVariable("ZENDESK_SUBDOMAIN") ?? builder.Configuration["ZENDESK_SUBDOMAIN"] ?? "example";
-    var zendeskDomain = builder.Configuration["ZENDESK_DOMAIN"] ?? "domain";
-    var zendeskEmail = builder.Configuration["ZENDESK_EMAIL"];
-    var zendeskApiToken = builder.Configuration["ZENDESK_API_TOKEN"];
+    //var zendeskSubdomain =  Environment.GetEnvironmentVariable("ZENDESK_SUBDOMAIN") ?? builder.Configuration["ZENDESK_SUBDOMAIN"] ?? "example";
+    //var zendeskDomain = builder.Configuration["ZENDESK_DOMAIN"] ?? "domain";
+    //var zendeskEmail = builder.Configuration["ZENDESK_EMAIL"];
+    //var zendeskApiToken = builder.Configuration["ZENDESK_API_TOKEN"];
     
-    builder.Services.AddTransient<LoggingHandler>();
+    //builder.Services.AddTransient<RefitLoggingHandler>();
 
 
-    builder.Services.AddRefitClient<IZendeskApi>(new RefitSettings
-    {
-        ContentSerializer = new NewtonsoftJsonContentSerializer()
-    })
+    //builder.Services.AddRefitClient<IZendeskApi>(new RefitSettings
+    //{
+    //    ContentSerializer = new NewtonsoftJsonContentSerializer()
+    //})
 
-       .ConfigureHttpClient(c =>
-       {
-           c.BaseAddress = new Uri($"https://{zendeskSubdomain}.{zendeskDomain}.com");
-           var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{zendeskEmail}/token:{zendeskApiToken}"));
-           c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
-           c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-       })
-       .AddHttpMessageHandler<LoggingHandler>();
+    //   .ConfigureHttpClient(c =>
+    //   {
+    //       c.BaseAddress = new Uri($"https://{zendeskSubdomain}.{zendeskDomain}.com");
+    //       var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{zendeskEmail}/token:{zendeskApiToken}"));
+    //       c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+    //       c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+    //   })
+    //   .AddHttpMessageHandler<RefitLoggingHandler>();
     
 
     

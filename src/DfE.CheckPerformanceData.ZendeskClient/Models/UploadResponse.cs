@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Collections.Generic;
 
-namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class UploadResponse
     {

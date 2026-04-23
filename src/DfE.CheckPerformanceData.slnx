@@ -6,19 +6,24 @@
         <File Path="../README.md" />
         <File Path="Directory.Packages.props" />
     </Folder>
-    <Project Path="../docker-compose.dcproj" Id="1fcbe191-34fe-4b2e-8915-ca81553958ad">
-        <Build />
-    </Project>
     <Folder Name="/Tests/">
         <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" Id="3aca5563-7aab-435a-b5d3-21da95648da3" />
     </Folder>
+    <Project Path="../docker-compose.dcproj" Id="1fcbe191-34fe-4b2e-8915-ca81553958ad">
+        <BuildDependency Project="DfE.CheckPerformance.Persistence/DfE.CheckPerformanceData.Persistence.csproj" />
+        <BuildDependency Project="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
+        <BuildDependency Project="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />
+        <BuildDependency Project="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />
+        <BuildDependency Project="DfE.CheckPerformanceData.ZendeskClient/DfE.CheckPerformanceData.Infrastructure.ZendeskClient.csproj" />
+        <Build />
+    </Project>
     <Project Path="DfE.CheckPerformance.Persistence/DfE.CheckPerformanceData.Persistence.csproj" Id="ea0c6de2-1b09-4cfd-8d58-2fed8d63c7fe" />
     <Project Path="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />
     <Project Path="DfE.CheckPerformanceData.Domain/DfE.CheckPerformanceData.Domain.csproj" />
     <Project Path="DfE.CheckPerformanceData.Infrastructure/DfE.CheckPerformanceData.Infrastructure.csproj" />
     <Project Path="DfE.CheckPerformanceData.RulesEngineWorker/DfE.CheckPerformanceData.RulesEngineWorker.csproj" />
     <Project Path="DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj" />
-    <Project Path="DfE.CheckPerformanceData.ZendeskClient/DfE.CheckPerformanceData.ZendeskClient.csproj" Id="90e8e934-f8a5-4dcd-939c-92bfd97dcadf">
+    <Project Path="DfE.CheckPerformanceData.ZendeskClient/DfE.CheckPerformanceData.Infrastructure.ZendeskClient.csproj" Id="90e8e934-f8a5-4dcd-939c-92bfd97dcadf">
         <Build Solution="Debug|*" Project="false" />
     </Project>
 </Solution>

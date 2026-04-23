@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace DfE.CheckPerformanceData.ZendeskClient.Refit.Models
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     /// <summary>
     /// Represents metadata for a custom field, including its properties and validation patterns.

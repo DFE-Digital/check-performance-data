@@ -1,11 +1,10 @@
-﻿
-using DfE.CheckPerformanceData.ZendeskClient.Refit.Models;
+﻿using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using Refit;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace DfE.CheckPerformanceData.ZendeskClient.Refit
+namespace DfE.CheckPerformanceData.Application.ZendeskApi
 {
     public interface IZendeskApi
     {

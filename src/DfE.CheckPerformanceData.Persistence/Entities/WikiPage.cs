@@ -1,4 +1,5 @@
 using DfE.CheckPerformance.Persistence.Entities;
+using NpgsqlTypes;
 
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
@@ -8,6 +9,8 @@ public sealed class WikiPage
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string? Content { get; set; }
+    public string BodyPlainText { get; set; } = string.Empty;   // service writes; populated on Create/Update/Revert/Restore
+    public NpgsqlTsVector SearchVector { get; set; } = null!;    // GENERATED STORED — Postgres writes; null-forgiving to match nav-prop pattern
     public int? ParentId { get; set; }
     public WikiPage? Parent { get; set; }
     public ICollection<WikiPage> Children { get; set; } = [];

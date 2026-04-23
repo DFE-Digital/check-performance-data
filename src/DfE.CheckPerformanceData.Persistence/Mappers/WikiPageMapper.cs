@@ -29,6 +29,8 @@ internal static partial class WikiPageMapper
     [MapperIgnoreSource(nameof(WikiPage.CreatedBy))]
     [MapperIgnoreSource(nameof(WikiPage.UpdatedAt))]
     [MapperIgnoreSource(nameof(WikiPage.UpdatedBy))]
+    [MapperIgnoreSource(nameof(WikiPage.BodyPlainText))]
+    [MapperIgnoreSource(nameof(WikiPage.SearchVector))]
     [MapperIgnoreTarget(nameof(WikiPageDto.SlugPath))]
     [MapperIgnoreTarget(nameof(WikiPageDto.ContentHtml))]
     public static partial WikiPageDto ToDto(WikiPage entity);

@@ -1,6 +1,8 @@
 ﻿using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using NpgsqlTypes;
 
 namespace DfE.CheckPerformanceData.Persistence.Configurations;
 
@@ -25,5 +27,22 @@ internal sealed class WikiPageConfiguration : IEntityTypeConfiguration<WikiPage>
 
         builder
             .HasQueryFilter(w => !w.IsDeleted);
+
+        builder.Property(w => w.BodyPlainText)
+            .IsRequired()
+            .HasDefaultValue("");
+
+        builder.Property(w => w.SearchVector)
+            .HasColumnType("tsvector")
+            .HasComputedColumnSql(
+                @"setweight(to_tsvector('english', coalesce(""Title"", '')), 'A') || "
+                + @"setweight(to_tsvector('english', coalesce(""BodyPlainText"", '')), 'B')",
+                stored: true);
+
+        builder.Property(w => w.SearchVector)
+            .ValueGeneratedOnAddOrUpdate()
+            .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+
+        builder.HasIndex(w => w.SearchVector).HasMethod("gin");
     }
 }

@@ -20,6 +20,9 @@ module "application_configuration" {
     DATABASE_URL                  = module.postgres.url
     ConnectionStrings__Postgres   = module.postgres.dotnet_connection_string
     ConnectionStrings__AzureStorage = module.storage.primary_connection_string
+    AZURE_STORAGE_ACCOUNT_NAME = local.azure_storage_account_name
+    AZURE_STORAGE_ACCESS_KEY   = local.azure_storage_access_key
+    AZURE_STORAGE_CONTAINER    = local.azure_storage_container
   }
 }
 

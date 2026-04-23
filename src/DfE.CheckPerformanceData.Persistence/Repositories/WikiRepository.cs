@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Mappers;
 using Microsoft.EntityFrameworkCore;
+using NpgsqlTypes;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
@@ -164,6 +165,46 @@ public sealed class WikiRepository(
             .OrderByDescending(v => v.VersionNumber)
             .ProjectToVersionDto()
             .ToListAsync();
+
+    // Queries — search (full-text)
+
+    public async Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchAsync(string query, int skip, int take)
+    {
+        // websearch_to_tsquery NEVER raises syntax errors — accepts any input (empty, unbalanced, gibberish).
+        // See 05-RESEARCH.md §Investigation 12. Input sanitisation happens at the service layer (trim + length).
+        var tsQuery = EF.Functions.WebSearchToTsQuery("english", query);
+
+        // Soft-delete filter inherited from HasQueryFilter(w => !w.IsDeleted) — DO NOT add IgnoreQueryFilters().
+        // See 05-CONTEXT.md D-08 and Threat T-AC-01.
+        var matching = context.WikiPages
+            .AsNoTracking()
+            .Where(p => p.SearchVector.Matches(tsQuery));
+
+        var total = await matching.CountAsync();
+
+        var items = await matching
+            .OrderByDescending(p => p.SearchVector.Rank(tsQuery))
+            .ThenBy(p => p.Title)   // stable tie-break
+            .Skip(skip)
+            .Take(take)
+            .Select(p => new WikiPageSearchResultDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Slug = p.Slug,
+                ParentId = p.ParentId,
+                // ts_headline emits only <mark>/</mark> and source text.
+                // SnippetHtml is rendered via @Html.Raw in Search.cshtml — safe because
+                // BodyPlainText is tag-stripped at write time (Plans 02/03/05).
+                // See T-XSS-01 mitigation in 05-UI-SPEC.md §Security Contract.
+                SnippetHtml = tsQuery.GetResultHeadline(
+                    p.BodyPlainText,
+                    "StartSel=<mark>,StopSel=</mark>,MaxWords=25,MinWords=15,ShortWord=3,MaxFragments=1")
+            })
+            .ToListAsync();
+
+        return (items, total);
+    }
 
     // Commands — work with tracked entities internally
 

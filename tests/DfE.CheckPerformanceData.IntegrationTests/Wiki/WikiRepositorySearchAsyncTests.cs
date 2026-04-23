@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Wiki;
 
@@ -12,17 +13,33 @@ public sealed class WikiRepositorySearchAsyncTests(PostgresFixture fixture)
     [Fact]
     public async Task Migration_CreatesGinIndexOnSearchVector()
     {
-        await _fixture.ResetAsync();
-        // TODO(Plan 03): SELECT indexdef FROM pg_indexes ... assert USING gin
-        await Task.CompletedTask;
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT indexdef FROM pg_indexes
+                            WHERE tablename = 'WikiPages'
+                              AND indexname = 'IX_WikiPages_SearchVector';";
+        var indexdef = (string?)await cmd.ExecuteScalarAsync();
+
+        Assert.NotNull(indexdef);
+        Assert.Contains("USING gin", indexdef);
+        Assert.Contains("SearchVector", indexdef);
     }
 
     [Fact]
     public async Task Migration_CreatesStoredGeneratedSearchVectorColumn()
     {
-        await _fixture.ResetAsync();
-        // TODO(Plan 03): SELECT attgenerated FROM pg_attribute ... assert 's'
-        await Task.CompletedTask;
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        // Cast attgenerated (Postgres "char" type, 1 byte) to text so Npgsql returns a string.
+        cmd.CommandText = @"SELECT attgenerated::text FROM pg_attribute
+                            WHERE attrelid = '""WikiPages""'::regclass
+                              AND attname = 'SearchVector';";
+        var attgenerated = (string?)await cmd.ExecuteScalarAsync();
+
+        // 's' = stored generated column
+        Assert.Equal("s", attgenerated);
     }
 
     // --- Matches ---

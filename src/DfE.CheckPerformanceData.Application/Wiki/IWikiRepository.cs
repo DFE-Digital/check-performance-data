@@ -18,6 +18,7 @@ public interface IWikiRepository
     Task<List<DeletedWikiPageInfo>> GetDeletedRootsAsync();
     Task<int> CountDeletedDescendantsAsync(int rootId);
     Task<List<WikiPageDto>> GetLivePagesForParentPickerAsync();
+    Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchAsync(string query, int skip, int take);
 
     // Commands
     Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder);

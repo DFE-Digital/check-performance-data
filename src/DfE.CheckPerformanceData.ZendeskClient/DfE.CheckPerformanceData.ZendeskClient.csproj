@@ -12,4 +12,9 @@
     <PackageReference Include="Refit.Newtonsoft.Json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Application\" />
+    <Folder Include="Domain\" />
+  </ItemGroup>
+
 </Project>

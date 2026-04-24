@@ -169,13 +169,13 @@ public sealed class WikiServiceTests
 
         _repository.SlugExistsAsync("new-page", null).Returns(false);
         _repository.GetMaxSortOrderAsync(null).Returns(2);
-        _repository.AddPageAsync(dto, "new-page", 3).Returns(created);
+        _repository.AddPageAsync(dto, "new-page", 3, Arg.Any<string>()).Returns(created);
         _repository.GetByIdAsync(10).Returns(created);
 
         var result = await _sut.CreatePageAsync(dto);
 
         Assert.Equal(10, result.Id);
-        await _repository.Received(1).AddPageAsync(dto, "new-page", 3);
+        await _repository.Received(1).AddPageAsync(dto, "new-page", 3, Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(10, "New Page", "Content here", 1);
     }
 
@@ -186,14 +186,14 @@ public sealed class WikiServiceTests
 
         _repository.SlugExistsAsync("duplicate", null).Returns(true);
         _repository.GetMaxSortOrderAsync(null).Returns(-1);
-        _repository.AddPageAsync(dto, Arg.Is<string>(s => s.StartsWith("duplicate-")), 0)
-            .Returns(ci => MakePage(id: 1, title: "Duplicate", slug: ci.Arg<string>()));
+        _repository.AddPageAsync(dto, Arg.Is<string>(s => s.StartsWith("duplicate-")), 0, Arg.Any<string>())
+            .Returns(ci => MakePage(id: 1, title: "Duplicate", slug: ci.ArgAt<string>(1)));
         _repository.GetByIdAsync(1).Returns(MakePage(id: 1, title: "Duplicate", slug: "duplicate-123"));
 
         await _sut.CreatePageAsync(dto);
 
         await _repository.Received(1).AddPageAsync(dto,
-            Arg.Is<string>(s => s.StartsWith("duplicate-") && s.Length > "duplicate-".Length), 0);
+            Arg.Is<string>(s => s.StartsWith("duplicate-") && s.Length > "duplicate-".Length), 0, Arg.Any<string>());
     }
 
     // --- UpdatePageAsync ---
@@ -210,7 +210,7 @@ public sealed class WikiServiceTests
         var result = await _sut.UpdatePageAsync(5, dto);
 
         Assert.Equal(5, result.Id);
-        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title");
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(5, "Updated Title", "Updated content", 4);
     }
 
@@ -308,7 +308,7 @@ public sealed class WikiServiceTests
         var result = await _sut.RevertToVersionAsync(10, 3);
 
         Assert.Equal(10, result.Id);
-        await _repository.Received(1).UpdatePageAsync(10, "Old Title", "Old content", "old-title");
+        await _repository.Received(1).UpdatePageAsync(10, "Old Title", "Old content", "old-title", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(10, "Old Title", "Old content", 3);
     }
 
@@ -433,7 +433,7 @@ public sealed class WikiServiceTests
 
         var result = await _sut.RestorePageAsync(10, 2);
 
-        await _repository.Received(1).RestoreSubtreeAsync(10, 2, "restored", 5);
+        await _repository.Received(1).RestoreSubtreeAsync(10, 2, "restored", 5, Arg.Any<string>());
         await _repository.Received(1).SaveChangesAsync();
         Assert.Equal("parent/restored", result.SlugPath);
     }
@@ -455,7 +455,8 @@ public sealed class WikiServiceTests
             10,
             null,
             Arg.Is<string>(s => s.StartsWith("restored-") && s.Length > "restored-".Length),
-            0);
+            0,
+            Arg.Any<string>());
     }
 
     [Fact]
@@ -533,6 +534,188 @@ public sealed class WikiServiceTests
         // MaxDepth of 10 parent lookups + the page itself = at most 11 segments
         Assert.True(segments.Length <= 11,
             $"Slug path should be capped but had {segments.Length} segments");
+    }
+
+    // --- SearchAsync ---
+
+    [Fact]
+    public async Task SearchAsync_EmptyQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("", page: 1);
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        Assert.Empty(result.Items);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_WhitespaceQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("   ", page: 1);
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_SingleCharQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("a", page: 1);
+
+        Assert.Equal(SearchInvalidReason.BelowMinimumLength, result.InvalidReason);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_DelegatesToRepository_WithCorrectSkipTake()
+    {
+        _repository.SearchAsync("publish", 40, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        var result = await _sut.SearchAsync("publish", page: 3);
+
+        await _repository.Received(1).SearchAsync("publish", 40, 20);
+        Assert.Null(result.InvalidReason);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TrimsWhitespace_BeforeDelegating()
+    {
+        _repository.SearchAsync("publish", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        await _sut.SearchAsync("   publish   ", page: 1);
+
+        await _repository.Received(1).SearchAsync("publish", 0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OutOfRangePage_ClampsToLastPage()
+    {
+        // Page 99 requested, total = 25 rows, pageSize = 20 → clamps to page 2.
+        _repository.SearchAsync("publish", 1960, 20)   // initial skip = (99-1)*20 = 1960
+            .Returns((new List<WikiPageSearchResultDto>(), 25));
+        _repository.SearchAsync("publish", 20, 20)     // clamped skip = (2-1)*20 = 20
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 1, Title = "p", Slug = "p" }
+            }, 25));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "p", slug: "p")
+        });
+
+        var result = await _sut.SearchAsync("publish", page: 99);
+
+        Assert.Equal(2, result.Page);
+        Assert.Equal(25, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OversizedQuery_TruncatesBeforeDelegating()
+    {
+        var oversize = new string('x', 300);
+        _repository.SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>())
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        await _sut.SearchAsync(oversize, page: 1);
+
+        await _repository.Received(1).SearchAsync(
+            Arg.Is<string>(s => s.Length == 200),
+            0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_EnrichesSlugPath_ViaParentChainLookup()
+    {
+        _repository.SearchAsync("api", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
+            }, 1));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "Docs", slug: "docs"),
+            MakePage(id: 2, title: "API", slug: "api", parentId: 1)
+        });
+
+        var result = await _sut.SearchAsync("api", page: 1);
+
+        Assert.Single(result.Items);
+        Assert.Equal("docs/api", result.Items[0].SlugPath);
+    }
+
+    // --- Write paths populate BodyPlainText ---
+
+    [Fact]
+    public async Task CreatePageAsync_StripsHtmlTagsToPlainText_BeforeSave()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.SlugExistsAsync(Arg.Any<string>(), Arg.Any<int?>()).Returns(false);
+        _repository.GetMaxSortOrderAsync(Arg.Any<int?>()).Returns(0);
+        _repository.AddPageAsync(
+                Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
+            .Returns(MakePage(id: 1, title: "t", slug: "t"));
+        _repository.GetByIdAsync(1).Returns(MakePage(id: 1, title: "t", slug: "t"));
+
+        await _sut.CreatePageAsync(new CreateWikiPageDto { Title = "Title", Content = "<p>body</p>" });
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_StripsHtmlTagsToPlainText_BeforeSave()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "t", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, new UpdateWikiPageDto { Title = "Title", Content = "<p>body</p>" });
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).UpdatePageAsync(
+            5, "Title", "<p>body</p>", Arg.Any<string>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task RevertToVersionAsync_StripsHtmlTagsToPlainText_FromVersionContent()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetVersionByIdAsync(3).Returns(new WikiPageVersionDto
+        {
+            Id = 3, VersionNumber = 1, Title = "Old", Content = "<p>old body</p>"
+        });
+        _repository.GetMaxVersionNumberAsync(10).Returns(2);
+        _repository.GetByIdAsync(10).Returns(MakePage(id: 10, title: "Old", slug: "old"));
+
+        await _sut.RevertToVersionAsync(10, 3);
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).UpdatePageAsync(
+            10, "Old", "<p>old body</p>", Arg.Any<string>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_StripsHtmlTagsToPlainText_FromRootContent()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetByIdIncludingDeletedAsync(10)
+            .Returns(MakePage(id: 10, title: "Restored", slug: "restored", content: "<p>restored body</p>"));
+        _repository.SlugExistsAsync("restored", null).Returns(false);
+        _repository.GetMaxSortOrderAsync(null).Returns(-1);
+        _repository.GetByIdAsync(10)
+            .Returns(MakePage(id: 10, title: "Restored", slug: "restored"));
+
+        await _sut.RestorePageAsync(10, null);
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).RestoreSubtreeAsync(
+            10, null, "restored", 0, "stripped text");
     }
 
     // --- Helpers ---

@@ -196,15 +196,49 @@ public sealed class WikiRepositorySearchAsyncTests(PostgresFixture fixture)
     public async Task UpdatePage_RefreshesBodyPlainTextAndSearchVector()
     {
         await _fixture.ResetAsync();
-        // TODO(Plan 05): assert update re-indexes
-        await Task.CompletedTask;
+        var repo = CreateRepo(out var ctx);
+        await using var _ = ctx;
+
+        // Seed a page whose BodyPlainText contains "draft".
+        var page = NewPage("Initial title", "p1", "draft content");
+        ctx.WikiPages.Add(page);
+        await ctx.SaveChangesAsync();
+
+        // Simulate an update by mutating BodyPlainText and re-saving — same mechanism
+        // WikiRepository.UpdatePageAsync uses (direct property mutation + SaveChangesAsync).
+        // Postgres should recompute SearchVector from the STORED generated expression.
+        page.BodyPlainText = "published final content";
+        await ctx.SaveChangesAsync();
+
+        // "published" now matches; "draft" no longer does.
+        var (_, totalPublished) = await repo.SearchAsync("published", 0, 20);
+        Assert.Equal(1, totalPublished);
+
+        var (_, totalDraft) = await repo.SearchAsync("draft", 0, 20);
+        Assert.Equal(0, totalDraft);
     }
 
     [Fact]
     public async Task RevertToVersion_RefreshesBodyPlainText()
     {
         await _fixture.ResetAsync();
-        // TODO(Plan 05): assert revert re-indexes
-        await Task.CompletedTask;
+        var repo = CreateRepo(out var ctx);
+        await using var _ = ctx;
+
+        // Seed a page with current-version body text "happening".
+        var page = NewPage("Reverted page", "rp", "v2 body says happening");
+        ctx.WikiPages.Add(page);
+        await ctx.SaveChangesAsync();
+
+        // Simulate a revert to v1 by restoring the older BodyPlainText.
+        page.BodyPlainText = "v1 original draft";
+        await ctx.SaveChangesAsync();
+
+        // After revert, "original" matches (new body), "happening" does not (old body gone).
+        var (_, totalOriginal) = await repo.SearchAsync("original", 0, 20);
+        Assert.Equal(1, totalOriginal);
+
+        var (_, totalHappening) = await repo.SearchAsync("happening", 0, 20);
+        Assert.Equal(0, totalHappening);
     }
 }

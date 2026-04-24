@@ -89,6 +89,33 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return Ok(new { slugPath = page?.SlugPath ?? "" });
     }
 
+    [HttpGet("help/search")]
+    public async Task<IActionResult> Search(string? q, int page = 1)
+    {
+        var result = await wikiService.SearchAsync(q ?? string.Empty, page);
+
+        var errors = result.InvalidReason switch
+        {
+            SearchInvalidReason.EmptyQuery => new List<string> { "Enter a search term" },
+            SearchInvalidReason.BelowMinimumLength => new List<string> { "Enter at least 2 characters" },
+            _ => new List<string>()
+        };
+
+        var vm = new SearchResultsViewModel
+        {
+            CurrentQuery = result.Query,
+            CurrentPage = result.Page,
+            PageSize = result.PageSize,
+            TotalCount = result.TotalCount,
+            Results = result.Items,
+            InvalidReason = result.InvalidReason,
+            ErrorMessages = errors,
+            InputId = "search-q"
+        };
+
+        return View(vm);
+    }
+
     [HttpGet("help/deleted")]
     public async Task<IActionResult> Deleted()
     {

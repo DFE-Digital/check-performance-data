@@ -14,6 +14,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Identity.Web" />
+    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Refit" />
     <PackageReference Include="Refit.HttpClientFactory" />
     <PackageReference Include="Refit.Newtonsoft.Json" />
@@ -26,7 +27,6 @@
   <ItemGroup>
     <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
-    <ProjectReference Include="..\DfE.CheckPerformanceData.ZendeskClient\DfE.CheckPerformanceData.Infrastructure.ZendeskClient.csproj" />
     <ProjectReference Include="..\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
   </ItemGroup>
 </Project>

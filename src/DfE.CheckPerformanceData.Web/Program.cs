@@ -6,7 +6,7 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
-using DfE.CheckPerformanceData.ZendeskClient.Refit;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 
 using GovUk.Frontend.AspNetCore;
 using Refit;
@@ -17,8 +17,8 @@ using Serilog.Templates;
 using Serilog.Templates.Themes;
 using System.Net.Http.Headers;
 using System.Text;
-using DfE.CheckPerformanceData.Application.ZendeskApi;
-using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
+
+
 
 
 Log.Logger = new LoggerConfiguration()

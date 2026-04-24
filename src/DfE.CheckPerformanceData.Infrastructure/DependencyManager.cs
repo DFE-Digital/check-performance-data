@@ -1,6 +1,7 @@
 ﻿using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Refit;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -102,6 +104,39 @@ public static class DependencyManager
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         });
+
+        return services;
+    }
+
+    public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
+    {
+        // optional logging setup.
+        services.AddTransient<RefitLoggingHandler>();
+
+        var settings = config.GetSection(ZendeskSettings.SectionName).Get<ZendeskSettings>();
+
+        if (settings == null)
+        {
+            throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
+        }
+        services.Configure<ZendeskSettings>(s => s = settings);
+
+        services.AddTransient<RefitLoggingHandler>();
+
+
+        services.AddRefitClient<IZendeskApi>(new RefitSettings
+        {
+            ContentSerializer = new NewtonsoftJsonContentSerializer()
+        })
+
+           .ConfigureHttpClient(c =>
+           {
+               c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
+               var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
+               c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+               c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+           })
+           .AddHttpMessageHandler<RefitLoggingHandler>();
 
         return services;
     }

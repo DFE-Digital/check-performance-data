@@ -24,6 +24,10 @@
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
       <PackageReference Include="Microsoft.Extensions.Http" />
+      <PackageReference Include="Newtonsoft.Json" />
+      <PackageReference Include="Refit" />
+      <PackageReference Include="Refit.HttpClientFactory" />
+      <PackageReference Include="Refit.Newtonsoft.Json" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     </ItemGroup>
 

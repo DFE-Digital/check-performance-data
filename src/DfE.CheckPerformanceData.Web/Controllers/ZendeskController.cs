@@ -1,6 +1,6 @@
-﻿using DfE.CheckPerformanceData.Application.ZendeskApi;
+﻿using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
-using DfE.CheckPerformanceData.ZendeskClient.Refit.Services;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers

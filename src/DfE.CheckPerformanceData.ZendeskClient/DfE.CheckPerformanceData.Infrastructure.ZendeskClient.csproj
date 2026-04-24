@@ -19,6 +19,7 @@
   <ItemGroup>
     <Folder Include="Application\ZendeskApi\Models\" />
     <Folder Include="Domain\" />
+    <Folder Include="Models\" />
   </ItemGroup>
 
 </Project>

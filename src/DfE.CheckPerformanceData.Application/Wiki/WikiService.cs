@@ -8,6 +8,9 @@ public sealed partial class WikiService(
     IHtmlRenderingService htmlRenderer) : IWikiService
 {
     private const int MaxDepth = 10;
+    private const int MinQueryLength = 2;
+    private const int MaxQueryLength = 200;  // T-DOS-01 hard cap; 05-UI-SPEC.md §Edge Cases
+    private const int DefaultPageSize = 20;
 
     public async Task<List<WikiPageTreeNodeDto>> GetNavigationTreeAsync()
     {
@@ -72,6 +75,95 @@ public sealed partial class WikiService(
         return EnrichDto(page, slugPath);
     }
 
+    public async Task<WikiSearchResultsDto> SearchAsync(string query, int page, int pageSize = 20)
+    {
+        var raw = query ?? string.Empty;
+        var trimmed = raw.Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return new WikiSearchResultsDto
+            {
+                Query = string.Empty,
+                Page = 1,
+                PageSize = pageSize,
+                TotalCount = 0,
+                Items = [],
+                InvalidReason = SearchInvalidReason.EmptyQuery
+            };
+        }
+
+        if (trimmed.Length < MinQueryLength)
+        {
+            return new WikiSearchResultsDto
+            {
+                Query = trimmed,
+                Page = 1,
+                PageSize = pageSize,
+                TotalCount = 0,
+                Items = [],
+                InvalidReason = SearchInvalidReason.BelowMinimumLength
+            };
+        }
+
+        // T-DOS-01: cap length BEFORE reaching Postgres.
+        if (trimmed.Length > MaxQueryLength)
+        {
+            trimmed = trimmed[..MaxQueryLength];
+        }
+
+        var safePageSize = pageSize <= 0 ? DefaultPageSize : pageSize;
+        var initialPage = page < 1 ? 1 : page;
+        var initialSkip = (initialPage - 1) * safePageSize;
+
+        var (items, total) = await repository.SearchAsync(trimmed, initialSkip, safePageSize);
+
+        // Out-of-range page? Clamp + requery (Pitfall 4). Only when total > 0 AND initialPage exceeds TotalPages.
+        var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (double)safePageSize);
+        var finalPage = initialPage;
+        if (total > 0 && initialPage > totalPages)
+        {
+            finalPage = totalPages;
+            var clampedSkip = (finalPage - 1) * safePageSize;
+            (items, total) = await repository.SearchAsync(trimmed, clampedSkip, safePageSize);
+        }
+
+        // Per-result slug-path enrichment (Pitfall 3) — one GetAllOrderedAsync walk.
+        if (items.Count > 0)
+        {
+            var allPages = await repository.GetAllOrderedAsync();
+            var lookup = allPages.ToDictionary(p => p.Id, p => (p.Slug, p.ParentId));
+            foreach (var item in items)
+            {
+                item.SlugPath = ResolveSlugPath(item.Id, lookup);
+            }
+        }
+
+        return new WikiSearchResultsDto
+        {
+            Query = trimmed,
+            Page = finalPage,
+            PageSize = safePageSize,
+            TotalCount = total,
+            Items = items,
+            InvalidReason = null
+        };
+    }
+
+    private static string ResolveSlugPath(int id, Dictionary<int, (string Slug, int? ParentId)> lookup)
+    {
+        var segments = new List<string>();
+        var cursor = (int?)id;
+        var depth = 0;
+        while (cursor.HasValue && depth < MaxDepth && lookup.TryGetValue(cursor.Value, out var node))
+        {
+            segments.Insert(0, node.Slug);
+            cursor = node.ParentId;
+            depth++;
+        }
+        return string.Join("/", segments);
+    }
+
     public async Task<WikiPageDto> CreatePageAsync(CreateWikiPageDto dto)
     {
         var slug = GenerateSlug(dto.Title);
@@ -81,10 +173,14 @@ public sealed partial class WikiService(
 
         var maxSortOrder = await repository.GetMaxSortOrderAsync(dto.ParentId);
 
+        // T-XSS-01 layer (b): sanitise → strip tags → feed Postgres's STORED SearchVector.
+        var sanitisedHtml = htmlRenderer.RenderHtml(dto.Content) ?? string.Empty;
+        var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
+
         WikiPageDto? page = null;
         await repository.ExecuteInTransactionAsync(async () =>
         {
-            page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1);
+            page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1, bodyPlainText);
             await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
         });
 
@@ -96,7 +192,11 @@ public sealed partial class WikiService(
     {
         var slug = GenerateSlug(dto.Title);
 
-        await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+        // T-XSS-01 layer (b): sanitise → strip tags → feed Postgres's STORED SearchVector.
+        var sanitisedHtml = htmlRenderer.RenderHtml(dto.Content) ?? string.Empty;
+        var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
+
+        await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
 
         var maxVersion = await repository.GetMaxVersionNumberAsync(id);
         await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
@@ -154,7 +254,11 @@ public sealed partial class WikiService(
 
         var slug = GenerateSlug(version.Title);
 
-        await repository.UpdatePageAsync(pageId, version.Title, version.Content, slug);
+        // T-XSS-01 layer (b): revert content comes from version.Content; sanitise + strip.
+        var sanitisedHtml = htmlRenderer.RenderHtml(version.Content) ?? string.Empty;
+        var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
+
+        await repository.UpdatePageAsync(pageId, version.Title, version.Content, slug, bodyPlainText);
 
         var maxVersion = await repository.GetMaxVersionNumberAsync(pageId);
         await repository.AddVersionAsync(pageId, version.Title, version.Content, maxVersion + 1);
@@ -269,9 +373,14 @@ public sealed partial class WikiService(
         var maxSortOrder = await repository.GetMaxSortOrderAsync(newParentId);
         var sortOrder = maxSortOrder + 1;
 
+        // T-XSS-01 layer (b): recompute BodyPlainText even though Content is unchanged —
+        // idempotent on current behaviour, defensive against future restore-path mutations.
+        var sanitisedHtml = htmlRenderer.RenderHtml(root.Content) ?? string.Empty;
+        var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
+
         await repository.ExecuteInTransactionAsync(async () =>
         {
-            await repository.RestoreSubtreeAsync(rootId, newParentId, slug, sortOrder);
+            await repository.RestoreSubtreeAsync(rootId, newParentId, slug, sortOrder, bodyPlainText);
             await repository.SaveChangesAsync();
         });
 

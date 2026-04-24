@@ -5,6 +5,7 @@ public interface IWikiService
     Task<List<WikiPageTreeNodeDto>> GetNavigationTreeAsync();
     Task<WikiPageDto?> GetPageBySlugPathAsync(string slugPath);
     Task<WikiPageDto?> GetPageByIdAsync(int id);
+    Task<WikiSearchResultsDto> SearchAsync(string query, int page, int pageSize = 20);
     Task<WikiPageDto> CreatePageAsync(CreateWikiPageDto dto);
     Task<WikiPageDto> UpdatePageAsync(int id, UpdateWikiPageDto dto);
     Task DeletePageAsync(int id);

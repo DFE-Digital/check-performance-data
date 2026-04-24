@@ -211,13 +211,14 @@ public sealed class WikiRepository(
 
     // Commands — work with tracked entities internally
 
-    public async Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder)
+    public async Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder, string bodyPlainText)
     {
         var entity = new WikiPage
         {
             Title = dto.Title,
             Slug = slug,
             Content = dto.Content,
+            BodyPlainText = bodyPlainText,
             ParentId = dto.ParentId,
             SortOrder = sortOrder,
             CreatedAt = DateTime.UtcNow,
@@ -245,13 +246,14 @@ public sealed class WikiRepository(
         await context.SaveChangesAsync();
     }
 
-    public async Task UpdatePageAsync(int id, string title, string? content, string slug)
+    public async Task UpdatePageAsync(int id, string title, string? content, string slug, string bodyPlainText)
     {
         var entity = await context.WikiPages.FindAsync(id)
             ?? throw new InvalidOperationException($"Wiki page {id} not found.");
 
         entity.Title = title;
         entity.Content = content;
+        entity.BodyPlainText = bodyPlainText;
         entity.Slug = slug;
         entity.UpdatedAt = DateTime.UtcNow;
     }
@@ -267,7 +269,7 @@ public sealed class WikiRepository(
         await context.SaveChangesAsync();
     }
 
-    public async Task RestoreSubtreeAsync(int rootId, int? newParentId, string slug, int sortOrder)
+    public async Task RestoreSubtreeAsync(int rootId, int? newParentId, string slug, int sortOrder, string bodyPlainText)
     {
         var root = await context.WikiPages
             .IgnoreQueryFilters()
@@ -283,6 +285,7 @@ public sealed class WikiRepository(
         root.ParentId = newParentId;
         root.Slug = slug;
         root.SortOrder = sortOrder;
+        root.BodyPlainText = bodyPlainText;
         root.UpdatedAt = now;
         root.UpdatedBy = user;
 

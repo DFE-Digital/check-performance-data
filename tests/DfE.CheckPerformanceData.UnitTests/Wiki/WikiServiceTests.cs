@@ -215,6 +215,26 @@ public sealed class WikiServiceTests
     }
 
     [Fact]
+    public async Task UpdatePageAsync_WhenNoExistingVersions_BaselinesCurrentPageAsV1()
+    {
+        var existing = MakePage(id: 5, title: "Original Title", slug: "original-title", content: "Original content");
+        var updated = MakePage(id: 5, title: "Updated Title", slug: "updated-title", content: "Updated content");
+        var dto = new UpdateWikiPageDto { Title = "Updated Title", Content = "Updated content" };
+
+        _repository.GetByIdAsync(5).Returns(existing, updated);
+        _repository.GetMaxVersionNumberAsync(5).Returns(0);
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title");
+        Received.InOrder(() =>
+        {
+            _repository.AddVersionAsync(5, "Original Title", "Original content", 1);
+            _repository.AddVersionAsync(5, "Updated Title", "Updated content", 2);
+        });
+    }
+
+    [Fact]
     public async Task UpdatePageAsync_Throws_WhenPageNotFoundAfterUpdate()
     {
         var dto = new UpdateWikiPageDto { Title = "Title", Content = "Content" };
@@ -335,6 +355,147 @@ public sealed class WikiServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _sut.RevertToVersionAsync(10, 3));
+    }
+
+    // --- GetDeletedPagesAsync ---
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_ReturnsProjectedRoots_OrderedByDeletedAtDesc()
+    {
+        var older = new DeletedWikiPageInfo
+        {
+            Id = 1, Title = "Older", Slug = "older",
+            ParentId = null,
+            DeletedAt = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc),
+            DeletedBy = "alice"
+        };
+        var newer = new DeletedWikiPageInfo
+        {
+            Id = 2, Title = "Newer", Slug = "newer",
+            ParentId = null,
+            DeletedAt = new DateTime(2026, 4, 20, 10, 0, 0, DateTimeKind.Utc),
+            DeletedBy = "bob"
+        };
+
+        _repository.GetDeletedRootsAsync().Returns(new List<DeletedWikiPageInfo> { older, newer });
+        _repository.CountDeletedDescendantsAsync(1).Returns(0);
+        _repository.CountDeletedDescendantsAsync(2).Returns(3);
+
+        var result = await _sut.GetDeletedPagesAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result[0].Id);
+        Assert.Equal(3, result[0].DescendantCount);
+        Assert.Equal("newer", result[0].OriginalSlugPath);
+        Assert.Equal(1, result[1].Id);
+        Assert.Equal("alice", result[1].DeletedBy);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_BuildsOriginalSlugPath_ThroughDeletedAncestors()
+    {
+        var deletedChild = new DeletedWikiPageInfo
+        {
+            Id = 5, Title = "Child", Slug = "child", ParentId = 4,
+            DeletedAt = DateTime.UtcNow
+        };
+        var deletedParent = MakePage(id: 4, title: "Parent", slug: "parent", parentId: null);
+
+        _repository.GetDeletedRootsAsync().Returns(new List<DeletedWikiPageInfo> { deletedChild });
+        _repository.CountDeletedDescendantsAsync(5).Returns(0);
+        _repository.GetByIdIncludingDeletedAsync(4).Returns(deletedParent);
+
+        var result = await _sut.GetDeletedPagesAsync();
+
+        Assert.Single(result);
+        Assert.Equal("parent/child", result[0].OriginalSlugPath);
+    }
+
+    // --- GetAvailableParentsAsync ---
+
+    [Fact]
+    public async Task GetAvailableParentsAsync_FlattensLiveTreeWithDepth()
+    {
+        var pages = new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "Root A", slug: "root-a", parentId: null, sortOrder: 0),
+            MakePage(id: 2, title: "Child", slug: "child", parentId: 1, sortOrder: 0),
+            MakePage(id: 3, title: "Root B", slug: "root-b", parentId: null, sortOrder: 1)
+        };
+        _repository.GetLivePagesForParentPickerAsync().Returns(pages);
+
+        var result = await _sut.GetAvailableParentsAsync();
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(1, result[0].Id);
+        Assert.Equal(0, result[0].Depth);
+        Assert.Equal(2, result[1].Id);
+        Assert.Equal(1, result[1].Depth);
+        Assert.Equal("root-a/child", result[1].SlugPath);
+        Assert.Equal(3, result[2].Id);
+        Assert.Equal(0, result[2].Depth);
+    }
+
+    // --- RestorePageAsync ---
+
+    [Fact]
+    public async Task RestorePageAsync_WhenSlugFree_RestoresUnderChosenParent()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        var restoredParent = MakePage(id: 2, title: "Parent", slug: "parent", parentId: null);
+        var restored = MakePage(id: 10, title: "Restored", slug: "restored", parentId: 2);
+
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.GetByIdAsync(2).Returns(restoredParent);
+        _repository.SlugExistsAsync("restored", 2).Returns(false);
+        _repository.GetMaxSortOrderAsync(2).Returns(4);
+        _repository.GetByIdAsync(10).Returns(restored);
+
+        var result = await _sut.RestorePageAsync(10, 2);
+
+        await _repository.Received(1).RestoreSubtreeAsync(10, 2, "restored", 5);
+        await _repository.Received(1).SaveChangesAsync();
+        Assert.Equal("parent/restored", result.SlugPath);
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenSlugTaken_AppendsTicksSuffix()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        var restored = MakePage(id: 10, title: "Restored", slug: "restored-999", parentId: null);
+
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.SlugExistsAsync("restored", null).Returns(true);
+        _repository.GetMaxSortOrderAsync(null).Returns(-1);
+        _repository.GetByIdAsync(10).Returns(restored);
+
+        await _sut.RestorePageAsync(10, null);
+
+        await _repository.Received(1).RestoreSubtreeAsync(
+            10,
+            null,
+            Arg.Is<string>(s => s.StartsWith("restored-") && s.Length > "restored-".Length),
+            0);
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenRootNotFound_Throws()
+    {
+        _repository.GetByIdIncludingDeletedAsync(99).ReturnsNull();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.RestorePageAsync(99, null));
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenTargetParentMissingOrDeleted_Throws()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.GetByIdAsync(7).ReturnsNull();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.RestorePageAsync(10, 7));
     }
 
     // --- Depth limits ---

@@ -79,6 +79,73 @@ public class ContentBlockServiceTests
     }
 
     [Fact]
+    public async Task SaveAsync_WhenKeyDoesNotExist_AndOriginalValueDiffers_WritesBaselineThenEdit()
+    {
+        var dto = new SaveContentBlockDto
+        {
+            Key = "new-key",
+            BlockType = "Content",
+            Value = "Edited value",
+            OriginalValue = "Default value"
+        };
+        var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Edited value");
+
+        _repository.GetByKeyAsync("new-key").ReturnsNull();
+        _repository.AddBlockAsync("new-key", "Content", "Edited value").Returns(created);
+
+        await _sut.SaveAsync(dto);
+
+        await _repository.Received(1).AddBlockAsync("new-key", "Content", "Edited value");
+        Received.InOrder(() =>
+        {
+            _repository.AddVersionAsync(1, "Default value", 1);
+            _repository.AddVersionAsync(1, "Edited value", 2);
+        });
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenKeyDoesNotExist_AndOriginalValueEqualsValue_WritesSingleVersion()
+    {
+        var dto = new SaveContentBlockDto
+        {
+            Key = "new-key",
+            BlockType = "Content",
+            Value = "Same value",
+            OriginalValue = "Same value"
+        };
+        var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Same value");
+
+        _repository.GetByKeyAsync("new-key").ReturnsNull();
+        _repository.AddBlockAsync("new-key", "Content", "Same value").Returns(created);
+
+        await _sut.SaveAsync(dto);
+
+        await _repository.Received(1).AddVersionAsync(1, "Same value", 1);
+        await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), 2);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenKeyDoesNotExist_AndOriginalValueIsNullOrEmpty_WritesSingleVersion()
+    {
+        var dto = new SaveContentBlockDto
+        {
+            Key = "new-key",
+            BlockType = "Content",
+            Value = "Edited value",
+            OriginalValue = null
+        };
+        var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Edited value");
+
+        _repository.GetByKeyAsync("new-key").ReturnsNull();
+        _repository.AddBlockAsync("new-key", "Content", "Edited value").Returns(created);
+
+        await _sut.SaveAsync(dto);
+
+        await _repository.Received(1).AddVersionAsync(1, "Edited value", 1);
+        await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), 2);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenValueUnchanged_ReturnsExistingWithoutUpdate()
     {
         var existing = MakeBlock(id: 5, key: "k", blockType: "Content", value: "Same");
@@ -110,6 +177,26 @@ public class ContentBlockServiceTests
         Assert.Equal("<p>New</p>", result.ValueHtml);
         await _repository.Received(1).UpdateValueAsync(3, "New");
         await _repository.Received(1).AddVersionAsync(3, "New", 3);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenValueChanged_AndNoExistingVersions_BaselinesCurrentValueAsV1()
+    {
+        var existing = MakeBlock(id: 3, key: "k", blockType: "Content", value: "Original");
+        var updated = MakeBlock(id: 3, key: "k", blockType: "Content", value: "Edited");
+        var dto = new SaveContentBlockDto { Key = "k", BlockType = "Content", Value = "Edited" };
+
+        _repository.GetByKeyAsync("k").Returns(existing, updated);
+        _repository.GetMaxVersionNumberAsync(3).Returns(0);
+
+        await _sut.SaveAsync(dto);
+
+        await _repository.Received(1).UpdateValueAsync(3, "Edited");
+        Received.InOrder(() =>
+        {
+            _repository.AddVersionAsync(3, "Original", 1);
+            _repository.AddVersionAsync(3, "Edited", 2);
+        });
     }
 
     [Fact]

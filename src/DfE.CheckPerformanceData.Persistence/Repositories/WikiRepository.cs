@@ -1,4 +1,5 @@
 using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -7,7 +8,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public sealed class WikiRepository(IPortalDbContext context) : IWikiRepository
+public sealed class WikiRepository(
+    IPortalDbContext context,
+    ICurrentUserService currentUserService) : IWikiRepository
 {
     // Queries — use ProjectToDto so EF translates the mapping to SQL
 
@@ -34,6 +37,14 @@ public sealed class WikiRepository(IPortalDbContext context) : IWikiRepository
             .ProjectToDto()
             .FirstOrDefaultAsync();
 
+    public async Task<WikiPageDto?> GetByIdIncludingDeletedAsync(int id) =>
+        await context.WikiPages
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(p => p.Id == id)
+            .ProjectToDto()
+            .FirstOrDefaultAsync();
+
     public async Task<WikiPageDto?> GetBySlugAndParentAsync(string slug, int? parentId) =>
         await context.WikiPages
             .AsNoTracking()
@@ -42,7 +53,76 @@ public sealed class WikiRepository(IPortalDbContext context) : IWikiRepository
             .FirstOrDefaultAsync();
 
     public async Task<bool> SlugExistsAsync(string slug, int? parentId) =>
-        await context.WikiPages.AnyAsync(p => p.Slug == slug && p.ParentId == parentId);
+        await context.WikiPages.AnyAsync(p => p.Slug == slug && p.ParentId == parentId && !p.IsDeleted);
+
+    public async Task<List<DeletedWikiPageInfo>> GetDeletedRootsAsync()
+    {
+        var deleted = await context.WikiPages
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(p => p.IsDeleted)
+            .Select(p => new
+            {
+                p.Id,
+                p.Title,
+                p.Slug,
+                p.ParentId,
+                p.DeletedAt,
+                p.DeletedBy
+            })
+            .ToListAsync();
+
+        var deletedIds = deleted.Select(p => p.Id).ToHashSet();
+
+        return deleted
+            .Where(p => !p.ParentId.HasValue || !deletedIds.Contains(p.ParentId.Value))
+            .Select(p => new DeletedWikiPageInfo
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Slug = p.Slug,
+                ParentId = p.ParentId,
+                DeletedAt = p.DeletedAt,
+                DeletedBy = p.DeletedBy
+            })
+            .ToList();
+    }
+
+    public async Task<int> CountDeletedDescendantsAsync(int rootId)
+    {
+        var deleted = await context.WikiPages
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(p => p.IsDeleted)
+            .Select(p => new { p.Id, p.ParentId })
+            .ToListAsync();
+
+        var byParent = deleted.ToLookup(p => p.ParentId);
+        var stack = new Stack<int>();
+        stack.Push(rootId);
+        var count = 0;
+
+        while (stack.Count > 0)
+        {
+            var currentId = stack.Pop();
+            foreach (var child in byParent[currentId])
+            {
+                count++;
+                stack.Push(child.Id);
+            }
+        }
+
+        return count;
+    }
+
+    public async Task<List<WikiPageDto>> GetLivePagesForParentPickerAsync() =>
+        await context.WikiPages
+            .AsNoTracking()
+            .Where(p => !p.IsDeleted)
+            .OrderBy(p => p.SortOrder)
+            .ThenBy(p => p.Title)
+            .ProjectToDto()
+            .ToListAsync();
 
     public async Task<int> GetMaxSortOrderAsync(int? parentId) =>
         await context.WikiPages
@@ -143,6 +223,47 @@ public sealed class WikiRepository(IPortalDbContext context) : IWikiRepository
         await context.SaveChangesAsync();
     }
 
+    public async Task RestoreSubtreeAsync(int rootId, int? newParentId, string slug, int sortOrder)
+    {
+        var root = await context.WikiPages
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == rootId && p.IsDeleted)
+            ?? throw new InvalidOperationException($"Wiki page {rootId} not found or not deleted.");
+
+        var now = DateTime.UtcNow;
+        var user = currentUserService.UserId;
+
+        root.IsDeleted = false;
+        root.DeletedAt = null;
+        root.DeletedBy = null;
+        root.ParentId = newParentId;
+        root.Slug = slug;
+        root.SortOrder = sortOrder;
+        root.UpdatedAt = now;
+        root.UpdatedBy = user;
+
+        await RestoreDescendantsAsync(root.Id, now, user);
+    }
+
+    private async Task RestoreDescendantsAsync(int parentId, DateTime now, string? user)
+    {
+        var children = await context.WikiPages
+            .IgnoreQueryFilters()
+            .Where(p => p.ParentId == parentId && p.IsDeleted)
+            .ToListAsync();
+
+        foreach (var child in children)
+        {
+            child.IsDeleted = false;
+            child.DeletedAt = null;
+            child.DeletedBy = null;
+            child.UpdatedAt = now;
+            child.UpdatedBy = user;
+
+            await RestoreDescendantsAsync(child.Id, now, user);
+        }
+    }
+
     public async Task MovePageAsync(int id, int? newParentId, int newSortOrder)
     {
         var entity = await context.WikiPages.FindAsync(id)
@@ -186,8 +307,14 @@ public sealed class WikiRepository(IPortalDbContext context) : IWikiRepository
 
     private async Task SoftDeleteRecursiveInternalAsync(WikiPage page)
     {
+        var now = DateTime.UtcNow;
+        var user = currentUserService.UserId;
+
         page.IsDeleted = true;
-        page.UpdatedAt = DateTime.UtcNow;
+        page.DeletedAt = now;
+        page.DeletedBy = user;
+        page.UpdatedAt = now;
+        page.UpdatedBy = user;
 
         var children = await context.WikiPages
             .IgnoreQueryFilters()

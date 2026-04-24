@@ -7,6 +7,10 @@
         <input type="hidden" name="Key" value="@Model.Key" />
         <input type="hidden" name="BlockType" value="Content" />
         <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+        @if (!Model.HasSavedContent)
+        {
+            <input type="hidden" name="OriginalValue" value="@Model.Value" />
+        }
 
         <div class="govuk-form-group">
             <label class="govuk-label govuk-label--m" for="cb-@Model.Key">Content</label>

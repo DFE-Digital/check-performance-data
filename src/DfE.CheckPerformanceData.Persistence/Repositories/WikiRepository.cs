@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Mappers;
 using Microsoft.EntityFrameworkCore;
-using NpgsqlTypes;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
@@ -170,20 +169,24 @@ public sealed class WikiRepository(
 
     public async Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchAsync(string query, int skip, int take)
     {
-        // websearch_to_tsquery NEVER raises syntax errors — accepts any input (empty, unbalanced, gibberish).
-        // See 05-RESEARCH.md §Investigation 12. Input sanitisation happens at the service layer (trim + length).
-        var tsQuery = EF.Functions.WebSearchToTsQuery("english", query);
+        // EF.Functions.WebSearchToTsQuery MUST appear inline inside each expression tree that
+        // uses it — its `config` argument is [NotParameterized], so the Npgsql translator only
+        // recognises direct call sites. Hoisting to a local forces client-evaluation, which
+        // throws ("method is not supported because the query has switched to client-evaluation").
+        // websearch_to_tsquery NEVER raises syntax errors — accepts any input (empty, unbalanced,
+        // gibberish). See 05-RESEARCH.md §Investigation 12. Input sanitisation happens at the
+        // service layer (trim + length).
 
         // Soft-delete filter inherited from HasQueryFilter(w => !w.IsDeleted) — DO NOT add IgnoreQueryFilters().
         // See 05-CONTEXT.md D-08 and Threat T-AC-01.
         var matching = context.WikiPages
             .AsNoTracking()
-            .Where(p => p.SearchVector.Matches(tsQuery));
+            .Where(p => p.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", query)));
 
         var total = await matching.CountAsync();
 
         var items = await matching
-            .OrderByDescending(p => p.SearchVector.Rank(tsQuery))
+            .OrderByDescending(p => p.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", query)))
             .ThenBy(p => p.Title)   // stable tie-break
             .Skip(skip)
             .Take(take)
@@ -197,7 +200,7 @@ public sealed class WikiRepository(
                 // SnippetHtml is rendered via @Html.Raw in Search.cshtml — safe because
                 // BodyPlainText is tag-stripped at write time (Plans 02/03/05).
                 // See T-XSS-01 mitigation in 05-UI-SPEC.md §Security Contract.
-                SnippetHtml = tsQuery.GetResultHeadline(
+                SnippetHtml = EF.Functions.WebSearchToTsQuery("english", query).GetResultHeadline(
                     p.BodyPlainText,
                     "StartSel=<mark>,StopSel=</mark>,MaxWords=25,MinWords=15,ShortWord=3,MaxFragments=1")
             })

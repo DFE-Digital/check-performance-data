@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,6 +13,12 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 
         [JsonProperty("audit")]
         public TicketAudit Audit { get; set; }
+
+        internal UpdateTicketResponseDto ToDto()
+        {
+            // todo using Riok.Mapperly.Abstractions; 
+            throw new NotImplementedException();
+        }
     }
 
     public class UpdatedTicket

@@ -1,0 +1,17 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace DfE.CheckPerformanceData.Application.ZendeskClient
+{
+    public class BasePagedModelResponseDto
+    {
+        // [JsonProperty("next_page")]
+        public Uri? NextPage  { get; set; }
+
+        // [JsonProperty("previous_page")]
+        public Uri? PreviousPage  { get; set; }
+        // [JsonProperty("count")]
+        public int Count  { get; set; }
+    }
+}

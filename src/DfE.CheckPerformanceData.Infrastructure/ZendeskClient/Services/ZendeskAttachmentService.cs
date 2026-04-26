@@ -1,9 +1,12 @@
 ﻿//using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Application;
+using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
 {
@@ -19,7 +22,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
         /// <summary>
         /// Uploads a file to Zendesk and attaches it to an existing ticket as a comment.
         /// </summary>
-        public async Task<UpdateTicketResponse> AddAttachmentAsync(
+        public async Task<UpdateTicketResponseDto> AddAttachmentAsync(
             long ticketId,
             string fileName,
             Stream fileStream,
@@ -51,7 +54,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
                 }
             };
 
-            return await _api.AddCommentWithAttachment(ticketId, request);
+            var response = await _api.AddCommentWithAttachment(ticketId, request);
+            return response.ToDto();
+            //var dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
         }
     }
 

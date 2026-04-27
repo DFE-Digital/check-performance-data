@@ -9,16 +9,15 @@ namespace DfE.CheckPerformanceData.Web.Controllers
     public class ZendeskController : Controller
     {
 
-        private readonly IZendeskApi zendeskApi;
         private readonly IZendeskService zendeskService;
+        private readonly IZendeskAttachmentService zendeskAttachmentService;
 
-        //private readonly IZendeskAttachmentService zendeskAttachmentService;
+        //private ViewDto? ourView = null; // id 19037095327890
         private ViewDto? ourView = null; // id 19337095327890
-        public ZendeskController(IZendeskApi zendeskApi, IZendeskService zendeskService)//, IZendeskAttachmentService zendeskAttachmentService)
+        public ZendeskController(IZendeskService zendeskService, IZendeskAttachmentService zendeskAttachmentService)//, IZendeskAttachmentService zendeskAttachmentService)
         {
-            this.zendeskApi = zendeskApi;
             this.zendeskService = zendeskService;
-            //this.zendeskAttachmentService = zendeskAttachmentService;
+            this.zendeskAttachmentService = zendeskAttachmentService;
         }
         public async Task<IActionResult> Index()
         {
@@ -49,8 +48,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers
 
         public async Task<IActionResult> Tickets(long viewId, int pageSize, int PageNumber)
         {
-            var results = await zendeskApi.GetTicketsForView(viewId, new ListViewTicketsRequest { PerPage = pageSize, Page = PageNumber }.ToQueryDictionary());
-            var meta = await zendeskApi.GetTicketFields();
+            //var results = await zendeskApi.GetTicketsForView(viewId, new ListViewTicketsRequest { PerPage = pageSize, Page = PageNumber }.ToQueryDictionary());
+            //var meta = await zendeskApi.GetTicketFields();
             //var model = new TicketsViewModel
             //{
             //    TicketsResponse = results,
@@ -64,7 +63,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers
 
         public async Task<IActionResult> UserFields()
         {
-            var fields = await zendeskApi.GetUserFields();
+            //var fields = await zendeskApi.GetUserFields();
+            var fields = await zendeskService.GetUserFieldsAsync();
             return View(fields);
 
         }
@@ -88,7 +88,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         {
             using (var stream = fileUpload.OpenReadStream())
             {
-                var result = await new ZendeskAttachmentService(zendeskApi).AddAttachmentAsync(
+                var result = await zendeskAttachmentService.AddAttachmentAsync(
                     ticketId: ticketId,
                     fileName: fileUpload.FileName,
                     fileStream: stream,
@@ -113,9 +113,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         {
             // for now create a ticket based on pre prod 76218
             // set the description to be the same and use the same custom fields that are populated. dont add tags
-            var request = new CreateTicketRequest
+            var request = new CreateTicketRequestDto
             {
-                Ticket = new CreateTicket
+                Ticket = new CreateTicketDto
                 {
                     Subject = "School Checking Exercise",
                     Status = "new",
@@ -152,92 +152,92 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                         //    Value = ""
                         //},
 
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 360013574700,
                             Value = "training_provider"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17207944800146,
                             Value = "8412647"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17207966711570,
                             Value = "P228520169565"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17207989310226,
                             Value = "136989"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17207993784978,
                             Value = "30282884"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17208002901906,
                             Value = "2012-12-21"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 17208027233554,
                             Value = "2016-01-04"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19056253670034,
                             Value = "scrutiny" //19103017562770//"scrutiny"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19056595594898,
                             Value = "31_"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058058434322,
                             Value = "2025"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058091622546,
                             Value = "9"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058126549778,
                             Value = "ks2"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058409672594,
                             Value = "CALLAGHAN"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058507283218,
                             Value = "KITTY VERA"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058550118802,
                             Value = "m"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19058912556690,
                             Value = "503_31"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 19381440546322,
                             Value = "terminal_critical_illness"
                         },
-                        new CustomField
+                        new CustomFieldDto
                         {
                             Id = 20433125966866,
                             Value = "229520"
@@ -247,7 +247,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                     BrandId = 16853215883538
                 }
             };
-            var response =await zendeskApi.CreateTicket(request);
+            var response = await zendeskService.CreateTicketAsync(request); // zendeskApi.CreateTicket(request);
             return RedirectToAction(nameof(ViewTicket), new { id = response.Ticket.Id });
         }
     }

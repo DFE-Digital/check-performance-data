@@ -10,6 +10,10 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
         Task<TicketFieldsResponseDto> GetTicketFields();
 
+        Task<UserFieldsResponseDto> GetUserFieldsAsync();
+
+        Task<CreateTicketResponseDto> CreateTicketAsync(CreateTicketRequestDto request);
+
         Task<TicketsViewModel> GetTicketsViewModelAsync(long viewId, Dictionary<string, object>? query = null);
 
         Task<GetTicketResponseDto> GetTicketAsync(long ticketId);

@@ -11,28 +11,28 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     public class CreateTicketDto
     {
         [JsonPropertyName("subject")]
-        public string Subject  { get; set; }
+        public string Subject  { get; set; } =default!;
 
         [JsonPropertyName("status")]
-        public string Status  { get; set; }
+        public string Status  { get; set; } =default!;
 
         [JsonPropertyName("group_id")]
         public long? GroupId  { get; set; }
 
         [JsonPropertyName("type")]
-        public string Type  { get; set; }
+        public string Type  { get; set; } =default!;
 
         [JsonPropertyName("comment")]
-        public TicketCommentDto Comment  { get; set; }
+        public TicketCommentDto? Comment  { get; set; } 
 
         [JsonPropertyName("requester_id")]
         public long? RequesterId  { get; set; }
 
         [JsonPropertyName("priority")]
-        public string Priority  { get; set; }    // optional
+        public string Priority  { get; set; } =default!;    // optional
 
         [JsonPropertyName("description")]
-        public string Description  { get; set; }
+        public string Description  { get; set; } =default!;
 
         [JsonPropertyName("custom_fields")]
         public List<CustomFieldDto> CustomFields  { get; set; } = new List<CustomFieldDto>();

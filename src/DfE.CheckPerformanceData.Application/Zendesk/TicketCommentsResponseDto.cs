@@ -21,7 +21,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
     public class TicketCommentsResponseDto
     {
-        public List<TicketCommentDto> Comments { get; init; } = default!;
+        public List<TicketCommentDto>? Comments { get; init; } = default!;
         public string NextPage { get; init; } = default!;
         public string PreviousPage { get; init; } = default!;
         public int Count { get; init; }

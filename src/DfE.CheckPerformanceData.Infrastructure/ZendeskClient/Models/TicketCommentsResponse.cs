@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     public class TicketCommentsResponse
     {
         [JsonProperty("comments")]
-        public List<TicketComment> Comments { get; set; } =default!;
+        public List<TicketComment>? Comments { get; set; } =default!;
 
         [JsonProperty("next_page")]
         public string NextPage { get; set; } = default!;

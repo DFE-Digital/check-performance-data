@@ -41,7 +41,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         /// Detailed comments or notes regarding the ticket.
         /// </summary>
         [JsonProperty("comment")]
-        public TicketComment Comment { get; set; }
+        public TicketComment? Comment { get; set; }
 
         /// <summary>
         /// The ID of the user who requested the ticket.

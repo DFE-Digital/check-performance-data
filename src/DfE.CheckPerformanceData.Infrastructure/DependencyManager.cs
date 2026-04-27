@@ -141,6 +141,7 @@ public static class DependencyManager
            .AddHttpMessageHandler<RefitLoggingHandler>();
 
         services.AddScoped<IZendeskService, ZendeskService>();
+        services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();
         return services;
     }
 }

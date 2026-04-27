@@ -98,7 +98,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                 //var attachment = result.Ticket.Comment.Attachments.FirstOrDefault();
                 var attachment = result.Audit.Events
                     .FirstOrDefault(e => e.Attachments?.Any() == true)?
-                    .Attachments
+                    .Attachments?
                     .LastOrDefault();
 
                 System.Diagnostics.Debug.WriteLine($"Uploaded: {attachment?.FileName}");

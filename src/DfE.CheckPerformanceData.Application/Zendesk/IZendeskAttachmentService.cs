@@ -1,4 +1,4 @@
-﻿using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
+﻿
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services

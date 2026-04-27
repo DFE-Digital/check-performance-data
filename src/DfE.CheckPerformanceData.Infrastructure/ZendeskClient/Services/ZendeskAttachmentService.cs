@@ -1,6 +1,7 @@
 ﻿//using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Application;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
+using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using System;
@@ -29,7 +30,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
             string commentBody = "Attachment uploaded"
         )
         {
-            if (ticketId == null || ticketId == 0)
+            if ( ticketId == 0)
                 throw new ArgumentException("Ticket Id is not valid.", nameof(ticketId));
             if (fileStream == null || fileStream.Length == 0)
                 throw new ArgumentException("File stream is empty", nameof(fileStream));
@@ -55,7 +56,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
             };
 
             var response = await _api.AddCommentWithAttachment(ticketId, request);
-            return response.ToDto();
+            //return response.ToDto();
+            return ZendeskMapper.ToDto(response);
             //var dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
         }
     }

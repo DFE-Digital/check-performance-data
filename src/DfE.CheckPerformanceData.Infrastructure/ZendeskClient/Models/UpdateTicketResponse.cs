@@ -3,22 +3,19 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using DfE.CheckPerformanceData.Infrastructure.Mappers;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class UpdateTicketResponse
     {
         [JsonProperty("ticket")]
-        public UpdatedTicket Ticket { get; set; }
+        public UpdatedTicket Ticket { get; set; }  = default!;
 
         [JsonProperty("audit")]
-        public TicketAudit Audit { get; set; }
+        public TicketAudit Audit { get; set; }  = default!;
 
-        internal UpdateTicketResponseDto ToDto()
-        {
-            // todo using Riok.Mapperly.Abstractions; 
-            throw new NotImplementedException();
-        }
+
     }
 
     public class UpdatedTicket
@@ -27,13 +24,13 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public long Id { get; set; }
 
         [JsonProperty("status")]
-        public string Status { get; set; }
+        public string Status { get; set; }  = default!;
 
         [JsonProperty("updated_at")]
         public DateTime UpdatedAt { get; set; }
 
         [JsonProperty("comment")]
-        public TicketComment Comment { get; set; }
+        public TicketComment? Comment { get; set; }
     }
 
     public class TicketAudit
@@ -51,7 +48,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public long AuthorId { get; set; }
 
         [JsonProperty("events")]
-        public List<TicketAuditEvent> Events { get; set; }
+        public List<TicketAuditEvent> Events { get; set; }  = default!;
     }
 
     public class TicketAuditEvent
@@ -60,13 +57,13 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public long Id { get; set; }
 
         [JsonProperty("type")]
-        public string Type { get; set; }
+        public string Type { get; set; }  = default!;
 
         [JsonProperty("body")]
-        public string Body { get; set; }
+        public string Body { get; set; }  = default!;
 
         [JsonProperty("attachments")]
-        public List<Attachment> Attachments { get; set; }
+        public List<Attachment>? Attachments { get; set; }
     }
 
 

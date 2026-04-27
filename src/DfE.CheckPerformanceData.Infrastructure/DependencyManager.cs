@@ -1,7 +1,9 @@
 ﻿using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
@@ -138,6 +140,7 @@ public static class DependencyManager
            })
            .AddHttpMessageHandler<RefitLoggingHandler>();
 
+        services.AddScoped<IZendeskService, ZendeskService>();
         return services;
     }
 }

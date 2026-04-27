@@ -16,7 +16,23 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         // Gets the value for the 'request_StudentDfEEN' field, or null if not found.
         public string DescriptionStudentDfEEN { get; set; }
         // Retrieves the value of the 'UPN' custom field based on provided metadata.
-        public string CustomFieldsStudentUPN { get; set; }
+
+        /// <summary>
+        /// Retrieves the value of the 'UPN' custom field based on provided metadata.
+        /// </summary>
+        /// <param name="meta">List of custom field metadata.</param>
+        /// <returns>The value of the UPN custom field, or null if not found.</returns>
+        public string? CustomFieldsStudentUPN(List<CustomFieldMetaDataDto> meta)
+        {
+            // Note: The long IDs of custom fields vary by environment, making hardcoding difficult.
+            var field = meta.FirstOrDefault(x => x.Title == "UPN");
+            if (field == null)
+                return null;
+
+            // Find the corresponding value using the custom field ID.
+            return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString() ?? null;
+        }
+        //public string CustomFieldsStudentUPN { get; set; }
         // Gets the value for the 'request_StudentUPN' field, or null if not found.
         public string DescriptionStudentUPN { get; set; }
         private const long OutcomeCustomFieldId = 19056253670034;

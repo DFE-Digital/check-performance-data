@@ -1,4 +1,5 @@
-﻿using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
+﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -9,17 +10,20 @@ namespace DfE.CheckPerformanceData.Web.Controllers
     {
 
         private readonly IZendeskApi zendeskApi;
+        private readonly IZendeskService zendeskService;
+
         //private readonly IZendeskAttachmentService zendeskAttachmentService;
-        private View? ourView = null; // id 19337095327890
-        public ZendeskController(IZendeskApi zendeskApi)//, IZendeskAttachmentService zendeskAttachmentService)
+        private ViewDto? ourView = null; // id 19337095327890
+        public ZendeskController(IZendeskApi zendeskApi, IZendeskService zendeskService)//, IZendeskAttachmentService zendeskAttachmentService)
         {
             this.zendeskApi = zendeskApi;
+            this.zendeskService = zendeskService;
             //this.zendeskAttachmentService = zendeskAttachmentService;
         }
         public async Task<IActionResult> Index()
         {
 
-            var views = await zendeskApi.GetViews(200);
+            var views = await zendeskService.ListViewsAsync(200);
             ourView = views.Views.SingleOrDefault(v => v.Title == "Schools checking exercise View"); //CYPMD View");
             System.Diagnostics.Debug.WriteLine($"Found view: {ourView?.Title} (ID: {ourView?.Id})");
             //zendeskApi.GetViews(200);
@@ -47,12 +51,14 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         {
             var results = await zendeskApi.GetTicketsForView(viewId, new ListViewTicketsRequest { PerPage = pageSize, Page = PageNumber }.ToQueryDictionary());
             var meta = await zendeskApi.GetTicketFields();
-            var model = new TicketsViewModel
-            {
-                TicketsResponse = results,
-                TicketFieldsResponse = meta
-            };
+            //var model = new TicketsViewModel
+            //{
+            //    TicketsResponse = results,
+            //    TicketFieldsResponse = meta
+            //};
 
+            var model  = await zendeskService.GetTicketsViewModelAsync(viewId, new ListViewTicketsRequest { PerPage = pageSize, Page = PageNumber }.ToQueryDictionary());
+       
             return View(model);
         }
 
@@ -65,21 +71,15 @@ namespace DfE.CheckPerformanceData.Web.Controllers
 
         public async Task<IActionResult> ViewTicket(long id, bool showNullValues = false)
         {
-            var ticket = await zendeskApi.GetTicket(id);
-            var model = new GetTicketViewModel
-            {
-                Ticket = ticket.Ticket,
-                UserFields = (await zendeskApi.GetTicketFields()).TicketFields,
-                Comments = (await zendeskApi.GetTicketComments(id)).Comments
-                //.Where(f => ticket.Ticket.CustomFields.Any(cf => cf.Id == f.Id))
-                //.Select(f => new UserField
-                //{
-                //    Id = f.Id,
-                //    Key = f.Key,
-                //    Title = f.Title,
-                //    Type = f.Type
-                //})
-            };
+            var ticket = await zendeskService.GetTicketAsync(id);
+            //var model = new GetTicketViewModel
+            //{
+            //    Ticket = ticket.Ticket,
+            //    UserFields = (await zendeskService.GetTicketFields()).TicketFields,
+            //    Comments = (await zendeskService.GetTicketComments(id)).Comments
+
+            //};
+            var model = await zendeskService.GetTicketViewModelAsync(id);
             ViewBag.ShowNullValues = showNullValues;
             return View(model);
         }

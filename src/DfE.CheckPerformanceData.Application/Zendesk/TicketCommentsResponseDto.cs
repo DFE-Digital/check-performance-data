@@ -1,88 +1,90 @@
 ﻿using System;
 using System.Collections.Generic;
+
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public class TicketCommentDto
     {
-        public long Id { get; set; }
-        public string Type { get; set; } = default!;
-        public long AuthorId { get; set; }
-        public string Body { get; set; } = default!;
-        public string HtmlBody { get; set; } = default!;
-        public string PlainBody { get; set; } = default!;
-        public bool Public { get; set; }
-        public List<AttachmentDto> Attachments { get; set; } = default!;
-        public long AuditId { get; set; }
-        public ViaDto Via { get; set; } = default!;
-        public DateTime CreatedAt { get; set; }
-        public CommentMetadataDto Metadata { get; set; } = default!;
+        public long Id { get; init; }
+        public string Type { get; init; } = default!;
+        public long AuthorId { get; init; }
+        public string Body { get; init; } = default!;
+        public string HtmlBody { get; init; } = default!;
+        public string PlainBody { get; init; } = default!;
+        public bool Public { get; init; }
+        public List<AttachmentDto> Attachments { get; init; } = default!;
+        public long AuditId { get; init; }
+        public ViaDto Via { get; init; } = default!;
+        public DateTime CreatedAt { get; init; }
+        public CommentMetadataDto Metadata { get; init; } = default!;
     }
 
     public class TicketCommentsResponseDto
     {
-        public List<TicketCommentDto> Comments { get; set; } = default!;
-        public string NextPage { get; set; }  = default!;
-        public string PreviousPage { get; set; }  = default!;
-        public int Count { get; set; }
+        public List<TicketCommentDto> Comments { get; init; } = default!;
+        public string NextPage { get; init; } = default!;
+        public string PreviousPage { get; init; } = default!;
+        public int Count { get; init; }
     }
+
     public class ViaDto
     {
-        public string Channel { get; set; }  = default!;
-        public ViaSourceDto Source { get; set; }  = default!;
+        public string Channel { get; init; } = default!;
+        public ViaSourceDto Source { get; init; } = default!;
     }
 
     public class ViaSourceDto
     {
-        public Dictionary<string, object> From { get; set; }  = default!;
-        public Dictionary<string, object> To { get; set; }  = default!;
-        public string Rel { get; set; }  = default!;
+        public Dictionary<string, object> From { get; init; } = default!;
+        public Dictionary<string, object> To { get; init; } = default!;
+        public string Rel { get; init; } = default!;
     }
 
     public class CommentMetadataDto
     {
-        public MetadataSystemDto System { get; set; }  = default!;
-        public Dictionary<string, object> Custom { get; set; }  = default!;
+        public MetadataSystemDto System { get; init; } = default!;
+        public Dictionary<string, object> Custom { get; init; } = default!;
     }
 
     public class MetadataSystemDto
     {
-        public string Client { get; set; }  = default!;
-        public string IpAddress { get; set; }  = default!;
-        public string Location { get; set; }  = default!;
-        public double Latitude { get; set; }  = default!;
-        public double Longitude { get; set; }
+        public string Client { get; init; } = default!;
+        public string IpAddress { get; init; } = default!;
+        public string Location { get; init; } = default!;
+        public double Latitude { get; init; } = default!;
+        public double Longitude { get; init; }
     }
 
     public class AttachmentDto
     {
-        public string Url { get; set; }  = default!;
-        public long Id { get; set; }
-        public string FileName { get; set; }  = default!;
-        public string ContentUrl { get; set; }  = default!;
-        public string MappedContentUrl { get; set; }  = default!;
-        public string ContentType { get; set; }  = default!;
-        public long Size { get; set; }
-        public int? Width { get; set; }
-        public int? Height { get; set; }
-        public bool Inline { get; set; }
-        public bool Deleted { get; set; }
-        public bool MalwareAccessOverride { get; set; }
-        public string MalwareScanResult { get; set; }  = default!;
-        public List<AttachmentThumbnailDto> Thumbnails { get; set; }  = default!;
+        public string Url { get; init; } = default!;
+        public long Id { get; init; }
+        public string FileName { get; init; } = default!;
+        public string ContentUrl { get; init; } = default!;
+        public string MappedContentUrl { get; init; } = default!;
+        public string ContentType { get; init; } = default!;
+        public long Size { get; init; }
+        public int? Width { get; init; }
+        public int? Height { get; init; }
+        public bool Inline { get; init; }
+        public bool Deleted { get; init; }
+        public bool MalwareAccessOverride { get; init; }
+        public string MalwareScanResult { get; init; } = default!;
+        public List<AttachmentThumbnailDto> Thumbnails { get; init; } = default!;
     }
 
     public class AttachmentThumbnailDto
     {
-        public string Url { get; set; }  = default!;
-        public long Id { get; set; }
-        public string FileName { get; set; }  = default!;
-        public string ContentUrl { get; set; }  = default!;
-        public string MappedContentUrl { get; set; }  = default!;
-        public string ContentType { get; set; }  = default!;
-        public long Size { get; set; }
-        public int? Width { get; set; }
-        public int? Height { get; set; }
-        public bool Inline { get; set; }
-        public bool Deleted { get; set; }
+        public string Url { get; init; } = default!;
+        public long Id { get; init; }
+        public string FileName { get; init; } = default!;
+        public string ContentUrl { get; init; } = default!;
+        public string MappedContentUrl { get; init; } = default!;
+        public string ContentType { get; init; } = default!;
+        public long Size { get; init; }
+        public int? Width { get; init; }
+        public int? Height { get; init; }
+        public bool Inline { get; init; }
+        public bool Deleted { get; init; }
     }
 }

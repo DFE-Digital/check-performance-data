@@ -16,6 +16,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.Mappers
 
         [MapperRequiredMapping(RequiredMappingStrategy.None)]
         public static partial TicketCommentDto ToDto(TicketComment entity);
-        
+
+        [MapperRequiredMapping(RequiredMappingStrategy.None)]
+        public static partial ListViewsResponseDto ToDto(ListViewsResponse entity);
+
     }
 }

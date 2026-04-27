@@ -1,12 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿//using System;
+//using System.Collections.Generic;
+//using System.Text;
 
-namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
-{
-    public class TicketsViewModel
-    {
-        public ListViewTicketsResponse TicketsResponse { get; set; } = new ListViewTicketsResponse();
-        public TicketFieldsResponse TicketFieldsResponse { get; set; }  = new TicketFieldsResponse();
-    }
-}
+//namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
+//{
+//    public class TicketsViewModel
+//    {
+//        public ListViewTicketsResponse TicketsResponse { get; set; } = new ListViewTicketsResponse();
+//        public TicketFieldsResponse TicketFieldsResponse { get; set; }  = new TicketFieldsResponse();
+//    }
+//}

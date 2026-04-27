@@ -1,10 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Web SDK is required so the ASP.NET Core shared framework is available at runtime
+         for HelpController unit tests (ViewResult, HttpGetAttribute, Controller). -->
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
+    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Web\DfE.CheckPerformanceData.Web.csproj" />
   </ItemGroup>
 
 </Project>

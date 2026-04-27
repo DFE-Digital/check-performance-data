@@ -1,0 +1,23 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchResultsViewModel?
+
+@{
+    var inputId = Model?.InputId ?? "search-q";
+    var currentQuery = Model?.CurrentQuery ?? string.Empty;
+    var hasError = (Model?.ErrorMessages?.Count ?? 0) > 0;
+}
+
+<form method="get" action="/help/search" class="wiki-search-form" role="search" aria-label="Search help pages">
+  <govuk-input name="q"
+               id="@inputId"
+               type="search"
+               autocomplete="off"
+               spellcheck="false"
+               value="@currentQuery">
+    <govuk-input-label>Search the help pages</govuk-input-label>
+    @if (hasError)
+    {
+      <govuk-input-error-message>@Model!.ErrorMessages[0]</govuk-input-error-message>
+    }
+  </govuk-input>
+  <govuk-button type="submit">Search</govuk-button>
+</form>

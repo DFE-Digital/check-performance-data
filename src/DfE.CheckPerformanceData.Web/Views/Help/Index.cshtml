@@ -19,6 +19,8 @@
 <div class="wiki-layout">
     <aside class="wiki-sidebar" id="wiki-sidebar" aria-label="Help pages navigation">
         <nav class="wiki-navigation">
+            @await Html.PartialAsync("_WikiSearch", (DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchResultsViewModel?)null)
+
             <h2 class="govuk-heading-s">Help pages</h2>
 
             @if (Model.NavigationTree.Count > 0)

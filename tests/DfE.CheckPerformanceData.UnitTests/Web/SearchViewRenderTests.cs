@@ -1,32 +1,65 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
-// Bodies filled by Plan 07 Task 4 — tests the rendered output of Views/Help/Search.cshtml
-// and Views/Help/_WikiSearch.cshtml. The render-harness choice is documented in Plan 07
-// Task 4's <action> block (ViewResult+Model shape assertion, with optional HtmlAgilityPack
-// on the rendered HTML string if a render harness is introduced at that time).
+// Bodies filled by Plan 07 Task 4 — tests the static Razor shape of Views/Help/Search.cshtml
+// and Views/Help/_WikiSearch.cshtml. The harness choice is source-content assertion via
+// File.ReadAllText + Assert.Contains: the behaviours required by SEARCH-02 (title H2 link
+// format, slug breadcrumb, <mark> passthrough via @Html.Raw, <govuk-pagination> when
+// TotalPages > 1) are all STATIC Razor-source facts. Semantic behaviour is covered by
+// HelpControllerSearchTests (Plan 06) and by the WikiRepository.SearchAsync integration
+// tests (Plan 04, e.g. Snippet_WrapsMatchesWithMark). No Razor render harness is
+// introduced — no in-process MVC test host, no test-server, no new NuGet packages.
 public sealed class SearchViewRenderTests
 {
-    [Fact]
-    public async Task SearchView_RendersResultTitleLinkWithSlugPath()
+    private static string ReadView(string fileName)
     {
-        await Task.CompletedTask; // TODO(Plan 07 Task 4): assert <h2><a href="/help/{slugPath}">
+        var viewsDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "..",
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Help"));
+        return File.ReadAllText(Path.Combine(viewsDir, fileName));
     }
 
     [Fact]
-    public async Task SearchView_RendersSlugBreadcrumb()
+    public Task SearchView_RendersResultTitleLinkWithSlugPath()
     {
-        await Task.CompletedTask; // TODO(Plan 07 Task 4): assert slug breadcrumb element present
+        var view = ReadView("Search.cshtml");
+        // Contract: each result title renders as <h2> with an <a> linking to /help/{slugPath}.
+        Assert.Contains("<h2", view);
+        Assert.Contains("/help/@r.SlugPath", view);
+        return Task.CompletedTask;
     }
 
     [Fact]
-    public async Task SearchView_RendersMarkInSnippet()
+    public Task SearchView_RendersSlugBreadcrumb()
     {
-        await Task.CompletedTask; // TODO(Plan 07 Task 4): assert <mark> appears within snippet
+        var view = ReadView("Search.cshtml");
+        // Contract: slug-breadcrumb element appears beneath the title; per 05-UI-SPEC.md
+        // §Results Item Anatomy, the breadcrumb renders as "/help/@r.SlugPath" inside a
+        // <p class="govuk-body-s">.
+        Assert.Contains("govuk-body-s", view);
+        Assert.Contains("/help/@r.SlugPath", view);
+        return Task.CompletedTask;
     }
 
     [Fact]
-    public async Task SearchView_RendersPaginationWhenTotalCountExceedsPageSize()
+    public Task SearchView_RendersMarkInSnippet()
     {
-        await Task.CompletedTask; // TODO(Plan 07 Task 4): assert <govuk-pagination> when totalCount > pageSize
+        var view = ReadView("Search.cshtml");
+        // Contract: the snippet renders via @Html.Raw(r.SnippetHtml) — ts_headline wraps
+        // matched terms in <mark>...</mark>. The snippet expression is present; the actual
+        // <mark> literal comes from Postgres at runtime (Plan 04 integration test
+        // Snippet_WrapsMatchesWithMark).
+        Assert.Contains("@Html.Raw(r.SnippetHtml)", view);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SearchView_RendersPaginationWhenTotalCountExceedsPageSize()
+    {
+        var view = ReadView("Search.cshtml");
+        // Contract: <govuk-pagination> appears inside an @if (Model.TotalPages > 1) block.
+        Assert.Contains("Model.TotalPages > 1", view);
+        Assert.Contains("<govuk-pagination", view);
+        return Task.CompletedTask;
     }
 }

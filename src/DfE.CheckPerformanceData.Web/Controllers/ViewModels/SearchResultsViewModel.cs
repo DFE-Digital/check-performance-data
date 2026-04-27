@@ -22,4 +22,8 @@ public sealed class SearchResultsViewModel
 
     // Stable DOM id for <govuk-input> so the error-summary anchor link resolves.
     public string InputId { get; set; } = "search-q";
+
+    // Navigation sidebar content — mirrors HelpViewModel so the Search page can reuse
+    // the wiki-layout + _WikiTree partial and feel consistent with /help.
+    public List<WikiPageTreeNodeDto> NavigationTree { get; set; } = [];
 }

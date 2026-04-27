@@ -25,7 +25,27 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         .UseAdvancedExtensions()
         .Build();
 
-    private static readonly HtmlSanitizer Sanitizer = new();
+    private static readonly HtmlSanitizer Sanitizer = CreateSanitizer();
+
+    // GOV.UK Frontend components rely on `class`, `aria-*`, `role`, and `data-module` attributes
+    // for styling (govuk-warning-text, govuk-notification-banner, etc.) and behaviour
+    // (data-module triggers component JS). Ensure those pass the sanitizer; XSS vectors
+    // (<script>, on*, javascript: URLs) remain blocked by Ganss defaults.
+    private static HtmlSanitizer CreateSanitizer()
+    {
+        var s = new HtmlSanitizer();
+        s.AllowedAttributes.Add("class");
+        s.AllowedAttributes.Add("role");
+        s.AllowedAttributes.Add("data-module");
+        s.AllowedAttributes.Add("aria-hidden");
+        s.AllowedAttributes.Add("aria-label");
+        s.AllowedAttributes.Add("aria-labelledby");
+        s.AllowedAttributes.Add("aria-describedby");
+        s.AllowedAttributes.Add("aria-expanded");
+        s.AllowedAttributes.Add("aria-controls");
+        s.AllowedAttributes.Add("aria-current");
+        return s;
+    }
 
     public string? RenderHtml(string? content)
     {

@@ -93,6 +93,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
     public async Task<IActionResult> Search(string? q, int page = 1)
     {
         var result = await wikiService.SearchAsync(q ?? string.Empty, page);
+        var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch
         {
@@ -110,7 +111,8 @@ public sealed class HelpController(IWikiService wikiService) : Controller
             Results = result.Items,
             InvalidReason = result.InvalidReason,
             ErrorMessages = errors,
-            InputId = "search-q"
+            InputId = "search-q",
+            NavigationTree = tree
         };
 
         return View(vm);

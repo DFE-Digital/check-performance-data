@@ -62,4 +62,28 @@ public sealed class SearchViewRenderTests
         Assert.Contains("<govuk-pagination", view);
         return Task.CompletedTask;
     }
+
+    [Fact]
+    public Task SearchView_RendersBackToHelpLink()
+    {
+        var view = ReadView("Search.cshtml");
+        // Contract: GOV.UK Design System back-link component with href to /help so users
+        // can return to the help index from any search state.
+        Assert.Contains("govuk-back-link", view);
+        Assert.Contains("href=\"/help\"", view);
+        return Task.CompletedTask;
+    }
+
+    [Fact]
+    public Task SearchView_UsesWikiLayoutWithSidebarAndTree()
+    {
+        var view = ReadView("Search.cshtml");
+        // Contract: Search page reuses the wiki-layout + sidebar pattern from Help/Index so
+        // navigation tree and search box stay visible alongside results.
+        Assert.Contains("wiki-layout", view);
+        Assert.Contains("wiki-sidebar", view);
+        Assert.Contains("_WikiTree", view);
+        Assert.Contains("_WikiSearch", view);
+        return Task.CompletedTask;
+    }
 }

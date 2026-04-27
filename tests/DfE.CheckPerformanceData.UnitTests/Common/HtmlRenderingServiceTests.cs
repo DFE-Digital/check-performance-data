@@ -169,4 +169,43 @@ public sealed class HtmlRenderingServiceTests
         Assert.Contains("before", result);
         Assert.Contains("after", result);
     }
+
+    // --- GOV.UK Frontend attribute pass-through ---
+
+    [Fact]
+    public void RenderHtml_PreservesGovukWarningTextClassesAndAria()
+    {
+        // Contract: GOV.UK Frontend components depend on class + aria-* attributes being
+        // preserved so the design-system CSS and behaviour modules apply at render time.
+        var input =
+            "<div class=\"govuk-warning-text\">" +
+                "<span class=\"govuk-warning-text__icon\" aria-hidden=\"true\">!</span>" +
+                "<strong class=\"govuk-warning-text__text\">" +
+                    "<span class=\"govuk-visually-hidden\">Warning</span>" +
+                    "Test message" +
+                "</strong>" +
+            "</div>";
+
+        var result = _sut.RenderHtml(input);
+
+        Assert.NotNull(result);
+        Assert.Contains("class=\"govuk-warning-text\"", result);
+        Assert.Contains("class=\"govuk-warning-text__icon\"", result);
+        Assert.Contains("aria-hidden=\"true\"", result);
+        Assert.Contains("class=\"govuk-warning-text__text\"", result);
+        Assert.Contains("class=\"govuk-visually-hidden\"", result);
+    }
+
+    [Fact]
+    public void RenderHtml_StillStripsScriptDespiteAttributePassthrough()
+    {
+        // Belt-and-suspenders: loosening attribute allow-list must not weaken XSS protection.
+        var input = "<div class=\"govuk-warning-text\">ok</div><script>alert(1)</script>";
+        var result = _sut.RenderHtml(input);
+
+        Assert.NotNull(result);
+        Assert.Contains("govuk-warning-text", result);
+        Assert.DoesNotContain("<script", result);
+        Assert.DoesNotContain("alert(1)", result);
+    }
 }

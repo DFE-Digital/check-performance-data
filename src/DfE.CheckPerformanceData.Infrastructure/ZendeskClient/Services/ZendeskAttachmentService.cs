@@ -1,9 +1,11 @@
-﻿//using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Application;
-using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+﻿using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
+using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,10 +16,41 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
     public class ZendeskAttachmentService : IZendeskAttachmentService
     {
         private readonly IZendeskApi _api;
+        private readonly ILogger<ZendeskAttachmentService> _logger;
+        private readonly ResiliencePipeline _resiliencePipeline;
 
-        public ZendeskAttachmentService(IZendeskApi api)
+        public ZendeskAttachmentService(IZendeskApi api, ILogger<ZendeskAttachmentService> logger)
         {
             _api = api;
+            _logger = logger;
+
+            var builder = new ResiliencePipelineBuilder();
+
+            builder.AddRetry(new RetryStrategyOptions
+            {
+                DelayGenerator = static (args) =>
+                {
+                    var delay = Math.Pow(2, args.AttemptNumber - 1) * 1000;
+                    var jitter = new Random().Next(0, 500);
+                    return ValueTask.FromResult<TimeSpan?>(TimeSpan.FromMilliseconds(delay + jitter));
+                },
+                MaxRetryAttempts = 3,
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<HttpRequestException>()
+                    .Handle<Exception>(ex => ex.GetType().Namespace?.StartsWith("Refit") == true
+                        || ex.GetType().Namespace?.StartsWith("System.Net") == true),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning(
+                        args.Outcome.Exception,
+                        "Zendesk API request failed. Retry attempt {RetryAttempt}",
+                        args.AttemptNumber);
+
+                    return ValueTask.CompletedTask;
+                }
+            });
+
+            _resiliencePipeline = builder.Build();
         }
 
         /// <summary>
@@ -30,55 +63,71 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
             string commentBody = "Attachment uploaded"
         )
         {
-            if ( ticketId == 0)
-                throw new ArgumentException("Ticket Id is not valid.", nameof(ticketId));
-            if (fileStream == null || fileStream.Length == 0)
-                throw new ArgumentException("File stream is empty", nameof(fileStream));
-
-            // STEP 1 — Upload file to Zendesk
-            var uploadResponse = await _api.UploadFile(fileName, fileStream);
-
-            var token = uploadResponse?.Upload?.Token;
-            if (string.IsNullOrWhiteSpace(token))
-                throw new InvalidOperationException("Zendesk did not return an upload token.");
-
-            // STEP 2 — Add comment referencing the upload token
-            var request = new UpdateTicketRequest
+            try
             {
-                Ticket = new UpdateTicket
-                {
-                    Comment = new TicketCommentUpdate
-                    {
-                        Body = commentBody,
-                        Uploads = new List<string> { token }
-                    }
-                }
-            };
+                if (ticketId == 0)
+                    throw new ArgumentException("Ticket Id is not valid.", nameof(ticketId));
+                if (fileStream == null || fileStream.Length == 0)
+                    throw new ArgumentException("File stream is empty", nameof(fileStream));
 
-            var response = await _api.AddCommentWithAttachment(ticketId, request);
-            //return response.ToDto();
-            return ZendeskMapper.ToDto(response);
-            //var dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+                // STEP 1 — Upload file to Zendesk
+                var uploadResponse = await ExecuteWithResilienceAsync(
+                    () => _api.UploadFile(fileName, fileStream),
+                    $"UploadFile({fileName}) for ticket {ticketId}");
+
+                var token = uploadResponse?.Upload?.Token;
+                if (string.IsNullOrWhiteSpace(token))
+                    throw new InvalidOperationException("Zendesk did not return an upload token.");
+
+                // STEP 2 — Add comment referencing the upload token
+                var request = new UpdateTicketRequest
+                {
+                    Ticket = new UpdateTicket
+                    {
+                        Comment = new TicketCommentUpdate
+                        {
+                            Body = commentBody,
+                            Uploads = new List<string> { token }
+                        }
+                    }
+                };
+
+                var response = await ExecuteWithResilienceAsync(
+                    () => _api.AddCommentWithAttachment(ticketId, request),
+                    $"AddCommentWithAttachment({ticketId})");
+
+                return ZendeskMapper.ToDto(response);
+            }
+            catch (ZendeskApiException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading attachment to ticket {TicketId}", ticketId);
+                throw new ZendeskApiException(
+                    $"Failed to upload attachment to ticket {ticketId}.",
+                    ex);
+            }
+        }
+
+        private async Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> action, string operationName)
+        {
+            try
+            {
+                _logger.LogDebug("Executing Zendesk operation: {OperationName}", operationName);
+                var result = await _resiliencePipeline.ExecuteAsync(
+                    async ct => await action(),
+                    CancellationToken.None);
+                _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Resilience pipeline failed for operation: {OperationName}", operationName);
+                throw;
+            }
         }
     }
 
 }
-/*
- * usage:
- * using var stream = System.IO.File.OpenRead("Accept Evidence.pdf");
-
-var result = await _attachmentService.AddAttachmentAsync(
-    ticketId: 86231,
-    fileName: "Accept Evidence.pdf",
-    fileStream: stream,
-    commentBody: "Evidence file attached"
-);
-
-// Access the attachment Zendesk created
-var attachment = result.Ticket.Comment.Attachments.FirstOrDefault();
-Console.WriteLine($"Uploaded: {attachment?.FileName}");
-
- * 
- * 
- * 
- */

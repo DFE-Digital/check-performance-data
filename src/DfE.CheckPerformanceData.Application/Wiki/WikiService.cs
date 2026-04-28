@@ -195,11 +195,7 @@ public sealed partial class WikiService(
 		// XSS: sanitise → strip tags → feed Postgres's STORED SearchVector.
 		var sanitisedHtml = htmlRenderer.RenderHtml(dto.Content) ?? string.Empty;
 		var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
-
-		//await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
-
-		var maxVersion = await repository.GetMaxVersionNumberAsync(id);
-		await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
+        
         await repository.ExecuteInTransactionAsync(async () =>
         {
             var maxVersion = await repository.GetMaxVersionNumberAsync(id);
@@ -209,12 +205,12 @@ public sealed partial class WikiService(
                 var existing = await repository.GetByIdAsync(id)
                     ?? throw new InvalidOperationException($"Wiki page {id} not found.");
                 await repository.AddVersionAsync(id, existing.Title, existing.Content, 1);
-                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
                 await repository.AddVersionAsync(id, dto.Title, dto.Content, 2);
             }
             else
             {
-                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug);
+                await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
                 await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
             }
         });

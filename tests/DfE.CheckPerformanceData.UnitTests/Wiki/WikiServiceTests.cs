@@ -221,12 +221,13 @@ public sealed class WikiServiceTests
         var updated = MakePage(id: 5, title: "Updated Title", slug: "updated-title", content: "Updated content");
         var dto = new UpdateWikiPageDto { Title = "Updated Title", Content = "Updated content" };
 
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("body-plain-text");
         _repository.GetByIdAsync(5).Returns(existing, updated);
         _repository.GetMaxVersionNumberAsync(5).Returns(0);
 
         await _sut.UpdatePageAsync(5, dto);
 
-        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title");
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title", "body-plain-text");
         Received.InOrder(() =>
         {
             _repository.AddVersionAsync(5, "Original Title", "Original content", 1);

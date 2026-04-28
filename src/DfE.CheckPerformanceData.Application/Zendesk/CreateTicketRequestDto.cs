@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Text.Json.Serialization; // Replace Newtonsoft with System.Text.Json for serialization
+using System.Text.Json.Serialization; 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public class CreateTicketRequestDto
@@ -29,7 +29,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public long? RequesterId  { get; set; }
 
         [JsonPropertyName("priority")]
-        public string Priority  { get; set; } =default!;    // optional
+        public string Priority  { get; set; } =default!;    
 
         [JsonPropertyName("description")]
         public string Description  { get; set; } =default!;

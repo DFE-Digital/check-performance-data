@@ -13,11 +13,4 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
         public List<AttachmentDto> Attachments { get; set; }
     }
-
-    // public class AttachmentDto
-    // {
-    //     public string FileName { get; set; }
- 
-    //     public string FileContent { get; set; }
-    // }
 }

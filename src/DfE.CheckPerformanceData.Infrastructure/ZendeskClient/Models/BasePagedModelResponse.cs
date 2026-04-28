@@ -15,7 +15,5 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public Uri? PreviousPage { get; set; }
         [JsonProperty("count")]
         public int Count { get; set; }
-
-        // todo add helpers and extensions to get query string from next/previous
     }
 }

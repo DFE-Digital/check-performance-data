@@ -17,7 +17,27 @@ public sealed class DfeSignInApiClient(HttpClient httpClient) : IDfESignInApiCli
         
         return userOrganisations?.FirstOrDefault(o => o.Id == organisationId);
     }
+
+    public async Task<List<RoleDto>> GetUserRolesAsync(string orgId, string userid)
+    {
+        var serviceId = "F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB";
+        var userRoles = await httpClient.GetFromJsonAsync<DfeUserAccessResponse>(
+            $"services/{serviceId}/organisations/{orgId}/users/{userid}",
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
+        if (userRoles == null || userRoles.Roles.Count == 0)
+            return [];
+        
+        return userRoles.Roles;
+    }
+    
+    private class DfeUserAccessResponse
+    {
+        public List<RoleDto> Roles { get; init; } = [];
+    }
 }
+
+
 
 public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
 {

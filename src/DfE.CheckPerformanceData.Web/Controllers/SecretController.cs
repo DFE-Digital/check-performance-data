@@ -30,7 +30,8 @@ public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbC
         var vm = new SecretViewModel
         {
             UserName = User.FindFirstValue(ClaimTypes.GivenName) + " " + User.FindFirstValue(ClaimTypes.Surname),
-            Organisation = organisation
+            Organisation = organisation,
+            Roles = string.Join(',', User.FindAll(ClaimTypes.Role).Select(c => c.Value)) 
         };
 
         var now = DateTime.UtcNow;

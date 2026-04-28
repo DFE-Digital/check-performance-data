@@ -51,8 +51,18 @@ public sealed class HelpController(IWikiService wikiService) : Controller
             ParentId = model.ParentId
         };
 
-        var page = await wikiService.CreatePageAsync(dto);
-        return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        try
+        {
+            var page = await wikiService.CreatePageAsync(dto);
+            return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        }
+        catch (DuplicateWikiPageException ex)
+        {
+            TempData["WikiCreateError"] = ex.Message;
+            TempData["WikiCreateAttemptedTitle"] = model.Title;
+            TempData["WikiCreateAttemptedParentId"] = model.ParentId;
+            return Redirect($"/help{EditSuffix}");
+        }
     }
 
     [HttpPost("help/edit/{id:int}")]

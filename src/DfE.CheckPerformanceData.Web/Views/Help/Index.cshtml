@@ -38,17 +38,43 @@
 
             @if (Model.IsEditMode)
             {
-                <details class="govuk-details wiki-add-page-details" data-module="govuk-details">
+                var createError = TempData["WikiCreateError"] as string;
+                var attemptedTitle = TempData["WikiCreateAttemptedTitle"] as string;
+                var attemptedParentId = TempData["WikiCreateAttemptedParentId"] as int?;
+                var hasError = !string.IsNullOrEmpty(createError);
+
+                <details class="govuk-details wiki-add-page-details" data-module="govuk-details" open="@(hasError ? "open" : null)">
                     <summary class="govuk-details__summary">
                         <span class="govuk-details__summary-text">Add new page</span>
                     </summary>
                     <div class="govuk-details__text">
+                        @if (hasError)
+                        {
+                            <div class="govuk-error-summary" data-module="govuk-error-summary" role="alert">
+                                <h2 class="govuk-error-summary__title">There is a problem</h2>
+                                <div class="govuk-error-summary__body">
+                                    <ul class="govuk-list govuk-error-summary__list">
+                                        <li><a href="#new-page-title">@createError</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        }
                         <form asp-controller="Help" asp-action="Create" method="post">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="editMode" value="true" />
-                            <div class="govuk-form-group">
+                            <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
                                 <label class="govuk-label" for="new-page-title">Page title</label>
-                                <input class="govuk-input govuk-input--width-20" id="new-page-title" name="Title" type="text" required>
+                                @if (hasError)
+                                {
+                                    <p id="new-page-title-error" class="govuk-error-message">
+                                        <span class="govuk-visually-hidden">Error:</span> @createError
+                                    </p>
+                                }
+                                <input class="govuk-input govuk-input--width-20 @(hasError ? "govuk-input--error" : "")"
+                                       id="new-page-title" name="Title" type="text"
+                                       value="@attemptedTitle"
+                                       aria-describedby="@(hasError ? "new-page-title-error" : null)"
+                                       required>
                             </div>
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="new-page-parent">Parent page (optional)</label>
@@ -56,8 +82,9 @@
                                     <option value="">None (root level)</option>
                                     @foreach (var item in flatPages)
                                     {
-                                        var indent = new string('\u00A0', item.Depth * 2);
-                                        <option value="@item.Id">@indent@item.Title</option>
+                                        var indent = new string(' ', item.Depth * 2);
+                                        var selected = attemptedParentId.HasValue && attemptedParentId.Value == item.Id;
+                                        <option value="@item.Id" selected="@(selected ? "selected" : null)">@indent@item.Title</option>
                                     }
                                 </select>
                             </div>

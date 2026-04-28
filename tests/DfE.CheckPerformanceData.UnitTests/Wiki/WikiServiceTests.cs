@@ -180,20 +180,30 @@ public sealed class WikiServiceTests
     }
 
     [Fact]
-    public async Task CreatePageAsync_AppendsTicks_WhenSlugExists()
+    public async Task CreatePageAsync_ThrowsDuplicateWikiPageException_WhenSlugExistsInSameParent()
     {
-        var dto = new CreateWikiPageDto { Title = "Duplicate", Content = "Body" };
+        var dto = new CreateWikiPageDto { Title = "Duplicate", Content = "Body", ParentId = 7 };
 
-        _repository.SlugExistsAsync("duplicate", null).Returns(true);
-        _repository.GetMaxSortOrderAsync(null).Returns(-1);
-        _repository.AddPageAsync(dto, Arg.Is<string>(s => s.StartsWith("duplicate-")), 0, Arg.Any<string>())
-            .Returns(ci => MakePage(id: 1, title: "Duplicate", slug: ci.ArgAt<string>(1)));
-        _repository.GetByIdAsync(1).Returns(MakePage(id: 1, title: "Duplicate", slug: "duplicate-123"));
+        _repository.SlugExistsAsync("duplicate", 7).Returns(true);
 
-        await _sut.CreatePageAsync(dto);
+        var ex = await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
+        Assert.Equal("Duplicate", ex.Title);
+        Assert.Equal(7, ex.ParentId);
 
-        await _repository.Received(1).AddPageAsync(dto,
-            Arg.Is<string>(s => s.StartsWith("duplicate-") && s.Length > "duplicate-".Length), 0, Arg.Any<string>());
+        await _repository.DidNotReceive().AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddVersionAsync(
+            Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task CreatePageAsync_TreatsTitleCasingAndPunctuation_AsDuplicate()
+    {
+        var dto = new CreateWikiPageDto { Title = "About Us!", Content = "Body", ParentId = null };
+
+        _repository.SlugExistsAsync("about-us", null).Returns(true);
+
+        await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
     }
 
     // --- UpdatePageAsync ---

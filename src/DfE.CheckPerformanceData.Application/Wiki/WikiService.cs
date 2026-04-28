@@ -169,7 +169,7 @@ public sealed partial class WikiService(
 		var slug = GenerateSlug(dto.Title);
 
 		if (await repository.SlugExistsAsync(slug, dto.ParentId))
-			slug = $"{slug}-{DateTime.UtcNow.Ticks}";
+			throw new DuplicateWikiPageException(dto.Title, dto.ParentId);
 
 		var maxSortOrder = await repository.GetMaxSortOrderAsync(dto.ParentId);
 

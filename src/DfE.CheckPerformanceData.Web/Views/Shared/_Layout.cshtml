@@ -30,7 +30,7 @@
             <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
             @if (@User.Identity is { IsAuthenticated: true })
             {
-                <govuk-service-navigation-nav-item href="@Url.Action("SignOut", "Secret")">Sign out
+                <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Secret")">Sign out
                 </govuk-service-navigation-nav-item>
             }
         </govuk-service-navigation-nav>

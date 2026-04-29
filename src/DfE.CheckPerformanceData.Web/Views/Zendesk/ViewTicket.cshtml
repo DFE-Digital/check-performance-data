@@ -126,10 +126,10 @@
             <div class="govuk-inset-text">
                
                 <p><strong>@comment.AuthorId</strong> (@comment.CreatedAt.ToString("dd MMM yyyy, HH:mm"))</p>
-                <p>@comment.HtmlBody</p>
+                <p>@Html.Raw(comment.HtmlBody)</p>
             </div>
         }
-        )
+        
     </div>
     <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="attachments">
         <h2 class="govuk-heading-l">Comment Attachments</h2>

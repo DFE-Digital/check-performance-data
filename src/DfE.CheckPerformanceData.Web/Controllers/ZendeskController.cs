@@ -123,6 +123,27 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             }
         }
 
+        public async Task<IActionResult> TicketFields()
+        {
+            try
+            {
+                var fields = await _zendeskService.GetUserFieldsAsync();
+                return View(fields);
+            }
+            catch (ZendeskApiException ex)
+            {
+                _logger.LogError(ex, "Zendesk API error while loading user fields");
+                TempData["Error"] = "Unable to load user fields. Please try again later.";
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error while loading user fields");
+                TempData["Error"] = "An unexpected error occurred. Please try again later.";
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            }
+        }
+
         public async Task<IActionResult> ViewTicket(long id, bool showNullValues = false)
         {
             if (id <= 0)

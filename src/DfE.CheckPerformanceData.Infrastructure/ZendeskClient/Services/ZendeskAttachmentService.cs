@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
 using System;
@@ -16,25 +17,29 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
     public class ZendeskAttachmentService : IZendeskAttachmentService
     {
         private readonly IZendeskApi _api;
-        private readonly ILogger<ZendeskAttachmentService> _logger;
+        private readonly PollySettings _settings;
         private readonly ResiliencePipeline _resiliencePipeline;
+        private readonly ILogger<ZendeskAttachmentService> _logger;
+        
 
-        public ZendeskAttachmentService(IZendeskApi api, ILogger<ZendeskAttachmentService> logger)
+        public ZendeskAttachmentService(IZendeskApi api, IOptions<PollySettings> settings, ILogger<ZendeskAttachmentService> logger)
         {
             _api = api;
+            _settings = settings.Value;
             _logger = logger;
+        
 
             var builder = new ResiliencePipelineBuilder();
 
             builder.AddRetry(new RetryStrategyOptions
             {
-                DelayGenerator = static (args) =>
+                DelayGenerator = (args) =>
                 {
-                    var delay = Math.Pow(2, args.AttemptNumber - 1) * 1000;
-                    var jitter = new Random().Next(0, 500);
+                    var delay = Math.Pow(2, args.AttemptNumber - 1) * _settings.BaseDelayMilliseconds;
+                    var jitter = new Random().Next(0, _settings.JitterMilliseconds);
                     return ValueTask.FromResult<TimeSpan?>(TimeSpan.FromMilliseconds(delay + jitter));
                 },
-                MaxRetryAttempts = 3,
+                MaxRetryAttempts = _settings.MaxRetryAttempts,
                 ShouldHandle = new PredicateBuilder()
                     .Handle<HttpRequestException>()
                     .Handle<Exception>(ex => ex.GetType().Namespace?.StartsWith("Refit") == true

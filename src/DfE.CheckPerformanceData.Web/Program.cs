@@ -32,9 +32,10 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     var configuration = builder.Configuration
-        .SetBasePath(builder.Environment.ContentRootPath)
+        .SetBasePath(builder.Environment.ContentRootPath)     
         .AddJsonFile("appsettings.json", false, true)
         .AddEnvironmentVariables()
+        .AddUserSecrets<Program>(optional: true)
         .Build();
 
     builder.Host.UseSerilog((context, services, config) =>

@@ -144,6 +144,11 @@ public static class DependencyManager
 
         services.AddScoped<IZendeskService, ZendeskService>();
         services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();
+
+        services.AddOptions<PollySettings>()
+            .Bind(config.GetSection(PollySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         return services;
     }
 }

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -15,5 +14,4 @@
     <ItemGroup>
       <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
     </ItemGroup>
-
 </Project>

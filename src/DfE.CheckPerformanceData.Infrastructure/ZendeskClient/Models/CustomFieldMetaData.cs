@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         /// Gets or sets the URL associated with the custom field.
         /// </summary>
         [JsonProperty("url")]
-        public string Url { get; set; }
+        public string Url { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the unique identifier for the custom field.
@@ -23,37 +23,37 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         /// Gets or sets the type of the custom field.
         /// </summary>
         [JsonProperty("type")]
-        public string Type { get; set; }
+        public string Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the key associated with the custom field.
         /// </summary>
         [JsonProperty("key")]
-        public string Key { get; set; }
+        public string Key { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the title of the custom field.
         /// </summary>
         [JsonProperty("title")]
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the description of the custom field.
         /// </summary>
         [JsonProperty("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         /// <summary>
         /// Gets or sets the raw title of the custom field.
         /// </summary>
         [JsonProperty("raw_title")]
-        public string RawTitle { get; set; }
+        public string RawTitle { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the raw description of the custom field.
         /// </summary>
         [JsonProperty("raw_description")]
-        public string RawDescription { get; set; }
+        public string? RawDescription { get; set; }
 
         /// <summary>
         /// Gets or sets the position of the custom field.
@@ -77,7 +77,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         /// Gets or sets the regular expression for validating the custom field value.
         /// </summary>
         [JsonProperty("regexp_for_validation")]
-        public string RegexpForValidation { get; set; }
+        public string? RegexpForValidation { get; set; }
 
         /// <summary>
         /// Gets or sets the creation date of the custom field.
@@ -107,15 +107,15 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 
         // Human-readable name of the option
         [JsonProperty("name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         // Raw name used for internal processing
         [JsonProperty("raw_name")]
-        public string RawName { get; set; }
+        public string RawName { get; set; } = string.Empty;
 
         // Value of the option
         [JsonProperty("value")]
-        public string Value { get; set; }
+        public string Value { get; set; } = string.Empty;
     }
 
 }

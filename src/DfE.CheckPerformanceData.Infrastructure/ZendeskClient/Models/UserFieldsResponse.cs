@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     public class UserFieldsResponse : BasePagedModelResponse
     {
         [JsonProperty("user_fields")]
-        public List<CustomFieldMetaData> UserFields { get; set; }
+        public List<CustomFieldMetaData> UserFields { get; set; } = new();
 
         [JsonProperty("max_user_field_limit")]
         public int MaxUserFieldLimit { get; set; }

@@ -11,7 +11,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     public class TicketFieldsResponse :  BasePagedModelResponse
     {
         [JsonProperty("ticket_fields")]
-        public List<CustomFieldMetaData> TicketFields { get; set; }
+        public List<CustomFieldMetaData> TicketFields { get; set; } = new();
 
         [JsonProperty("max_user_field_limit")]
         public int MaxUserFieldLimit { get; set; }

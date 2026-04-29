@@ -66,5 +66,14 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
             return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString();
         }
+
+        public string? CustomFieldsByName(List<CustomFieldMetaDataDto> meta, string fieldName)
+        {
+            var field = meta.FirstOrDefault(x => x.Title == fieldName);
+            if (field == null)
+                return null;
+
+            return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString();
+        }
     }
 }

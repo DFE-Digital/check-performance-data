@@ -7,29 +7,29 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     public class CustomFieldMetaDataDto
     {
         // Gets or sets the URL associated with the custom field.
-        public string Url { get; set; }
+        public string Url { get; set; } = string.Empty;
 
         // Gets or sets the unique identifier for the custom field.
 
         public long Id { get; set;}
 
         // Gets or sets the type of the custom field.
-        public string Type { get; set; }
+        public string Type { get; set; } = string.Empty;
 
         // Gets or sets the key associated with the custom field.
-        public string Key { get; set; }
+        public string Key { get; set; } = string.Empty;
 
         // Gets or sets the title of the custom field.
-        public string Title { get; set; }
+        public string Title { get; set; } = string.Empty;
 
         // Gets or sets the description of the custom field.
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         // Gets or sets the raw title of the custom field.
-        public string RawTitle { get; set; }
+        public string RawTitle { get; set; } = string.Empty;
 
         // Gets or sets the raw description of the custom field.
-        public string RawDescription { get; set; }
+        public string? RawDescription { get; set; }
 
         // Gets or sets the position of the custom field.
         public int Position { get; set; }
@@ -41,7 +41,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public bool System { get; set; }
 
         // Gets or sets the regular expression for validating the custom field value.
-        public string RegexpForValidation { get; set; }
+        public string? RegexpForValidation { get; set; }
 
         // Gets or sets the creation date of the custom field.
         public DateTime CreatedAt { get; set; }
@@ -56,16 +56,16 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     public class CustomFieldOptionDto
     {
 
-        public long Id { get; set; }
+        public long Id { get; set; } 
 
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
 
-        public string RawName { get; set; }
+        public string RawName { get; set; } = string.Empty;
 
 
-        public string Value { get; set; }
+        public string Value { get; set; } = string.Empty;
 
     }
 

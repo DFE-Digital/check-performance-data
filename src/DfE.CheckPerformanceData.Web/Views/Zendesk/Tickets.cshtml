@@ -21,10 +21,18 @@
         {
             <tr class="govuk-table__row">
                 <th scope="row" class="govuk-table__header">@item.Id</th>
-                <td class="govuk-table__cell govuk-table__cell--numeric">@(item.DescriptionStudentDfEEN?.ToString() ?? string.Empty)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">
+                        @(item.DescriptionStudentDfEEN?.ToString() 
+                        ?? item.CustomFieldsByName(Model.TicketFieldsResponse.TicketFields, "DfE Establishment Number")
+                        ?? string.Empty)
+                    </td>
                 <td class="govuk-table__cell govuk-table__cell--numeric">@(item.AssigneeId?.ToString() ?? " - ")</td>
                 <td class="govuk-table__cell">@item.CreatedAt?.ToString("dd MMM")</td>
-                <td class="govuk-table__cell-!-width-one-quarter">@item.DescriptionReasonForRemoval</td>
+                <td class="govuk-table__cell-!-width-one-quarter">
+                    @(item.DescriptionReasonForRemoval
+                            ?? item.CustomFieldsByName(Model.TicketFieldsResponse.TicketFields, "Reason for removal")
+                        ?? string.Empty)
+                </td>
                   @*   <td class="govuk-table__cell">@item.DescriptionOutcome</td>
  *@
                 <td class="govuk-table__cell">@item.CustomFieldsOutcome</td>

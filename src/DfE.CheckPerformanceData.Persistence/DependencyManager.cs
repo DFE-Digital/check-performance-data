@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -35,6 +36,7 @@ public static class DependencyManager
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<IWikiRepository, WikiRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
+        services.AddScoped<ILandingPageRepository, LandingPageRepository>();
 
         return services;
     }

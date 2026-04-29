@@ -23,5 +23,6 @@ public class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : IClaimsEnr
 
         identity.AddClaim(new Claim("low_age", organisation.StatutoryLowAge.ToString()));
         identity.AddClaim(new Claim("high_age", organisation.StatutoryHighAge.ToString()));
+        identity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
     }
 }

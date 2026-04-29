@@ -1,3 +1,14 @@
+.dfe-card-container{
+  .govuk-heading-m {
+    color: #347CA9;
+  }}
+
+.school-details{
+  border: 1px solid #b1b4b6;
+  padding: 3px 12px;
+  margin-bottom: 6px;
+}
+
 /* ==========================================================================
    Wiki Layout — collapsible sidebar + main content
    ========================================================================== */

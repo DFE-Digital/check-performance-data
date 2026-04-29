@@ -22,6 +22,7 @@ public sealed class PortalDbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfiguration(new CheckingWindowConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new WikiPageConfiguration());

@@ -9,28 +9,50 @@ public class DevDataSeeder(IPortalDbContext dbContext)
 {
     public async Task SeedAsync()
     {
-        if (await dbContext.CheckingWindows.AnyAsync())
-            return;
+        await SeedCheckingWindows();
 
+        await dbContext.SaveChangesAsync();
+    }
+
+    private async Task SeedCheckingWindows()
+    {
+        await dbContext.CheckingWindows.ExecuteDeleteAsync();
+
+        var ks4JuneCheckingWindow = new CheckingWindow
+        {
+            Id = Guid.Parse("9A2949DD-BDE8-4DD6-ADC8-B8C6966D4EC1"),
+            StartDate = DateTime.Now.AddDays(-1),
+            EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
+            KeyStage = KeyStages.KS4,
+            Title = "KS4 June"
+        };
+        
         await dbContext.CheckingWindows.AddRangeAsync(
+            ks4JuneCheckingWindow,
             new CheckingWindow
             {
-                Id = 1,
-                StartDate = DateTime.UtcNow.AddDays(-1),
-                EndDate = DateTime.UtcNow.AddDays(+13), 
-                OrganisationType = OrganisationTypes.KS4, 
-                Title = "KS4 June"
+                Id = Guid.NewGuid(),
+                StartDate = DateTime.Now.AddDays(-1),
+                EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
+                KeyStage = KeyStages.KS4,
+                Title = "KS4 Autumn"
             },
             new CheckingWindow
             {
-                Id = 2,
-                StartDate = DateTime.UtcNow.AddDays(-3),
-                EndDate = DateTime.UtcNow.AddDays(+11), 
-                OrganisationType = OrganisationTypes.KS2, 
+                Id = Guid.NewGuid(),
+                StartDate = DateTime.Now.AddDays(-3),
+                EndDate = DateTime.Now.AddDays(+11).Date.AddHours(17),
+                KeyStage = KeyStages.KS2,
                 Title = "KS2"
+            },
+            new CheckingWindow()
+            {
+                Id = Guid.NewGuid(),
+                StartDate = DateTime.Now.AddDays(-5),
+                EndDate = DateTime.Now.AddDays(-5).AddDays(+14).Date.AddHours(17),
+                KeyStage = KeyStages.Post16,
+                Title = "16-18"
             }
         );
-        
-        await dbContext.SaveChangesAsync();
     }
 }

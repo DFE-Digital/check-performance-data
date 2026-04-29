@@ -34,7 +34,7 @@ public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
             var orgCode = localAuthorityElement.GetProperty("code").GetString();
             var orgId = root.GetProperty("establishmentNumber").GetString();
         
-            dto.LAESTAB = $"{orgCode}{orgId}";   
+            dto.Laestab = $"{orgCode}/{orgId}";   
         }
         
         return dto;

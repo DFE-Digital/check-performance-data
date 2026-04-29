@@ -1,6 +1,6 @@
 ﻿namespace DfE.CheckPerformanceData.Domain.Enums;
 
-public enum OrganisationTypes
+public enum KeyStages
 {
     KS2, //3-11
     KS4, //11-16

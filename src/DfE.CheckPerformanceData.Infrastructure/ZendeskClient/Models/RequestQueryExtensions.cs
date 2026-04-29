@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         {
             var dict = new Dictionary<string, object>();
 
-            void Add(string key, object value)
+            void Add(string key, object? value)
             {
                 if (value != null)
                     dict[key] = value;
@@ -32,7 +32,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         {
             var dict = new Dictionary<string, object>();
 
-            void Add(string key, object value)
+            void Add(string key, object? value)
             {
                 if (value != null)
                     dict[key] = value;

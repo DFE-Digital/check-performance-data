@@ -1,19 +1,11 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class BasePagedModelResponse
     {
-
-        [JsonProperty("next_page")]
-        public Uri? NextPage { get; set; }
-
-        [JsonProperty("previous_page")]
-        public Uri? PreviousPage { get; set; }
-        [JsonProperty("count")]
-        public int Count { get; set; }
+        public Uri? NextPage { get; init; }
+        public Uri? PreviousPage { get; init; }
+        public int Count { get; init; }
     }
 }

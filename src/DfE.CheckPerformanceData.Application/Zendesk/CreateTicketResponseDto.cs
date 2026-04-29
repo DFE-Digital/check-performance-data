@@ -1,9 +1,7 @@
-﻿
-namespace DfE.CheckPerformanceData.Application.ZendeskClient
+﻿namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public class CreateTicketResponseDto
     {
-        public TicketDto Ticket { get; set; }
+        public TicketDto? Ticket { get; set; }
     }
-
 }

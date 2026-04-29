@@ -1,23 +1,20 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class View
     {
         [JsonProperty("id")]
-        public long Id { get; set; }
+        public long? Id { get; set; }
 
         [JsonProperty("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [JsonProperty("active")]
-        public bool Active { get; set; }
+        public bool? Active { get; set; }
 
         [JsonProperty("position")]
-        public int Position { get; set; }
+        public int? Position { get; set; }
     }
-
 }

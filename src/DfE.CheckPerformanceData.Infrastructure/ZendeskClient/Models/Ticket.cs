@@ -1,20 +1,75 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class Ticket
     {
+        [JsonProperty("id")]
+        public long Id { get; init; }
+
+        [JsonProperty("subject")]
+        public string Subject { get; init; } = string.Empty;
+
+        [JsonProperty("status")]
+        public string Status { get; init; } = string.Empty;
+
+        [JsonProperty("type")]
+        public string? Type { get; init; }
+
+        [JsonProperty("priority")]
+        public string? Priority { get; init; }
+
+        [JsonProperty("requester_id")]
+        public long RequesterId { get; init; }
+
+        [JsonProperty("assignee_id")]
+        public long? AssigneeId { get; init; }
+
+        [JsonProperty("group_id")]
+        public long? GroupId { get; init; }
+
+        [JsonProperty("created_at")]
+        public DateTime? CreatedAt { get; init; }
+
+        [JsonProperty("updated_at")]
+        public DateTime UpdatedAt { get; init; }
+
+        [JsonProperty("description")]
+        public string? Description { get; init; }
+
+        [JsonProperty("tags")]
+        public string[] Tags { get; init; } = Array.Empty<string>();
+
+        [JsonProperty("custom_fields")]
+        public List<CustomField>? CustomFields { get; init; }
+
+        [JsonProperty("fields")]
+        public List<CustomField>? Fields { get; init; }
+
+        /// <summary>
+        /// Combines all custom fields from both CustomFields and Fields lists for easy access.
+        /// </summary>
+        public List<CustomField> AllCustomFields =>
+            (CustomFields ?? new List<CustomField>())
+            .Concat(Fields ?? new List<CustomField>())
+            .ToList();
+
+        //[JsonProperty("description_fields")]
+        //public Dictionary<string, string>? DescriptionFields { get; init; }
 
         // Example of lazy loading embedded fields for performance optimization.
         [JsonIgnore]
-        private Dictionary<string, string> _descriptionFieldsCache;
+        private Dictionary<string, string>? _descriptionFieldsCache;
 
         /// <summary>
         /// Lazy-loaded dictionary containing parsed description fields.
         /// It parses the raw Description string into key-value pairs.
         /// </summary>
         [JsonIgnore]
-        public Dictionary<string, string> DescriptionFields
+        public Dictionary<string, string>? DescriptionFields
         {
             get
             {
@@ -50,110 +105,47 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         /// <summary>
         /// Gets the value for the 'request_StudentRemoveCategoryUnderscore' field, or null if not found.
         /// </summary>
-        [JsonIgnore]
-        public string? DescriptionReasonForRemoval =>
-            DescriptionFields.TryGetValue("request_StudentRemoveCategoryUnderscore", out var v)
-            ? v
-            : null;
+        public string? DescriptionReasonForRemoval => DescriptionFields?.GetValueOrDefault("request_StudentRemoveCategoryUnderscore");
 
         /// <summary>
         /// Gets the value for the 'request_Outcome' field, or null if not found.
         /// </summary>
-        [JsonIgnore]
-        public string? DescriptionOutcome => DescriptionFields.TryGetValue("request_Outcome", out var v)
-            ? v
-            : null;
+        public string? DescriptionOutcome => DescriptionFields?.GetValueOrDefault("request_Outcome");
 
         /// <summary>
         /// Gets the value for the 'request_StudentDfEEN' field, or null if not found.
         /// </summary>
-        [JsonIgnore]
-        public string? DescriptionStudentDfEEN => DescriptionFields.TryGetValue("request_StudentDfEEN", out var v)
-            ? v
-            : null;
+        public string? DescriptionStudentDfEEN => DescriptionFields?.GetValueOrDefault("request_StudentDfEEN");
+
+        /// <summary>
+        /// Gets the value for the 'request_StudentUPN' field, or null if not found.
+        /// </summary>
+        public string? DescriptionStudentUPN => DescriptionFields?.GetValueOrDefault("request_StudentUPN");
 
         /// <summary>
         /// Retrieves the value of the 'UPN' custom field based on provided metadata.
         /// </summary>
         /// <param name="meta">List of custom field metadata.</param>
         /// <returns>The value of the UPN custom field, or null if not found.</returns>
-        public string? CustomFieldsStudentUPN(List<CustomFieldMetaData> meta)
+        public string? CustomFieldsStudentUPN(IEnumerable<CustomFieldMetaData> meta)
         {
-            // Note: The long IDs of custom fields vary by environment, making hardcoding difficult.
             var field = meta.FirstOrDefault(x => x.Title == "UPN");
             if (field == null)
                 return null;
 
-            // Find the corresponding value using the custom field ID.
-            return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString() ?? null;
+            return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString();
         }
-
-        /// <summary>
-        /// Gets the value for the 'request_StudentUPN' field, or null if not found.
-        /// </summary>
-        [JsonIgnore]
-        public string? DescriptionStudentUPN => DescriptionFields.TryGetValue("request_StudentUPN", out var v)
-            ? v
-            : null;
-
-        // Custom field ID used for retrieving specific outcome data.
-        private const long OutcomeCustomFieldId = 19056253670034;
 
         /// <summary>
         /// Retrieves the value of the custom field related to the outcome.
         /// </summary>
-        public string? CustomFieldsOutcome { get => this.AllCustomFields.FirstOrDefault(x => x.Id == OutcomeCustomFieldId)?.Value?.ToString(); }
-
-        [JsonProperty("id")]
-        public long Id { get; set; }
-
-        [JsonProperty("subject")]
-        public string Subject { get; set; }
-
-        [JsonProperty("status")]
-        public string Status { get; set; }
-
-        [JsonProperty("type")]
-        public string? Type { get; set; }
-
-        [JsonProperty("priority")]
-        public string Priority { get; set; }
-
-        [JsonProperty("requester_id")]
-        public long RequesterId { get; set; }
-
-        [JsonProperty("assignee_id")]
-        public long? AssigneeId { get; set; }
-
-        [JsonProperty("group_id")]
-        public long? GroupId { get; set; }
-
-        [JsonProperty("created_at")]
-        public DateTime? CreatedAt { get; set; }
-
-        [JsonProperty("updated_at")]
-        public string UpdatedAt { get; set; }
-
-        [JsonProperty("description")]
-        public string? Description { get; set; }
-
-        [JsonProperty("tags")]
-        public string[]? Tags { get; set; }
-
-        [JsonProperty("custom_fields")]
-        public List<CustomField> CustomFields { get; set; } = new List<CustomField>();
-
-        /// <summary>
-        /// Legacy API field containing custom field data.
-        /// </summary>
-        [JsonProperty("fields")]
-        public List<CustomField> Fields { get; set; } = new List<CustomField>();
-
-        /// <summary>
-        /// Combines all custom fields from both CustomFields and Fields lists for easy access.
-        /// </summary>
-        public List<CustomField> AllCustomFields => CustomFields.Concat(Fields).ToList();
-
+        public string? CustomFieldsOutcome
+        {
+            get
+            {
+                const long OutcomeCustomFieldId = 19056253670034;
+                return AllCustomFields.FirstOrDefault(x => x.Id == OutcomeCustomFieldId)?.Value?.ToString();
+            }
+        }
     }
-
 }

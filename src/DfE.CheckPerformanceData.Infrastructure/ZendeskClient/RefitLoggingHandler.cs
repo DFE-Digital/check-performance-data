@@ -1,8 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient // this could be moved to a common or refit folder/namespace
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 {
     public class RefitLoggingHandler : DelegatingHandler
     {
@@ -10,7 +12,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient // this could be
         {
             var requestBody = request.Content != null
                 ? await request.Content.ReadAsStringAsync()
-                : "";
+                : string.Empty;
 
             Console.WriteLine("➡️ REQUEST");
             Console.WriteLine($"{request.Method} {request.RequestUri}");

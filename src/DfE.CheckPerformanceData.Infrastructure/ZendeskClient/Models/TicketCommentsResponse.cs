@@ -1,170 +1,132 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
-using System.Net.Mail;
-using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class TicketCommentsResponse
-    {
-        [JsonProperty("comments")]
-        public List<TicketComment>? Comments { get; set; } =default!;
-
-        [JsonProperty("next_page")]
-        public string NextPage { get; set; } = default!;
-
-        [JsonProperty("previous_page")]
-        public string PreviousPage { get; set; } = default!;
-
-        [JsonProperty("count")]
-        public int Count { get; set; }
-    }
-
     public class TicketComment
     {
         [JsonProperty("id")]
-        public long Id { get; set; }
+        public long? Id { get; set; }
 
         [JsonProperty("type")]
-        public string Type { get; set; } = default!;
+        public string? Type { get; set; }
 
         [JsonProperty("author_id")]
-        public long AuthorId { get; set; }
+        public long? AuthorId { get; set; }
 
         [JsonProperty("body")]
-        public string Body { get; set; } = default!;
+        public string? Body { get; set; }
 
         [JsonProperty("html_body")]
-        public string HtmlBody { get; set; } = default!;
+        public string? HtmlBody { get; set; }
 
         [JsonProperty("plain_body")]
-        public string PlainBody { get; set; } = default!;
+        public string? PlainBody { get; set; }
 
         [JsonProperty("public")]
-        public bool Public { get; set; }
+        public bool? Public { get; set; }
 
         [JsonProperty("attachments")]
-        public List<Attachment> Attachments { get; set; } = default!;
+        public List<Attachment>? Attachments { get; set; }
 
         [JsonProperty("audit_id")]
-        public long AuditId { get; set; }
+        public long? AuditId { get; set; }
 
         [JsonProperty("via")]
-        public Via Via { get; set; } = default!;
+        public Via? Via { get; set; }
 
         [JsonProperty("created_at")]
-        public DateTime CreatedAt { get; set; }
+        public DateTime? CreatedAt { get; set; }
 
         [JsonProperty("metadata")]
-        public CommentMetadata Metadata { get; set; } = default!;
-
-        // 🔥 Optional: parsed key/value fields from Body
-        [JsonIgnore]
-        private Dictionary<string, string> _parsedFields = new Dictionary<string, string>();
-
-        [JsonIgnore]
-        public Dictionary<string, string> ParsedFields
-        {
-            get
-            {
-                if (_parsedFields != null)
-                    return _parsedFields;
-
-                if (string.IsNullOrWhiteSpace(Body))
-                    return _parsedFields = new Dictionary<string, string>();
-
-                return _parsedFields =
-                    Body.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(line => line.Split(':', 2))
-                        .Where(parts => parts.Length == 2)
-                        .ToDictionary(
-                            parts => parts[0].Trim(),
-                            parts =>
-                            {
-                                var v = parts[1].Trim();
-                                return string.Equals(v, "null", StringComparison.OrdinalIgnoreCase)
-                                    ? null
-                                    : v;
-                            }
-                        );
-            }
-        }
+        public CommentMetadata? Metadata { get; set; }
     }
 
+    public class TicketCommentsResponse
+    {
+        [JsonProperty("comments")]
+        public List<TicketComment>? Comments { get; set; }
+
+        [JsonProperty("next_page")]
+        public string? NextPage { get; set; }
+
+        [JsonProperty("previous_page")]
+        public string? PreviousPage { get; set; }
+
+        [JsonProperty("count")]
+        public int? Count { get; set; }
+    }
 
     public class Via
     {
         [JsonProperty("channel")]
-        public string Channel { get; set; } = default!;
+        public string? Channel { get; set; }
 
         [JsonProperty("source")]
-        public ViaSource Source { get; set; } = default!;
+        public ViaSource? Source { get; set; }
     }
 
     public class ViaSource
     {
         [JsonProperty("from")]
-        public Dictionary<string, object> From { get; set; }    = default!;
+        public Dictionary<string, object>? From { get; set; }
 
         [JsonProperty("to")]
-        public Dictionary<string, object> To { get; set; }   = default!;
+        public Dictionary<string, object>? To { get; set; }
 
         [JsonProperty("rel")]
-        public string Rel { get; set; } = default!;
+        public string? Rel { get; set; }
     }
-
 
     public class CommentMetadata
     {
         [JsonProperty("system")]
-        public MetadataSystem System { get; set; } = default!;
+        public MetadataSystem? System { get; set; }
 
         [JsonProperty("custom")]
-        public Dictionary<string, object> Custom { get; set; } = new Dictionary<string, object>();
+        public Dictionary<string, object>? Custom { get; set; }
     }
 
     public class MetadataSystem
     {
         [JsonProperty("client")]
-        public string Client { get; set; } = default!;
+        public string? Client { get; set; }
 
         [JsonProperty("ip_address")]
-        public string IpAddress { get; set; } = default!;
+        public string? IpAddress { get; set; }
 
         [JsonProperty("location")]
-        public string Location { get; set; } = default!;
+        public string? Location { get; set; }
 
         [JsonProperty("latitude")]
-        public double Latitude { get; set; }
+        public double? Latitude { get; set; }
 
         [JsonProperty("longitude")]
-        public double Longitude { get; set; }
+        public double? Longitude { get; set; }
     }
-
 
     public class Attachment
     {
-        [JsonProperty("url")]
-        public string Url { get; set; } = default!;
+        [JsonProperty("content-type")]
+        public string? ContentType { get; set; }
 
         [JsonProperty("id")]
-        public long Id { get; set; }
+        public long? Id { get; set; }
 
         [JsonProperty("file_name")]
-        public string FileName { get; set; } = default!;
+        public string? FileName { get; set; }
 
         [JsonProperty("content_url")]
-        public string ContentUrl { get; set; } = default!;
+        public string? ContentUrl { get; set; }
 
         [JsonProperty("mapped_content_url")]
-        public string MappedContentUrl { get; set; } = default!;
-
-        [JsonProperty("content_type")]
-        public string ContentType { get; set; } = default!;
+        public string? MappedContentUrl { get; set; }
 
         [JsonProperty("size")]
-        public long Size { get; set; }
+        public long? Size { get; set; }
+
+        [JsonProperty("url")]
+        public string? Url { get; set; }
 
         [JsonProperty("width")]
         public int? Width { get; set; }
@@ -173,43 +135,43 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public int? Height { get; set; }
 
         [JsonProperty("inline")]
-        public bool Inline { get; set; }
+        public bool? Inline { get; set; }
 
         [JsonProperty("deleted")]
-        public bool Deleted { get; set; }
+        public bool? Deleted { get; set; }
 
         [JsonProperty("malware_access_override")]
-        public bool MalwareAccessOverride { get; set; }
+        public bool? MalwareAccessOverride { get; set; }
 
         [JsonProperty("malware_scan_result")]
-        public string MalwareScanResult { get; set; } = default!;
+        public string? MalwareScanResult { get; set; }
 
         [JsonProperty("thumbnails")]
-        public List<AttachmentThumbnail>? Thumbnails { get; set; } = new List<AttachmentThumbnail>();
+        public List<AttachmentThumbnail>? Thumbnails { get; set; }
     }
 
     public class AttachmentThumbnail
     {
-        [JsonProperty("url")]
-        public string Url { get; set; } = default!;
+        [JsonProperty("content-type")]
+        public string? ContentType { get; set; }
 
         [JsonProperty("id")]
-        public long Id { get; set; }
+        public long? Id { get; set; }
 
-        [JsonProperty("file_name")]
-        public string FileName { get; set; } = default!;
+        [JsonProperty("name")]
+        public string? FileName { get; set; }
 
         [JsonProperty("content_url")]
-        public string ContentUrl { get; set; } = default!;
+        public string? ContentUrl { get; set; }
 
         [JsonProperty("mapped_content_url")]
-        public string MappedContentUrl { get; set; } = default!;
-
-        [JsonProperty("content_type")]
-        public string ContentType { get; set; } = default!;
+        public string? MappedContentUrl { get; set; }
 
         [JsonProperty("size")]
-        public long Size { get; set; }
+        public long? Size { get; set; }
+
+        [JsonProperty("url")]
+        public string? Url { get; set; }
 
         [JsonProperty("width")]
         public int? Width { get; set; }
@@ -218,9 +180,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public int? Height { get; set; }
 
         [JsonProperty("inline")]
-        public bool Inline { get; set; }
+        public bool? Inline { get; set; }
 
         [JsonProperty("deleted")]
-        public bool Deleted { get; set; }
+        public bool? Deleted { get; set; }
     }
 }

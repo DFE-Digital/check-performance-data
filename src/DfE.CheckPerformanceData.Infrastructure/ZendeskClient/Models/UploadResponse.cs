@@ -6,16 +6,15 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     public class UploadResponse
     {
         [JsonProperty("upload")]
-        public Upload Upload { get; set; }  = default!;
+        public Upload? Upload { get; set; }
     }
 
     public class Upload
     {
         [JsonProperty("token")]
-        public string Token { get; set; } = default!;
+        public string? Token { get; set; }
 
         [JsonProperty("attachments")]
-        public List<Attachment> Attachments { get; set; } = default!;
+        public List<Attachment>? Attachments { get; set; }
     }
-
 }

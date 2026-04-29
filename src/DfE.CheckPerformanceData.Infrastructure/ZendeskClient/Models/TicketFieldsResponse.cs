@@ -1,14 +1,19 @@
 ﻿using Newtonsoft.Json;
-using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class TicketFieldsResponse
+    //public class TicketFieldsResponse
+    //{
+    //    public List<CustomFieldMetaData> TicketFields { get; init; } = new();
+    //}
+
+    public class TicketFieldsResponse :  BasePagedModelResponse
     {
         [JsonProperty("ticket_fields")]
         public List<CustomFieldMetaData> TicketFields { get; set; }
+
+        [JsonProperty("max_user_field_limit")]
+        public int MaxUserFieldLimit { get; set; }
     }
 }

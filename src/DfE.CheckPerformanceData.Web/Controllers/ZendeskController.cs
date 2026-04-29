@@ -2,8 +2,10 @@
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
+using DfE.CheckPerformanceData.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace DfE.CheckPerformanceData.Web.Controllers
 {
@@ -37,7 +39,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                 {
                     _logger.LogError("Could not find Zendesk view with title '{ViewTitle}'", TargetViewTitle);
                     TempData["Error"] = $"Unable to load Zendesk view: '{TargetViewTitle}' not found.";
-                    return View("Error");
+                    return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
                 }
 
                 _logger.LogInformation("Found view: '{ViewTitle}' (ID: {ViewId})", targetView.Title, targetView.Id);
@@ -48,13 +50,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             {
                 _logger.LogError(ex, "Zendesk API error while loading views");
                 TempData["Error"] = "Unable to load Zendesk views. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while loading Zendesk views");
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }
 
@@ -90,13 +92,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             {
                 _logger.LogError(ex, "Zendesk API error while loading tickets for view {ViewId}", viewId);
                 TempData["Error"] = "Unable to load tickets. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while loading tickets for view {ViewId}", viewId);
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }
 
@@ -111,13 +113,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             {
                 _logger.LogError(ex, "Zendesk API error while loading user fields");
                 TempData["Error"] = "Unable to load user fields. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while loading user fields");
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }
 
@@ -139,13 +141,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             {
                 _logger.LogError(ex, "Zendesk API error while loading ticket {TicketId}", id);
                 TempData["Error"] = "Unable to load ticket. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while loading ticket {TicketId}", id);
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }
 
@@ -161,6 +163,12 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             if (fileUpload == null || fileUpload.Length == 0)
             {
                 ModelState.AddModelError("fileUpload", "Please select a file to upload.");
+                return RedirectToAction(nameof(ViewTicket), new { id = ticketId });
+            }
+
+            if (string.IsNullOrWhiteSpace(fileUpload.FileName))
+            {
+                ModelState.AddModelError("fileUpload", "The filename is required.");
                 return RedirectToAction(nameof(ViewTicket), new { id = ticketId });
             }
 
@@ -249,13 +257,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             {
                 _logger.LogError(ex, "Zendesk API error while creating ticket");
                 TempData["Error"] = "Unable to create ticket. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error while creating ticket");
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
-                return View("Error");
+                return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
         }
     }

@@ -2,15 +2,14 @@
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class UploadResponse
+    public class UploadResponseDto
     {
-        public UploadDto Upload { get; set; }
+        public UploadDto? Upload { get; set; }
     }
 
     public class UploadDto
     {
-        public string Token { get; set; }
-
-        public List<AttachmentDto> Attachments { get; set; }
+        public string? Token { get; set; }
+        public List<AttachmentDto> Attachments { get; set; } = new();
     }
 }

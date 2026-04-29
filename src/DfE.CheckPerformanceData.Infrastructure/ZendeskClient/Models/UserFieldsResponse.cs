@@ -5,7 +5,7 @@ using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class UserFieldsResponse :BasePagedModelResponse
+    public class UserFieldsResponse : BasePagedModelResponse
     {
         [JsonProperty("user_fields")]
         public List<CustomFieldMetaData> UserFields { get; set; }

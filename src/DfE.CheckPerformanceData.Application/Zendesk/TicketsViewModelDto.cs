@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public class TicketsViewModel
     {
-        public ListViewTicketsResponseDto TicketsResponse { get; set; } = new ListViewTicketsResponseDto();
-        public TicketFieldsResponseDto TicketFieldsResponse { get; set; }  = new TicketFieldsResponseDto();
+        public ListViewTicketsResponseDto? TicketsResponse { get; set; }
+        public TicketFieldsResponseDto? TicketFieldsResponse { get; set; }
     }
 }

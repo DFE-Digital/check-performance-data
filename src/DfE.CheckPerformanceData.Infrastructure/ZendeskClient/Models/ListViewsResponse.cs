@@ -1,15 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
     public class ListViewsResponse : BasePagedModelResponse
     {
-        [JsonProperty("views")]
-        public List<View> Views { get; set; }
-
+        public List<View> Views { get; init; } = new();
     }
-
 }

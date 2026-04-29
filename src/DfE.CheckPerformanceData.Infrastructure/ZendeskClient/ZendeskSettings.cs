@@ -7,9 +7,9 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
     public class ZendeskSettings
     {
         public const string SectionName = "ZendeskSettings";
-        public string Subdomain { get; set; }
-        public string Domain { get; set; }
-        public string Email { get; set; }
-        public string ApiToken { get; set; }
+        public required string Subdomain { get; set; }
+        public required string Domain { get; set; }
+        public required string Email { get; set; }
+        public required string ApiToken { get; set; }
     }
 }

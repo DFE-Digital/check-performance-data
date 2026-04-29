@@ -188,7 +188,7 @@ public class ZendeskService : IZendeskService
             {
                 Ticket = ZendeskMapper.ToDto(ticketResponse).Ticket,
                 UserFields = ticketFieldsDto.TicketFields,
-                Comments = ZendeskMapper.ToDto(ticketCommentsResponse).Comments
+                Comments = ZendeskMapper.ToDto(ticketCommentsResponse).Comments ?? new()
             };
         }
         catch (ZendeskApiException)

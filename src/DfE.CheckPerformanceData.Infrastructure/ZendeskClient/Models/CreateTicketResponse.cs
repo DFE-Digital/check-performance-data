@@ -5,7 +5,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     public class CreateTicketResponse
     {
         [JsonProperty("ticket")]
-        public Ticket Ticket { get; set; }
+        public Ticket? Ticket { get; set; }
     }
-
 }

@@ -191,7 +191,7 @@ public class ZendeskService : IZendeskService
             {
                 Ticket = ZendeskMapper.ToDto(ticketResponse).Ticket,
                 UserFields = ticketFieldsDto.TicketFields,
-                Comments = ZendeskMapper.ToDto(ticketCommentsResponse).Comments ?? new()
+                Comments = ZendeskMapper.ToDto(ticketCommentsResponse).Comments ?? new()                
             };
         }
         catch (ZendeskApiException)
@@ -260,7 +260,7 @@ public class ZendeskService : IZendeskService
         try
         {
             var response = await ExecuteWithResilienceAsync(
-                () => _api.GetViews(pageSize ?? 200),
+                () => _api.GetViews(pageSize ?? 20),
                 "ListViews");
 
             return ZendeskMapper.ToDto(response);
@@ -273,7 +273,7 @@ public class ZendeskService : IZendeskService
         {
             _logger.LogError(ex, "Error listing views");
             throw new ZendeskApiException(
-                "Failed to list views.",
+                $"Failed to list views. Ensure all required fields are included in the model.",
                 ex);
         }
     }

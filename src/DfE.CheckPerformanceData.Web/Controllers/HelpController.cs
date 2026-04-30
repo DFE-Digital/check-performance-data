@@ -51,8 +51,18 @@ public sealed class HelpController(IWikiService wikiService) : Controller
             ParentId = model.ParentId
         };
 
-        var page = await wikiService.CreatePageAsync(dto);
-        return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        try
+        {
+            var page = await wikiService.CreatePageAsync(dto);
+            return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        }
+        catch (DuplicateWikiPageException ex)
+        {
+            TempData["WikiCreateError"] = ex.Message;
+            TempData["WikiCreateAttemptedTitle"] = model.Title;
+            TempData["WikiCreateAttemptedParentId"] = model.ParentId;
+            return Redirect($"/help{EditSuffix}");
+        }
     }
 
     [HttpPost("help/edit/{id:int}")]
@@ -87,6 +97,35 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         await wikiService.MovePageAsync(request.Id, request.NewParentId, request.NewSortOrder);
         var page = await wikiService.GetPageByIdAsync(request.Id);
         return Ok(new { slugPath = page?.SlugPath ?? "" });
+    }
+
+    [HttpGet("help/search")]
+    public async Task<IActionResult> Search(string? q, int page = 1)
+    {
+        var result = await wikiService.SearchAsync(q ?? string.Empty, page);
+        var tree = await wikiService.GetNavigationTreeAsync() ?? [];
+
+        var errors = result.InvalidReason switch
+        {
+            SearchInvalidReason.EmptyQuery => new List<string> { "Enter a search term" },
+            SearchInvalidReason.BelowMinimumLength => new List<string> { "Enter at least 2 characters" },
+            _ => new List<string>()
+        };
+
+        var vm = new SearchResultsViewModel
+        {
+            CurrentQuery = result.Query,
+            CurrentPage = result.Page,
+            PageSize = result.PageSize,
+            TotalCount = result.TotalCount,
+            Results = result.Items,
+            InvalidReason = result.InvalidReason,
+            ErrorMessages = errors,
+            InputId = "search-q",
+            NavigationTree = tree
+        };
+
+        return View(vm);
     }
 
     [HttpGet("help/deleted")]

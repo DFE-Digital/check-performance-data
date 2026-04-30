@@ -1,5 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchResultsViewModel
-@using DfE.CheckPerformanceData.Application.Wiki
+
 
 @{
     string TruncateForDisplay(string s, int max = 120) =>
@@ -50,9 +50,9 @@
                 </svg>
             </button>
         </div>
-
-        <a href="/help" class="govuk-back-link">Back to Help</a>
-
+        
+        <a asp-controller="Help" asp-action="Index" class="govuk-back-link">Back to Help</a>
+       
         <h1 class="govuk-heading-l">@heading</h1>
 
         @if (Model.ErrorMessages.Count > 0)
@@ -85,7 +85,7 @@
         else if (Model.InvalidReason is null && Model.TotalCount == 0)
         {
             <p class="govuk-body">
-                Try a different search term, or <a class="govuk-link" href="/help">browse all help pages</a>.
+                Try a different search term, or <a asp-controller="Help" asp-action="Index" class="govuk-link">browse all help pages</a>.
             </p>
         }
 
@@ -97,7 +97,7 @@
                     <govuk-pagination-previous href="@Url.Action("Search", "Help", new { q = Model.CurrentQuery, page = Model.CurrentPage - 1 })">Previous</govuk-pagination-previous>
                 }
 
-                @for (int p = 1; p <= Model.TotalPages; p++)
+                @for (var p = 1; p <= Model.TotalPages; p++)
                 {
                     var showPage = p == 1
                                    || p == Model.TotalPages

@@ -70,7 +70,7 @@ public sealed class SearchViewRenderTests
 		// Contract: GOV.UK Design System back-link component with href to /help so users
 		// can return to the help index from any search state.
 		Assert.Contains("govuk-back-link", view);
-		Assert.Contains("href=\"/help\"", view);
+		Assert.Contains("<a asp-controller=\"Help\" asp-action=\"Index\" class=\"govuk-back-link\">Back to Help</a>", view);
 		return Task.CompletedTask;
 	}
 

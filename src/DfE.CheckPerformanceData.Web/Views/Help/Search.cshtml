@@ -5,9 +5,9 @@
     string TruncateForDisplay(string s, int max = 120) =>
         s.Length <= max ? s : s.Substring(0, max) + "…";
 
-    string displayQuery = TruncateForDisplay(Model.CurrentQuery ?? string.Empty);
+    var displayQuery = TruncateForDisplay(Model.CurrentQuery);
 
-    string heading = Model.InvalidReason is not null
+    var heading = Model.InvalidReason is not null
         ? "Search the help pages"
         : Model.TotalCount == 0
             ? $"No results for \"{displayQuery}\""

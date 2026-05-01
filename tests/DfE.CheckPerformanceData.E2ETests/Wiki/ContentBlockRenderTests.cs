@@ -36,11 +36,12 @@ public sealed class ContentBlockRenderTests(PlaywrightFixture fixture) : PageTes
     [Fact]
     public async Task RendersSanitisedContent()
     {
-        // Driving RED: navigate to the version-history page for a *different* (random)
-        // key — the marker text will not be present, asserting visibility will fail.
-        // GREEN switches to {_key}.
-        var wrongKey = $"e2e-{Guid.NewGuid():N}-decoy";
-        await Page.GotoAsync($"{_fixture.BaseUrl}/content-block/versions/{wrongKey}");
+        await Page.GotoAsync($"{_fixture.BaseUrl}/content-block/versions/{_key}");
+
+        // The version-history view hides each preview panel by default; clicking a row
+        // toggles its hidden attribute off. Click the only version row to reveal the
+        // seeded panel before asserting visibility.
+        await Page.Locator("tr.version-row").First.ClickAsync();
 
         await Expect(Page.GetByText(_markerText)).ToBeVisibleAsync();
     }

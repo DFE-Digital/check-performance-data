@@ -9,6 +9,7 @@
     <Folder Name="/Tests/">
         <Project Path="../tests/DfE.CheckPerformanceData.UnitTests/DfE.CheckPerformanceData.Application.UnitTests.csproj" Id="3aca5563-7aab-435a-b5d3-21da95648da3" />
         <Project Path="../tests/DfE.CheckPerformanceData.IntegrationTests/DfE.CheckPerformanceData.IntegrationTests.csproj" />
+        <Project Path="../tests/DfE.CheckPerformanceData.E2ETests/DfE.CheckPerformanceData.E2ETests.csproj" />
     </Folder>
     <Project Path="../docker-compose.dcproj" Id="1fcbe191-34fe-4b2e-8915-ca81553958ad">
         <BuildDependency Project="DfE.CheckPerformanceData.Application/DfE.CheckPerformanceData.Application.csproj" />

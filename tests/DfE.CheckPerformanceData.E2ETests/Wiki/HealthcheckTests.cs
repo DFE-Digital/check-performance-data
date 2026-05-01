@@ -14,10 +14,7 @@ public sealed class HealthcheckTests(PlaywrightFixture fixture)
     [Fact]
     public async Task AnonymousReceives200_NoAuthChallenge()
     {
-        // Driving RED: assert against /heartbeat which doesn't exist (404),
-        // proving the test exercises the right HttpClient + correctly fails
-        // on a real product surface mismatch. GREEN switches to /healthcheck.
-        var response = await _fixture.SeedClient.GetAsync("/heartbeat");
+        var response = await _fixture.SeedClient.GetAsync("/healthcheck");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False(response.Headers.Contains("WWW-Authenticate"),

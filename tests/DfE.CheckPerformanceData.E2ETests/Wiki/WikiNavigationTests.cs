@@ -44,8 +44,13 @@ public sealed class WikiNavigationTests(PlaywrightFixture fixture) : PageTest, I
     {
         await Page.GotoAsync($"{_fixture.BaseUrl}/help");
 
-        // Intentionally wrong locator to drive the RED phase. The sidebar uses
-        // class "wiki-sidebar"; "wiki-navigation-pane" doesn't exist anywhere.
-        await Expect(Page.Locator("aside.wiki-navigation-pane")).ToBeVisibleAsync();
+        await Expect(Page.Locator("aside.wiki-sidebar")).ToBeVisibleAsync();
+        await Expect(Page.Locator("aside.wiki-sidebar ul.tv.tv-root")).ToBeVisibleAsync();
+        await Expect(Page.Locator("aside.wiki-sidebar").GetByText(_parentTitle)).ToBeVisibleAsync();
     }
+
+    // --- ChildPage_ShowsBreadcrumbs: DEFERRED 2026-05-01 to Phase 2.3 (Wiki Breadcrumbs).
+    //     Do NOT implement this test in the W1 plan — the product never shipped a breadcrumb
+    //     component. Phase 2.3 will ship the GDS govuk-breadcrumbs component + parent-chain
+    //     DTO surface, then the test goes green there. ---
 }

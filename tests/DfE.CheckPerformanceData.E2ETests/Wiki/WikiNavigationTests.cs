@@ -12,7 +12,6 @@ public sealed class WikiNavigationTests(PlaywrightFixture fixture) : PageTest, I
     private readonly PlaywrightFixture _fixture = fixture;
     private readonly List<int> _trackedIds = [];
     private string _parentTitle = "";
-    private string _childTitle = "";
 
     public new async Task InitializeAsync()
     {
@@ -20,12 +19,12 @@ public sealed class WikiNavigationTests(PlaywrightFixture fixture) : PageTest, I
 
         var run = Guid.NewGuid().ToString("N");
         _parentTitle = $"e2e-{run}-Parent";
-        _childTitle = $"e2e-{run}-Child";
+        var childTitle = $"e2e-{run}-Child";
 
         var parentId = await SeedHelpers.SeedWikiPageAsync(
             _fixture.SeedClient, _parentTitle, "Parent body content.", parentId: null, _trackedIds);
         await SeedHelpers.SeedWikiPageAsync(
-            _fixture.SeedClient, _childTitle, "Child body content.", parentId: parentId, _trackedIds);
+            _fixture.SeedClient, childTitle, "Child body content.", parentId: parentId, _trackedIds);
     }
 
     public new async Task DisposeAsync()
@@ -48,9 +47,4 @@ public sealed class WikiNavigationTests(PlaywrightFixture fixture) : PageTest, I
         await Expect(Page.Locator("aside.wiki-sidebar ul.tv.tv-root")).ToBeVisibleAsync();
         await Expect(Page.Locator("aside.wiki-sidebar").GetByText(_parentTitle)).ToBeVisibleAsync();
     }
-
-    // --- ChildPage_ShowsBreadcrumbs: DEFERRED 2026-05-01 to Phase 2.3 (Wiki Breadcrumbs).
-    //     Do NOT implement this test in the W1 plan — the product never shipped a breadcrumb
-    //     component. Phase 2.3 will ship the GDS govuk-breadcrumbs component + parent-chain
-    //     DTO surface, then the test goes green there. ---
 }

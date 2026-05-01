@@ -8,16 +8,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.4" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="coverlet.collector" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.7.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
-    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -25,7 +27,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Zendesk\" />
-  </ItemGroup>
+    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
+    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
+	<ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
+    <Folder Include="Zendesk\"
+
+	
+
+
+</ItemGroup>
 
 </Project>

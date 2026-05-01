@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Web.Settings;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 
 using GovUk.Frontend.AspNetCore;
@@ -54,6 +55,8 @@ try
     });
     
     builder.Services.AddHttpContextAccessor();
+   
+    builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
 
     builder.Services
         .AddDfeApiClient(builder.Configuration)
@@ -70,31 +73,6 @@ try
         {
             MessageEncoding = QueueMessageEncoding.Base64
         }));
-
-    
-    //var zendeskSubdomain =  Environment.GetEnvironmentVariable("ZENDESK_SUBDOMAIN") ?? builder.Configuration["ZENDESK_SUBDOMAIN"] ?? "example";
-    //var zendeskDomain = builder.Configuration["ZENDESK_DOMAIN"] ?? "domain";
-    //var zendeskEmail = builder.Configuration["ZENDESK_EMAIL"];
-    //var zendeskApiToken = builder.Configuration["ZENDESK_API_TOKEN"];
-    
-    //builder.Services.AddTransient<RefitLoggingHandler>();
-
-
-    //builder.Services.AddRefitClient<IZendeskApi>(new RefitSettings
-    //{
-    //    ContentSerializer = new NewtonsoftJsonContentSerializer()
-    //})
-
-    //   .ConfigureHttpClient(c =>
-    //   {
-    //       c.BaseAddress = new Uri($"https://{zendeskSubdomain}.{zendeskDomain}.com");
-    //       var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{zendeskEmail}/token:{zendeskApiToken}"));
-    //       c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
-    //       c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-    //   })
-    //   .AddHttpMessageHandler<RefitLoggingHandler>();
-    
-
     
     builder.Services.AddAntiforgery(options =>
     {
@@ -143,12 +121,12 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
-            "img-src 'self' data: blob:; " +
-            "font-src 'self' data: https://cdnjs.cloudflare.com; " +
-            "connect-src 'self'; " +
-            "frame-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://fonts.googleapis.com; " +
+            "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
+            "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+            "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "frame-src 'self' https://*.googletagmanager.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'");

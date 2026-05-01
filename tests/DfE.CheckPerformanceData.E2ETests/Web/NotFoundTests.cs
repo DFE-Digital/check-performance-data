@@ -20,8 +20,6 @@ public sealed class NotFoundTests(PlaywrightFixture fixture) : PageTest
         var response = await Page.GotoAsync($"{_fixture.BaseUrl}/help/{slug}");
 
         Assert.NotNull(response);
-        // RED-driving assertion: expect 200 (clearly wrong — unknown slugs return 404).
-        // GREEN switches to 404 to capture the documented expected behaviour.
-        Assert.Equal(200, response!.Status);
+        Assert.Equal(404, response!.Status);
     }
 }

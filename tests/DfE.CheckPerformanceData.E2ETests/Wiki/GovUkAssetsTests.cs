@@ -27,9 +27,7 @@ public sealed class GovUkAssetsTests(PlaywrightFixture fixture) : PageTest
         await Page.GotoAsync($"{_fixture.BaseUrl}/help");
         await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-        // Driving RED: assert against a body class that doesn't exist on the page.
-        // The real layout uses "govuk-template__body" + "js-enabled" — GREEN switches.
-        await Expect(Page.Locator("body.govuk-template__body-bogus")).ToBeVisibleAsync();
+        await Expect(Page.Locator("body.govuk-template__body.js-enabled")).ToBeVisibleAsync();
 
         Assert.NotEmpty(govukResponses);
         foreach (var r in govukResponses)

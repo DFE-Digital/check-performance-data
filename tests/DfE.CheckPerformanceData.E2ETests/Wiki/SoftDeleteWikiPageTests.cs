@@ -74,4 +74,28 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
         // page from the search results. Zero matching anchors is the contract.
         await Expect(Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]")).ToHaveCountAsync(0);
     }
+
+    // --- SoftDeletedPage_AppearsInDeletedPagesList ---
+
+    [Fact]
+    public async Task SoftDeletedPage_AppearsInDeletedPagesList()
+    {
+        var queryToken = $"e2edl{Guid.NewGuid().ToString("N")[..8]}";
+        var id = await SeedHelpers.SeedWikiPageAsync(
+            _fixture.SeedClient,
+            title: $"{queryToken} restorable",
+            body: $"Content for {queryToken}.",
+            parentId: null,
+            _trackedIds);
+
+        await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
+
+        await Page.GotoAsync($"{_fixture.BaseUrl}/help/deleted");
+
+        // RED: assert NO matching row — the deleted-pages admin view (Views/Help/Deleted.cshtml)
+        //      DOES list the soft-deleted page in a <tr><td>{title}</td>...</tr> table cell, so
+        //      this assertion fails. GREEN flips to ToBeVisibleAsync after confirming the row
+        //      is rendered.
+        await Expect(Page.GetByText(queryToken).First).Not.ToBeVisibleAsync();
+    }
 }

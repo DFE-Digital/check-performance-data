@@ -74,11 +74,10 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
     {
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/{_slug}");
 
+        // The visually-hidden "Warning" span is the accessible label that screen readers
+        // announce before the warning body. The sanitizer preserves the class so the GDS
+        // visually-hidden positioning rules apply.
         var hidden = Page.Locator(".govuk-visually-hidden", new() { HasTextString = "Warning" });
-
-        // RED: assert NO visually-hidden "Warning" span — the seeded body contains
-        //      <span class="govuk-visually-hidden">Warning</span> and the sanitizer preserves
-        //      class+text, so this assertion fails today. GREEN flips to count == 1.
-        await Expect(hidden).ToHaveCountAsync(0);
+        await Expect(hidden).ToHaveCountAsync(1);
     }
 }

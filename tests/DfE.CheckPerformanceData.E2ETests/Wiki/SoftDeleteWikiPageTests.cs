@@ -92,10 +92,8 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
 
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/deleted");
 
-        // RED: assert NO matching row — the deleted-pages admin view (Views/Help/Deleted.cshtml)
-        //      DOES list the soft-deleted page in a <tr><td>{title}</td>...</tr> table cell, so
-        //      this assertion fails. GREEN flips to ToBeVisibleAsync after confirming the row
-        //      is rendered.
-        await Expect(Page.GetByText(queryToken).First).Not.ToBeVisibleAsync();
+        // The deleted-pages admin view (Views/Help/Deleted.cshtml) renders one <tr> per
+        // soft-deleted page with the title in a <td class="govuk-table__cell"> cell.
+        await Expect(Page.GetByText(queryToken).First).ToBeVisibleAsync();
     }
 }

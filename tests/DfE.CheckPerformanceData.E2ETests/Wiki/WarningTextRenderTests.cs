@@ -66,4 +66,19 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
         var color = await icon.EvaluateAsync<string>("el => getComputedStyle(el).color");
         Assert.Equal("rgb(255, 255, 255)", color);
     }
+
+    // --- VisuallyHiddenWarningSpanInDom ---
+
+    [Fact]
+    public async Task VisuallyHiddenWarningSpanInDom()
+    {
+        await Page.GotoAsync($"{_fixture.BaseUrl}/help/{_slug}");
+
+        var hidden = Page.Locator(".govuk-visually-hidden", new() { HasTextString = "Warning" });
+
+        // RED: assert NO visually-hidden "Warning" span — the seeded body contains
+        //      <span class="govuk-visually-hidden">Warning</span> and the sanitizer preserves
+        //      class+text, so this assertion fails today. GREEN flips to count == 1.
+        await Expect(hidden).ToHaveCountAsync(0);
+    }
 }

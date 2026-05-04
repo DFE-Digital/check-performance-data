@@ -58,9 +58,12 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
         await Expect(icon).ToHaveTextAsync("!");
 
         var borderRadius = await icon.EvaluateAsync<string>("el => getComputedStyle(el).borderRadius");
-        // RED: GDS canonical border-radius is 50% (perfect circle). A wrong expected value of "0px"
-        //      forces the assertion to fail right now; GREEN flips to "50%" once the live render
-        //      is observed.
-        Assert.Equal("0px", borderRadius);
+        Assert.Equal("50%", borderRadius);
+
+        var backgroundColor = await icon.EvaluateAsync<string>("el => getComputedStyle(el).backgroundColor");
+        Assert.Equal("rgb(11, 12, 12)", backgroundColor);
+
+        var color = await icon.EvaluateAsync<string>("el => getComputedStyle(el).color");
+        Assert.Equal("rgb(255, 255, 255)", color);
     }
 }

@@ -46,8 +46,10 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
 
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={queryToken}");
 
-        // RED: deliberately assert ZERO matches — once the seed lands and the FTS index picks it
-        // up, at least one result anchor must point to a slug containing the query token.
-        await Expect(Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]")).ToHaveCountAsync(0);
+        // The freshly-seeded page must surface in /help/search?q={token}. Search.cshtml renders
+        // each result as <li> containing <a class="govuk-link" href="/help/{slug}">…</a>; the
+        // slug carries the query token.
+        var matchingLinks = Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]");
+        await Expect(matchingLinks.First).ToBeVisibleAsync();
     }
 }

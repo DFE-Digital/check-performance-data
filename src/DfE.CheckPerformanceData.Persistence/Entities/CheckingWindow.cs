@@ -4,6 +4,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
+public class CheckingWindow
+{
+    public Guid Id { get; init; }
+    public DateTime StartDate { get; init; }
+    public DateTime EndDate { get; init; }
+    public KeyStages KeyStage { get; init; }
+    public string Title { get; init; } = string.Empty;
+}
+
 
 public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<CheckingWindow>
 {
@@ -30,13 +39,4 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
             .IsRequired()
             .HasMaxLength(200);
     }
-}
-
-public sealed class CheckingWindow
-{
-    public Guid Id { get; init; }
-    public DateTime StartDate { get; init; }
-    public DateTime EndDate { get; init; }
-    public KeyStages KeyStage { get; init; }
-    public string Title { get; init; } = string.Empty;
 }

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Wiki;
@@ -37,6 +38,7 @@ public static class DependencyManager
         services.AddScoped<IWikiRepository, WikiRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
+        services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
 
         return services;
     }

@@ -1,0 +1,10 @@
+using DfE.CheckPerformanceData.Application.LandingPage;
+
+namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
+
+public interface ICheckYourPupilDataRepository
+{
+    Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize);
+    Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetNonIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize);
+    Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
+}

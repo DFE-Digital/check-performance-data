@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepository
 {
-    public async Task<List<OpenCheckingWindowDto>> GetOpenWindowsAsync(DateTime now, IEnumerable<KeyStages> organisationKeyStages, 
+    public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, IEnumerable<KeyStages> organisationKeyStages, 
         CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
@@ -16,7 +16,7 @@ public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepo
                    && window.EndDate >= now
                    && organisationKeyStages.Contains(window.KeyStage)
             )
-            .Select(w => new OpenCheckingWindowDto()
+            .Select(w => new CheckingWindowDto()
                 { EndDate = w.EndDate, KeyStage = w.KeyStage, Title = w.Title, Id = w.Id })
             .ToListAsync(cancellationToken);
 }

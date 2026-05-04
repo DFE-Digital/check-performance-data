@@ -14,11 +14,11 @@ public class LandingPageResult
     public required string OrganisationLaestab { get; set; }
     public required string OrganisationUrn { get; set; }
     public required List<OrganisationKeyStageDto> KeyStages { get; set; }
-    public required List<OpenCheckingWindowDto> OpenWindows { get; set; }
+    public required List<CheckingWindowDto> OpenWindows { get; set; }
     public string OrganisationAddress { get; set; } = string.Empty;
 }
 
-public class OpenCheckingWindowDto
+public class CheckingWindowDto
 {
     public Guid Id { get; init; }
     public required string Title { get; init; }

@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.LandingPage;
 
@@ -33,10 +32,4 @@ public class LandingPageService(ILandingPageRepository landingPageRepository, Ti
         
         return result;
     }
-}
-
-public interface ILandingPageRepository
-{
-    Task<List<OpenCheckingWindowDto>> GetOpenWindowsAsync(DateTime now,
-        IEnumerable<KeyStages> organisationKeyStages, CancellationToken cancellationToken);
 }

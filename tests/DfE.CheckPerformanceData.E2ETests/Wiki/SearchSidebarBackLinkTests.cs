@@ -45,9 +45,15 @@ public sealed class SearchSidebarBackLinkTests(PlaywrightFixture fixture) : Page
     {
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={_keyword}");
 
-        // RED: target a back-link href that doesn't exist (Search.cshtml emits
-        //      <a class="govuk-back-link" href="/help">…). The selector below looks for the
-        //      WRONG href and must fail. GREEN switches to "/help".
-        await Expect(Page.Locator("a.govuk-back-link[href='/wrong-target']")).ToBeVisibleAsync();
+        await Expect(Page.Locator("a.govuk-back-link[href='/help']")).ToBeVisibleAsync();
+
+        var sidebar = Page.Locator("aside.wiki-sidebar");
+        await Expect(sidebar).ToBeVisibleAsync();
+
+        // _WikiSearch partial renders <input name="q"> inside a govuk-input search form.
+        await Expect(sidebar.Locator("input[name='q']")).ToBeVisibleAsync();
+
+        // _WikiTree partial renders <ul class="tv tv-root"> at the root level.
+        await Expect(sidebar.Locator("ul.tv.tv-root")).ToBeVisibleAsync();
     }
 }

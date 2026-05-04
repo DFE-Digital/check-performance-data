@@ -20,6 +20,17 @@ public static class SeedHelpers
         int? parentId,
         ICollection<int> tracking)
     {
+        var (id, _) = await SeedWikiPageReturningSlugAsync(client, title, body, parentId, tracking);
+        return id;
+    }
+
+    public static async Task<(int Id, string Slug)> SeedWikiPageReturningSlugAsync(
+        HttpClient client,
+        string title,
+        string body,
+        int? parentId,
+        ICollection<int> tracking)
+    {
         var slugPrefix = $"e2e-{Guid.NewGuid():N}";
         var prefixedTitle = $"{slugPrefix} {title}";
 
@@ -76,7 +87,7 @@ public static class SeedHelpers
 
         var id = await ResolveIdFromTreeAsync(client, seededSlug);
         tracking.Add(id);
-        return id;
+        return (id, seededSlug);
     }
 
     public static async Task<string> SeedContentBlockAsync(

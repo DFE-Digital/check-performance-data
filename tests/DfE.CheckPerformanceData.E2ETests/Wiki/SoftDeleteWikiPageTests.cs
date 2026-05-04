@@ -70,10 +70,8 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
 
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={queryToken}");
 
-        // RED: assert the soft-deleted page IS visible — if this passes, the EF query filter
-        //      WikiPageConfiguration.HasQueryFilter(w => !w.IsDeleted) is broken on the search
-        //      code path. The product behaviour is correct (filter applied), so this assertion
-        //      fails and we flip it to ToHaveCountAsync(0) for GREEN.
-        await Expect(Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]").First).ToBeVisibleAsync();
+        // The soft-delete EF query filter (HasQueryFilter(w => !w.IsDeleted)) MUST hide this
+        // page from the search results. Zero matching anchors is the contract.
+        await Expect(Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]")).ToHaveCountAsync(0);
     }
 }

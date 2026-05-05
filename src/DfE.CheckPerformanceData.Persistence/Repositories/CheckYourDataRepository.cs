@@ -17,7 +17,7 @@ public class CheckYourPupilDataRepository(IPortalDbContext dbContext) : ICheckYo
         => await dbContext.CheckingWindows
             .AsNoTracking()
             .Where(w => w.Id == windowId)
-            .Select(w => new CheckingWindowDto{EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage})
+            .Select(w => new CheckingWindowDto{EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, StartDate = w.StartDate})
             .SingleAsync();
 
     private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string laestab, int pincl, string? search, int page, int pageSize)

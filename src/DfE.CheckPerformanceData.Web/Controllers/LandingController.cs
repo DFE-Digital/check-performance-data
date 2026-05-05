@@ -17,15 +17,31 @@ public class LandingController(ILogger<LandingController> logger, ILandingPageSe
             logger.LogWarning("No landing page data found for the current user");
             return RedirectToAction("DfeSignOut", "Home");
         }
-        
+
         var landingPageViewModel = new LandingPageViewModel(
             result.OpenWindows.Select(w => new LandingPageWindowViewModel
-                { Title = w.Title, EndDate = w.EndDate, Id = w.Id }),
+            {
+                Title = w.Title,
+                EndDate = w.EndDate.ToString("dddd d MMMM yyyy"),
+                EndTime = w.EndDate.ToString("htt").ToLower(),
+                StartDate = w.StartDate.ToString("dddd d MMMM yyyy"),
+                Id = w.Id,
+                HasPupilData = w.HasPupilData
+            }),
             result.OrganisationName,
             result.OrganisationUrn,
-            result.OrganisationLaestab, 
-            string.Join(',', result.KeyStages.Select(ks => ks.Title)), 
-            result.OrganisationAddress);
+            result.OrganisationLaestab,
+            string.Join(',', result.KeyStages.Select(ks => ks.Title)),
+            result.OrganisationAddress,
+            result.ClosedWindows.Select(w => new LandingPageWindowViewModel
+            {
+                Title = w.Title,
+                EndDate = w.EndDate.ToString("dddd d MMMM yyyy"),
+                EndTime = w.EndDate.ToString("htt").ToLower(),
+                StartDate = w.StartDate.ToString("dddd d MMMM yyyy"),
+                Id = w.Id,
+                HasPupilData = w.HasPupilData
+            }));
         
         return View(landingPageViewModel);
     }

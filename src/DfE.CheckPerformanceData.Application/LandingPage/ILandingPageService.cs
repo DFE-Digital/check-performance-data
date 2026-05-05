@@ -16,6 +16,7 @@ public class LandingPageResult
     public required List<OrganisationKeyStageDto> KeyStages { get; set; }
     public required List<CheckingWindowDto> OpenWindows { get; set; }
     public string OrganisationAddress { get; set; } = string.Empty;
+    public required List<CheckingWindowDto> ClosedWindows { get; set; }
 }
 
 public class CheckingWindowDto
@@ -24,5 +25,7 @@ public class CheckingWindowDto
     public required string Title { get; init; }
     public required DateTime EndDate { get; init; }
     public required KeyStages KeyStage { get; init; }
+    public bool HasPupilData { get; init; }
+    public required DateTime StartDate { get; init; }
 }
 

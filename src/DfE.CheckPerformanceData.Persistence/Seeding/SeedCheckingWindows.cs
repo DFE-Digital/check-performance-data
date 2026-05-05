@@ -7,15 +7,24 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public static class SeedCheckingWindows
 {
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid windowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId)
     {
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
         var openKs4JuneWindow = new CheckingWindow
         {
-            Id = windowId,
+            Id = openKs4WindowId,
             StartDate = DateTime.Now.AddDays(-1),
             EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
+            KeyStage = KeyStages.KS4,
+            Title = "KS4 June"
+        };
+
+        var closedKs4JuneWindow = new CheckingWindow
+        {
+            Id = closedKs4WindowId,
+            StartDate = DateTime.Now.AddYears(-1).AddDays(-1),
+            EndDate = DateTime.Now.AddYears(-1).AddDays(+13).Date.AddHours(17),
             KeyStage = KeyStages.KS4,
             Title = "KS4 June"
         };
@@ -41,11 +50,21 @@ public static class SeedCheckingWindows
             new CheckingWindow()
             {
                 Id = Guid.NewGuid(),
-                StartDate = DateTime.Now.AddMonths(-4),
-                EndDate = DateTime.Now.AddMonths(-4).AddDays(+14).Date.AddHours(17),
+                StartDate = DateTime.Now.AddDays(-4),
+                EndDate = DateTime.Now.AddDays(+14).Date.AddHours(17),
                 KeyStage = KeyStages.Post16,
                 Title = "16-18"
-            }
+            },
+            new CheckingWindow()
+            {
+                Id = Guid.NewGuid(),
+                StartDate = DateTime.Now.AddYears(-1).AddDays(-2),
+                EndDate = DateTime.Now.AddYears(-1).AddDays(+12).Date.AddHours(17),
+                KeyStage = KeyStages.Post16,
+                Title = "16-18"
+            },
+            closedKs4JuneWindow
+            
         );
         
         await dbContext.SaveChangesAsync();

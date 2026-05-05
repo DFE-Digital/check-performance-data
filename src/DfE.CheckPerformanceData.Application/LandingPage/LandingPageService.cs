@@ -17,8 +17,11 @@ public class LandingPageService(ILandingPageRepository landingPageRepository, Ti
         }
         
         var now = timeProvider.GetLocalNow();
-        var windows = await landingPageRepository.GetOpenWindowsAsync(now.DateTime, 
-            organisation.KeyStages.Select(k => k.KeyStage), cancellationToken);
+        var windows = await landingPageRepository.GetOpenWindowsAsync(now.DateTime,
+            organisation.KeyStages.Select(k => k.KeyStage), organisation.Laestab, cancellationToken);
+        
+        var closedWindows = await landingPageRepository.GetClosedWindowsAsync(now.DateTime,
+            organisation.KeyStages.Select(k => k.KeyStage), organisation.Laestab, cancellationToken);
 
         var result = new LandingPageResult
         {
@@ -27,6 +30,7 @@ public class LandingPageService(ILandingPageRepository landingPageRepository, Ti
             OrganisationUrn = organisation.Urn,
             KeyStages = organisation.KeyStages,
             OpenWindows = windows,
+            ClosedWindows = closedWindows,
             OrganisationAddress =  organisation.Address
         };
         

@@ -1,14 +1,16 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public class LandingPageViewModel(
-    IEnumerable<LandingPageWindowViewModel> windows,
+    IEnumerable<LandingPageWindowViewModel> openWindows,
     string? organisationName,
     string? organisationUrn,
     string? organisationLaestab,
     string? keyStages,
-    string address)
+    string address,
+    IEnumerable<LandingPageWindowViewModel> closedWindows)
 {
-    public IEnumerable<LandingPageWindowViewModel> Windows { get; } = windows;
+    public IEnumerable<LandingPageWindowViewModel> OpenWindows { get; } = openWindows;
+    public IEnumerable<LandingPageWindowViewModel> ClosedWindows { get; } = closedWindows;
     public string? OrganisationName { get; } = organisationName;
     public string? OrganisationUrn { get; } = organisationUrn;
     public string? OrganisationLaestab { get; } = organisationLaestab;
@@ -19,6 +21,9 @@ public class LandingPageViewModel(
 public class LandingPageWindowViewModel
 {
     public required string Title { get; init; }
-    public required DateTime EndDate { get; init; }
+    public required string EndDate { get; init; }
+    public required string EndTime { get; init; }
     public required Guid Id { get; init; }
+    public bool HasPupilData { get; init; }
+    public required string StartDate { get; init; }
 }

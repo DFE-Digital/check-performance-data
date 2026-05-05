@@ -6,13 +6,16 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public static class SeedPupils
 {
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid checkingWindowId)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid[] checkingWindowIds)
     {
         await dbContext.Pupils.ExecuteDeleteAsync();
-        
-        await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 200, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
-        await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 400, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
-        
+
+        foreach (var checkingWindowId in checkingWindowIds)
+        {
+            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 200, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
+            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 400, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
+        }
+
         await dbContext.SaveChangesAsync();
     }
     

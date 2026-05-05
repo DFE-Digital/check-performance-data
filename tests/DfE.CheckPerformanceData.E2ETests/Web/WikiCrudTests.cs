@@ -70,4 +70,29 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
+
+    // --- GetHelpSlug_RendersTitle ---
+
+    [Fact]
+    public async Task GetHelpSlug_RendersTitle()
+    {
+        var unique = $"e2e-{Guid.NewGuid():N}";
+        var title = $"{unique}-roundtrip-target";
+        var tracking = new List<int>();
+        var (id, slug) = await SeedHelpers.SeedWikiPageReturningSlugAsync(
+            _fixture.SeedClient, title, "Round-trip body content.", parentId: null, tracking);
+
+        try
+        {
+            var response = await _fixture.SeedClient.GetAsync($"/help/{slug}");
+
+            // RED: deliberately wrong status — endpoint returns 200, this expects 404.
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        finally
+        {
+            try { await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id); }
+            catch { /* best-effort cleanup */ }
+        }
+    }
 }

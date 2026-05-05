@@ -86,8 +86,12 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         {
             var response = await _fixture.SeedClient.GetAsync($"/help/{slug}");
 
-            // RED: deliberately wrong status — endpoint returns 200, this expects 404.
-            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            // SeedHelpers prepends "e2e-{guidA} " to the supplied title, then GenerateSlug
+            // collapses the space to a dash. The unique block we control still appears verbatim
+            // in the rendered title, so asserting against it is the safe substring check.
+            Assert.Contains(unique, body);
         }
         finally
         {

@@ -65,13 +65,11 @@ public sealed class SearchSidebarBackLinkTests(PlaywrightFixture fixture) : Page
         await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={_keyword}");
 
         // Scope to the main results region so the assertion does not accidentally pick up <mark>
-        // elements emitted by the chrome (sidebar / back-link area).
+        // elements emitted by the chrome (sidebar / back-link area). Postgres ts_headline wraps
+        // each match hit in <mark>; Search.cshtml renders the snippet via @Html.Raw, preserving
+        // the wrapping for the seeded keyword.
         var marks = Page.Locator("main.wiki-main mark");
-
-        // RED: assert ZERO <mark>s — Postgres ts_headline wraps each match hit in <mark>, so
-        //      Search.cshtml's @Html.Raw(r.SnippetHtml) renders at least one <mark> for our
-        //      seeded keyword. GREEN switches to "at least one".
         var count = await marks.CountAsync();
-        Assert.Equal(0, count);
+        Assert.True(count >= 1, $"expected at least one <mark> in search results, found {count}");
     }
 }

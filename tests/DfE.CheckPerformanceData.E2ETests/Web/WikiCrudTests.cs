@@ -1,5 +1,6 @@
 using System.Net;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
@@ -42,5 +43,32 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         Assert.NotNull(response.Headers.Location);
         var location = response.Headers.Location!.ToString();
         Assert.Contains($"/help/{title.ToLowerInvariant()}", location);
+    }
+
+    // --- PostHelpDelete_Redirects302 ---
+
+    [Fact]
+    public async Task PostHelpDelete_Redirects302()
+    {
+        var unique = $"e2e-{Guid.NewGuid():N}";
+        var title = $"{unique}-delete-target";
+        var tracking = new List<int>();
+        var id = await SeedHelpers.SeedWikiPageAsync(
+            _fixture.SeedClient, title, "To be deleted.", parentId: null, tracking);
+
+        using var client = CreateClient();
+        var (token, cookie) = await _fixture.ScrapeAntiforgeryTokenAsync("/help?edit");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/help/delete/{id}")
+        {
+            Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>()),
+        };
+        request.Headers.Add("X-XSRF-TOKEN", token);
+        request.Headers.Add("Cookie", cookie);
+
+        var response = await client.SendAsync(request);
+
+        // RED: deliberately wrong status — endpoint returns 302, this expects 200.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }

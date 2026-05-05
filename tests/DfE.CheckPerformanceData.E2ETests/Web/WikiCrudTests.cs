@@ -68,7 +68,6 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
 
         var response = await client.SendAsync(request);
 
-        // RED: deliberately wrong status — endpoint returns 302, this expects 200.
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
 }

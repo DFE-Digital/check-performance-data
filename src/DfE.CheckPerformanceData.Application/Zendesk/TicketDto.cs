@@ -60,8 +60,14 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         /// <returns>The value of the UPN custom field, or null if not found.</returns>
         public string? CustomFieldsStudentUPN(List<CustomFieldMetaDataDto> meta)
         {
+            if (meta == null)
+                return null;
+
             var field = meta.FirstOrDefault(x => x.Title == "UPN");
             if (field == null)
+                return null;
+
+            if (AllCustomFields == null)
                 return null;
 
             return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString();
@@ -69,8 +75,14 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
 
         public string? CustomFieldsByName(List<CustomFieldMetaDataDto> meta, string fieldName)
         {
+            if (meta == null)
+                return null;
+
             var field = meta.FirstOrDefault(x => x.Title == fieldName);
             if (field == null)
+                return null;
+
+            if (AllCustomFields == null)
                 return null;
 
             return AllCustomFields.FirstOrDefault(x => x.Id == field.Id)?.Value?.ToString();

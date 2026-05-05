@@ -56,4 +56,22 @@ public sealed class SearchSidebarBackLinkTests(PlaywrightFixture fixture) : Page
         // _WikiTree partial renders <ul class="tv tv-root"> at the root level.
         await Expect(sidebar.Locator("ul.tv.tv-root")).ToBeVisibleAsync();
     }
+
+    // --- MarkElementInResultSnippet ---
+
+    [Fact]
+    public async Task MarkElementInResultSnippet()
+    {
+        await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={_keyword}");
+
+        // Scope to the main results region so the assertion does not accidentally pick up <mark>
+        // elements emitted by the chrome (sidebar / back-link area).
+        var marks = Page.Locator("main.wiki-main mark");
+
+        // RED: assert ZERO <mark>s — Postgres ts_headline wraps each match hit in <mark>, so
+        //      Search.cshtml's @Html.Raw(r.SnippetHtml) renders at least one <mark> for our
+        //      seeded keyword. GREEN switches to "at least one".
+        var count = await marks.CountAsync();
+        Assert.Equal(0, count);
+    }
 }

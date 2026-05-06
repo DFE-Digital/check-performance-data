@@ -43,6 +43,32 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         Assert.NotNull(response.Headers.Location);
         var location = response.Headers.Location!.ToString();
         Assert.Contains($"/help/{title.ToLowerInvariant()}", location);
+
+        // Resolve the seeded page Id from the rendered tree and soft-delete so this spec
+        // does not leak a wiki page on every CI run. The other tests in this file seed
+        // via SeedHelpers (which tracks ids automatically); this one POSTs directly to
+        // exercise the redirect contract, so the cleanup is hand-rolled here.
+        try
+        {
+            var slug = location.TrimStart('/');
+            const string prefix = "help/";
+            if (slug.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                slug = slug[prefix.Length..];
+            }
+            var queryIndex = slug.IndexOf('?');
+            if (queryIndex >= 0)
+            {
+                slug = slug[..queryIndex];
+            }
+
+            var id = await SeedHelpers.ResolveIdFromTreeAsync(_fixture.SeedClient, slug);
+            await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
+        }
+        catch
+        {
+            // Best-effort cleanup; cleanup failure must not mask the assertion outcome.
+        }
     }
 
     // --- PostHelpDelete_Redirects302 ---

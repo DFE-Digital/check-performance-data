@@ -155,7 +155,7 @@ public static class SeedHelpers
         }
     }
 
-    private static async Task<int> ResolveIdFromTreeAsync(HttpClient client, string slugPath)
+    internal static async Task<int> ResolveIdFromTreeAsync(HttpClient client, string slugPath)
     {
         var response = await client.GetAsync("/help");
         response.EnsureSuccessStatusCode();

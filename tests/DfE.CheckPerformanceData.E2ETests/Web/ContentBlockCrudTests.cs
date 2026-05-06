@@ -20,6 +20,8 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
     [Fact]
     public async Task PostSave_Redirects302()
     {
+        // Content-block leak accepted: no DELETE route on ContentBlockController. UUID-prefixed
+        // keys make leaked test data harmless across runs.
         var unique = $"e2e-{Guid.NewGuid():N}";
         var key = $"{unique}-block";
 

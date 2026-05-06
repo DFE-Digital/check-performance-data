@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Retry;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 
@@ -20,33 +19,7 @@ public class ZendeskService : IZendeskService
         _settings = settings.Value;
         _logger = logger;
 
-        var builder = new ResiliencePipelineBuilder();
-
-        builder.AddRetry(new RetryStrategyOptions
-        {
-            DelayGenerator =  (args) =>
-            {
-                var delay = Math.Pow(2, args.AttemptNumber - 1) * _settings.BaseDelayMilliseconds;
-                var jitter = new Random().Next(0, _settings.JitterMilliseconds);
-                return ValueTask.FromResult<TimeSpan?>(TimeSpan.FromMilliseconds(delay + jitter));
-            },
-            MaxRetryAttempts = _settings.MaxRetryAttempts,
-            ShouldHandle = new PredicateBuilder()
-                .Handle<HttpRequestException>()
-                .Handle<Exception>(ex => ex.GetType().Namespace?.StartsWith("Refit") == true
-                    || ex.GetType().Namespace?.StartsWith("System.Net") == true),
-            OnRetry = args =>
-            {
-                _logger.LogWarning(
-                    args.Outcome.Exception,
-                    "Zendesk API request failed. Retry attempt {RetryAttempt}",
-                    args.AttemptNumber);
-
-                return ValueTask.CompletedTask;
-            }
-        });
-
-        _resiliencePipeline = builder.Build();
+        _resiliencePipeline = ResiliencePipelineHelper.CreateRetryPipeline(_settings, _logger);
     }
 
     public async Task<GetTicketResponseDto> GetTicketAsync(long ticketId)

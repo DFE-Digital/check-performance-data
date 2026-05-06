@@ -79,9 +79,9 @@ jobs:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
-    - uses: actions/setup-dotnet@v5
+    - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '10.0.x'
 

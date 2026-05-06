@@ -149,6 +149,12 @@ public static class DependencyManager
             .Bind(config.GetSection(PollySettings.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.AddOptions<SchoolCheckingExerciseSettings>()
+            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
+            .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
+            .ValidateOnStart();
+
         return services;
     }
 }

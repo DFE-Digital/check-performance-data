@@ -118,17 +118,19 @@ public class ZendeskService : IZendeskService
     {
         try
         {
-            var ticketsResponse = await ExecuteWithResilienceAsync(
+            var ticketsTask = ExecuteWithResilienceAsync(
                 () => _api.GetTicketsForView(viewId, query),
                 $"GetTicketsViewModel({viewId})");
-            var ticketFieldsResponse = await ExecuteWithResilienceAsync(
+            var ticketFieldsTask = ExecuteWithResilienceAsync(
                 () => _api.GetTicketFields(),
                 "GetTicketFields");
 
+            await Task.WhenAll(ticketsTask, ticketFieldsTask);
+
             return new TicketsViewModel
             {
-                TicketsResponse = ZendeskMapper.ToDto(ticketsResponse),
-                TicketFieldsResponse = ZendeskMapper.ToDto(ticketFieldsResponse)
+                TicketsResponse = ZendeskMapper.ToDto(await ticketsTask),
+                TicketFieldsResponse = ZendeskMapper.ToDto(await ticketFieldsTask)
             };
         }
         catch (ZendeskApiException)
@@ -148,23 +150,25 @@ public class ZendeskService : IZendeskService
     {
         try
         {
-            var ticketResponse = await ExecuteWithResilienceAsync(
+            var ticketTask = ExecuteWithResilienceAsync(
                 () => _api.GetTicket(ticketId),
                 $"GetTicketViewModel({ticketId})");
-            var ticketFieldsResponse = await ExecuteWithResilienceAsync(
+            var ticketFieldsTask = ExecuteWithResilienceAsync(
                 () => _api.GetTicketFields(),
                 "GetTicketFields");
-            var ticketCommentsResponse = await ExecuteWithResilienceAsync(
+            var ticketCommentsTask = ExecuteWithResilienceAsync(
                 () => _api.GetTicketComments(ticketId),
                 $"GetTicketComments({ticketId})");
 
-            var ticketFieldsDto = ZendeskMapper.ToDto(ticketFieldsResponse);
+            await Task.WhenAll(ticketTask, ticketFieldsTask, ticketCommentsTask);
+
+            var ticketFieldsDto = ZendeskMapper.ToDto(await ticketFieldsTask);
 
             return new GetTicketViewModel
             {
-                Ticket = ZendeskMapper.ToDto(ticketResponse).Ticket,
+                Ticket = ZendeskMapper.ToDto(await ticketTask).Ticket,
                 UserFields = ticketFieldsDto.TicketFields,
-                Comments = ZendeskMapper.ToDto(ticketCommentsResponse).Comments ?? new()                
+                Comments = ZendeskMapper.ToDto(await ticketCommentsTask).Comments ?? new()                
             };
         }
         catch (ZendeskApiException)

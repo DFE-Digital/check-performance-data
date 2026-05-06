@@ -38,7 +38,19 @@ public static class SeedPupils
     ];
     
     private static readonly string[] Sexes = ["M", "F"];
-    
+
+    private static readonly string[] YearGroups = ["10", "11"];
+
+    private static readonly string[] EthnicityCodes =
+    [
+        "WBRI", "WBRI", "WBRI", "WBRI", "WBRI",
+        "WIRI", "WOTH", "MWBC", "MWBA", "MWAS",
+        "AIND", "APKN", "ABAN", "BCRB", "BAFR",
+        "CHNE", "OOTH", "REFU", "NOBT", "MOTH"
+    ];
+
+    private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
+
     private static IEnumerable<Pupil> GeneratePupils(int count, int pincl, int firstnameOffset, int surnameOffset, Guid checkingWindowId) =>
         Enumerable.Range(0, count).Select(i =>
         {
@@ -58,7 +70,16 @@ public static class SeedPupils
                 DateOfBirth = dob.ToString("dd/MM/yyyy"),
                 Age = age,
                 FirstLanguage = FirstLanguages[i % FirstLanguages.Length],
-                Pincl = pincl
+                Pincl = pincl,
+                NewMobile = i % 5 == 0,
+                ActualYearGroup = YearGroups[i % YearGroups.Length],
+                Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],
+                SenF = SenCodes[i % SenCodes.Length],
+                EntryDate = new DateTime(2021, 9, (i % 20) + 1),
+                Urn = "131786",
+                Cypmd_Id = $"CYPMD{(i + firstnameOffset + 1):D6}",
+                MatchRef = 10000 + i + firstnameOffset,
+                Upn = $"A8604070{(i + firstnameOffset + 1):D4}B"
             };
         });
 }

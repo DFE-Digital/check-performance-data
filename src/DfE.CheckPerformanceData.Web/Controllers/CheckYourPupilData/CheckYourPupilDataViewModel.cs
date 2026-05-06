@@ -15,6 +15,7 @@ public class CheckYourPupilDataViewModel
     public required string WindowEndTime { get; init; }
     public required string WindowTitle { get; init; }
     public NextSteps? SelectedNextStep { get; init; }
+    public required bool IsWindowOpen { get; init; }
 }
 
 public enum NextSteps

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService) : Controller
+public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider) : Controller
 {
     private const int PageSize = 10;
 
@@ -47,6 +47,8 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         var (nonIncluded, nonIncludedTotal) = await checkYourPupilDataService.GetNonIncludedPupilsAsync(windowId, nonIncludedSearch, nonIncludedPage, PageSize);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
+        var now = timeProvider.GetLocalNow().DateTime;
+        
         return new CheckYourPupilDataViewModel
         {
             WindowId = windowId.ToString(),
@@ -60,7 +62,8 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
             NonIncludedPupils = nonIncluded.Select(ToPupilRow).ToList(),
             NonIncludedPupilsPage = nonIncludedPage,
             NonIncludedPupilsTotalPages = TotalPages(nonIncludedTotal),
-            NonIncludedSearch = nonIncludedSearch
+            NonIncludedSearch = nonIncludedSearch,
+            IsWindowOpen = window.StartDate <= now && now <= window.EndDate
         };
     }
 

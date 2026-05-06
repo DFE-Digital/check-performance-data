@@ -6,13 +6,14 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    [Migration("20260503174839_Pupils")]
+    [Migration("20260506090005_Pupils")]
     partial class Pupils
     {
         /// <inheritdoc />
@@ -20,7 +21,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.6")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -212,13 +213,28 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ActualYearGroup")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("Age")
                         .HasColumnType("integer");
 
                     b.Property<Guid>("CheckingWindowId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Cypmd_Id")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("DateOfBirth")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EntryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Ethnicity")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -234,14 +250,32 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("MatchRef")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("NewMobile")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Pincl")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SenF")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Sex")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Upn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Urn")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -257,6 +291,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BodyPlainText")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Content")
                         .HasColumnType("text");
@@ -279,6 +319,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<int?>("ParentId")
                         .HasColumnType("integer");
 
+                    b.Property<NpgsqlTsVector>("SearchVector")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tsvector")
+                        .HasComputedColumnSql("setweight(to_tsvector('english', coalesce(\"Title\", '')), 'A') || setweight(to_tsvector('english', coalesce(\"BodyPlainText\", '')), 'B')", true);
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasColumnType("text");
@@ -299,6 +345,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsDeleted");
+
+                    b.HasIndex("SearchVector");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.HasIndex("ParentId", "Slug")
                         .IsUnique()

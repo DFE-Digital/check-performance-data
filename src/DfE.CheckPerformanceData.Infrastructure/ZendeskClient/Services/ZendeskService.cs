@@ -22,96 +22,67 @@ public class ZendeskService : IZendeskService
         _resiliencePipeline = ResiliencePipelineHelper.CreateRetryPipeline(_settings, _logger);
     }
 
-    public async Task<GetTicketResponseDto> GetTicketAsync(long ticketId)
+    public async Task<ListViewsResponseDto> ListViewsAsync(int? pageSize)
     {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetTicket(ticketId),
-                $"GetTicket({ticketId})");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving ticket {TicketId}", ticketId);
-            throw new ZendeskApiException(
-                $"Failed to retrieve ticket {ticketId}.",
-                ex);
-        }
-    }
-
-    public async Task<TicketCommentsResponseDto> GetTicketComments(long ticketId)
-    {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetTicketComments(ticketId),
-                $"GetTicketComments({ticketId})");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving comments for ticket {TicketId}", ticketId);
-            throw new ZendeskApiException(
-                $"Failed to retrieve comments for ticket {ticketId}.",
-                ex);
-        }
-    }
-
-    public async Task<TicketFieldsResponseDto> GetTicketFields()
-    {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetTicketFields(),
-                "GetTicketFields");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving ticket fields");
-            throw new ZendeskApiException(
-                "Failed to retrieve ticket fields.",
-                ex);
-        }
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetViews(pageSize ?? 20),
+            ZendeskMapper.ToDto,
+            "List views",
+            ex => new ZendeskApiException("Failed to list views.", ex));
     }
 
     public async Task<ListViewTicketsResponseDto> GetTicketsForView(long viewId, Dictionary<string, object>? query = null)
     {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetTicketsForView(viewId, query),
-                $"GetTicketsForView({viewId})");
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetTicketsForView(viewId, query),
+            ZendeskMapper.ToDto,
+            $"Retrieve tickets for view {viewId}",
+            ex => new ZendeskApiException($"Failed to retrieve tickets for view {viewId}.", ex));
+    }
 
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving tickets for view {ViewId}", viewId);
-            throw new ZendeskApiException(
-                $"Failed to retrieve tickets for view {viewId}.",
-                ex);
-        }
+    public async Task<TicketFieldsResponseDto> GetTicketFields()
+    {
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetTicketFields(),
+            ZendeskMapper.ToDto,
+            "Retrieve ticket fields",
+            ex => new ZendeskApiException("Failed to retrieve ticket fields.", ex));
+    }
+
+    public async Task<UserFieldsResponseDto> GetUserFieldsAsync()
+    {
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetUserFields(),
+            ZendeskMapper.ToDto,
+            "Retrieve user fields",
+            ex => new ZendeskApiException("Failed to retrieve user fields.", ex));
+    }
+
+    public async Task<CreateTicketResponseDto> CreateTicketAsync(CreateTicketRequestDto request)
+    {
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.CreateTicket(ZendeskMapper.ToEntity(request)),
+            ZendeskMapper.ToDto,
+            "Create ticket",
+            ex => new ZendeskApiException("Failed to create ticket.", ex));
+    }
+
+    public async Task<GetTicketResponseDto> GetTicketAsync(long ticketId)
+    {
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetTicket(ticketId),
+            ZendeskMapper.ToDto,
+            $"Retrieve ticket {ticketId}",
+            ex => new ZendeskApiException($"Failed to retrieve ticket {ticketId}.", ex));
+    }
+
+    public async Task<TicketCommentsResponseDto> GetTicketComments(long ticketId)
+    {
+        return await ExecuteWithResilienceAndMappingAsync(
+            () => _api.GetTicketComments(ticketId),
+            ZendeskMapper.ToDto,
+            $"Error retrieving comments for ticket {ticketId}",
+            ex => new ZendeskApiException($"Failed to retrieve comments for ticket {ticketId}.", ex));
     }
 
     public async Task<TicketsViewModel> GetTicketsViewModelAsync(long viewId, Dictionary<string, object>? query = null)
@@ -140,9 +111,7 @@ public class ZendeskService : IZendeskService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error building tickets view model for view {ViewId}", viewId);
-            throw new ZendeskApiException(
-                $"Failed to build tickets view model for view {viewId}.",
-                ex);
+            throw new ZendeskApiException($"Failed to build tickets view model for view {viewId}.", ex.InnerException ?? ex);
         }
     }
 
@@ -178,80 +147,7 @@ public class ZendeskService : IZendeskService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error building ticket view model for ticket {TicketId}", ticketId);
-            throw new ZendeskApiException(
-                $"Failed to build ticket view model for ticket {ticketId}.",
-                ex);
-        }
-    }
-
-    public async Task<UserFieldsResponseDto> GetUserFieldsAsync()
-    {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetUserFields(),
-                "GetUserFields");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving user fields");
-            throw new ZendeskApiException(
-                "Failed to retrieve user fields.",
-                ex);
-        }
-    }
-
-    public async Task<CreateTicketResponseDto> CreateTicketAsync(CreateTicketRequestDto request)
-    {
-        try
-        {
-            var apiRequest = ZendeskMapper.ToEntity(request);
-
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.CreateTicket(apiRequest),
-                "CreateTicket");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating ticket");
-            throw new ZendeskApiException(
-                "Failed to create ticket.",
-                ex);
-        }
-    }
-
-    public async Task<ListViewsResponseDto> ListViewsAsync(int? pageSize)
-    {
-        try
-        {
-            var response = await ExecuteWithResilienceAsync(
-                () => _api.GetViews(pageSize ?? 20),
-                "ListViews");
-
-            return ZendeskMapper.ToDto(response);
-        }
-        catch (ZendeskApiException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error listing views");
-            throw new ZendeskApiException(
-                $"Failed to list views. Ensure all required fields are included in the model.",
-                ex);
+            throw new ZendeskApiException($"Failed to build ticket view model for ticket {ticketId}.", ex.InnerException ?? ex);
         }
     }
 
@@ -266,10 +162,39 @@ public class ZendeskService : IZendeskService
             _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
         {
-            _logger.LogError(ex, "Resilience pipeline failed for operation: {OperationName}", operationName);
-            throw;
+            // Log the message then re-throw via a factory to preserve original exception chain.
+            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
+            throw new ZendeskApiException($"An unexpected error occurred during {operationName}.", ex.InnerException ?? ex);
         }
+    }
+
+    private async Task<TDto> ExecuteWithResilienceAndMappingAsync<TIn, TDto>(
+        Func<Task<TIn>> action,
+        Func<TIn, TDto> mapper,
+        string operationName,
+        Func<Exception, ZendeskApiException> errorFactory)
+    {
+        try
+        {
+            _logger.LogDebug("Executing Zendesk operation: {OperationName}", operationName);
+            var result = await _resiliencePipeline.ExecuteAsync(
+                async ct => await action(),
+                CancellationToken.None);
+            _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
+            return mapper(result);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
+        {
+            // Log the message then re-throw via factory to preserve error messages & exception chain.
+            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
+            throw errorFactory(ex);
+        }
+    }
+
+    private static bool IsZendeskApiException(Exception ex)
+    {
+        return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
     }
 }

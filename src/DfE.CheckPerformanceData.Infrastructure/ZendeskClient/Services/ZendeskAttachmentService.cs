@@ -1,5 +1,4 @@
-﻿using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using DfE.CheckPerformanceData.Application.ZendeskClient;
+﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.Mappers;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using Microsoft.Extensions.Logging;
@@ -13,7 +12,6 @@ public class ZendeskAttachmentService : IZendeskAttachmentService
     private readonly IZendeskApi _api;
     private readonly ResiliencePipeline _resiliencePipeline;
     private readonly ILogger<ZendeskAttachmentService> _logger;
-
 
     public ZendeskAttachmentService(IZendeskApi api, IOptions<PollySettings> settings, ILogger<ZendeskAttachmentService> logger)
     {
@@ -43,7 +41,8 @@ public class ZendeskAttachmentService : IZendeskAttachmentService
             // STEP 1 — Upload file to Zendesk
             var uploadResponse = await ExecuteWithResilienceAsync(
                 () => _api.UploadFile(fileName, fileStream),
-                $"UploadFile({fileName}) for ticket {ticketId}");
+                $"UploadFile({fileName}) for ticket {ticketId}",
+                ex => new ZendeskApiException($"Failed to upload attachment to ticket {ticketId}.", ex));
 
             var token = uploadResponse?.Upload?.Token;
             if (string.IsNullOrWhiteSpace(token))
@@ -64,7 +63,8 @@ public class ZendeskAttachmentService : IZendeskAttachmentService
 
             var response = await ExecuteWithResilienceAsync(
                 () => _api.AddCommentWithAttachment(ticketId, request),
-                $"AddCommentWithAttachment({ticketId})");
+                $"AddCommentWithAttachment({ticketId})",
+                ex => new ZendeskApiException($"Failed to upload attachment to ticket {ticketId}.", ex));
 
             return ZendeskMapper.ToDto(response);
         }
@@ -72,16 +72,15 @@ public class ZendeskAttachmentService : IZendeskAttachmentService
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!IsZendeskApiException(ex))
         {
             _logger.LogError(ex, "Error uploading attachment to ticket {TicketId}", ticketId);
-            throw new ZendeskApiException(
-                $"Failed to upload attachment to ticket {ticketId}.",
-                ex);
+            var inner = ex.InnerException ?? ex;
+            throw new ZendeskApiException($"Failed to upload attachment to ticket {ticketId}.", inner);
         }
     }
 
-    private async Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> action, string operationName)
+    private async Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> action, string operationName, Func<Exception, ZendeskApiException>? errorFactory = null)
     {
         try
         {
@@ -92,10 +91,21 @@ public class ZendeskAttachmentService : IZendeskAttachmentService
             _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
         {
-            _logger.LogError(ex, "Resilience pipeline failed for operation: {OperationName}", operationName);
-            throw;
+            // Log the message then re-throw via factory to preserve original exception chain.
+            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
+
+            if (errorFactory != null)
+                throw errorFactory(ex);
+
+            var inner = ex.InnerException ?? ex;
+            throw new ZendeskApiException($"An unexpected error occurred during {operationName}.", inner);
         }
+    }
+
+    private static bool IsZendeskApiException(Exception ex)
+    {
+        return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
     }
 }

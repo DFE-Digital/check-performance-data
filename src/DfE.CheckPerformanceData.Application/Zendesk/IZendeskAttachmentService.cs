@@ -1,7 +1,7 @@
 ﻿
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 
-namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services
+namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public interface IZendeskAttachmentService
     {

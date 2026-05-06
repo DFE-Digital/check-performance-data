@@ -4,7 +4,6 @@ using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
-using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using NSubstitute;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;

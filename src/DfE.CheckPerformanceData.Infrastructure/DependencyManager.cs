@@ -125,7 +125,7 @@ public static class DependencyManager
         }
         services.Configure<ZendeskSettings>(s => s = settings);
 
-        services.AddTransient<RefitLoggingHandler>();
+        
 
 
         services.AddRefitClient<IZendeskApi>(new RefitSettings

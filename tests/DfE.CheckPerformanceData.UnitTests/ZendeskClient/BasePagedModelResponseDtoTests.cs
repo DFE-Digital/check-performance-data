@@ -20,7 +20,7 @@ public class BasePagedModelResponseDtoTests
         // Assert
         Assert.Null(dto.NextPage);
         Assert.Null(dto.PreviousPage);
-        Assert.Null(dto.Count);
+        Assert.Equal(0, dto.Count);
     }
 
     [Fact]
@@ -32,7 +32,7 @@ public class BasePagedModelResponseDtoTests
         // Assert
         Assert.Null(dto.NextPage);
         Assert.Null(dto.PreviousPage);
-        Assert.Null(dto.Count);
+        Assert.Equal(0, dto.Count);
     }
 
     #endregion
@@ -188,17 +188,13 @@ public class BasePagedModelResponseDtoTests
     }
 
     [Fact]
-    public void BasePagedModelResponseDto_WithNullCount_ShouldAllowNull()
+    public void BasePagedModelResponseDto_DefaultCount_IsZero()
     {
-        // Arrange
+        // Arrange & Act
         var dto = new BasePagedModelResponseDto();
-        dto.Count = 100;
-
-        // Act
-        dto.Count = null;
 
         // Assert
-        Assert.Null(dto.Count);
+        Assert.Equal(0, dto.Count);
     }
 
     [Fact]
@@ -240,23 +236,20 @@ public class BasePagedModelResponseDtoTests
     }
 
     [Fact]
-    public void BasePagedModelResponseDto_WithAllPropertiesNull_ShouldSetAllPropertiesToNull()
+    public void BasePagedModelResponseDto_WithNullUriProperties_ShouldAllowNull()
     {
         // Arrange
         var dto = new BasePagedModelResponseDto();
         dto.NextPage = new Uri("https://example.com/next");
         dto.PreviousPage = new Uri("https://example.com/previous");
-        dto.Count = 100;
 
         // Act
         dto.NextPage = null;
         dto.PreviousPage = null;
-        dto.Count = null;
 
         // Assert
         Assert.Null(dto.NextPage);
         Assert.Null(dto.PreviousPage);
-        Assert.Null(dto.Count);
     }
 
     [Fact]

@@ -7,6 +7,6 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     {
         public Uri? NextPage { get; set; }
         public Uri? PreviousPage { get; set; }
-        public int? Count { get; set; }
+        public int Count { get; set; }
     }
 }

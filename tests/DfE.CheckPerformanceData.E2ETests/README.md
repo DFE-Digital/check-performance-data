@@ -54,24 +54,20 @@ To intentionally regenerate a snapshot:
 2. Delete the snapshot you want to refresh: `rm tests/DfE.CheckPerformanceData.E2ETests/Snapshots/linux-chromium/{name}.png`
 3. Push to a branch labelled `deploy` so the CI `e2e:` job runs on Linux.
 4. **First CI run:** the visual-regression test fails with `Snapshot {name} did not exist — written, run again to verify.` The helper has just written the new `.png` to disk in the test runner's working tree.
-5. Pull the new `.png` from the CI artefact bundle (uploaded with the trace `.zip` on failure), commit it under `Snapshots/linux-chromium/`.
+5. Download the `e2e-snapshots` artefact from the failed CI run's Artifacts panel; the regenerated PNG is under `linux-chromium/{name}.png`. Commit it back into `Snapshots/linux-chromium/`.
 6. Push again — **second CI run:** the comparison passes, the PR file diff surfaces the regenerated `.png` for review.
 
 No env var, no `--update-snapshots` flag plumbing — delete the file and run twice.
 
 ## Debugging a red CI run
 
-The `e2e:` job uploads the Playwright trace `.zip` on failure (14-day retention).
+On failure the `e2e:` job uploads the `e2e-snapshots` artefact (the entire `Snapshots/` tree, 14-day retention). For visual-regression failures this lets you inspect the divergent PNG directly. For non-visual failures the primary debugging signal is the test output in the failed run's logs — Playwright tracing is not currently wired into the harness.
 
-1. Download `e2e-traces.zip` from the failed CI run's Artifacts panel.
-2. Extract.
-3. Open the trace:
+To enable trace replay (`playwright show-trace`) for a specific failing test, hook `Context.Tracing.StartAsync` / `StopAsync` around the test body locally, reproduce against `docker compose up`, and inspect the resulting `.zip` with:
 
-   ```bash
-   pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 show-trace <path-to-trace.zip>
-   ```
-
-   This launches an interactive timeline with screenshots, network log, and DOM snapshots at every step.
+```bash
+pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 show-trace <path-to-trace.zip>
+```
 
 ## Project boundaries
 

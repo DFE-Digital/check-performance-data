@@ -100,11 +100,15 @@ jobs:
     - name: Run E2E tests
       run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build
 
+    # Surface the snapshot tree on failure so the "delete .png + push twice"
+    # update workflow can retrieve the regenerated PNG. Snapshots live under the
+    # source tree (resolved via project marker walk in PageSnapshotExtensions),
+    # not under bin/, so the path here points at the source location.
     - uses: actions/upload-artifact@v4
       if: failure()
       with:
-        name: e2e-traces
-        path: tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright-traces/
+        name: e2e-snapshots
+        path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
         retention-days: 14
 
   deploy-review-app:

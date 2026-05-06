@@ -2,7 +2,6 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
-using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -46,8 +45,8 @@ public class DfeApiClientTests
         var result = DependencyManager.AddDfeApiClient(services, config);
 
         // Assert
-        result.Should().BeSameAs(services);
-        services.Should().NotBeNull();
+        Assert.Same(services, result);
+        Assert.NotNull(services);
     }
 
     [Fact]
@@ -62,13 +61,8 @@ public class DfeApiClientTests
 
         // Assert
         var descriptor = services.SingleOrDefault(sd => sd.ServiceType == typeof(IDfESignInApiClient));
-        descriptor.Should().NotBeNull();
+        Assert.NotNull(descriptor);
     }
-
-
-
-
-
 
 
 

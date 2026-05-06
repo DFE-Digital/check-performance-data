@@ -5,13 +5,10 @@ using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
-using FluentAssertions;
 using NSubstitute;
-using NSubstitute.Extensions;
-
-
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
+
 namespace DfE.CheckPerformanceData.UnitTests;
 
 public class ZendeskApiClientTests
@@ -54,8 +51,8 @@ public class ZendeskApiClientTests
         var result = DependencyManager.AddZendeskApiClient(services, config);
 
         // Assert
-        result.Should().BeSameAs(services);
-        services.Should().NotBeNull();
+        Assert.Same(services, result);
+        Assert.NotNull(services);
     }
 
     [Fact]
@@ -77,8 +74,8 @@ public class ZendeskApiClientTests
         // Act & Assert
         Action act = () => DependencyManager.AddZendeskApiClient(services, mockConfig);
         
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*ZendeskSettings section is missing*");
+        var exception = Assert.Throws<InvalidOperationException>(act);
+        Assert.Contains("ZendeskSettings section is missing", exception.Message);
     }
 
     [Fact]
@@ -99,7 +96,7 @@ public class ZendeskApiClientTests
 
 
         // 3. Verify the BaseAddress
-        client.Should().NotBeNull();
+        Assert.NotNull(client);
         
     }
 
@@ -116,8 +113,8 @@ public class ZendeskApiClientTests
 
         // Assert
         var descriptor = services.SingleOrDefault(sd => sd.ServiceType == typeof(IZendeskService));
-        descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
     }
 
     [Fact]
@@ -132,8 +129,8 @@ public class ZendeskApiClientTests
 
         // Assert
         var descriptor = services.SingleOrDefault(sd => sd.ServiceType == typeof(IZendeskAttachmentService));
-        descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Scoped);
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor!.Lifetime);
     }
 
     [Fact]
@@ -148,8 +145,8 @@ public class ZendeskApiClientTests
 
         // Assert
         var descriptor = services.SingleOrDefault(sd => sd.ServiceType == typeof(RefitLoggingHandler));
-        descriptor.Should().NotBeNull();
-        descriptor!.Lifetime.Should().Be(ServiceLifetime.Transient);
+        Assert.NotNull(descriptor);
+        Assert.Equal(ServiceLifetime.Transient, descriptor!.Lifetime);
     }
 
     [Fact]
@@ -164,10 +161,10 @@ public class ZendeskApiClientTests
 
         // Assert
         var descriptor = services.BuildServiceProvider().GetService<IOptions<PollySettings>>();
-        descriptor.Should().NotBeNull();
-        descriptor!.Value.MaxRetryAttempts.Should().Be(5);
-        descriptor.Value.BaseDelayMilliseconds.Should().Be(100);    
-        descriptor.Value.JitterMilliseconds.Should().Be(200);
+        Assert.NotNull(descriptor);
+        Assert.Equal(5, descriptor!.Value.MaxRetryAttempts);
+        Assert.Equal(100, descriptor.Value.BaseDelayMilliseconds);    
+        Assert.Equal(200, descriptor.Value.JitterMilliseconds);
 
     }
 

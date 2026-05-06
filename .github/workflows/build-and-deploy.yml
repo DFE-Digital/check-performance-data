@@ -65,15 +65,18 @@ jobs:
 
   e2e:
     name: E2E Tests
-    needs: [deploy-review-app, deploy]
-    if: |
-      always() && (
-        needs.deploy-review-app.result == 'success' ||
-        needs.deploy.result == 'success'
-      )
+    # Only runs against the per-PR review app. The main-branch `deploy` job uses a strategy
+    # matrix [development, qa, preproduction, production] with max-parallel: 1 and exposes
+    # environment_url as a job-level output; that output is overwritten by each matrix entry
+    # so it ultimately resolves to production. The E2E suite seeds wiki pages and content
+    # blocks (no DELETE route on ContentBlockController), so running it against production
+    # would pollute live data. Until a non-production-only output channel exists, e2e is
+    # gated to review-app PRs only.
+    needs: [deploy-review-app]
+    if: needs.deploy-review-app.result == 'success'
     runs-on: ubuntu-latest
     env:
-      CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url || needs.deploy.outputs.environment_url }}
+      CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
 
     steps:
     - uses: actions/checkout@v6

@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using NpgsqlTypes;
 
 #nullable disable
 
@@ -12,21 +11,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "BodyPlainText",
-                table: "WikiPages",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
-
-            migrationBuilder.AddColumn<NpgsqlTsVector>(
-                name: "SearchVector",
-                table: "WikiPages",
-                type: "tsvector",
-                nullable: false,
-                computedColumnSql: "setweight(to_tsvector('english', coalesce(\"Title\", '')), 'A') || setweight(to_tsvector('english', coalesce(\"BodyPlainText\", '')), 'B')",
-                stored: true);
-
             migrationBuilder.CreateTable(
                 name: "Pupils",
                 columns: table => new
@@ -45,7 +29,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     ActualYearGroup = table.Column<string>(type: "text", nullable: false),
                     Ethnicity = table.Column<string>(type: "text", nullable: false),
                     SenF = table.Column<string>(type: "text", nullable: false),
-                    EntryDate = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    EntryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Urn = table.Column<string>(type: "text", nullable: false),
                     Cypmd_Id = table.Column<string>(type: "text", nullable: false),
                     MatchRef = table.Column<int>(type: "integer", nullable: false),
@@ -55,12 +39,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                 {
                     table.PrimaryKey("PK_Pupils", x => x.Id);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_WikiPages_SearchVector",
-                table: "WikiPages",
-                column: "SearchVector")
-                .Annotation("Npgsql:IndexMethod", "gin");
         }
 
         /// <inheritdoc />
@@ -68,18 +46,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Pupils");
-
-            migrationBuilder.DropIndex(
-                name: "IX_WikiPages_SearchVector",
-                table: "WikiPages");
-
-            migrationBuilder.DropColumn(
-                name: "SearchVector",
-                table: "WikiPages");
-
-            migrationBuilder.DropColumn(
-                name: "BodyPlainText",
-                table: "WikiPages");
         }
     }
 }

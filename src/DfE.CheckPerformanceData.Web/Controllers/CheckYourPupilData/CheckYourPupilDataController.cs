@@ -1,9 +1,10 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider) : Controller
+public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
 {
     private const int PageSize = 10;
 
@@ -63,7 +64,8 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
             NonIncludedPupilsPage = nonIncludedPage,
             NonIncludedPupilsTotalPages = TotalPages(nonIncludedTotal),
             NonIncludedSearch = nonIncludedSearch,
-            IsWindowOpen = window.StartDate <= now && now <= window.EndDate
+            IsWindowOpen = window.StartDate <= now && now <= window.EndDate,
+            OrganisationName = currentUserService.OrganisationName
         };
     }
 

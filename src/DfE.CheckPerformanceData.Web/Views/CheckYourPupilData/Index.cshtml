@@ -11,9 +11,29 @@
 
 <h1 class="govuk-heading-xl">Check your pupil data</h1>
 
+<div class="school-details">
+    <dl class="govuk-summary-list">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Checking Window</dt>
+            <dd class="govuk-summary-list__value">@Model.WindowTitle @if(!Model.IsWindowOpen) {<strong>(Closed)</strong>} </dd>
+        </div>
+        
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Establishment Name</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationName</dd>
+        </div>
+    </dl>
+</div>
 
-<p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
-    file. You must request any changes to pupil data before @Model.WindowEndTime on @Model.WindowEndDate</p>
+@if (Model.IsWindowOpen)
+{
+    <p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
+        file. You must request any changes to pupil data before @Model.WindowEndTime on @Model.WindowEndDate</p>
+}
+else
+{
+    <p class="govuk-body">This @Model.WindowTitle Checking Window is closed. You can still download the data as a CSV file.</p>
+}
 
 <p class="govuk-body">
     <a href="#">Download all CSV files as a ZIP file</a>

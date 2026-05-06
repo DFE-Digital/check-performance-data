@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc.Razor;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
 public class CheckYourPupilDataViewModel
@@ -16,6 +18,7 @@ public class CheckYourPupilDataViewModel
     public required string WindowTitle { get; init; }
     public NextSteps? SelectedNextStep { get; init; }
     public required bool IsWindowOpen { get; init; }
+    public required string OrganisationName { get; init; }
 }
 
 public enum NextSteps

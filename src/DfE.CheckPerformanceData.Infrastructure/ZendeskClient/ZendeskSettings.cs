@@ -51,7 +51,19 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
     {
         public const string SectionName = "SchoolCheckingExercise";
         public required string TargetViewTitle { get; set; }
+
+        /// <summary>
+        /// The Zendesk group ID that new tickets should be assigned to.
+        /// This is environment-specific (different IDs per instance).
+        /// </summary>
+        [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = false)]
         public long GroupId { get; set; }
+
+        /// <summary>
+        /// The Zendesk brand ID for the ticket brand.
+        /// This is environment-specific (different IDs per instance).
+        /// </summary>
+        [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = false)]
         public long BrandId { get; set; }
     }
 }

@@ -9,7 +9,6 @@ public interface ICheckYourPupilDataRepository
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
     Task<IReadOnlyList<PupilCsvDto>> GetAllIncludedPupilsAsync(Guid windowId, string laestab);
     Task<IReadOnlyList<PupilCsvDto>> GetAllNonIncludedPupilsAsync(Guid windowId, string laestab);
-    Task<IReadOnlyList<PupilSuggestionDto>> SearchIncludedPupilsAsync(Guid windowId, string laestab, string query);
-    Task<IReadOnlyList<PupilSuggestionDto>> SearchNonIncludedPupilsAsync(Guid windowId, string laestab, string query);
+    Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string query, bool included);
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }

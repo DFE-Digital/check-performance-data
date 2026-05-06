@@ -36,19 +36,15 @@ public class CheckYourPupilDataService(
         return await repository.GetAllNonIncludedPupilsAsync(windowId, laestab);
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        WhatToChange? whatToChange)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, WhatToChange? whatToChange)
     {
         var laestab = await GetLaestabAsync();
-        return whatToChange == WhatToChange.Include
-            ? await repository.SearchNonIncludedPupilsAsync(windowId, laestab, query)
-            : await repository.SearchIncludedPupilsAsync(windowId, laestab, query);
+        var included = whatToChange != WhatToChange.Include;
+        return await repository.SearchPupilsAsync(windowId, laestab, query, included);
     }
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
-    {
-        return await repository.GetPupilAsync(windowId, pupilId);
-    }
+        => await repository.GetPupilAsync(windowId, pupilId);
 
     private async Task<string> GetLaestabAsync()
     {

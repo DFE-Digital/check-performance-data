@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
@@ -18,6 +19,47 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         return View(model);
     }
 
+    [Route("CheckYourPupilData/{windowId}/download/all")]
+    public async Task<IActionResult> DownloadAll(Guid windowId)
+    {
+        var results = await Task.WhenAll(
+            checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId),
+            checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId));
+        var included = results[0];
+        var nonIncluded = results[1];
+
+        var includedCsv = PupilCsvGenerator.Generate(included);
+        var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
+
+        using var ms = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using (var s1 = zip.CreateEntry("included_pupils.csv").Open())
+                s1.Write(includedCsv);
+
+            using (var s2 = zip.CreateEntry("non-included_pupils.csv").Open())
+                s2.Write(nonIncludedCsv);
+        }
+
+        return File(ms.ToArray(), "application/zip", "pupils.zip");
+    }
+
+    [Route("CheckYourPupilData/{windowId}/download/included")]
+    public async Task<IActionResult> DownloadIncluded(Guid windowId)
+    {
+        var pupils = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
+        var bytes = PupilCsvGenerator.Generate(pupils);
+        return File(bytes, "text/csv", "included_pupils.csv");
+    }
+
+    [Route("CheckYourPupilData/{windowId}/download/non-included")]
+    public async Task<IActionResult> DownloadNonIncluded(Guid windowId)
+    {
+        var pupils = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
+        var bytes = PupilCsvGenerator.Generate(pupils);
+        return File(bytes, "text/csv", "non-included_pupils.csv");
+    }
+
     [HttpPost]
     [Route("CheckYourPupilData/{windowId}/nextstep")]
     public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
@@ -29,10 +71,12 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
             return View("Index", model);
         }
 
+        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
+
         return viewModel.SelectedNextStep switch
         {
             NextSteps.RequestChange => RedirectToAction("Index", "WhatToChange", new { windowId }),
-            NextSteps.Confirm => RedirectToAction("Index", "Confirm", new { windowId }),
+            NextSteps.Confirm => RedirectToAction("Index", "ConfirmCorrect", new { windowId }),
             _ => RedirectToAction("Index", "CheckYourPupilData", new { windowId })
         };
     }
@@ -49,9 +93,11 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         var now = timeProvider.GetLocalNow().DateTime;
-        
+        var journey = HttpContext.Session.GetJourneyState(windowId);
+
         return new CheckYourPupilDataViewModel
         {
+            SelectedNextStep = journey.SelectedNextStep,
             WindowId = windowId.ToString(),
             WindowEndDate = window.EndDate.ToString("dddd d MMMM yyyy"),
             WindowEndTime = window.EndDate.ToString("htt").ToLower(),

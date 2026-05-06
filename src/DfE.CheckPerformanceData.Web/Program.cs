@@ -70,6 +70,13 @@ try
 
     builder.Services.AddControllersWithViews();
 
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+    });
+
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
@@ -121,6 +128,8 @@ try
             "form-action 'self'");
         await next();
     });
+
+    app.UseSession();
 
     app.UseRouting();
 

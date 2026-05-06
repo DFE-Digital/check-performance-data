@@ -5,6 +5,7 @@
     @await Html.PartialAsync("_GtmHead")
     @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+    <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />
 </head>
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" />
@@ -89,4 +90,5 @@
 @section BodyEnd {
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
+    @RenderSection("Scripts", required: false)
 }

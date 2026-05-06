@@ -36,7 +36,7 @@ else
 }
 
 <p class="govuk-body">
-    <a href="#">Download all CSV files as a ZIP file</a>
+    <a asp-action="DownloadAll" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Download all CSV files as a ZIP file</a>
 </p>
 
 <govuk-tabs>
@@ -48,7 +48,7 @@ else
         }
         else
         {
-            <p class="govuk-body">Download <a href="#">pupil included</a> as a CSV file.</p>
+            <p class="govuk-body">Download <a asp-action="DownloadIncluded" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">pupil included</a> as a CSV file.</p>
             @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
             {
                 WindowId = Model.WindowId,
@@ -84,7 +84,7 @@ else
         }
         else
         {
-            <p class="govuk-body">Download <a href="#">pupil non-included</a> as a CSV file.</p>
+            <p class="govuk-body">Download <a asp-action="DownloadNonIncluded" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">pupil non-included</a> as a CSV file.</p>
             @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
             {
                 WindowId = Model.WindowId,

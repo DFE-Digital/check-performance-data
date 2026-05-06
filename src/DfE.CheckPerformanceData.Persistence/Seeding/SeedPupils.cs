@@ -12,8 +12,8 @@ public static class SeedPupils
 
         foreach (var checkingWindowId in checkingWindowIds)
         {
-            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 200, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
-            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, pincl: 400, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
+            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
+            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: false, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
         }
 
         await dbContext.SaveChangesAsync();
@@ -33,8 +33,7 @@ public static class SeedPupils
 
     private static readonly string[] FirstLanguages =
     [
-        "English", "Polish", "Urdu", "Punjabi", "Bengali",
-        "Arabic", "Somali", "Romanian", "Portuguese", "Spanish"
+        "ENG", "ENB", "OTH", "OTB", "REF", "NOT"
     ];
     
     private static readonly string[] Sexes = ["M", "F"];
@@ -51,13 +50,17 @@ public static class SeedPupils
 
     private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
 
-    private static IEnumerable<Pupil> GeneratePupils(int count, int pincl, int firstnameOffset, int surnameOffset, Guid checkingWindowId) =>
+    private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
+    private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
+
+    private static IEnumerable<Pupil> GeneratePupils(int count, bool includedPincl, int firstnameOffset, int surnameOffset, Guid checkingWindowId) =>
         Enumerable.Range(0, count).Select(i =>
         {
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var age = today.Year - dob.Year;
             if (dob.AddYears(age) > today) age--;
+            var pinclCodes = includedPincl ? IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new Pupil
             {
@@ -70,7 +73,7 @@ public static class SeedPupils
                 DateOfBirth = dob.ToString("dd/MM/yyyy"),
                 Age = age,
                 FirstLanguage = FirstLanguages[i % FirstLanguages.Length],
-                Pincl = pincl,
+                Pincl = pinclCodes[i % pinclCodes.Length],
                 NewMobile = i % 5 == 0,
                 ActualYearGroup = YearGroups[i % YearGroups.Length],
                 Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],

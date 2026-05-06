@@ -1,0 +1,29 @@
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
+@model DfE.CheckPerformanceData.Web.Controllers.WhatToChangeViewModel;
+
+@{
+    ViewBag.Title = "What to change";
+    Layout = "_Layout";
+}
+
+<a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+
+<form method="post" action="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">
+    <govuk-radios for="SelectedWhatToChange">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                What pupil data would you like to change?
+            </govuk-radios-fieldset-legend>
+
+            <govuk-radios-hint>
+                Select one option.
+            </govuk-radios-hint>
+
+            <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate pupil records</govuk-radios-item>
+            <govuk-radios-item value="@WhatToChange.Include">Include a pupil in data</govuk-radios-item>
+            <govuk-radios-item value="@WhatToChange.Remove">Remove a pupil from data</govuk-radios-item>
+        </govuk-radios-fieldset>
+    </govuk-radios>
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>

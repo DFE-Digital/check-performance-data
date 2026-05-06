@@ -1,0 +1,82 @@
+@model DfE.CheckPerformanceData.Web.Controllers.PupilSearchIndexViewModel
+
+@{
+    ViewBag.Title = "Search for a pupil";
+    Layout = "_Layout";
+    var hasError = !ViewData.ModelState.IsValid;
+}
+
+<a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+
+@if (hasError)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        <govuk-error-summary-item href="#pupil-search">@Model.ErrorMessage</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-xl">Search for a pupil</h1>
+
+<form method="post" action="@Url.Action("Index", "PupilSearch", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="SelectedPupilId" id="SelectedPupilId" value="@Model.SelectedPupilId" />
+
+    <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+        <label class="govuk-label govuk-label--m" for="pupil-search">
+            Pupil name
+        </label>
+        <div class="govuk-hint">Search by first name or last name</div>
+        @if (hasError)
+        {
+            <p id="pupil-search-error" class="govuk-error-message">
+                <span class="govuk-visually-hidden">Error:</span>
+                @Model.ErrorMessage
+            </p>
+        }
+        <div id="pupil-search-container"></div>
+    </div>
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>
+
+@section Scripts {
+    <script src="~/js/accessible-autocomplete.min.js"></script>
+    <script>
+        (function () {
+            var windowId = '@Model.WindowId';
+            var hasError = @(hasError ? "true" : "false");
+            var initialLabel = @Json.Serialize(Model.SelectedPupilLabel ?? "");
+            var currentSuggestions = [];
+
+            accessibleAutocomplete({
+                element: document.querySelector('#pupil-search-container'),
+                id: 'pupil-search',
+                name: 'SelectedPupilLabel',
+                displayMenu: 'overlay',
+                minLength: 2,
+                inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+                source: function (query, populateResults) {
+                    fetch('/PupilSearch/' + windowId + '/suggestions?query=' + encodeURIComponent(query))
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            currentSuggestions = data;
+                            populateResults(data.map(function (d) { return d.label; }));
+                        })
+                        .catch(function () { populateResults([]); });
+                },
+                onConfirm: function (value) {
+                    var hiddenField = document.getElementById('SelectedPupilId');
+                    if (!value) { hiddenField.value = ''; return; }
+                    var match = currentSuggestions.find(function (s) { return s.label === value; });
+                    hiddenField.value = match ? match.id : '';
+                },
+                confirmOnBlur: false
+            });
+
+            if (initialLabel) {
+                document.getElementById('pupil-search').value = initialLabel;
+            }
+        })();
+    </script>
+}

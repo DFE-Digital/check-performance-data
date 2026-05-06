@@ -107,13 +107,28 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
             ("tablet", 768, 1024),
         };
 
+        // Collect any snapshots written on first-run instead of letting the helper throw
+        // mid-sweep. Without the accumulator the test would abort on the first missing
+        // viewport and require N+1 CI runs to bootstrap; with it, every viewport is
+        // generated in a single run and the test fails once at the end.
+        var createdSnapshots = new List<string>();
+
         foreach (var (label, width, height) in viewports)
         {
             await Page.SetViewportSizeAsync(width, height);
             await Page.GotoAsync($"{_fixture.BaseUrl}/help");
             await Page.StabiliseAsync();
 
-            await Page.MatchSnapshotAsync($"help-page-{label}-{width}x{height}.png");
+            await Page.MatchSnapshotAsync(
+                $"help-page-{label}-{width}x{height}.png",
+                createdSnapshots: createdSnapshots);
+        }
+
+        if (createdSnapshots.Count > 0)
+        {
+            throw new Xunit.Sdk.XunitException(
+                $"Bootstrapped {createdSnapshots.Count} snapshot(s): "
+                + $"{string.Join(", ", createdSnapshots)} — commit and re-run to verify.");
         }
     }
 }

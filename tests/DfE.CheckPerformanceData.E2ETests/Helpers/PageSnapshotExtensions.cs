@@ -15,7 +15,8 @@ public static class PageSnapshotExtensions
         this IPage page,
         string name,
         double maxDiffPixelRatio = 0.005,
-        bool fullPage = true)
+        bool fullPage = true,
+        ICollection<string>? createdSnapshots = null)
     {
         var actualBytes = await page.ScreenshotAsync(new PageScreenshotOptions
         {
@@ -29,6 +30,17 @@ public static class PageSnapshotExtensions
         {
             Directory.CreateDirectory(Path.GetDirectoryName(snapshotPath)!);
             await File.WriteAllBytesAsync(snapshotPath, actualBytes);
+
+            // When a caller passes an accumulator (e.g. a multi-viewport sweep generating
+            // several snapshots in a single test), collect the miss instead of throwing
+            // so every viewport gets bootstrapped in one CI run. The caller is responsible
+            // for failing the test at the end if the accumulator is non-empty.
+            if (createdSnapshots is not null)
+            {
+                createdSnapshots.Add(name);
+                return;
+            }
+
             throw new XunitException(
                 $"Snapshot {name} did not exist at {snapshotPath} — written, run again to verify.");
         }

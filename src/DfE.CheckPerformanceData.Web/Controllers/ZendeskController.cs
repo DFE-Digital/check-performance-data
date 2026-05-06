@@ -3,12 +3,46 @@ using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using DfE.CheckPerformanceData.Web.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 
 namespace DfE.CheckPerformanceData.Web.Controllers
 {
+
+    /// <summary>
+    /// Restricts access to only work in the Development environment.
+    /// Returns 403 Forbidden if accessed from any other environment.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+    public class DevelopmentOnlyAuthorizeAttribute : TypeFilterAttribute
+    {
+        public DevelopmentOnlyAuthorizeAttribute()
+            : base(typeof(DevelopmentOnlyAuthorizeFilter)) { }
+
+        private class DevelopmentOnlyAuthorizeFilter : IAuthorizationFilter
+        {
+            private readonly IHostEnvironment _environment;
+
+            public DevelopmentOnlyAuthorizeFilter(IHostEnvironment environment)
+            {
+                _environment = environment;
+            }
+
+            public void OnAuthorization(AuthorizationFilterContext context)
+            {
+                if (!_environment.IsDevelopment())
+                {
+                    context.Result = new ForbidResult(); // or new StatusCodeResult(403);
+                    return;
+                }
+            }
+        }
+    }
+    [Authorize]
+    [DevelopmentOnlyAuthorize]
     public class ZendeskController : Controller
     {
         private readonly IZendeskService _zendeskService;

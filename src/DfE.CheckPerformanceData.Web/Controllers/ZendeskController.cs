@@ -1,5 +1,4 @@
 ﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
-using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using DfE.CheckPerformanceData.Web.Models;
@@ -161,18 +160,18 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         {
             try
             {
-                var fields = await _zendeskService.GetUserFieldsAsync();
+                var fields = await _zendeskService.GetTicketFields();
                 return View(fields);
             }
             catch (ZendeskApiException ex)
             {
-                _logger.LogError(ex, "Zendesk API error while loading user fields");
-                TempData["Error"] = "Unable to load user fields. Please try again later.";
+                _logger.LogError(ex, "Zendesk API error while loading ticket fields");
+                TempData["Error"] = "Unable to load ticket fields. Please try again later.";
                 return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error while loading user fields");
+                _logger.LogError(ex, "Unexpected error while loading ticket fields");
                 TempData["Error"] = "An unexpected error occurred. Please try again later.";
                 return View("Error", new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
             }
@@ -209,6 +208,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> AddAttachment(long ticketId, IFormFile? fileUpload)
         {
+            const long maxFileSizeBytes = 10 * 1024 * 1024; // Zendesk limit
+
             if (ticketId <= 0)
             {
                 ModelState.AddModelError("ticketId", "Ticket ID must be a positive number.");
@@ -224,6 +225,12 @@ namespace DfE.CheckPerformanceData.Web.Controllers
             if (string.IsNullOrWhiteSpace(fileUpload.FileName))
             {
                 ModelState.AddModelError("fileUpload", "The filename is required.");
+                return RedirectToAction(nameof(ViewTicket), new { id = ticketId });
+            }
+
+            if (fileUpload.Length > maxFileSizeBytes)
+            {
+                ModelState.AddModelError("fileUpload", $"File size must not exceed 10MB. Your file is {(fileUpload.Length / 1024F).ToString("F1")}KB.");
                 return RedirectToAction(nameof(ViewTicket), new { id = ticketId });
             }
 
@@ -267,7 +274,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers
         {
             try
             {
-                // Create a ticket based on pre-prod ticket 76218
+                // Demo: create a ticket based on pre-prod ticket 76218.
+                // Replace with real data or remove before production deployment.
+
                 var request = new CreateTicketRequestDto
                 {
                     Ticket = new CreateTicketDto
@@ -276,14 +285,14 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                         Status = "new",
                         Type = "question",
                         GroupId = 16886472637330,
-                        Description = @"REQUEST_ID: 85671\nSUBMISSION_ID: 85611\nrequest_StudentCYPMDID: 229520\nrequest_Student: KITTY VERA CALLAGHAN\nrequest_StudentOnRoll: null\nrequest_StudentRemoveCategory: Terminal/Critical illness\nrequest_StudentFirstName: KITTY VERA\nrequest_StudentSurname: CALLAGHAN\nrequest_StudentUPN: P228520169565\nrequest_MergeStudent: null\nrequest_MergeStudentFirstName: null\nrequest_MergeStudentSurname: null\nrequest_MergeStudentUPN: null\nrequest_StudentDfENoExcludingSchool: null\nrequest_StudentPermanentExclusion: null\nrequest_StudentArrivalDate: null\nrequest_StudentFirstLanguage: null\nrequest_StudentFirstSchoolAdmission: null\nrequest_StudentOriginCountry: null\nrequest_StudentSchoolAdmissionDate: null\nrequest_StudentNewYearGroup: null\nrequest_StudentPreviousKS4School: null\nrequest_StudentYearGroupChange: null\nrequest_StudentYearGroupChangeReason: null\nrequest_StudentDetained: null\nrequest_StudentPoliceInvolve: null\nrequest_StudentSatY11Exams: null\nrequest_StudentSocialCare: null\nrequest_StudentAbilityToAccessEducation: true\nrequest_StudentCriticalIllness: true\nrequest_StudentCriticalIllnessInvestigation: true\nrequest_StudentLifeChangingIllness: true\nrequest_StudentLifeChangingInjury: false\nrequest_StudentTerminalIllness: true\nrequest_StudentDateRemoved: null\nrequest_StudentOnRollCurrentYear: null\nrequest_StudentDfENoOnwardSchool: null\nrequest_StudentCurrentCountry: null\nrequest_StudentEffortToLocate: null\nrequest_StudentWhereabouts: null\nrequest_AdditionalComments: null\nrequest_ExceptionalCircumstances: false\nrequest_Outcome: Scrutiny\nrequest_RequiresEvidence: true\nrequest_StudentAddBack: false\nrequest_ZendeskID: null\nrequest_ZendeskURL: null\nrequest_StudentLDS: 30282884\nrequest_StudentEthnicity: WBRI\nrequest_StudentDfEEN: 8412647\nrequest_StudentSex: M\nrequest_StudentSENStatus: null\nrequest_StudentURN: 136989\nrequest_StudentInclusionStatusFlag: 201\nrequest_StudentAge: 0\nrequest_StudentAdmissionDate: 2016-01-04 00:00:00.0\nrequest_StudentDOB: 2012-12-21 00:00:00.0\nrequest_DecisionReason: null\nrequest_DecisionReasonRejected: null\nrequest_StudentRemoveCategoryUnderscore: Terminal_critical_illness\nrequest_CorrectionType: 31_\nrequest_CorrectionReason20: null\nrequest_CorrectionReason30: null\nrequest_CorrectionReason31: 503_31\nrequest_CycleYear: 2025\nrequest_CycleMonth: 9\nrequest_KeyStage: KS2\nrequest_MergeStudentLDS: null\nrequest_StudentContinuingKS2Studies: null\nrequest_StudentDateAdded: null\nrequest_StudentSatY6Exams: false\n",
+                        Description = @"REQUEST_ID: [PLACEHOLDER]\nSUBMISSION_ID: [PLACEHOLDER]\nrequest_StudentFirstName: [PLACEHOLDER]\nrequest_StudentSurname: [PLACEHOLDER]\nrequest_StudentUPN: [PLACEHOLDER]",
                         CustomFields =
                         [
                             new CustomFieldDto { Id = 360013574700, Value = "training_provider" },
-                            new CustomFieldDto { Id = 17207944800146, Value = "8412647" },
-                            new CustomFieldDto { Id = 17207966711570, Value = "P228520169565" },
-                            new CustomFieldDto { Id = 17207989310226, Value = "136989" },
-                            new CustomFieldDto { Id = 17207993784978, Value = "30282884" },
+                            new CustomFieldDto { Id = 17207944800146, Value = "8412647" }, // DFE ESTABLISHMENT NUMBER
+                            new CustomFieldDto { Id = 17207966711570, Value = "P228520163345" }, // UPN
+                            new CustomFieldDto { Id = 17207989310226, Value = "136989" }, // SCHOOL URN
+                            new CustomFieldDto { Id = 17207993784978, Value = "30280000" },// LDS matched pupil ID
                             new CustomFieldDto { Id = 17208002901906, Value = "2012-12-21" },
                             new CustomFieldDto { Id = 17208027233554, Value = "2016-01-04" },
                             new CustomFieldDto { Id = 19056253670034, Value = "scrutiny" },
@@ -291,12 +300,12 @@ namespace DfE.CheckPerformanceData.Web.Controllers
                             new CustomFieldDto { Id = 19058058434322, Value = "2025" },
                             new CustomFieldDto { Id = 19058091622546, Value = "9" },
                             new CustomFieldDto { Id = 19058126549778, Value = "ks2" },
-                            new CustomFieldDto { Id = 19058409672594, Value = "CALLAGHAN" },
-                            new CustomFieldDto { Id = 19058507283218, Value = "KITTY VERA" },
+                            new CustomFieldDto { Id = 19058409672594, Value = "CRIPPS" },
+                            new CustomFieldDto { Id = 19058507283218, Value = "PAUL" },
                             new CustomFieldDto { Id = 19058550118802, Value = "m" },
                             new CustomFieldDto { Id = 19058912556690, Value = "503_31" },
                             new CustomFieldDto { Id = 19381440546322, Value = "terminal_critical_illness" },
-                            new CustomFieldDto { Id = 20433125966866, Value = "229520" }
+                            new CustomFieldDto { Id = 20433125966866, Value = "229000" } // CYPMD_ID
                         ],
                         BrandId = 16853215883538
                     }

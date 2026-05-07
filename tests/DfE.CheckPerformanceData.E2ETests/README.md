@@ -4,11 +4,24 @@ End-to-end Playwright + xUnit suite that drives a real Chromium browser against 
 
 ## Quick start
 
+There are two ways to run the suite, depending on what you need:
+
+| Flow | Command | What it runs | When to pick |
+|------|---------|--------------|--------------|
+| Container (canonical) | `make test-e2e` | Full suite incl. visual regression, inside the Linux Playwright container against the canonical Linux-Chromium baseline | Before commit/push, when touching anything that affects rendered output, before opening a PR |
+| Host (fast) | `make test-e2e-fast` | E2E suite natively on the host SDK with `--filter Category!=VisualRegression`; visual regression skipped | TDD inner loop on functional tests; quick smoke after a non-visual code change |
+
+Both targets `cd` into the repo from the repo root and assume Docker (for `make test-e2e`) or the .NET 10 host SDK (for `make test-e2e-fast`) is installed. `make help` from the repo root lists every target the Makefile exposes.
+
+First run of `make test-e2e` is slow — it pulls the ~1.5GB Playwright image, builds the thin .NET 10 overlay (per `tests/DfE.CheckPerformanceData.E2ETests/Dockerfile`), and warms the named NuGet cache volume. Allow ~3-5 minutes. Subsequent runs reuse both the image layer cache and the NuGet volume → seconds-to-test-output.
+
+Manual fallback (no Make / no Docker):
+
 ```bash
 cd check-performance-data
-docker compose up -d                      # starts Web + Postgres on http://localhost:8080
+docker compose up -d                      # starts Web + Postgres
 pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium  # one-time
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
 ```
 
 On Windows without `pwsh` (PowerShell Core), the install script runs via Windows PowerShell:
@@ -17,12 +30,28 @@ On Windows without `pwsh` (PowerShell Core), the install script runs via Windows
 powershell.exe -ExecutionPolicy Bypass -File tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install chromium
 ```
 
+> **Switching between flows:** if you alternate between `make test-e2e-fast` (native, Windows/macOS host) and `make test-e2e` (Linux container), the host's `bin/`/`obj/` may carry RID-mismatched runtime artefacts that cause `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'` (or `linux-x64`) on the next run. Run `make clean-test-bin` to clear them; the targets are idempotent.
+
 ## Configuration
 
 | Env var | Default | Purpose |
 |---------|---------|---------|
 | `CPD_E2E_BASE_URL` | `http://localhost:8080` | URL the harness drives. |
 | `CPD_E2E_READY_TIMEOUT_SECONDS` | `90` | How long the fixture polls `/healthcheck` before giving up. |
+
+## Snapshot diffs (visual regression failures)
+
+When `IPage.MatchSnapshotAsync` detects pixel divergence above the threshold, it writes a three-PNG trio to `tests/DfE.CheckPerformanceData.E2ETests/Snapshots/diffs/` next to the canonical `Snapshots/linux-chromium/` directory:
+
+| File | What it is |
+|------|-----------|
+| `{name}.expected.png` | The committed canonical PNG from `Snapshots/linux-chromium/{name}.png` |
+| `{name}.actual.png` | The screenshot the test just captured |
+| `{name}.diff.png` | A copy of `actual.png` with pixels that differ above the per-channel tolerance tinted red (RGBA 255,0,0,255) |
+
+The thrown `XunitException` message ends with the absolute path to the `Snapshots/diffs/` directory, so failure logs point you straight at the artefacts.
+
+`Snapshots/diffs/` is gitignored at the project level (see `tests/DfE.CheckPerformanceData.E2ETests/.gitignore`) — never committed. CI's existing `e2e:` job uploads the entire `Snapshots/` tree as the `e2e-snapshots` artefact on failure, so the diff trio surfaces in the run's Artifacts panel automatically.
 
 ## Test categories
 
@@ -51,11 +80,13 @@ Snapshots are **Linux-only**. Each test calls `Skip.IfNot(RuntimeInformation.IsO
 To intentionally regenerate a snapshot:
 
 1. Make the code change locally.
-2. Delete the snapshot you want to refresh: `rm tests/DfE.CheckPerformanceData.E2ETests/Snapshots/linux-chromium/{name}.png`
-3. Push to a branch labelled `deploy` so the CI `e2e:` job runs on Linux.
-4. **First CI run:** the visual-regression test fails with `Snapshot {name} did not exist — written, run again to verify.` The helper has just written the new `.png` to disk in the test runner's working tree.
-5. Download the `e2e-snapshots` artefact from the failed CI run's Artifacts panel; the regenerated PNG is under `linux-chromium/{name}.png`. Commit it back into `Snapshots/linux-chromium/`.
-6. Push again — **second CI run:** the comparison passes, the PR file diff surfaces the regenerated `.png` for review.
+2. Delete the snapshot you want to refresh:
+   ```bash
+   rm tests/DfE.CheckPerformanceData.E2ETests/Snapshots/linux-chromium/{name}.png
+   ```
+3. Choose either path:
+   - **Local container path (preferred when Docker is available):** `make test-e2e` (first run writes the new `.png` and fails the test with "did not exist — written, run again to verify"). Inspect the generated PNG, then `make test-e2e` again to confirm the comparison now passes. Commit the regenerated PNG.
+   - **CI path (fallback for devs without Docker):** Push to a branch labelled `deploy` so the CI `e2e:` job runs on Linux. The first CI run writes the new `.png` and fails. Download the `e2e-snapshots` artefact from that run; the regenerated PNG is under `linux-chromium/{name}.png`. Commit it back. Push again — second CI run passes; PR diff surfaces the regenerated PNG for review.
 
 No env var, no `--update-snapshots` flag plumbing — delete the file and run twice.
 
@@ -80,6 +111,8 @@ pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 
 
 ```
 tests/DfE.CheckPerformanceData.E2ETests/
+├── .gitignore                      # /Snapshots/diffs/ — never commit failure artefacts
+├── Dockerfile                      # thin overlay: playwright/dotnet:v1.59.0-noble + .NET 10 SDK
 ├── Fixtures/
 │   ├── PlaywrightFixture.cs         # IAsyncLifetime; readiness probe; antiforgery scrape; seed HttpClient
 │   └── PlaywrightCollection.cs      # [CollectionDefinition("E2E")] + ICollectionFixture<>
@@ -87,7 +120,8 @@ tests/DfE.CheckPerformanceData.E2ETests/
 │   ├── SeedHelpers.cs               # SeedWikiPageAsync / SeedContentBlockAsync / SoftDeleteWikiPageAsync
 │   ├── AntiforgeryHelpers.cs        # static ScrapeAsync(HttpClient, formPath) -> (Token, Cookie)
 │   ├── PageStabilisationExtensions.cs   # IPage.StabiliseAsync() — animations off + fonts.ready + NetworkIdle
-│   └── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) — pixel diff
+│   ├── PageSnapshotExtensions.cs    # IPage.MatchSnapshotAsync(name, maxDiffPixelRatio) + BuildDiffArtefactsAsync
+│   └── PageSnapshotExtensionsTests.cs   # pure unit tests for the diff-PNG-emission helper
 ├── Wiki/
 │   ├── WikiNavigationTests.cs
 │   ├── HealthcheckTests.cs
@@ -103,7 +137,8 @@ tests/DfE.CheckPerformanceData.E2ETests/
 ├── Visual/
 │   └── VisualRegressionTests.cs     # Linux-only via [SkippableFact]
 ├── Snapshots/
-│   └── linux-chromium/              # canonical .png artefacts (CI-generated)
+│   ├── linux-chromium/              # canonical .png artefacts (committed)
+│   └── diffs/                       # gitignored; populated only on threshold breach
 └── HarnessSmokeTests.cs
 ```
 

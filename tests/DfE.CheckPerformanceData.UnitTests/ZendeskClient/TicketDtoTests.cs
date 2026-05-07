@@ -35,10 +35,6 @@ public class TicketDtoTests
         Assert.Empty(dto.Fields);
         Assert.Empty(dto.AllCustomFields);
         Assert.Empty(dto.DescriptionFields);
-        Assert.Null(dto.DescriptionReasonForRemoval);
-        Assert.Null(dto.DescriptionOutcome);
-        Assert.Null(dto.DescriptionStudentDfEEN);
-        Assert.Null(dto.DescriptionStudentUPN);
         Assert.Null(dto.CustomFieldsOutcome);
     }
 
@@ -65,10 +61,6 @@ public class TicketDtoTests
         dto.Fields = new List<CustomFieldDto> { new() { Id = 2L, Value = "value2" } };
         dto.AllCustomFields = new List<CustomFieldDto> { new() { Id = 3L, Value = "value3" } };
         dto.DescriptionFields = new Dictionary<string, string> { { "key", "value" } };
-        dto.DescriptionReasonForRemoval = "Reason";
-        dto.DescriptionOutcome = "Outcome";
-        dto.DescriptionStudentDfEEN = "DfEEN123";
-        dto.DescriptionStudentUPN = "UPN456";
         dto.CustomFieldsOutcome = "CustomOutcome";
 
         // Assert
@@ -90,10 +82,6 @@ public class TicketDtoTests
         Assert.Single(dto.Fields);
         Assert.Single(dto.AllCustomFields);
         Assert.Single(dto.DescriptionFields);
-        Assert.Equal("Reason", dto.DescriptionReasonForRemoval);
-        Assert.Equal("Outcome", dto.DescriptionOutcome);
-        Assert.Equal("DfEEN123", dto.DescriptionStudentDfEEN);
-        Assert.Equal("UPN456", dto.DescriptionStudentUPN);
         Assert.Equal("CustomOutcome", dto.CustomFieldsOutcome);
     }
 
@@ -687,162 +675,6 @@ public class TicketDtoTests
 
         // Assert
         Assert.Equal(long.MaxValue, dto.GroupId);
-    }
-
-    [Fact]
-    public void TicketDto_WithSpecialCharactersInDescriptionReasonForRemoval_ShouldStoreSpecialChars()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionReasonForRemoval = "Reason: @#$%^&*()";
-
-        // Assert
-        Assert.Equal("Reason: @#$%^&*()", dto.DescriptionReasonForRemoval);
-    }
-
-    [Fact]
-    public void TicketDto_WithUnicodeInDescriptionReasonForRemoval_ShouldStoreUnicode()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionReasonForRemoval = "移除原因: 你好";
-
-        // Assert
-        Assert.Equal("移除原因: 你好", dto.DescriptionReasonForRemoval);
-    }
-
-    [Fact]
-    public void TicketDto_WithWhitespaceInDescriptionReasonForRemoval_ShouldStoreWhitespace()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionReasonForRemoval = "   Reason with spaces   ";
-
-        // Assert
-        Assert.Equal("   Reason with spaces   ", dto.DescriptionReasonForRemoval);
-    }
-
-    [Fact]
-    public void TicketDto_WithSpecialCharactersInDescriptionOutcome_ShouldStoreSpecialChars()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionOutcome = "Outcome: @#$%^&*()";
-
-        // Assert
-        Assert.Equal("Outcome: @#$%^&*()", dto.DescriptionOutcome);
-    }
-
-    [Fact]
-    public void TicketDto_WithUnicodeInDescriptionOutcome_ShouldStoreUnicode()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionOutcome = "结果: 成功";
-
-        // Assert
-        Assert.Equal("结果: 成功", dto.DescriptionOutcome);
-    }
-
-    [Fact]
-    public void TicketDto_WithWhitespaceInDescriptionOutcome_ShouldStoreWhitespace()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionOutcome = "   Outcome with spaces   ";
-
-        // Assert
-        Assert.Equal("   Outcome with spaces   ", dto.DescriptionOutcome);
-    }
-
-    [Fact]
-    public void TicketDto_WithSpecialCharactersInDescriptionStudentDfEEN_ShouldStoreSpecialChars()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentDfEEN = "DfEEN: @#$%^&*()";
-
-        // Assert
-        Assert.Equal("DfEEN: @#$%^&*()", dto.DescriptionStudentDfEEN);
-    }
-
-    [Fact]
-    public void TicketDto_WithUnicodeInDescriptionStudentDfEEN_ShouldStoreUnicode()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentDfEEN = "DfEEN: 学生编号";
-
-        // Assert
-        Assert.Equal("DfEEN: 学生编号", dto.DescriptionStudentDfEEN);
-    }
-
-    [Fact]
-    public void TicketDto_WithWhitespaceInDescriptionStudentDfEEN_ShouldStoreWhitespace()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentDfEEN = "   DfEEN with spaces   ";
-
-        // Assert
-        Assert.Equal("   DfEEN with spaces   ", dto.DescriptionStudentDfEEN);
-    }
-
-    [Fact]
-    public void TicketDto_WithSpecialCharactersInDescriptionStudentUPN_ShouldStoreSpecialChars()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentUPN = "UPN: @#$%^&*()";
-
-        // Assert
-        Assert.Equal("UPN: @#$%^&*()", dto.DescriptionStudentUPN);
-    }
-
-    [Fact]
-    public void TicketDto_WithUnicodeInDescriptionStudentUPN_ShouldStoreUnicode()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentUPN = "UPN: 学生唯一编码";
-
-        // Assert
-        Assert.Equal("UPN: 学生唯一编码", dto.DescriptionStudentUPN);
-    }
-
-    [Fact]
-    public void TicketDto_WithWhitespaceInDescriptionStudentUPN_ShouldStoreWhitespace()
-    {
-        // Arrange
-        var dto = new TicketDto();
-
-        // Act
-        dto.DescriptionStudentUPN = "   UPN with spaces   ";
-
-        // Assert
-        Assert.Equal("   UPN with spaces   ", dto.DescriptionStudentUPN);
     }
 
     [Fact]

@@ -7,7 +7,7 @@ using Polly;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 
-public class ZendeskAttachmentService : IZendeskAttachmentService
+public sealed class ZendeskAttachmentService : IZendeskAttachmentService
 {
     private readonly IZendeskApi _api;
     private readonly ResiliencePipeline _resiliencePipeline;

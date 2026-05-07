@@ -6,7 +6,7 @@ SERVICE_SHORT=cypd
 DOCKER_REPOSITORY=ghcr.io/dfe-digital/check-performance-data
 
 help:
-	@grep -E '^[a-zA-Z\._\-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9\._\-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: development
 development: test-cluster
@@ -216,3 +216,15 @@ scale-worker: get-cluster-credentials
 	$(eval NAMESPACE=$(shell jq -r '.namespace' terraform/application/config/$(CONFIG).tfvars.json))
 	echo "Scaling worker to ${REPLICAS}"
 	kubectl -n ${NAMESPACE} scale deployment/${SERVICE_NAME}${DSUFFIX}-worker --replicas ${REPLICAS}
+
+.PHONY: test-e2e
+test-e2e: ## Run full E2E suite inside the Linux Playwright container (cross-OS deterministic; includes visual regression)
+	docker compose --profile e2e run --rm e2e-tests
+
+.PHONY: test-e2e-fast
+test-e2e-fast: ## Run E2E suite natively on host SDK, skipping visual regression (fast TDD inner loop)
+	dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
+
+.PHONY: clean-test-bin
+clean-test-bin: ## Remove cross-OS bin/obj pollution from the E2ETests project (run between native and container test runs)
+	rm -rf tests/DfE.CheckPerformanceData.E2ETests/bin tests/DfE.CheckPerformanceData.E2ETests/obj

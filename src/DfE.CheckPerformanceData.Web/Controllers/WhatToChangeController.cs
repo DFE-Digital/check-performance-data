@@ -17,8 +17,9 @@ public class WhatToChangeController : Controller
         });
     }
 
-    [Route("/WhatToChange/{windowId}")]
     [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/WhatToChange/{windowId}")]
     public IActionResult Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
         if (vm.SelectedWhatToChange == null)
@@ -38,4 +39,3 @@ public class WhatToChangeViewModel
     public Guid WindowId { get; set; }
     public WhatToChange? SelectedWhatToChange { get; set; }
 }
-

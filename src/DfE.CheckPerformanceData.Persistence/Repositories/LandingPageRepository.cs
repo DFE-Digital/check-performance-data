@@ -9,14 +9,13 @@ public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepo
 {
     public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now,
         IEnumerable<KeyStages> organisationKeyStages, string laestab,
-        CancellationToken cancellationToken) =>
-        await dbContext.CheckingWindows
+        CancellationToken cancellationToken)
+    {
+        var windowsWithData = await GetWindowIdsWithPupilDataAsync(laestab, cancellationToken);
+
+        return await dbContext.CheckingWindows
             .AsNoTracking()
-            .Where(window
-                => window.StartDate <= now
-                   && window.EndDate >= now
-                   && organisationKeyStages.Contains(window.KeyStage)
-            )
+            .Where(w => w.StartDate <= now && w.EndDate >= now && organisationKeyStages.Contains(w.KeyStage))
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,
@@ -24,28 +23,38 @@ public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepo
                 KeyStage = w.KeyStage,
                 Title = w.Title,
                 Id = w.Id,
-                HasPupilData = dbContext.Pupils.Any(p => p.CheckingWindowId == w.Id && p.Laestab == laestab)
+                HasPupilData = windowsWithData.Contains(w.Id)
             })
             .ToListAsync(cancellationToken);
+    }
 
     public async Task<List<CheckingWindowDto>> GetClosedWindowsAsync(DateTime now,
-        IEnumerable<KeyStages> organisationKeyStages, string laestab, CancellationToken cancellationToken)
-        =>
-            await dbContext.CheckingWindows
-                .AsNoTracking()
-                .Where(window
-                    => window.EndDate >= now.AddMonths(-12)
-                       && window.EndDate < now
-                       && organisationKeyStages.Contains(window.KeyStage)
-                )
-                .Select(w => new CheckingWindowDto
-                {
-                    StartDate = w.StartDate,
-                    EndDate = w.EndDate,
-                    KeyStage = w.KeyStage, 
-                    Title = w.Title, 
-                    Id = w.Id,
-                    HasPupilData = dbContext.Pupils.Any(p => p.CheckingWindowId == w.Id && p.Laestab == laestab)
-                })
-                .ToListAsync(cancellationToken);
+        IEnumerable<KeyStages> organisationKeyStages, string laestab,
+        CancellationToken cancellationToken)
+    {
+        var windowsWithData = await GetWindowIdsWithPupilDataAsync(laestab, cancellationToken);
+
+        return await dbContext.CheckingWindows
+            .AsNoTracking()
+            .Where(w => w.EndDate >= now.AddMonths(-12) && w.EndDate < now && organisationKeyStages.Contains(w.KeyStage))
+            .Select(w => new CheckingWindowDto
+            {
+                StartDate = w.StartDate,
+                EndDate = w.EndDate,
+                KeyStage = w.KeyStage,
+                Title = w.Title,
+                Id = w.Id,
+                HasPupilData = windowsWithData.Contains(w.Id)
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<HashSet<Guid>> GetWindowIdsWithPupilDataAsync(string laestab, CancellationToken cancellationToken)
+        => (await dbContext.Pupils
+            .AsNoTracking()
+            .Where(p => p.Laestab == laestab)
+            .Select(p => p.CheckingWindowId)
+            .Distinct()
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
 }

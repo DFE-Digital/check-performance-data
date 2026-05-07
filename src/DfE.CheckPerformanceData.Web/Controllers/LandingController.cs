@@ -1,13 +1,11 @@
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public class LandingController(ILogger<LandingController> logger, ILandingPageService landingPageService) : Controller
 {
-    [Authorize]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         var result = await landingPageService.GetLandingPageDataAsync(cancellationToken);

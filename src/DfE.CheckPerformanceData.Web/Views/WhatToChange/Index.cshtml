@@ -9,6 +9,7 @@
 <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
 
 <form method="post" action="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
     <govuk-radios for="SelectedWhatToChange">
         <govuk-radios-fieldset>
             <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">

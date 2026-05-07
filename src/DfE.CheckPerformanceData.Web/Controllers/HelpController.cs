@@ -1,9 +1,11 @@
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[AllowAnonymous]
 public sealed class HelpController(IWikiService wikiService) : Controller
 {
     private bool IsEditMode => 

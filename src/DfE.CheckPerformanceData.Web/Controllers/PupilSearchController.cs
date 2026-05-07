@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -11,7 +10,7 @@ public class PupilSearchController(ICheckYourPupilDataService service) : Control
     public IActionResult Index(Guid windowId)
     {
         var journey = HttpContext.Session.GetJourneyState(windowId);
-        
+
         return View(new PupilSearchIndexViewModel
         {
             WhatToChange = journey.SelectedWhatToChange ?? default,
@@ -24,7 +23,7 @@ public class PupilSearchController(ICheckYourPupilDataService service) : Control
     [Route("/PupilSearch/{windowId}/suggestions")]
     public async Task<IActionResult> Suggestions(Guid windowId, string? query)
     {
-        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2 || query.Length > 100)
             return Json(Array.Empty<object>());
 
         var journey = HttpContext.Session.GetJourneyState(windowId);
@@ -45,7 +44,7 @@ public class PupilSearchController(ICheckYourPupilDataService service) : Control
         }
 
         var pupil = await service.GetPupilAsync(windowId, Guid.Parse(model.SelectedPupilId));
-        
+
         HttpContext.Session.SaveJourneyState(windowId, s =>
         {
             s.SelectedPupilLabel = model.SelectedPupilLabel;
@@ -56,4 +55,3 @@ public class PupilSearchController(ICheckYourPupilDataService service) : Control
         return RedirectToAction("Index", "RemovePupil", new { windowId });
     }
 }
-

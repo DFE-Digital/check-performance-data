@@ -116,6 +116,7 @@ else
 @if (Model.IsWindowOpen)
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
                 <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">

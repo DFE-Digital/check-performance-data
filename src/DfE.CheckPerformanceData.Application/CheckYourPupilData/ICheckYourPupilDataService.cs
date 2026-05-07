@@ -10,7 +10,7 @@ public interface ICheckYourPupilDataService
     Task<IReadOnlyList<PupilCsvDto>> GetIncludedPupilsCsvAsync(Guid windowId);
     Task<IReadOnlyList<PupilCsvDto>> GetNonIncludedPupilsCsvAsync(Guid windowId);
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        WhatToChange? journeySelectedWhatToChange);
+        WhatToChange? whatToChange);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }

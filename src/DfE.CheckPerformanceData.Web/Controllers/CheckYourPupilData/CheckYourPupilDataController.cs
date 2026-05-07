@@ -8,6 +8,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
 {
     private const int PageSize = 10;
+    private const int MaxSearchLength = 100;
 
     [Route("CheckYourPupilData/{windowId}")]
     public async Task<IActionResult> Index(
@@ -15,6 +16,9 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         int includedPage = 0, int nonIncludedPage = 0,
         string? includedSearch = null, string? nonIncludedSearch = null)
     {
+        if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
+        if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
+
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }
@@ -61,6 +65,7 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     [Route("CheckYourPupilData/{windowId}/nextstep")]
     public async Task<IActionResult> NextStep(Guid windowId, CheckYourPupilDataViewModel viewModel)
     {

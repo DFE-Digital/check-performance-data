@@ -633,9 +633,9 @@ public sealed class WikiServiceTests
             {
                 new() { Id = 1, Title = "p", Slug = "p" }
             }, 25));
-        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
         {
-            MakePage(id: 1, title: "p", slug: "p")
+            new() { Id = 1, Slug = "p", ParentId = null }
         });
 
         var result = await _sut.SearchAsync("publish", page: 99);
@@ -667,16 +667,36 @@ public sealed class WikiServiceTests
             {
                 new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
             }, 1));
-        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
         {
-            MakePage(id: 1, title: "Docs", slug: "docs"),
-            MakePage(id: 2, title: "API", slug: "api", parentId: 1)
+            new() { Id = 1, Slug = "docs", ParentId = null },
+            new() { Id = 2, Slug = "api", ParentId = 1 }
         });
 
         var result = await _sut.SearchAsync("api", page: 1);
 
         Assert.Single(result.Items);
         Assert.Equal("docs/api", result.Items[0].SlugPath);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotLoadFullPageDtos_WhenResolvingSlugPaths()
+    {
+        _repository.SearchAsync("api", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
+            }, 1));
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
+        {
+            new() { Id = 1, Slug = "docs", ParentId = null },
+            new() { Id = 2, Slug = "api", ParentId = 1 }
+        });
+
+        await _sut.SearchAsync("api", page: 1);
+
+        await _repository.Received(1).GetSlugLookupAsync();
+        await _repository.DidNotReceive().GetAllOrderedAsync();
     }
 
     // --- Write paths populate BodyPlainText ---

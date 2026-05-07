@@ -22,6 +22,17 @@ public sealed class WikiRepository(
 			.ProjectToDto()
 			.ToListAsync();
 
+	public async Task<List<WikiSlugLookupEntry>> GetSlugLookupAsync() =>
+		await context.WikiPages
+			.AsNoTracking()
+			.Select(p => new WikiSlugLookupEntry
+			{
+				Id = p.Id,
+				Slug = p.Slug,
+				ParentId = p.ParentId
+			})
+			.ToListAsync();
+
 	public async Task<WikiPageDto?> GetByIdAsync(int id) =>
 		await context.WikiPages
 			.AsNoTracking()

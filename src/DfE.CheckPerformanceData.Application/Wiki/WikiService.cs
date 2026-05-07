@@ -128,11 +128,11 @@ public sealed partial class WikiService(
 			(items, total) = await repository.SearchAsync(trimmed, clampedSkip, safePageSize);
 		}
 
-		// Per-result slug-path enrichment — one GetAllOrderedAsync walk.
+		// Per-result slug-path enrichment — pulls only (Id, Slug, ParentId) instead of full page DTOs.
 		if (items.Count > 0)
 		{
-			var allPages = await repository.GetAllOrderedAsync();
-			var lookup = allPages.ToDictionary(p => p.Id, p => (p.Slug, p.ParentId));
+			var entries = await repository.GetSlugLookupAsync();
+			var lookup = entries.ToDictionary(p => p.Id, p => (p.Slug, p.ParentId));
 			foreach (var item in items)
 			{
 				item.SlugPath = ResolveSlugPath(item.Id, lookup);

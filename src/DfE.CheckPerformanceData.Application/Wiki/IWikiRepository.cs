@@ -4,6 +4,7 @@ public interface IWikiRepository
 {
     // Queries
     Task<List<WikiPageDto>> GetAllOrderedAsync();
+    Task<List<WikiSlugLookupEntry>> GetSlugLookupAsync();
     Task<WikiPageDto?> GetByIdAsync(int id);
     Task<WikiPageDto?> GetByIdIgnoringFiltersAsync(int id);
     Task<WikiPageDto?> GetByIdIncludingDeletedAsync(int id);

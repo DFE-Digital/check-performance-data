@@ -169,31 +169,41 @@ public sealed class WikiServiceTests
 
         _repository.SlugExistsAsync("new-page", null).Returns(false);
         _repository.GetMaxSortOrderAsync(null).Returns(2);
-        _repository.AddPageAsync(dto, "new-page", 3).Returns(created);
+        _repository.AddPageAsync(dto, "new-page", 3, Arg.Any<string>()).Returns(created);
         _repository.GetByIdAsync(10).Returns(created);
 
         var result = await _sut.CreatePageAsync(dto);
 
         Assert.Equal(10, result.Id);
-        await _repository.Received(1).AddPageAsync(dto, "new-page", 3);
+        await _repository.Received(1).AddPageAsync(dto, "new-page", 3, Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(10, "New Page", "Content here", 1);
     }
 
     [Fact]
-    public async Task CreatePageAsync_AppendsTicks_WhenSlugExists()
+    public async Task CreatePageAsync_ThrowsDuplicateWikiPageException_WhenSlugExistsInSameParent()
     {
-        var dto = new CreateWikiPageDto { Title = "Duplicate", Content = "Body" };
+        var dto = new CreateWikiPageDto { Title = "Duplicate", Content = "Body", ParentId = 7 };
 
-        _repository.SlugExistsAsync("duplicate", null).Returns(true);
-        _repository.GetMaxSortOrderAsync(null).Returns(-1);
-        _repository.AddPageAsync(dto, Arg.Is<string>(s => s.StartsWith("duplicate-")), 0)
-            .Returns(ci => MakePage(id: 1, title: "Duplicate", slug: ci.Arg<string>()));
-        _repository.GetByIdAsync(1).Returns(MakePage(id: 1, title: "Duplicate", slug: "duplicate-123"));
+        _repository.SlugExistsAsync("duplicate", 7).Returns(true);
 
-        await _sut.CreatePageAsync(dto);
+        var ex = await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
+        Assert.Equal("Duplicate", ex.Title);
+        Assert.Equal(7, ex.ParentId);
 
-        await _repository.Received(1).AddPageAsync(dto,
-            Arg.Is<string>(s => s.StartsWith("duplicate-") && s.Length > "duplicate-".Length), 0);
+        await _repository.DidNotReceive().AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddVersionAsync(
+            Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task CreatePageAsync_TreatsTitleCasingAndPunctuation_AsDuplicate()
+    {
+        var dto = new CreateWikiPageDto { Title = "About Us!", Content = "Body", ParentId = null };
+
+        _repository.SlugExistsAsync("about-us", null).Returns(true);
+
+        await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
     }
 
     // --- UpdatePageAsync ---
@@ -210,8 +220,29 @@ public sealed class WikiServiceTests
         var result = await _sut.UpdatePageAsync(5, dto);
 
         Assert.Equal(5, result.Id);
-        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title");
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(5, "Updated Title", "Updated content", 4);
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_WhenNoExistingVersions_BaselinesCurrentPageAsV1()
+    {
+        var existing = MakePage(id: 5, title: "Original Title", slug: "original-title", content: "Original content");
+        var updated = MakePage(id: 5, title: "Updated Title", slug: "updated-title", content: "Updated content");
+        var dto = new UpdateWikiPageDto { Title = "Updated Title", Content = "Updated content" };
+
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("body-plain-text");
+        _repository.GetByIdAsync(5).Returns(existing, updated);
+        _repository.GetMaxVersionNumberAsync(5).Returns(0);
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.Received(1).UpdatePageAsync(5, "Updated Title", "Updated content", "updated-title", "body-plain-text");
+        Received.InOrder(() =>
+        {
+            _repository.AddVersionAsync(5, "Original Title", "Original content", 1);
+            _repository.AddVersionAsync(5, "Updated Title", "Updated content", 2);
+        });
     }
 
     [Fact]
@@ -308,7 +339,7 @@ public sealed class WikiServiceTests
         var result = await _sut.RevertToVersionAsync(10, 3);
 
         Assert.Equal(10, result.Id);
-        await _repository.Received(1).UpdatePageAsync(10, "Old Title", "Old content", "old-title");
+        await _repository.Received(1).UpdatePageAsync(10, "Old Title", "Old content", "old-title", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(10, "Old Title", "Old content", 3);
     }
 
@@ -335,6 +366,148 @@ public sealed class WikiServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _sut.RevertToVersionAsync(10, 3));
+    }
+
+    // --- GetDeletedPagesAsync ---
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_ReturnsProjectedRoots_OrderedByDeletedAtDesc()
+    {
+        var older = new DeletedWikiPageInfo
+        {
+            Id = 1, Title = "Older", Slug = "older",
+            ParentId = null,
+            DeletedAt = new DateTime(2026, 4, 1, 10, 0, 0, DateTimeKind.Utc),
+            DeletedBy = "alice"
+        };
+        var newer = new DeletedWikiPageInfo
+        {
+            Id = 2, Title = "Newer", Slug = "newer",
+            ParentId = null,
+            DeletedAt = new DateTime(2026, 4, 20, 10, 0, 0, DateTimeKind.Utc),
+            DeletedBy = "bob"
+        };
+
+        _repository.GetDeletedRootsAsync().Returns(new List<DeletedWikiPageInfo> { older, newer });
+        _repository.CountDeletedDescendantsAsync(1).Returns(0);
+        _repository.CountDeletedDescendantsAsync(2).Returns(3);
+
+        var result = await _sut.GetDeletedPagesAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(2, result[0].Id);
+        Assert.Equal(3, result[0].DescendantCount);
+        Assert.Equal("newer", result[0].OriginalSlugPath);
+        Assert.Equal(1, result[1].Id);
+        Assert.Equal("alice", result[1].DeletedBy);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_BuildsOriginalSlugPath_ThroughDeletedAncestors()
+    {
+        var deletedChild = new DeletedWikiPageInfo
+        {
+            Id = 5, Title = "Child", Slug = "child", ParentId = 4,
+            DeletedAt = DateTime.UtcNow
+        };
+        var deletedParent = MakePage(id: 4, title: "Parent", slug: "parent", parentId: null);
+
+        _repository.GetDeletedRootsAsync().Returns(new List<DeletedWikiPageInfo> { deletedChild });
+        _repository.CountDeletedDescendantsAsync(5).Returns(0);
+        _repository.GetByIdIncludingDeletedAsync(4).Returns(deletedParent);
+
+        var result = await _sut.GetDeletedPagesAsync();
+
+        Assert.Single(result);
+        Assert.Equal("parent/child", result[0].OriginalSlugPath);
+    }
+
+    // --- GetAvailableParentsAsync ---
+
+    [Fact]
+    public async Task GetAvailableParentsAsync_FlattensLiveTreeWithDepth()
+    {
+        var pages = new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "Root A", slug: "root-a", parentId: null, sortOrder: 0),
+            MakePage(id: 2, title: "Child", slug: "child", parentId: 1, sortOrder: 0),
+            MakePage(id: 3, title: "Root B", slug: "root-b", parentId: null, sortOrder: 1)
+        };
+        _repository.GetLivePagesForParentPickerAsync().Returns(pages);
+
+        var result = await _sut.GetAvailableParentsAsync();
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal(1, result[0].Id);
+        Assert.Equal(0, result[0].Depth);
+        Assert.Equal(2, result[1].Id);
+        Assert.Equal(1, result[1].Depth);
+        Assert.Equal("root-a/child", result[1].SlugPath);
+        Assert.Equal(3, result[2].Id);
+        Assert.Equal(0, result[2].Depth);
+    }
+
+    // --- RestorePageAsync ---
+
+    [Fact]
+    public async Task RestorePageAsync_WhenSlugFree_RestoresUnderChosenParent()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        var restoredParent = MakePage(id: 2, title: "Parent", slug: "parent", parentId: null);
+        var restored = MakePage(id: 10, title: "Restored", slug: "restored", parentId: 2);
+
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.GetByIdAsync(2).Returns(restoredParent);
+        _repository.SlugExistsAsync("restored", 2).Returns(false);
+        _repository.GetMaxSortOrderAsync(2).Returns(4);
+        _repository.GetByIdAsync(10).Returns(restored);
+
+        var result = await _sut.RestorePageAsync(10, 2);
+
+        await _repository.Received(1).RestoreSubtreeAsync(10, 2, "restored", 5, Arg.Any<string>());
+        await _repository.Received(1).SaveChangesAsync();
+        Assert.Equal("parent/restored", result.SlugPath);
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenSlugTaken_AppendsTicksSuffix()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        var restored = MakePage(id: 10, title: "Restored", slug: "restored-999", parentId: null);
+
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.SlugExistsAsync("restored", null).Returns(true);
+        _repository.GetMaxSortOrderAsync(null).Returns(-1);
+        _repository.GetByIdAsync(10).Returns(restored);
+
+        await _sut.RestorePageAsync(10, null);
+
+        await _repository.Received(1).RestoreSubtreeAsync(
+            10,
+            null,
+            Arg.Is<string>(s => s.StartsWith("restored-") && s.Length > "restored-".Length),
+            0,
+            Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenRootNotFound_Throws()
+    {
+        _repository.GetByIdIncludingDeletedAsync(99).ReturnsNull();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.RestorePageAsync(99, null));
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_WhenTargetParentMissingOrDeleted_Throws()
+    {
+        var deletedRoot = MakePage(id: 10, title: "Restored", slug: "restored", parentId: null);
+        _repository.GetByIdIncludingDeletedAsync(10).Returns(deletedRoot);
+        _repository.GetByIdAsync(7).ReturnsNull();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _sut.RestorePageAsync(10, 7));
     }
 
     // --- Depth limits ---
@@ -392,6 +565,188 @@ public sealed class WikiServiceTests
         // MaxDepth of 10 parent lookups + the page itself = at most 11 segments
         Assert.True(segments.Length <= 11,
             $"Slug path should be capped but had {segments.Length} segments");
+    }
+
+    // --- SearchAsync ---
+
+    [Fact]
+    public async Task SearchAsync_EmptyQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("", page: 1);
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        Assert.Empty(result.Items);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_WhitespaceQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("   ", page: 1);
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_SingleCharQuery_ReturnsError()
+    {
+        var result = await _sut.SearchAsync("a", page: 1);
+
+        Assert.Equal(SearchInvalidReason.BelowMinimumLength, result.InvalidReason);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_DelegatesToRepository_WithCorrectSkipTake()
+    {
+        _repository.SearchAsync("publish", 40, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        var result = await _sut.SearchAsync("publish", page: 3);
+
+        await _repository.Received(1).SearchAsync("publish", 40, 20);
+        Assert.Null(result.InvalidReason);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TrimsWhitespace_BeforeDelegating()
+    {
+        _repository.SearchAsync("publish", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        await _sut.SearchAsync("   publish   ", page: 1);
+
+        await _repository.Received(1).SearchAsync("publish", 0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OutOfRangePage_ClampsToLastPage()
+    {
+        // Page 99 requested, total = 25 rows, pageSize = 20 → clamps to page 2.
+        _repository.SearchAsync("publish", 1960, 20)   // initial skip = (99-1)*20 = 1960
+            .Returns((new List<WikiPageSearchResultDto>(), 25));
+        _repository.SearchAsync("publish", 20, 20)     // clamped skip = (2-1)*20 = 20
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 1, Title = "p", Slug = "p" }
+            }, 25));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "p", slug: "p")
+        });
+
+        var result = await _sut.SearchAsync("publish", page: 99);
+
+        Assert.Equal(2, result.Page);
+        Assert.Equal(25, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OversizedQuery_TruncatesBeforeDelegating()
+    {
+        var oversize = new string('x', 300);
+        _repository.SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>())
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>());
+
+        await _sut.SearchAsync(oversize, page: 1);
+
+        await _repository.Received(1).SearchAsync(
+            Arg.Is<string>(s => s.Length == 200),
+            0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_EnrichesSlugPath_ViaParentChainLookup()
+    {
+        _repository.SearchAsync("api", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
+            }, 1));
+        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        {
+            MakePage(id: 1, title: "Docs", slug: "docs"),
+            MakePage(id: 2, title: "API", slug: "api", parentId: 1)
+        });
+
+        var result = await _sut.SearchAsync("api", page: 1);
+
+        Assert.Single(result.Items);
+        Assert.Equal("docs/api", result.Items[0].SlugPath);
+    }
+
+    // --- Write paths populate BodyPlainText ---
+
+    [Fact]
+    public async Task CreatePageAsync_StripsHtmlTagsToPlainText_BeforeSave()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.SlugExistsAsync(Arg.Any<string>(), Arg.Any<int?>()).Returns(false);
+        _repository.GetMaxSortOrderAsync(Arg.Any<int?>()).Returns(0);
+        _repository.AddPageAsync(
+                Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
+            .Returns(MakePage(id: 1, title: "t", slug: "t"));
+        _repository.GetByIdAsync(1).Returns(MakePage(id: 1, title: "t", slug: "t"));
+
+        await _sut.CreatePageAsync(new CreateWikiPageDto { Title = "Title", Content = "<p>body</p>" });
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_StripsHtmlTagsToPlainText_BeforeSave()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "t", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, new UpdateWikiPageDto { Title = "Title", Content = "<p>body</p>" });
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).UpdatePageAsync(
+            5, "Title", "<p>body</p>", Arg.Any<string>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task RevertToVersionAsync_StripsHtmlTagsToPlainText_FromVersionContent()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetVersionByIdAsync(3).Returns(new WikiPageVersionDto
+        {
+            Id = 3, VersionNumber = 1, Title = "Old", Content = "<p>old body</p>"
+        });
+        _repository.GetMaxVersionNumberAsync(10).Returns(2);
+        _repository.GetByIdAsync(10).Returns(MakePage(id: 10, title: "Old", slug: "old"));
+
+        await _sut.RevertToVersionAsync(10, 3);
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).UpdatePageAsync(
+            10, "Old", "<p>old body</p>", Arg.Any<string>(), "stripped text");
+    }
+
+    [Fact]
+    public async Task RestorePageAsync_StripsHtmlTagsToPlainText_FromRootContent()
+    {
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>()).Returns("stripped text");
+        _repository.GetByIdIncludingDeletedAsync(10)
+            .Returns(MakePage(id: 10, title: "Restored", slug: "restored", content: "<p>restored body</p>"));
+        _repository.SlugExistsAsync("restored", null).Returns(false);
+        _repository.GetMaxSortOrderAsync(null).Returns(-1);
+        _repository.GetByIdAsync(10)
+            .Returns(MakePage(id: 10, title: "Restored", slug: "restored"));
+
+        await _sut.RestorePageAsync(10, null);
+
+        _htmlRenderer.Received(1).StripTagsToPlainText(Arg.Any<string?>());
+        await _repository.Received(1).RestoreSubtreeAsync(
+            10, null, "restored", 0, "stripped text");
     }
 
     // --- Helpers ---

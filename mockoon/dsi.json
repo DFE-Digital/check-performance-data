@@ -223,6 +223,37 @@
       "responseMode": null,
       "streamingMode": null,
       "streamingInterval": 0
+    },
+    {
+      "uuid": "d45fa158-51dd-453f-b42c-d91399d39cbb",
+      "type": "http",
+      "documentation": "",
+      "method": "get",
+      "endpoint": "services/:serviceId/organisations/:orgId/users/:userid",
+      "responses": [
+        {
+          "uuid": "a067ef3c-42f9-4936-8374-f4258ae7e2a9",
+          "body": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_user\"\n    }, {\n      \"code\" : \"cypmd_content_access_user\"\n    }, {\n      \"code\" : \"cypmd_admin\"\n    }\n  ]\n}",
+          "latency": 0,
+          "statusCode": 200,
+          "label": "",
+          "headers": [],
+          "bodyType": "DATABUCKET",
+          "filePath": "",
+          "databucketID": "k2ub",
+          "sendFileAsBody": false,
+          "rules": [],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "crudKey": "id",
+          "callbacks": []
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
     }
   ],
   "proxyMode": false,
@@ -266,6 +297,10 @@
     {
       "type": "route",
       "uuid": "875fde29-81cb-4a2d-a2db-c5b3b7c8b65f"
+    },
+    {
+      "type": "route",
+      "uuid": "d45fa158-51dd-453f-b42c-d91399d39cbb"
     }
   ],
   "data": [
@@ -274,14 +309,42 @@
       "id": "97jr",
       "name": "User4to16",
       "documentation": "",
-      "value": "[{\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 4,\n    \"statutoryHighAge\": 16, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n  ]"
+      "value": "[{\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation 4 - 16\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 4,\n    \"statutoryHighAge\": 16, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n  ]"
     },
     {
       "uuid": "808588ff-4654-49b4-93d0-56cb4731b561",
       "id": "w3gi",
       "name": "User11to18",
       "documentation": "",
-      "value": "[\n  {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 11,\n    \"statutoryHighAge\": 18, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n]"
+      "value": "[\n  {\n    \"id\": \"mockoon-org-456\",\n    \"name\": \"Mockoon Organisation 11 - 18\",\n    \"establishmentNumber\": \"1234\",\n    \"localAuthority\": {\n        \"code\": \"999\"\n    },\n    \"legalName\": \"Mockoon Legal Name\",\n    \"urn\": \"URN12345\",\n    \"uid\": \"UID1234\",\n    \"upin\": \"upin\",\n    \"ukprn\": \"ukprn\",\n    \"EstablishmentNumber\": \"est1234\",\n    \"address\": \"Acia Lane\",\n    \"telephone\": \"0123456888\",\n    \"statutoryLowAge\": 11,\n    \"statutoryHighAge\": 18, \n    \"legacyId\": \"Leg123\",\n    \"companyRegistrationNumber\": \"CRN123\",\n    \"role\": {\n      \"id\": 0,\n      \"name\": \"End User\"\n    }\n  }\n]"
+    },
+    {
+      "uuid": "49d90fe9-c898-40e1-9f0b-85410b1655ed",
+      "id": "k2ub",
+      "name": "RolesAll",
+      "documentation": "",
+      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_user\"\n    }, {\n      \"code\" : \"cypmd_content_access_user\"\n    }, {\n      \"code\" : \"cypmd_admin\"\n    }\n  ]\n}"
+    },
+    {
+      "uuid": "c7619474-cd08-454d-8a57-1d0dec489c14",
+      "id": "t2co",
+      "name": "RolesUser",
+      "documentation": "",
+      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_user\"\n    }\n  ]\n}"
+    },
+    {
+      "uuid": "583c9064-0ed4-4ee6-9074-d91be428831d",
+      "id": "usx4",
+      "name": "RolesAdmin",
+      "documentation": "",
+      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_admin\"\n    }\n  ]\n}"
+    },
+    {
+      "uuid": "bc4a20d5-76e7-4505-8fa6-489e5bcc1885",
+      "id": "1scs",
+      "name": "RolesContent",
+      "documentation": "",
+      "value": "{\n  \"roles\" : [\n    {\n      \"code\" : \"cypmd_content_access_user\"\n    }\n  ]\n}"
     }
   ]
 }

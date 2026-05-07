@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -45,10 +46,12 @@ try
     
     builder.Services.AddHttpContextAccessor();
    
+    builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
+
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
-        .AddGovUkFrontend(options => options.Rebrand = true);
+        .AddGovUkFrontend();
     
     builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
     builder.Services.AddApplicationDependencies();
@@ -107,12 +110,12 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " +
-            "img-src 'self' data: blob:; " +
-            "font-src 'self' data: https://cdnjs.cloudflare.com; " +
-            "connect-src 'self'; " +
-            "frame-src 'self'; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://fonts.googleapis.com; " +
+            "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
+            "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+            "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "frame-src 'self' https://*.googletagmanager.com; " +
             "object-src 'none'; " +
             "base-uri 'self'; " +
             "form-action 'self'");

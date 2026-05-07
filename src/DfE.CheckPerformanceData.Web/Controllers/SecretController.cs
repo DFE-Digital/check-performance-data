@@ -23,14 +23,15 @@ public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbC
 
         var orgJson = User.FindFirst("organisation")?.Value ?? "{}";
         var org = JsonNode.Parse(orgJson);
-        var orgId = org["id"]?.ToString() ?? string.Empty;
+        var orgId = org!["id"]?.ToString() ?? string.Empty;
         
-        var organisation = await dfeSignInApiClient.GetOrganisationAsync(userid, orgId);
+        var organisation = await dfeSignInApiClient.GetOrganisationAsync(userid!, orgId);
 
         var vm = new SecretViewModel
         {
             UserName = User.FindFirstValue(ClaimTypes.GivenName) + " " + User.FindFirstValue(ClaimTypes.Surname),
-            Organisation = organisation
+            Organisation = organisation!,
+            Roles = string.Join(',', User.FindAll(ClaimTypes.Role).Select(c => c.Value)) 
         };
 
         var now = DateTime.UtcNow;
@@ -40,7 +41,7 @@ public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbC
         return View(vm);
     }
 
-    public async Task<IActionResult> SignOut()
+    public async Task<IActionResult> DfeSignOut()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);

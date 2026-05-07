@@ -87,5 +87,45 @@ variable "replicas" {
   type = number
 }
 
+variable "blob_delete_after_days" {
+  type        = number
+  description = "Number of days after which blobs will be deleted. Set to 0 to disable automatic deletion."
+  default     = 7
+  validation {
+    condition     = var.blob_delete_after_days >= 0 && var.blob_delete_after_days <= 9999
+    error_message = "The blob_delete_after_days must be between 0 and 9999. Set to 0 to disable."
+  }
+}
 
+variable "blob_delete_retention_days" {
+  type        = number
+  description = "Number of days to retain deleted blobs. Set to null to disable retention policy."
+  default     = null
+  validation {
+    condition     = var.blob_delete_retention_days == null ? true : (var.blob_delete_retention_days >= 1 && var.blob_delete_retention_days <= 365)
+    error_message = "The blob_delete_retention_days must be between 1 and 365, or null to disable retention policy"
+  }
+}
+
+variable "container_delete_retention_days" {
+  type        = number
+  description = "Number of days to retain deleted containers. Set to null to disable retention policy."
+  default     = null
+  validation {
+    condition     = var.container_delete_retention_days == null ? true : (var.container_delete_retention_days >= 1 && var.container_delete_retention_days <= 365)
+    error_message = "The container_delete_retention_days must be between 1 and 365, or null to disable retention policy"
+  }
+}
+
+variable "use_private_storage" {
+  type        = bool
+  description = "Use private endpoints and private DNS for storage accounts"
+  default     = true
+}
+
+locals {
+  azure_storage_account_name = module.storage_private.name
+  azure_storage_access_key   = module.storage_private.primary_access_key
+  azure_storage_container    = module.storage_private.primary_blob_endpoint
+}
 

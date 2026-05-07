@@ -19,10 +19,20 @@ public sealed class ContentBlockService(
         if (existing == null)
         {
             ContentBlockDto? created = null;
+            var hasBaseline = !string.IsNullOrEmpty(dto.OriginalValue) && dto.OriginalValue != dto.Value;
+
             await repository.ExecuteInTransactionAsync(async () =>
             {
                 created = await repository.AddBlockAsync(dto.Key, dto.BlockType, dto.Value);
-                await repository.AddVersionAsync(created.Id, dto.Value, 1);
+                if (hasBaseline)
+                {
+                    await repository.AddVersionAsync(created.Id, dto.OriginalValue!, 1);
+                    await repository.AddVersionAsync(created.Id, dto.Value, 2);
+                }
+                else
+                {
+                    await repository.AddVersionAsync(created.Id, dto.Value, 1);
+                }
             });
             return EnrichDto(created!);
         }
@@ -32,10 +42,21 @@ public sealed class ContentBlockService(
             return EnrichDto(existing);
         }
 
-        await repository.UpdateValueAsync(existing.Id, dto.Value);
+        await repository.ExecuteInTransactionAsync(async () =>
+        {
+            var maxVersion = await repository.GetMaxVersionNumberAsync(existing.Id);
+            await repository.UpdateValueAsync(existing.Id, dto.Value);
 
-        var maxVersion = await repository.GetMaxVersionNumberAsync(existing.Id);
-        await repository.AddVersionAsync(existing.Id, dto.Value, maxVersion + 1);
+            if (maxVersion == 0)
+            {
+                await repository.AddVersionAsync(existing.Id, existing.Value, 1);
+                await repository.AddVersionAsync(existing.Id, dto.Value, 2);
+            }
+            else
+            {
+                await repository.AddVersionAsync(existing.Id, dto.Value, maxVersion + 1);
+            }
+        });
 
         var updated = await repository.GetByKeyAsync(dto.Key)
             ?? throw new InvalidOperationException($"Content block '{dto.Key}' not found after update.");

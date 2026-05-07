@@ -1,23 +1,14 @@
-﻿@{
+@{
     Layout = "_GovUkPageTemplate";
 }
-
+<head>
+    @await Html.PartialAsync("_GtmHead")
+    @Html.GovUkFrontendStyleImports()
+</head>
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" />
-    @* <govuk-cookie-banner aria-label="Cookie on [name of service]"> *@
-    @*     <govuk-cookie-banner-message> *@
-    @*         <govuk-cookie-banner-message-heading>Cookies on [name of service]</govuk-cookie-banner-message-heading> *@
-    @*         <govuk-cookie-banner-message-content> *@
-    @*             <p class="govuk-body">We use some essential cookies to make this service work.</p> *@
-    @*             <p class="govuk-body">We’d also like to use analytics cookies so we can understand how you use the service and make improvements.</p> *@
-    @*         </govuk-cookie-banner-message-content> *@
-    @*         <govuk-cookie-banner-message-actions> *@
-    @*             <govuk-cookie-banner-message-action text="Accept analytics cookies" type="button"/> *@
-    @*             <govuk-cookie-banner-message-action text="Reject analytics cookies" type="button"/> *@
-    @*             <govuk-cookie-banner-message-action-link text="View cookies" href="#"/> *@
-    @*         </govuk-cookie-banner-message-actions> *@
-    @*     </govuk-cookie-banner-message> *@
-    @* </govuk-cookie-banner> *@
+    @await Html.PartialAsync("_CookieBanner")
+    @await Html.PartialAsync("_GtmBody")
 }
 
 @section Header {
@@ -27,7 +18,7 @@
             <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
             @if (@User.Identity is { IsAuthenticated: true })
             {
-                <govuk-service-navigation-nav-item href="@Url.Action("SignOut", "Secret")">Sign out
+                <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Secret")">Sign out
                 </govuk-service-navigation-nav-item>
             }
         </govuk-service-navigation-nav>
@@ -44,7 +35,9 @@
     </div>
 }
 
+@Html.GovUkFrontendJsEnabledScript()
 @RenderBody()
+@Html.GovUkFrontendScriptImports()
 
 @section Footer {
     <footer class="govuk-footer">
@@ -68,29 +61,10 @@
             <p>If you have a question, or you're having a problem using this service, you can <a href="#" class="govuk-link">send us a message</a> or call us on 0300 131 2762</p>
             <p>
                 <a href="#" class="govuk-footer__link">Privacy</a>
-                <a href="#" class="govuk-footer__link">Cookies</a>
+                <a href="/cookies" class="govuk-footer__link">Cookies</a>
                 <a href="#" class="govuk-footer__link">Accessibility statement</a>
                 <a href="#" class="govuk-footer__link">Guidance</a>
             </p>
-            @* <div class="govuk-footer__navigation"> *@
-            @*     <div class="govuk-footer__section govuk-grid-column-two-thirds"><h2 *@
-            @*             class="govuk-footer__heading govuk-heading-m">Two column list</h2> *@
-            @*         <ul class="govuk-footer__list govuk-footer__list--columns-2"> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 1</a> *@
-            @*             </li> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 2</a> *@
-            @*             </li> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 3</a> *@
-            @*             </li> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 4</a> *@
-            @*             </li> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 5</a> *@
-            @*             </li> *@
-            @*             <li class="govuk-footer__list-item"><a class="govuk-footer__link" href="#">Navigation item 6</a> *@
-            @*             </li> *@
-            @*         </ul> *@
-            @*     </div> *@
-            @* </div> *@
             <hr class="govuk-footer__section-break">
             <div class="govuk-footer__meta">
                 <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
@@ -113,4 +87,5 @@
 
 @section BodyEnd {
     <script src="~/js/site.js"></script>
+    <script src="~/js/cookies.js"></script>
 }

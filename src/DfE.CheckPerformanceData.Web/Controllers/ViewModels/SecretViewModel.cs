@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public sealed class SecretViewModel
 {
-    public string UserName { get; set; }
-    //public string OrganisationName { get; set; }
-    public OrganisationDto Organisation { get; set; }
+    public string UserName { get; init; } = string.Empty;
+    public required OrganisationDto Organisation { get; init; }
+    public string Roles { get; init; }  = string.Empty;
 }

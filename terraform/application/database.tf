@@ -31,17 +31,3 @@ module "redis-cache" {
   server_version            = "6"
 }
 
-module "storage" {
-  source = "./vendor/modules/aks//aks/storage_account"
-#  count  = var.deploy_azure_backing_services ? 1 : 0
-
-  name = "app"
-
-  environment                       = var.environment
-  azure_resource_prefix             = var.azure_resource_prefix
-  service_short                     = var.service_short
-  config_short                      = var.config_short
-  public_network_access_enabled     = false
-  infrastructure_encryption_enabled = false
-  create_encryption_scope           = false
-}

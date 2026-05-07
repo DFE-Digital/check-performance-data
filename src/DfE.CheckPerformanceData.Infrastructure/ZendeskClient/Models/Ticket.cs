@@ -102,25 +102,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
             }
         }
 
-        /// <summary>
-        /// Gets the value for the 'request_StudentRemoveCategoryUnderscore' field, or null if not found.
-        /// </summary>
-        public string? DescriptionReasonForRemoval => DescriptionFields?.GetValueOrDefault("request_StudentRemoveCategoryUnderscore");
-
-        /// <summary>
-        /// Gets the value for the 'request_Outcome' field, or null if not found.
-        /// </summary>
-        public string? DescriptionOutcome => DescriptionFields?.GetValueOrDefault("request_Outcome");
-
-        /// <summary>
-        /// Gets the value for the 'request_StudentDfEEN' field, or null if not found.
-        /// </summary>
-        public string? DescriptionStudentDfEEN => DescriptionFields?.GetValueOrDefault("request_StudentDfEEN");
-
-        /// <summary>
-        /// Gets the value for the 'request_StudentUPN' field, or null if not found.
-        /// </summary>
-        public string? DescriptionStudentUPN => DescriptionFields?.GetValueOrDefault("request_StudentUPN");
 
         /// <summary>
         /// Retrieves the value of the 'UPN' custom field based on provided metadata.

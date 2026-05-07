@@ -42,14 +42,6 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         /// </summary>
         public Dictionary<string, string> DescriptionFields { get; set; } = new();
 
-        // Parsed description fields
-        public string? DescriptionReasonForRemoval { get; set; }
-
-        public string? DescriptionOutcome { get; set; }
-
-        public string? DescriptionStudentDfEEN { get; set; }
-
-        public string? DescriptionStudentUPN { get; set; }
 
         public string? CustomFieldsOutcome { get; set; }
 

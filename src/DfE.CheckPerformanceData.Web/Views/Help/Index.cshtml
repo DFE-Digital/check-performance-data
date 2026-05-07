@@ -153,6 +153,16 @@
         {
             <h1 class="govuk-heading-l">Help</h1>
             <p class="govuk-body">Welcome to the help section. @(Model.NavigationTree.Count == 0 ? "Switch to edit mode to create the first page." : "Select a page from the navigation.")</p>
+
+            @if (Model.NavigationTree.Count == 0)
+            {
+                <form asp-controller="Help" asp-action="Seed" method="post" class="govuk-!-margin-top-4">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+                        Seed sample pages
+                    </button>
+                </form>
+            }
         }
     </main>
 </div>

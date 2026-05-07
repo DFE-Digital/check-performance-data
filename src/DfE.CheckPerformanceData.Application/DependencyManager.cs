@@ -14,6 +14,7 @@ public static class DependencyManager
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();
+        services.AddScoped<WikiSeeder>();
 
         return services;
     }

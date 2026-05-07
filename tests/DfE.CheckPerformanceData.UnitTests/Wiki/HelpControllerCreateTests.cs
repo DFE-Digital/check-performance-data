@@ -17,7 +17,7 @@ public sealed class HelpControllerCreateTests
 
     public HelpControllerCreateTests()
     {
-        _sut = new HelpController(_wikiService);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
 
         var httpContext = new DefaultHttpContext();
         _tempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());

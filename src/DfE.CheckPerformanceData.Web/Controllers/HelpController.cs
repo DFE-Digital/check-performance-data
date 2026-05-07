@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class HelpController(IWikiService wikiService) : Controller
+public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
 {
     private bool IsEditMode => 
         Request.Query.ContainsKey("edit") || (Request.HasFormContentType && Request.Form.ContainsKey("editMode"));
@@ -174,6 +174,14 @@ public sealed class HelpController(IWikiService wikiService) : Controller
     {
         var page = await wikiService.RevertToVersionAsync(pageId, versionId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+    }
+
+    [HttpPost("help/seed")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Seed()
+    {
+        await wikiSeeder.SeedAsync();
+        return Redirect("/help");
     }
 }
 

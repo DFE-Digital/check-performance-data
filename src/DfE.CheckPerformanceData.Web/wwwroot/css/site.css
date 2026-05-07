@@ -51,6 +51,19 @@
   gap: 6px;
 }
 
+.wiki-mode-seed-form {
+  display: inline;
+  margin: 0;
+}
+
+.wiki-mode-link--button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 .wiki-mode-icon {
   flex-shrink: 0;
 }

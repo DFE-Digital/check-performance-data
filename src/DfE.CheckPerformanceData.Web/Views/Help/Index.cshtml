@@ -121,6 +121,15 @@
                     </svg>
                     <span>Deleted pages</span>
                 </a>
+                <form asp-controller="Help" asp-action="Seed" method="post" class="wiki-mode-seed-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-link wiki-mode-link wiki-mode-link--button">
+                        <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                            <path d="M8 2v8M4 6l4-4 4 4M3 13h10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <span>Seed sample pages</span>
+                    </button>
+                </form>
             }
             else
             {
@@ -153,16 +162,6 @@
         {
             <h1 class="govuk-heading-l">Help</h1>
             <p class="govuk-body">Welcome to the help section. @(Model.NavigationTree.Count == 0 ? "Switch to edit mode to create the first page." : "Select a page from the navigation.")</p>
-
-            @if (Model.NavigationTree.Count == 0)
-            {
-                <form asp-controller="Help" asp-action="Seed" method="post" class="govuk-!-margin-top-4">
-                    @Html.AntiForgeryToken()
-                    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
-                        Seed sample pages
-                    </button>
-                </form>
-            }
         }
     </main>
 </div>

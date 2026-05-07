@@ -32,9 +32,4 @@
       <PackageReference Include="Riok.Mapperly" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="NewFolder\" />
-    </ItemGroup>
-
 </Project>

@@ -29,12 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
-	<ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
-    <Folder Include="Zendesk\" />
-
-	
-
-
+	  <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
 </ItemGroup>
 
 </Project>

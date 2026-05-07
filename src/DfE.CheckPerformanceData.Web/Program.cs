@@ -8,16 +8,11 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
-using Refit;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
-using System.Net.Http.Headers;
-using System.Text;
-
-
 
 
 Log.Logger = new LoggerConfiguration()

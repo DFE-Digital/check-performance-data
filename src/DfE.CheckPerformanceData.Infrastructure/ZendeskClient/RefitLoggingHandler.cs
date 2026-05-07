@@ -7,13 +7,9 @@
     public sealed class RefitLoggingHandler(ILogger<RefitLoggingHandler> logger) : DelegatingHandler
     {
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var requestBody = await ReadBody(request.Content);
+        {          
             logger.LogDebug("Zendesk API request: {Method} {Uri}", request.Method, request.RequestUri);
-
-            var response = await base.SendAsync(request, cancellationToken);
-
-            var responseBody = await ReadBody(response.Content);
+            var response = await base.SendAsync(request, cancellationToken);           
             logger.LogDebug("Zendesk API response: {StatusCode}", response.StatusCode);
 
             return response;

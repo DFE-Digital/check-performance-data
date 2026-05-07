@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 {
-    public class ZendeskSettings
+    public sealed class ZendeskSettings
     {
         public const string SectionName = "ZendeskSettings";
         public required string Subdomain { get; set; }
@@ -14,8 +13,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 
         /// <summary>
         /// Validates that credentials are configured with actual values (not placeholders).
-        /// Call this during startup to fail fast if settings aren't properly set up.
         /// </summary>
+        [Obsolete("This method is deprecated; use the DI-based configuration validation instead.")]
         public void ValidateOrWarn()
         {
             var placeholders = new[] { "the subdomain", "the domain", "[PLACE THESE IN YOUR USER SECRETS]" };
@@ -28,14 +27,11 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
             if (placeholders.Contains(ApiToken, StringComparer.OrdinalIgnoreCase))
                 invalidValues.Add(nameof(ApiToken));
 
-            if (invalidValues.Count > 0)
-            {
-                Console.WriteLine($"[WARN] ZendeskSettings: '{string.Join(", ", invalidValues)}' is not configured. " +
-                    $"Check user secrets or environment variables.");
-            }
+            // Validation is performed via DI options validation in DependencyManager.AddZendeskApiClient().
         }
     }
-    public class PollySettings
+
+    public sealed class PollySettings
     {
         public const string SectionName = "PollySettings";
         public int MaxRetryAttempts { get; set; } = 3;
@@ -47,7 +43,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
     /// Configuration for the Schools Checking Exercise Zendesk integration.
     /// View title, GroupId and BrandId should be set per environment since they can differ between instances.
     /// </summary>
-    public class SchoolCheckingExerciseSettings
+    public sealed class SchoolCheckingExerciseSettings
     {
         public const string SectionName = "SchoolCheckingExercise";
         public required string TargetViewTitle { get; set; }

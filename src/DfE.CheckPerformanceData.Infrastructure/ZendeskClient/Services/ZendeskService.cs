@@ -6,7 +6,7 @@ using Polly;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 
-public class ZendeskService : IZendeskService
+public sealed class ZendeskService : IZendeskService
 {
     private readonly IZendeskApi _api;
     private readonly PollySettings _settings;

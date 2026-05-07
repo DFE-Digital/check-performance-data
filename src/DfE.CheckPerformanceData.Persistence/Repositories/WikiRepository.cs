@@ -178,6 +178,37 @@ public sealed class WikiRepository(
 
 	// Queries — search (full-text)
 
+	public async Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchPrefixAsync(string tsQuery, int skip, int take)
+	{
+		// to_tsquery is much stricter than websearch_to_tsquery — it raises syntax errors on
+		// punctuation, unbalanced operators, and empty input. The service layer sanitises the
+		// caller-supplied tsquery to alphanumerics and the prefix `:*` marker before we get here.
+		var matching = context.WikiPages
+			.AsNoTracking()
+			.Where(p => p.SearchVector.Matches(EF.Functions.ToTsQuery("english", tsQuery)));
+
+		var total = await matching.CountAsync();
+
+		var items = await matching
+			.OrderByDescending(p => p.SearchVector.Rank(EF.Functions.ToTsQuery("english", tsQuery)))
+			.ThenBy(p => p.Title)
+			.Skip(skip)
+			.Take(take)
+			.Select(p => new WikiPageSearchResultDto
+			{
+				Id = p.Id,
+				Title = p.Title,
+				Slug = p.Slug,
+				ParentId = p.ParentId,
+				SnippetHtml = EF.Functions.ToTsQuery("english", tsQuery).GetResultHeadline(
+					p.BodyPlainText,
+					"StartSel=<mark>,StopSel=</mark>,MaxWords=25,MinWords=15,ShortWord=3,MaxFragments=1")
+			})
+			.ToListAsync();
+
+		return (items, total);
+	}
+
 	public async Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchAsync(string query, int skip, int take)
 	{
 		// EF.Functions.WebSearchToTsQuery MUST appear inline inside each expression tree that

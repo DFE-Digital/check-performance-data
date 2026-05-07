@@ -135,9 +135,7 @@
       - web
     networks:
       - cypd
-    command: >
-      sh -c "dotnet test tests/DfE.CheckPerformanceData.E2ETests/
-             --configuration Release"
+    command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]
 
 volumes:
   postgres_data:

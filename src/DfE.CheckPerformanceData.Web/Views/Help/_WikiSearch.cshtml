@@ -14,7 +14,6 @@
                spellcheck="false"
                value="@currentQuery">
     <govuk-input-label>Search the help pages</govuk-input-label>
-    <govuk-input-hint>End a word with * to match by prefix, e.g. <code>pub*</code> finds publish, published, publishing.</govuk-input-hint>
     @if (hasError)
     {
       <govuk-input-error-message>@Model!.ErrorMessages[0]</govuk-input-error-message>

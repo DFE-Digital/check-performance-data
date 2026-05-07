@@ -1,0 +1,3 @@
+# Diff PNGs are emitted on visual-regression failure for local inspection;
+# CI uploads them as part of the e2e-snapshots artefact. Never commit.
+/Snapshots/diffs/

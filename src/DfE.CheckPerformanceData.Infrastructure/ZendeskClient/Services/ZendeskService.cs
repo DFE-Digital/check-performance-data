@@ -153,21 +153,12 @@ public sealed class ZendeskService : IZendeskService
 
     private async Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> action, string operationName)
     {
-        try
-        {
-            _logger.LogDebug("Executing Zendesk operation: {OperationName}", operationName);
-            var result = await _resiliencePipeline.ExecuteAsync(
-                async ct => await action(),
-                CancellationToken.None);
-            _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
-            return result;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
-        {
-            // Log the message then re-throw via a factory to preserve original exception chain.
-            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
-            throw new ZendeskApiException($"An unexpected error occurred during {operationName}.", ex.InnerException ?? ex);
-        }
+        return await ResiliencePipelineHelper.ExecuteWithResilienceAsync(
+            _resiliencePipeline,
+            () => action(),
+            operationName,
+            logger: _logger,
+            onSuccess: () => _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName));
     }
 
     private async Task<TDto> ExecuteWithResilienceAndMappingAsync<TIn, TDto>(
@@ -176,25 +167,13 @@ public sealed class ZendeskService : IZendeskService
         string operationName,
         Func<Exception, ZendeskApiException> errorFactory)
     {
-        try
-        {
-            _logger.LogDebug("Executing Zendesk operation: {OperationName}", operationName);
-            var result = await _resiliencePipeline.ExecuteAsync(
-                async ct => await action(),
-                CancellationToken.None);
-            _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
-            return mapper(result);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
-        {
-            // Log the message then re-throw via factory to preserve error messages & exception chain.
-            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
-            throw errorFactory(ex);
-        }
-    }
-
-    private static bool IsZendeskApiException(Exception ex)
-    {
-        return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
+        return await ResiliencePipelineHelper.ExecuteWithResilienceAndMapAsync(
+            _resiliencePipeline,
+            () => action(),
+            mapper,
+            operationName,
+            logger: _logger,
+            onSuccess: () => _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName),
+            errorFactory: errorFactory);
     }
 }

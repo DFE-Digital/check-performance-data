@@ -72,7 +72,7 @@ public sealed class ZendeskAttachmentService : IZendeskAttachmentService
         {
             throw;
         }
-        catch (Exception ex) when (!IsZendeskApiException(ex))
+        catch (Exception ex) when (!ResiliencePipelineHelper.IsZendeskApiException(ex))
         {
             _logger.LogError(ex, "Error uploading attachment to ticket {TicketId}", ticketId);
             var inner = ex.InnerException ?? ex;
@@ -82,30 +82,12 @@ public sealed class ZendeskAttachmentService : IZendeskAttachmentService
 
     private async Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> action, string operationName, Func<Exception, ZendeskApiException>? errorFactory = null)
     {
-        try
-        {
-            _logger.LogDebug("Executing Zendesk operation: {OperationName}", operationName);
-            var result = await _resiliencePipeline.ExecuteAsync(
-                async ct => await action(),
-                CancellationToken.None);
-            _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName);
-            return result;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException && !IsZendeskApiException(ex))
-        {
-            // Log the message then re-throw via factory to preserve original exception chain.
-            _logger.LogError(ex, "{Message}", $"Error during Zendesk operation: {operationName}");
-
-            if (errorFactory != null)
-                throw errorFactory(ex);
-
-            var inner = ex.InnerException ?? ex;
-            throw new ZendeskApiException($"An unexpected error occurred during {operationName}.", inner);
-        }
-    }
-
-    private static bool IsZendeskApiException(Exception ex)
-    {
-        return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
+        return await ResiliencePipelineHelper.ExecuteWithResilienceAsync(
+            _resiliencePipeline,
+            () => action(),
+            operationName,
+            logger: _logger,
+            onSuccess: () => _logger.LogDebug("Successfully completed Zendesk operation: {OperationName}", operationName),
+            errorFactory: errorFactory ?? (ex => new ZendeskApiException($"An unexpected error occurred during {operationName}.", ex.InnerException ?? ex)));
     }
 }

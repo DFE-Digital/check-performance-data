@@ -7,8 +7,6 @@ using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
-using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
-
 using GovUk.Frontend.AspNetCore;
 using Refit;
 using Microsoft.EntityFrameworkCore;
@@ -60,7 +58,6 @@ try
 
     builder.Services
         .AddDfeApiClient(builder.Configuration)
-        .AddZendeskApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend();
     

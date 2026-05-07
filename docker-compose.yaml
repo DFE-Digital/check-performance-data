@@ -1,6 +1,6 @@
 ﻿services:
   web:
-    profiles: [web, all]
+    profiles: [web, all, e2e]
     container_name: cypd_web
     restart: unless-stopped
     build:
@@ -57,7 +57,7 @@
       - cypd
 
   db:
-    profiles: [database, all]
+    profiles: [database, all, e2e]
     container_name: cypd_db
     restart: unless-stopped
     image: postgres:18.1-alpine
@@ -90,7 +90,7 @@
       - cypd
 
   azurite:
-    profiles: [storage, all]
+    profiles: [storage, all, e2e]
     container_name: cypd_azurite
     restart: unless-stopped
     image: mcr.microsoft.com/azure-storage/azurite:latest
@@ -103,10 +103,47 @@
     networks:
       - cypd
 
+  e2e-tests:
+    profiles: [e2e]
+    container_name: cypd_e2e_tests
+    # Image tag is pinned in tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    # (FROM line) — must move in lockstep with the Microsoft.Playwright NuGet
+    # version in src/Directory.Packages.props. Drift surfaces via
+    # `bash scripts/check-playwright-pin.sh`.
+    build:
+      context: .
+      dockerfile: tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    image: cypd_e2e_tests:latest
+    working_dir: /work
+    environment:
+      - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
+      - NUGET_PACKAGES=/root/.nuget/packages
+      - DOTNET_NOLOGO=1
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+    # The bind-mount lets dotnet test see the full source tree and write
+    # diff PNGs back to the host on visual-regression failure. The named
+    # cpd-nuget-cache volume persists package restore across --rm runs so
+    # subsequent invocations start in seconds, not minutes.
+    volumes:
+      - ./:/work
+      - cpd-nuget-cache:/root/.nuget/packages
+    # depends_on uses default condition (service_started). PlaywrightFixture
+    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
+    # any test exercises the web app — that is the authoritative readiness
+    # gate. (web service has no compose-level healthcheck today.)
+    depends_on:
+      - web
+    networks:
+      - cypd
+    command: >
+      sh -c "dotnet test tests/DfE.CheckPerformanceData.E2ETests/
+             --configuration Release"
+
 volumes:
   postgres_data:
   azurite_data:
   pgadmin_data:
+  cpd-nuget-cache:
 
 networks:
   cypd:

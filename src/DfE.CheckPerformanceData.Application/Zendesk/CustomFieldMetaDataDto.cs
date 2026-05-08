@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-// Please install Json.NET (Newtonsoft.Json) NuGet package if not already installed in your project for JSON serialization/deserialization operations.
-// You can download it from https://www.newtonsoft.com/json
+
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
     public class CustomFieldMetaDataDto

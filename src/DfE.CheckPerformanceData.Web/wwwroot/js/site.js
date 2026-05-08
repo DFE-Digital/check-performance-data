@@ -1,4 +1,16 @@
 (function () {
+    // Runs synchronously before DOMContentLoaded so GOV.UK tabs init sees the hash.
+    // history.replaceState sets the hash without triggering a browser scroll.
+    var params = new URLSearchParams(location.search);
+    var activeTab = params.get('activeTab');
+    if (activeTab) {
+        params.delete('activeTab');
+        var search = params.toString() ? '?' + params.toString() : '';
+        history.replaceState(null, '', location.pathname + search + '#' + activeTab);
+    }
+})();
+
+(function () {
     'use strict';
 
     // ====================================================================

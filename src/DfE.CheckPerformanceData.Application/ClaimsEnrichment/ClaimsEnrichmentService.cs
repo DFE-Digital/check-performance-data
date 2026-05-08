@@ -21,6 +21,12 @@ public sealed class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : ICl
         if (roles.Count == 0) return null;
         
         var roleClaims = roles.Select(r => new Claim(ClaimTypes.Role, r.Code));
-        return new ClaimsIdentity(roleClaims, "DfeSignIn");
+
+        var organisation = await apiClient.GetOrganisationAsync(userid, orgId);
+        
+        var newIdentity = new ClaimsIdentity(roleClaims, "DfeSignIn");
+        newIdentity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
+        newIdentity.AddClaim(new Claim("organisation_name", organisation!.Name, ClaimValueTypes.String));
+        return newIdentity;
     }
 }

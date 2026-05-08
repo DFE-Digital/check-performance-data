@@ -1,0 +1,97 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.LandingPageViewModel
+
+@{
+    ViewBag.Title = "Check Performance Data - Check Data";
+    Layout = "_Layout";
+}
+
+<h1 class="govuk-heading-xl">@Model.OrganisationName</h1>
+
+<div class="school-details">
+    <dl class="govuk-summary-list">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Address</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationAddress</dd>
+        </div>
+        
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Establishment LAESTAB</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationLaestab</dd>
+        </div>
+
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Establishment URN</dt>
+            <dd class="govuk-summary-list__value">@Model.OrganisationUrn</dd>
+        </div>
+    </dl>
+</div>
+
+<hr class="govuk-section-break govuk-section-break--xl govuk-section-break--visible">
+
+@if (Model.OpenWindows.Any())
+{
+    <h2 class="govuk-heading-m">Check data</h2>
+    <div class="dfe-grid-container">
+    @foreach (var openWindow in Model.OpenWindows)
+    {
+        <div class="dfe-card">
+            <div class="dfe-card-container">
+                <h3 class="govuk-heading-m">@openWindow.Title</h3>
+                @if (openWindow.HasPupilData)
+                {
+                    <p>You have until @openWindow.EndTime on @openWindow.EndDate to review your data.</p>
+
+                    <div>
+                        <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@openWindow.Id" role="button" class="govuk-button">
+                            Continue
+                        </a>
+                    </div>
+                }
+                else
+                {
+                    <p><strong>There is no data available for your school.</strong></p>
+                    <p>Your school does not have any pupil data in the current checking dataset. If you believe this is incorrect, <a href="#">contact us</a></p>
+                }
+            </div>
+        </div>
+    }
+    </div>
+}
+
+@if (Model.ClosedWindows.Any())
+{
+    <h2 class="govuk-heading-m">Closed Checking Windows</h2>
+    <p class="govuk-body">These checking windows are now closed. You can still view and download your pupil data CSV files for your school</p>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Title</th>
+                <th scope="col" class="govuk-table__header">Start Date</th>
+                <th scope="col" class="govuk-table__header">End Date</th>
+                <th scope="col" class="govuk-table__header"></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var closedWindow in Model.ClosedWindows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@closedWindow.Title</td>
+                    <td class="govuk-table__cell">@closedWindow.StartDate</td>
+                    <td class="govuk-table__cell">@closedWindow.EndDate</td>
+                    <td class="govuk-table__cell">
+                        @if (closedWindow.HasPupilData)
+                        {
+                            <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@closedWindow.Id" role="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">
+                                Continue
+                            </a>
+                        }
+                        else
+                        {
+                            <text>No pupil data</text>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

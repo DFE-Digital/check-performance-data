@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
-  </ItemGroup>
+	  <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
+</ItemGroup>
 
 </Project>

@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -47,6 +48,12 @@ try
                 : new CompactJsonFormatter());
     });
     
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
@@ -95,6 +102,8 @@ try
 
     await app.MigrateDatabaseAsync();
 
+    app.UseForwardedHeaders();
+
     app.UseSerilogRequestLogging(options =>
     {
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -141,6 +150,8 @@ try
             "form-action 'self'");
         await next();
     });
+
+    app.UseStaticFiles();
 
     app.UseSession();
 

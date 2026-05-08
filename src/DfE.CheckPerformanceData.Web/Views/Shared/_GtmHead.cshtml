@@ -1,0 +1,43 @@
+@using DfE.CheckPerformanceData.Web.Settings
+@using Microsoft.Extensions.Options
+@inject IOptions<GtmSettings> GtmOptions
+@{
+    var gtm = GtmOptions.Value;
+}
+@if (gtm.Enabled && !string.IsNullOrEmpty(gtm.ContainerId))
+{
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+
+        gtag('consent', 'default', {
+            'analytics_storage': 'denied',
+            'ad_storage': 'denied',
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied'
+        });
+
+        (function () {
+            var match = document.cookie.match(/(?:^|;\s*)cookies_policy=([^;]*)/);
+            if (match) {
+                try {
+                    var policy = JSON.parse(decodeURIComponent(match[1]));
+                    if (policy.analytics === true) {
+                        gtag('consent', 'update', { 'analytics_storage': 'granted' });
+                    }
+                } catch (e) { }
+            }
+        })();
+    </script>
+    <script>
+        (function (w, d, s, l, i) {
+            w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+            var f = d.getElementsByTagName(s)[0],
+                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
+            j.async = true;
+            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl +
+                '&gtm_auth=@gtm.AuthKey&gtm_preview=@gtm.PreviewId&gtm_cookies_win=x';
+            f.parentNode.insertBefore(j, f);
+        })(window, document, 'script', 'dataLayer', '@gtm.ContainerId');
+    </script>
+}

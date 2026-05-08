@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 
-namespace DfE.CheckPerformanceData.IntegrationTests.ZendeskClient;
+namespace DfE.CheckPerformanceData.UnitTests.ZendeskClient;
 
 public sealed class ZendeskAttachmentServiceTests : IDisposable
 {

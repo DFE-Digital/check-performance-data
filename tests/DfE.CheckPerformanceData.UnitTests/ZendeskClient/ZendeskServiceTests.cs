@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
 
-namespace DfE.CheckPerformanceData.IntegrationTests.ZendeskClient;
+namespace DfE.CheckPerformanceData.UnitTests.ZendeskClient;
 
 public static class TestExtensions
 {

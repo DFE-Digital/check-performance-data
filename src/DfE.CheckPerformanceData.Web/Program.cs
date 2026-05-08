@@ -8,10 +8,12 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -24,9 +26,10 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     var configuration = builder.Configuration
-        .SetBasePath(builder.Environment.ContentRootPath)
+        .SetBasePath(builder.Environment.ContentRootPath)     
         .AddJsonFile("appsettings.json", false, true)
         .AddEnvironmentVariables()
+        .AddUserSecrets<Program>(optional: true)
         .Build();
 
     builder.Host.UseSerilog((context, services, config) =>

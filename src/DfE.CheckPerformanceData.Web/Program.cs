@@ -56,7 +56,8 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend();
     
-    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
+    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
+    builder.Services.AddPersistenceDependencies(configuration, seedData);
     builder.Services.AddApplicationDependencies();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 

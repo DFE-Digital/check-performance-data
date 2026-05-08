@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class ListViewTicketsRequest
+    public sealed class ListViewTicketsRequest
     {
         public int? Page { get; set; }
         public int? PerPage { get; set; }

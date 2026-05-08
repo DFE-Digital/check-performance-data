@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 /// should find the common fields between the windows for pupils and then any window specific fields can be in a separate model.
 /// This is the plan at the moment to avoid us having separate screens and logic for each window.
 /// </summary>
-public class Pupil
+public sealed class Pupil
 {
     public Guid Id { get; init; }
     public Guid CheckingWindowId { get; init; }

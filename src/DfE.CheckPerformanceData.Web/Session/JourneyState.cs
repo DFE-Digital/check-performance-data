@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
 namespace DfE.CheckPerformanceData.Web.Session;
 
-public class JourneyState
+public sealed class JourneyState
 {
     public NextSteps? SelectedNextStep { get; set; }
     public WhatToChange? SelectedWhatToChange { get; set; }

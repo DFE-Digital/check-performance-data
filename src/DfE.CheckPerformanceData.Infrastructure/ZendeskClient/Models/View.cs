@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class View
+    public sealed class View
     {
         [JsonProperty("id")]
         public long? Id { get; set; }

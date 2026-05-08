@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class TicketDto
+    public sealed class TicketDto
     {
         public long Id { get; set; }
 

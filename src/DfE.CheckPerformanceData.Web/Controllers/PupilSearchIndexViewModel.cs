@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class PupilSearchIndexViewModel
+public sealed class PupilSearchIndexViewModel
 {
     public Guid WindowId { get; set; }
     public string? SelectedPupilId { get; set; }

@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -47,6 +48,12 @@ try
                 : new CompactJsonFormatter());
     });
     
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
@@ -56,7 +63,8 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend();
     
-    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
+    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
+    builder.Services.AddPersistenceDependencies(configuration, seedData);
     builder.Services.AddApplicationDependencies();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
@@ -94,6 +102,8 @@ try
 
     await app.MigrateDatabaseAsync();
 
+    app.UseForwardedHeaders();
+
     app.UseSerilogRequestLogging(options =>
     {
         options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
@@ -116,10 +126,11 @@ try
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
     }
-    else
+
+    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();   
     }
 
     app.UseHttpsRedirection();
@@ -139,6 +150,8 @@ try
             "form-action 'self'");
         await next();
     });
+
+    app.UseStaticFiles();
 
     app.UseSession();
 

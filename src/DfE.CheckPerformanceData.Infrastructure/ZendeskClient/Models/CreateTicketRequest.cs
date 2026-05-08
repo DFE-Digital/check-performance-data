@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class CreateTicketRequest
+    public sealed class CreateTicketRequest
     {
         [JsonProperty("ticket")]
         public CreateTicketBody? Ticket { get; set; }
     }
 
-    public class CreateTicketBody
+    public sealed class CreateTicketBody
     {
         [JsonProperty("subject")]
         public string? Subject { get; set; }

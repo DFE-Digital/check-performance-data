@@ -4,7 +4,7 @@ using System.Text;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class ListViewsRequestDto
+    public sealed class ListViewsRequestDto
     {
         /// <summary>
         /// Only views with given access. May be "personal", "shared", or "account"

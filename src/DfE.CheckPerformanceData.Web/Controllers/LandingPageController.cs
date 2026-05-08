@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class LandingController(ILogger<LandingController> logger, ILandingPageService landingPageService) : Controller
+public sealed class LandingPageController(ILogger<LandingPageController> logger, ILandingPageService landingPageService) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
+        HttpContext.Session.Remove("SelectedWindowId");
         var result = await landingPageService.GetLandingPageDataAsync(cancellationToken);
 
         if (result == null)
@@ -31,15 +32,8 @@ public class LandingController(ILogger<LandingController> logger, ILandingPageSe
             result.OrganisationLaestab,
             string.Join(',', result.KeyStages.Select(ks => ks.Title)),
             result.OrganisationAddress,
-            result.ClosedWindows.Select(w => new LandingPageWindowViewModel
-            {
-                Title = w.Title,
-                EndDate = w.EndDate.ToString("dddd d MMMM yyyy"),
-                EndTime = w.EndDate.ToString("htt").ToLower(),
-                StartDate = w.StartDate.ToString("dddd d MMMM yyyy"),
-                Id = w.Id,
-                HasPupilData = w.HasPupilData
-            }));
+            result.NoDataWindowsText,
+            result.NotValidWindowsText);
         
         return View(landingPageViewModel);
     }

@@ -1,24 +1,26 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
-public class LandingPageViewModel(
+public sealed class LandingPageViewModel(
     IEnumerable<LandingPageWindowViewModel> openWindows,
     string? organisationName,
     string? organisationUrn,
     string? organisationLaestab,
     string? keyStages,
     string address,
-    IEnumerable<LandingPageWindowViewModel> closedWindows)
+    string? noDataWindowsText,
+    string? notValidWindowsText)
 {
     public IEnumerable<LandingPageWindowViewModel> OpenWindows { get; } = openWindows;
-    public IEnumerable<LandingPageWindowViewModel> ClosedWindows { get; } = closedWindows;
     public string? OrganisationName { get; } = organisationName;
     public string? OrganisationUrn { get; } = organisationUrn;
     public string? OrganisationLaestab { get; } = organisationLaestab;
     public string? KeyStages { get; } = keyStages;
     public string OrganisationAddress { get; } = address;
+    public string? NoDataWindowsText { get; } = noDataWindowsText;
+    public string? NotValidWindowsText { get; } = notValidWindowsText;
 }
 
-public class LandingPageWindowViewModel
+public sealed class LandingPageWindowViewModel
 {
     public required string Title { get; init; }
     public required string EndDate { get; init; }

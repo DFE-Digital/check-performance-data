@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
-public class CheckingWindow
+public sealed class CheckingWindow
 {
     public Guid Id { get; init; }
     public DateTime StartDate { get; init; }

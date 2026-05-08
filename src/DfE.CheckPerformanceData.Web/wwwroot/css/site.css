@@ -1,3 +1,9 @@
+.sign-out-bar {
+  text-align: right;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 .pupil-search {
   background: #f3f2f1;
   padding: 20px;

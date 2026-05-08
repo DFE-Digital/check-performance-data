@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class GetTicketViewModel
+    public sealed class GetTicketViewModel
     {
         public TicketDto? Ticket { get; set; }
         public List<CustomFieldMetaDataDto> UserFields { get; set; } = new();

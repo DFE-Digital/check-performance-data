@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class TicketFieldsResponseDto
+    public sealed class TicketFieldsResponseDto
     {
         public List<CustomFieldMetaDataDto> TicketFields { get; set; } = new();
     }

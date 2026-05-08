@@ -3,14 +3,14 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class UpdateTicketResponseDto
+    public sealed class UpdateTicketResponseDto
     {
         public UpdatedTicketDto Ticket { get; init; } = new();
 
         public TicketAuditDto Audit { get; init; } = new();
     }
 
-    public class UpdatedTicketDto
+    public sealed class UpdatedTicketDto
     {
         public long Id { get; init; }
 
@@ -21,7 +21,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public TicketCommentDto? Comment { get; init; }
     }
 
-    public class TicketAuditDto
+    public sealed class TicketAuditDto
     {
         public long Id { get; init; }
 
@@ -34,7 +34,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public List<TicketAuditEventDto> Events { get; init; } = new();
     }
 
-    public class TicketAuditEventDto
+    public sealed class TicketAuditEventDto
     {
         public long Id { get; init; }
 

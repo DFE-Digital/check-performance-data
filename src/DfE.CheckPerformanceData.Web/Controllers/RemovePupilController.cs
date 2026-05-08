@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class RemovePupilController : Controller
+public sealed class RemovePupilController : Controller
 {
     [Route("/RemovePupil/{windowId}")]
     public IActionResult Index(Guid windowId)

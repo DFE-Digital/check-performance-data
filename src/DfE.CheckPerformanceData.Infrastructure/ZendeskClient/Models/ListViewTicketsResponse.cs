@@ -2,7 +2,7 @@
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class ListViewTicketsResponse : BasePagedModelResponse
+    public sealed class ListViewTicketsResponse : BasePagedModelResponse
     {
         public List<Ticket> Tickets { get; init; } = new();
     }

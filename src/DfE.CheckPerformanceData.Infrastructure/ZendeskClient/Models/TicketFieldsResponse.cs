@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     //    public List<CustomFieldMetaData> TicketFields { get; init; } = new();
     //}
 
-    public class TicketFieldsResponse :  BasePagedModelResponse
+    public sealed class TicketFieldsResponse :  BasePagedModelResponse
     {
         [JsonProperty("ticket_fields")]
         public List<CustomFieldMetaData> TicketFields { get; set; } = new();

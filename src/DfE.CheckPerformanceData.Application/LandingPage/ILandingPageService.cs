@@ -15,8 +15,10 @@ public class LandingPageResult
     public required string OrganisationUrn { get; set; }
     public required List<OrganisationKeyStageDto> KeyStages { get; set; }
     public required List<CheckingWindowDto> OpenWindows { get; set; }
+    public string? NotValidWindowsText { get; set; }
+    public string? NoDataWindowsText { get; set; }
     public string OrganisationAddress { get; set; } = string.Empty;
-    public required List<CheckingWindowDto> ClosedWindows { get; set; }
+    // public required List<CheckingWindowDto> ClosedWindows { get; set; }
 }
 
 public class CheckingWindowDto

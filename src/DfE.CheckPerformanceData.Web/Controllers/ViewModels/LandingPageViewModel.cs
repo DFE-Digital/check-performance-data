@@ -7,15 +7,17 @@ public class LandingPageViewModel(
     string? organisationLaestab,
     string? keyStages,
     string address,
-    IEnumerable<LandingPageWindowViewModel> closedWindows)
+    string? noDataWindowsText,
+    string? notValidWindowsText)
 {
     public IEnumerable<LandingPageWindowViewModel> OpenWindows { get; } = openWindows;
-    public IEnumerable<LandingPageWindowViewModel> ClosedWindows { get; } = closedWindows;
     public string? OrganisationName { get; } = organisationName;
     public string? OrganisationUrn { get; } = organisationUrn;
     public string? OrganisationLaestab { get; } = organisationLaestab;
     public string? KeyStages { get; } = keyStages;
     public string OrganisationAddress { get; } = address;
+    public string? NoDataWindowsText { get; } = noDataWindowsText;
+    public string? NotValidWindowsText { get; } = notValidWindowsText;
 }
 
 public class LandingPageWindowViewModel

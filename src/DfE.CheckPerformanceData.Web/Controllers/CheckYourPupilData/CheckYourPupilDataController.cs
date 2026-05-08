@@ -19,6 +19,7 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
+        HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }

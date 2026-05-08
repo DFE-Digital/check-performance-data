@@ -17,7 +17,14 @@
     <govuk-header home-page-url="https://gov.uk/"/>
     <govuk-service-navigation service-name="Check Performance Data" service-url="#">
         <govuk-service-navigation-nav>
+            @{
+                var selectedWindowId = Context.Session.GetString("SelectedWindowId");
+            }
             <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
+            @if (selectedWindowId is not null)
+            {
+                <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
+            }
             @if (@User.Identity is { IsAuthenticated: true })
             {
                 <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Secret")">Sign out

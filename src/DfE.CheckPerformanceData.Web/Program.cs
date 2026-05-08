@@ -8,10 +8,12 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -24,9 +26,10 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     var configuration = builder.Configuration
-        .SetBasePath(builder.Environment.ContentRootPath)
+        .SetBasePath(builder.Environment.ContentRootPath)     
         .AddJsonFile("appsettings.json", false, true)
         .AddEnvironmentVariables()
+        .AddUserSecrets<Program>(optional: true)
         .Build();
 
     builder.Host.UseSerilog((context, services, config) =>
@@ -70,6 +73,21 @@ try
 
     builder.Services.AddControllersWithViews();
 
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    });
+
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
@@ -89,7 +107,7 @@ try
 
     app.UseGovUkFrontend();
 
-    app.UseHealthChecks("/healthcheck");
+    app.MapHealthChecks("/healthcheck").AllowAnonymous();
 
 // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
@@ -121,6 +139,8 @@ try
             "form-action 'self'");
         await next();
     });
+
+    app.UseSession();
 
     app.UseRouting();
 

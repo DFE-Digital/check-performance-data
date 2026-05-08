@@ -1,9 +1,11 @@
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[AllowAnonymous]
 public class CookiesController : Controller
 {
     private const string CookieName = "cookies_policy";

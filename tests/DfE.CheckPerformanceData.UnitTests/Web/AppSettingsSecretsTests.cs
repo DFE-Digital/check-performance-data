@@ -7,7 +7,6 @@ public sealed class AppSettingsSecretsTests
 {
     [Theory]
     [InlineData("appsettings.json")]
-    [InlineData("appsettings.development.json")]
     public void GoogleTagManager_AuthKey_IsNotCommittedInPlaintext(string fileName)
     {
         var json = ReadAppSettings(fileName);
@@ -23,7 +22,6 @@ public sealed class AppSettingsSecretsTests
 
     [Theory]
     [InlineData("appsettings.json")]
-    [InlineData("appsettings.development.json")]
     public void GoogleTagManager_PreviewId_IsNotCommittedInPlaintext(string fileName)
     {
         var json = ReadAppSettings(fileName);

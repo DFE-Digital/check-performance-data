@@ -2,11 +2,13 @@ using System.Diagnostics;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using DfE.CheckPerformanceData.Web.Models;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+[AllowAnonymous]
 public sealed class HomeController(IPortalDbContext context, QueueServiceClient queueServiceClient) : Controller
 {
     public async Task<IActionResult> Index()

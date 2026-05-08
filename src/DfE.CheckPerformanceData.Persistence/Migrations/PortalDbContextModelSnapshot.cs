@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.6")
+                .HasAnnotation("ProductVersion", "10.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -107,24 +107,25 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
-                    b.Property<int>("OrganisationType")
-                        .HasColumnType("integer");
+                    b.Property<string>("KeyStage")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
 
@@ -201,6 +202,83 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ContentBlockVersions");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Pupil", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActualYearGroup")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Age")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("CheckingWindowId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cypmd_Id")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DateOfBirth")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("EntryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Ethnicity")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstLanguage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Firstname")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Laestab")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("MatchRef")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("NewMobile")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Pincl")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SenF")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sex")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Surname")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Upn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Urn")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Pupils");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", b =>

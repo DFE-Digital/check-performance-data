@@ -116,10 +116,11 @@ try
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
     }
-    else
+
+    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();   
     }
 
     app.UseHttpsRedirection();

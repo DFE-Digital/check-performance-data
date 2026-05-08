@@ -40,7 +40,7 @@ public sealed class DfeSignInApiClient(HttpClient httpClient, IOptions<DfeSignin
 
 
 
-public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
+public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
 {
     public override OrganisationDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

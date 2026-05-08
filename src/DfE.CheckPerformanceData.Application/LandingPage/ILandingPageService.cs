@@ -8,7 +8,7 @@ public interface ILandingPageService
     Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken);
 }
 
-public class LandingPageResult
+public sealed class LandingPageResult
 {
     public required string OrganisationName { get; set; }
     public required string OrganisationLaestab { get; set; }
@@ -20,7 +20,7 @@ public class LandingPageResult
     public string OrganisationAddress { get; set; } = string.Empty;
 }
 
-public class CheckingWindowDto
+public sealed class CheckingWindowDto
 {
     public Guid Id { get; init; }
     public required string Title { get; init; }

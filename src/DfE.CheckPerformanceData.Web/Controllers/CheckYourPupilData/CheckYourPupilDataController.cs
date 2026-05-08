@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
+public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;

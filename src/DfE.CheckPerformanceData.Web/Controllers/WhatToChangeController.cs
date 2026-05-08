@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class WhatToChangeController : Controller
+public sealed class WhatToChangeController : Controller
 {
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -34,7 +34,7 @@ public class WhatToChangeController : Controller
     }
 }
 
-public class WhatToChangeViewModel
+public sealed class WhatToChangeViewModel
 {
     public Guid WindowId { get; set; }
     public WhatToChange? SelectedWhatToChange { get; set; }

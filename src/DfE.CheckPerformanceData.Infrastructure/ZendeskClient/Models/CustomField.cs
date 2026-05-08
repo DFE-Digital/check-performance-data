@@ -2,7 +2,7 @@
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class CustomField
+    public sealed class CustomField
     {
         [JsonProperty("id")]
         public long Id { get; init; }

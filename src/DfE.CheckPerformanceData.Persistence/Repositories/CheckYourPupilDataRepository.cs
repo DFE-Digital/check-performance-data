@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public class CheckYourPupilDataRepository(IPortalDbContext dbContext) : ICheckYourPupilDataRepository
+public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : ICheckYourPupilDataRepository
 {
     private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
 

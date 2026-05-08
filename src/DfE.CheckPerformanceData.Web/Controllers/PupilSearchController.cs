@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class PupilSearchController(ICheckYourPupilDataService service) : Controller
+public sealed class PupilSearchController(ICheckYourPupilDataService service) : Controller
 {
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)

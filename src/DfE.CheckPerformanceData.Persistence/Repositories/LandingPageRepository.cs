@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepository
+public sealed class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepository
 {
     public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string urn,
         CancellationToken cancellationToken)

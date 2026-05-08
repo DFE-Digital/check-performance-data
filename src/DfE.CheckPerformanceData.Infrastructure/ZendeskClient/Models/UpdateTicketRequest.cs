@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     /// <summary>
     /// Request payload for updating a Zendesk ticket.
     /// </summary>
-    public class UpdateTicketRequest
+    public sealed class UpdateTicketRequest
     {
         [JsonProperty("ticket")]
         public UpdateTicket? Ticket { get; set; }
@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     /// <summary>
     /// Ticket update data within an update request.
     /// </summary>
-    public class UpdateTicket
+    public sealed class UpdateTicket
     {
         [JsonProperty("comment")]
         public TicketCommentUpdate? Comment { get; set; }
@@ -24,7 +24,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     /// <summary>
     /// Comment data for a ticket update.
     /// </summary>
-    public class TicketCommentUpdate
+    public sealed class TicketCommentUpdate
     {
         [JsonProperty("body")]
         public string? Body { get; set; }

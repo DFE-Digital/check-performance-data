@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
 namespace DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 
-public class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : IClaimsEnrichmentService
+public sealed class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : IClaimsEnrichmentService
 {
     public async Task<ClaimsIdentity?> EnrichAsync(ClaimsPrincipal identity)
     {

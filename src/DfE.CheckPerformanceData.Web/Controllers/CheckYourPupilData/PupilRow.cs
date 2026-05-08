@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class PupilRow
+public sealed class PupilRow
 {
     public required string Surname { get; init; }
     public required string Firstname { get; init; }

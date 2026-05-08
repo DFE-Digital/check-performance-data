@@ -15,14 +15,14 @@ public interface ICheckYourPupilDataService
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }
 
-public class GetCheckYourPupilDataResult
+public sealed class GetCheckYourPupilDataResult
 {
     public required CheckingWindowDto Window { get; init; }
     public required List<PupilDto> IncludedPupils { get; init; }
     public required List<PupilDto> NonIncludedPupils { get; init; }
 }
 
-public class PupilDto
+public sealed class PupilDto
 {
     public required string Firstname { get; init; }
     public required string Surname { get; init; }
@@ -35,7 +35,7 @@ public class PupilDto
 
 public record PupilSuggestionDto(Guid Id, string Label);
 
-public class PupilCsvDto
+public sealed class PupilCsvDto
 {
     public required string Upn { get; init; }
     public required string CypmdId { get; init; }

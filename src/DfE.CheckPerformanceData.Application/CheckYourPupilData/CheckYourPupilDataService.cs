@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
-public class CheckYourPupilDataService(
+public sealed class CheckYourPupilDataService(
     ICheckYourPupilDataRepository repository,
     ICurrentUserService currentUserService) : ICheckYourPupilDataService
 {

@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 [AllowAnonymous]
-public class CookiesController : Controller
+public sealed class CookiesController : Controller
 {
     private const string CookieName = "cookies_policy";
     private const int CookieExpiryDays = 365;

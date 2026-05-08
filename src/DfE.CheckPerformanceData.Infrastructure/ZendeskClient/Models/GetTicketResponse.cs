@@ -2,7 +2,7 @@
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class GetTicketResponse
+    public sealed class GetTicketResponse
     {
         [JsonProperty("ticket")]
         public Ticket? Ticket { get; set; }

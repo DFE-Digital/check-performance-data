@@ -3,13 +3,13 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class UploadResponse
+    public sealed class UploadResponse
     {
         [JsonProperty("upload")]
         public Upload? Upload { get; set; }
     }
 
-    public class Upload
+    public sealed class Upload
     {
         [JsonProperty("token")]
         public string? Token { get; set; }

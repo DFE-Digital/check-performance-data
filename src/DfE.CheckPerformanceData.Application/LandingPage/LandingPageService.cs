@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
 namespace DfE.CheckPerformanceData.Application.LandingPage;
 
-public class LandingPageService(ILandingPageRepository landingPageRepository, TimeProvider timeProvider, 
+public sealed class LandingPageService(ILandingPageRepository landingPageRepository, TimeProvider timeProvider, 
     IDfESignInApiClient dfESignInApiClient, ICurrentUserService currentUserService) : ILandingPageService
 {
     public async Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken)

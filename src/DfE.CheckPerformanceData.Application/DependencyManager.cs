@@ -1,6 +1,8 @@
-﻿using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+﻿using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Wiki;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,6 +16,8 @@ public static class DependencyManager
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();
+        services.AddScoped<ILandingPageService, LandingPageService>();
+        services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
 
         return services;
     }

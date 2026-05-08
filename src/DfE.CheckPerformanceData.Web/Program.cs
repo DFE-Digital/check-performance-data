@@ -73,6 +73,21 @@ try
 
     builder.Services.AddControllersWithViews();
 
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    });
+
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
@@ -92,7 +107,7 @@ try
 
     app.UseGovUkFrontend();
 
-    app.UseHealthChecks("/healthcheck");
+    app.MapHealthChecks("/healthcheck").AllowAnonymous();
 
 // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
@@ -124,6 +139,8 @@ try
             "form-action 'self'");
         await next();
     });
+
+    app.UseSession();
 
     app.UseRouting();
 

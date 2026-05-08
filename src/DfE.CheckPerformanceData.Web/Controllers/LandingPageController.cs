@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class LandingController(ILogger<LandingController> logger, ILandingPageService landingPageService) : Controller
+public class LandingPageController(ILogger<LandingPageController> logger, ILandingPageService landingPageService) : Controller
 {
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {

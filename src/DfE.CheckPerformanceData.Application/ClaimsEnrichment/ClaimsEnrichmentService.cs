@@ -27,6 +27,7 @@ public class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : IClaimsEnr
         var newIdentity = new ClaimsIdentity(roleClaims, "DfeSignIn");
         newIdentity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_name", organisation!.Name, ClaimValueTypes.String));
+        newIdentity.AddClaim(new Claim("organisation_urn", organisation.Urn, ClaimValueTypes.String));
         return newIdentity;
     }
 }

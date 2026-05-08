@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>39a90cfc-6b78-4c1d-bf53-2e6b38f1d44c</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Queues" />

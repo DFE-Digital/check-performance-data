@@ -1,4 +1,12 @@
-﻿services:
+﻿x-dfe-sign-in-environment: &dfe-sign-in-environment
+  DfeSignIn__BaseUrl: ${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
+  DfeSignIn__ClientId: ${DFESIGNIN_CLIENTID:-}
+  DfeSignIn__ApiClientSecret: ${DFESIGNIN_APICLIENTSECRET:-}
+  DfeSignIn__Audience: ${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
+  DfeSignIn__MetadataAddress: ${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
+  DfeSignIn__ClientSecret: ${DFESIGNIN_CLIENTSECRET:-}
+  
+services:
   web:
     profiles: [web, all]
     container_name: cypd_web
@@ -10,16 +18,11 @@
     ports: 
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
-      - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
-      - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
-      - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
-      - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
-      - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
-      - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
+      <<: *dfe-sign-in-environment
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Postgres: ${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
+      ConnectionStrings__AzureStorage: ${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       
     depends_on:
       - db
@@ -36,19 +39,14 @@
       dockerfile: DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
     image: cypd_rules_engine:latest
     environment:
-      - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
-      - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
-      - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
-      - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
-      - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
-      - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
-      - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
-      - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME:-requests}
-      - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS:-1000}
-      - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}
-      - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS:-1000}
-      - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT:-3}
+      <<: *dfe-sign-in-environment
+      ConnectionStrings__Postgres: ${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
+      ConnectionStrings__AzureStorage: ${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      RulesEngineOptions__QueueName: ${RULESENGINEOPTIONS_QUEUENAME:-requests}
+      RulesEngineOptions__RetryDelayMs: ${RULESENGINEOPTIONS_RETRYDELAYMS:-1000}
+      RulesEngineOptions__MaxMessagesPerPoll: ${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}
+      RulesEngineOptions__EmptyQueueDelayMs: ${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS:-1000}
+      RulesEngineOptions__MaxDequeueCount: ${RULESENGINEOPTIONS_MAXDEQUEUECOUNT:-3}
     depends_on:
       - db
       - azurite
@@ -62,9 +60,9 @@
     restart: unless-stopped
     image: postgres:18.1-alpine
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-cypd}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-cypd}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5432:5432"
     volumes:
@@ -100,6 +98,19 @@
     volumes:
       - azurite_data:/data
     command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log
+    networks:
+      - cypd
+
+  mockoon:
+    profiles: [mockoon, all]
+    container_name: cypd_mockoon
+    restart: unless-stopped
+    image: mockoon/cli:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.containers/mockoon/dsi.json:/data/dsi.json:ro
+    command: ["--data", "/data/dsi.json", "--port", "8000"]
     networks:
       - cypd
 

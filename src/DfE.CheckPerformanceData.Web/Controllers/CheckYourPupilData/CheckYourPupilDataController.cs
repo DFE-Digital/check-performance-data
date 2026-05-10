@@ -128,7 +128,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         Sex = p.Sex,
         DateOfBirth = p.DateOfBirth,
         Age = p.Age,
-        FirstLanguage = p.FirstLanguage
+        Cypmd_Id = p.Cypmd_Id
     };
 
     private static int TotalPages(int count) => (int)Math.Ceiling(count / (double)PageSize);

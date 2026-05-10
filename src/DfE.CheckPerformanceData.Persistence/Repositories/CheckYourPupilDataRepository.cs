@@ -103,6 +103,6 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             Sex = p.Sex,
             DateOfBirth = p.DateOfBirth,
             Age = p.Age,
-            FirstLanguage = p.FirstLanguage
+            Cypmd_Id = p.Cypmd_Id
         };
 }

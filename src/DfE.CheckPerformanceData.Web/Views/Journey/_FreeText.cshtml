@@ -1,0 +1,28 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionViewModel
+
+@{
+    var hasError = !ViewData.ModelState.IsValid;
+    var currentValue = Model.ExistingAnswer?.TextValue;
+}
+
+<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+    <h1 class="govuk-label-wrapper">
+        <label class="govuk-label govuk-label--l" for="textValue">@Model.Question.Title</label>
+    </h1>
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="textValue-hint">@Model.Question.Hint</div>
+    }
+    @if (hasError)
+    {
+        <p class="govuk-error-message">
+            <span class="govuk-visually-hidden">Error:</span>
+            Enter @Model.Question.Title.ToLower()
+        </p>
+    }
+    <input class="govuk-input @(hasError ? "govuk-input--error" : "")"
+           id="textValue" name="textValue" type="text"
+           value="@currentValue"
+           @(Model.Question.Hint is not null ? $"aria-describedby=\"textValue-hint\"" : "")>
+</div>

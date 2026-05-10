@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class WhatToChangeController : Controller
+public sealed class WhatToChangeController(ICheckYourPupilDataService service) : Controller
 {
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -20,7 +20,7 @@ public sealed class WhatToChangeController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/WhatToChange/{windowId}")]
-    public IActionResult Confirm(Guid windowId, WhatToChangeViewModel vm)
+    public async Task<IActionResult> Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
         if (vm.SelectedWhatToChange == null)
         {
@@ -28,7 +28,13 @@ public sealed class WhatToChangeController : Controller
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null });
         }
 
-        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedWhatToChange = vm.SelectedWhatToChange);
+        var window = await service.GetCheckingWindowAsync(windowId);
+
+        HttpContext.Session.SaveJourneyState(windowId, s =>
+        {
+            s.SelectedWhatToChange = vm.SelectedWhatToChange;
+            s.KeyStage = window.KeyStage;
+        });
 
         return RedirectToAction("Index", "PupilSearch", new { windowId });
     }

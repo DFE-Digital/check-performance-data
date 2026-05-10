@@ -1,10 +1,11 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class PupilSearchController(ICheckYourPupilDataService service) : Controller
+public sealed class PupilSearchController(ICheckYourPupilDataService service, IQuestionFlowService flowService) : Controller
 {
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -50,8 +51,18 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service) : 
             s.SelectedPupilLabel = model.SelectedPupilLabel;
             s.SelectedPupilId = model.SelectedPupilId;
             s.SelectedPupil = pupil;
+            s.QuestionAnswers = new Dictionary<string, QuestionAnswer>();
+            s.QuestionHistory = new List<string>();
         });
 
-        return RedirectToAction("Index", "RemovePupil", new { windowId });
+        var state = HttpContext.Session.GetJourneyState(windowId);
+        if (state.SelectedWhatToChange.HasValue && state.KeyStage.HasValue)
+        {
+            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.KeyStage.Value);
+            if (config is not null)
+                return RedirectToAction("Question", "Journey", new { windowId, questionId = config.FirstQuestionId });
+        }
+
+        return NotFound();
     }
 }

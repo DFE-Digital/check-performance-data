@@ -1,0 +1,20 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model ConfirmationViewModel
+
+@{
+    ViewBag.Title = "Request submitted";
+    Layout = "_Layout";
+}
+
+<div class="govuk-panel govuk-panel--confirmation">
+    <h1 class="govuk-panel__title">Request submitted</h1>
+    <div class="govuk-panel__body">
+        Your change request has been received
+    </div>
+</div>
+
+<p class="govuk-body">We will review your request and be in touch if we need any further information.</p>
+
+<p class="govuk-body">
+    <a asp-action="Index" asp-controller="LandingPage" class="govuk-link">Return to the home page</a>
+</p>

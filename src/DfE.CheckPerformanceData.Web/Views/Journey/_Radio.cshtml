@@ -1,0 +1,39 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@using DfE.CheckPerformanceData.Web.QuestionFlow
+@model QuestionViewModel
+
+@{
+    var hasError = !ViewData.ModelState.IsValid;
+    var currentValue = Model.ExistingAnswer?.TextValue;
+}
+
+<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+    <fieldset class="govuk-fieldset">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--l">
+            <h1 class="govuk-fieldset__heading">@Model.Question.Title</h1>
+        </legend>
+        @if (Model.Question.Hint is not null)
+        {
+            <div class="govuk-hint">@Model.Question.Hint</div>
+        }
+        @if (hasError)
+        {
+            <p class="govuk-error-message">
+                <span class="govuk-visually-hidden">Error:</span>
+                Select an option
+            </p>
+        }
+        <div class="govuk-radios">
+            @foreach (var option in Model.Question.Options ?? [])
+            {
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="textValue-@option.Value" name="textValue" type="radio"
+                           value="@option.Value" @(currentValue == option.Value ? "checked" : "")>
+                    <label class="govuk-label govuk-radios__label" for="textValue-@option.Value">
+                        @option.Label
+                    </label>
+                </div>
+            }
+        </div>
+    </fieldset>
+</div>

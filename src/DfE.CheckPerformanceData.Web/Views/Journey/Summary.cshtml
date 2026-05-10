@@ -1,0 +1,38 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model SummaryViewModel
+
+@{
+    ViewBag.Title = "Check your answers";
+    Layout = "_Layout";
+}
+
+<a asp-action="Question" asp-controller="Journey"
+   asp-route-windowId="@Model.WindowId"
+   asp-route-questionId="@Model.BackQuestionId"
+   class="govuk-back-link">Back</a>
+
+<h1 class="govuk-heading-xl">Check your answers</h1>
+
+<dl class="govuk-summary-list">
+    @foreach (var row in Model.Rows)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">@row.Question.Title</dt>
+            <dd class="govuk-summary-list__value">@row.DisplayAnswer</dd>
+            <dd class="govuk-summary-list__actions">
+                <a class="govuk-link"
+                   asp-action="Question" asp-controller="Journey"
+                   asp-route-windowId="@Model.WindowId"
+                   asp-route-questionId="@row.Question.Id"
+                   asp-route-fromSummary="true">
+                    Change<span class="govuk-visually-hidden"> @row.Question.Title.ToLower()</span>
+                </a>
+            </dd>
+        </div>
+    }
+</dl>
+
+<form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Confirm and send</govuk-button>
+</form>

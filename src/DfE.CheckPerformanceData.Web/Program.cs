@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -67,6 +68,7 @@ try
         .AddApplicationDependencies();
     
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+    builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)

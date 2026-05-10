@@ -1,0 +1,52 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionViewModel
+
+@{
+    var hasError = !ViewData.ModelState.IsValid;
+    var d = Model.ExistingAnswer?.DateValue;
+    var dayVal = d is { Day: > 0 } ? d.Day.ToString() : "";
+    var monthVal = d is { Month: > 0 } ? d.Month.ToString() : "";
+    var yearVal = d is { Year: > 0 } ? d.Year.ToString() : "";
+}
+
+<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+    <fieldset class="govuk-fieldset" role="group" aria-describedby="@(Model.Question.Hint is not null ? "date-hint" : "")">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--l">
+            <h1 class="govuk-fieldset__heading">@Model.Question.Title</h1>
+        </legend>
+        @if (Model.Question.Hint is not null)
+        {
+            <div class="govuk-hint" id="date-hint">@Model.Question.Hint</div>
+        }
+        @if (hasError)
+        {
+            <p class="govuk-error-message">
+                <span class="govuk-visually-hidden">Error:</span>
+                Enter a complete date
+            </p>
+        }
+        <div class="govuk-date-input">
+            <div class="govuk-date-input__item">
+                <div class="govuk-form-group">
+                    <label class="govuk-label govuk-date-input__label" for="dateDay">Day</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(hasError ? "govuk-input--error" : "")"
+                           id="dateDay" name="dateDay" type="text" inputmode="numeric" value="@dayVal">
+                </div>
+            </div>
+            <div class="govuk-date-input__item">
+                <div class="govuk-form-group">
+                    <label class="govuk-label govuk-date-input__label" for="dateMonth">Month</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(hasError ? "govuk-input--error" : "")"
+                           id="dateMonth" name="dateMonth" type="text" inputmode="numeric" value="@monthVal">
+                </div>
+            </div>
+            <div class="govuk-date-input__item">
+                <div class="govuk-form-group">
+                    <label class="govuk-label govuk-date-input__label" for="dateYear">Year</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-4 @(hasError ? "govuk-input--error" : "")"
+                           id="dateYear" name="dateYear" type="text" inputmode="numeric" value="@yearVal">
+                </div>
+            </div>
+        </div>
+    </fieldset>
+</div>

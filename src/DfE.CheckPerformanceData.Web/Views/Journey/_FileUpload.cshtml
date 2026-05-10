@@ -1,0 +1,31 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionViewModel
+
+@{
+    var hasError = !ViewData.ModelState.IsValid;
+    var existingFile = Model.ExistingAnswer?.FileValue;
+}
+
+<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+    <h1 class="govuk-label-wrapper">
+        <label class="govuk-label govuk-label--l" for="fileUpload">@Model.Question.Title</label>
+    </h1>
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="fileUpload-hint">@Model.Question.Hint</div>
+    }
+    @if (existingFile is not null)
+    {
+        <p class="govuk-body">Currently uploaded: <strong>@existingFile.OriginalFileName</strong></p>
+    }
+    @if (hasError)
+    {
+        <p class="govuk-error-message">
+            <span class="govuk-visually-hidden">Error:</span>
+            Select a file to upload
+        </p>
+    }
+    <input class="govuk-file-upload @(hasError ? "govuk-file-upload--error" : "")"
+           id="fileUpload" name="fileUpload" type="file"
+           @(Model.Question.Hint is not null ? $"aria-describedby=\"fileUpload-hint\"" : "")>
+</div>

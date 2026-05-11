@@ -84,8 +84,21 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
             Content = model.Content
         };
 
-        var page = await wikiService.UpdatePageAsync(id, dto);
-        return Redirect($"/help/{page.SlugPath}");
+        try
+        {
+            var page = await wikiService.UpdatePageAsync(id, dto);
+            return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        }
+        catch (DuplicateWikiPageException ex)
+        {
+            TempData["WikiEditError"] = ex.Message;
+            TempData["WikiEditAttemptedTitle"] = model.Title;
+            var existing = await wikiService.GetPageByIdAsync(id);
+            var slug = existing?.SlugPath ?? string.Empty;
+            return Redirect(string.IsNullOrEmpty(slug)
+                ? $"/help{EditSuffix}"
+                : $"/help/{slug}{EditSuffix}");
+        }
     }
 
     [Authorize(Roles = "cypmd_content_access_user")]

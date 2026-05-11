@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
+public sealed class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
     : Controller
 {
     public async Task<IActionResult> Index()

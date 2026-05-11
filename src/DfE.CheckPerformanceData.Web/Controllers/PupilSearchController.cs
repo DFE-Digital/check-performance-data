@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class PupilSearchController(ICheckYourPupilDataService service) : Controller
+public sealed class PupilSearchController(ICheckYourPupilDataService service) : Controller
 {
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -39,7 +39,7 @@ public class PupilSearchController(ICheckYourPupilDataService service) : Control
         {
             var journey = HttpContext.Session.GetJourneyState(windowId);
             var vm = new PupilSearchIndexViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange ?? default };
-            ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.ErrorMessage);
+            ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.WhatToChangeMessage);
             return View(vm);
         }
 

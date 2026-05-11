@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class PaginationViewModel
+public sealed class PaginationViewModel
 {
     public required int CurrentPage { get; init; }
     public required int TotalPages { get; init; }

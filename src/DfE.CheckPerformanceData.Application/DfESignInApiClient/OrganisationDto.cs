@@ -3,7 +3,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
-public class OrganisationDto
+public sealed class OrganisationDto
 {
     public required string Id { get; init; }
     public string Name { get; init; } = string.Empty;

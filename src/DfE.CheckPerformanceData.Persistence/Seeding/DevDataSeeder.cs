@@ -2,7 +2,7 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 
 namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
-public class DevDataSeeder(IPortalDbContext dbContext)
+public sealed class DevDataSeeder(IPortalDbContext dbContext)
 {
     private readonly Guid _keyStage4JuneCheckingWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
     private readonly Guid _closedKeyStage4JuneCheckingWindowId = Guid.Parse("44AEDD2C-7F3E-4F83-BB3D-47FBFAC1C604");

@@ -6,7 +6,7 @@
         var includedPage = Model.PageParam == "includedPage" ? page : Model.OtherPage;
         var nonIncludedPage = Model.PageParam == "nonIncludedPage" ? page : Model.OtherPage;
         var activeTab = Model.TabAnchor.TrimStart('#');
-        return Url.Action("Index", "CheckYourPupilData", new { windowId = Model.WindowId, includedPage, nonIncludedPage, activeTab, includedSearch = Model.IncludedSearch, nonIncludedSearch = Model.NonIncludedSearch })!;
+        return Url.Action("Index", "CheckYourPupilData", new { windowId = Model.WindowId, includedPage, nonIncludedPage, activeTab, includedSearch = Model.IncludedSearch, nonIncludedSearch = Model.NonIncludedSearch })! + Model.TabAnchor;
     }
 }
 

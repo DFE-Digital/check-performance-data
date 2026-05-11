@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class TicketComment
+    public sealed class TicketComment
     {
         [JsonProperty("id")]
         public long? Id { get; set; }
@@ -42,7 +42,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public CommentMetadata? Metadata { get; set; }
     }
 
-    public class TicketCommentsResponse
+    public sealed class TicketCommentsResponse
     {
         [JsonProperty("comments")]
         public List<TicketComment>? Comments { get; set; }
@@ -57,7 +57,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public int? Count { get; set; }
     }
 
-    public class Via
+    public sealed class Via
     {
         [JsonProperty("channel")]
         public string? Channel { get; set; }
@@ -66,7 +66,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public ViaSource? Source { get; set; }
     }
 
-    public class ViaSource
+    public sealed class ViaSource
     {
         [JsonProperty("from")]
         public Dictionary<string, object>? From { get; set; }
@@ -78,7 +78,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public string? Rel { get; set; }
     }
 
-    public class CommentMetadata
+    public sealed class CommentMetadata
     {
         [JsonProperty("system")]
         public MetadataSystem? System { get; set; }
@@ -87,7 +87,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public Dictionary<string, object>? Custom { get; set; }
     }
 
-    public class MetadataSystem
+    public sealed class MetadataSystem
     {
         [JsonProperty("client")]
         public string? Client { get; set; }
@@ -105,7 +105,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public double? Longitude { get; set; }
     }
 
-    public class Attachment
+    public sealed class Attachment
     {
         [JsonProperty("content-type")]
         public string? ContentType { get; set; }
@@ -150,7 +150,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public List<AttachmentThumbnail>? Thumbnails { get; set; }
     }
 
-    public class AttachmentThumbnail
+    public sealed class AttachmentThumbnail
     {
         [JsonProperty("content-type")]
         public string? ContentType { get; set; }

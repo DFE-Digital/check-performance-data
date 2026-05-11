@@ -2,7 +2,7 @@
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class ViewDto
+    public sealed class ViewDto
     {
         public long Id { get; set; }
 

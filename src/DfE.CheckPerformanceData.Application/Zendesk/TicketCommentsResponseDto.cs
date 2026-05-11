@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class TicketCommentDto
+    public sealed class TicketCommentDto
     {
         public long Id { get; init; }
 
@@ -30,7 +30,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public CommentMetadataDto? Metadata { get; init; }
     }
 
-    public class TicketCommentsResponseDto
+    public sealed class TicketCommentsResponseDto
     {
         public List<TicketCommentDto>? Comments { get; init; }
 
@@ -41,14 +41,14 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public int Count { get; init; }
     }
 
-    public class ViaDto
+    public sealed class ViaDto
     {
         public string Channel { get; init; } = string.Empty;
 
         public ViaSourceDto? Source { get; init; }
     }
 
-    public class ViaSourceDto
+    public sealed class ViaSourceDto
     {
         public Dictionary<string, object>? From { get; init; }
 
@@ -57,14 +57,14 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public string? Rel { get; init; }
     }
 
-    public class CommentMetadataDto
+    public sealed class CommentMetadataDto
     {
         public MetadataSystemDto? System { get; init; }
 
         public Dictionary<string, object>? Custom { get; init; }
     }
 
-    public class MetadataSystemDto
+    public sealed class MetadataSystemDto
     {
         public string? Client { get; init; }
 
@@ -77,7 +77,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public double Longitude { get; init; }
     }
 
-    public class AttachmentDto
+    public sealed class AttachmentDto
     {
         public string Url { get; init; } = string.Empty;
 
@@ -108,7 +108,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public List<AttachmentThumbnailDto>? Thumbnails { get; init; }
     }
 
-    public class AttachmentThumbnailDto
+    public sealed class AttachmentThumbnailDto
     {
         public string Url { get; init; } = string.Empty;
 

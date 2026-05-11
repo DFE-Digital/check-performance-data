@@ -1,11 +1,12 @@
 @using DfE.CheckPerformanceData.Application.Wiki
+@using DfE.CheckPerformanceData.Web.Controllers
 @model WikiPageDto
 
 <h1 class="govuk-heading-l">Edit: @Model.Title</h1>
 
 <form action="/help/edit/@Model.Id" method="post">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="editMode" value="true" />
+    <input type="hidden" name="@WikiConstants.EditModeFormKey" value="true" />
 
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--m" for="page-title">Page title</label>

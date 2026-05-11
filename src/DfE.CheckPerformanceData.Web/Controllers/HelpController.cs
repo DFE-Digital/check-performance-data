@@ -41,7 +41,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateWikiPageViewModel model)
@@ -70,7 +70,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         }
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/edit/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, EditWikiPageViewModel model)
@@ -111,7 +111,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         }
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/delete/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -120,7 +120,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help{EditSuffix}");
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/move")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move([FromBody] MovePageRequest? request)
@@ -179,7 +179,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/restore/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id, int? newParentId)
@@ -206,7 +206,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/revert/{pageId:int}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(int pageId, int versionId)
@@ -215,7 +215,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
-    [Authorize(Roles = "cypmd_content_access_user")]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/seed")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Seed()

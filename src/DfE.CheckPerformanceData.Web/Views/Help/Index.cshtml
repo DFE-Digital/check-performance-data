@@ -61,7 +61,7 @@
                         }
                         <form asp-controller="Help" asp-action="Create" method="post">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="editMode" value="true" />
+                            <input type="hidden" name="@DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditModeFormKey" value="true" />
                             <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
                                 <label class="govuk-label" for="new-page-title">Page title</label>
                                 @if (hasError)

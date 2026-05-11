@@ -1,17 +1,15 @@
 using System.Net;
-using System.Text.RegularExpressions;
+using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
 
 namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 
 public static class AntiforgeryHelpers
 {
-    private static readonly Regex AntiforgeryCookieRegex =
-        new(@"^\.AspNetCore\.Antiforgery\.", RegexOptions.Compiled);
+    private const string AntiforgeryCookiePrefix = ".AspNetCore.Antiforgery.";
+    private const string TokenInputSelector = "input[name='__RequestVerificationToken']";
 
-    private static readonly Regex AntiforgeryTokenRegex =
-        new(
-            "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"|value=\"([^\"]+)\"[^>]*name=\"__RequestVerificationToken\"",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly HtmlParser Parser = new();
 
     public static async Task<(string Token, string Cookie)> ScrapeAsync(HttpClient client, string formPath)
     {
@@ -49,7 +47,7 @@ public static class AntiforgeryHelpers
                 }
 
                 var cookieName = nameValue[..equalsIndex];
-                if (AntiforgeryCookieRegex.IsMatch(cookieName))
+                if (cookieName.StartsWith(AntiforgeryCookiePrefix, StringComparison.Ordinal))
                 {
                     cookieHeader = nameValue;
                     break;
@@ -58,10 +56,8 @@ public static class AntiforgeryHelpers
         }
 
         var body = await response.Content.ReadAsStringAsync();
-        var match = AntiforgeryTokenRegex.Match(body);
-        var token = match.Success
-            ? (match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value)
-            : null;
+        var document = await Parser.ParseDocumentAsync(body);
+        var token = (document.QuerySelector(TokenInputSelector) as IHtmlInputElement)?.Value;
 
         if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(cookieHeader))
         {

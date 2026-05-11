@@ -39,7 +39,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateWikiPageViewModel model)
@@ -68,7 +68,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         }
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/edit/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, EditWikiPageViewModel model)
@@ -86,7 +86,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}");
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/delete/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -95,7 +95,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help{EditSuffix}");
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/move")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move([FromBody] MovePageRequest request)
@@ -152,7 +152,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/restore/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id, int? newParentId)
@@ -179,7 +179,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/revert/{pageId:int}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(int pageId, int versionId)
@@ -188,13 +188,26 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
-    [Authorize(Roles = "cypmd_content_access")]
+    [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/seed")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Seed()
     {
         await wikiSeeder.SeedAsync();
         return Redirect("/help");
+    }
+
+    [AllowAnonymous]
+    [HttpGet("help/debug-claims")]
+    public IActionResult DebugClaims()
+    {
+        var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+        var roles = User.Claims
+            .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+            .Select(c => c.Value)
+            .ToList();
+
+        return Content($"All Claims:\n{string.Join("\n", claims.Select(c => $"{c.Type}: {c.Value}"))}\n\nRoles:\n{string.Join("\n", roles)}", "text/plain");
     }
 }
 

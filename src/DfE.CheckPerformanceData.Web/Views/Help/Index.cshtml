@@ -106,7 +106,7 @@
                 </svg>
             </button>
             <div class="wiki-mode-toggle">
-            @if (Model.IsEditMode && User.IsInRole("cypmd_content_access"))
+            @if (Model.IsEditMode && User.IsInRole("cypmd_content_access_user"))
             {
                 <a href="/help/@Model.CurrentSlugPath" class="govuk-link wiki-mode-link">
                     <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -131,7 +131,7 @@
                     </button>
                 </form>
             }
-            else if (!Model.IsEditMode || User.IsInRole("cypmd_content_access"))
+            else if (!Model.IsEditMode || User.IsInRole("cypmd_content_access_user"))
             {
                 <a href="/help/@(string.IsNullOrEmpty(Model.CurrentSlugPath) ? "?edit" : Model.CurrentSlugPath + "?edit")" class="govuk-link wiki-mode-link">
                     <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

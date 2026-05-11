@@ -66,9 +66,10 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                if (!ValidateAnswer(question, answer))
+                var error = GetAnswerError(question, answer);
+                if (error is not null)
                 {
-                    ModelState.AddModelError(question.Id, $"{question.Title} is required");
+                    ModelState.AddModelError(question.Id, error);
                     isValid = false;
                 }
                 newAnswers[question.Id] = answer;
@@ -445,11 +446,19 @@ public sealed class JourneyController(
         };
     }
 
-    private static bool ValidateAnswer(Question question, QuestionAnswer answer) =>
+    private static string? GetAnswerError(Question question, QuestionAnswer answer) =>
         question.Type switch
         {
-            QuestionType.Date => answer.DateValue is { Day: > 0, Month: > 0, Year: > 0 },
-            _ => !string.IsNullOrWhiteSpace(answer.TextValue)
+            QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
+                => $"{question.Title} is required",
+            QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
+                => $"{question.Title} is required",
+            QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
+                => $"{question.Title} must be {question.CharacterLimit} characters or less",
+            QuestionType.Date => null,
+            _ when string.IsNullOrWhiteSpace(answer.TextValue)
+                => $"{question.Title} is required",
+            _ => null
         };
 
     private void TrimHistoryTo(RequestState journey, Guid windowId, string pageId)

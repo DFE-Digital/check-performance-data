@@ -157,12 +157,19 @@
     },
     {
       "id": "evidence",
+      "title": "Provide evidence for the removal of {pupilName}",
       "questions": [
         {
           "id": "evidence",
           "type": "FileUpload",
-          "title": "Upload supporting evidence",
-          "hint": "Upload any documents that support your request."
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)"
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports removing this pupil",
+          "characterLimit": 1000
         }
       ]
     }

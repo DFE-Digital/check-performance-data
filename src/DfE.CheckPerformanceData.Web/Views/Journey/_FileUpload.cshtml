@@ -3,8 +3,6 @@
 
 @{
     var uploadError = TempData["UploadError"] as string;
-    var continueError = Model.Error;
-    var hasError = uploadError is not null || continueError is not null;
 
     var uploadedFiles = Model.ExistingAnswer?.FileValues ?? [];
     var totalPages = uploadedFiles.Sum(f => f.PageCount);
@@ -21,22 +19,14 @@
     var describedBy = uploadError is not null ? "fileUpload-hint fileUpload-error" : "fileUpload-hint";
 }
 
-@if (hasError)
+@if (Model.IsPageHeading)
 {
-    <govuk-error-summary>
-        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-        @if (uploadError is not null)
-        {
-            <govuk-error-summary-item href="#fileUpload">@uploadError</govuk-error-summary-item>
-        }
-        @if (continueError is not null)
-        {
-            <govuk-error-summary-item href="#fileUpload">@continueError</govuk-error-summary-item>
-        }
-    </govuk-error-summary>
+    <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
 }
-
-<h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+else
+{
+    <h2 class="govuk-heading-m">@Model.ResolvedTitle</h2>
+}
 
 @if (Model.Question.Hint is not null)
 {
@@ -45,13 +35,13 @@
 
 @* ── Uploaded files table ────────────────────────────────────────────── *@
 
-@if (uploadedFiles.Count > 0)
-{
+@* @if (uploadedFiles.Count > 0) *@
+@* { *@
     <table class="govuk-table govuk-!-margin-bottom-6">
-        <caption class="govuk-table__caption govuk-table__caption--m">
-            @uploadedFiles.Count @(uploadedFiles.Count == 1 ? "file" : "files") uploaded
-            &mdash; @totalPages of 6 pages used
-        </caption>
+        @* <caption class="govuk-table__caption govuk-table__caption--m"> *@
+        @*     @uploadedFiles.Count @(uploadedFiles.Count == 1 ? "file" : "files") uploaded *@
+        @*     &mdash; @totalPages of 6 pages used *@
+        @* </caption> *@
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Filename</th>
@@ -83,7 +73,7 @@
             }
         </tbody>
     </table>
-}
+@* } *@
 
 @* ── Upload form ─────────────────────────────────────────────────────── *@
 
@@ -96,20 +86,20 @@
         @Html.AntiForgeryToken()
 
         <div class="govuk-form-group @(uploadError is not null ? "govuk-form-group--error" : "")">
-            <label class="govuk-label govuk-label--m" for="fileUpload">
-                @(uploadedFiles.Count > 0 ? "Upload another file" : "Upload a file")
-            </label>
-            <div class="govuk-hint" id="fileUpload-hint">
-                PDF only.
-                @if (pagesRemaining == 6)
-                {
-                    <text>Maximum 6 pages.</text>
-                }
-                else
-                {
-                    <text>Up to @pagesRemaining more @(pagesRemaining == 1 ? "page" : "pages") allowed.</text>
-                }
-            </div>
+            @* <label class="govuk-label govuk-label--m" for="fileUpload"> *@
+            @*     @(uploadedFiles.Count > 0 ? "Upload another file" : "Upload a file") *@
+            @* </label> *@
+            @* <div class="govuk-hint" id="fileUpload-hint"> *@
+            @*     PDF only. *@
+            @*     @if (pagesRemaining == 6) *@
+            @*     { *@
+            @*         <text>Maximum 6 pages.</text> *@
+            @*     } *@
+            @*     else *@
+            @*     { *@
+            @*         <text>Up to @pagesRemaining more @(pagesRemaining == 1 ? "page" : "pages") allowed.</text> *@
+            @*     } *@
+            @* </div> *@
             @if (uploadError is not null)
             {
                 <p class="govuk-error-message" id="fileUpload-error">
@@ -126,7 +116,6 @@
 
         <p class="govuk-body govuk-!-margin-top-2">
             @uploadedFiles.Count @(uploadedFiles.Count == 1 ? "file" : "file(s)") added.
-            Evidence must be in PDF format and no more than 6 pages (either as 1 or multiple files).
         </p>
     </form>
 }
@@ -138,18 +127,3 @@ else
 }
 
 <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
-
-@* ── Continue ────────────────────────────────────────────────────────── *@
-
-<form method="post"
-      action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
-    @Html.AntiForgeryToken()
-    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
-    @if (continueError is not null)
-    {
-        <p class="govuk-error-message">
-            <span class="govuk-visually-hidden">Error:</span> @continueError
-        </p>
-    }
-    <govuk-button type="submit">Continue</govuk-button>
-</form>

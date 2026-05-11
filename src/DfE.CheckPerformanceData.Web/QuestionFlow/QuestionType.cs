@@ -5,5 +5,6 @@ public enum QuestionType
     Radio,
     FreeText,
     Date,
-    FileUpload
+    FileUpload,
+    TextArea
 }

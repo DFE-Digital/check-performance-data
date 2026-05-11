@@ -57,22 +57,30 @@ public static class PageSnapshotExtensions
         var totalPixels = (long)expected.Width * expected.Height;
         long differingPixels = 0;
 
-        for (var y = 0; y < expected.Height; y++)
+        expected.ProcessPixelRows(actual, (eAccessor, aAccessor) =>
         {
-            for (var x = 0; x < expected.Width; x++)
+            long count = 0;
+            for (var y = 0; y < eAccessor.Height; y++)
             {
-                var e = expected[x, y];
-                var a = actual[x, y];
+                var eRow = eAccessor.GetRowSpan(y);
+                var aRow = aAccessor.GetRowSpan(y);
 
-                if (Math.Abs(e.R - a.R) > PerChannelTolerance
-                    || Math.Abs(e.G - a.G) > PerChannelTolerance
-                    || Math.Abs(e.B - a.B) > PerChannelTolerance
-                    || Math.Abs(e.A - a.A) > PerChannelTolerance)
+                for (var x = 0; x < eRow.Length; x++)
                 {
-                    differingPixels++;
+                    var e = eRow[x];
+                    var a = aRow[x];
+
+                    if (Math.Abs(e.R - a.R) > PerChannelTolerance
+                        || Math.Abs(e.G - a.G) > PerChannelTolerance
+                        || Math.Abs(e.B - a.B) > PerChannelTolerance
+                        || Math.Abs(e.A - a.A) > PerChannelTolerance)
+                    {
+                        count++;
+                    }
                 }
             }
-        }
+            differingPixels = count;
+        });
 
         var ratio = (double)differingPixels / totalPixels;
         if (ratio > maxDiffPixelRatio)

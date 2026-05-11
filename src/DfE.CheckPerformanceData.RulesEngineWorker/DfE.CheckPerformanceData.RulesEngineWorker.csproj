@@ -14,4 +14,8 @@
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="Microsoft.Extensions.Hosting" />
     </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
+    </ItemGroup>
 </Project>

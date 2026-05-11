@@ -1,5 +1,6 @@
 using System.Net;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
@@ -26,7 +27,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         var key = $"{unique}-block";
 
         using var client = CreateClient();
-        var (token, cookie) = await _fixture.ScrapeAntiforgeryTokenAsync("/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
 
         var form = new FormUrlEncodedContent(new[]
         {

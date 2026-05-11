@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-internal static class WikiConstants
+public static class WikiConstants
 {
     public const string EditModeFormKey = "editMode";
     public const string EditQueryKey = "edit";

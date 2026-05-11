@@ -39,7 +39,7 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service) : 
         {
             var journey = HttpContext.Session.GetJourneyState(windowId);
             var vm = new PupilSearchIndexViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange ?? default };
-            ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.ErrorMessage);
+            ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.WhatToChangeMessage);
             return View(vm);
         }
 

@@ -86,7 +86,7 @@ public sealed partial class WikiService(
 			{
 				Query = string.Empty,
 				Page = 1,
-				PageSize = pageSize,
+				PageSize = DefaultPageSize,
 				TotalCount = 0,
 				Items = [],
 				InvalidReason = SearchInvalidReason.EmptyQuery
@@ -99,7 +99,7 @@ public sealed partial class WikiService(
 			{
 				Query = trimmed,
 				Page = 1,
-				PageSize = pageSize,
+				PageSize = DefaultPageSize,
 				TotalCount = 0,
 				Items = [],
 				InvalidReason = SearchInvalidReason.BelowMinimumLength
@@ -107,6 +107,7 @@ public sealed partial class WikiService(
 		}
 
 		// cap length BEFORE reaching Postgres.
+		// Queries longer than MaxQueryLength are silently truncated to prevent injection and excessive memory use.
 		if (trimmed.Length > MaxQueryLength)
 		{
 			trimmed = trimmed[..MaxQueryLength];
@@ -127,7 +128,7 @@ public sealed partial class WikiService(
 			{
 				Query = trimmed,
 				Page = 1,
-				PageSize = pageSize,
+				PageSize = DefaultPageSize,
 				TotalCount = 0,
 				Items = [],
 				InvalidReason = SearchInvalidReason.EmptyQuery

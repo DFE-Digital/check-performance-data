@@ -5,14 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-[AllowAnonymous]
 public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
 {
-    private bool IsEditMode => 
+    private bool IsEditMode =>
         Request.Query.ContainsKey("edit") || (Request.HasFormContentType && Request.Form.ContainsKey("editMode"));
 
     private string EditSuffix => IsEditMode ? "?edit" : "";
 
+    [AllowAnonymous]
     public async Task<IActionResult> Index(string? slugPath)
     {
         var tree = await wikiService.GetNavigationTreeAsync();
@@ -39,6 +39,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateWikiPageViewModel model)
@@ -67,6 +68,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         }
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/edit/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, EditWikiPageViewModel model)
@@ -84,6 +86,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}");
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/delete/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -92,6 +95,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help{EditSuffix}");
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/move")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move([FromBody] MovePageRequest request)
@@ -101,10 +105,12 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Ok(new { slugPath = page?.SlugPath ?? "" });
     }
 
+    [AllowAnonymous]
     [HttpGet("help/search")]
     public async Task<IActionResult> Search(string? q, int page = 1)
     {
-        var result = await wikiService.SearchAsync(q ?? string.Empty, page);
+        var safePage = page < 1 ? 1 : page;
+        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage);
         var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch
@@ -130,6 +136,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
+    [AllowAnonymous]
     [HttpGet("help/deleted")]
     public async Task<IActionResult> Deleted()
     {
@@ -145,6 +152,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/restore/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id, int? newParentId)
@@ -153,6 +161,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
+    [AllowAnonymous]
     [HttpGet("help/versions/{id:int}")]
     public async Task<IActionResult> Versions(int id)
     {
@@ -170,6 +179,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/revert/{pageId:int}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(int pageId, int versionId)
@@ -178,6 +188,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
+    [Authorize(Roles = "cypmd_content_access")]
     [HttpPost("help/seed")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Seed()

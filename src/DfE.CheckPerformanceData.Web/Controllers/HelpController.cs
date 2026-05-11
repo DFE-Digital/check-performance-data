@@ -123,8 +123,10 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     [Authorize(Roles = "cypmd_content_access_user")]
     [HttpPost("help/move")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Move([FromBody] MovePageRequest request)
+    public async Task<IActionResult> Move([FromBody] MovePageRequest? request)
     {
+        if (request is null) return BadRequest();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
         await wikiService.MovePageAsync(request.Id, request.NewParentId, request.NewSortOrder);
         var page = await wikiService.GetPageByIdAsync(request.Id);
         return Ok(new { slugPath = page?.SlugPath ?? "" });

@@ -151,8 +151,6 @@ try
         await next();
     });
 
-    app.UseStaticFiles();
-
     app.UseSession();
 
     app.UseRouting();

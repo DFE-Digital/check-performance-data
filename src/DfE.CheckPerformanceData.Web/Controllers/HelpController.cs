@@ -8,9 +8,11 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
 {
     private bool IsEditMode =>
-        Request.Query.ContainsKey("edit") || (Request.HasFormContentType && Request.Form.ContainsKey("editMode"));
+        (Request.Query.ContainsKey(WikiConstants.EditQueryKey)
+         || (Request.HasFormContentType && Request.Form.ContainsKey(WikiConstants.EditModeFormKey)))
+        && User.IsInRole(WikiConstants.EditorRole);
 
-    private string EditSuffix => IsEditMode ? "?edit" : "";
+    private string EditSuffix => IsEditMode ? "?" + WikiConstants.EditQueryKey : "";
 
     [AllowAnonymous]
     public async Task<IActionResult> Index(string? slugPath)

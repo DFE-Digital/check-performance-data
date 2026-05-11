@@ -1,13 +1,12 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
 [Collection("E2E")]
 [Trait("Category", "W2")]
-public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest, IAsyncLifetime
+public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string WarningTextBody = """
         <div class="govuk-warning-text">
@@ -19,31 +18,18 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
         </div>
         """;
 
-    private readonly PlaywrightFixture _fixture = fixture;
-    private readonly List<int> _trackedIds = [];
     private string _slug = "";
 
-    public new async Task InitializeAsync()
+    protected override async Task SeedAsync()
     {
-        await base.InitializeAsync();
-
         var (_, slug) = await SeedHelpers.SeedWikiPageReturningSlugAsync(
-            _fixture.SeedClient,
+            Fixture.SeedClient,
             title: "warning-render",
             body: WarningTextBody,
             parentId: null,
-            _trackedIds);
+            TrackedIds);
 
         _slug = slug;
-    }
-
-    public new async Task DisposeAsync()
-    {
-        foreach (var id in _trackedIds.AsEnumerable().Reverse())
-        {
-            await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
-        }
-        await base.DisposeAsync();
     }
 
     // --- IconHasTextBangAndCircleStyling ---
@@ -51,7 +37,7 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
     [Fact]
     public async Task IconHasTextBangAndCircleStyling()
     {
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/{_slug}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{_slug}");
 
         var icon = Page.Locator(".govuk-warning-text__icon");
         await Expect(icon).ToBeVisibleAsync();
@@ -72,7 +58,7 @@ public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : PageTest
     [Fact]
     public async Task VisuallyHiddenWarningSpanInDom()
     {
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/{_slug}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{_slug}");
 
         // The visually-hidden "Warning" span is the accessible label that screen readers
         // announce before the warning body. The sanitizer preserves the class so the GDS

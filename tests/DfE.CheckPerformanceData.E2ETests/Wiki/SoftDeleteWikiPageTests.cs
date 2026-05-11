@@ -1,36 +1,13 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
 [Collection("E2E")]
 [Trait("Category", "W2")]
-public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTest, IAsyncLifetime
+public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
-    private readonly PlaywrightFixture _fixture = fixture;
-    private readonly List<int> _trackedIds = [];
-
-    public new async Task InitializeAsync() => await base.InitializeAsync();
-
-    public new async Task DisposeAsync()
-    {
-        foreach (var id in _trackedIds.AsEnumerable().Reverse())
-        {
-            try
-            {
-                await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
-            }
-            catch
-            {
-                // Page may already have been soft-deleted by the test body — second call is a
-                // best-effort cleanup.
-            }
-        }
-        await base.DisposeAsync();
-    }
-
     // --- CreatedPage_AppearsInSearch ---
 
     [Fact]
@@ -38,13 +15,13 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
     {
         var queryToken = $"e2eseed{Guid.NewGuid().ToString("N")[..8]}";
         await SeedHelpers.SeedWikiPageAsync(
-            _fixture.SeedClient,
+            Fixture.SeedClient,
             title: $"{queryToken} target",
             body: $"Content for {queryToken}.",
             parentId: null,
-            _trackedIds);
+            TrackedIds);
 
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={queryToken}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/search?q={queryToken}");
 
         // The freshly-seeded page must surface in /help/search?q={token}. Search.cshtml renders
         // each result as <li> containing <a class="govuk-link" href="/help/{slug}">…</a>; the
@@ -60,15 +37,15 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
     {
         var queryToken = $"e2edel{Guid.NewGuid().ToString("N")[..8]}";
         var id = await SeedHelpers.SeedWikiPageAsync(
-            _fixture.SeedClient,
+            Fixture.SeedClient,
             title: $"{queryToken} soon-deleted",
             body: $"Content for {queryToken}, will be soft-deleted before search.",
             parentId: null,
-            _trackedIds);
+            TrackedIds);
 
-        await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
+        await SeedHelpers.SoftDeleteWikiPageAsync(Fixture.SeedClient, id);
 
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/search?q={queryToken}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/search?q={queryToken}");
 
         // The soft-delete EF query filter (HasQueryFilter(w => !w.IsDeleted)) MUST hide this
         // page from the search results. Zero matching anchors is the contract.
@@ -82,15 +59,15 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : PageTes
     {
         var queryToken = $"e2edl{Guid.NewGuid().ToString("N")[..8]}";
         var id = await SeedHelpers.SeedWikiPageAsync(
-            _fixture.SeedClient,
+            Fixture.SeedClient,
             title: $"{queryToken} restorable",
             body: $"Content for {queryToken}.",
             parentId: null,
-            _trackedIds);
+            TrackedIds);
 
-        await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
+        await SeedHelpers.SoftDeleteWikiPageAsync(Fixture.SeedClient, id);
 
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/deleted");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/deleted");
 
         // The deleted-pages admin view (Views/Help/Deleted.cshtml) renders one <tr> per
         // soft-deleted page with the title in a <td class="govuk-table__cell"> cell.

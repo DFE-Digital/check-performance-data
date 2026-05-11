@@ -2,14 +2,13 @@ using System.Runtime.InteropServices;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
-using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests.Visual;
 
 [Collection("E2E")]
 [Trait("Category", "W4")]
 [Trait("Category", "VisualRegression")]
-public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest, IAsyncLifetime
+public sealed class VisualRegressionTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string WarningTextBody = """
         <div class="govuk-warning-text">
@@ -21,17 +20,13 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
         </div>
         """;
 
-    private readonly PlaywrightFixture _fixture = fixture;
-    private readonly List<int> _trackedIds = [];
     private string _warningSlug = "";
 
     public override BrowserNewContextOptions ContextOptions() =>
         new() { ViewportSize = new ViewportSize { Width = 1280, Height = 720 } };
 
-    public new async Task InitializeAsync()
+    protected override async Task SeedAsync()
     {
-        await base.InitializeAsync();
-
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             // Snapshots are Linux-only; skip the seed work on Windows/macOS so dev runs are fast.
@@ -39,29 +34,13 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
         }
 
         var (_, slug) = await SeedHelpers.SeedWikiPageReturningSlugAsync(
-            _fixture.SeedClient,
+            Fixture.SeedClient,
             title: "warning-vr",
             body: WarningTextBody,
             parentId: null,
-            _trackedIds);
+            TrackedIds);
 
         _warningSlug = slug;
-    }
-
-    public new async Task DisposeAsync()
-    {
-        foreach (var id in _trackedIds.AsEnumerable().Reverse())
-        {
-            try
-            {
-                await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id);
-            }
-            catch
-            {
-                // Best-effort cleanup; cleanup failure must not mask test outcome.
-            }
-        }
-        await base.DisposeAsync();
     }
 
     // --- HelpPageMatchesSnapshot ---
@@ -72,7 +51,7 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help");
         await Page.StabiliseAsync();
 
         await Page.MatchSnapshotAsync("help-page.png");
@@ -86,7 +65,7 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 
-        await Page.GotoAsync($"{_fixture.BaseUrl}/help/{_warningSlug}");
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{_warningSlug}");
         await Page.StabiliseAsync();
 
         await Page.MatchSnapshotAsync("warning-text-page.png");
@@ -116,7 +95,7 @@ public sealed class VisualRegressionTests(PlaywrightFixture fixture) : PageTest,
         foreach (var (label, width, height) in viewports)
         {
             await Page.SetViewportSizeAsync(width, height);
-            await Page.GotoAsync($"{_fixture.BaseUrl}/help");
+            await Page.GotoAsync($"{Fixture.BaseUrl}/help");
             await Page.StabiliseAsync();
 
             await Page.MatchSnapshotAsync(

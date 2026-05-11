@@ -7,5 +7,5 @@ public sealed class PupilRow
     public required string Sex { get; init; }
     public required string DateOfBirth { get; init; }
     public required int Age { get; init; }
-    public required string FirstLanguage { get; init; }
+    public required string Cypmd_Id { get; init; }
 }

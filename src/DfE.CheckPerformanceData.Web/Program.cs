@@ -57,15 +57,15 @@ try
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
-
+    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
+    
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
-        .AddGovUkFrontend();
+        .AddGovUkFrontend()
+        .AddPersistenceDependencies(configuration, seedData)
+        .AddApplicationDependencies();
     
-    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
-    builder.Services.AddPersistenceDependencies(configuration, seedData);
-    builder.Services.AddApplicationDependencies();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),

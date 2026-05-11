@@ -161,7 +161,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/versions/{id:int}")]
     public async Task<IActionResult> Versions(int id)
     {

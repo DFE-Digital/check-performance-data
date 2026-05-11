@@ -20,6 +20,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
         HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
+        HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }

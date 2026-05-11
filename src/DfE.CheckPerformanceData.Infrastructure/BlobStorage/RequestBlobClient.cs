@@ -13,13 +13,13 @@ public sealed class RequestBlobClient(BlobServiceClient blobServiceClient) : IRe
         Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
     };
 
-    public async Task SaveRequestAsync(Guid windowId, string cypmdId, RequestDocument document)
+    public async Task SaveRequestAsync(Guid windowId, RequestDocument document)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync();
 
         var json = JsonSerializer.Serialize(document, JsonOptions);
-        var blob = container.GetBlobClient($"request_{cypmdId}.json");
+        var blob = container.GetBlobClient($"request_{document.ReferenceNumber}.json");
 
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true);

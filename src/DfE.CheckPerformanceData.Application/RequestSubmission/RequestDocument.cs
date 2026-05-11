@@ -7,12 +7,19 @@ public sealed class RequestDocument
     public RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
     public DateTime SubmittedAt { get; init; }
+    public required UserDetails SubmittedBy { get; init; }
     public Guid CheckingWindowId { get; init; }
     public required string CheckingWindowType { get; init; }
     public required string WhatToChange { get; init; }
     public required SchoolDetails School { get; init; }
     public required PupilDetails Pupil { get; init; }
     public required List<AnswerRecord> Answers { get; init; }
+}
+
+public sealed class UserDetails
+{
+    public required string UserId { get; init; }
+    public required string DisplayName { get; init; }
 }
 
 public sealed class SchoolDetails

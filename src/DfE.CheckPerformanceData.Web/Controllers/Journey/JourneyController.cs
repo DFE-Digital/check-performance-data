@@ -253,10 +253,10 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         var config = GetConfigOrNotFound(journey);
 
-        if (config is not null && journey.SelectedPupil?.Cypmd_Id is { } cypmdId)
+        if (config is not null && journey.SelectedPupil?.Cypmd_Id is not null)
         {
             var document = BuildRequestDocument(windowId, journey, config);
-            await requestBlobClient.SaveRequestAsync(windowId, cypmdId, document);
+            await requestBlobClient.SaveRequestAsync(windowId, document);
         }
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
@@ -288,6 +288,11 @@ public sealed class JourneyController(
             Status = RequestStatus.Submitted,
             ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
             SubmittedAt = DateTime.UtcNow,
+            SubmittedBy = new UserDetails
+            {
+                UserId = currentUserService.UserId,
+                DisplayName = currentUserService.DisplayName
+            },
             CheckingWindowId = windowId,
             CheckingWindowType = journey.CheckingWindowType?.ToString() ?? string.Empty,
             WhatToChange = journey.SelectedWhatToChange?.ToString() ?? string.Empty,
@@ -369,7 +374,12 @@ public sealed class JourneyController(
         QuestionFlowConfig? config = null)
     {
         var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
-        var backPageId = historyIndex > 0 ? journey.QuestionHistory[historyIndex - 1] : null;
+        var backPageId = historyIndex switch
+        {
+            -1 => journey.QuestionHistory.LastOrDefault(),  // first visit — came from last page in history
+            0  => null,                                      // first page in journey — back goes to pupil search
+            _  => journey.QuestionHistory[historyIndex - 1]
+        };
 
         var pupil = journey.SelectedPupil;
         var pupilName = pupil is not null
@@ -398,9 +408,9 @@ public sealed class JourneyController(
         var whatToChange = journey.SelectedWhatToChange?.ToString().ToLower() ?? "unknown";
 
         var pageIndex = journey.QuestionHistory.IndexOf(page.Id);
-        var historyBeforePage = pageIndex >= 0
+        IEnumerable<string> historyBeforePage = pageIndex >= 0
             ? journey.QuestionHistory.Take(pageIndex)
-            : [];
+            : journey.QuestionHistory;
 
         var radioValues = historyBeforePage
             .SelectMany(pid =>

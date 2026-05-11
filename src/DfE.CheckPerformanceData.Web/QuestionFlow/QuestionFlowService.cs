@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -10,12 +11,12 @@ public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlow
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter() }
     };
 
-    public QuestionFlowConfig? GetConfig(WhatToChange whatToChange, KeyStages keyStage)
+    public QuestionFlowConfig? GetConfig(WhatToChange whatToChange, CheckingWindowType checkingWindowType)
     {
-        var key = $"{whatToChange}_{keyStage}";
+        var key = $"{whatToChange}_{checkingWindowType}";
         if (_cache.TryGetValue(key, out var cached))
             return cached;
 
@@ -26,45 +27,46 @@ public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlow
             return null;
         }
 
-        var json = File.ReadAllText(path);
-        var config = JsonSerializer.Deserialize<QuestionFlowConfig>(json, JsonOptions);
+        var config = JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(path), JsonOptions);
         _cache[key] = config;
         return config;
     }
 
-    public Question GetQuestion(QuestionFlowConfig config, string questionId) =>
-        config.Questions.First(q => q.Id == questionId);
+    public JourneyPage GetPage(QuestionFlowConfig config, string pageId) =>
+        config.Pages.First(p => p.Id == pageId);
 
-    public string? GetNextQuestionId(QuestionFlowConfig config, string questionId, QuestionAnswer? answer)
+    public string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers)
     {
-        var question = GetQuestion(config, questionId);
+        var page = GetPage(config, pageId);
 
-        if (question.Type == QuestionType.Radio && answer?.TextValue is not null && question.Options is not null)
+        // First radio question on the page whose selected option specifies a branch wins
+        foreach (var question in page.Questions)
         {
-            var option = question.Options.FirstOrDefault(o => o.Value == answer.TextValue);
-            if (option?.NextQuestionId is not null)
-                return option.NextQuestionId;
+            if (question.Type != QuestionType.Radio || question.Options is null) continue;
+            if (!answers.TryGetValue(question.Id, out var answer) || answer.TextValue is null) continue;
+
+            var next = question.Options.FirstOrDefault(o => o.Value == answer.TextValue)?.NextPageId;
+            if (next is not null) return next;
         }
 
-        return question.NextQuestionId;
+        return page.NextPageId;
     }
 
     public List<string> BuildCurrentPath(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers)
     {
         var path = new List<string>();
-        var currentId = config.FirstQuestionId;
+        var currentId = config.FirstPageId;
 
         while (currentId is not null)
         {
-            var question = GetQuestion(config, currentId);
+            var page = GetPage(config, currentId);
 
-            // Without an answer we can't determine which radio branch to take
-            if (question.Type == QuestionType.Radio && !answers.ContainsKey(currentId))
+            // Stop if any radio on this page has no answer — we can't determine the branch
+            if (page.Questions.Any(q => q.Type == QuestionType.Radio && !answers.ContainsKey(q.Id)))
                 break;
 
             path.Add(currentId);
-            answers.TryGetValue(currentId, out var answer);
-            currentId = GetNextQuestionId(config, currentId, answer);
+            currentId = GetNextPageId(config, currentId, answers);
         }
 
         return path;

@@ -77,7 +77,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             return View("Index", model);
         }
 
-        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
+        HttpContext.Session.SaveRequestState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
 
         return viewModel.SelectedNextStep switch
         {
@@ -99,7 +99,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         var now = timeProvider.GetLocalNow().DateTime;
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
 
         return new CheckYourPupilDataViewModel
         {

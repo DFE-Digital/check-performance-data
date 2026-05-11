@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -6,6 +7,8 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
@@ -69,6 +72,10 @@ try
     
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+
+    builder.Services.AddSingleton(_ =>
+        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)

@@ -2,6 +2,6 @@ namespace DfE.CheckPerformanceData.Web.QuestionFlow;
 
 public sealed class QuestionFlowConfig
 {
-    public required string FirstQuestionId { get; init; }
-    public required List<Question> Questions { get; init; }
+    public required string FirstPageId { get; init; }
+    public required List<JourneyPage> Pages { get; init; }
 }

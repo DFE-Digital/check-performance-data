@@ -10,6 +10,7 @@ public sealed class CheckingWindow
     public DateTime StartDate { get; init; }
     public DateTime EndDate { get; init; }
     public KeyStages KeyStage { get; init; }
+    public CheckingWindowType CheckingWindowType { get; init; }
     public string Title { get; init; } = string.Empty;
 }
 
@@ -32,6 +33,10 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
             .HasColumnType("timestamp without time zone");
 
         builder.Property(x => x.KeyStage)
+            .IsRequired()
+            .HasConversion<string>();
+
+        builder.Property(x => x.CheckingWindowType)
             .IsRequired()
             .HasConversion<string>();
 

@@ -4,5 +4,5 @@ public sealed class QuestionAnswer
 {
     public string? TextValue { get; set; }
     public DateAnswer? DateValue { get; set; }
-    public FileAnswer? FileValue { get; set; }
+    public List<FileAnswer>? FileValues { get; set; }
 }

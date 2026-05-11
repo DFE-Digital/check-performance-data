@@ -1,37 +1,38 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
-@using DfE.CheckPerformanceData.Web.QuestionFlow
-@model QuestionViewModel
+@model QuestionPartialModel
 
-@{
-    var hasError = !ViewData.ModelState.IsValid;
-    var currentValue = Model.ExistingAnswer?.TextValue;
-}
-
-<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-    <fieldset class="govuk-fieldset">
-        <legend class="govuk-fieldset__legend govuk-fieldset__legend--l">
-            <h1 class="govuk-fieldset__heading">@Model.Question.Title</h1>
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    <fieldset class="govuk-fieldset" id="@Model.FieldName">
+        <legend class="govuk-fieldset__legend @(Model.IsPageHeading ? "govuk-fieldset__legend--l" : "govuk-fieldset__legend--m")">
+            @if (Model.IsPageHeading)
+            {
+                <h1 class="govuk-fieldset__heading">@Model.ResolvedTitle</h1>
+            }
+            else
+            {
+                @Model.ResolvedTitle
+            }
         </legend>
         @if (Model.Question.Hint is not null)
         {
-            <div class="govuk-hint">@Model.Question.Hint</div>
+            <div class="govuk-hint" id="@(Model.FieldName)-hint">@Model.Question.Hint</div>
         }
-        @if (hasError)
+        @if (Model.HasError)
         {
-            <p class="govuk-error-message">
-                <span class="govuk-visually-hidden">Error:</span>
-                Select an option
+            <p class="govuk-error-message" id="@(Model.FieldName)-error">
+                <span class="govuk-visually-hidden">Error:</span> @Model.Error
             </p>
         }
         <div class="govuk-radios">
             @foreach (var option in Model.Question.Options ?? [])
             {
+                var optionId = $"{Model.FieldName}-{option.Value}";
                 <div class="govuk-radios__item">
-                    <input class="govuk-radios__input" id="textValue-@option.Value" name="textValue" type="radio"
-                           value="@option.Value" @(currentValue == option.Value ? "checked" : "")>
-                    <label class="govuk-label govuk-radios__label" for="textValue-@option.Value">
-                        @option.Label
-                    </label>
+                    <input class="govuk-radios__input"
+                           id="@optionId" name="@Model.FieldName" type="radio"
+                           value="@option.Value"
+                           @(Model.ExistingAnswer?.TextValue == option.Value ? "checked" : "")>
+                    <label class="govuk-label govuk-radios__label" for="@optionId">@option.Label</label>
                 </div>
             }
         </div>

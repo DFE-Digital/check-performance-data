@@ -17,6 +17,7 @@ public static class SeedCheckingWindows
             StartDate = DateTime.Now.AddDays(-1),
             EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
             KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
             Title = "Key Stage 4 June"
         };
 
@@ -26,6 +27,7 @@ public static class SeedCheckingWindows
             StartDate = DateTime.Now.AddYears(-1).AddDays(-1),
             EndDate = DateTime.Now.AddYears(-1).AddDays(+13).Date.AddHours(17),
             KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
             Title = "KS4 June"
         };
         

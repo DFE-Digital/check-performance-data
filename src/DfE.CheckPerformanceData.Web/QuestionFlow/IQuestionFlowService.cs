@@ -5,8 +5,8 @@ namespace DfE.CheckPerformanceData.Web.QuestionFlow;
 
 public interface IQuestionFlowService
 {
-    QuestionFlowConfig? GetConfig(WhatToChange whatToChange, KeyStages keyStage);
-    Question GetQuestion(QuestionFlowConfig config, string questionId);
-    string? GetNextQuestionId(QuestionFlowConfig config, string questionId, QuestionAnswer? answer);
+    QuestionFlowConfig? GetConfig(WhatToChange whatToChange, CheckingWindowType checkingWindowType);
+    JourneyPage GetPage(QuestionFlowConfig config, string pageId);
+    string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers);
     List<string> BuildCurrentPath(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers);
 }

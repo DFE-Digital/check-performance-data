@@ -1,50 +1,64 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
-@model QuestionViewModel
+@model QuestionPartialModel
 
 @{
-    var hasError = !ViewData.ModelState.IsValid;
     var d = Model.ExistingAnswer?.DateValue;
     var dayVal = d is { Day: > 0 } ? d.Day.ToString() : "";
     var monthVal = d is { Month: > 0 } ? d.Month.ToString() : "";
     var yearVal = d is { Year: > 0 } ? d.Year.ToString() : "";
+    var hintId = $"{Model.FieldName}-hint";
+    var errorId = $"{Model.FieldName}-error";
+    var describedBy = string.Join(" ",
+        new[] { Model.Question.Hint is not null ? hintId : null, Model.HasError ? errorId : null }
+        .Where(s => s is not null));
 }
 
-<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-    <fieldset class="govuk-fieldset" role="group" aria-describedby="@(Model.Question.Hint is not null ? "date-hint" : "")">
-        <legend class="govuk-fieldset__legend govuk-fieldset__legend--l">
-            <h1 class="govuk-fieldset__heading">@Model.Question.Title</h1>
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    <fieldset class="govuk-fieldset" role="group"
+              @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>
+        <legend class="govuk-fieldset__legend @(Model.IsPageHeading ? "govuk-fieldset__legend--l" : "govuk-fieldset__legend--m")">
+            @if (Model.IsPageHeading)
+            {
+                <h1 class="govuk-fieldset__heading">@Model.ResolvedTitle</h1>
+            }
+            else
+            {
+                @Model.ResolvedTitle
+            }
         </legend>
         @if (Model.Question.Hint is not null)
         {
-            <div class="govuk-hint" id="date-hint">@Model.Question.Hint</div>
+            <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
         }
-        @if (hasError)
+        @if (Model.HasError)
         {
-            <p class="govuk-error-message">
-                <span class="govuk-visually-hidden">Error:</span>
-                Enter a complete date
+            <p class="govuk-error-message" id="@errorId">
+                <span class="govuk-visually-hidden">Error:</span> @Model.Error
             </p>
         }
-        <div class="govuk-date-input">
+        <div class="govuk-date-input" id="@Model.FieldName">
             <div class="govuk-date-input__item">
                 <div class="govuk-form-group">
-                    <label class="govuk-label govuk-date-input__label" for="dateDay">Day</label>
-                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(hasError ? "govuk-input--error" : "")"
-                           id="dateDay" name="dateDay" type="text" inputmode="numeric" value="@dayVal">
+                    <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_day">Day</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(Model.HasError ? "govuk-input--error" : "")"
+                           id="@(Model.FieldName)_day" name="@(Model.FieldName)_day"
+                           type="text" inputmode="numeric" value="@dayVal">
                 </div>
             </div>
             <div class="govuk-date-input__item">
                 <div class="govuk-form-group">
-                    <label class="govuk-label govuk-date-input__label" for="dateMonth">Month</label>
-                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(hasError ? "govuk-input--error" : "")"
-                           id="dateMonth" name="dateMonth" type="text" inputmode="numeric" value="@monthVal">
+                    <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_month">Month</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(Model.HasError ? "govuk-input--error" : "")"
+                           id="@(Model.FieldName)_month" name="@(Model.FieldName)_month"
+                           type="text" inputmode="numeric" value="@monthVal">
                 </div>
             </div>
             <div class="govuk-date-input__item">
                 <div class="govuk-form-group">
-                    <label class="govuk-label govuk-date-input__label" for="dateYear">Year</label>
-                    <input class="govuk-input govuk-date-input__input govuk-input--width-4 @(hasError ? "govuk-input--error" : "")"
-                           id="dateYear" name="dateYear" type="text" inputmode="numeric" value="@yearVal">
+                    <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_year">Year</label>
+                    <input class="govuk-input govuk-date-input__input govuk-input--width-4 @(Model.HasError ? "govuk-input--error" : "")"
+                           id="@(Model.FieldName)_year" name="@(Model.FieldName)_year"
+                           type="text" inputmode="numeric" value="@yearVal">
                 </div>
             </div>
         </div>

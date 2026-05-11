@@ -1,31 +1,155 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
-@model QuestionViewModel
+@model QuestionPartialModel
 
 @{
-    var hasError = !ViewData.ModelState.IsValid;
-    var existingFile = Model.ExistingAnswer?.FileValue;
+    var uploadError = TempData["UploadError"] as string;
+    var continueError = Model.Error;
+    var hasError = uploadError is not null || continueError is not null;
+
+    var uploadedFiles = Model.ExistingAnswer?.FileValues ?? [];
+    var totalPages = uploadedFiles.Sum(f => f.PageCount);
+    var pagesRemaining = 6 - totalPages;
+    var atLimit = totalPages >= 6;
+
+    string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} bytes";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024):F1} MB";
+    }
+
+    var describedBy = uploadError is not null ? "fileUpload-hint fileUpload-error" : "fileUpload-hint";
 }
 
-<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-    <h1 class="govuk-label-wrapper">
-        <label class="govuk-label govuk-label--l" for="fileUpload">@Model.Question.Title</label>
-    </h1>
-    @if (Model.Question.Hint is not null)
-    {
-        <div class="govuk-hint" id="fileUpload-hint">@Model.Question.Hint</div>
-    }
-    @if (existingFile is not null)
-    {
-        <p class="govuk-body">Currently uploaded: <strong>@existingFile.OriginalFileName</strong></p>
-    }
-    @if (hasError)
+@if (hasError)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @if (uploadError is not null)
+        {
+            <govuk-error-summary-item href="#fileUpload">@uploadError</govuk-error-summary-item>
+        }
+        @if (continueError is not null)
+        {
+            <govuk-error-summary-item href="#fileUpload">@continueError</govuk-error-summary-item>
+        }
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+
+@if (Model.Question.Hint is not null)
+{
+    <p class="govuk-body">@Model.Question.Hint</p>
+}
+
+@* ── Uploaded files table ────────────────────────────────────────────── *@
+
+@if (uploadedFiles.Count > 0)
+{
+    <table class="govuk-table govuk-!-margin-bottom-6">
+        <caption class="govuk-table__caption govuk-table__caption--m">
+            @uploadedFiles.Count @(uploadedFiles.Count == 1 ? "file" : "files") uploaded
+            &mdash; @totalPages of 6 pages used
+        </caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Filename</th>
+                <th scope="col" class="govuk-table__header">File size</th>
+                <th scope="col" class="govuk-table__header">Pages</th>
+                <th scope="col" class="govuk-table__header">Type</th>
+                <th scope="col" class="govuk-table__header">Action</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var file in uploadedFiles)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@file.OriginalFileName</td>
+                    <td class="govuk-table__cell">@FormatSize(file.FileSizeBytes)</td>
+                    <td class="govuk-table__cell">@file.PageCount</td>
+                    <td class="govuk-table__cell">PDF</td>
+                    <td class="govuk-table__cell">
+                        <form method="post"
+                              action="@Url.Action("RemoveFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="storedFileName" value="@file.StoredFileName" />
+                            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">
+                                Remove<span class="govuk-visually-hidden"> @file.OriginalFileName</span>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@* ── Upload form ─────────────────────────────────────────────────────── *@
+
+@if (!atLimit)
+{
+    <form method="post"
+          action="@Url.Action("UploadFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
+          enctype="multipart/form-data"
+          novalidate>
+        @Html.AntiForgeryToken()
+
+        <div class="govuk-form-group @(uploadError is not null ? "govuk-form-group--error" : "")">
+            <label class="govuk-label govuk-label--m" for="fileUpload">
+                @(uploadedFiles.Count > 0 ? "Upload another file" : "Upload a file")
+            </label>
+            <div class="govuk-hint" id="fileUpload-hint">
+                PDF only.
+                @if (pagesRemaining == 6)
+                {
+                    <text>Maximum 6 pages.</text>
+                }
+                else
+                {
+                    <text>Up to @pagesRemaining more @(pagesRemaining == 1 ? "page" : "pages") allowed.</text>
+                }
+            </div>
+            @if (uploadError is not null)
+            {
+                <p class="govuk-error-message" id="fileUpload-error">
+                    <span class="govuk-visually-hidden">Error:</span> @uploadError
+                </p>
+            }
+            <input class="govuk-file-upload @(uploadError is not null ? "govuk-file-upload--error" : "")"
+                   id="fileUpload" name="fileUpload" type="file"
+                   accept=".pdf,application/pdf"
+                   aria-describedby="@describedBy">
+        </div>
+
+        <govuk-button type="submit" class="govuk-button--secondary">Upload file</govuk-button>
+
+        <p class="govuk-body govuk-!-margin-top-2">
+            @uploadedFiles.Count @(uploadedFiles.Count == 1 ? "file" : "file(s)") added.
+            Evidence must be in PDF format and no more than 6 pages (either as 1 or multiple files).
+        </p>
+    </form>
+}
+else
+{
+    <p class="govuk-body">
+        <strong>Page limit reached.</strong> Remove a file to upload a different one.
+    </p>
+}
+
+<hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible" />
+
+@* ── Continue ────────────────────────────────────────────────────────── *@
+
+<form method="post"
+      action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+    @if (continueError is not null)
     {
         <p class="govuk-error-message">
-            <span class="govuk-visually-hidden">Error:</span>
-            Select a file to upload
+            <span class="govuk-visually-hidden">Error:</span> @continueError
         </p>
     }
-    <input class="govuk-file-upload @(hasError ? "govuk-file-upload--error" : "")"
-           id="fileUpload" name="fileUpload" type="file"
-           @(Model.Question.Hint is not null ? $"aria-describedby=\"fileUpload-hint\"" : "")>
-</div>
+    <govuk-button type="submit">Continue</govuk-button>
+</form>

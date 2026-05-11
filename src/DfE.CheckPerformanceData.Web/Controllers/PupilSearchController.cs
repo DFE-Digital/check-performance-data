@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)
     {
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
 
         return View(new PupilSearchIndexViewModel
         {
@@ -27,7 +28,7 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
         if (string.IsNullOrWhiteSpace(query) || query.Length < 2 || query.Length > 100)
             return Json(Array.Empty<object>());
 
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
         var suggestions = await service.GetPupilSuggestionsAsync(windowId, query, journey.SelectedWhatToChange);
         return Json(suggestions.Select(s => new { id = s.Id, label = s.Label }));
     }
@@ -38,7 +39,7 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
     {
         if (string.IsNullOrEmpty(model.SelectedPupilId))
         {
-            var journey = HttpContext.Session.GetJourneyState(windowId);
+            var journey = HttpContext.Session.GetRequestState(windowId);
             var vm = new PupilSearchIndexViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange ?? default };
             ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.WhatToChangeMessage);
             return View(vm);
@@ -46,23 +47,34 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
 
         var pupil = await service.GetPupilAsync(windowId, Guid.Parse(model.SelectedPupilId));
 
-        HttpContext.Session.SaveJourneyState(windowId, s =>
+        var existingState = HttpContext.Session.GetRequestState(windowId);
+        var reference = GenerateReference(existingState.CheckingWindowType);
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedPupilLabel = model.SelectedPupilLabel;
             s.SelectedPupilId = model.SelectedPupilId;
             s.SelectedPupil = pupil;
+            s.ReferenceNumber = reference;
             s.QuestionAnswers = new Dictionary<string, QuestionAnswer>();
             s.QuestionHistory = new List<string>();
         });
 
-        var state = HttpContext.Session.GetJourneyState(windowId);
-        if (state.SelectedWhatToChange.HasValue && state.KeyStage.HasValue)
+        var state = HttpContext.Session.GetRequestState(windowId);
+        if (state.SelectedWhatToChange.HasValue && state.CheckingWindowType.HasValue)
         {
-            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.KeyStage.Value);
+            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.CheckingWindowType.Value);
             if (config is not null)
-                return RedirectToAction("Question", "Journey", new { windowId, questionId = config.FirstQuestionId });
+                return RedirectToAction("Page", "Journey", new { windowId, pageId = config.FirstPageId });
         }
 
         return NotFound();
+    }
+
+    private static string GenerateReference(CheckingWindowType? windowType)
+    {
+        var type = windowType?.ToString() ?? "Unknown";
+        var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
+        return $"CYPMD_{type}_{uniqueId}";
     }
 }

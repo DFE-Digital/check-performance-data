@@ -1,28 +1,37 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
-@model QuestionViewModel
+@model QuestionPartialModel
 
 @{
-    var hasError = !ViewData.ModelState.IsValid;
-    var currentValue = Model.ExistingAnswer?.TextValue;
+    var hintId = $"{Model.FieldName}-hint";
+    var errorId = $"{Model.FieldName}-error";
+    var describedBy = string.Join(" ",
+        new[] { Model.Question.Hint is not null ? hintId : null, Model.HasError ? errorId : null }
+        .Where(s => s is not null));
 }
 
-<div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-    <h1 class="govuk-label-wrapper">
-        <label class="govuk-label govuk-label--l" for="textValue">@Model.Question.Title</label>
-    </h1>
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    @if (Model.IsPageHeading)
+    {
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="@Model.FieldName">@Model.ResolvedTitle</label>
+        </h1>
+    }
+    else
+    {
+        <label class="govuk-label govuk-label--m" for="@Model.FieldName">@Model.ResolvedTitle</label>
+    }
     @if (Model.Question.Hint is not null)
     {
-        <div class="govuk-hint" id="textValue-hint">@Model.Question.Hint</div>
+        <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
     }
-    @if (hasError)
+    @if (Model.HasError)
     {
-        <p class="govuk-error-message">
-            <span class="govuk-visually-hidden">Error:</span>
-            Enter @Model.Question.Title.ToLower()
+        <p class="govuk-error-message" id="@errorId">
+            <span class="govuk-visually-hidden">Error:</span> @Model.Error
         </p>
     }
-    <input class="govuk-input @(hasError ? "govuk-input--error" : "")"
-           id="textValue" name="textValue" type="text"
-           value="@currentValue"
-           @(Model.Question.Hint is not null ? $"aria-describedby=\"textValue-hint\"" : "")>
+    <input class="govuk-input @(Model.HasError ? "govuk-input--error" : "")"
+           id="@Model.FieldName" name="@Model.FieldName" type="text"
+           value="@Model.ExistingAnswer?.TextValue"
+           @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>
 </div>

@@ -1,0 +1,129 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@using DfE.CheckPerformanceData.Web.QuestionFlow
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model PageViewModel
+
+@{
+    var isContentPage = Model.Page.Type == PageType.Content;
+    var isSingleQuestion = Model.Page.Questions.Count == 1;
+    var hasFileUpload = Model.Page.Questions.Any(q => q.Type == QuestionType.FileUpload);
+    var resolvedPageTitle = string.IsNullOrEmpty(Model.Page.Title) ? null : Model.ResolveTemplate(Model.Page.Title);
+    ViewBag.Title = resolvedPageTitle ?? (Model.Page.Questions.Count > 0 ? Model.ResolveTemplate(Model.Page.Questions[0].Title) : string.Empty);
+    Layout = "_Layout";
+
+    QuestionPartialModel MakePartialModel(Question question)
+    {
+        var error = ViewData.ModelState.TryGetValue(question.Id, out var entry)
+            ? entry.Errors.FirstOrDefault()?.ErrorMessage
+            : null;
+        return new QuestionPartialModel
+        {
+            WindowId = Model.WindowId,
+            PageId = Model.Page.Id,
+            Question = question,
+            ExistingAnswer = Model.GetAnswer(question.Id),
+            FromSummary = Model.FromSummary,
+            IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(Model.Page.Title),
+            Error = error,
+            ResolvedTitle = Model.ResolveTemplate(question.Title)
+        };
+    }
+}
+
+@if (Model.FromSummary)
+{
+    <a asp-action="Summary" asp-controller="Journey" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
+else if (Model.BackPageId is not null)
+{
+    <a asp-action="Page" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId" asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="Index" asp-controller="PupilSearch" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
+
+@if (isContentPage)
+{
+    @if (Model.Page.Subheading is not null)
+    {
+        <span class="govuk-caption-xl">@Model.Page.Subheading</span>
+    }
+    @if (resolvedPageTitle is not null)
+    {
+        <h1 class="govuk-heading-xl">@resolvedPageTitle</h1>
+    }
+    
+    @if (Model.ContentKey is not null)
+    {
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = Model.ContentKey,
+            defaultHtml = Model.Page.Content ?? string.Empty
+        })
+    }
+    <form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
+}
+else if (hasFileUpload)
+{
+    @* File upload pages own their own forms and error summary *@
+    var fileQuestion = Model.Page.Questions.First(q => q.Type == QuestionType.FileUpload);
+    @await Html.PartialAsync("_FileUpload", MakePartialModel(fileQuestion))
+}
+else
+{
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <govuk-error-summary>
+            <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+            @foreach (var question in Model.Page.Questions)
+            {
+                if (ViewData.ModelState.TryGetValue(question.Id, out var entry) && entry.Errors.Any())
+                {
+                    var fieldRef = question.Type == QuestionType.Date
+                        ? $"{JourneyController.FieldName(question.Id)}_day"
+                        : JourneyController.FieldName(question.Id);
+                    foreach (var error in entry.Errors)
+                    {
+                        <govuk-error-summary-item href="#@fieldRef">@error.ErrorMessage</govuk-error-summary-item>
+                    }
+                }
+            }
+        </govuk-error-summary>
+    }
+
+    @if (!isSingleQuestion && resolvedPageTitle is not null)
+    {
+        <h1 class="govuk-heading-xl">@resolvedPageTitle</h1>
+    }
+
+    <form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+        @foreach (var question in Model.Page.Questions)
+        {
+            var qm = MakePartialModel(question);
+            switch (question.Type)
+            {
+                case QuestionType.Radio:
+                    await Html.RenderPartialAsync("_Radio", qm);
+                    break;
+                case QuestionType.FreeText:
+                    await Html.RenderPartialAsync("_FreeText", qm);
+                    break;
+                case QuestionType.Date:
+                    await Html.RenderPartialAsync("_Date", qm);
+                    break;
+            }
+        }
+
+        <govuk-button type="submit">Continue</govuk-button>
+    </form>
+}

@@ -9,7 +9,7 @@ public sealed class WhatToChangeController(ICheckYourPupilDataService service) :
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
     {
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
         return View(new WhatToChangeViewModel
         {
             WindowId = windowId,
@@ -30,10 +30,10 @@ public sealed class WhatToChangeController(ICheckYourPupilDataService service) :
 
         var window = await service.GetCheckingWindowAsync(windowId);
 
-        HttpContext.Session.SaveJourneyState(windowId, s =>
+        HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
-            s.KeyStage = window.KeyStage;
+            s.CheckingWindowType = window.CheckingWindowType;
         });
 
         return RedirectToAction("Index", "PupilSearch", new { windowId });

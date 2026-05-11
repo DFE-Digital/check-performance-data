@@ -76,7 +76,17 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     public async Task<IActionResult> Edit(int id, EditWikiPageViewModel model)
     {
         if (!ModelState.IsValid)
-            return Redirect($"/help{EditSuffix}");
+        {
+            TempData["WikiEditError"] = string.Join("; ",
+                ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            TempData["WikiEditAttemptedTitle"] = model.Title;
+            TempData["WikiEditAttemptedContent"] = model.Content;
+            var existing = await wikiService.GetPageByIdAsync(id);
+            var slug = existing?.SlugPath ?? string.Empty;
+            return Redirect(string.IsNullOrEmpty(slug)
+                ? $"/help{EditSuffix}"
+                : $"/help/{slug}{EditSuffix}");
+        }
 
         var dto = new UpdateWikiPageDto
         {

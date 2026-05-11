@@ -3,13 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class CreateTicketRequestDto
+    public sealed class CreateTicketRequestDto
     {
         [JsonPropertyName("ticket")]
         public CreateTicketDto Ticket { get; set; } = new();
     }
 
-    public class CreateTicketDto
+    public sealed class CreateTicketDto
     {
         [JsonPropertyName("subject")]
         public string Subject { get; set; } = string.Empty;

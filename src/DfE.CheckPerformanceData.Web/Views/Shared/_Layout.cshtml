@@ -17,11 +17,13 @@
     <govuk-header home-page-url="https://gov.uk/"/>
     <govuk-service-navigation service-name="Check Performance Data" service-url="#">
         <govuk-service-navigation-nav>
+            @{
+                var selectedWindowId = Context.Session.GetString("SelectedWindowId");
+            }
             <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
-            @if (@User.Identity is { IsAuthenticated: true })
+            @if (selectedWindowId is not null)
             {
-                <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Secret")">Sign out
-                </govuk-service-navigation-nav-item>
+                <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
             }
         </govuk-service-navigation-nav>
     </govuk-service-navigation>
@@ -35,6 +37,12 @@
             </span>
         </p>
     </div>
+    @if (User.Identity is { IsAuthenticated: true })
+    {
+        <div class="govuk-width-container sign-out-bar">
+            <a href="@Url.Action("DfeSignOut", "Secret")" class="govuk-link govuk-link--no-visited-state">Sign out</a>
+        </div>
+    }
 }
 
 @Html.GovUkFrontendJsEnabledScript()

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class CheckYourPupilDataViewModel
+public sealed class CheckYourPupilDataViewModel
 {
     public required string WindowId { get; init; }
     public required IReadOnlyList<PupilRow> IncludedPupils { get; init; }

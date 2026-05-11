@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class PupilSearchViewModel
+public sealed class PupilSearchViewModel
 {
     public required string WindowId { get; init; }
     public required string InputId { get; init; }

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
+public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -19,6 +19,7 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         if (includedSearch?.Length > MaxSearchLength) includedSearch = null;
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
+        HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }
@@ -127,7 +128,7 @@ public class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPu
         Sex = p.Sex,
         DateOfBirth = p.DateOfBirth,
         Age = p.Age,
-        FirstLanguage = p.FirstLanguage
+        Cypmd_Id = p.Cypmd_Id
     };
 
     private static int TotalPages(int count) => (int)Math.Ceiling(count / (double)PageSize);

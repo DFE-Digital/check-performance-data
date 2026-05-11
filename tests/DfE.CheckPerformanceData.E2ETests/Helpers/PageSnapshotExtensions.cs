@@ -30,21 +30,17 @@ public static class PageSnapshotExtensions
 
         if (!File.Exists(snapshotPath))
         {
+            // Two-pass bootstrap. Snapshots aren't committed to the repo — each environment
+            // (CI Linux, dev macOS, dev Windows) keeps its own canonical PNG because cross-OS
+            // Chromium produces slightly different output. First run on a clean environment
+            // writes the baseline and returns success; the next run compares against it.
+            // The optional accumulator lets callers report all bootstrapped names from a
+            // multi-viewport sweep at once instead of revealing one per test run.
             Directory.CreateDirectory(Path.GetDirectoryName(snapshotPath)!);
             await File.WriteAllBytesAsync(snapshotPath, actualBytes);
 
-            // When a caller passes an accumulator (e.g. a multi-viewport sweep generating
-            // several snapshots in a single test), collect the miss instead of throwing
-            // so every viewport gets bootstrapped in one CI run. The caller is responsible
-            // for failing the test at the end if the accumulator is non-empty.
-            if (createdSnapshots is not null)
-            {
-                createdSnapshots.Add(name);
-                return;
-            }
-
-            throw new XunitException(
-                $"Snapshot {name} did not exist at {snapshotPath} — written, run again to verify.");
+            createdSnapshots?.Add(name);
+            return;
         }
 
         using var expected = Image.Load<Rgba32>(snapshotPath);

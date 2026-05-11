@@ -136,7 +136,7 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return View(vm);
     }
 
-    [AllowAnonymous]
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/deleted")]
     public async Task<IActionResult> Deleted()
     {

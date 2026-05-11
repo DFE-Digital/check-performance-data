@@ -10,10 +10,11 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    private HttpClient CreateClient()
+    private HttpRequestMessage NewRequest(HttpMethod method, string relativePath, HttpContent? content = null)
     {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false };
-        return new HttpClient(handler) { BaseAddress = new Uri(_fixture.BaseUrl) };
+        var request = new HttpRequestMessage(method, $"{_fixture.BaseUrl}{relativePath}");
+        if (content is not null) request.Content = content;
+        return request;
     }
 
     // --- PostHelpCreate_RedirectsToSlug ---
@@ -24,7 +25,6 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         var unique = $"e2e-{Guid.NewGuid():N}";
         var title = $"{unique}-create-target";
 
-        using var client = CreateClient();
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
 
         var form = new FormUrlEncodedContent(new[]
@@ -33,11 +33,11 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
             new KeyValuePair<string, string>("Content", "Body content for create-target."),
         });
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/help/create") { Content = form };
+        using var request = NewRequest(HttpMethod.Post, "/help/create", form);
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await client.SendAsync(request);
+        var response = await TestHttpClients.NoRedirect.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.NotNull(response.Headers.Location);
@@ -82,17 +82,16 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         var id = await SeedHelpers.SeedWikiPageAsync(
             _fixture.SeedClient, title, "To be deleted.", parentId: null, tracking);
 
-        using var client = CreateClient();
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/help/delete/{id}")
-        {
-            Content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>()),
-        };
+        using var request = NewRequest(
+            HttpMethod.Post,
+            $"/help/delete/{id}",
+            new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>()));
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await client.SendAsync(request);
+        var response = await TestHttpClients.NoRedirect.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }

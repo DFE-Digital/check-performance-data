@@ -175,30 +175,18 @@ public static class SeedHelpers
             $"Could not resolve wiki page Id for slug '{slugPath}' from the rendered tree at /help.");
     }
 
-    // The fixture's SeedClient follows redirects; we need a separate handler that exposes
-    // the 302 so seed flows can read the Location header. One singleton owns the no-redirect
-    // handler for the lifetime of the test process — building a fresh HttpClient per seed
-    // call was the prior shape and is exactly the pattern HttpClient docs warn against
-    // (socket exhaustion on test loops). The instance is intentionally never disposed;
-    // it's bounded by the test process exit.
-    private static readonly HttpClient NoRedirectClient = new(
-        new HttpClientHandler
-        {
-            AllowAutoRedirect = false,
-            UseCookies = false
-        });
-
     private static async Task<HttpResponseMessage> SendWithoutFollowingRedirects(
         HttpClient client,
         HttpRequestMessage request)
     {
-        // The singleton has no BaseAddress; resolve relative request URIs against the
-        // caller's client so seed POSTs continue to be written as "/help/create" etc.
+        // TestHttpClients.NoRedirect has no BaseAddress; resolve relative request URIs
+        // against the caller's client so seed POSTs continue to be written as
+        // "/help/create" etc.
         if (request.RequestUri is { IsAbsoluteUri: false } && client.BaseAddress is not null)
         {
             request.RequestUri = new Uri(client.BaseAddress, request.RequestUri);
         }
 
-        return await NoRedirectClient.SendAsync(request);
+        return await TestHttpClients.NoRedirect.SendAsync(request);
     }
 }

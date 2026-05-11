@@ -10,12 +10,6 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    private HttpClient CreateClient()
-    {
-        var handler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false };
-        return new HttpClient(handler) { BaseAddress = new Uri(_fixture.BaseUrl) };
-    }
-
     // --- PostSave_Redirects302 ---
 
     [Fact]
@@ -26,7 +20,6 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         var unique = $"e2e-{Guid.NewGuid():N}";
         var key = $"{unique}-block";
 
-        using var client = CreateClient();
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
 
         var form = new FormUrlEncodedContent(new[]
@@ -38,11 +31,16 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
             new KeyValuePair<string, string>("ReturnUrl", "/"),
         });
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/content-block/save") { Content = form };
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"{_fixture.BaseUrl}/content-block/save")
+        {
+            Content = form
+        };
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await client.SendAsync(request);
+        var response = await TestHttpClients.NoRedirect.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }

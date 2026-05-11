@@ -197,18 +197,6 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
         return Redirect("/help");
     }
 
-    [AllowAnonymous]
-    [HttpGet("help/debug-claims")]
-    public IActionResult DebugClaims()
-    {
-        var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
-        var roles = User.Claims
-            .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
-            .Select(c => c.Value)
-            .ToList();
-
-        return Content($"All Claims:\n{string.Join("\n", claims.Select(c => $"{c.Type}: {c.Value}"))}\n\nRoles:\n{string.Join("\n", roles)}", "text/plain");
-    }
 }
 
 public sealed class MovePageRequest

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 
 namespace DfE.CheckPerformanceData.E2ETests.Fixtures;
 
@@ -27,6 +28,13 @@ public sealed class PlaywrightFixture : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await WaitForDeploymentReadyAsync();
+
+        // Impersonate as editor for the lifetime of the test collection so every
+        // seed/CRUD endpoint sees an authenticated editor principal. Hits the dev-only
+        // /dev/impersonate/editor route; in production the suite would 404 here and
+        // every editor-gated test would fail, which is the desired outcome (E2E should
+        // never run against prod).
+        await AuthHelpers.ImpersonateAsEditorAsync(this);
     }
 
     public Task DisposeAsync()

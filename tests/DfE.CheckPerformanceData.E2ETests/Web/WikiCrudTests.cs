@@ -37,7 +37,7 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await TestHttpClients.NoRedirect.SendAsync(request);
+        var response = await TestHttpClients.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.NotNull(response.Headers.Location);
@@ -91,7 +91,7 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         request.Headers.Add("X-XSRF-TOKEN", token);
         request.Headers.Add("Cookie", cookie);
 
-        var response = await TestHttpClients.NoRedirect.SendAsync(request);
+        var response = await TestHttpClients.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }

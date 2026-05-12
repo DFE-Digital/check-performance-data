@@ -175,7 +175,7 @@ public static class SeedHelpers
             $"Could not resolve wiki page Id for slug '{slugPath}' from the rendered tree at /help.");
     }
 
-    private static async Task<HttpResponseMessage> SendWithoutFollowingRedirects(
+    private static Task<HttpResponseMessage> SendWithoutFollowingRedirects(
         HttpClient client,
         HttpRequestMessage request)
     {
@@ -187,6 +187,6 @@ public static class SeedHelpers
             request.RequestUri = new Uri(client.BaseAddress, request.RequestUri);
         }
 
-        return await TestHttpClients.NoRedirect.SendAsync(request);
+        return TestHttpClients.SendAsync(request);
     }
 }

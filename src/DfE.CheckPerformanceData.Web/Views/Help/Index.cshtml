@@ -61,7 +61,7 @@
                         }
                         <form asp-controller="Help" asp-action="Create" method="post">
                             @Html.AntiForgeryToken()
-                            <input type="hidden" name="editMode" value="true" />
+                            <input type="hidden" name="@DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditModeFormKey" value="true" />
                             <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
                                 <label class="govuk-label" for="new-page-title">Page title</label>
                                 @if (hasError)
@@ -106,7 +106,7 @@
                 </svg>
             </button>
             <div class="wiki-mode-toggle">
-            @if (Model.IsEditMode)
+            @if (Model.IsEditMode && User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
             {
                 <a href="/help/@Model.CurrentSlugPath" class="govuk-link wiki-mode-link">
                     <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -121,8 +121,17 @@
                     </svg>
                     <span>Deleted pages</span>
                 </a>
+                <form asp-controller="Help" asp-action="Seed" method="post" class="wiki-mode-seed-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-link wiki-mode-link wiki-mode-link--button">
+                        <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                            <path d="M8 2v8M4 6l4-4 4 4M3 13h10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <span>Seed sample pages</span>
+                    </button>
+                </form>
             }
-            else
+            else if (User.IsInRole(DfE.CheckPerformanceData.Web.Controllers.WikiConstants.EditorRole))
             {
                 <a href="/help/@(string.IsNullOrEmpty(Model.CurrentSlugPath) ? "?edit" : Model.CurrentSlugPath + "?edit")" class="govuk-link wiki-mode-link">
                     <svg class="wiki-mode-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

@@ -1,11 +1,12 @@
 @using DfE.CheckPerformanceData.Application.Wiki
+@using DfE.CheckPerformanceData.Web.Controllers
 @model WikiPageDto
 
 <h1 class="govuk-heading-l">Edit: @Model.Title</h1>
 
 <form action="/help/edit/@Model.Id" method="post">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="editMode" value="true" />
+    <input type="hidden" name="@WikiConstants.EditModeFormKey" value="true" />
 
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--m" for="page-title">Page title</label>
@@ -32,7 +33,7 @@
     <a href="/help/versions/@Model.Id" class="govuk-link">View version history</a>
 </p>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.6.1/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="~/lib/tinymce/tinymce.min.js"></script>
 <script>
     (function () {
         'use strict';
@@ -50,8 +51,7 @@
                 { title: 'Heading 4', block: 'h4' },
                 { title: 'Paragraph', block: 'p' }
             ],
-            paste_as_text: false,
-            paste_merge_formats: true,
+            paste_as_text: true,
             paste_tab_spaces: 4,
             content_css: 'default',
             branding: false,

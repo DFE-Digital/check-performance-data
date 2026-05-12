@@ -226,7 +226,27 @@ public class ContentBlockServiceTests
         var result = await _sut.GetVersionsAsync("k");
 
         Assert.Equal(2, result.Count);
-        Assert.Equal(versions, result);
+        Assert.Equal(1, result[0].Id);
+        Assert.Equal("v1", result[0].Value);
+        Assert.Equal(2, result[1].Id);
+        Assert.Equal("v2", result[1].Value);
+    }
+
+    [Fact]
+    public async Task GetVersionsAsync_PopulatesValueHtmlViaRenderer_ToPreventXss()
+    {
+        var versions = new List<ContentBlockVersionDto>
+        {
+            new() { Id = 1, VersionNumber = 1, Value = "<p>safe</p><script>alert(1)</script>" }
+        };
+        _repository.GetVersionsByKeyAsync("k").Returns(versions);
+        _htmlRenderer.RenderHtml("<p>safe</p><script>alert(1)</script>").Returns("<p>safe</p>");
+
+        var result = await _sut.GetVersionsAsync("k");
+
+        Assert.Equal("<p>safe</p>", result[0].ValueHtml);
+        Assert.Equal("<p>safe</p><script>alert(1)</script>", result[0].Value);
+        _htmlRenderer.Received(1).RenderHtml("<p>safe</p><script>alert(1)</script>");
     }
 
     // --- RevertToVersionAsync ---

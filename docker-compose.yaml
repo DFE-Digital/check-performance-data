@@ -20,7 +20,8 @@
       - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
       - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
       - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
-      
+      - DfeSignIn__ServiceId=${DFESIGNIN_SERVICEID}
+
     depends_on:
       - db
       - azurite
@@ -44,6 +45,7 @@
       - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
       - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
       - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
+      - DfeSignIn__ServiceId=${DFESIGNIN_SERVICEID}
       - RulesEngineOptions__QueueName=${RULESENGINEOPTIONS_QUEUENAME:-requests}
       - RulesEngineOptions__RetryDelayMs=${RULESENGINEOPTIONS_RETRYDELAYMS:-1000}
       - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}

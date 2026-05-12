@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -17,7 +18,7 @@ public sealed class HelpControllerCreateTests
 
     public HelpControllerCreateTests()
     {
-        _sut = new HelpController(_wikiService);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
 
         var httpContext = new DefaultHttpContext();
         _tempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
@@ -50,6 +51,10 @@ public sealed class HelpControllerCreateTests
     {
         var httpContext = new DefaultHttpContext();
         httpContext.Request.QueryString = new QueryString("?edit");
+        var editorIdentity = new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.Role, WikiConstants.EditorRole) },
+            authenticationType: "Test");
+        httpContext.User = new ClaimsPrincipal(editorIdentity);
         _sut.ControllerContext = new ControllerContext { HttpContext = httpContext };
         _sut.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
 

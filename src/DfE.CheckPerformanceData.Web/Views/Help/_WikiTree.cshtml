@@ -1,9 +1,12 @@
 @using DfE.CheckPerformanceData.Application.Wiki
+@using DfE.CheckPerformanceData.Web.Controllers
 @model List<WikiPageTreeNodeDto>
 @{
     var isEditMode = ViewData["IsEditMode"] is true;
+    var isEditor = User.IsInRole(WikiConstants.EditorRole);
+    var canEdit = isEditMode && isEditor;
     var currentSlugPath = (string)(ViewData["CurrentSlugPath"] ?? string.Empty);
-    var editSuffix = isEditMode ? "?edit" : "";
+    var editSuffix = canEdit ? "?" + WikiConstants.EditQueryKey : "";
     var depth = ViewData["TreeDepth"] is int d ? d : 0;
     var isRoot = depth == 0;
 }
@@ -16,7 +19,7 @@
         var isLast = node == Model.Last();
 
         <li class="tv-item @(isLast ? "tv-item-last" : "")">
-            <div class="tv-row" data-page-id="@node.Id" data-parent-id="@node.ParentId" data-sort="@node.SortOrder" draggable="@(isEditMode ? "true" : "false")">
+            <div class="tv-row" data-page-id="@node.Id" data-parent-id="@node.ParentId" data-sort="@node.SortOrder" draggable="@(canEdit ? "true" : "false")">
                 @if (hasChildren)
                 {
                     <button class="tv-toggle" type="button" aria-expanded="true" aria-label="Toggle @node.Title">
@@ -30,13 +33,13 @@
 
                 <a href="/help/@node.SlugPath@editSuffix" class="tv-link @(isActive ? "tv-link-active" : "") @(hasChildren ? "tv-link-parent" : "")" @(isActive ? "aria-current=page" : "")>@node.Title</a>
 
-                @if (isEditMode)
+                @if (canEdit)
                 {
                     var confirmMsg = System.Text.Json.JsonSerializer.Serialize(
                         $"Delete \"{node.Title}\" and all child pages?");
                     <form action="/help/delete/@node.Id" method="post" class="tv-del-form">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" name="editMode" value="true" />
+                        <input type="hidden" name="@WikiConstants.EditModeFormKey" value="true" />
                         <button type="submit" class="tv-del" aria-label="Delete @node.Title"
                                 title="Delete this page and all children"
                                 onclick="return confirm(@confirmMsg);">

@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Application.DfESignInApiClient;
 
-public class RoleDto
+public sealed class RoleDto
 {
     public string Code { get; init; } = string.Empty;
 }

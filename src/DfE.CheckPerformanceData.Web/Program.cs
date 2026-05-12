@@ -8,10 +8,13 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -24,9 +27,10 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     var configuration = builder.Configuration
-        .SetBasePath(builder.Environment.ContentRootPath)
+        .SetBasePath(builder.Environment.ContentRootPath)     
         .AddJsonFile("appsettings.json", false, true)
         .AddEnvironmentVariables()
+        .AddUserSecrets<Program>(optional: true)
         .Build();
 
     builder.Host.UseSerilog((context, services, config) =>
@@ -44,17 +48,24 @@ try
                 : new CompactJsonFormatter());
     });
     
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
-
+    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
+    
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
-        .AddGovUkFrontend();
+        .AddGovUkFrontend()
+        .AddPersistenceDependencies(configuration, seedData)
+        .AddApplicationDependencies();
     
-    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
-    builder.Services.AddApplicationDependencies();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
@@ -70,11 +81,28 @@ try
 
     builder.Services.AddControllersWithViews();
 
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    });
+
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSession(options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+
     builder.Services.AddHealthChecks();
 
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
+
+    app.UseForwardedHeaders();
 
     app.UseSerilogRequestLogging(options =>
     {
@@ -89,7 +117,7 @@ try
 
     app.UseGovUkFrontend();
 
-    app.UseHealthChecks("/healthcheck");
+    app.MapHealthChecks("/healthcheck").AllowAnonymous();
 
 // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
@@ -98,10 +126,11 @@ try
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
     }
-    else
+
+    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();   
     }
 
     app.UseHttpsRedirection();
@@ -110,10 +139,10 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://fonts.googleapis.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "style-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://fonts.googleapis.com; " +
             "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
-            "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
             "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
             "frame-src 'self' https://*.googletagmanager.com; " +
             "object-src 'none'; " +
@@ -122,12 +151,14 @@ try
         await next();
     });
 
+    app.UseSession();
+
     app.UseRouting();
 
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapStaticAssets();
+    app.MapStaticAssets().AllowAnonymous();
 
     app.MapControllerRoute(
         name: "wiki",

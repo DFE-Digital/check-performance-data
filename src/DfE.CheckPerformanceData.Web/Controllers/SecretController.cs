@@ -13,10 +13,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
+public sealed class SecretController(IDfESignInApiClient dfeSignInApiClient, IPortalDbContext dbContext)
     : Controller
 {
-    [Authorize]
     public async Task<IActionResult> Index()
     {
         var userid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

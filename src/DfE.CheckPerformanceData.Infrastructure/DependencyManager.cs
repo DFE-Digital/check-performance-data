@@ -1,6 +1,9 @@
 ﻿using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
+using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Refit;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -19,7 +23,12 @@ public static class DependencyManager
 {
     public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
     {
-        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>();
+        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>()
+            ?? throw new InvalidOperationException(
+                $"Configuration section '{DfeSigninSettings.SectionName}' is missing or empty. " +
+                "Set DfeSignIn:MetadataAddress, DfeSignIn:ClientId, DfeSignIn:ClientSecret, " +
+                "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
+                "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
 
         services.AddAuthentication(options =>
         {
@@ -42,7 +51,7 @@ public static class DependencyManager
             }).AddOpenIdConnect(options =>
             {
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.MetadataAddress = settings!.MetadataAddress;
+                options.MetadataAddress = settings.MetadataAddress;
                 options.ClientId = settings.ClientId;
                 options.ClientSecret = settings.ClientSecret;
                 options.ResponseType = OpenIdConnectResponseType.Code;
@@ -104,6 +113,52 @@ public static class DependencyManager
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         });
+
+        return services;
+    }
+
+    public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
+    {
+        // optional logging setup.
+        services.AddTransient<RefitLoggingHandler>();
+
+        var settings = config.GetSection(ZendeskSettings.SectionName).Get<ZendeskSettings>();
+
+        if (settings == null)
+        {
+            throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
+        }
+        services.Configure<ZendeskSettings>(s => s = settings);
+
+        
+
+
+        services.AddRefitClient<IZendeskApi>(new RefitSettings
+        {
+            ContentSerializer = new NewtonsoftJsonContentSerializer()
+        })
+
+           .ConfigureHttpClient(c =>
+           {
+               c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
+               var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
+               c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
+               c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+           })
+           .AddHttpMessageHandler<RefitLoggingHandler>();
+
+        services.AddScoped<IZendeskService, ZendeskService>();
+        services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();
+
+        services.AddOptions<PollySettings>()
+            .Bind(config.GetSection(PollySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<SchoolCheckingExerciseSettings>()
+            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
+            .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
+            .ValidateOnStart();
 
         return services;
     }

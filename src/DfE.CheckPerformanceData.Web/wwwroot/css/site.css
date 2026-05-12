@@ -1,3 +1,44 @@
+.sign-out-bar {
+  text-align: right;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.pupil-search {
+  background: #f3f2f1;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.pupil-search .govuk-form-group {
+  margin-bottom: 0;
+}
+
+.pupil-search__row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.pupil-search__row .govuk-input {
+  flex: 1;
+}
+
+.pupil-search__row .govuk-button {
+  margin-bottom: 0;
+}
+
+.dfe-card-container{
+  .govuk-heading-m {
+    color: #347CA9;
+  }}
+
+.school-details{
+  border: 1px solid #b1b4b6;
+  padding: 3px 12px;
+  margin-bottom: 6px;
+}
+
 /* ==========================================================================
    Wiki Layout — collapsible sidebar + main content
    ========================================================================== */
@@ -10,8 +51,12 @@
 
 .wiki-sidebar {
   width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   flex-shrink: 0;
+  flex-grow: 0;
   overflow: hidden;
+  box-sizing: border-box;
   transition: width .25s ease, opacity .2s ease;
 }
 
@@ -49,6 +94,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.wiki-mode-seed-form {
+  display: inline;
+  margin: 0;
+}
+
+.wiki-mode-link--button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
 .wiki-mode-icon {
@@ -98,6 +156,23 @@
   padding: 12px 16px 12px 0;
   min-height: 400px;
   border-right: 1px solid #b1b4b6;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.wiki-search-form {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wiki-search-form .govuk-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.wiki-search-form .govuk-form-group {
+  margin-bottom: 10px;
 }
 
 /* ---- List reset & tree lines -------------------------------------------- */

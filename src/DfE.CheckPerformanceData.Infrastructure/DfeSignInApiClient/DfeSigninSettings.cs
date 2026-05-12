@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 
-public class DfeSigninSettings
+public sealed class DfeSigninSettings
 {
     public const string SectionName = "DfeSignIn";
     public string BaseUrl { get; init; } = string.Empty;

@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Controllers
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DeletedWikiPagesViewModel
 @{
     ViewData["Title"] = "Deleted pages - Help";
@@ -5,7 +6,7 @@
 
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-        <a href="/help?edit" class="govuk-back-link">Back to wiki</a>
+        <a href="/help?@WikiConstants.EditQueryKey" class="govuk-back-link">Back to wiki</a>
 
         <h1 class="govuk-heading-l">Deleted pages</h1>
 
@@ -52,7 +53,7 @@
                             <td class="govuk-table__cell">
                                 <form action="/help/restore/@deleted.Id" method="post" class="wiki-restore-form">
                                     @Html.AntiForgeryToken()
-                                    <input type="hidden" name="editMode" value="true" />
+                                    <input type="hidden" name="@WikiConstants.EditModeFormKey" value="true" />
                                     <div class="govuk-form-group govuk-!-margin-bottom-2">
                                         <label class="govuk-label govuk-label--s" for="parent-@deleted.Id">
                                             Restore under

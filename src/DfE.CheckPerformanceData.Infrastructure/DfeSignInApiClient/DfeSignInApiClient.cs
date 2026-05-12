@@ -40,7 +40,7 @@ public sealed class DfeSignInApiClient(HttpClient httpClient, IOptions<DfeSignin
 
 
 
-public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
+public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
 {
     public override OrganisationDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -51,10 +51,11 @@ public class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto>
 
         if (!root.TryGetProperty("localAuthority", out var localAuthorityElement)) return dto!;
         
+        
         var orgCode = localAuthorityElement.GetProperty("code").GetString();
         var orgId = root.GetProperty("establishmentNumber").GetString();
 
-        dto?.LAESTAB = $"{orgCode}{orgId}";
+        dto?.Laestab = $"{orgCode}/{orgId}";
 
         return dto!;
     }

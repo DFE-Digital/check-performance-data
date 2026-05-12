@@ -1,16 +1,20 @@
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class HelpController(IWikiService wikiService) : Controller
+public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
 {
-    private bool IsEditMode => 
-        Request.Query.ContainsKey("edit") || (Request.HasFormContentType && Request.Form.ContainsKey("editMode"));
+    private bool IsEditMode =>
+        (Request.Query.ContainsKey(WikiConstants.EditQueryKey)
+         || (Request.HasFormContentType && Request.Form.ContainsKey(WikiConstants.EditModeFormKey)))
+        && User.IsInRole(WikiConstants.EditorRole);
 
-    private string EditSuffix => IsEditMode ? "?edit" : "";
+    private string EditSuffix => IsEditMode ? "?" + WikiConstants.EditQueryKey : "";
 
+    [AllowAnonymous]
     public async Task<IActionResult> Index(string? slugPath)
     {
         var tree = await wikiService.GetNavigationTreeAsync();
@@ -37,6 +41,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/create")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateWikiPageViewModel model)
@@ -65,12 +70,23 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         }
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/edit/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, EditWikiPageViewModel model)
     {
         if (!ModelState.IsValid)
-            return Redirect($"/help{EditSuffix}");
+        {
+            TempData["WikiEditError"] = string.Join("; ",
+                ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+            TempData["WikiEditAttemptedTitle"] = model.Title;
+            TempData["WikiEditAttemptedContent"] = model.Content;
+            var existing = await wikiService.GetPageByIdAsync(id);
+            var slug = existing?.SlugPath ?? string.Empty;
+            return Redirect(string.IsNullOrEmpty(slug)
+                ? $"/help{EditSuffix}"
+                : $"/help/{slug}{EditSuffix}");
+        }
 
         var dto = new UpdateWikiPageDto
         {
@@ -78,10 +94,24 @@ public sealed class HelpController(IWikiService wikiService) : Controller
             Content = model.Content
         };
 
-        var page = await wikiService.UpdatePageAsync(id, dto);
-        return Redirect($"/help/{page.SlugPath}");
+        try
+        {
+            var page = await wikiService.UpdatePageAsync(id, dto);
+            return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+        }
+        catch (DuplicateWikiPageException ex)
+        {
+            TempData["WikiEditError"] = ex.Message;
+            TempData["WikiEditAttemptedTitle"] = model.Title;
+            var existing = await wikiService.GetPageByIdAsync(id);
+            var slug = existing?.SlugPath ?? string.Empty;
+            return Redirect(string.IsNullOrEmpty(slug)
+                ? $"/help{EditSuffix}"
+                : $"/help/{slug}{EditSuffix}");
+        }
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/delete/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
@@ -90,19 +120,24 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return Redirect($"/help{EditSuffix}");
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/move")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Move([FromBody] MovePageRequest request)
+    public async Task<IActionResult> Move([FromBody] MovePageRequest? request)
     {
+        if (request is null) return BadRequest();
+        if (!ModelState.IsValid) return BadRequest(ModelState);
         await wikiService.MovePageAsync(request.Id, request.NewParentId, request.NewSortOrder);
         var page = await wikiService.GetPageByIdAsync(request.Id);
         return Ok(new { slugPath = page?.SlugPath ?? "" });
     }
 
+    [AllowAnonymous]
     [HttpGet("help/search")]
     public async Task<IActionResult> Search(string? q, int page = 1)
     {
-        var result = await wikiService.SearchAsync(q ?? string.Empty, page);
+        var safePage = page < 1 ? 1 : page;
+        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage);
         var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch
@@ -128,6 +163,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/deleted")]
     public async Task<IActionResult> Deleted()
     {
@@ -143,6 +179,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/restore/{id:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id, int? newParentId)
@@ -151,6 +188,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/versions/{id:int}")]
     public async Task<IActionResult> Versions(int id)
     {
@@ -168,6 +206,7 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/revert/{pageId:int}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(int pageId, int versionId)
@@ -175,6 +214,16 @@ public sealed class HelpController(IWikiService wikiService) : Controller
         var page = await wikiService.RevertToVersionAsync(pageId, versionId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
+
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpPost("help/seed")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Seed()
+    {
+        await wikiSeeder.SeedAsync();
+        return Redirect("/help");
+    }
+
 }
 
 public sealed class MovePageRequest

@@ -1,0 +1,14 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
+{
+    public sealed class ListViewTicketsRequest
+    {
+        public int? Page { get; set; }
+        public int? PerPage { get; set; }
+        public string? SortBy { get; set; }
+        public string? SortOrder { get; set; }
+    }
+}

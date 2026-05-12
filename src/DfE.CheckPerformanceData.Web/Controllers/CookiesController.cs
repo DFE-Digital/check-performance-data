@@ -1,10 +1,12 @@
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class CookiesController : Controller
+[AllowAnonymous]
+public sealed class CookiesController : Controller
 {
     private const string CookieName = "cookies_policy";
     private const int CookieExpiryDays = 365;

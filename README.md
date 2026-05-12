@@ -30,4 +30,7 @@ dotnet test
 
 ```sh
 docker compose up --build -d
-``` 
+```
+
+docker compose  -- profile web up
+docker compose  -- rules_engine web up

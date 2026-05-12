@@ -22,7 +22,8 @@ public sealed class HelpControllerTests
 		//     reads Request.Query, so the test provides a DefaultHttpContext via
 		//     ControllerContext (standard ASP.NET Core unit-test pattern).
 		_wikiService.GetNavigationTreeAsync().Returns(new List<WikiPageTreeNodeDto>());
-		var sut = new HelpController(_wikiService)
+		var seeder = new WikiSeeder(_wikiService);
+		var sut = new HelpController(_wikiService, seeder)
 		{
 			ControllerContext = new ControllerContext
 			{

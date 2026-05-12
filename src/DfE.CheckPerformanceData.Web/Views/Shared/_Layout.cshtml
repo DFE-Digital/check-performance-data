@@ -4,9 +4,11 @@
 <head>
     @await Html.PartialAsync("_GtmHead")
     @Html.GovUkFrontendStyleImports()
+    <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+    <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />
 </head>
 @section BodyStart {
-    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await Html.PartialAsync("_CookieBanner")
     @await Html.PartialAsync("_GtmBody")
 }
@@ -15,11 +17,13 @@
     <govuk-header home-page-url="https://gov.uk/"/>
     <govuk-service-navigation service-name="Check Performance Data" service-url="#">
         <govuk-service-navigation-nav>
+            @{
+                var selectedWindowId = Context.Session.GetString("SelectedWindowId");
+            }
             <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
-            @if (@User.Identity is { IsAuthenticated: true })
+            @if (selectedWindowId is not null)
             {
-                <govuk-service-navigation-nav-item href="@Url.Action("DfeSignOut", "Secret")">Sign out
-                </govuk-service-navigation-nav-item>
+                <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
             }
         </govuk-service-navigation-nav>
     </govuk-service-navigation>
@@ -33,6 +37,12 @@
             </span>
         </p>
     </div>
+    @if (User.Identity is { IsAuthenticated: true })
+    {
+        <div class="govuk-width-container sign-out-bar">
+            <a href="@Url.Action("DfeSignOut", "Secret")" class="govuk-link govuk-link--no-visited-state">Sign out</a>
+        </div>
+    }
 }
 
 @Html.GovUkFrontendJsEnabledScript()
@@ -88,4 +98,5 @@
 @section BodyEnd {
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
+    @RenderSection("Scripts", required: false)
 }

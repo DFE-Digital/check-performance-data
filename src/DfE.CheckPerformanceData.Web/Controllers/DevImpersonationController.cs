@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Web.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
@@ -8,7 +9,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // E2E tests can adopt or shed the editor role without going near the real DfE Sign-In
 // flow. Every action returns 404 when the host environment is Production — belt-and-
 // braces alongside Program.cs's gated DI registration. NEVER allow this controller's
-// routes to reach production.
+// routes to reach production. [AllowAnonymous] is required because the global
+// FallbackPolicy demands authentication; E2E callers reach these endpoints before they
+// have any auth cookie.
+[AllowAnonymous]
 public sealed class DevImpersonationController(IHostEnvironment env) : Controller
 {
     private bool IsAllowed => !env.IsProduction();

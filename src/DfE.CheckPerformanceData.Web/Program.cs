@@ -2,12 +2,16 @@ using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -65,7 +69,39 @@ try
         .AddGovUkFrontend()
         .AddPersistenceDependencies(configuration, seedData)
         .AddApplicationDependencies();
-    
+
+    // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
+    // it and the real DfE cookie scheme based on which cookie is present. Registered
+    // ONLY when not in Production so prod can never serve these routes or carry the
+    // marker cookie. Don't move this block outside the IsProduction() guard.
+    if (!builder.Environment.IsProduction())
+    {
+        const string DevAwareScheme = "DevAware";
+
+        builder.Services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, DevImpersonationAuthHandler>(
+                DevImpersonationConstants.Scheme,
+                _ => { })
+            .AddPolicyScheme(DevAwareScheme, DevAwareScheme, options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                    context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName)
+                        ? DevImpersonationConstants.Scheme
+                        : CookieAuthenticationDefaults.AuthenticationScheme;
+            });
+
+        // Override only DefaultAuthenticateScheme so [Authorize] checks pass through
+        // the policy scheme. DefaultChallengeScheme stays as OpenIdConnect so DfE
+        // Sign-In still triggers for unauthenticated users; DefaultSignInScheme stays
+        // as Cookies so the OIDC callback still writes the real auth cookie.
+        builder.Services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = DevAwareScheme;
+        });
+
+        builder.Services.AddScoped<IClaimsTransformation, DevImpersonationClaimsTransformer>();
+    }
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),

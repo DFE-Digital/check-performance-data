@@ -633,9 +633,9 @@ public sealed class WikiServiceTests
             {
                 new() { Id = 1, Title = "p", Slug = "p" }
             }, 25));
-        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
         {
-            MakePage(id: 1, title: "p", slug: "p")
+            new() { Id = 1, Slug = "p", ParentId = null }
         });
 
         var result = await _sut.SearchAsync("publish", page: 99);
@@ -667,16 +667,99 @@ public sealed class WikiServiceTests
             {
                 new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
             }, 1));
-        _repository.GetAllOrderedAsync().Returns(new List<WikiPageDto>
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
         {
-            MakePage(id: 1, title: "Docs", slug: "docs"),
-            MakePage(id: 2, title: "API", slug: "api", parentId: 1)
+            new() { Id = 1, Slug = "docs", ParentId = null },
+            new() { Id = 2, Slug = "api", ParentId = 1 }
         });
 
         var result = await _sut.SearchAsync("api", page: 1);
 
         Assert.Single(result.Items);
         Assert.Equal("docs/api", result.Items[0].SlugPath);
+    }
+
+    // --- Wildcard / prefix search ---
+
+    [Fact]
+    public async Task SearchAsync_QueryWithoutAsterisk_UsesWebsearchPath()
+    {
+        _repository.SearchAsync("publish", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+
+        await _sut.SearchAsync("publish", page: 1);
+
+        await _repository.Received(1).SearchAsync("publish", 0, 20);
+        await _repository.DidNotReceive().SearchPrefixAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_TrailingAsterisk_RoutesToPrefixSearch()
+    {
+        _repository.SearchPrefixAsync(Arg.Any<string>(), 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+
+        await _sut.SearchAsync("pub*", page: 1);
+
+        await _repository.Received(1).SearchPrefixAsync("pub:*", 0, 20);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_AsteriskWithExtraTerms_BuildsAndedTsQuery()
+    {
+        _repository.SearchPrefixAsync(Arg.Any<string>(), 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+
+        await _sut.SearchAsync("test pub*", page: 1);
+
+        await _repository.Received(1).SearchPrefixAsync("test & pub:*", 0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_AsteriskQuery_StripsPunctuationFromTokens()
+    {
+        _repository.SearchPrefixAsync(Arg.Any<string>(), 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>(), 0));
+
+        // Anything that is not letters, digits, or the trailing wildcard must be removed
+        // before reaching to_tsquery, which raises syntax errors on punctuation.
+        await _sut.SearchAsync("pub*!  &test/", page: 1);
+
+        await _repository.Received(1).SearchPrefixAsync("pub:* & test", 0, 20);
+    }
+
+    [Fact]
+    public async Task SearchAsync_AsteriskOnlyTokens_ReturnEmptyQueryError()
+    {
+        // `**` passes the min-length check (2 chars) but sanitises to nothing, so the
+        // service must short-circuit rather than send an empty string to to_tsquery
+        // (which would raise a Postgres syntax error).
+        var result = await _sut.SearchAsync("**", page: 1);
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+        await _repository.DidNotReceive().SearchPrefixAsync(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_DoesNotLoadFullPageDtos_WhenResolvingSlugPaths()
+    {
+        _repository.SearchAsync("api", 0, 20)
+            .Returns((new List<WikiPageSearchResultDto>
+            {
+                new() { Id = 2, Title = "API", Slug = "api", ParentId = 1 }
+            }, 1));
+        _repository.GetSlugLookupAsync().Returns(new List<WikiSlugLookupEntry>
+        {
+            new() { Id = 1, Slug = "docs", ParentId = null },
+            new() { Id = 2, Slug = "api", ParentId = 1 }
+        });
+
+        await _sut.SearchAsync("api", page: 1);
+
+        await _repository.Received(1).GetSlugLookupAsync();
+        await _repository.DidNotReceive().GetAllOrderedAsync();
     }
 
     // --- Write paths populate BodyPlainText ---

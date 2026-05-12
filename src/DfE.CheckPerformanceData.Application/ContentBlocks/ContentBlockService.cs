@@ -66,7 +66,17 @@ public sealed class ContentBlockService(
 
     public async Task<List<ContentBlockVersionDto>> GetVersionsAsync(string key)
     {
-        return await repository.GetVersionsByKeyAsync(key);
+        var versions = await repository.GetVersionsByKeyAsync(key);
+
+        return versions.Select(v => new ContentBlockVersionDto
+        {
+            Id = v.Id,
+            VersionNumber = v.VersionNumber,
+            Value = v.Value,
+            ValueHtml = htmlRenderer.RenderHtml(v.Value),
+            CreatedAt = v.CreatedAt,
+            CreatedBy = v.CreatedBy
+        }).ToList();
     }
 
     public async Task<ContentBlockDto> RevertToVersionAsync(string key, int versionId)

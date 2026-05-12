@@ -4,6 +4,7 @@ public interface IWikiRepository
 {
     // Queries
     Task<List<WikiPageDto>> GetAllOrderedAsync();
+    Task<List<WikiSlugLookupEntry>> GetSlugLookupAsync();
     Task<WikiPageDto?> GetByIdAsync(int id);
     Task<WikiPageDto?> GetByIdIgnoringFiltersAsync(int id);
     Task<WikiPageDto?> GetByIdIncludingDeletedAsync(int id);
@@ -19,6 +20,7 @@ public interface IWikiRepository
     Task<int> CountDeletedDescendantsAsync(int rootId);
     Task<List<WikiPageDto>> GetLivePagesForParentPickerAsync();
     Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchAsync(string query, int skip, int take);
+    Task<(List<WikiPageSearchResultDto> Items, int Total)> SearchPrefixAsync(string tsQuery, int skip, int take);
 
     // Commands
     Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder, string bodyPlainText);

@@ -23,7 +23,12 @@ public static class DependencyManager
 {
     public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
     {
-        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>();
+        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>()
+            ?? throw new InvalidOperationException(
+                $"Configuration section '{DfeSigninSettings.SectionName}' is missing or empty. " +
+                "Set DfeSignIn:MetadataAddress, DfeSignIn:ClientId, DfeSignIn:ClientSecret, " +
+                "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
+                "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
 
         services.AddAuthentication(options =>
         {
@@ -46,7 +51,7 @@ public static class DependencyManager
             }).AddOpenIdConnect(options =>
             {
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.MetadataAddress = settings!.MetadataAddress;
+                options.MetadataAddress = settings.MetadataAddress;
                 options.ClientId = settings.ClientId;
                 options.ClientSecret = settings.ClientSecret;
                 options.ResponseType = OpenIdConnectResponseType.Code;

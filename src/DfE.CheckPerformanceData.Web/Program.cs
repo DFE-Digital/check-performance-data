@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Authentication;
+using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
@@ -193,6 +194,12 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // Sits after auth so the diagnostic comment sees the final principal claims;
+    // before controllers so it can wrap their response body. The middleware itself
+    // is a no-op when env.IsProduction() or when Diagnostics:ShowSessionFooter
+    // is false / unset.
+    app.UseMiddleware<DiagnosticFooterMiddleware>();
 
     app.MapStaticAssets().AllowAnonymous();
 

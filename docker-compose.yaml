@@ -52,7 +52,7 @@
     depends_on:
       - db
       - azurite
-    command: printenv ConnectionStrings_AzureStorage
+    #command: printenv ConnectionStrings_AzureStorage
     networks:
       - cypd
 

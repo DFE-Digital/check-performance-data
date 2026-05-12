@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Azure.Storage.Common" />
         <PackageReference Include="Azure.Storage.Queues" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
@@ -16,6 +17,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
+        <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
+        <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
+        <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
     </ItemGroup>
 </Project>

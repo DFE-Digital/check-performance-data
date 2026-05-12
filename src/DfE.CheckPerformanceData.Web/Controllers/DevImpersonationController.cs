@@ -17,6 +17,11 @@ public sealed class DevImpersonationController(IHostEnvironment env) : Controlle
 {
     private bool IsAllowed => !env.IsProduction();
 
+    // Accept both verbs so the header link can be a plain <a href> and an E2E client
+    // (which would otherwise need to scrape an antiforgery token first) can POST. These
+    // endpoints are non-security-sensitive by design: they only flip a dev marker
+    // cookie, and prod 404s every request.
+    [HttpGet("dev/impersonate/editor")]
     [HttpPost("dev/impersonate/editor")]
     public IActionResult Editor()
     {
@@ -25,6 +30,7 @@ public sealed class DevImpersonationController(IHostEnvironment env) : Controlle
         return RedirectToReferrer();
     }
 
+    [HttpGet("dev/impersonate/user")]
     [HttpPost("dev/impersonate/user")]
     public IActionResult User()
     {

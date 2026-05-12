@@ -537,3 +537,10 @@
   border-top: 1px solid #d5d8da;
   padding-top: 15px;
 }
+
+/* Dev-only header affordance — pushes the impersonation link to the far right
+   of the service navigation row. Removed when the env is Production (the
+   partial doesn't render the <li>). */
+.dev-impersonate-item {
+  margin-left: auto;
+}

@@ -25,6 +25,7 @@
             {
                 <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
             }
+            @await Html.PartialAsync("_DevImpersonationHeader")
         </govuk-service-navigation-nav>
     </govuk-service-navigation>
     <div class="govuk-phase-banner govuk-width-container">

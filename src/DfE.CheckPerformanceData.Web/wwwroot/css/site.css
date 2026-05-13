@@ -539,8 +539,8 @@
 }
 
 /* Dev-only header affordance — pushes the impersonation link to the far right
-   of the service navigation row. Removed when the env is Production (the
-   partial doesn't render the <li>). */
-.dev-impersonate-item {
+   of the service navigation row. Selector specificity matches govuk-frontend's
+   own .govuk-service-navigation__item rule so margin-left:auto isn't overridden. */
+.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item {
   margin-left: auto;
 }

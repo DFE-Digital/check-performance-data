@@ -1,3 +1,5 @@
+@using DfE.CheckPerformanceData.Web.Controllers
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @{
     Layout = "_GovUkPageTemplate";
 }
@@ -25,7 +27,22 @@
             {
                 <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
             }
-            @await Html.PartialAsync("_DevImpersonationHeader")
+            @* Dev-only impersonation affordance. Inlined here (not a partial) because
+               the parent <govuk-service-navigation-nav> tag helper processes its
+               children at view-compile time; partial-rendered children arrive too late
+               and get dropped from the rendered output. dev-impersonate-item is the
+               flex right-align hook in site.css. *@
+            @if (!HostEnvironment.IsProduction())
+            {
+                if (User.IsInRole(WikiConstants.EditorRole))
+                {
+                    <govuk-service-navigation-nav-item href="/dev/impersonate/user" class="dev-impersonate-item">Impersonate unprivileged user</govuk-service-navigation-nav-item>
+                }
+                else
+                {
+                    <govuk-service-navigation-nav-item href="/dev/impersonate/editor" class="dev-impersonate-item">Impersonate admin</govuk-service-navigation-nav-item>
+                }
+            }
         </govuk-service-navigation-nav>
     </govuk-service-navigation>
     <div class="govuk-phase-banner govuk-width-container">

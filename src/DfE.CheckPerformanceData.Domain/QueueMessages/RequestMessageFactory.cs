@@ -24,11 +24,12 @@ public static class RequestMessageFactory
         return decisionType switch
         {
             DecisionType.Scrutiny => JsonSerializer.Deserialize<ScrutinyMessage>(json, JsonOptions),
-            DecisionType.Approved => JsonSerializer.Deserialize<ApprovedRequestMessage>(json, JsonOptions),
-            DecisionType.Rejected => JsonSerializer.Deserialize<RejectedRequestMessage>(json, JsonOptions),
-            DecisionType.AutoApproved => JsonSerializer.Deserialize<ApprovedRequestMessage>(json, JsonOptions),
-            DecisionType.AutoRejected => JsonSerializer.Deserialize<RejectedRequestMessage>(json, JsonOptions),
+            //DecisionType.Approved => JsonSerializer.Deserialize<ApprovedRequestMessage>(json, JsonOptions),
+            //DecisionType.Rejected => JsonSerializer.Deserialize<RejectedRequestMessage>(json, JsonOptions),
+            //DecisionType.AutoApproved => JsonSerializer.Deserialize<ApprovedRequestMessage>(json, JsonOptions),
+            //DecisionType.AutoRejected => JsonSerializer.Deserialize<RejectedRequestMessage>(json, JsonOptions),
             _ => throw new NotSupportedException($"Unsupported decision type: {decisionTypeName}")
         };
     }
 }
+

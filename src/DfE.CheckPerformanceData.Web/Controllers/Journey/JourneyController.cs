@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -142,7 +143,7 @@ public sealed class JourneyController(
         await fileUpload.CopyToAsync(ms);
         var bytes = ms.ToArray();
 
-        var pageCount = fileStorageService.GetPdfPageCount(bytes);
+        var pageCount = PdfPageCounter.GetPageCount(bytes);
         if (pageCount is null)
         {
             TempData["UploadError"] = $"'{fileUpload.FileName}' could not be read as a PDF. Check the file and try again.";
@@ -156,7 +157,7 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
-        var storedName = await fileStorageService.SaveAsync(bytes);
+        var storedName = await fileStorageService.SaveAsync(windowId, bytes);
         currentFiles.Add(new FileAnswer
         {
             StoredFileName = storedName,
@@ -184,7 +185,7 @@ public sealed class JourneyController(
         var currentFiles = existing?.FileValues?.ToList() ?? [];
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
-        await fileStorageService.DeleteAsync(storedFileName);
+        await fileStorageService.DeleteAsync(windowId, storedFileName);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });

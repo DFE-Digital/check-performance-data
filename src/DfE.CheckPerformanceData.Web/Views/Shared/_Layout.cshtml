@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="~/css/moj-frontend-9.0.0.min.css" />
 </head>
 @section BodyStart {
-    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await Html.PartialAsync("_CookieBanner")
     @await Html.PartialAsync("_GtmBody")
 }

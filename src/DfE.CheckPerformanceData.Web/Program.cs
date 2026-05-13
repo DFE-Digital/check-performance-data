@@ -152,10 +152,10 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://fonts.googleapis.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "style-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://fonts.googleapis.com; " +
             "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
-            "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
             "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
             "frame-src 'self' https://*.googletagmanager.com; " +
             "object-src 'none'; " +
@@ -164,8 +164,6 @@ try
         await next();
     });
 
-    app.UseStaticFiles();
-
     app.UseSession();
 
     app.UseRouting();
@@ -173,7 +171,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapStaticAssets();
+    app.MapStaticAssets().AllowAnonymous();
 
     app.MapControllerRoute(
         name: "wiki",

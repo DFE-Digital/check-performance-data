@@ -14,7 +14,7 @@ public sealed class HelpControllerSearchTests
 
     public HelpControllerSearchTests()
     {
-        _sut = new HelpController(_wikiService);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
     }
 
     // --- Search action — validation ---

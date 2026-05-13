@@ -14,7 +14,10 @@ public sealed class LandingPageController(ILogger<LandingPageController> logger,
         if (result == null)
         {
             logger.LogWarning("No landing page data found for the current user");
-            return RedirectToAction("DfeSignOut", "Home");
+            // DfeSignOut lives on SecretController, not HomeController — Home/DfeSignOut
+            // 404s. Pre-existing bug surfaced once dev impersonation made the null path
+            // reachable without a real DfE sign-in.
+            return RedirectToAction("DfeSignOut", "Secret");
         }
 
         var landingPageViewModel = new LandingPageViewModel(

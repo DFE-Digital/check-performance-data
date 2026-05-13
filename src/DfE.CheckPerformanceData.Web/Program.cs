@@ -86,9 +86,19 @@ try
             .AddPolicyScheme(DevAwareScheme, DevAwareScheme, options =>
             {
                 options.ForwardDefaultSelector = context =>
-                    context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName)
-                        ? DevImpersonationConstants.Scheme
-                        : CookieAuthenticationDefaults.AuthenticationScheme;
+                {
+                    // Prefer the real DfE Sign-In auth cookie if present so an
+                    // already-signed-in manual tester keeps their real claims
+                    // (organisationid, name, etc.) when they flip the impersonation
+                    // cookie. The transformer then overlays the editor role on top.
+                    // Only fall back to the synthetic DevImpersonation scheme when
+                    // there's no real session — the E2E case.
+                    if (context.Request.Cookies.ContainsKey(".AspNetCore.Cookies"))
+                        return CookieAuthenticationDefaults.AuthenticationScheme;
+                    if (context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName))
+                        return DevImpersonationConstants.Scheme;
+                    return CookieAuthenticationDefaults.AuthenticationScheme;
+                };
             });
 
         // Override only DefaultAuthenticateScheme so [Authorize] checks pass through

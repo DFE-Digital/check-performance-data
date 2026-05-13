@@ -1,7 +1,12 @@
+@using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
+@using Microsoft.AspNetCore.Authentication.Cookies
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @{
     Layout = "_GovUkPageTemplate";
+    var hasImpersonationCookie = Context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName);
+    var hasRealDfeAuth = User.Identity?.IsAuthenticated == true
+        && User.Identity.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -31,17 +36,30 @@
                the parent <govuk-service-navigation-nav> tag helper processes its
                children at view-compile time; partial-rendered children arrive too late
                and get dropped from the rendered output. dev-impersonate-item is the
-               flex right-align hook in site.css. *@
+               flex right-align anchor in site.css — margin-left:auto pushes it and
+               everything that follows (the Sign in link below) to the far right.
+               Button label is a single word; the title attribute carries the longer
+               "what does this do" explanation on hover. *@
             @if (!HostEnvironment.IsProduction())
             {
                 if (User.IsInRole(WikiConstants.EditorRole))
                 {
-                    <govuk-service-navigation-nav-item href="/dev/impersonate/user" class="dev-impersonate-item">Impersonate unprivileged user</govuk-service-navigation-nav-item>
+                    <govuk-service-navigation-nav-item href="/dev/impersonate/user" class="dev-impersonate-item" title="Turn off your CMS admin role for this session so you can see what the site looks like to users without it.">anon</govuk-service-navigation-nav-item>
                 }
                 else
                 {
-                    <govuk-service-navigation-nav-item href="/dev/impersonate/editor" class="dev-impersonate-item">Impersonate admin</govuk-service-navigation-nav-item>
+                    <govuk-service-navigation-nav-item href="/dev/impersonate/editor" class="dev-impersonate-item" title="Take on the CMS admin role for this session. Useful when your real account doesn't have the admin role assigned, or when browsing anonymously, and you want to test admin-only CMS features.">admin</govuk-service-navigation-nav-item>
                 }
+            }
+
+            @* "Sign in" mirrors the Start now button on the home page. Visible whenever
+               the current request isn't authenticated via the real DfE Sign-In cookie
+               scheme — anonymous users and synthetic dev-impersonation principals both
+               see it; users already signed in via DfE don't (they'd hit Sign out instead).
+               Sits to the right of the impersonate button (which has margin-left:auto). *@
+            @if (!hasRealDfeAuth)
+            {
+                <govuk-service-navigation-nav-item href="@Url.Action("Index", "LandingPage")" class="sign-in-nav-item">Sign in</govuk-service-navigation-nav-item>
             }
         </govuk-service-navigation-nav>
     </govuk-service-navigation>
@@ -55,7 +73,13 @@
             </span>
         </p>
     </div>
-    @if (User.Identity is { IsAuthenticated: true })
+    @* Hide Sign out while a dev impersonation cookie is active. Either the user is a
+       synthetic principal (in which case there's no real session to sign out of), or
+       they're a real DfE user with an impersonation overlay (clearing the DfE cookie
+       wouldn't actually sign them out — the marker cookie would keep them
+       impersonating). Clearing the marker cookie via the impersonate link is the
+       right exit path. *@
+    @if (User.Identity is { IsAuthenticated: true } && !hasImpersonationCookie)
     {
         <div class="govuk-width-container sign-out-bar">
             <a href="@Url.Action("DfeSignOut", "Secret")" class="govuk-link govuk-link--no-visited-state">Sign out</a>

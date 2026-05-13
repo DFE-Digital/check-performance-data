@@ -33,23 +33,36 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
         }
 
         var clone = principal.Clone();
-        var identity = clone.Identities.FirstOrDefault();
-        if (identity is null)
-        {
-            identity = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
-            clone.AddIdentity(identity);
-        }
 
-        var editorClaim = identity.Claims.FirstOrDefault(c =>
-            c.Type == ClaimTypes.Role && c.Value == WikiConstants.EditorRole);
+        // Check across ALL identities — DfE Sign-In's ClaimsEnrichmentService adds
+        // roles on a separate "DfeSignIn" identity via AddIdentity, so the editor role
+        // is rarely on the first (OIDC) identity. Use principal.IsInRole which iterates
+        // every identity rather than scanning one in isolation.
+        var hasEditorRole = clone.IsInRole(WikiConstants.EditorRole);
 
-        if (value == DevImpersonationConstants.EditorValue && editorClaim is null)
+        if (value == DevImpersonationConstants.EditorValue && !hasEditorRole)
         {
-            identity.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
+            var target = clone.Identities.FirstOrDefault();
+            if (target is null)
+            {
+                target = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
+                clone.AddIdentity(target);
+            }
+            target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
         }
-        else if (value == DevImpersonationConstants.UserValue && editorClaim is not null)
+        else if (value == DevImpersonationConstants.UserValue && hasEditorRole)
         {
-            identity.RemoveClaim(editorClaim);
+            // Remove from every identity that carries the role — defensive against the
+            // case where the same role claim is duplicated across identities.
+            foreach (var id in clone.Identities)
+            {
+                var claim = id.FindFirst(c =>
+                    c.Type == ClaimTypes.Role && c.Value == WikiConstants.EditorRole);
+                if (claim is not null)
+                {
+                    id.RemoveClaim(claim);
+                }
+            }
         }
 
         return Task.FromResult(clone);

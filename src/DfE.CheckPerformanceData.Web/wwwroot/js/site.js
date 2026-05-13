@@ -190,3 +190,16 @@
     });
 
 })();
+
+(function () {
+    // The dev impersonation nav item is rendered by the govuk-service-navigation-nav-item
+    // tag helper, which lands custom attributes (including title) on the outer <li>
+    // rather than the inner <a>. Mirror the title onto the anchor so the hover tooltip
+    // is shown reliably across browsers.
+    document.querySelectorAll('.dev-impersonate-item').forEach(function (li) {
+        var anchor = li.querySelector('a');
+        if (anchor && li.title && !anchor.title) {
+            anchor.title = li.title;
+        }
+    });
+})();

@@ -103,6 +103,30 @@ public sealed class DevImpersonationClaimsTransformerTests
 		Assert.True(result.IsInRole(WikiConstants.EditorRole));
 	}
 
+	// --- CookieValueUser_RemovesEditorRole_WhenRoleIsOnSecondIdentity ---
+
+	[Fact]
+	public async Task CookieValueUser_RemovesEditorRole_WhenRoleIsOnSecondIdentity()
+	{
+		// Matches the real DfE Sign-In shape: OIDC produces the primary identity, then
+		// ClaimsEnrichmentService.EnrichAsync adds the role on a SECOND identity via
+		// AddIdentity. The transformer must find and strip the role from whichever
+		// identity carries it.
+		SetCookie(DevImpersonationConstants.UserValue);
+		var primary = new ClaimsIdentity(
+			[new Claim(ClaimTypes.NameIdentifier, "user-1")],
+			authenticationType: "TestScheme");
+		var enrichment = new ClaimsIdentity(
+			[new Claim(ClaimTypes.Role, WikiConstants.EditorRole)],
+			authenticationType: "DfeSignIn");
+		var principal = new ClaimsPrincipal(primary);
+		principal.AddIdentity(enrichment);
+
+		var result = await CreateSut().TransformAsync(principal);
+
+		Assert.False(result.IsInRole(WikiConstants.EditorRole));
+	}
+
 	// --- HttpContextNull_LeavesPrincipalUnchanged ---
 
 	[Fact]

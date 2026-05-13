@@ -544,3 +544,33 @@
 .govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item {
   margin-left: auto;
 }
+
+/* High-contrast pill so the dev-only impersonation control is unmistakeable in
+   the nav strip. Pink-on-white reads as "warning, non-prod surface" without
+   colliding with any of govuk-frontend's semantic states (error red, success
+   green). Lightning prefix is a visual fast-flag, no separate icon asset. */
+.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a {
+  background-color: #d53880;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 5px 12px;
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a::before {
+  content: "\26A1\00A0";  /* lightning bolt + non-breaking space */
+}
+
+.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a:hover {
+  background-color: #b02c6c;
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  color: #0b0c0c;
+  background-color: #fd0;
+}

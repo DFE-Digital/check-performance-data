@@ -39,6 +39,21 @@ public sealed class DevImpersonationController(IHostEnvironment env) : Controlle
         return RedirectToReferrer();
     }
 
+    // Fully clears the dev-impersonation cookie so there's no synthetic principal at
+    // all on the next request. Distinct from /user (which keeps the synthetic
+    // principal but drops the editor role) because the UI sign-out should make the
+    // user genuinely anonymous, not leave a phantom "Dev impersonation user" identity
+    // visible in diagnostics. /user stays untouched for E2E tests that rely on its
+    // exact toggle semantics.
+    [HttpGet("dev/impersonate/clear")]
+    [HttpPost("dev/impersonate/clear")]
+    public IActionResult Clear()
+    {
+        if (!IsAllowed) return NotFound();
+        Response.Cookies.Delete(DevImpersonationConstants.CookieName);
+        return RedirectToReferrer();
+    }
+
     private void SetCookie(string value)
     {
         Response.Cookies.Append(DevImpersonationConstants.CookieName, value, new CookieOptions

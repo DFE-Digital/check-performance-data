@@ -192,14 +192,36 @@
 })();
 
 (function () {
-    // The dev impersonation nav item is rendered by the govuk-service-navigation-nav-item
-    // tag helper, which lands custom attributes (including title) on the outer <li>
-    // rather than the inner <a>. Mirror the title onto the anchor so the hover tooltip
-    // is shown reliably across browsers.
-    document.querySelectorAll('.dev-impersonate-item').forEach(function (li) {
-        var anchor = li.querySelector('a');
-        if (anchor && li.title && !anchor.title) {
-            anchor.title = li.title;
+    var toggle = document.querySelector('.sign-in-nav-item__toggle');
+    var menu = document.getElementById('sign-in-dropdown-menu');
+    if (!toggle || !menu) return;
+
+    function close() {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function open() {
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (toggle.getAttribute('aria-expanded') === 'true') close(); else open();
+    });
+
+    document.addEventListener('click', function (e) {
+        if (menu.hidden) return;
+        if (e.target === toggle || toggle.contains(e.target)) return;
+        if (menu.contains(e.target)) return;
+        close();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !menu.hidden) {
+            close();
+            toggle.focus();
         }
     });
 })();

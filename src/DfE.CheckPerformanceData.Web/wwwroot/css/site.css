@@ -1,9 +1,3 @@
-.sign-out-bar {
-  text-align: right;
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
 .pupil-search {
   background: #f3f2f1;
   padding: 20px;
@@ -538,39 +532,85 @@
   padding-top: 15px;
 }
 
-/* Dev-only header affordance — pushes the impersonation link to the far right
-   of the service navigation row. Selector specificity matches govuk-frontend's
-   own .govuk-service-navigation__item rule so margin-left:auto isn't overridden. */
-.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item {
+/* Push the Sign in / Sign out cluster to the far right of the service nav row.
+   Selector specificity matches govuk-frontend's own .govuk-service-navigation__item
+   rule so margin-left:auto isn't overridden. */
+.govuk-service-navigation__list .govuk-service-navigation__item.sign-in-nav-item {
   margin-left: auto;
+  position: relative;
 }
 
-/* High-contrast pill so the dev-only impersonation control is unmistakeable in
-   the nav strip. Pink-on-white reads as "warning, non-prod surface" without
-   colliding with any of govuk-frontend's semantic states (error red, success
-   green). Lightning prefix is a visual fast-flag, no separate icon asset. */
-.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a {
-  background-color: #d53880;
-  color: #ffffff;
-  font-weight: 700;
-  padding: 5px 12px;
+/* Caret button sits inline next to the Sign in link, styled as a flat affordance
+   that mirrors the link colour. Non-prod only — the markup isn't rendered in prod. */
+.sign-in-nav-item__toggle {
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.sign-in-nav-item__toggle:hover .sign-in-nav-item__caret {
+  color: #1d70b8;
+}
+
+.sign-in-nav-item__toggle:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  background-color: #fd0;
+  color: #0b0c0c;
+}
+
+.sign-in-nav-item__toggle[aria-expanded="true"] .sign-in-nav-item__caret {
+  transform: rotate(180deg);
+}
+
+.sign-in-nav-item__caret {
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+
+/* Dropdown panel anchored to the right edge of the sign-in cluster. */
+.sign-in-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 180px;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #b1b4b6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.sign-in-dropdown-menu[hidden] {
+  display: none;
+}
+
+.sign-in-dropdown-menu__item {
+  display: block;
+  padding: 8px 16px;
+  color: #1d70b8;
   text-decoration: none;
-  border-bottom: none;
+  font-family: "GDS Transport", arial, sans-serif;
+  font-size: 1rem;
+  white-space: nowrap;
 }
 
-.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a::before {
-  content: "\26A1\00A0";  /* lightning bolt + non-breaking space */
-}
-
-.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a:hover {
-  background-color: #b02c6c;
-  color: #ffffff;
+.sign-in-dropdown-menu__item:hover {
+  background-color: #f3f2f1;
   text-decoration: underline;
 }
 
-.govuk-service-navigation__list .govuk-service-navigation__item.dev-impersonate-item a:focus {
+.sign-in-dropdown-menu__item:focus {
   outline: 3px solid #fd0;
   outline-offset: 0;
-  color: #0b0c0c;
   background-color: #fd0;
+  color: #0b0c0c;
+  text-decoration: underline;
 }

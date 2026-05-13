@@ -130,4 +130,60 @@ public sealed class DevImpersonationControllerTests
 		Assert.IsType<RedirectResult>(result);
 		Assert.NotNull(GetSetCookieHeader(sut));
 	}
+
+	// --- Clear deletes the cookie (distinct from User which keeps a synthetic principal) ---
+
+	[Fact]
+	public void Clear_DeletesCookie_AndRedirectsToReferrer()
+	{
+		var sut = CreateSut("Development", referrer: "/help");
+
+		var result = sut.Clear();
+
+		var redirect = Assert.IsType<RedirectResult>(result);
+		Assert.Equal("/help", redirect.Url);
+
+		// Response.Cookies.Delete emits a Set-Cookie with an expiry in the distant past.
+		var setCookie = GetSetCookieHeader(sut);
+		Assert.NotNull(setCookie);
+		Assert.Contains(DevImpersonationConstants.CookieName, setCookie);
+		Assert.Contains("expires=Thu, 01 Jan 1970", setCookie, StringComparison.OrdinalIgnoreCase);
+	}
+
+	[Fact]
+	public void Clear_RedirectsToRoot_WhenNoReferrerHeader()
+	{
+		var sut = CreateSut("Development");
+
+		var result = sut.Clear();
+
+		var redirect = Assert.IsType<RedirectResult>(result);
+		Assert.Equal("/", redirect.Url);
+	}
+
+	[Fact]
+	public void Clear_Returns404_InProductionEnvironment()
+	{
+		var sut = CreateSut(Environments.Production);
+
+		var result = sut.Clear();
+
+		Assert.IsType<NotFoundResult>(result);
+		Assert.Null(GetSetCookieHeader(sut));
+	}
+
+	[Theory]
+	[InlineData("Development")]
+	[InlineData("Staging")]
+	[InlineData("QA")]
+	[InlineData("Preproduction")]
+	public void Clear_IsAllowed_InAnyNonProductionEnvironment(string environmentName)
+	{
+		var sut = CreateSut(environmentName);
+
+		var result = sut.Clear();
+
+		Assert.IsType<RedirectResult>(result);
+		Assert.NotNull(GetSetCookieHeader(sut));
+	}
 }

@@ -24,6 +24,16 @@ public static class AuthHelpers
         return cookie;
     }
 
+    // Hits the dev-only clear endpoint that deletes the impersonation cookie entirely,
+    // restoring true-anonymous state. Distinct from ImpersonateAsUnprivilegedUserAsync
+    // (which keeps a synthetic "user" principal). Powers the UI sign-out from the
+    // impersonation-only state.
+    public static async Task ClearImpersonationAsync(PlaywrightFixture fixture)
+    {
+        await CallEndpointAsync(fixture, "/dev/impersonate/clear");
+        TestHttpClients.ImpersonationCookieHeader = null;
+    }
+
     private static async Task<string?> CallEndpointAsync(PlaywrightFixture fixture, string path)
     {
         // Use the no-redirect client so the 302 response (which carries the Set-Cookie

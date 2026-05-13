@@ -225,7 +225,7 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
 
 Three layers, all behind the same fixture:
 
-- **Browser-driven UI tests** (`Wiki/`, `Web/`) — Playwright loads pages, clicks things, asserts visible state. Covers the help CMS read path, search sidebar, soft-delete flow, warning-text rendering, GOV.UK assets, the wiki/content-block CRUD round trips, and the 404 surface.
+- **Browser-driven UI tests** (`Wiki/`, `Web/`) — Playwright loads pages, clicks things, asserts visible state. Covers the help CMS read path, search sidebar, soft-delete flow, warning-text rendering, GOV.UK assets, the wiki/content-block CRUD round trips, the 404 surface, and the sign-in nav cluster round-trip (anonymous → impersonate → sign-out → anonymous, in `Web/SignInNavTests.cs`).
 - **HTTP-only tests** (`Web/`) — `HttpClient` without a browser. Faster, used where the assertion is "controller redirected to X" or "endpoint returned status Y" and the rendered page isn't the point.
 - **Visual regression** (`Visual/`) — full-page Chromium screenshots pixel-diffed against committed PNG baselines under `Snapshots/linux-chromium/`. Linux-only (see below).
 
@@ -305,11 +305,30 @@ The suite seeds wiki pages and content blocks via direct HTTP POST against the c
 
 - Each seeded entity uses an `e2e-{Guid:N}-` prefix on its slug or key. UUID prefix means tests across runs and across parallel CI shards never collide.
 - Cleanup is `IAsyncLifetime.DisposeAsync` per test class — wiki pages get soft-deleted; content blocks leak (no DELETE route exists for them, by design). The leak is harmless: the UUID prefix prevents test-run cross-contamination, and content-block volume is small.
-- Auth-gated tests are out of scope for this iteration. The suite is anonymous-only.
+
+## Auth state in tests
+
+Real DfE Sign-In isn't in the harness — the OIDC handshake against the external test IdP is too slow and flaky to run on every pipeline. Instead, `Helpers/AuthHelpers.cs` drives the dev-only impersonation endpoints in `DevImpersonationController`, which set a `cypd-dev-impersonation` cookie that `DevImpersonationClaimsTransformer` reads on every request to overlay the editor role onto the principal.
+
+Three helpers, three endpoints, three cookie states:
+
+| Helper | Endpoint | Cookie after | Test scenario it serves |
+|--------|----------|--------------|--------------------------|
+| `ImpersonateAsEditorAsync` | `/dev/impersonate/editor` | `editor` | Tests that need the CMS admin role (edit/delete/move). |
+| `ImpersonateAsUnprivilegedUserAsync` | `/dev/impersonate/user` | `user` | Tests that need an authenticated principal *without* the editor role (authorisation guards, role-conditional UI). |
+| `ClearImpersonationAsync` | `/dev/impersonate/clear` | (deleted) | Cleanup, or tests that need true-anonymous after an impersonated step. |
+
+The helpers thread the cookie value through `TestHttpClients.ImpersonationCookieHeader` so the shared no-redirect `HttpClient` can send it manually (Playwright's browser context manages its own cookies).
+
+The `editor` / `user` distinction matters at the auth layer even though they look similar — `editor` triggers the claims transformer to add `ClaimTypes.Role = WikiConstants.EditorRole`; `user` is a synthetic authenticated principal with **no** roles. `clear` removes the cookie entirely, leaving the next request genuinely anonymous (no synthetic principal at all).
+
+The endpoints 404 in production. They're guarded by `IHostEnvironment.IsProduction()` in the controller and by the DI registration in `Program.cs` so they can't be reached even via direct request.
+
+`Web/SignInNavTests.SignInCluster_RoundTrips_*` is the end-to-end coverage for the sign-in cluster in `_Layout.cshtml`: anonymous user clicks the caret dropdown → "As CMS admin" → page flips to "Sign out (impersonating CMS admin)" → click → returns to anonymous and the cookie is genuinely deleted (not flipped to `user`). Unit-level Razor-source assertions for the same branches live in `LayoutRenderTests` in the UnitTests project — those catch a missing branch; the E2E test catches integration-level breakages (JS doesn't toggle, claims transformer doesn't apply the role, the cookie isn't actually being deleted server-side).
 
 ## What's not covered
 
-- **Authenticated flows.** No DfE Sign-In integration in the harness; auth-gated controller surfaces have unit + integration coverage but no browser coverage.
+- **Real DfE Sign-In OIDC handshake.** Dev impersonation covers authenticated paths in the harness; the real OIDC round-trip isn't exercised. That's a deliberate boundary — the IdP is external, the test slot is shared, and the value of running through it on every PR is low compared to the flake cost.
 - **Cross-browser.** Chromium only. Firefox/WebKit aren't part of the budget.
 - **Mobile gesture interactions.** Viewport sizes are set, but no touch/swipe simulation.
 - **Trace replay in CI.** Playwright's `Tracing.StartAsync` isn't wired into the harness — failure debugging in CI is by log + snapshot artefact. To enable trace replay locally, hook `Context.Tracing.StartAsync`/`StopAsync` around the test body and inspect the resulting `.zip` with `playwright.ps1 show-trace`.

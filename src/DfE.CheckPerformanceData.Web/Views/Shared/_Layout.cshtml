@@ -1,12 +1,40 @@
+@using System.Security.Claims
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
-@using Microsoft.AspNetCore.Authentication.Cookies
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @{
     Layout = "_GovUkPageTemplate";
-    var hasImpersonationCookie = Context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName);
+    // "Real DfE auth" = any authenticated identity that isn't the synthetic dev
+    // impersonation scheme. Don't compare against a specific scheme name (e.g.
+    // "Cookies") because the effective primary identity AuthenticationType varies
+    // across the DfE Sign-In cookie, the OIDC pipeline, and the enrichment
+    // ("DfeSignIn") identity added in OnTokenValidated.
     var hasRealDfeAuth = User.Identity?.IsAuthenticated == true
-        && User.Identity.AuthenticationType == CookieAuthenticationDefaults.AuthenticationScheme;
+        && User.Identities.Any(i => i.IsAuthenticated
+            && i.AuthenticationType != DevImpersonationConstants.Scheme);
+    var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
+        && impCookie == DevImpersonationConstants.EditorValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
+    var signOutHref = hasRealDfeAuth
+        ? Url.Action("DfeSignOut", "Secret")
+        : "/dev/impersonate/clear";
+
+    string? displayName = null;
+    if (hasRealDfeAuth)
+    {
+        var given = User.FindFirst(ClaimTypes.GivenName)?.Value;
+        var surname = User.FindFirst(ClaimTypes.Surname)?.Value;
+        displayName = string.Join(" ", new[] { given, surname }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = User.Identity?.Name;
+    }
+
+    var parens = new List<string>();
+    if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
+    if (hasEditorImpersonation) parens.Add("impersonating CMS admin");
+    var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+
+    var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -22,47 +50,61 @@
 
 @section Header {
     <govuk-header home-page-url="https://gov.uk/"/>
-    <govuk-service-navigation service-name="Check Performance Data" service-url="#">
-        <govuk-service-navigation-nav>
-            @{
-                var selectedWindowId = Context.Session.GetString("SelectedWindowId");
-            }
-            <govuk-service-navigation-nav-item href="/help">Help</govuk-service-navigation-nav-item>
-            @if (selectedWindowId is not null)
-            {
-                <govuk-service-navigation-nav-item href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</govuk-service-navigation-nav-item>
-            }
-            @* Dev-only impersonation affordance. Inlined here (not a partial) because
-               the parent <govuk-service-navigation-nav> tag helper processes its
-               children at view-compile time; partial-rendered children arrive too late
-               and get dropped from the rendered output. dev-impersonate-item is the
-               flex right-align anchor in site.css — margin-left:auto pushes it and
-               everything that follows (the Sign in link below) to the far right.
-               Button label is a single word; the title attribute carries the longer
-               "what does this do" explanation on hover. *@
-            @if (!HostEnvironment.IsProduction())
-            {
-                if (User.IsInRole(WikiConstants.EditorRole))
-                {
-                    <govuk-service-navigation-nav-item href="/dev/impersonate/user" class="dev-impersonate-item" title="Turn off your CMS admin role for this session so you can see what the site looks like to users without it.">anon</govuk-service-navigation-nav-item>
-                }
-                else
-                {
-                    <govuk-service-navigation-nav-item href="/dev/impersonate/editor" class="dev-impersonate-item" title="Take on the CMS admin role for this session. Useful when your real account doesn't have the admin role assigned, or when browsing anonymously, and you want to test admin-only CMS features.">admin</govuk-service-navigation-nav-item>
-                }
-            }
-
-            @* "Sign in" mirrors the Start now button on the home page. Visible whenever
-               the current request isn't authenticated via the real DfE Sign-In cookie
-               scheme — anonymous users and synthetic dev-impersonation principals both
-               see it; users already signed in via DfE don't (they'd hit Sign out instead).
-               Sits to the right of the impersonate button (which has margin-left:auto). *@
-            @if (!hasRealDfeAuth)
-            {
-                <govuk-service-navigation-nav-item href="@Url.Action("Index", "LandingPage")" class="sign-in-nav-item">Sign in</govuk-service-navigation-nav-item>
-            }
-        </govuk-service-navigation-nav>
-    </govuk-service-navigation>
+    @* The service navigation is hand-rolled (not <govuk-service-navigation>) because
+       the sign-in cluster needs a split-button structure: a "Sign in" link plus a
+       separate caret <button> that opens a dropdown. The govuk tag helpers reject
+       any custom child markup. Output matches what the tag helpers would emit, plus
+       the extra dropdown markup. *@
+    <section class="govuk-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
+        <div class="govuk-width-container">
+            <div class="govuk-service-navigation__container">
+                <span class="govuk-service-navigation__service-name">
+                    <a href="#" class="govuk-service-navigation__link">Check Performance Data</a>
+                </span>
+                <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
+                    <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                        @{
+                            var selectedWindowId = Context.Session.GetString("SelectedWindowId");
+                        }
+                        <li class="govuk-service-navigation__item">
+                            <a class="govuk-service-navigation__link" href="/help">Help</a>
+                        </li>
+                        @if (selectedWindowId is not null)
+                        {
+                            <li class="govuk-service-navigation__item">
+                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>
+                            </li>
+                        }
+                        @* Sign in / Sign out cluster.
+                           States:
+                             - Real DfE auth:                  "Sign out"                            -> DfeSignOut
+                             - Real DfE auth + impersonation:  "Sign out (impersonating CMS admin)"  -> DfeSignOut
+                             - Synthetic editor impersonation: "Sign out (impersonating CMS admin)"  -> /dev/impersonate/clear (deletes cookie, true anonymous)
+                             - Anonymous (or non-editor synthetic): "Sign in" + caret dropdown for "As CMS admin" (non-prod only) *@
+                        <li class="govuk-service-navigation__item sign-in-nav-item">
+                            @if (showSignOut)
+                            {
+                                <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
+                            }
+                            else
+                            {
+                                <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                                @if (showImpersonateDropdown)
+                                {
+                                    <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
+                                        <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
+                                    </button>
+                                    <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
+                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS admin role for this session. Useful when your real account doesn't have the admin role assigned, or when browsing anonymously, and you want to test admin-only CMS features.">As CMS admin</a></li>
+                                    </ul>
+                                }
+                            }
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </section>
     <div class="govuk-phase-banner govuk-width-container">
         <p class="govuk-phase-banner__content">
             <strong class="govuk-tag govuk-phase-banner__content__tag">
@@ -73,18 +115,6 @@
             </span>
         </p>
     </div>
-    @* Hide Sign out while a dev impersonation cookie is active. Either the user is a
-       synthetic principal (in which case there's no real session to sign out of), or
-       they're a real DfE user with an impersonation overlay (clearing the DfE cookie
-       wouldn't actually sign them out — the marker cookie would keep them
-       impersonating). Clearing the marker cookie via the impersonate link is the
-       right exit path. *@
-    @if (User.Identity is { IsAuthenticated: true } && !hasImpersonationCookie)
-    {
-        <div class="govuk-width-container sign-out-bar">
-            <a href="@Url.Action("DfeSignOut", "Secret")" class="govuk-link govuk-link--no-visited-state">Sign out</a>
-        </div>
-    }
 }
 
 @Html.GovUkFrontendJsEnabledScript()

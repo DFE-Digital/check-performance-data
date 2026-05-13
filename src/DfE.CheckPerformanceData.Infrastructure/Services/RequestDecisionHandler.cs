@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Services;
 
-public class RequestDecisionHandler : IRequestDecisionHandler
+public sealed class RequestDecisionHandler : IRequestDecisionHandler
 {
     private readonly IZendeskService _zendeskService;
     private readonly IZendeskAttachmentService _zendeskAttachmentService;

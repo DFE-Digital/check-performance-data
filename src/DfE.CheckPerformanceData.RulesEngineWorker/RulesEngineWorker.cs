@@ -74,13 +74,14 @@ public sealed class RulesEngineWorker : BackgroundService
         try
         {
             var messageBody = Encoding.UTF8.GetString(message.Body);
-            _logger.LogInformation("Processing message: {MessageContents}", messageBody);
 
             var parsedMessage = RequestMessageFactory.Parse(messageBody)
                 ?? throw new InvalidOperationException("Failed to parse message.");
 
+            _logger.LogInformation("Processing message: RequestId={RequestId}, DecisionType={DecisionType}",
+                parsedMessage.RequestId, parsedMessage.DecisionType);
+
             await _handler.HandleAsync(parsedMessage, stoppingToken);
-            // await parsedMessage.ProcessAsync(stoppingToken);
             await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
         }
         catch (Exception ex)
@@ -110,93 +111,3 @@ public sealed class RulesEngineOptions
     public int EmptyQueueDelayMs { get; set; }
     public long MaxDequeueCount { get; set; }
 }
-
-//public interface IRequestMessageUploads
-//{
-//    public List<UploadInfo> Uploads { get; set; }
-
-//}
-
-//public class UploadInfo
-//{
-//    public string filename { get; set; } = string.Empty;
-//    public Guid Id { get; set; }
-
-//}
-
-//public abstract class RequestMessage
-//{
-//    public Guid WindowId { get; set; }
-//    public Guid RequestId { get; set; }
-//    public DecisionType DecisionType { get; set; }
-//    public abstract Task ProcessAsync(CancellationToken token);
-//}
-//// todo rename approved and rejected to auto approved and auto rejected based on the assumption that approved/rejected is a manual process done by aser in the zendesk portal.
-//public class RejectedRequestMessage : RequestMessage, IRequestMessageUploads
-//{
-//    public string? Reason { get; set; }
-//    public List<UploadInfo> Uploads { get; set; } = new List<UploadInfo>();
-//    public override Task ProcessAsync(CancellationToken token)
-//    {
-//        // call zendesk api service to create a ticket with the rejection reason and other details, and upload any evidence files to the ticket using the upload ids in the message if present
-//        Console.WriteLine($"Processing RejectedRequestMessage: WindowId={WindowId}, RequestId={RequestId}, Reason={Reason}");
-//        return Task.CompletedTask;
-//    }
-//}
-
-//public class ApprovedRequestMessage : RequestMessage, IRequestMessageUploads
-//{
-//    public string? Reason { get; set; }
-//    public List<UploadInfo> Uploads { get; set; } = new List<UploadInfo>();
-//    public override Task ProcessAsync(CancellationToken token)
-//    {
-//        // call zendesk api service to create a ticket with the approval reason and other details, and upload any evidence files to the ticket using the upload ids in the message if present
-//        Console.WriteLine($"Processing RejectedRequestMessage: WindowId={WindowId}, RequestId={RequestId}, Reason={Reason}");
-//        return Task.CompletedTask;
-//    }
-//}
-
-//public class ScrutinyMessage : RequestMessage
-//{
-//    public string? Reason { get; set; }
-
-//    public override Task ProcessAsync(CancellationToken token)
-//    {
-//        // call zendesk api service to create a ticket with the scrutiny reason and other details, and upload any evidence files to the ticket using the upload ids in the message if present
-//        Console.WriteLine($"Processing ScrutinyMessage: WindowId={WindowId}, RequestId={RequestId}, Reason={Reason}");
-//        return Task.CompletedTask;
-//    }
-//}
-
-
-//public static class RequestMessageFactory
-//{
-//    private static readonly JsonSerializerOptions JsonOptions = new()
-//    {
-//        PropertyNameCaseInsensitive = true
-//    };
-
-//    public static RequestMessage? Parse(string json)
-//    {
-//        using var doc = JsonDocument.Parse(json);
-//        if (!doc.RootElement.TryGetProperty("DecisionType", out var typeProp))
-//            throw new InvalidOperationException("Decision type not specified.");
-
-//        var decisionTypeName = typeProp.GetString(); // this can be used like decision type
-//        var success = Enum.TryParse<DecisionType>(decisionTypeName, out var decisionType);
-//        if (!success)
-//            throw new NotSupportedException($"Unknown message type: {decisionTypeName}");
-//        return decisionType switch
-//        {
-//            DecisionType.Scrutiny => JsonSerializer.Deserialize<ScrutinyMessage>(json, JsonOptions),
-//            DecisionType.Approved => JsonSerializer.Deserialize<ApprovedRequestMessage>(json, JsonOptions),
-//            DecisionType.Rejected => JsonSerializer.Deserialize<RejectedRequestMessage>(json, JsonOptions),
-//            _ => throw new NotSupportedException($"Unknown message type: {decisionTypeName}")
-//        };
-//    }
-//}
-
-
-
-
-

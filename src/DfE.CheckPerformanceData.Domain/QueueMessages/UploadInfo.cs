@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Domain.QueueMessages;
 
-public class UploadInfo
+public sealed class UploadInfo
 {
     [property: JsonPropertyName("filename")]
     public string Filename { get; set; } = string.Empty;

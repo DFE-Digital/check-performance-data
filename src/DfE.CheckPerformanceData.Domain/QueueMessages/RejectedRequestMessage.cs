@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Domain.QueueMessages;
 
-public class RejectedRequestMessage : RequestMessage, IRequestMessageUploads
+public sealed class RejectedRequestMessage : RequestMessage, IRequestMessageUploads
 {
     [JsonPropertyName("reason")]
     public string? Reason { get; set; }

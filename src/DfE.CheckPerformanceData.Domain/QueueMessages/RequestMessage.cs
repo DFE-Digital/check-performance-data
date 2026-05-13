@@ -26,18 +26,18 @@ public abstract class RequestMessage
     public abstract Task ProcessAsync(CancellationToken token); // this is not needed if we use the request decision handler to centralize the processing of all request messages, but we can keep it here for now and implement it in the future if needed when we have more clarity on the processing logic and how it will differ between different decision types
 }
 
-public class School
+public sealed class School
 {
     public string Urn { get; set; }
     public string Name { get; set; }
 }
 
-public class SubmittedBy
+public sealed class SubmittedBy
 {
     public string UserId { get; set; }
     public string DisplayName { get; set; }
 }
-public class Answer
+public sealed class Answer
 {
     public string QuestionId { get; set; }
     public string QuestionTitle { get; set; }
@@ -46,7 +46,7 @@ public class Answer
     public List<File> Files { get; set; }
 }
 
-public class File
+public sealed class File
 {
     public string OriginalFileName { get; set; }
     public string StoredFileName { get; set; }
@@ -54,7 +54,7 @@ public class File
     public int FileSizeBytes { get; set; }
 }
 
-public class Pupil
+public sealed class Pupil
 {
     public string Id { get; set; }
     public string CypmdId { get; set; }

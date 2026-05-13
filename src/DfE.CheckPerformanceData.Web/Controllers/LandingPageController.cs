@@ -1,5 +1,8 @@
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -14,6 +17,19 @@ public sealed class LandingPageController(ILogger<LandingPageController> logger,
         if (result == null)
         {
             logger.LogWarning("No landing page data found for the current user");
+
+            // A synthetic dev-impersonation principal has no DfE Sign-In organisation
+            // claim, so it can never produce a meaningful landing page. Send the user
+            // through the real OIDC sign-in flow rather than out via sign-out —
+            // afterwards they'll have real claims AND the impersonation cookie still
+            // overlays the editor role on top.
+            if (User.Identity?.AuthenticationType == DevImpersonationConstants.Scheme)
+            {
+                return Challenge(
+                    new AuthenticationProperties { RedirectUri = "/LandingPage" },
+                    OpenIdConnectDefaults.AuthenticationScheme);
+            }
+
             // DfeSignOut lives on SecretController, not HomeController — Home/DfeSignOut
             // 404s. Pre-existing bug surfaced once dev impersonation made the null path
             // reachable without a real DfE sign-in.

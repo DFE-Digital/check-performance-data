@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 
-namespace DfE.CheckPerformanceData.Web.QuestionFlow;
+namespace DfE.CheckPerformanceData.Application.Journey;
 
 public interface IQuestionFlowService
 {

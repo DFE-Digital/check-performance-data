@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.QuestionFlow;
@@ -39,7 +40,6 @@ public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlow
     {
         var page = GetPage(config, pageId);
 
-        // First radio question on the page whose selected option specifies a branch wins
         foreach (var question in page.Questions)
         {
             if (question.Type != QuestionType.Radio || question.Options is null) continue;

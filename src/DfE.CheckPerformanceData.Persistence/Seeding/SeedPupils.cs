@@ -12,7 +12,7 @@ public static class SeedPupils
 
         foreach (var checkingWindowId in checkingWindowIds)
         {
-            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
+            //await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
             await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: false, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
         }
 

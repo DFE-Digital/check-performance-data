@@ -1,12 +1,14 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class PupilSearchController(ICheckYourPupilDataService service, IQuestionFlowService flowService) : Controller
+public sealed class PupilSearchController(
+    ICheckYourPupilDataService service,
+    IQuestionFlowService flowService,
+    IJourneyService journeyService) : Controller
 {
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -48,7 +50,7 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
         var pupil = await service.GetPupilAsync(windowId, Guid.Parse(model.SelectedPupilId));
 
         var existingState = HttpContext.Session.GetRequestState(windowId);
-        var reference = GenerateReference(existingState.CheckingWindowType);
+        var reference = journeyService.GenerateReference(existingState.CheckingWindow?.CheckingWindowType);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
@@ -61,20 +63,13 @@ public sealed class PupilSearchController(ICheckYourPupilDataService service, IQ
         });
 
         var state = HttpContext.Session.GetRequestState(windowId);
-        if (state.SelectedWhatToChange.HasValue && state.CheckingWindowType.HasValue)
+        if (state.SelectedWhatToChange.HasValue && state.CheckingWindow is not null)
         {
-            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.CheckingWindowType.Value);
+            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.CheckingWindow.CheckingWindowType);
             if (config is not null)
                 return RedirectToAction("Page", "Journey", new { windowId, pageId = config.FirstPageId });
         }
 
         return NotFound();
-    }
-
-    private static string GenerateReference(CheckingWindowType? windowType)
-    {
-        var type = windowType?.ToString() ?? "Unknown";
-        var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
-        return $"CYPMD_{type}_{uniqueId}";
     }
 }

@@ -9,6 +9,9 @@ using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Application.FileStorage;
+using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
@@ -72,6 +75,7 @@ try
     
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));

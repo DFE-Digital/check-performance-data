@@ -11,7 +11,7 @@
    asp-route-pageId="@Model.BackPageId"
    class="govuk-back-link">Back</a>
 
-<h1 class="govuk-heading-xl">Check your answers</h1>
+<h1 class="govuk-heading-xl">Summary of amendment request</h1>
 
 <dl class="govuk-summary-list">
     @foreach (var row in Model.Rows)
@@ -34,7 +34,7 @@
 
 <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()
-    <govuk-button type="submit">Confirm and send</govuk-button>
+    <govuk-button type="submit">Submit request</govuk-button>
 </form>
 
 @if (Model.DebugJson is not null)

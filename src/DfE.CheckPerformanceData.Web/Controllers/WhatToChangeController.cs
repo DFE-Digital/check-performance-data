@@ -33,15 +33,9 @@ public sealed class WhatToChangeController(ICheckYourPupilDataService service) :
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
-            s.CheckingWindowType = window.CheckingWindowType;
+            s.CheckingWindow = window;
         });
 
         return RedirectToAction("Index", "PupilSearch", new { windowId });
     }
-}
-
-public sealed class WhatToChangeViewModel
-{
-    public Guid WindowId { get; set; }
-    public WhatToChange? SelectedWhatToChange { get; set; }
 }

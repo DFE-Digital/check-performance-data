@@ -1,22 +1,17 @@
-using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.FileStorage;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
-using UglyToad.PdfPig;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 public sealed class JourneyController(
     IQuestionFlowService flowService,
-    IWebHostEnvironment env,
-    IRequestBlobClient requestBlobClient,
-    ICurrentUserService currentUserService) : Controller
+    IJourneyService journeyService,
+    IFileStorageService fileStorageService,
+    IRequestBlobClient requestBlobClient) : Controller
 {
-    private const int MaxTotalPages = 6;
-
-    // Converts a question ID to a safe HTML field name, e.g. "date-of-death" → "q_date_of_death"
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
     // ── Page (GET) ──────────────────────────────────────────────────────────
@@ -45,6 +40,7 @@ public sealed class JourneyController(
 
         var page = flowService.GetPage(config, pageId);
         var newAnswers = new Dictionary<string, QuestionAnswer>();
+        var pupilName = GetPupilName(journey);
         var isValid = true;
 
         foreach (var question in page.Questions)
@@ -66,7 +62,7 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                var error = GetAnswerError(question, answer);
+                var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
                 if (error is not null)
                 {
                     ModelState.AddModelError(question.Id, error);
@@ -78,7 +74,6 @@ public sealed class JourneyController(
 
         if (!isValid)
         {
-            // Merge submitted values over session so re-rendered fields are pre-filled
             var displayAnswers = journey.QuestionAnswers
                 .Concat(newAnswers)
                 .GroupBy(kv => kv.Key)
@@ -147,37 +142,26 @@ public sealed class JourneyController(
         await fileUpload.CopyToAsync(ms);
         var bytes = ms.ToArray();
 
-        int pageCount;
-        try
-        {
-            using var doc = PdfDocument.Open(bytes);
-            pageCount = doc.NumberOfPages;
-        }
-        catch
+        var pageCount = fileStorageService.GetPdfPageCount(bytes);
+        if (pageCount is null)
         {
             TempData["UploadError"] = $"'{fileUpload.FileName}' could not be read as a PDF. Check the file and try again.";
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
-        var currentTotal = currentFiles.Sum(f => f.PageCount);
-        if (currentTotal + pageCount > MaxTotalPages)
+        var uploadError = journeyService.ValidateFileUpload(fileUpload.FileName, pageCount.Value, currentFiles);
+        if (uploadError is not null)
         {
-            TempData["UploadError"] = $"'{fileUpload.FileName}' has {pageCount} {(pageCount == 1 ? "page" : "pages")}. " +
-                $"Adding it would bring the total to {currentTotal + pageCount} pages, " +
-                $"which exceeds the {MaxTotalPages}-page limit.";
+            TempData["UploadError"] = uploadError;
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
-        var uploadsPath = Path.Combine(env.ContentRootPath, "Uploads");
-        Directory.CreateDirectory(uploadsPath);
-        var storedName = Guid.NewGuid().ToString();
-        await System.IO.File.WriteAllBytesAsync(Path.Combine(uploadsPath, storedName), bytes);
-
+        var storedName = await fileStorageService.SaveAsync(bytes);
         currentFiles.Add(new FileAnswer
         {
             StoredFileName = storedName,
             OriginalFileName = fileUpload.FileName,
-            PageCount = pageCount,
+            PageCount = pageCount.Value,
             FileSizeBytes = bytes.LongLength
         });
 
@@ -192,7 +176,7 @@ public sealed class JourneyController(
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/Journey/{windowId}/page/{pageId}/question/{questionId}/remove")]
-    public IActionResult RemoveFile(Guid windowId, string pageId, string questionId,
+    public async Task<IActionResult> RemoveFile(Guid windowId, string pageId, string questionId,
         bool fromSummary, string storedFileName)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
@@ -200,9 +184,7 @@ public sealed class JourneyController(
         var currentFiles = existing?.FileValues?.ToList() ?? [];
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
-        var filePath = Path.Combine(env.ContentRootPath, "Uploads", storedFileName);
-        if (System.IO.File.Exists(filePath))
-            System.IO.File.Delete(filePath);
+        await fileStorageService.DeleteAsync(storedFileName);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
@@ -219,11 +201,7 @@ public sealed class JourneyController(
         var config = GetConfigOrNotFound(journey);
         if (config is null) return NotFound();
 
-        var pupil = journey.SelectedPupil;
-        var pupilName = pupil is not null ? $"{pupil.Firstname} {pupil.Surname}".Trim() : string.Empty;
-
-        string Resolve(string template) =>
-            template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
+        var pupilName = GetPupilName(journey);
 
         var rows = journey.QuestionHistory
             .SelectMany(pid =>
@@ -233,7 +211,7 @@ public sealed class JourneyController(
                 return p.Questions.Select(q =>
                 {
                     journey.QuestionAnswers.TryGetValue(q.Id, out var a);
-                    return new SummaryRow(p, q, a, Resolve(q.Title));
+                    return new SummaryRow(p, q, a, Resolve(q.Title, pupilName));
                 });
             })
             .ToList();
@@ -254,121 +232,53 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         var config = GetConfigOrNotFound(journey);
 
-        if (config is not null && journey.SelectedPupil?.Cypmd_Id is not null)
+        if (config is not null && journey.SelectedPupil is { Cypmd_Id: not null } pupil)
         {
-            var document = BuildRequestDocument(windowId, journey, config);
+            var context = new JourneySubmissionContext
+            {
+                WindowId = windowId,
+                ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
+                WhatToChange = journey.SelectedWhatToChange!.Value,
+                Pupil = pupil,
+                CheckingWindow = journey.CheckingWindow!,
+                Answers = journey.QuestionAnswers,
+                History = journey.QuestionHistory
+            };
+            var document = journeyService.BuildRequestDocument(context, config);
             await requestBlobClient.SaveRequestAsync(windowId, document);
         }
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
     }
 
-    private RequestDocument BuildRequestDocument(Guid windowId, RequestState journey, QuestionFlowConfig config)
-    {
-        var pupil = journey.SelectedPupil!;
-        var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
-
-        string Resolve(string template) =>
-            template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
-
-        var answers = journey.QuestionHistory
-            .SelectMany(pid =>
-            {
-                var page = flowService.GetPage(config, pid);
-                if (page.Type == PageType.Content) return Enumerable.Empty<AnswerRecord>();
-                return page.Questions.Select(q =>
-                {
-                    journey.QuestionAnswers.TryGetValue(q.Id, out var ans);
-                    return BuildAnswerRecord(q, ans, Resolve);
-                });
-            })
-            .ToList();
-
-        return new RequestDocument
-        {
-            Status = RequestStatus.Submitted,
-            ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
-            SubmittedAt = DateTime.UtcNow,
-            SubmittedBy = new UserDetails
-            {
-                UserId = currentUserService.UserId,
-                DisplayName = currentUserService.DisplayName
-            },
-            CheckingWindowId = windowId,
-            CheckingWindowType = journey.CheckingWindowType?.ToString() ?? string.Empty,
-            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? string.Empty,
-            School = new SchoolDetails
-            {
-                Urn = currentUserService.OrganisationUrn,
-                Name = currentUserService.OrganisationName
-            },
-            Pupil = new PupilDetails
-            {
-                Id = pupil.Id.ToString(),
-                CypmdId = pupil.Cypmd_Id,
-                Firstname = pupil.Firstname,
-                Surname = pupil.Surname,
-                DateOfBirth = pupil.DateOfBirth,
-                Sex = pupil.Sex,
-                Age = pupil.Age
-            },
-            Answers = answers
-        };
-    }
-
-    private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, Func<string, string> resolve)
-    {
-        var title = resolve(question.Title);
-
-        if (question.Type == QuestionType.FileUpload)
-        {
-            return new AnswerRecord
-            {
-                QuestionId = question.Id,
-                QuestionTitle = title,
-                Type = "FileUpload",
-                Files = answer?.FileValues?.Select(f => new FileRecord
-                {
-                    OriginalFileName = f.OriginalFileName,
-                    StoredFileName = f.StoredFileName,
-                    PageCount = f.PageCount,
-                    FileSizeBytes = f.FileSizeBytes
-                }).ToList()
-            };
-        }
-
-        var value = question.Type switch
-        {
-            QuestionType.Radio when answer?.TextValue is { } v =>
-                question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
-            QuestionType.Date when answer?.DateValue is { } d =>
-                $"{d.Day:D2}/{d.Month:D2}/{d.Year}",
-            _ => answer?.TextValue
-        };
-
-        return new AnswerRecord
-        {
-            QuestionId = question.Id,
-            QuestionTitle = title,
-            Type = question.Type.ToString(),
-            Value = value
-        };
-    }
+    // ── Confirmation ───────────────────────────────────────────────────────
 
     [Route("/Journey/{windowId}/confirmation")]
     public IActionResult Confirmation(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        return View(new ConfirmationViewModel { WindowId = windowId, ReferenceNumber = journey.ReferenceNumber });
+        var window = journey.CheckingWindow!;
+        return View(new ConfirmationViewModel
+        {
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber,
+            WindowCloseLabel = $"{window.EndDate.ToString("htt").ToLower()} on {window.EndDate:dddd d MMMM yyyy}"
+        });
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
 
     private QuestionFlowConfig? GetConfigOrNotFound(RequestState journey)
     {
-        if (journey.SelectedWhatToChange is null || journey.CheckingWindowType is null) return null;
-        return flowService.GetConfig(journey.SelectedWhatToChange.Value, journey.CheckingWindowType.Value);
+        if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null) return null;
+        return flowService.GetConfig(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
     }
+
+    private static string GetPupilName(RequestState journey) =>
+        journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;
+
+    private static string Resolve(string template, string pupilName) =>
+        template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
 
     private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
         Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,
@@ -377,15 +287,12 @@ public sealed class JourneyController(
         var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
         var backPageId = historyIndex switch
         {
-            -1 => journey.QuestionHistory.LastOrDefault(),  // first visit — came from last page in history
-            0  => null,                                      // first page in journey — back goes to pupil search
+            -1 => journey.QuestionHistory.LastOrDefault(),
+            0  => null,
             _  => journey.QuestionHistory[historyIndex - 1]
         };
 
-        var pupil = journey.SelectedPupil;
-        var pupilName = pupil is not null
-            ? $"{pupil.Firstname} {pupil.Surname}".Trim()
-            : string.Empty;
+        var pupilName = GetPupilName(journey);
 
         string? contentKey = null;
         if (page.Type == PageType.Content && config is not null)
@@ -445,21 +352,6 @@ public sealed class JourneyController(
             _ => new QuestionAnswer { TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim() }
         };
     }
-
-    private static string? GetAnswerError(Question question, QuestionAnswer answer) =>
-        question.Type switch
-        {
-            QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
-                => $"{question.Title} is required",
-            QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{question.Title} is required",
-            QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
-                => $"{question.Title} must be {question.CharacterLimit} characters or less",
-            QuestionType.Date => null,
-            _ when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{question.Title} is required",
-            _ => null
-        };
 
     private void TrimHistoryTo(RequestState journey, Guid windowId, string pageId)
     {

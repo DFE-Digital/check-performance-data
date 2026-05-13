@@ -29,12 +29,12 @@
             {
               "value": "pupil-died",
               "label": "Pupil has died",
-              "nextPageId": "date-of-event"
+              "nextPageId": "additional-info"
             },
             {
               "value": "dual-registered-moved",
               "label": "Dual registered or moved school",
-              "nextPageId": "moved-details"
+              "nextPageId": "additional-info"
             },
             {
               "value": "elective-home-education",
@@ -72,36 +72,6 @@
               "nextPageId": "additional-info"
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "date-of-event",
-      "nextPageId": "evidence",
-      "questions": [
-        {
-          "id": "date-of-death",
-          "type": "Date",
-          "title": "What was {pupilName}'s date of death?",
-          "hint": "For example, 27 3 2007."
-        }
-      ]
-    },
-    {
-      "id": "moved-details",
-      "title": "Details of move",
-      "nextPageId": "evidence",
-      "questions": [
-        {
-          "id": "new-school",
-          "type": "FreeText",
-          "title": "What is the name of the new school?"
-        },
-        {
-          "id": "date-of-move",
-          "type": "Date",
-          "title": "What was the date the pupil moved?",
-          "hint": "For example, 27 3 2007."
         }
       ]
     },

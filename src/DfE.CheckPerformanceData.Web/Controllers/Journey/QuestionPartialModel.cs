@@ -1,4 +1,4 @@
-using DfE.CheckPerformanceData.Web.QuestionFlow;
+using DfE.CheckPerformanceData.Application.Journey;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -12,7 +12,6 @@ public sealed class QuestionPartialModel
     public bool IsPageHeading { get; init; }
     public string? Error { get; init; }
 
-    // Safe HTML field name: hyphens replaced with underscores, prefixed with q_
     public string FieldName => $"q_{Question.Id.Replace("-", "_")}";
     public bool HasError => Error is not null;
     public string ResolvedTitle { get; init; } = string.Empty;

@@ -28,11 +28,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
-        var results = await Task.WhenAll(
-            checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId),
-            checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId));
-        var included = results[0];
-        var nonIncluded = results[1];
+        var included = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
+        var nonIncluded = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);

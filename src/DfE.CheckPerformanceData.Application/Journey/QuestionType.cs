@@ -1,4 +1,4 @@
-namespace DfE.CheckPerformanceData.Web.QuestionFlow;
+namespace DfE.CheckPerformanceData.Application.Journey;
 
 public enum QuestionType
 {

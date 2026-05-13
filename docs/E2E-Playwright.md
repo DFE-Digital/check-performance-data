@@ -154,13 +154,13 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedNam
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
-To run the canonical Linux-baseline path from PowerShell — same as `make test-e2e`:
+To run the full visual regression sweep from PowerShell — same as `make test-e2e`:
 
 ```powershell
 docker compose --profile e2e run --rm e2e-tests
 ```
 
-That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression against the Linux-Chromium baselines, and tears down.
+That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression (using the container's own baselines, regenerated on first run), and tears down.
 
 If you alternated between native and container runs and hit `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'`:
 
@@ -219,7 +219,7 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
 | Tight inner loop, functional tests only | PowerShell or VS/VSC Test Explorer with `Category!=VisualRegression` |
 | Validate visual regression before push / PR | `make test-e2e` (or `docker compose --profile e2e run --rm e2e-tests` from PowerShell) |
 | Step through a single failing test in a debugger | VS Code or VS, "Debug Test" |
-| Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux-Chromium, same baseline |
+| Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux-Chromium; rebuild the baseline inside the container before comparing |
 
 ## What it tests
 
@@ -227,7 +227,7 @@ Three layers, all behind the same fixture:
 
 - **Browser-driven UI tests** (`Wiki/`, `Web/`) — Playwright loads pages, clicks things, asserts visible state. Covers the help CMS read path, search sidebar, soft-delete flow, warning-text rendering, GOV.UK assets, the wiki/content-block CRUD round trips, the 404 surface, and the sign-in nav cluster round-trip (anonymous → impersonate → sign-out → anonymous, in `Web/SignInNavTests.cs`).
 - **HTTP-only tests** (`Web/`) — `HttpClient` without a browser. Faster, used where the assertion is "controller redirected to X" or "endpoint returned status Y" and the rendered page isn't the point.
-- **Visual regression** (`Visual/`) — full-page Chromium screenshots pixel-diffed against committed PNG baselines under `Snapshots/linux-chromium/`. Linux-only (see below).
+- **Visual regression** (`Visual/`) — full-page Chromium screenshots pixel-diffed against per-environment baselines under `Snapshots/`. Baselines are generated on first run and **never committed** — every environment has its own.
 
 Smoke tests (`HarnessSmokeTests.cs`) prove the harness itself can reach the deployed app and scrape an antiforgery token before any real test runs.
 
@@ -261,21 +261,16 @@ Playwright ships its own `ToHaveScreenshotAsync()` in newer versions, but we don
 
 - **Comparison** uses `SixLabors.ImageSharp` per-pixel with a per-channel tolerance of 3 (anti-aliasing jitter is below this; real visual changes are above it). `maxDiffPixelRatio` defaults to 0.005 (0.5% of pixels allowed to differ).
 - **First run writes the baseline.** Delete a snapshot PNG, run the test once — it writes the file and throws "did not exist — written, run again to verify". Run again — the comparison passes. No `--update-snapshots` flag, no env var to forget, no `update_snapshots: missing` config to misread.
-- **Multi-viewport bootstrapping.** Tests that capture several snapshots (e.g. desktop + tablet + mobile) pass an accumulator into `MatchSnapshotAsync`. First run writes *all* viewport baselines in a single test invocation instead of failing on viewport 1 and never reaching viewports 2 and 3. The test fails at the end if anything was bootstrapped, so CI still gates on "you regenerated something".
-- **Diff PNG trio on failure.** When a comparison exceeds the threshold, the helper writes three PNGs to `Snapshots/diffs/`: `{name}.expected.png` (the committed baseline), `{name}.actual.png` (what we just captured), and `{name}.diff.png` (the actual frame with diverging pixels tinted red). The `XunitException` message includes the absolute path so failure logs point straight at the artefacts.
-- **`Snapshots/diffs/` is gitignored.** It's a failure surface, not a source artefact. CI uploads the entire `Snapshots/` tree on failure as the `e2e-snapshots` artefact (14-day retention) so the trio surfaces in the run's Artifacts panel automatically.
+- **Multi-viewport bootstrapping.** Tests that capture several snapshots (e.g. desktop + tablet + mobile) pass an accumulator into `MatchSnapshotAsync`. First run writes *all* viewport baselines in a single test invocation instead of failing on viewport 1 and never reaching viewports 2 and 3. The test fails at the end if anything was bootstrapped.
+- **Diff PNG trio on failure.** When a comparison exceeds the threshold, the helper writes three PNGs to `Snapshots/diffs/`: `{name}.expected.png` (the baseline currently on disk), `{name}.actual.png` (what we just captured), and `{name}.diff.png` (the actual frame with diverging pixels tinted red). The `XunitException` message includes the absolute path so failure logs point straight at the artefacts.
 
-### Linux-only baselines
+### Baselines are environmental — never committed
 
-Linux-Chromium and Windows/macOS-Chromium produce different pixels for the same page — text shaping, sub-pixel positioning, and font hinting all diverge. So `Snapshots/linux-chromium/` is the **single canonical baseline**, and snapshot tests guard themselves with:
+The whole `Snapshots/` tree is gitignored. Baselines, the `diffs/` failure trio, multi-viewport bootstrap output — none of it lives in the repo.
 
-```csharp
-Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Linux-only snapshot");
-```
+Reason: Chromium rendering varies by environment. Linux vs macOS vs Windows differ in text shaping, sub-pixel positioning, and font hinting; even nominally-identical machines drift enough that a baseline generated on box A is "wrong" on box B. There's no single canonical render to commit. Each environment regenerates its own baselines on first run; CI uploads its set as the `e2e-snapshots` workflow artefact (14-day retention) so failure investigations can pull them down.
 
-(via `Xunit.SkippableFact`). On Windows or macOS the visual tests skip cleanly. **Never commit a snapshot generated locally on Windows or macOS** — it'll be wrong on the CI Linux runner the moment another visual test triggers.
-
-The container path (`make test-e2e`) gives every dev a way to regenerate snapshots that *match* the CI Linux baseline without needing a Linux box. The CI path (push to a `deploy`-labelled branch) is the fallback for devs without Docker.
+Practical consequence: a fresh checkout has no baselines. The first visual-regression run on any new environment (local box, new CI runner, container rebuild) writes baselines and throws; the second run validates against them. After that the loop is stable until something changes.
 
 ## Page stabilisation
 

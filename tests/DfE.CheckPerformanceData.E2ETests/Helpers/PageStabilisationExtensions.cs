@@ -23,9 +23,31 @@ public static class PageStabilisationExtensions
 
         await page.WaitForFunctionAsync("() => document.fonts && document.fonts.ready");
 
-        // One animation frame after load lets the browser commit the post-load
-        // layout pass (reflow from late-loading CSS, deferred font swaps) before
-        // the screenshot. Deterministic; bounded; no polling.
+        // SeedHelpers prefixes every test wiki title with e2e-{Guid:N}-..., so any
+        // visible h1 or sidebar anchor referencing a seeded page contains 32 random
+        // hex characters that wrap differently between runs in a proportional font
+        // — shifting every pixel below them and pushing visual diffs above threshold.
+        // Replace the variable text with a fixed string so bootstrap and validation
+        // see identical layout. Only affects elements whose text *contains* 'e2e-',
+        // so static page chrome is untouched.
+        await page.EvaluateAsync(@"() => {
+            const stable = '[stable-title]';
+            document.querySelectorAll('h1').forEach(h => {
+                if (h.textContent && h.textContent.includes('e2e-')) {
+                    h.textContent = stable;
+                }
+            });
+            document.querySelectorAll('aside.wiki-sidebar a').forEach(a => {
+                if (a.textContent && a.textContent.includes('e2e-')) {
+                    a.textContent = stable;
+                }
+            });
+        }");
+
+        // One animation frame after the DOM mutation lets the browser commit the
+        // post-load layout pass (reflow from late-loading CSS, deferred font swaps,
+        // and the text replacement above) before the screenshot. Deterministic;
+        // bounded; no polling.
         await page.EvaluateAsync(
             "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
     }

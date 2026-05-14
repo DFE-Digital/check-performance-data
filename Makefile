@@ -218,7 +218,13 @@ scale-worker: get-cluster-credentials
 	kubectl -n ${NAMESPACE} scale deployment/${SERVICE_NAME}${DSUFFIX}-worker --replicas ${REPLICAS}
 
 .PHONY: test-e2e
-test-e2e: ## Run full E2E suite inside the Linux Playwright container (cross-OS deterministic; includes visual regression)
+test-e2e: ## Run full E2E suite inside the Linux Playwright container; auto-bootstraps visual-regression baselines when the Snapshots dir is empty, then re-runs to verify stability
+	@SNAPSHOT_DIR=tests/DfE.CheckPerformanceData.E2ETests/Snapshots; \
+	if [ -z "$$(ls -A $$SNAPSHOT_DIR 2>/dev/null)" ]; then \
+		echo ">>> No visual-regression baselines found — running bootstrap pass to write PNGs..."; \
+		docker compose --profile e2e run --rm e2e-tests; \
+		echo ">>> Bootstrap complete. Re-running to verify baselines are stable..."; \
+	fi; \
 	docker compose --profile e2e run --rm e2e-tests
 
 .PHONY: test-e2e-fast

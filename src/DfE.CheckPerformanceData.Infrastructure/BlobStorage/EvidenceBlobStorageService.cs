@@ -10,7 +10,6 @@ public sealed class EvidenceBlobStorageService(BlobServiceClient blobServiceClie
     public async Task<string> SaveAsync(Guid windowId, byte[] bytes)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
-        await container.CreateIfNotExistsAsync();
 
         var blobName = Guid.NewGuid().ToString();
         var blob = container.GetBlobClient($"{EvidenceFolder}/{blobName}");

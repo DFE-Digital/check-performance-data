@@ -39,6 +39,7 @@ public static class SeedCheckingWindows
             //     StartDate = DateTime.Now.AddMonths(1),
             //     EndDate = DateTime.Now.AddMonths(1).AddDays(+14).Date.AddHours(17),
             //     KeyStage = KeyStages.KS4,
+            //     CheckingWindowType = CheckingWindowType.KS4Autumn,
             //     Title = "KS4 Autumn"
             // },
             // new CheckingWindow
@@ -47,6 +48,7 @@ public static class SeedCheckingWindows
             //     StartDate = DateTime.Now.AddDays(-3),
             //     EndDate = DateTime.Now.AddDays(+11).Date.AddHours(17),
             //     KeyStage = KeyStages.KS2,
+            //     CheckingWindowType = CheckingWindowType.KS2,
             //     Title = "KS2"
             // },
             // new CheckingWindow()
@@ -55,6 +57,7 @@ public static class SeedCheckingWindows
             //     StartDate = DateTime.Now.AddDays(-4),
             //     EndDate = DateTime.Now.AddDays(+14).Date.AddHours(17),
             //     KeyStage = KeyStages.Post16,
+            //     CheckingWindowType = CheckingWindowType.Post16,
             //     Title = "16-18"
             // },
             // new CheckingWindow()
@@ -63,6 +66,7 @@ public static class SeedCheckingWindows
             //     StartDate = DateTime.Now.AddYears(-1).AddDays(-2),
             //     EndDate = DateTime.Now.AddYears(-1).AddDays(+12).Date.AddHours(17),
             //     KeyStage = KeyStages.Post16,
+            //     CheckingWindowType = CheckingWindowType.Post16,
             //     Title = "16-18"
             // },
             closedKs4JuneWindow

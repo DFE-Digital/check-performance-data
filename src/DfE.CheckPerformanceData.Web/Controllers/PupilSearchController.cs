@@ -47,7 +47,15 @@ public sealed class PupilSearchController(
             return View(vm);
         }
 
-        var pupil = await service.GetPupilAsync(windowId, Guid.Parse(model.SelectedPupilId));
+        if (!Guid.TryParse(model.SelectedPupilId, out var pupilId))
+        {
+            var journey = HttpContext.Session.GetRequestState(windowId);
+            var vm = new PupilSearchIndexViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange ?? default };
+            ModelState.AddModelError(nameof(PupilSearchIndexViewModel.SelectedPupilId), vm.WhatToChangeMessage);
+            return View(vm);
+        }
+
+        var pupil = await service.GetPupilAsync(windowId, pupilId);
 
         var existingState = HttpContext.Session.GetRequestState(windowId);
         var reference = journeyService.GenerateReference(existingState.CheckingWindow?.CheckingWindowType);

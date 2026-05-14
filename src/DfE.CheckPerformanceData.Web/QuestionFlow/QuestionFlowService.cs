@@ -3,12 +3,12 @@ using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.Web.QuestionFlow;
 
-public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlowService
+public sealed class QuestionFlowService(IWebHostEnvironment env, IMemoryCache cache) : IQuestionFlowService
 {
-    private readonly Dictionary<string, QuestionFlowConfig?> _cache = new();
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -17,28 +17,27 @@ public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlow
 
     public QuestionFlowConfig? GetConfig(WhatToChange whatToChange, CheckingWindowType checkingWindowType)
     {
-        var key = $"{whatToChange}_{checkingWindowType}";
-        if (_cache.TryGetValue(key, out var cached))
-            return cached;
-
-        var path = Path.Combine(env.ContentRootPath, "Data", "QuestionFlows", $"{key}.json");
-        if (!File.Exists(path))
+        var key = $"qflow_{whatToChange}_{checkingWindowType}";
+        return cache.GetOrCreate(key, entry =>
         {
-            _cache[key] = null;
-            return null;
-        }
+            entry.Priority = CacheItemPriority.NeverRemove;
 
-        var config = JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(path), JsonOptions);
-        _cache[key] = config;
-        return config;
+            var path = Path.Combine(env.ContentRootPath, "Data", "QuestionFlows",
+                $"{whatToChange}_{checkingWindowType}.json");
+
+            return File.Exists(path)
+                ? JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(path), JsonOptions)
+                : null;
+        });
     }
 
-    public JourneyPage GetPage(QuestionFlowConfig config, string pageId) =>
-        config.Pages.First(p => p.Id == pageId);
+    public JourneyPage? GetPage(QuestionFlowConfig config, string pageId) =>
+        config.Pages.FirstOrDefault(p => p.Id == pageId);
 
     public string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers)
     {
         var page = GetPage(config, pageId);
+        if (page is null) return null;
 
         foreach (var question in page.Questions)
         {
@@ -60,6 +59,7 @@ public sealed class QuestionFlowService(IWebHostEnvironment env) : IQuestionFlow
         while (currentId is not null)
         {
             var page = GetPage(config, currentId);
+            if (page is null) break;
 
             // Stop if any radio on this page has no answer — we can't determine the branch
             if (page.Questions.Any(q => q.Type == QuestionType.Radio && !answers.ContainsKey(q.Id)))

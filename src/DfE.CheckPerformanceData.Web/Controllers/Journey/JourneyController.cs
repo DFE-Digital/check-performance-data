@@ -11,9 +11,12 @@ public sealed class JourneyController(
     IQuestionFlowService flowService,
     IJourneyService journeyService,
     IFileStorageService fileStorageService,
-    IRequestBlobClient requestBlobClient) : Controller
+    IRequestBlobClient requestBlobClient,
+    IWebHostEnvironment env) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
+
+    private const long MaxUploadBytes = 10 * 1024 * 1024; // 10 MB
 
     // ── Page (GET) ──────────────────────────────────────────────────────────
 
@@ -25,6 +28,7 @@ public sealed class JourneyController(
         if (config is null) return NotFound();
 
         var page = flowService.GetPage(config, pageId);
+        if (page is null) return NotFound();
         return View("Page", BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
     }
 
@@ -40,6 +44,7 @@ public sealed class JourneyController(
         if (config is null) return NotFound();
 
         var page = flowService.GetPage(config, pageId);
+        if (page is null) return NotFound();
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = GetPupilName(journey);
         var isValid = true;
@@ -139,6 +144,12 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
+        if (fileUpload.Length > MaxUploadBytes)
+        {
+            TempData["UploadError"] = $"'{fileUpload.FileName}' must be 10 MB or less";
+            return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
+        }
+
         using var ms = new MemoryStream();
         await fileUpload.CopyToAsync(ms);
         var bytes = ms.ToArray();
@@ -183,6 +194,12 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
+
+        // This is OK returning a rather rude BadRequest as it will only occur if someone
+        // on the client side has been messing around with hidden GUIDs
+        if (currentFiles.All(f => f.StoredFileName != storedFileName))
+            return BadRequest();
+
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
         await fileStorageService.DeleteAsync(windowId, storedFileName);
@@ -208,7 +225,7 @@ public sealed class JourneyController(
             .SelectMany(pid =>
             {
                 var p = flowService.GetPage(config, pid);
-                if (p.Type == PageType.Content) return Enumerable.Empty<SummaryRow>();
+                if (p is null || p.Type == PageType.Content) return Enumerable.Empty<SummaryRow>();
                 return p.Questions.Select(q =>
                 {
                     journey.QuestionAnswers.TryGetValue(q.Id, out var a);
@@ -219,8 +236,9 @@ public sealed class JourneyController(
 
         var backPageId = journey.QuestionHistory.LastOrDefault() ?? config.FirstPageId;
 
-        var debugJson = System.Text.Json.JsonSerializer.Serialize(journey,
-            new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+        var debugJson = env.IsDevelopment()
+            ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
+            : null;
 
         return View(new SummaryViewModel { WindowId = windowId, Rows = rows, BackPageId = backPageId, DebugJson = debugJson });
     }
@@ -307,7 +325,8 @@ public sealed class JourneyController(
             BackPageId = backPageId,
             FromSummary = fromSummary,
             PupilName = pupilName,
-            ContentKey = contentKey
+            ContentKey = contentKey,
+            UploadError = TempData["UploadError"] as string
         };
     }
 

@@ -24,6 +24,7 @@
             FromSummary = Model.FromSummary,
             IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(Model.Page.Title),
             Error = error,
+            UploadError = Model.UploadError,
             ResolvedTitle = Model.ResolveTemplate(question.Title)
         };
     }
@@ -81,15 +82,13 @@ else
 }
 else
 {
-    var uploadError = TempData.Peek("UploadError") as string;
-
-    if (!ViewData.ModelState.IsValid || uploadError is not null)
+    if (!ViewData.ModelState.IsValid || Model.UploadError is not null)
     {
         <govuk-error-summary>
             <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-            @if (uploadError is not null)
+            @if (Model.UploadError is not null)
             {
-                <govuk-error-summary-item href="#fileUpload">@uploadError</govuk-error-summary-item>
+                <govuk-error-summary-item href="#fileUpload">@Model.UploadError</govuk-error-summary-item>
             }
             @foreach (var question in Model.Page.Questions)
             {

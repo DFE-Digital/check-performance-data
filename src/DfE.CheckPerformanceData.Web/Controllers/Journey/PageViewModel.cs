@@ -11,6 +11,7 @@ public sealed class PageViewModel
     public bool FromSummary { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }
+    public string? UploadError { get; init; }
 
     public QuestionAnswer? GetAnswer(string questionId) =>
         Answers.TryGetValue(questionId, out var a) ? a : null;

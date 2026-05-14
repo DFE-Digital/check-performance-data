@@ -16,7 +16,6 @@ public sealed class RequestBlobClient(BlobServiceClient blobServiceClient) : IRe
     public async Task SaveRequestAsync(Guid windowId, RequestDocument document)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
-        await container.CreateIfNotExistsAsync();
 
         var json = JsonSerializer.Serialize(document, JsonOptions);
         var blob = container.GetBlobClient($"request_{document.ReferenceNumber}.json");

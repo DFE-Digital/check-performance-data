@@ -123,4 +123,33 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
         }
     }
+
+    // --- Versions_AsNonEditor_Redirects_To_AccessDenied ---
+
+    [Fact]
+    public async Task Versions_AsNonEditor_Redirects_To_AccessDenied()
+    {
+        // The action returns 404 for missing keys, but authorization runs first and
+        // short-circuits with a 302 to AccessDenied before the controller body executes,
+        // so we assert on the redirect (not the 404). GET — no antiforgery scrape needed.
+        var key = $"e2e-{Guid.NewGuid():N}-block";
+
+        try
+        {
+            await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"{_fixture.BaseUrl}/content-block/versions/{key}");
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
 }

@@ -3,6 +3,8 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -16,7 +18,8 @@ public class QuestionFlowServiceTests
     {
         var env = Substitute.For<IWebHostEnvironment>();
         env.ContentRootPath.Returns(string.Empty);
-        _sut = new QuestionFlowService(env);
+        var cache = new MemoryCache(Options.Create(new MemoryCacheOptions()));
+        _sut = new QuestionFlowService(env, cache);
 
         _config = new QuestionFlowConfig
         {

@@ -27,6 +27,7 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
         return Redirect(returnUrl);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("content-block/versions/{key}")]
     public async Task<IActionResult> Versions(string key)
     {

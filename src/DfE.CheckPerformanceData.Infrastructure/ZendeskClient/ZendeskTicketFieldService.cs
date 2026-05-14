@@ -93,5 +93,10 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
                 throw;
             }
         }
+
+        public string? GetOptionValue(string fieldName, string optionName)
+        {
+            return ZendeskTicketFieldOptions.GetOptionValue(fieldName, optionName);
+        }
     }
 }

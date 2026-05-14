@@ -30,5 +30,11 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         /// Tries configuration first, then falls back to querying Zendesk API.
         /// </summary>
         Task<long?> GetFieldIdAsync(string fieldName);
+
+        /// <summary>
+        /// Gets the option value for a dropdown field given the field name and a human-readable option name.
+        /// For example: GetOptionValue("Sex", "male") returns "m"
+        /// </summary>
+        string? GetOptionValue(string fieldName, string optionName);
     }
 }

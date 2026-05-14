@@ -6,8 +6,6 @@ using DfE.CheckPerformanceData.Domain.QueueMessages;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Services;
 
@@ -15,6 +13,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
 {
     private readonly IZendeskService _zendeskService;
     private readonly IZendeskAttachmentService _zendeskAttachmentService;
+    private readonly IZendeskTicketFieldService _ticketFieldService;
     private readonly BlobContainerClient _blobContainerClient;
     private readonly SchoolCheckingExerciseSettings _checkingExerciseSettings;
     private readonly ILogger<RequestDecisionHandler> _logger;
@@ -22,12 +21,14 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
     public RequestDecisionHandler(
         IZendeskService zendeskService,
         IZendeskAttachmentService zendeskAttachmentService,
+        IZendeskTicketFieldService ticketFieldService,
         BlobContainerClient blobContainerClient,
         IOptions<SchoolCheckingExerciseSettings> schoolCheckingExerciseSettings,
         ILogger<RequestDecisionHandler> logger)
     {
         _zendeskService = zendeskService;
         _zendeskAttachmentService = zendeskAttachmentService;
+        _ticketFieldService = ticketFieldService;
         _blobContainerClient = blobContainerClient;
         if (schoolCheckingExerciseSettings?.Value == null)
             throw new ArgumentException("The School Checking Exercise Settings are required.");
@@ -190,24 +191,138 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
 
     private CreateTicketRequestDto mapViewFields(RequestMessage message, CreateTicketRequestDto dto)
     {
-        
         dto.Ticket.Subject = "School Checking Exercise";
         dto.Ticket.BrandId = _checkingExerciseSettings.BrandId;
         dto.Ticket.GroupId = _checkingExerciseSettings.GroupId;
         dto.Ticket.Status = "new";
         dto.Ticket.Type = "question";
 
-        // todo - build description from message.
+        // Build description from message
+        dto.Ticket.Description = string.IsNullOrWhiteSpace(dto.Ticket.Description)
+            ? $"Request {message.RequestId} for window {message.CheckingWindowId} ({message.CheckingWindowType}). " +
+              $"School: {message.School.Name} ({message.School.Urn}). " +
+              $"Pupil: {message.Pupil.Firstname} {message.Pupil.Surname} (DOB: {message.Pupil.DateOfBirth}). " +
+              $"Change requested: {message.WhatToChange}"
+            : dto.Ticket.Description;
 
-        // todo - decide how to map custom fields
-        dto.Ticket.CustomFields.Add(new CustomFieldDto
+        // Map Decision Status using options constant
+        var decisionStatusId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+        if (decisionStatusId.HasValue)
         {
-            Id = 19056253670034,
-            Value = message.DecisionType.ToString()
-        });
+            var decisionValue = message.DecisionType switch
+            {
+                DecisionType.Scrutiny => ZendeskTicketFieldOptions.DecisionStatus.Scrutiny,
+                DecisionType.AutoApproved => ZendeskTicketFieldOptions.DecisionStatus.AutoApproved,
+                DecisionType.AutoRejected => ZendeskTicketFieldOptions.DecisionStatus.AutoRejected,
+                _ => null
+            };
 
+            if (decisionValue != null)
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = decisionStatusId.Value,
+                    Value = decisionValue
+                });
+            }
+        }
+        
+
+
+
+        // Map School URN
+        var schoolUrnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SchoolUrnName);
+        if (schoolUrnId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = schoolUrnId.Value,
+                Value = message.School.Urn
+            });
+        }
+        
+        // Map CYPMD ID
+        var cypmdId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName);
+        if (cypmdId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = cypmdId.Value,
+                Value = message.Pupil.CypmdId
+            });
+        }
+        
+        // Map UPN
+        var upnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.UpnName);
+        if (upnId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = upnId.Value,
+                Value = message.Pupil.Id //  NB! this should be a long value
+            });
+        }
+        
+        // Map LDS Matched Pupil ID
+        var ldsMatchedPupilId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
+        if (ldsMatchedPupilId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = ldsMatchedPupilId.Value,
+                Value = 30280000 // message.Pupil.Id -- N.B! this is a long field. needs to be considered in the payload
+            });
+        }
+        
+        // Map Surname
+        var surnameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SurnameCypmdName);
+        if (surnameId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = surnameId.Value,
+                Value = message.Pupil.Surname.ToUpperInvariant()
+            });
+        }
+        
+        // Map Forename
+        var forenameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ForenameCypmdName);
+        if (forenameId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = forenameId.Value,
+                Value = message.Pupil.Firstname.ToUpperInvariant()
+            });
+        }
+
+        // Map Date of Birth
+        var dobId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DateOfBirthCypmdName);
+        if (dobId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = dobId.Value,
+                Value = DateTime.ParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", null).ToString("yyyy-MM-dd") //N.B! the format passed to the message is imporant.
+            });
+        }
+        
+        // Map Sex using options constant
+        var sexId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SexName);
+        if (sexId.HasValue)
+        {
+            var sexValue = _ticketFieldService.GetOptionValue(
+                ZendeskTicketFieldConstants.SexName, message.Pupil.Sex);
+            if (sexValue != null)
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = sexId.Value,
+                    Value = sexValue
+                });
+            }
+        }
 
         return dto;
-
     }
 }

@@ -44,4 +44,83 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
+
+    // --- PostSave_AsNonEditor_Returns403 ---
+
+    [Fact]
+    public async Task PostSave_AsNonEditor_Returns403()
+    {
+        var unique = $"e2e-{Guid.NewGuid():N}";
+        var key = $"{unique}-block";
+
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+
+        try
+        {
+            await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
+
+            var form = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("Key", key),
+                new KeyValuePair<string, string>("BlockType", "Content"),
+                new KeyValuePair<string, string>("Value", $"<p>e2e marker {unique}</p>"),
+                new KeyValuePair<string, string>("OriginalValue", string.Empty),
+                new KeyValuePair<string, string>("ReturnUrl", "/"),
+            });
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_fixture.BaseUrl}/content-block/save")
+            {
+                Content = form
+            };
+            request.Headers.Add("X-XSRF-TOKEN", token);
+            request.Headers.Add("Cookie", cookie);
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
+
+    // --- PostRevert_AsNonEditor_Returns403 ---
+
+    [Fact]
+    public async Task PostRevert_AsNonEditor_Returns403()
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+
+        try
+        {
+            await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
+
+            var form = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("returnUrl", "/"),
+            });
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_fixture.BaseUrl}/content-block/revert/some-key/1")
+            {
+                Content = form
+            };
+            request.Headers.Add("X-XSRF-TOKEN", token);
+            request.Headers.Add("Cookie", cookie);
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
 }

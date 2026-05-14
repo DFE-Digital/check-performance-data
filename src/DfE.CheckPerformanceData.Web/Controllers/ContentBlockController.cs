@@ -1,11 +1,13 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class ContentBlockController(IContentBlockService contentBlockService) : Controller
 {
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(SaveContentBlockFormModel model)
@@ -41,6 +43,7 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/revert/{key}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(string key, int versionId, string? returnUrl)

@@ -8,7 +8,6 @@ using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.BlobStorage;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -78,7 +77,6 @@ try
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
-    builder.Services.AddScoped<IBlobContainerService, BlobContainerService>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)

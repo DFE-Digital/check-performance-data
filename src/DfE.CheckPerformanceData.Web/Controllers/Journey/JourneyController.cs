@@ -24,11 +24,17 @@ public sealed class JourneyController(
     public IActionResult Page(Guid windowId, string pageId, bool fromSummary = false)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        var config = GetConfigOrNotFound(journey);
-        if (config is null) return NotFound();
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = GetConfig(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
 
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
+
+        var redirect = ValidatePageNavigation(config, journey, pageId, windowId);
+        if (redirect is not null) return redirect;
+
         return View("Page", BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
     }
 
@@ -40,11 +46,14 @@ public sealed class JourneyController(
     public IActionResult PagePost(Guid windowId, string pageId, bool fromSummary)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        var config = GetConfigOrNotFound(journey);
-        if (config is null) return NotFound();
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = GetConfig(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
 
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
+
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = GetPupilName(journey);
         var isValid = true;
@@ -135,6 +144,8 @@ public sealed class JourneyController(
         bool fromSummary, IFormFile? fileUpload)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
 
@@ -192,11 +203,11 @@ public sealed class JourneyController(
         bool fromSummary, string storedFileName)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
 
-        // This is OK returning a rather rude BadRequest as it will only occur if someone
-        // on the client side has been messing around with hidden GUIDs
         if (currentFiles.All(f => f.StoredFileName != storedFileName))
             return BadRequest();
 
@@ -216,8 +227,19 @@ public sealed class JourneyController(
     public IActionResult Summary(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        var config = GetConfigOrNotFound(journey);
-        if (config is null) return NotFound();
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = GetConfig(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        // Redirect to start if journey hasn't been begun
+        if (journey.QuestionHistory.Count == 0)
+            return RedirectToAction(nameof(Page), new { windowId, pageId = config.FirstPageId });
+
+        // Redirect to next unanswered page if journey is incomplete
+        var nextExpected = flowService.GetNextPageId(config, journey.QuestionHistory.Last(), journey.QuestionAnswers);
+        if (nextExpected is not null)
+            return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
         var pupilName = GetPupilName(journey);
 
@@ -234,7 +256,7 @@ public sealed class JourneyController(
             })
             .ToList();
 
-        var backPageId = journey.QuestionHistory.LastOrDefault() ?? config.FirstPageId;
+        var backPageId = journey.QuestionHistory.Last();
 
         var debugJson = env.IsDevelopment()
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
@@ -249,7 +271,9 @@ public sealed class JourneyController(
     public async Task<IActionResult> SummaryConfirm(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        var config = GetConfigOrNotFound(journey);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = GetConfig(journey);
 
         if (config is not null && journey.SelectedPupil is { Cypmd_Id: not null } pupil)
         {
@@ -276,7 +300,11 @@ public sealed class JourneyController(
     public IActionResult Confirmation(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
-        var window = journey.CheckingWindow!;
+
+        if (journey.ReferenceNumber is null || journey.CheckingWindow is null)
+            return RedirectToCheckYourData(windowId);
+
+        var window = journey.CheckingWindow;
         return View(new ConfirmationViewModel
         {
             WindowId = windowId,
@@ -287,10 +315,37 @@ public sealed class JourneyController(
 
     // ── Private helpers ────────────────────────────────────────────────────
 
-    private QuestionFlowConfig? GetConfigOrNotFound(RequestState journey)
+    private static bool IsSessionReady(RequestState journey) =>
+        journey.SelectedWhatToChange is not null &&
+        journey.CheckingWindow is not null &&
+        journey.SelectedPupil is not null;
+
+    private RedirectToActionResult RedirectToCheckYourData(Guid windowId) =>
+        RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+
+    private QuestionFlowConfig? GetConfig(RequestState journey) =>
+        flowService.GetConfig(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
+
+    private IActionResult? ValidatePageNavigation(QuestionFlowConfig config, RequestState journey,
+        string pageId, Guid windowId)
     {
-        if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null) return null;
-        return flowService.GetConfig(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        // Already visited — allow revisiting (covers fromSummary edits too)
+        if (journey.QuestionHistory.Contains(pageId)) return null;
+
+        // Compute the expected next page from where the user currently is
+        var expectedNext = journey.QuestionHistory.Count == 0
+            ? config.FirstPageId
+            : flowService.GetNextPageId(config, journey.QuestionHistory.Last(), journey.QuestionAnswers);
+
+        // Journey is complete — they should be at the summary
+        if (expectedNext is null)
+            return RedirectToAction(nameof(Summary), new { windowId });
+
+        // This is the right next page — allow
+        if (pageId == expectedNext) return null;
+
+        // Anything else is a skip or branch jump — redirect to the correct next page
+        return RedirectToAction(nameof(Page), new { windowId, pageId = expectedNext });
     }
 
     private static string GetPupilName(RequestState journey) =>

@@ -1,3 +1,7 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
@@ -15,10 +19,6 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Refit;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
@@ -157,6 +157,12 @@ public static class DependencyManager
 
         services.AddScoped<IZendeskService, ZendeskService>();
         services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();
+
+        // Register ZendeskTicketFieldSettings and IZendeskTicketFieldService
+        services.Configure<ZendeskTicketFieldSettings>(config.GetSection(ZendeskTicketFieldSettings.SectionName));
+        services.AddSingleton<ZendeskTicketFieldSettings>(
+            sp => sp.GetRequiredService<IOptions<ZendeskTicketFieldSettings>>().Value);
+        services.AddScoped<IZendeskTicketFieldService, ZendeskTicketFieldService>();
 
         services.AddOptions<PollySettings>()
             .Bind(config.GetSection(PollySettings.SectionName))

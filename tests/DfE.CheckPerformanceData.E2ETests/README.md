@@ -144,10 +144,92 @@ tests/DfE.CheckPerformanceData.E2ETests/
 
 ## Adding a new test
 
-1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP-only tests, `Visual/` for snapshots).
+1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Visual/` for snapshots).
 2. Inherit `PageTest` for browser tests; omit inheritance for HTTP-only tests.
 3. Add `[Collection("E2E")]` and `[Trait("Category", "W{N}")]`.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
 5. Use the `e2e-{Guid:N}-` prefix on every slug/key.
 6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding.
 7. Use Playwright `Expect(Locator).ToBeVisibleAsync()` / `ToHaveTextAsync(...)` for browser assertions; use `HttpClient` directly for HTTP assertions.
+
+### Worked example: cookie banner accept/reject
+
+The cookie consent flow — `/cookies` GET/POST + the `_CookieBanner` partial in `_Layout.cshtml` + `wwwroot/js/cookies.js` — is currently uncovered end-to-end. The example below shows the patterns above applied to that flow: anonymous navigation, locator scoping, cookie assertion, and a page reload to confirm consent persistence. Save as `Web/CookieBannerTests.cs`:
+
+```csharp
+using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using Microsoft.Playwright;
+using Microsoft.Playwright.Xunit;
+
+namespace DfE.CheckPerformanceData.E2ETests.Web;
+
+[Collection("E2E")]
+[Trait("Category", "W1")]
+public sealed class CookieBannerTests(PlaywrightFixture fixture) : PageTest
+{
+    private readonly PlaywrightFixture _fixture = fixture;
+
+    [Fact]
+    public async Task Accept_PersistsConsent_AndSuppressesBannerOnReload()
+    {
+        // Fresh anonymous context. Without the consent cookie, the banner JS
+        // removes the `hidden` attribute on the outer wrapper.
+        await Page.Context.ClearCookiesAsync();
+        await Page.GotoAsync($"{_fixture.BaseUrl}/");
+
+        var banner = Page.Locator("[data-module='govuk-cookie-banner']");
+        await Expect(banner).ToBeVisibleAsync();
+
+        // Accept analytics. The initial message hides; the accepted message shows.
+        await banner.Locator("[data-accept-cookies]").ClickAsync();
+        await Expect(banner.Locator("[data-cookie-banner-message]")).ToBeHiddenAsync();
+        await Expect(banner.Locator("[data-cookie-banner-accepted]")).ToBeVisibleAsync();
+
+        // Consent cookie set with analytics: true.
+        var cookies = await Page.Context.CookiesAsync();
+        var consent = cookies.SingleOrDefault(c => c.Name == "cookies_policy");
+        Assert.NotNull(consent);
+        Assert.Contains("\"analytics\":true", Uri.UnescapeDataString(consent!.Value));
+
+        // Reload: banner JS sees the consent cookie and leaves `hidden` in place.
+        await Page.ReloadAsync();
+        await Expect(banner).ToBeHiddenAsync();
+    }
+
+    [Fact]
+    public async Task Reject_PersistsConsent_AndSuppressesBannerOnReload()
+    {
+        await Page.Context.ClearCookiesAsync();
+        await Page.GotoAsync($"{_fixture.BaseUrl}/");
+
+        var banner = Page.Locator("[data-module='govuk-cookie-banner']");
+        await Expect(banner).ToBeVisibleAsync();
+
+        await banner.Locator("[data-reject-cookies]").ClickAsync();
+        await Expect(banner.Locator("[data-cookie-banner-rejected]")).ToBeVisibleAsync();
+
+        var cookies = await Page.Context.CookiesAsync();
+        var consent = cookies.SingleOrDefault(c => c.Name == "cookies_policy");
+        Assert.NotNull(consent);
+        Assert.Contains("\"analytics\":false", Uri.UnescapeDataString(consent!.Value));
+
+        await Page.ReloadAsync();
+        await Expect(banner).ToBeHiddenAsync();
+    }
+}
+```
+
+What each line is doing — read alongside the seven-step checklist above:
+
+| Pattern | Why |
+|---|---|
+| `: PageTest` + primary-ctor `(PlaywrightFixture fixture)` | `PageTest` (from `Microsoft.Playwright.Xunit`) gives you `Page` and `Expect(...)` for free. The fixture comes from the collection (one Postgres + one running Web container shared by every test in `[Collection("E2E")]`). |
+| `[Trait("Category", "W1")]` | Categorises the test for the filter table in this README. `W1` = read-path browse. Pick the trait that matches what your test exercises so it runs (or skips) cleanly with the existing Make targets. |
+| `await Page.Context.ClearCookiesAsync()` *before* `GotoAsync` | The collection-shared `Page` carries cookies from earlier tests. Anonymous-state tests must clear first or risk a false-pass because a previous test left the consent cookie behind. |
+| `Page.Locator("[data-module=...]")` scoping + `banner.Locator("[data-accept-cookies]")` | Scope a parent locator once, then resolve child locators from it. Lazier than `Page.Locator(...)` everywhere, and reads as "click the accept button *inside this banner*", which mirrors the page structure. |
+| `Expect(...).ToBeVisibleAsync()` / `ToBeHiddenAsync()` | Both auto-wait up to 5s. `ToBeHiddenAsync()` is satisfied by the `hidden` HTML attribute, `display: none`, or `visibility: hidden` — so the banner's Razor `hidden` attribute counts as hidden without extra CSS assertions. |
+| `Page.Context.CookiesAsync()` + `Uri.UnescapeDataString(...)` | The cookie value is URL-encoded JSON. Unescape before string-matching to avoid false negatives from `%22` / `%3A` slipping in. |
+| `await Page.ReloadAsync()` | Re-runs the banner JS. The persistence assertion is "the JS now sees the cookie and *doesn't* remove `hidden` from the wrapper" — which is what `ToBeHiddenAsync()` on the wrapper after reload confirms. |
+| No `IAsyncLifetime` / no `SeedHelpers` | This test creates no DB rows. When you write a test that *does* (a wiki page, a content block) — implement `IAsyncLifetime`, seed in `InitializeAsync`, clean up in `DisposeAsync`, and prefix every slug/key with `e2e-{Guid:N}-` so a half-cleaned fixture still leaves the rest of the suite green. |
+
+When you stop writing test scaffolding and need to seed a real wiki page or content block, the helpers in `Helpers/SeedHelpers.cs` do the antiforgery-scrape + POST handshake for you — call `await SeedHelpers.SeedWikiPageAsync(_fixture.SeedClient, ...)` and assert against the page that comes back.

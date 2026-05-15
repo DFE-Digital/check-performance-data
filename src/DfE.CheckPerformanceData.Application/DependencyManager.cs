@@ -2,6 +2,7 @@
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Wiki;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public static class DependencyManager
         services.AddScoped<WikiSeeder>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
+        services.AddScoped<IJourneyService, JourneyService>();
 
         return services;
     }

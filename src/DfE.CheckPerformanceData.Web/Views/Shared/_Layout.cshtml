@@ -41,6 +41,7 @@
     @Html.GovUkFrontendStyleImports()
     <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
     <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />
+    <link rel="stylesheet" href="~/css/moj-frontend-9.0.0.min.css" />
 </head>
 @section BodyStart {
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -69,7 +70,7 @@
                         <li class="govuk-service-navigation__item">
                             <a class="govuk-service-navigation__link" href="/help">Help</a>
                         </li>
-                        @if (selectedWindowId is not null)
+                        @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
                             <li class="govuk-service-navigation__item">
                                 <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>

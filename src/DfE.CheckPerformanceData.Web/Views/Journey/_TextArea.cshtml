@@ -1,0 +1,57 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionPartialModel
+
+@{
+    var fieldName = Model.FieldName;
+    var hintId = $"{fieldName}-hint";
+    var errorId = $"{fieldName}-error";
+    var infoId = $"{fieldName}-info";
+    var limit = Model.Question.CharacterLimit;
+
+    var describedByParts = new List<string>();
+    if (Model.Question.Hint is not null) describedByParts.Add(hintId);
+    if (Model.HasError) describedByParts.Add(errorId);
+    if (limit.HasValue) describedByParts.Add(infoId);
+    var describedBy = string.Join(" ", describedByParts);
+
+    var wrapperClass = "govuk-form-group"
+        + (Model.HasError ? " govuk-form-group--error" : "")
+        + (limit.HasValue ? " govuk-character-count" : "");
+    var charCountAttrs = limit.HasValue
+        ? $" data-module=\"govuk-character-count\" data-maxlength=\"{limit}\""
+        : "";
+    var textareaClass = "govuk-textarea"
+        + (limit.HasValue ? " govuk-js-character-count" : "")
+        + (Model.HasError ? " govuk-textarea--error" : "");
+}
+
+<div class="@wrapperClass"@Html.Raw(charCountAttrs)>
+    @if (Model.IsPageHeading)
+    {
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="@fieldName">@Model.ResolvedTitle</label>
+        </h1>
+    }
+    else
+    {
+        <label class="govuk-label govuk-label--m" for="@fieldName">@Model.ResolvedTitle</label>
+    }
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
+    }
+    @if (Model.HasError)
+    {
+        <p class="govuk-error-message" id="@errorId">
+            <span class="govuk-visually-hidden">Error:</span> @Model.Error
+        </p>
+    }
+    <textarea class="@textareaClass" id="@fieldName" name="@fieldName" rows="5"
+              @(describedBy.Length > 0 ? Html.Raw($"aria-describedby=\"{describedBy}\"") : Html.Raw(""))>@Model.ExistingAnswer?.TextValue</textarea>
+    @if (limit.HasValue)
+    {
+        <div id="@infoId" class="govuk-hint govuk-character-count__message">
+            You can enter up to @limit characters
+        </div>
+    }
+</div>

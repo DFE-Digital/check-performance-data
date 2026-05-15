@@ -1,0 +1,90 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionPartialModel
+
+@if (Model.IsPageHeading)
+{
+    <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+}
+else
+{
+    <h2 class="govuk-heading-m">@Model.ResolvedTitle</h2>
+}
+
+@if (Model.Question.Hint is not null)
+{
+    <p class="govuk-body">@Model.Question.Hint</p>
+}
+
+@* ── Uploaded files table ────────────────────────────────────────────── *@
+
+<table class="govuk-table govuk-!-margin-bottom-6">
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Filename</th>
+            <th scope="col" class="govuk-table__header">File size</th>
+            <th scope="col" class="govuk-table__header">Pages</th>
+            <th scope="col" class="govuk-table__header">Type</th>
+            <th scope="col" class="govuk-table__header">Action</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @foreach (var row in Model.UploadedFileRows)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">@row.File.OriginalFileName</td>
+                <td class="govuk-table__cell">@row.FormattedSize</td>
+                <td class="govuk-table__cell">@row.File.PageCount</td>
+                <td class="govuk-table__cell">PDF</td>
+                <td class="govuk-table__cell">
+                    <form method="post"
+                          action="@Url.Action("RemoveFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="storedFileName" value="@row.File.StoredFileName"/>
+                        <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">
+                            Remove<span class="govuk-visually-hidden"> @row.File.OriginalFileName</span>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@* ── Upload form ─────────────────────────────────────────────────────── *@
+
+@if (!Model.AtLimit)
+{
+    <form method="post"
+          action="@Url.Action("UploadFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
+          enctype="multipart/form-data"
+          novalidate>
+        @Html.AntiForgeryToken()
+
+        <div class="govuk-form-group @(Model.UploadError is not null ? "govuk-form-group--error" : "")">
+            @if (Model.UploadError is not null)
+            {
+                <p class="govuk-error-message" id="fileUpload-error">
+                    <span class="govuk-visually-hidden">Error:</span> @Model.UploadError
+                </p>
+            }
+            <input class="govuk-file-upload @(Model.UploadError is not null ? "govuk-file-upload--error" : "")"
+                   id="fileUpload" name="fileUpload" type="file"
+                   accept=".pdf,application/pdf"
+                   aria-describedby="@Model.DescribedBy">
+        </div>
+
+        <govuk-button type="submit" class="govuk-button--secondary">Upload file</govuk-button>
+
+        <p class="govuk-body govuk-!-margin-top-2">
+            @Model.UploadedFiles.Count @(Model.UploadedFiles.Count == 1 ? "file" : "files") added.
+        </p>
+    </form>
+}
+else
+{
+    <p class="govuk-body">
+        <strong>Page limit reached.</strong> Remove a file to upload a different one.
+    </p>
+}
+
+<hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible"/>

@@ -35,6 +35,9 @@ module "storage_private" {
   cluster_configuration_map     = module.cluster_data.configuration_map
   use_private_storage           = var.use_private_storage
 
+  infrastructure_encryption_enabled = true
+  create_encryption_scope           = false
+
   # Create containers for the application (all containers are private)
   containers = [
     { name = "files" }

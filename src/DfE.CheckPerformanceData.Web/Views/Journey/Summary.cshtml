@@ -1,0 +1,50 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model SummaryViewModel
+
+@{
+    ViewBag.Title = "Check your answers";
+    Layout = "_Layout";
+}
+
+<a asp-action="Page" asp-controller="Journey"
+   asp-route-windowId="@Model.WindowId"
+   asp-route-pageId="@Model.BackPageId"
+   class="govuk-back-link">Back</a>
+
+<h1 class="govuk-heading-xl">Summary of amendment request</h1>
+
+<dl class="govuk-summary-list">
+    @foreach (var row in Model.Rows)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">@row.ResolvedTitle</dt>
+            <dd class="govuk-summary-list__value">@row.DisplayAnswer</dd>
+            <dd class="govuk-summary-list__actions">
+                <a class="govuk-link"
+                   asp-action="Page" asp-controller="Journey"
+                   asp-route-windowId="@Model.WindowId"
+                   asp-route-pageId="@row.Page.Id"
+                   asp-route-fromSummary="true">
+                    Change<span class="govuk-visually-hidden"> @row.ResolvedTitle.ToLower()</span>
+                </a>
+            </dd>
+        </div>
+    }
+</dl>
+
+<form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <govuk-button type="submit">Submit request</govuk-button>
+</form>
+
+@if (Model.DebugJson is not null)
+{
+    <details class="govuk-details govuk-!-margin-top-6">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">Debug: Journey State</span>
+        </summary>
+        <div class="govuk-details__text">
+            <pre style="font-size: 0.8rem; overflow-x: auto; background: #f3f2f1; padding: 1rem; border-left: 4px solid #b1b4b6;">@Model.DebugJson</pre>
+        </div>
+    </details>
+}

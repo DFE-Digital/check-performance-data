@@ -1,11 +1,13 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, ICurrentUserService currentUserService) : Controller
+public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, 
+    ICurrentUserService currentUserService) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -20,6 +22,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
         HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
+        HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }
@@ -27,42 +30,61 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
-        var results = await Task.WhenAll(
-            checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId),
-            checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId));
-        var included = results[0];
-        var nonIncluded = results[1];
+        var included = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
+        var nonIncluded = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
 
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        
         using var ms = new MemoryStream();
-        using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        await using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
         {
-            using (var s1 = zip.CreateEntry("included_pupils.csv").Open())
+            var includedCsvFilename = await GenerateCsvFileName(windowId, "pupil-include", window);
+            await using (var s1 = await zip.CreateEntry(includedCsvFilename).OpenAsync())
                 s1.Write(includedCsv);
 
-            using (var s2 = zip.CreateEntry("non-included_pupils.csv").Open())
+            var nonIncludedCsvFilename = await GenerateCsvFileName(windowId, "pupil-non-include", window);
+            await using (var s2 = await zip.CreateEntry(nonIncludedCsvFilename).OpenAsync())
                 s2.Write(nonIncludedCsv);
         }
 
-        return File(ms.ToArray(), "application/zip", "pupils.zip");
+        var zipFileName = GenerateZipFileName(window);
+        return File(ms.ToArray(), "application/zip", zipFileName);
     }
 
     [Route("CheckYourPupilData/{windowId}/download/included")]
     public async Task<IActionResult> DownloadIncluded(Guid windowId)
     {
+        var filename = await GenerateCsvFileName(windowId, "pupil-include");
         var pupils = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
         var bytes = PupilCsvGenerator.Generate(pupils);
-        return File(bytes, "text/csv", "included_pupils.csv");
+        return File(bytes, "text/csv", filename);
+    }
+
+    private string GenerateZipFileName(CheckingWindowDto window)
+    {
+        var urn = currentUserService.OrganisationUrn;
+        var filename = $"{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.zip";
+        return filename;
+    }
+    
+    private async Task<string> GenerateCsvFileName(Guid windowId, string prefix, CheckingWindowDto? checkingWindow = null)
+    {
+        var window = checkingWindow ?? await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        var urn = currentUserService.OrganisationUrn;
+        var filename = $"{prefix}-{urn}-{window.CheckingWindowType.ToString()}-{window.EndDate:yyyy}.csv";
+        return filename;
     }
 
     [Route("CheckYourPupilData/{windowId}/download/non-included")]
     public async Task<IActionResult> DownloadNonIncluded(Guid windowId)
     {
+        var filename = await GenerateCsvFileName(windowId, "pupil-non-include");
         var pupils = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
         var bytes = PupilCsvGenerator.Generate(pupils);
-        return File(bytes, "text/csv", "non-included_pupils.csv");
+        return File(bytes, "text/csv", filename);
     }
 
     [HttpPost]
@@ -77,7 +99,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             return View("Index", model);
         }
 
-        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
+        HttpContext.Session.SaveRequestState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
 
         return viewModel.SelectedNextStep switch
         {
@@ -99,7 +121,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         var now = timeProvider.GetLocalNow().DateTime;
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
 
         return new CheckYourPupilDataViewModel
         {

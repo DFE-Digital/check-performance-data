@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc.Razor;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
@@ -19,10 +19,4 @@ public sealed class CheckYourPupilDataViewModel
     public NextSteps? SelectedNextStep { get; init; }
     public required bool IsWindowOpen { get; init; }
     public required string OrganisationName { get; init; }
-}
-
-public enum NextSteps
-{
-    RequestChange,
-    Confirm
 }

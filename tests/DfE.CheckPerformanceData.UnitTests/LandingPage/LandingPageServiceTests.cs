@@ -189,6 +189,7 @@ public class LandingPageServiceTests
         Id = Guid.NewGuid(),
         Title = title,
         KeyStage = keyStage,
+        CheckingWindowType = CheckingWindowType.KS2,
         HasPupilData = hasPupilData,
         StartDate = DateTime.UtcNow.AddDays(-1),
         EndDate = DateTime.UtcNow.AddDays(30)

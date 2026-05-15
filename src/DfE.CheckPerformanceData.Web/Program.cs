@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -8,18 +9,21 @@ using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.FileStorage;
+using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
-
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -114,6 +118,12 @@ try
     }
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+    builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+    builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
+
+    builder.Services.AddSingleton(_ =>
+        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
@@ -135,6 +145,7 @@ try
             .Build();
     });
 
+    builder.Services.AddMemoryCache();
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddSession(options =>
     {

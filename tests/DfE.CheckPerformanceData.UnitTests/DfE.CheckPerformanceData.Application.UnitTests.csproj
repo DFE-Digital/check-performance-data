@@ -34,6 +34,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
+    <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Web\DfE.CheckPerformanceData.Web.csproj" />
   </ItemGroup>
 

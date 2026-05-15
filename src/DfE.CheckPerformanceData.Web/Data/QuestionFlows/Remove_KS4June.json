@@ -1,0 +1,147 @@
+{
+  "firstPageId": "reason",
+  "pages": [
+    {
+      "id": "reason",
+      "questions": [
+        {
+          "id": "reason",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "hint": "Select one option",
+          "options": [
+            {
+              "value": "permanent-exclusion",
+              "label": "Admitted following permanent exclusion (not registered independent schools)",
+              "nextPageId": "provide-correct-evidence"
+            },
+            {
+              "value": "english-not-first-language",
+              "label": "Admitted from abroad with English not first language",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "child-missing-education",
+              "label": "Child missing education",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "pupil-died",
+              "label": "Pupil has died",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "dual-registered-moved",
+              "label": "Dual registered or moved school",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "elective-home-education",
+              "label": "Elective home education",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "permanently-excluded",
+              "label": "Permanently excluded from current school",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "permanently-left-england",
+              "label": "Permanently left England",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "social-care-involvement",
+              "label": "Social care involvement - including police or prison",
+              "nextPageId": "social-care"
+            },
+            {
+              "value": "life-limiting-illness",
+              "label": "Life-limiting or critical illness",
+              "nextPageId": "additional-info"
+            },
+            {
+              "value": "year-group-change",
+              "label": "Year group change",
+              "nextPageId": "additional-info"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "social-care",
+      "nextPageId": "provide-correct-evidence",
+      "questions": [
+        {
+          "id": "social-care-reason",
+          "contentKey": true,
+          "type": "Radio",
+          "title": "What happened to {pupilName} that made it very hard for them to go to school or sit exams?",
+          "hint": "Select one option",
+          "options": [
+            {
+              "value": "social-care-situation",
+              "label": "Social care situation"
+            },
+            {
+              "value": "police-involvement",
+              "label": "Police involvement"
+            },
+            {
+              "value": "detained-in-prison",
+              "label": "Detained in prison, remand centre, or secure unit for at least 4 months"
+            }
+          ]
+        },
+        {
+          "id": "sat-exams",
+          "type": "Radio",
+          "title": "Has {pupilName} sat any exams as a year 11 pupil?",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "provide-correct-evidence",
+      "type": "Content",
+      "title": "Provide the correct evidence",
+      "subheading": "The selected `reason` (The selected `social-care-reason`)",
+      "content": "You will need the pupil's details to hand.",
+      "nextPageId": "evidence"
+    },
+    {
+      "id": "evidence",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)"
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports removing this pupil",
+          "characterLimit": 1000
+        }
+      ]
+    }
+  ]
+}

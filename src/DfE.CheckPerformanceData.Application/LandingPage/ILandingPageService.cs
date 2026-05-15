@@ -26,6 +26,7 @@ public sealed class CheckingWindowDto
     public required string Title { get; init; }
     public required DateTime EndDate { get; init; }
     public required KeyStages KeyStage { get; init; }
+    public required CheckingWindowType CheckingWindowType { get; init; }
     public bool HasPupilData { get; init; }
     public required DateTime StartDate { get; init; }
 }

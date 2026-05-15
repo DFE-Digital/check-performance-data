@@ -8,24 +8,24 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 /// </summary>
 public sealed class Pupil
 {
-    public Guid Id { get; init; }
-    public Guid CheckingWindowId { get; init; }
-    public string Laestab { get; init; } = string.Empty;
-    public string Surname { get; init; } = string.Empty;
-    public string Firstname { get; init; } = string.Empty;
-    public string Sex { get; init; } = string.Empty;
-    public string DateOfBirth { get; init; } = string.Empty;
-    public int Age { get; init; }
-    public string FirstLanguage { get; init; } = string.Empty;
-    public int Pincl { get; init; }
+    public required Guid Id { get; init; }
+    public required Guid CheckingWindowId { get; init; }
+    public required string Laestab { get; init; } = string.Empty;
+    public required string Surname { get; init; } = string.Empty;
+    public required string Firstname { get; init; } = string.Empty;
+    public required string Sex { get; init; } = string.Empty;
+    public required string DateOfBirth { get; init; } = string.Empty;
+    public required int Age { get; init; }
+    public required string FirstLanguage { get; init; } = string.Empty;
+    public required int Pincl { get; init; }
     
-    public bool NewMobile { get; set; }
-    public string ActualYearGroup { get; set; }
-    public string Ethnicity { get; set; }
-    public string SenF { get; set; }
-    public DateTime EntryDate { get; set; }
-    public string Urn { get; set; }
-    public string Cypmd_Id { get; set; }
-    public int MatchRef { get; set; }
-    public string Upn { get; set; }
+    public required bool NewMobile { get; init; }
+    public required string ActualYearGroup { get; init; }
+    public required string Ethnicity { get; init; }
+    public required string SenF { get; init; }
+    public required DateTime EntryDate { get; init; }
+    public required string Urn { get; init; }
+    public required string Cypmd_Id { get; init; }
+    public required int MatchRef { get; init; }
+    public required string Upn { get; init; }
 }

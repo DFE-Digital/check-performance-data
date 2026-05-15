@@ -20,6 +20,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (nonIncludedSearch?.Length > MaxSearchLength) nonIncludedSearch = null;
 
         HttpContext.Session.SetString("SelectedWindowId", windowId.ToString());
+        HttpContext.Session.ClearRequestState(windowId);
         var model = await BuildIndexModelAsync(windowId, includedPage, nonIncludedPage, includedSearch, nonIncludedSearch);
         return View(model);
     }
@@ -27,11 +28,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
-        var results = await Task.WhenAll(
-            checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId),
-            checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId));
-        var included = results[0];
-        var nonIncluded = results[1];
+        var included = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
+        var nonIncluded = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
@@ -77,7 +75,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             return View("Index", model);
         }
 
-        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
+        HttpContext.Session.SaveRequestState(windowId, s => s.SelectedNextStep = viewModel.SelectedNextStep);
 
         return viewModel.SelectedNextStep switch
         {
@@ -99,7 +97,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
         var now = timeProvider.GetLocalNow().DateTime;
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
 
         return new CheckYourPupilDataViewModel
         {

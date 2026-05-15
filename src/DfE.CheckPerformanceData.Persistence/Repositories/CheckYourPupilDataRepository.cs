@@ -29,7 +29,7 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
         => await dbContext.CheckingWindows
             .AsNoTracking()
             .Where(w => w.Id == windowId)
-            .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, StartDate = w.StartDate })
+            .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate })
             .SingleAsync();
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)

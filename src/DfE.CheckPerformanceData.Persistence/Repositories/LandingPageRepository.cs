@@ -20,6 +20,7 @@ public sealed class LandingPageRepository(PortalDbContext dbContext) : ILandingP
                 StartDate = w.StartDate,
                 EndDate = w.EndDate,
                 KeyStage = w.KeyStage,
+                CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
                 Id = w.Id,
                 HasPupilData = windowsWithData.Contains(w.Id)

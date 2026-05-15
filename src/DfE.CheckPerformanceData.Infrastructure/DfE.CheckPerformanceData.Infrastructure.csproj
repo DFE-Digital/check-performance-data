@@ -12,6 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Azure.Storage.Blobs" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.Core" />

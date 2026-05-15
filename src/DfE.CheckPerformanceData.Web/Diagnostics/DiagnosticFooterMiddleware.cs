@@ -7,12 +7,13 @@ using Microsoft.Extensions.Hosting;
 namespace DfE.CheckPerformanceData.Web.Diagnostics;
 
 // Injects an HTML comment block immediately before </body> with the current
-// environment, auth scheme, and full claim set so view-source on the dev server
-// answers the "what does this environment call itself?" question without needing a
-// debugger. NEVER renders in Production: env.IsProduction() short-circuits the
-// middleware regardless of config. In any non-prod env it defaults to ON; set
-// Diagnostics:ShowSessionFooter=false in config (env var
-// `Diagnostics__ShowSessionFooter=false`) to explicitly disable.
+// environment, auth scheme, and full claim set so view-source answers the
+// "what does this environment call itself?" question without needing a debugger.
+// TEMPORARY: production gate removed so the comment renders in every deployed env
+// while we figure out the internal name the review/QA/preprod environments report.
+// Re-add the env.IsProduction() short-circuit once the impersonation gating is
+// aligned to that name. Defaults ON; set Diagnostics:ShowSessionFooter=false in
+// config (env var `Diagnostics__ShowSessionFooter=false`) to explicitly disable.
 public sealed class DiagnosticFooterMiddleware(
     RequestDelegate next,
     IHostEnvironment env,
@@ -21,8 +22,7 @@ public sealed class DiagnosticFooterMiddleware(
     private const string ConfigKey = "Diagnostics:ShowSessionFooter";
     private const string BodyClose = "</body>";
 
-    private readonly bool _enabled = !env.IsProduction()
-        && (config.GetValue<bool?>(ConfigKey) ?? true);
+    private readonly bool _enabled = config.GetValue<bool?>(ConfigKey) ?? true;
 
     public async Task InvokeAsync(HttpContext context)
     {

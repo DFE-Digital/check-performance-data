@@ -1,3 +1,14 @@
-# Snapshots are runtime artefacts — baselines, diffs and bootstrap output all
-# live here and are uploaded by CI as the e2e-snapshots artefact. Never commit.
-/Snapshots/
+# Visual-regression baselines under Snapshots/linux-chromium/ ARE committed —
+# Phase 2.4 unified the execution environment via the containerized Playwright
+# .NET image, so canonical Linux-Chromium baselines apply equally to every dev
+# machine and to CI. Diff/actual PNGs from test runs stay untracked.
+
+# Diff and actual outputs written by PageSnapshotExtensions on failure:
+/Snapshots/**/*.diff.png
+/Snapshots/**/*.actual.png
+
+# Any non-canonical baseline directory (e.g. baselines accidentally generated
+# outside the container on Windows/macOS native) — keep untracked so they
+# can't drift the canonical set:
+/Snapshots/windows-chromium/
+/Snapshots/macos-chromium/

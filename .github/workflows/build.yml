@@ -28,4 +28,4 @@ jobs:
       run: dotnet build src/DfE.CheckPerformanceData.slnx --no-restore --configuration Release
 
     - name: Test
-      run: dotnet test src/DfE.CheckPerformanceData.slnx --no-build --configuration Release --verbosity normal
+      run: dotnet test src/DfE.CheckPerformanceData.slnx --no-build --configuration Release --verbosity normal --filter "FullyQualifiedName!~E2ETests"

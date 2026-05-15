@@ -44,7 +44,7 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
 
             // 3. Click "As CMS admin" → impersonation cookie set, page reloads, nav flips.
             await menu.Locator("a", new() { HasTextString = "As CMS admin" }).ClickAsync();
-            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Page.StabiliseAsync();
 
             await Expect(signInLi).ToContainTextAsync("Sign out (impersonating CMS admin)");
             // Caret + dropdown disappear once a sign-out is showing.
@@ -56,7 +56,7 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
             var signOutLink = signInLi.Locator("a").First;
             await Expect(signOutLink).ToHaveAttributeAsync("href", "/dev/impersonate/clear");
             await signOutLink.ClickAsync();
-            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Page.StabiliseAsync();
 
             // 5. Back to anonymous: "Sign in" + caret + dropdown.
             await Expect(signInLi).ToContainTextAsync("Sign in");

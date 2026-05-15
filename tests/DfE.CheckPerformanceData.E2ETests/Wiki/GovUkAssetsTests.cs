@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
 using xRetry;
@@ -25,7 +26,7 @@ public sealed class GovUkAssetsTests(PlaywrightFixture fixture) : PageTest
         };
 
         await Page.GotoAsync($"{_fixture.BaseUrl}/help");
-        await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        await Page.StabiliseAsync();
 
         await Expect(Page.Locator("body.govuk-template__body.js-enabled")).ToBeVisibleAsync();
 

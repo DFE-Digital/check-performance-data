@@ -9,9 +9,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
 public sealed class JourneyController(
     IQuestionFlowService flowService,
-    IJourneyService journeyService,
+    IJourneyValidationService journeyService,
     IFileStorageService fileStorageService,
-    IRequestBlobClient requestBlobClient,
+    IRequestService requestService,
     IWebHostEnvironment env) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -21,19 +21,21 @@ public sealed class JourneyController(
     // ── Page (GET) ──────────────────────────────────────────────────────────
 
     [Route("/Journey/{windowId}/page/{pageId}")]
-    public IActionResult Page(Guid windowId, string pageId, bool fromSummary = false)
+    public async Task<IActionResult> Page(Guid windowId, string pageId, bool fromSummary = false)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var config = GetConfig(journey);
+        var config = await GetConfigAsync(journey);
         if (config is null) return RedirectToCheckYourData(windowId);
 
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
 
-        var redirect = ValidatePageNavigation(config, journey, pageId, windowId);
-        if (redirect is not null) return redirect;
+        var nav = flowService.GetNavigationGuard(config, journey, pageId);
+        if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
+        if (nav is RedirectToJourneyPage { PageId: var navPageId })
+            return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
         return View("Page", BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
     }
@@ -43,12 +45,12 @@ public sealed class JourneyController(
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/Journey/{windowId}/page/{pageId}")]
-    public IActionResult PagePost(Guid windowId, string pageId, bool fromSummary)
+    public async Task<IActionResult> PagePost(Guid windowId, string pageId, bool fromSummary)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var config = GetConfig(journey);
+        var config = await GetConfigAsync(journey);
         if (config is null) return RedirectToCheckYourData(windowId);
 
         var page = flowService.GetPage(config, pageId);
@@ -224,12 +226,12 @@ public sealed class JourneyController(
     // ── Summary ────────────────────────────────────────────────────────────
 
     [Route("/Journey/{windowId}/summary")]
-    public IActionResult Summary(Guid windowId)
+    public async Task<IActionResult> Summary(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var config = GetConfig(journey);
+        var config = await GetConfigAsync(journey);
         if (config is null) return RedirectToCheckYourData(windowId);
 
         // Redirect to start if journey hasn't been begun
@@ -273,23 +275,7 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        var config = GetConfig(journey);
-
-        if (config is not null && journey.SelectedPupil is { Cypmd_Id: not null } pupil)
-        {
-            var context = new JourneySubmissionContext
-            {
-                WindowId = windowId,
-                ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
-                WhatToChange = journey.SelectedWhatToChange!.Value,
-                Pupil = pupil,
-                CheckingWindow = journey.CheckingWindow!,
-                Answers = journey.QuestionAnswers,
-                History = journey.QuestionHistory
-            };
-            var document = journeyService.BuildRequestDocument(context, config);
-            await requestBlobClient.SaveRequestAsync(windowId, document);
-        }
+        await requestService.ConfirmRequestAsync(windowId, journey);
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
     }
@@ -323,30 +309,8 @@ public sealed class JourneyController(
     private RedirectToActionResult RedirectToCheckYourData(Guid windowId) =>
         RedirectToAction("Index", "CheckYourPupilData", new { windowId });
 
-    private QuestionFlowConfig? GetConfig(RequestState journey) =>
-        flowService.GetConfig(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
-
-    private IActionResult? ValidatePageNavigation(QuestionFlowConfig config, RequestState journey,
-        string pageId, Guid windowId)
-    {
-        // Already visited — allow revisiting (covers fromSummary edits too)
-        if (journey.QuestionHistory.Contains(pageId)) return null;
-
-        // Compute the expected next page from where the user currently is
-        var expectedNext = journey.QuestionHistory.Count == 0
-            ? config.FirstPageId
-            : flowService.GetNextPageId(config, journey.QuestionHistory.Last(), journey.QuestionAnswers);
-
-        // Journey is complete — they should be at the summary
-        if (expectedNext is null)
-            return RedirectToAction(nameof(Summary), new { windowId });
-
-        // This is the right next page — allow
-        if (pageId == expectedNext) return null;
-
-        // Anything else is a skip or branch jump — redirect to the correct next page
-        return RedirectToAction(nameof(Page), new { windowId, pageId = expectedNext });
-    }
+    private Task<QuestionFlowConfig?> GetConfigAsync(RequestState journey) =>
+        flowService.GetConfigAsync(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
 
     private static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;
@@ -370,7 +334,7 @@ public sealed class JourneyController(
 
         string? contentKey = null;
         if (page.Type == PageType.Content && config is not null)
-            contentKey = BuildContentKey(windowId, page, answers, journey, config);
+            contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
 
         return new PageViewModel
         {
@@ -383,31 +347,6 @@ public sealed class JourneyController(
             ContentKey = contentKey,
             UploadError = TempData["UploadError"] as string
         };
-    }
-
-    private static string BuildContentKey(Guid windowId, JourneyPage page,
-        Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config)
-    {
-        var whatToChange = journey.SelectedWhatToChange?.ToString().ToLower() ?? "unknown";
-
-        var pageIndex = journey.QuestionHistory.IndexOf(page.Id);
-        IEnumerable<string> historyBeforePage = pageIndex >= 0
-            ? journey.QuestionHistory.Take(pageIndex)
-            : journey.QuestionHistory;
-
-        var radioValues = historyBeforePage
-            .SelectMany(pid =>
-            {
-                var p = config.Pages.FirstOrDefault(p => p.Id == pid);
-                if (p is null) return Enumerable.Empty<string>();
-                return p.Questions
-                    .Where(q => q.Type == QuestionType.Radio && q.ContentKey)
-                    .Select(q => answers.TryGetValue(q.Id, out var a) ? a.TextValue : null)
-                    .Where(v => v is not null)
-                    .Select(v => v!);
-            });
-
-        return string.Join("-", new[] { "journey", windowId.ToString(), whatToChange }.Concat(radioValues));
     }
 
     private QuestionAnswer ReadFormAnswer(Question question)

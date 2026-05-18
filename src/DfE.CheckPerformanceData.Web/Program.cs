@@ -118,11 +118,11 @@ try
     }
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-    builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
@@ -188,7 +188,9 @@ try
     if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();   
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
+        await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
     }
 
     app.UseHttpsRedirection();

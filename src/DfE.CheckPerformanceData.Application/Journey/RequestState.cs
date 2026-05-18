@@ -1,8 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 
-namespace DfE.CheckPerformanceData.Web.Session;
+namespace DfE.CheckPerformanceData.Application.Journey;
 
 public sealed class RequestState
 {

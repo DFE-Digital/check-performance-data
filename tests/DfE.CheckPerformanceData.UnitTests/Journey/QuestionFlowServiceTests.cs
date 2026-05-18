@@ -1,8 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -12,14 +10,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 public class QuestionFlowServiceTests
 {
     private readonly QuestionFlowConfig _config;
+    private readonly IQuestionFlowBlobClient _blobClient = Substitute.For<IQuestionFlowBlobClient>();
     private readonly QuestionFlowService _sut;
 
     public QuestionFlowServiceTests()
     {
-        var env = Substitute.For<IWebHostEnvironment>();
-        env.ContentRootPath.Returns(string.Empty);
         var cache = new MemoryCache(Options.Create(new MemoryCacheOptions()));
-        _sut = new QuestionFlowService(env, cache);
+        _sut = new QuestionFlowService(_blobClient, cache);
 
         _config = new QuestionFlowConfig
         {
@@ -103,76 +100,135 @@ public class QuestionFlowServiceTests
         Assert.Null(_sut.GetNextPageId(_config, "evidence", answers));
     }
 
-    // ── BuildCurrentPath ────────────────────────────────────────────────────
+    // ── GetNavigationGuard ──────────────────────────────────────────────────
 
     [Fact]
-    public void BuildCurrentPath_WhenAllRadiosAnswered_ReturnsFullPath()
+    public void GetNavigationGuard_WhenPageAlreadyInHistory_ReturnsNull()
     {
-        var answers = new Dictionary<string, QuestionAnswer>
+        var journey = MakeJourney(history: ["reason"]);
+
+        Assert.Null(_sut.GetNavigationGuard(_config, journey, "reason"));
+    }
+
+    [Fact]
+    public void GetNavigationGuard_WhenHistoryEmptyAndRequestingFirstPage_ReturnsNull()
+    {
+        var journey = MakeJourney(history: []);
+
+        Assert.Null(_sut.GetNavigationGuard(_config, journey, "reason"));
+    }
+
+    [Fact]
+    public void GetNavigationGuard_WhenRequestingCorrectNextPage_ReturnsNull()
+    {
+        // reason answered with social-care → next page is social-care
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "social-care" } });
+
+        Assert.Null(_sut.GetNavigationGuard(_config, journey, "social-care"));
+    }
+
+    [Fact]
+    public void GetNavigationGuard_WhenSkippingAhead_ReturnsRedirectToExpectedPage()
+    {
+        // History empty — expected next is "reason"; requesting "evidence" is a skip
+        var journey = MakeJourney(history: []);
+
+        var result = Assert.IsType<RedirectToJourneyPage>(_sut.GetNavigationGuard(_config, journey, "evidence"));
+        Assert.Equal("reason", result.PageId);
+    }
+
+    [Fact]
+    public void GetNavigationGuard_WhenJourneyCompleteAndRequestingNewPage_ReturnsRedirectToSummary()
+    {
+        // All pages answered — GetNextPageId after "evidence" returns null
+        var journey = MakeJourney(
+            history: ["reason", "social-care", "evidence"],
+            answers: new()
+            {
+                ["reason"] = new() { TextValue = "social-care" },
+                ["sat-exams"] = new() { TextValue = "yes" }
+            });
+
+        Assert.IsType<RedirectToJourneySummary>(_sut.GetNavigationGuard(_config, journey, "unknown-page"));
+    }
+
+    // ── BuildContentKey ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void BuildContentKey_IncludesWindowIdAndWhatToChange()
+    {
+        var windowId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        var page = new JourneyPage { Id = "info", Type = PageType.Content, Questions = [] };
+        var journey = MakeJourney(whatToChange: WhatToChange.Remove);
+
+        var key = _sut.BuildContentKey(windowId, page, new(), journey, _config);
+
+        Assert.StartsWith($"journey-{windowId}-remove", key);
+    }
+
+    [Fact]
+    public void BuildContentKey_AppendsPrecedingContentKeyRadioAnswers()
+    {
+        var windowId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        // Make "reason" question a ContentKey radio
+        var contentKeyConfig = new QuestionFlowConfig
         {
-            ["reason"] = new() { TextValue = "social-care" },
-            ["sat-exams"] = new() { TextValue = "yes" }
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        ContentKey = true,
+                        Options = [new QuestionOption { Value = "social-care", Label = "Social care" }] }]
+                },
+                new JourneyPage { Id = "info", Type = PageType.Content, Questions = [] }
+            ]
         };
+        var page = contentKeyConfig.Pages[1];
+        var answers = new Dictionary<string, QuestionAnswer> { ["reason"] = new() { TextValue = "social-care" } };
+        var journey = MakeJourney(history: ["reason"], whatToChange: WhatToChange.Remove, answers: answers);
 
-        var path = _sut.BuildCurrentPath(_config, answers);
+        var key = _sut.BuildContentKey(windowId, page, answers, journey, contentKeyConfig);
 
-        Assert.Equal(["reason", "social-care", "evidence"], path);
+        Assert.EndsWith("-social-care", key);
     }
 
-    [Fact]
-    public void BuildCurrentPath_WhenRadioUnanswered_StopsBeforePageWithUnansweredRadio()
-    {
-        var answers = new Dictionary<string, QuestionAnswer>
-        {
-            ["reason"] = new() { TextValue = "social-care" }
-            // sat-exams on the social-care page is not answered
-        };
-
-        var path = _sut.BuildCurrentPath(_config, answers);
-
-        // stops before social-care because sat-exams has no answer
-        Assert.Equal(["reason"], path);
-    }
+    // ── GetConfigAsync ──────────────────────────────────────────────────────
 
     [Fact]
-    public void BuildCurrentPath_WhenFirstRadioUnanswered_ReturnsEmptyPath()
+    public async Task GetConfigAsync_WhenBlobDoesNotExist_ReturnsNull()
     {
-        var path = _sut.BuildCurrentPath(_config, new Dictionary<string, QuestionAnswer>());
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns((QuestionFlowConfig?)null);
 
-        Assert.Empty(path);
-    }
-
-    [Fact]
-    public void BuildCurrentPath_TakesDefaultBranchWhenOptionHasNoNextPageId()
-    {
-        var answers = new Dictionary<string, QuestionAnswer>
-        {
-            ["reason"] = new() { TextValue = "other" },
-            // evidence page has no radios, so it will be included
-        };
-
-        var path = _sut.BuildCurrentPath(_config, answers);
-
-        Assert.Equal(["reason", "evidence"], path);
-    }
-
-    // ── GetConfig ───────────────────────────────────────────────────────────
-
-    [Fact]
-    public void GetConfig_WhenFileDoesNotExist_ReturnsNull()
-    {
-        var result = _sut.GetConfig(WhatToChange.Merge, CheckingWindowType.KS2);
+        var result = await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void GetConfig_WhenCalledTwice_ReturnsCachedNull()
+    public async Task GetConfigAsync_WhenCalledTwice_ReturnsCachedResultWithoutSecondBlobCall()
     {
-        var first = _sut.GetConfig(WhatToChange.Merge, CheckingWindowType.KS2);
-        var second = _sut.GetConfig(WhatToChange.Merge, CheckingWindowType.KS2);
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns((QuestionFlowConfig?)null);
 
-        Assert.Null(first);
-        Assert.Null(second);
+        await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
+        await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
+
+        await _blobClient.Received(1).GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
     }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private static RequestState MakeJourney(
+        List<string>? history = null,
+        Dictionary<string, QuestionAnswer>? answers = null,
+        WhatToChange whatToChange = WhatToChange.Remove) =>
+        new()
+        {
+            SelectedWhatToChange = whatToChange,
+            QuestionHistory = history ?? [],
+            QuestionAnswers = answers ?? new()
+        };
 }

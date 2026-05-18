@@ -19,9 +19,9 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 public class JourneyControllerTests
 {
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IJourneyService _journeyService = Substitute.For<IJourneyService>();
+    private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();
     private readonly IFileStorageService _fileStorageService = Substitute.For<IFileStorageService>();
-    private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
+    private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly FakeSession _session = new();
     private readonly JourneyController _sut;
@@ -53,7 +53,7 @@ public class JourneyControllerTests
     {
         _env.EnvironmentName.Returns("Production");
 
-        _flowService.GetConfig(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Config);
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Config);
         _flowService.GetPage(Config, "page-1").Returns(Config.Pages[0]);
         _flowService.GetPage(Config, "page-2").Returns(Config.Pages[1]);
         _flowService.GetNextPageId(Config, "page-1", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns("page-2");
@@ -62,7 +62,7 @@ public class JourneyControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new JourneyController(_flowService, _journeyService, _fileStorageService, _requestBlobClient, _env)
+        _sut = new JourneyController(_flowService, _journeyService, _fileStorageService, _requestService, _env)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
@@ -72,23 +72,23 @@ public class JourneyControllerTests
     // ── Session guard — Page GET ─────────────────────────────────────────────
 
     [Fact]
-    public void Page_WhenNoSession_RedirectsToCheckYourData()
+    public async Task Page_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
 
-        var result = _sut.Page(WindowId, "page-1");
+        var result = await _sut.Page(WindowId, "page-1");
 
         AssertRedirectToCheckYourData(result);
     }
 
     [Fact]
-    public void Page_WhenPupilNotSelected_RedirectsToCheckYourData()
+    public async Task Page_WhenPupilNotSelected_RedirectsToCheckYourData()
     {
         var state = ValidSession();
         state.SelectedPupil = null;
         SetupSession(state);
 
-        var result = _sut.Page(WindowId, "page-1");
+        var result = await _sut.Page(WindowId, "page-1");
 
         AssertRedirectToCheckYourData(result);
     }
@@ -96,23 +96,23 @@ public class JourneyControllerTests
     // ── Session guard — Summary GET ──────────────────────────────────────────
 
     [Fact]
-    public void Summary_WhenNoSession_RedirectsToCheckYourData()
+    public async Task Summary_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());
 
-        var result = _sut.Summary(WindowId);
+        var result = await _sut.Summary(WindowId);
 
         AssertRedirectToCheckYourData(result);
     }
 
     [Fact]
-    public void Summary_WhenPupilNotSelected_RedirectsToCheckYourData()
+    public async Task Summary_WhenPupilNotSelected_RedirectsToCheckYourData()
     {
         var state = ValidSession();
         state.SelectedPupil = null;
         SetupSession(state);
 
-        var result = _sut.Summary(WindowId);
+        var result = await _sut.Summary(WindowId);
 
         AssertRedirectToCheckYourData(result);
     }
@@ -146,42 +146,43 @@ public class JourneyControllerTests
     // ── Navigation validation ────────────────────────────────────────────────
 
     [Fact]
-    public void Page_WhenHistoryEmptyAndRequestingFirstPage_AllowsAccess()
+    public async Task Page_WhenHistoryEmptyAndRequestingFirstPage_AllowsAccess()
     {
         SetupSession(ValidSession(history: []));
 
-        var result = _sut.Page(WindowId, "page-1");
+        var result = await _sut.Page(WindowId, "page-1");
 
         Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
-    public void Page_WhenPageAlreadyInHistory_AllowsAccess()
+    public async Task Page_WhenPageAlreadyInHistory_AllowsAccess()
     {
         SetupSession(ValidSession(history: ["page-1"]));
 
-        var result = _sut.Page(WindowId, "page-1");
+        var result = await _sut.Page(WindowId, "page-1");
 
         Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
-    public void Page_WhenPageIsExpectedNextAfterHistory_AllowsAccess()
+    public async Task Page_WhenPageIsExpectedNextAfterHistory_AllowsAccess()
     {
         SetupSession(ValidSession(history: ["page-1"]));
 
-        var result = _sut.Page(WindowId, "page-2");
+        var result = await _sut.Page(WindowId, "page-2");
 
         Assert.IsType<ViewResult>(result);
     }
 
     [Fact]
-    public void Page_WhenSkippingAhead_RedirectsToExpectedNextPage()
+    public async Task Page_WhenSkippingAhead_RedirectsToExpectedNextPage()
     {
-        // History is empty — expected next is page-1; user tries to go to page-2
         SetupSession(ValidSession(history: []));
+        _flowService.GetNavigationGuard(Config, Arg.Any<RequestState>(), "page-2")
+            .Returns(new RedirectToJourneyPage("page-1"));
 
-        var result = _sut.Page(WindowId, "page-2");
+        var result = await _sut.Page(WindowId, "page-2");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Page", redirect.ActionName);
@@ -189,30 +190,20 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public void Page_WhenJourneyCompleteAndRequestingUnvisitedPage_RedirectsToSummary()
+    public async Task Page_WhenJourneyCompleteAndRequestingUnvisitedPage_RedirectsToSummary()
     {
-        // Journey is complete (history has both pages, GetNextPageId returns null after page-2)
-        // User tries to navigate to an arbitrary page that isn't in history
-        SetupSession(ValidSession(history: ["page-1", "page-2"]));
-        _flowService.GetPage(Config, "page-99").Returns((JourneyPage?)null);
-
-        // We need a page that exists in the config but isn't in history.
-        // Since GetNextPageId("page-2") returns null, journey is complete.
-        // Visiting any new page should redirect to Summary.
-        // Use page-1 with a modified config that has a third page to simulate:
-        // Actually, let's use a different approach - add a page-3 temporarily
         var extendedConfig = new QuestionFlowConfig
         {
             FirstPageId = "page-1",
             Pages = Config.Pages.Append(new JourneyPage { Id = "page-3", Questions = [] }).ToList()
         };
-        _flowService.GetConfig(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(extendedConfig);
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(extendedConfig);
         _flowService.GetPage(extendedConfig, "page-3").Returns(extendedConfig.Pages[2]);
-        _flowService.GetPage(extendedConfig, "page-1").Returns(extendedConfig.Pages[0]);
-        _flowService.GetPage(extendedConfig, "page-2").Returns(extendedConfig.Pages[1]);
-        _flowService.GetNextPageId(extendedConfig, "page-2", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
+        _flowService.GetNavigationGuard(extendedConfig, Arg.Any<RequestState>(), "page-3")
+            .Returns(new RedirectToJourneySummary());
 
-        var result = _sut.Page(WindowId, "page-3");
+        var result = await _sut.Page(WindowId, "page-3");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Summary", redirect.ActionName);
@@ -221,11 +212,11 @@ public class JourneyControllerTests
     // ── Summary completeness ─────────────────────────────────────────────────
 
     [Fact]
-    public void Summary_WhenHistoryEmpty_RedirectsToFirstPage()
+    public async Task Summary_WhenHistoryEmpty_RedirectsToFirstPage()
     {
         SetupSession(ValidSession(history: []));
 
-        var result = _sut.Summary(WindowId);
+        var result = await _sut.Summary(WindowId);
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Page", redirect.ActionName);
@@ -233,12 +224,12 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public void Summary_WhenJourneyIncomplete_RedirectsToNextPage()
+    public async Task Summary_WhenJourneyIncomplete_RedirectsToNextPage()
     {
         // Only page-1 answered; GetNextPageId returns page-2 (not done yet)
         SetupSession(ValidSession(history: ["page-1"]));
 
-        var result = _sut.Summary(WindowId);
+        var result = await _sut.Summary(WindowId);
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Page", redirect.ActionName);
@@ -246,12 +237,12 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public void Summary_WhenJourneyComplete_RendersView()
+    public async Task Summary_WhenJourneyComplete_RendersView()
     {
         // Both pages answered; GetNextPageId after page-2 returns null
         SetupSession(ValidSession(history: ["page-1", "page-2"]));
 
-        var result = _sut.Summary(WindowId);
+        var result = await _sut.Summary(WindowId);
 
         Assert.IsType<ViewResult>(result);
     }

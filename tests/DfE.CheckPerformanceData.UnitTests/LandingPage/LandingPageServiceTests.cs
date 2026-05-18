@@ -39,6 +39,24 @@ public class LandingPageServiceTests
         Assert.Null(result);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task WhenOrganisationIdMissing_ReturnsNullWithoutCallingDfeApi(string organisationId)
+    {
+        // Synthetic principals (dev impersonation, plus any future code path that
+        // doesn't carry the DfE Sign-In organisation claim) reach this method with an
+        // empty OrganisationId. Hitting the DfE Sign-In API with an empty id 500s on
+        // the upstream side and bubbles back as an unhandled exception. Guard explicitly.
+        _currentUserService.OrganisationId.Returns(organisationId);
+
+        var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
+
+        Assert.Null(result);
+        await _dfESignInApiClient.DidNotReceive().GetOrganisationAsync(
+            Arg.Any<string>(), Arg.Any<string>());
+    }
+
     [Fact]
     public async Task WhenWindowHasPupilDataAndMatchingKeyStage_IncludedInOpenWindows()
     {

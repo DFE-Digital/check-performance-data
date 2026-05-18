@@ -1,0 +1,69 @@
+using DfE.CheckPerformanceData.E2ETests.Fixtures;
+using DfE.CheckPerformanceData.E2ETests.Helpers;
+using Microsoft.Playwright;
+
+namespace DfE.CheckPerformanceData.E2ETests.Wiki;
+
+[Collection("E2E")]
+[Trait("Category", "W2")]
+public sealed class WarningTextRenderTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
+{
+    private const string WarningTextBody = """
+        <div class="govuk-warning-text">
+          <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+          <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            Important information about this page.
+          </strong>
+        </div>
+        """;
+
+    private string _slug = "";
+
+    protected override async Task SeedAsync()
+    {
+        var (_, slug) = await SeedHelpers.SeedWikiPageReturningSlugAsync(
+            Fixture.SeedClient,
+            title: "warning-render",
+            body: WarningTextBody,
+            parentId: null,
+            TrackedIds);
+
+        _slug = slug;
+    }
+
+    // --- IconHasTextBangAndCircleStyling ---
+
+    [Fact]
+    public async Task IconHasTextBangAndCircleStyling()
+    {
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{_slug}");
+
+        var icon = Page.Locator(".govuk-warning-text__icon");
+        await Expect(icon).ToBeVisibleAsync();
+        await Expect(icon).ToHaveTextAsync("!");
+
+        var borderRadius = await icon.EvaluateAsync<string>("el => getComputedStyle(el).borderRadius");
+        Assert.Equal("50%", borderRadius);
+
+        var backgroundColor = await icon.EvaluateAsync<string>("el => getComputedStyle(el).backgroundColor");
+        Assert.Equal("rgb(11, 12, 12)", backgroundColor);
+
+        var color = await icon.EvaluateAsync<string>("el => getComputedStyle(el).color");
+        Assert.Equal("rgb(255, 255, 255)", color);
+    }
+
+    // --- VisuallyHiddenWarningSpanInDom ---
+
+    [Fact]
+    public async Task VisuallyHiddenWarningSpanInDom()
+    {
+        await Page.GotoAsync($"{Fixture.BaseUrl}/help/{_slug}");
+
+        // The visually-hidden "Warning" span is the accessible label that screen readers
+        // announce before the warning body. The sanitizer preserves the class so the GDS
+        // visually-hidden positioning rules apply.
+        var hidden = Page.Locator(".govuk-visually-hidden", new() { HasTextString = "Warning" });
+        await Expect(hidden).ToHaveCountAsync(1);
+    }
+}

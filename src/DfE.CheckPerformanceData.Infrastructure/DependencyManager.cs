@@ -82,6 +82,12 @@ public static class DependencyManager
                     var rolesIdentity = await enrichmentService.EnrichAsync(ctx.Principal!);
                     if (rolesIdentity != null)
                         ctx.Principal!.AddIdentity(rolesIdentity);
+
+                    // Clear any prior dev-impersonation marker on a fresh real sign-in so
+                    // the user's effective role reflects their true DfE claims, not a
+                    // stale overlay from before. The impersonation header link can be
+                    // clicked again any time after sign-in to re-impersonate.
+                    ctx.HttpContext.Response.Cookies.Delete("cypd-dev-impersonation");
                 };
             });
 

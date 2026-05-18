@@ -8,6 +8,15 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
 {
     public async Task<LandingPageResult?> GetLandingPageDataAsync(CancellationToken cancellationToken)
     {
+        // Guard: if the principal has no organisation_id claim, we have nothing to ask
+        // DfE Sign-In about. Calling the API with an empty id 500s on the upstream side
+        // and surfaces as an unhandled exception. Return null so the controller can
+        // route to its existing no-data path (sign-out).
+        if (string.IsNullOrWhiteSpace(currentUserService.OrganisationId))
+        {
+            return null;
+        }
+
         var organisation =
             await dfESignInApiClient.GetOrganisationAsync(currentUserService.UserId, currentUserService.OrganisationId);
 

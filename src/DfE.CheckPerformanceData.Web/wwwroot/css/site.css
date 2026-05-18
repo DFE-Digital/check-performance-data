@@ -537,3 +537,86 @@
   border-top: 1px solid #d5d8da;
   padding-top: 15px;
 }
+
+/* Push the Sign in / Sign out cluster to the far right of the service nav row.
+   Selector specificity matches govuk-frontend's own .govuk-service-navigation__item
+   rule so margin-left:auto isn't overridden. */
+.govuk-service-navigation__list .govuk-service-navigation__item.sign-in-nav-item {
+  margin-left: auto;
+  position: relative;
+}
+
+/* Caret button sits inline next to the Sign in link, styled as a flat affordance
+   that mirrors the link colour. Non-prod only — the markup isn't rendered in prod. */
+.sign-in-nav-item__toggle {
+  background: transparent;
+  border: 0;
+  margin: 0;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+  vertical-align: baseline;
+  line-height: 1;
+}
+
+.sign-in-nav-item__toggle:hover .sign-in-nav-item__caret {
+  color: #1d70b8;
+}
+
+.sign-in-nav-item__toggle:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  background-color: #fd0;
+  color: #0b0c0c;
+}
+
+.sign-in-nav-item__toggle[aria-expanded="true"] .sign-in-nav-item__caret {
+  transform: rotate(180deg);
+}
+
+.sign-in-nav-item__caret {
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+
+/* Dropdown panel anchored to the right edge of the sign-in cluster. */
+.sign-in-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 180px;
+  list-style: none;
+  background: #ffffff;
+  border: 1px solid #b1b4b6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+}
+
+.sign-in-dropdown-menu[hidden] {
+  display: none;
+}
+
+.sign-in-dropdown-menu__item {
+  display: block;
+  padding: 8px 16px;
+  color: #1d70b8;
+  text-decoration: none;
+  font-family: "GDS Transport", arial, sans-serif;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.sign-in-dropdown-menu__item:hover {
+  background-color: #f3f2f1;
+  text-decoration: underline;
+}
+
+.sign-in-dropdown-menu__item:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  background-color: #fd0;
+  color: #0b0c0c;
+  text-decoration: underline;
+}

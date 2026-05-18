@@ -1,4 +1,5 @@
 ---
+ASPNETCORE_ENVIRONMENT: Development
 DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk

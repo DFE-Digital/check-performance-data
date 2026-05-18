@@ -487,6 +487,9 @@ appsettings.Development.json
 
 .vscode/
 
+# Roslyn / C# language server per-project cache; per-machine, never committed
+*.csproj.lscache
+
 # Terraform
 .terraform
 terraform/application/vendor

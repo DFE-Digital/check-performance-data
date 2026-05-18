@@ -1,2 +1,3 @@
 ---
+ASPNETCORE_ENVIRONMENT: Preproduction
 EXAMPLE_KEY: example value 3

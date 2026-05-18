@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class WhatToChangeController : Controller
+public sealed class WhatToChangeController(ICheckYourPupilDataService service) : Controller
 {
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
     {
-        var journey = HttpContext.Session.GetJourneyState(windowId);
+        var journey = HttpContext.Session.GetRequestState(windowId);
         return View(new WhatToChangeViewModel
         {
             WindowId = windowId,
@@ -20,7 +20,7 @@ public class WhatToChangeController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/WhatToChange/{windowId}")]
-    public IActionResult Confirm(Guid windowId, WhatToChangeViewModel vm)
+    public async Task<IActionResult> Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
         if (vm.SelectedWhatToChange == null)
         {
@@ -28,14 +28,14 @@ public class WhatToChangeController : Controller
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null });
         }
 
-        HttpContext.Session.SaveJourneyState(windowId, s => s.SelectedWhatToChange = vm.SelectedWhatToChange);
+        var window = await service.GetCheckingWindowAsync(windowId);
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedWhatToChange = vm.SelectedWhatToChange;
+            s.CheckingWindow = window;
+        });
 
         return RedirectToAction("Index", "PupilSearch", new { windowId });
     }
-}
-
-public class WhatToChangeViewModel
-{
-    public Guid WindowId { get; set; }
-    public WhatToChange? SelectedWhatToChange { get; set; }
 }

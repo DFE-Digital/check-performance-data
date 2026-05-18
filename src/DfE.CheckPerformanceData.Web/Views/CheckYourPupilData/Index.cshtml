@@ -7,48 +7,49 @@
     Layout = "_Layout";
 }
 
-<a asp-action="Index" asp-controller="Landing" class="govuk-back-link">Back</a>
+<a asp-action="Index" asp-controller="LandingPage" class="govuk-back-link">Back</a>
 
-<h1 class="govuk-heading-xl">Check your pupil data</h1>
-
-<div class="school-details">
-    <dl class="govuk-summary-list">
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">Checking Window</dt>
-            <dd class="govuk-summary-list__value">@Model.WindowTitle @if(!Model.IsWindowOpen) {<strong>(Closed)</strong>} </dd>
-        </div>
-        
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">Establishment Name</dt>
-            <dd class="govuk-summary-list__value">@Model.OrganisationName</dd>
-        </div>
-    </dl>
-</div>
-
-@if (Model.IsWindowOpen)
+@await Component.InvokeAsync("EditableTitle", new
 {
-    <p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
-        file. You must request any changes to pupil data before @Model.WindowEndTime on @Model.WindowEndDate</p>
-}
-else
-{
-    <p class="govuk-body">This @Model.WindowTitle Checking Window is closed. You can still download the data as a CSV file.</p>
-}
+    key = "check-pupil-data-title",
+    defaultText = "Check your pupil data",
+    headingLevel = "h1",
+    cssClass = "govuk-heading-xl"
+})
+
+
+<p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
+    file. You must request any changes to pupil data before @Model.WindowEndTime on @Model.WindowEndDate</p>
 
 <p class="govuk-body">
-    <a asp-action="DownloadAll" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Download all CSV files as a ZIP file</a>
+    <a asp-action="DownloadAll" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Download all
+        CSV files as a ZIP file</a>
 </p>
 
 <govuk-tabs>
     <govuk-tabs-item id="included" label="Included pupils">
-        <h2 class="govuk-heading-l">Pupil included</h2>
         @if (Model.IncludedPupilsTotalPages == 0)
         {
-            <p class="govuk-body">No included pupils</p>
+            <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: No data to check" data-module="moj-alert">
+                <div>
+                    <svg class="moj-alert__icon" role="presentation" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" height="30" width="30">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M15 2.44922L28.75 26.1992H1.25L15 2.44922ZM13.5107 9.49579H16.4697L16.2431 17.7678H13.7461L13.5107 9.49579ZM13.1299 21.82C13.1299 21.5661 13.1787 21.3285 13.2764 21.1071C13.374 20.8793 13.5075 20.6807 13.6768 20.5114C13.8525 20.3421 14.0544 20.2087 14.2822 20.111C14.5101 20.0134 14.7542 19.9645 15.0146 19.9645C15.2686 19.9645 15.5062 20.0134 15.7275 20.111C15.9554 20.2087 16.154 20.3421 16.3232 20.5114C16.4925 20.6807 16.626 20.8793 16.7236 21.1071C16.8213 21.3285 16.8701 21.5661 16.8701 21.82C16.8701 22.0804 16.8213 22.3246 16.7236 22.5524C16.626 22.7803 16.4925 22.9789 16.3232 23.1481C16.154 23.3174 15.9554 23.4509 15.7275 23.5485C15.5062 23.6462 15.2686 23.695 15.0146 23.695C14.7542 23.695 14.5101 23.6462 14.2822 23.5485C14.0544 23.4509 13.8525 23.3174 13.6768 23.1481C13.5075 22.9789 13.374 22.7803 13.2764 22.5524C13.1787 22.3246 13.1299 22.0804 13.1299 21.82Z" fill="currentColor" />
+                    </svg>
+                </div>
+                <div class="moj-alert__content">
+                    <h2 class="moj-alert__heading">No data to check</h2>
+                    @await Component.InvokeAsync("EditableContent", new { 
+                        key = "check-pupil-data-no-included-data-content",
+                        defaultHtml = @"<p>There's no pupil included data for your school to check in this window. If you believe this is incorrect, you can <a href=""#"">send us a message</a> or call us on 0300 131 2768</p>"
+                    })
+                </div>
+            </div>
         }
         else
         {
-            <p class="govuk-body">Download <a asp-action="DownloadIncluded" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">pupil included</a> as a CSV file.</p>
+            <h2 class="govuk-heading-l">Pupil included</h2>
+            <p class="govuk-body">Download <a asp-action="DownloadIncluded" asp-controller="CheckYourPupilData"
+                                              asp-route-windowId="@Model.WindowId">pupil included</a> as a CSV file.</p>
             @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
             {
                 WindowId = Model.WindowId,
@@ -77,14 +78,30 @@ else
     </govuk-tabs-item>
 
     <govuk-tabs-item id="nonIncluded" label="Non-included pupils">
-        <h2 class="govuk-heading-l">Pupil non-include</h2>
         @if (Model.NonIncludedPupilsTotalPages == 0)
         {
-            <p class="govuk-body">No non-included pupils</p>
+            <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: No data to check" data-module="moj-alert">
+                <div>
+                    <svg class="moj-alert__icon" role="presentation" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" height="30" width="30">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M15 2.44922L28.75 26.1992H1.25L15 2.44922ZM13.5107 9.49579H16.4697L16.2431 17.7678H13.7461L13.5107 9.49579ZM13.1299 21.82C13.1299 21.5661 13.1787 21.3285 13.2764 21.1071C13.374 20.8793 13.5075 20.6807 13.6768 20.5114C13.8525 20.3421 14.0544 20.2087 14.2822 20.111C14.5101 20.0134 14.7542 19.9645 15.0146 19.9645C15.2686 19.9645 15.5062 20.0134 15.7275 20.111C15.9554 20.2087 16.154 20.3421 16.3232 20.5114C16.4925 20.6807 16.626 20.8793 16.7236 21.1071C16.8213 21.3285 16.8701 21.5661 16.8701 21.82C16.8701 22.0804 16.8213 22.3246 16.7236 22.5524C16.626 22.7803 16.4925 22.9789 16.3232 23.1481C16.154 23.3174 15.9554 23.4509 15.7275 23.5485C15.5062 23.6462 15.2686 23.695 15.0146 23.695C14.7542 23.695 14.5101 23.6462 14.2822 23.5485C14.0544 23.4509 13.8525 23.3174 13.6768 23.1481C13.5075 22.9789 13.374 22.7803 13.2764 22.5524C13.1787 22.3246 13.1299 22.0804 13.1299 21.82Z" fill="currentColor" />
+                    </svg>
+                </div>
+                <div class="moj-alert__content">
+                    <h2 class="moj-alert__heading">No data to check</h2>
+                    @await Component.InvokeAsync("EditableContent", new
+                    {
+                        key = "check-pupil-data-no-non-included-data-content",
+                        defaultHtml = @"<p>There's no pupil non-included data for your school to check in this window. If you believe this is incorrect, you can <a href=""#"">send us a message</a> or call us on 0300 131 2768</p>"
+                    })
+                </div>
+            </div>
         }
         else
         {
-            <p class="govuk-body">Download <a asp-action="DownloadNonIncluded" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">pupil non-included</a> as a CSV file.</p>
+            <h2 class="govuk-heading-l">Pupil non-include</h2>
+            <p class="govuk-body">Download <a asp-action="DownloadNonIncluded" asp-controller="CheckYourPupilData"
+                                              asp-route-windowId="@Model.WindowId">pupil non-included</a> as a CSV file.
+            </p>
             @await Html.PartialAsync("_PupilSearch", new PupilSearchViewModel
             {
                 WindowId = Model.WindowId,

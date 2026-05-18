@@ -9,9 +9,19 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
         ?? "system";
 
-    public string DisplayName =>
-        httpContextAccessor.HttpContext?.User.Identity?.Name
-        ?? "System";
+    public string DisplayName
+    {
+        get
+        {
+            var user = httpContextAccessor.HttpContext?.User;
+            var given = user?.FindFirst(ClaimTypes.GivenName)?.Value
+                     ?? user?.FindFirst("given_name")?.Value;
+            var family = user?.FindFirst(ClaimTypes.Surname)?.Value
+                      ?? user?.FindFirst("family_name")?.Value;
+            var name = string.Join(" ", new[] { given, family }.Where(s => s is not null));
+            return name.Length > 0 ? name : "System";
+        }
+    }
 
     public string OrganisationId =>
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_id")?.Value
@@ -19,5 +29,9 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
 
     public string OrganisationName =>
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_name")?.Value
+        ?? "";
+
+    public string OrganisationUrn =>
+        httpContextAccessor.HttpContext?.User.FindFirst("organisation_urn")?.Value
         ?? "";
 }

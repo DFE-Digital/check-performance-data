@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     /// <summary>
     /// Represents metadata for a custom field, including its properties and validation patterns.
     /// </summary>
-    public class CustomFieldMetaData
+    public sealed class CustomFieldMetaData
     {
         /// <summary>
         /// Gets or sets the URL associated with the custom field.
@@ -99,7 +99,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
     }
 
 
-    public class CustomFieldOption
+    public sealed class CustomFieldOption
     {
         // Unique identifier for the instance
         [JsonProperty("id")]

@@ -63,23 +63,57 @@ jobs:
         reuse-cache: true
         snyk-token: ${{ secrets.SNYK_TOKEN }}
 
-#   test:
-#     name: Run tests
-#     if: ${{ github.event_name != 'workflow_dispatch' }}
-#     runs-on: ubuntu-latest
+  e2e:
+    name: E2E Tests
+    # Only runs against the per-PR review app. The main-branch `deploy` job uses a strategy
+    # matrix [development, qa, preproduction, production] with max-parallel: 1 and exposes
+    # environment_url as a job-level output; that output is overwritten by each matrix entry
+    # so it ultimately resolves to production. The E2E suite seeds wiki pages and content
+    # blocks (no DELETE route on ContentBlockController), so running it against production
+    # would pollute live data. Until a non-production-only output channel exists, e2e is
+    # gated to review-app PRs only.
+    needs: [deploy-review-app]
+    if: needs.deploy-review-app.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
 
-#     # This is a skeleton test job
-#     # It will need to be updated to set the environment and run required tests
-#     # The steps can be moved to a separate action if preferred
+    steps:
+    - uses: actions/checkout@v4
 
-#     steps:
-#     - name: Check out repository
-#       uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
 
-#     # - name: Run tests
-#     #   shell: bash
-#     #   run: |
-#     #     run some tests
+    - uses: actions/cache@v4
+      id: playwright-cache
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
+
+    - name: Build E2E test project
+      run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release
+
+    - name: Install Playwright browsers
+      run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+
+    - name: Run E2E tests
+      # Skip visual regression: baselines are captured against the local containerised
+      # Linux-Chromium web (Phase 2.4 unified rendering). The deployed AKS review app
+      # serves a different surface (fonts, CSP, seed timing) so identical pixels are
+      # not expected. Visual regression stays a local concern, run via `make test-e2e`.
+      run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
+
+    # Surface the snapshot tree on failure so the "delete .png + push twice"
+    # update workflow can retrieve the regenerated PNG. Snapshots live under the
+    # source tree (resolved via project marker walk in PageSnapshotExtensions),
+    # not under bin/, so the path here points at the source location.
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: e2e-snapshots
+        path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
+        retention-days: 14
 
   deploy-review-app:
     name: Deployment To Review
@@ -90,6 +124,8 @@ jobs:
       name: review
       url: ${{ steps.deploy_review.outputs.environment_url }}
     runs-on: ubuntu-latest
+    outputs:
+      environment_url: ${{ steps.deploy_review.outputs.environment_url }}
     permissions:
       id-token: write
       pull-requests: write
@@ -120,6 +156,8 @@ jobs:
       url: ${{ steps.deploy_app.outputs.environment_url }}
     needs: [build]
     runs-on: ubuntu-latest
+    outputs:
+      environment_url: ${{ steps.deploy_app.outputs.environment_url }}
     permissions:
       id-token: write
       pull-requests: write

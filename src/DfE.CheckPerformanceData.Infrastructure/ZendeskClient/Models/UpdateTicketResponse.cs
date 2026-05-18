@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class UpdateTicketResponse
+    public sealed class UpdateTicketResponse
     {
         [JsonProperty("ticket")]
         public UpdatedTicket? Ticket { get; set; }
@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public TicketAudit? Audit { get; set; }
     }
 
-    public class UpdatedTicket
+    public sealed class UpdatedTicket
     {
         [JsonProperty("id")]
         public long? Id { get; set; }
@@ -27,7 +27,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public TicketComment? Comment { get; set; }
     }
 
-    public class TicketAudit
+    public sealed class TicketAudit
     {
         [JsonProperty("id")]
         public long? Id { get; set; }
@@ -45,7 +45,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
         public List<TicketAuditEvent>? Events { get; set; }
     }
 
-    public class TicketAuditEvent
+    public sealed class TicketAuditEvent
     {
         [JsonProperty("id")]
         public long? Id { get; set; }

@@ -1,19 +1,29 @@
+using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Web.Authentication;
+using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.FileStorage;
+using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
-
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -47,18 +57,73 @@ try
                 : new CompactJsonFormatter());
     });
     
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+        options.KnownProxies.Clear();
+    });
+
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
-
+    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
+    
     builder.Services
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
-        .AddGovUkFrontend();
-    
-    builder.Services.AddPersistenceDependencies(configuration, builder.Environment.IsDevelopment());
-    builder.Services.AddApplicationDependencies();
+        .AddGovUkFrontend()
+        .AddPersistenceDependencies(configuration, seedData)
+        .AddApplicationDependencies();
+
+    // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
+    // it and the real DfE cookie scheme based on which cookie is present. Registered
+    // ONLY when not in Production so prod can never serve these routes or carry the
+    // marker cookie. Don't move this block outside the IsProduction() guard.
+    if (!builder.Environment.IsProduction())
+    {
+        const string DevAwareScheme = "DevAware";
+
+        builder.Services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, DevImpersonationAuthHandler>(
+                DevImpersonationConstants.Scheme,
+                _ => { })
+            .AddPolicyScheme(DevAwareScheme, DevAwareScheme, options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    // Prefer the real DfE Sign-In auth cookie if present so an
+                    // already-signed-in manual tester keeps their real claims
+                    // (organisationid, name, etc.) when they flip the impersonation
+                    // cookie. The transformer then overlays the editor role on top.
+                    // Only fall back to the synthetic DevImpersonation scheme when
+                    // there's no real session — the E2E case.
+                    if (context.Request.Cookies.ContainsKey(".AspNetCore.Cookies"))
+                        return CookieAuthenticationDefaults.AuthenticationScheme;
+                    if (context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName))
+                        return DevImpersonationConstants.Scheme;
+                    return CookieAuthenticationDefaults.AuthenticationScheme;
+                };
+            });
+
+        // Override only DefaultAuthenticateScheme so [Authorize] checks pass through
+        // the policy scheme. DefaultChallengeScheme stays as OpenIdConnect so DfE
+        // Sign-In still triggers for unauthenticated users; DefaultSignInScheme stays
+        // as Cookies so the OIDC callback still writes the real auth cookie.
+        builder.Services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = DevAwareScheme;
+        });
+
+        builder.Services.AddScoped<IClaimsTransformation, DevImpersonationClaimsTransformer>();
+    }
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+    builder.Services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+    builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
+
+    builder.Services.AddSingleton(_ =>
+        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
@@ -80,6 +145,7 @@ try
             .Build();
     });
 
+    builder.Services.AddMemoryCache();
     builder.Services.AddDistributedMemoryCache();
     builder.Services.AddSession(options =>
     {
@@ -93,6 +159,8 @@ try
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
+
+    app.UseForwardedHeaders();
 
     app.UseSerilogRequestLogging(options =>
     {
@@ -116,10 +184,11 @@ try
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
     }
-    else
+
+    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();   
     }
 
     app.UseHttpsRedirection();
@@ -128,10 +197,10 @@ try
     {
         context.Response.Headers.Append("Content-Security-Policy",
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://*.googletagmanager.com https://fonts.googleapis.com; " +
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
+            "style-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://fonts.googleapis.com; " +
             "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
-            "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+            "font-src 'self' data: https://fonts.gstatic.com; " +
             "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
             "frame-src 'self' https://*.googletagmanager.com; " +
             "object-src 'none'; " +
@@ -147,7 +216,13 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    app.MapStaticAssets();
+    // Sits after auth so the diagnostic comment sees the final principal claims;
+    // before controllers so it can wrap their response body. The middleware itself
+    // is a no-op when env.IsProduction() or when Diagnostics:ShowSessionFooter
+    // is false / unset.
+    app.UseMiddleware<DiagnosticFooterMiddleware>();
+
+    app.MapStaticAssets().AllowAnonymous();
 
     app.MapControllerRoute(
         name: "wiki",

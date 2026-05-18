@@ -1,0 +1,36 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model ConfirmationViewModel
+
+@{
+    ViewBag.Title = "Request submitted";
+    Layout = "_Layout";
+}
+
+<div class="govuk-panel govuk-panel--confirmation">
+    <h1 class="govuk-panel__title">Data change request successfully submitted</h1>
+    <div class="govuk-panel__body">
+        Your reference number<br>
+        <strong>@Model.ReferenceNumber</strong>
+    </div>
+</div>
+
+<p class="govuk-body">We have sent you an email to confirm that you have successfully submitted a request.</p>
+
+<govuk-notification-banner>
+    You still have until <strong>@Model.WindowCloseLabel</strong> to update this request or submit others.
+</govuk-notification-banner>
+
+@await Component.InvokeAsync("EditableTitle", new {
+    key = "journey_confirmation_next_steps_title",
+    defaultText = "What happens next",
+    headingLevel = "h2",
+    cssClass = "govuk-caption-l"
+})
+
+@await Component.InvokeAsync("EditableContent", new
+{
+    key = "journey_confirmation_next_steps",
+    defaultHtml = "<p class=\"govuk-body\">After you submit your changes:</p>\n<ul class=\"govuk-list govuk-list--bullet\">\n    <li>the DfE will review and evidence you provide</li>\n    <li>you'll be able to track the status of your requests in the service</li>\n    <li>your school's performance data will be updated in the Autumn, if the request is approved</li>\n</ul>"
+})
+
+

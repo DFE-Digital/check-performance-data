@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models
 {
-    public class Ticket
+    public sealed class Ticket
     {
         [JsonProperty("id")]
         public long Id { get; init; }

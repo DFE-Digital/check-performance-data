@@ -1,17 +1,19 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class ContentBlockController(IContentBlockService contentBlockService) : Controller
 {
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(SaveContentBlockFormModel model)
     {
         if (!ModelState.IsValid)
-            return Redirect(model.ReturnUrl ?? "/");
+            return Redirect(SafeLocalUrl(model.ReturnUrl));
 
         await contentBlockService.SaveAsync(new SaveContentBlockDto
         {
@@ -21,10 +23,11 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
             OriginalValue = model.OriginalValue
         });
 
-        var returnUrl = RemoveEditParam(model.ReturnUrl ?? "/");
+        var returnUrl = RemoveEditParam(SafeLocalUrl(model.ReturnUrl));
         return Redirect(returnUrl);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("content-block/versions/{key}")]
     public async Task<IActionResult> Versions(string key)
     {
@@ -41,12 +44,21 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
         return View(vm);
     }
 
+    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/revert/{key}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(string key, int versionId, string? returnUrl)
     {
         await contentBlockService.RevertToVersionAsync(key, versionId);
-        return Redirect(returnUrl ?? "/");
+        return Redirect(SafeLocalUrl(returnUrl));
+    }
+
+    private static string SafeLocalUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url)) return "/";
+        if (url[0] != '/') return "/";
+        if (url.Length > 1 && (url[1] == '/' || url[1] == '\\')) return "/";
+        return url;
     }
 
     private static string RemoveEditParam(string url)

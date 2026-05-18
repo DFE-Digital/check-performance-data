@@ -5,6 +5,8 @@
 
 # dotenv files
 .env
+.env.bak
+.env.*
 
 # User-specific files
 *.rsuser
@@ -484,6 +486,9 @@ $RECYCLE.BIN/
 appsettings.Development.json
 
 .vscode/
+
+# Roslyn / C# language server per-project cache; per-machine, never committed
+*.csproj.lscache
 
 # Terraform
 .terraform

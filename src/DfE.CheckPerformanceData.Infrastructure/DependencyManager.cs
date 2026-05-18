@@ -40,7 +40,12 @@ public static class DependencyManager
 
     public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
     {
-        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>();
+        var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>()
+            ?? throw new InvalidOperationException(
+                $"Configuration section '{DfeSigninSettings.SectionName}' is missing or empty. " +
+                "Set DfeSignIn:MetadataAddress, DfeSignIn:ClientId, DfeSignIn:ClientSecret, " +
+                "DfeSignIn:Audience and DfeSignIn:ApiClientSecret in appsettings.json " +
+                "or via environment variables (e.g. DfeSignIn__MetadataAddress).");
 
         services.AddAuthentication(options =>
         {
@@ -64,7 +69,7 @@ public static class DependencyManager
             .AddOpenIdConnect(options =>
             {
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.MetadataAddress = settings!.MetadataAddress;
+                options.MetadataAddress = settings.MetadataAddress;
                 options.ClientId = settings.ClientId;
                 options.ClientSecret = settings.ClientSecret;
                 options.ResponseType = OpenIdConnectResponseType.Code;
@@ -95,6 +100,12 @@ public static class DependencyManager
                     var rolesIdentity = await enrichmentService.EnrichAsync(ctx.Principal!);
                     if (rolesIdentity != null)
                         ctx.Principal!.AddIdentity(rolesIdentity);
+
+                    // Clear any prior dev-impersonation marker on a fresh real sign-in so
+                    // the user's effective role reflects their true DfE claims, not a
+                    // stale overlay from before. The impersonation header link can be
+                    // clicked again any time after sign-in to re-impersonate.
+                    ctx.HttpContext.Response.Cookies.Delete("cypd-dev-impersonation");
                 };
             });
 

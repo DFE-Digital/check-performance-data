@@ -1,0 +1,37 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionPartialModel
+
+@{
+    var hintId = $"{Model.FieldName}-hint";
+    var errorId = $"{Model.FieldName}-error";
+    var describedBy = string.Join(" ",
+        new[] { Model.Question.Hint is not null ? hintId : null, Model.HasError ? errorId : null }
+        .Where(s => s is not null));
+}
+
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    @if (Model.IsPageHeading)
+    {
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="@Model.FieldName">@Model.ResolvedTitle</label>
+        </h1>
+    }
+    else
+    {
+        <label class="govuk-label govuk-label--m" for="@Model.FieldName">@Model.ResolvedTitle</label>
+    }
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
+    }
+    @if (Model.HasError)
+    {
+        <p class="govuk-error-message" id="@errorId">
+            <span class="govuk-visually-hidden">Error:</span> @Model.Error
+        </p>
+    }
+    <input class="govuk-input @(Model.HasError ? "govuk-input--error" : "")"
+           id="@Model.FieldName" name="@Model.FieldName" type="text"
+           value="@Model.ExistingAnswer?.TextValue"
+           @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>
+</div>

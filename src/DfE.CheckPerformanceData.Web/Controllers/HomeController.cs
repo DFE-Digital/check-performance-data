@@ -9,25 +9,11 @@ using DfE.CheckPerformanceData.Web.Models;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 [AllowAnonymous]
-public sealed class HomeController(IPortalDbContext context, QueueServiceClient queueServiceClient) : Controller
+public sealed class HomeController() : Controller
 {
     public async Task<IActionResult> Index()
     {
         return View();
-    }
-    
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendRequest()
-    {
-        var client = queueServiceClient.GetQueueClient("requests");
-
-        await client.CreateIfNotExistsAsync();
-        
-        await client.SendMessageAsync($"Hello, World! Time is {DateTime.Now.ToShortTimeString()}");
-        
-        // Handle the POST here
-        return RedirectToAction(nameof(Index));
     }
 
     public IActionResult Privacy()

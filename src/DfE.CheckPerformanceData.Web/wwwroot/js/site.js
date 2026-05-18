@@ -190,3 +190,38 @@
     });
 
 })();
+
+(function () {
+    var toggle = document.querySelector('.sign-in-nav-item__toggle');
+    var menu = document.getElementById('sign-in-dropdown-menu');
+    if (!toggle || !menu) return;
+
+    function close() {
+        menu.hidden = true;
+        toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function open() {
+        menu.hidden = false;
+        toggle.setAttribute('aria-expanded', 'true');
+    }
+
+    toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (toggle.getAttribute('aria-expanded') === 'true') close(); else open();
+    });
+
+    document.addEventListener('click', function (e) {
+        if (menu.hidden) return;
+        if (e.target === toggle || toggle.contains(e.target)) return;
+        if (menu.contains(e.target)) return;
+        close();
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !menu.hidden) {
+            close();
+            toggle.focus();
+        }
+    });
+})();

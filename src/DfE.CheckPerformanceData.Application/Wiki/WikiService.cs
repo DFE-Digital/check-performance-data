@@ -86,7 +86,7 @@ public sealed partial class WikiService(
 			{
 				Query = string.Empty,
 				Page = 1,
-				PageSize = pageSize,
+				PageSize = DefaultPageSize,
 				TotalCount = 0,
 				Items = [],
 				InvalidReason = SearchInvalidReason.EmptyQuery
@@ -99,7 +99,7 @@ public sealed partial class WikiService(
 			{
 				Query = trimmed,
 				Page = 1,
-				PageSize = pageSize,
+				PageSize = DefaultPageSize,
 				TotalCount = 0,
 				Items = [],
 				InvalidReason = SearchInvalidReason.BelowMinimumLength
@@ -107,6 +107,7 @@ public sealed partial class WikiService(
 		}
 
 		// cap length BEFORE reaching Postgres.
+		// Queries longer than MaxQueryLength are silently truncated to prevent injection and excessive memory use.
 		if (trimmed.Length > MaxQueryLength)
 		{
 			trimmed = trimmed[..MaxQueryLength];
@@ -116,7 +117,27 @@ public sealed partial class WikiService(
 		var initialPage = page < 1 ? 1 : page;
 		var initialSkip = (initialPage - 1) * safePageSize;
 
-		var (items, total) = await repository.SearchAsync(trimmed, initialSkip, safePageSize);
+		// Asterisk in the query switches us to to_tsquery's prefix-match parser. The natural-language
+		// websearch parser does not understand `:*`, so we translate `pub*` -> `pub:*` and AND the
+		// terms together. Phrase quotes and -negation are not supported in this mode.
+		var prefixTsQuery = trimmed.Contains('*') ? BuildPrefixTsQuery(trimmed) : null;
+
+		if (prefixTsQuery is not null && prefixTsQuery.Length == 0)
+		{
+			return new WikiSearchResultsDto
+			{
+				Query = trimmed,
+				Page = 1,
+				PageSize = DefaultPageSize,
+				TotalCount = 0,
+				Items = [],
+				InvalidReason = SearchInvalidReason.EmptyQuery
+			};
+		}
+
+		var (items, total) = prefixTsQuery is not null
+			? await repository.SearchPrefixAsync(prefixTsQuery, initialSkip, safePageSize)
+			: await repository.SearchAsync(trimmed, initialSkip, safePageSize);
 
 		// Out-of-range page? Clamp + requery. Only when total > 0 AND initialPage exceeds TotalPages.
 		var totalPages = total == 0 ? 1 : (int)Math.Ceiling(total / (double)safePageSize);
@@ -125,14 +146,16 @@ public sealed partial class WikiService(
 		{
 			finalPage = totalPages;
 			var clampedSkip = (finalPage - 1) * safePageSize;
-			(items, total) = await repository.SearchAsync(trimmed, clampedSkip, safePageSize);
+			(items, total) = prefixTsQuery is not null
+				? await repository.SearchPrefixAsync(prefixTsQuery, clampedSkip, safePageSize)
+				: await repository.SearchAsync(trimmed, clampedSkip, safePageSize);
 		}
 
-		// Per-result slug-path enrichment — one GetAllOrderedAsync walk.
+		// Per-result slug-path enrichment — pulls only (Id, Slug, ParentId) instead of full page DTOs.
 		if (items.Count > 0)
 		{
-			var allPages = await repository.GetAllOrderedAsync();
-			var lookup = allPages.ToDictionary(p => p.Id, p => (p.Slug, p.ParentId));
+			var entries = await repository.GetSlugLookupAsync();
+			var lookup = entries.ToDictionary(p => p.Id, p => (p.Slug, p.ParentId));
 			foreach (var item in items)
 			{
 				item.SlugPath = ResolveSlugPath(item.Id, lookup);
@@ -149,6 +172,22 @@ public sealed partial class WikiService(
 			InvalidReason = null
 		};
 	}
+
+	private static string BuildPrefixTsQuery(string query)
+	{
+		var tokens = new List<string>();
+		foreach (var raw in query.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+		{
+			var hasWildcard = raw.Contains('*');
+			var sanitised = TsQuerySanitiser().Replace(raw, "");
+			if (sanitised.Length == 0) continue;
+			tokens.Add(hasWildcard ? $"{sanitised}:*" : sanitised);
+		}
+		return string.Join(" & ", tokens);
+	}
+
+	[GeneratedRegex(@"[^a-zA-Z0-9]")]
+	private static partial Regex TsQuerySanitiser();
 
 	private static string ResolveSlugPath(int id, Dictionary<int, (string Slug, int? ParentId)> lookup)
 	{

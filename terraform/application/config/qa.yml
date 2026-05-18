@@ -1,2 +1,3 @@
 ---
+ASPNETCORE_ENVIRONMENT: QA
 EXAMPLE_KEY: example value 2

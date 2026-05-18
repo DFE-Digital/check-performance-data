@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DfE.CheckPerformanceData.Application.ZendeskClient
 {
-    public class CustomFieldMetaDataDto
+    public sealed class CustomFieldMetaDataDto
     {
         // Gets or sets the URL associated with the custom field.
         public string Url { get; set; } = string.Empty;
@@ -52,7 +52,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
         public List<CustomFieldOptionDto> CustomFieldOptions { get; set;  } = new List<CustomFieldOptionDto>();
     }
 
-    public class CustomFieldOptionDto
+    public sealed class CustomFieldOptionDto
     {
 
         public long Id { get; set; } 

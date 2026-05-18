@@ -79,8 +79,8 @@ public static class SeedPupils
                 Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
                 EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc),
-                Urn = "131786",
-                Cypmd_Id = $"CYPMD{(i + firstnameOffset + 1):D6}",
+                Urn = "142313",
+                Cypmd_Id = $"{(i + firstnameOffset + 1):D6}",
                 MatchRef = 10000 + i + firstnameOffset,
                 Upn = $"A8604070{(i + firstnameOffset + 1):D4}B"
             };

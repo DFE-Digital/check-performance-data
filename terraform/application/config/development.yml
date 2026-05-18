@@ -1,4 +1,5 @@
 ---
+ASPNETCORE_ENVIRONMENT: Development
 DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk
@@ -6,3 +7,5 @@ DfeSignIn__MetadataAddress: https://test-oidc.signin.education.gov.uk/.well-know
 DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
+SeedDevelopmentData: true
+

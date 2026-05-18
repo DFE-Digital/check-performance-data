@@ -81,6 +81,9 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             }
         };
 
+
+        ticketRequest = mapViewFields(message, ticketRequest);
+
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
         if (message.Uploads.Any())
@@ -119,7 +122,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Type = "task"
             }
         };
-
+        ticketRequest = mapViewFields(message, ticketRequest);
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
         if (message.Uploads.Any())
@@ -168,6 +171,36 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             response.Ticket.Id, message.RequestId);
     }
 
+
+/// <summary>
+/// 
+/// ### Create the `evidence-uploads` container
+///Azurite doesn't auto-create containers — you need to create it once. You can do this via the Azure Storage Explorer tool, or via the Azure CLI/Azurite REST API:
+
+/// # Using curl to create the container via Azurite REST API
+///curl -X PUT "http://127.0.0.1:10000/devstoreaccount1/evidence-uploads?restype=container" \
+///  -H "x-ms-version: 2023-01-03" \
+///  -H "x-ms-date: $(date -u +%a,%d%b%Y%H:%M:%SGMT)" \
+///  -H "Authorization: SharedKeyLite devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+///Or use Azure Storage Explorer (connect to "Azure Storage Emulator (Azurite)").
+/// 
+/// ### Upload blobs to test
+
+///Upload test blobs to the `evidence-uploads` container. The blob name should match the `upload.Id` (as a string) used in your `RequestMessage.Uploads`:
+///# Example: upload a file as blob named "1" (matching upload.Id = 1)
+// curl -X PUT "http://127.0.0.1:10000/devstoreaccount1/evidence-uploads/1" \
+//   -T /path/to/testfile.pdf \
+//   -H "x-ms-blob-type: BlockBlob" \
+//   -H "x-ms-version: 2023-01-03" \
+//   -H "x-ms-date: $(date -u +%a,%d%b%Y%H:%M:%SGMT)" \
+//   -H "Authorization: SharedKeyLite devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+
+
+/// </summary>
+/// <param name="ticketId"></param>
+/// <param name="upload"></param>
+/// <param name="token"></param>
+/// <returns></returns>
     private async Task UploadAttachmentToTicketAsync(long ticketId, UploadInfo upload, CancellationToken token)
     {
         try

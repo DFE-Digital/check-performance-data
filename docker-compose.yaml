@@ -1,4 +1,4 @@
-﻿services:
+services:
   web:
     profiles: [web, all, e2e]
     container_name: cypd_web
@@ -13,7 +13,7 @@
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
       - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
@@ -38,7 +38,7 @@
     image: cypd_rules_engine:latest
     environment:
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
       - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}

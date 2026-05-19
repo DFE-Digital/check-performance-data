@@ -1,10 +1,7 @@
-using DfE.CheckPerformanceData.Domain.Enums;
-
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public sealed class RequestDocument
 {
-    public RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
     public DateTime SubmittedAt { get; init; }
     public required UserDetails SubmittedBy { get; init; }

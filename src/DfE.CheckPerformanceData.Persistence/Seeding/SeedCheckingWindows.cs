@@ -9,6 +9,7 @@ public static class SeedCheckingWindows
 {
     public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId)
     {
+        await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
 
         var openKs4JuneWindow = new CheckingWindow

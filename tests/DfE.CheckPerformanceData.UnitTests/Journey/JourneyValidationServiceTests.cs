@@ -1,26 +1,12 @@
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.LandingPage;
-using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
-using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
-public class JourneyServiceTests
+public class JourneyValidationServiceTests
 {
-    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
-    private readonly JourneyService _sut;
+    private readonly JourneyValidationService _sut = new();
 
-    public JourneyServiceTests()
-    {
-        _currentUser.UserId.Returns("user-1");
-        _currentUser.DisplayName.Returns("Test User");
-        _currentUser.OrganisationUrn.Returns("100000");
-        _currentUser.OrganisationName.Returns("Test School");
-        _sut = new JourneyService(_currentUser);
-    }
 
     // ── ValidateAnswer ──────────────────────────────────────────────────────
 
@@ -204,122 +190,6 @@ public class JourneyServiceTests
         Assert.All(parts[2], c => Assert.True(char.IsLetterOrDigit(c)));
     }
 
-    // ── BuildRequestDocument ────────────────────────────────────────────────
-
-    [Fact]
-    public void BuildRequestDocument_MapsUserAndSchoolDetails()
-    {
-        var (context, config) = MakeSubmission();
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal("user-1", doc.SubmittedBy.UserId);
-        Assert.Equal("Test User", doc.SubmittedBy.DisplayName);
-        Assert.Equal("100000", doc.School.Urn);
-        Assert.Equal("Test School", doc.School.Name);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_MapsPupilDetails()
-    {
-        var (context, config) = MakeSubmission();
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal("Jane Smith", doc.Pupil.Firstname + " " + doc.Pupil.Surname);
-        Assert.Equal("F", doc.Pupil.Sex);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_SetsStatusToSubmitted()
-    {
-        var (context, config) = MakeSubmission();
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal(RequestStatus.Submitted, doc.Status);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_IncludesAnswersForQuestionPages()
-    {
-        var questionId = "reason";
-        var config = MakeConfig([
-            new JourneyPage { Id = "reason", Questions = [MakeQuestion(QuestionType.Radio, id: questionId)] }
-        ]);
-        var context = MakeContext(
-            history: ["reason"],
-            answers: new() { [questionId] = new QuestionAnswer { TextValue = "opted-out" } }
-        );
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Single(doc.Answers);
-        Assert.Equal(questionId, doc.Answers[0].QuestionId);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_ExcludesContentPages()
-    {
-        var config = MakeConfig([
-            new JourneyPage { Id = "info", Type = PageType.Content },
-            new JourneyPage { Id = "reason", Questions = [MakeQuestion(QuestionType.Radio)] }
-        ]);
-        var context = MakeContext(history: ["info", "reason"]);
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.All(doc.Answers, a => Assert.NotEqual("info", a.QuestionId));
-    }
-
-    [Fact]
-    public void BuildRequestDocument_RadioAnswer_ResolvesLabel()
-    {
-        var question = new Question
-        {
-            Id = "reason",
-            Type = QuestionType.Radio,
-            Title = "Reason",
-            Options = [new QuestionOption { Value = "opt-1", Label = "Opted Out" }]
-        };
-        var config = MakeConfig([new JourneyPage { Id = "reason", Questions = [question] }]);
-        var context = MakeContext(
-            history: ["reason"],
-            answers: new() { ["reason"] = new QuestionAnswer { TextValue = "opt-1" } }
-        );
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal("Opted Out", doc.Answers[0].Value);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_DateAnswer_FormatsAsDDMMYYYY()
-    {
-        var question = MakeQuestion(QuestionType.Date, id: "dob");
-        var config = MakeConfig([new JourneyPage { Id = "dob", Questions = [question] }]);
-        var context = MakeContext(
-            history: ["dob"],
-            answers: new() { ["dob"] = new QuestionAnswer { DateValue = new DateAnswer { Day = 5, Month = 3, Year = 2010 } } }
-        );
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal("05/03/2010", doc.Answers[0].Value);
-    }
-
-    [Fact]
-    public void BuildRequestDocument_PupilNameTemplate_IsResolved()
-    {
-        var question = new Question { Id = "q1", Type = QuestionType.FreeText, Title = "Notes for {pupilName}" };
-        var config = MakeConfig([new JourneyPage { Id = "p1", Questions = [question] }]);
-        var context = MakeContext(history: ["p1"]);
-
-        var doc = _sut.BuildRequestDocument(context, config);
-
-        Assert.Equal("Notes for Jane Smith", doc.Answers[0].QuestionTitle);
-    }
-
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private static Question MakeQuestion(QuestionType type, string id = "q1", int? characterLimit = null) =>
@@ -327,47 +197,4 @@ public class JourneyServiceTests
 
     private static FileAnswer MakeFileAnswer(int pageCount) =>
         new() { StoredFileName = Guid.NewGuid().ToString(), OriginalFileName = "file.pdf", PageCount = pageCount };
-
-    private static QuestionFlowConfig MakeConfig(List<JourneyPage> pages) =>
-        new() { FirstPageId = pages[0].Id, Pages = pages };
-
-    private static JourneySubmissionContext MakeContext(
-        List<string>? history = null,
-        Dictionary<string, QuestionAnswer>? answers = null) =>
-        new()
-        {
-            WindowId = Guid.NewGuid(),
-            ReferenceNumber = "CYPMD_KS2_ABC1234",
-            WhatToChange = WhatToChange.Remove,
-            Pupil = new PupilDto
-            {
-                Id = Guid.NewGuid(),
-                Firstname = "Jane",
-                Surname = "Smith",
-                Sex = "F",
-                DateOfBirth = "01/01/2010",
-                Age = 16,
-                Cypmd_Id = "CYPMD123"
-            },
-            CheckingWindow = new CheckingWindowDto
-            {
-                Id = Guid.NewGuid(),
-                Title = "KS4 June",
-                KeyStage = Domain.Enums.KeyStages.KS4,
-                CheckingWindowType = CheckingWindowType.KS4June,
-                StartDate = DateTime.UtcNow.AddDays(-10),
-                EndDate = DateTime.UtcNow.AddDays(20)
-            },
-            Answers = answers ?? new Dictionary<string, QuestionAnswer>(),
-            History = history ?? []
-        };
-
-    private static (JourneySubmissionContext context, QuestionFlowConfig config) MakeSubmission()
-    {
-        var config = MakeConfig([
-            new JourneyPage { Id = "reason", Questions = [MakeQuestion(QuestionType.Radio)] }
-        ]);
-        var context = MakeContext(history: ["reason"]);
-        return (context, config);
-    }
 }

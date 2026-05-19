@@ -28,5 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <_ContentIncludedByDefault Remove="Views\RemovePupil\Index.cshtml" />
+    <_ContentIncludedByDefault Remove="Views\Secret\Index.cshtml" />
   </ItemGroup>
 </Project>

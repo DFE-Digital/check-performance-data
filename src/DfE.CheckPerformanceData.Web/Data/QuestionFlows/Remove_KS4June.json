@@ -127,6 +127,7 @@
     },
     {
       "id": "evidence",
+      "type": "EvidenceUpload",
       "title": "Provide evidence for the removal of {pupilName}",
       "questions": [
         {

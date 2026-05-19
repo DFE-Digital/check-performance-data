@@ -37,7 +37,8 @@ public sealed class JourneyController(
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
             return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
-        return View("Page", BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
+        var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+        return View(viewName, BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
     }
 
     // ── Page (POST — Continue) ──────────────────────────────────────────────
@@ -95,7 +96,8 @@ public sealed class JourneyController(
                 .Concat(newAnswers)
                 .GroupBy(kv => kv.Key)
                 .ToDictionary(g => g.Key, g => g.Last().Value);
-            return View("Page", BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
+            var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
         }
 
         if (fromSummary)
@@ -343,10 +345,31 @@ public sealed class JourneyController(
         };
 
         var pupilName = GetPupilName(journey);
+        var isSingleQuestion = page.Questions.Count == 1;
+        var uploadError = TempData["UploadError"] as string;
 
         string? contentKey = null;
         if (page.Type == PageType.Content && config is not null)
             contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
+
+        var questionModels = page.Questions.Select(q =>
+        {
+            var error = ModelState.TryGetValue(q.Id, out var entry)
+                ? entry.Errors.FirstOrDefault()?.ErrorMessage
+                : null;
+            return new QuestionPartialModel
+            {
+                WindowId = windowId,
+                PageId = page.Id,
+                Question = q,
+                ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
+                FromSummary = fromSummary,
+                IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
+                Error = error,
+                UploadError = uploadError,
+                ResolvedTitle = Resolve(q.Title, pupilName)
+            };
+        }).ToList();
 
         return new PageViewModel
         {
@@ -357,7 +380,8 @@ public sealed class JourneyController(
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,
-            UploadError = TempData["UploadError"] as string
+            UploadError = uploadError,
+            QuestionModels = questionModels
         };
     }
 

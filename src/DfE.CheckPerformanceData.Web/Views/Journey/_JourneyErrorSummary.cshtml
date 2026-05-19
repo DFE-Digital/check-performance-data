@@ -1,0 +1,13 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+
+<govuk-error-summary>
+    <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+    @if (Model.UploadError is not null)
+    {
+        <govuk-error-summary-item href="#fileUpload">@Model.UploadError</govuk-error-summary-item>
+    }
+    @foreach (var qm in Model.QuestionModels.Where(qm => qm.Error is not null))
+    {
+        <govuk-error-summary-item href="#@qm.ErrorFieldRef">@qm.Error</govuk-error-summary-item>
+    }
+</govuk-error-summary>

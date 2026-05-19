@@ -33,5 +33,7 @@
     }
 
     <govuk-button type="submit">Continue</govuk-button>
-    <govuk-button type="submit" class="govuk-button--secondary">Save and continue later</govuk-button>
+    <govuk-button type="submit"
+        formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })"
+        class="govuk-button--secondary">Save and continue later</govuk-button>
 </form>

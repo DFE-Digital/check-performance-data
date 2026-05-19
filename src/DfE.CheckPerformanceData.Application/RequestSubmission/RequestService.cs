@@ -7,6 +7,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 public sealed class RequestService(
     IQuestionFlowService flowService,
     IRequestBlobClient requestBlobClient,
+    IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService) : IRequestService
 {
@@ -15,7 +16,7 @@ public sealed class RequestService(
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
-        if (journey.ReferenceNumber is not null && await requestRepository.ExistsAsync(journey.ReferenceNumber))
+        if (journey.ReferenceNumber is not null && await requestRepository.IsSubmittedAsync(journey.ReferenceNumber))
             return;
 
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
@@ -36,8 +37,33 @@ public sealed class RequestService(
 
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
-        await requestRepository.SaveAsync(document);
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted));
     }
+
+    public async Task SaveDraftAsync(Guid windowId, RequestState journey)
+    {
+        if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null
+            || journey.ReferenceNumber is null)
+            throw new InvalidOperationException("Session state is incomplete for draft submission.");
+
+        await draftBlobClient.SaveDraftAsync(windowId, journey.ReferenceNumber, journey);
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Draft));
+    }
+
+    private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status) =>
+        new()
+        {
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber!,
+            OrganisationUrn = long.Parse(currentUserService.OrganisationUrn),
+            PupilUpn = journey.SelectedPupil!.Upn,
+            PupilFirstname = journey.SelectedPupil.Firstname,
+            PupilSurname = journey.SelectedPupil.Surname,
+            Timestamp = DateTime.UtcNow,
+            SubmittedById = Guid.Parse(currentUserService.UserId),
+            SubmittedByName = currentUserService.DisplayName,
+            Status = status
+        };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
     {

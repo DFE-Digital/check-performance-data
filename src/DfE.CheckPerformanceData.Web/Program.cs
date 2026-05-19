@@ -124,6 +124,7 @@ try
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
     builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
+    builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)

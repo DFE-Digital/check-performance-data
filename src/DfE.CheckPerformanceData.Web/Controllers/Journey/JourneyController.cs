@@ -294,6 +294,38 @@ public sealed class JourneyController(
         return RedirectToAction(nameof(Confirmation), new { windowId });
     }
 
+    // ── Save draft ─────────────────────────────────────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/draft")]
+    public async Task<IActionResult> SaveDraft(Guid windowId, string? pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        // If posted from a question page, capture any unsaved non-file answers from the form
+        if (pageId is not null)
+        {
+            var config = await GetConfigAsync(journey);
+            var page = config is not null ? flowService.GetPage(config, pageId) : null;
+            if (page is not null)
+            {
+                foreach (var question in page.Questions.Where(q => q.Type != QuestionType.FileUpload))
+                {
+                    var answer = ReadFormAnswer(question);
+                    if (!string.IsNullOrWhiteSpace(answer.TextValue))
+                        HttpContext.Session.SaveRequestState(windowId,
+                            s => s.QuestionAnswers[question.Id] = answer);
+                }
+                journey = HttpContext.Session.GetRequestState(windowId);
+            }
+        }
+
+        await requestService.SaveDraftAsync(windowId, journey);
+        return RedirectToCheckYourData(windowId);
+    }
+
     // ── Confirmation ───────────────────────────────────────────────────────
 
     [Route("/Journey/{windowId}/confirmation")]

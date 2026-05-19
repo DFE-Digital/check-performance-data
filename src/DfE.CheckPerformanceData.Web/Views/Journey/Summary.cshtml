@@ -35,6 +35,9 @@
 <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()
     <govuk-button type="submit">Submit request</govuk-button>
+    <govuk-button type="submit"
+        formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
+        class="govuk-button--secondary">Save and continue later</govuk-button>
 </form>
 
 @if (Model.DebugJson is not null)

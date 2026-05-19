@@ -37,10 +37,23 @@ public sealed class PlaywrightFixture : IAsyncLifetime
         await AuthHelpers.ImpersonateAsEditorAsync(this);
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
+        // Final orphan sweep — catches any e2e-{Guid:N}-prefixed wiki page whose
+        // creating test crashed before SeedingPageTest.DisposeAsync could soft-delete
+        // it via tracked IDs. The slug prefix is the seed tag; everything that matches
+        // is soft-deleted best-effort. Failures are swallowed so they can't mask the
+        // suite outcome.
+        try
+        {
+            await Helpers.SeedHelpers.SweepOrphanE2eWikiPagesAsync(SeedClient);
+        }
+        catch
+        {
+            // best-effort
+        }
+
         SeedClient.Dispose();
-        return Task.CompletedTask;
     }
 
     private async Task WaitForDeploymentReadyAsync()

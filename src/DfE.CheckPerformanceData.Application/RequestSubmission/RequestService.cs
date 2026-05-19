@@ -15,6 +15,9 @@ public sealed class RequestService(
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
+        if (journey.ReferenceNumber is not null && await requestRepository.ExistsAsync(journey.ReferenceNumber))
+            return;
+
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
             throw new InvalidOperationException(

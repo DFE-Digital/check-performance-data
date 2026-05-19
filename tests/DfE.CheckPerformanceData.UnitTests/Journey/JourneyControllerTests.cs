@@ -247,6 +247,24 @@ public class JourneyControllerTests
         Assert.IsType<ViewResult>(result);
     }
 
+    // ── SummaryConfirm ───────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SummaryConfirm_AfterSuccess_ClearsJourneyButPreservesConfirmationData()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Null(remaining.SelectedPupil);
+        Assert.Null(remaining.SelectedWhatToChange);
+        Assert.Empty(remaining.QuestionAnswers);
+        Assert.Empty(remaining.QuestionHistory);
+        Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
+        Assert.NotNull(remaining.CheckingWindow);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void SetupSession(RequestState state)

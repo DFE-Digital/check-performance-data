@@ -277,6 +277,18 @@ public sealed class JourneyController(
 
         await requestService.ConfirmRequestAsync(windowId, journey);
 
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedWhatToChange = null;
+            s.SelectedPupil = null;
+            s.SelectedPupilId = null;
+            s.SelectedPupilLabel = null;
+            s.SelectedNextStep = null;
+            s.QuestionAnswers = new();
+            s.QuestionHistory = new();
+            // ReferenceNumber and CheckingWindow preserved for the Confirmation page
+        });
+
         return RedirectToAction(nameof(Confirmation), new { windowId });
     }
 

@@ -48,6 +48,18 @@ public class RequestServiceTests
             _sut.ConfirmRequestAsync(WindowId, ValidJourney()));
     }
 
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenAlreadySubmitted_ReturnsSilentlyWithoutWrites()
+    {
+        var journey = ValidJourney();
+        _requestRepository.ExistsAsync(journey.ReferenceNumber!).Returns(true);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+        await _requestRepository.DidNotReceive().SaveAsync(Arg.Any<RequestDocument>());
+    }
+
     // ── Document building ───────────────────────────────────────────────────
 
     [Fact]

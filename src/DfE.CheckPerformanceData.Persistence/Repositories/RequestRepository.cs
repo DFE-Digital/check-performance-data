@@ -2,11 +2,15 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
+    public Task<bool> ExistsAsync(string referenceNumber) =>
+        db.ChangeRequests.AnyAsync(r => r.ReferenceNumber == referenceNumber);
+
     public async Task SaveAsync(RequestDocument document)
     {
         var request = new ChangeRequest

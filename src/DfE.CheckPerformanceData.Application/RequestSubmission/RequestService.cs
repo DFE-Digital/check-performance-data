@@ -7,6 +7,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 public sealed class RequestService(
     IQuestionFlowService flowService,
     IRequestBlobClient requestBlobClient,
+    IRequestRepository requestRepository,
     ICurrentUserService currentUserService) : IRequestService
 {
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
@@ -32,6 +33,7 @@ public sealed class RequestService(
 
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
+        await requestRepository.SaveAsync(document);
     }
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
@@ -55,7 +57,6 @@ public sealed class RequestService(
 
         return new RequestDocument
         {
-            Status = RequestStatus.Submitted,
             ReferenceNumber = context.ReferenceNumber,
             SubmittedAt = DateTime.UtcNow,
             SubmittedBy = new UserDetails
@@ -79,7 +80,8 @@ public sealed class RequestService(
                 Surname = pupil.Surname,
                 DateOfBirth = pupil.DateOfBirth,
                 Sex = pupil.Sex,
-                Age = pupil.Age
+                Age = pupil.Age,
+                Upn = pupil.Upn
             },
             Answers = answers
         };

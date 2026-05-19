@@ -283,7 +283,8 @@ public class JourneyControllerTests
             Sex = "F",
             DateOfBirth = "01/01/2010",
             Age = 16,
-            Cypmd_Id = "CYPMD123"
+            Cypmd_Id = "CYPMD123",
+            Upn = "123123"
         };
         return state;
     }

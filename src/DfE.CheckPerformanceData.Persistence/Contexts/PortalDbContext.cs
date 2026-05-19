@@ -19,6 +19,7 @@ public sealed class PortalDbContext(
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
     public DbSet<Pupil> Pupils => Set<Pupil>();
+    public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,6 +29,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new WikiPageConfiguration());
         modelBuilder.ApplyConfiguration(new WikiPageVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());
         modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
     }
 

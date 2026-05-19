@@ -14,6 +14,7 @@ public class RequestServiceTests
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IRequestBlobClient _blobClient = Substitute.For<IRequestBlobClient>();
+    private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly RequestService _sut;
 
@@ -23,7 +24,7 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _blobClient, _currentUser);
+        _sut = new RequestService(_flowService, _blobClient, _requestRepository, _currentUser);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -75,13 +76,30 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SetsStatusToSubmitted()
+    public async Task ConfirmRequestAsync_SavesChangeRequestToRepository()
     {
         var (journey, config) = MakeSubmission();
+        SetupConfig(config);
 
-        var doc = await CaptureDocument(journey, config);
+        await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        Assert.Equal(RequestStatus.Submitted, doc.Status);
+        await _requestRepository.Received(1).SaveAsync(Arg.Any<RequestDocument>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SavesRepositoryAfterBlob()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+        var callOrder = new List<string>();
+        _blobClient.SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>())
+            .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
+        _requestRepository.SaveAsync(Arg.Any<RequestDocument>())
+            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        Assert.Equal(["blob", "db"], callOrder);
     }
 
     [Fact]
@@ -215,7 +233,8 @@ public class RequestServiceTests
             Sex = "F",
             DateOfBirth = "01/01/2010",
             Age = 16,
-            Cypmd_Id = "CYPMD123"
+            Cypmd_Id = "CYPMD123",
+            Upn = "123123"
         };
         return state;
     }

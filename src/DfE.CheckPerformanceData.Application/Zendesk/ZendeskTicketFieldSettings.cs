@@ -9,7 +9,7 @@ namespace DfE.CheckPerformanceData.Application.ZendeskClient
     /// This allows field IDs to be configured via appsettings.json or user secrets,
     /// keeping sensitive field identifiers out of source code.
     /// </summary>
-    public class ZendeskTicketFieldSettings
+    public sealed class ZendeskTicketFieldSettings
     {
         public const string SectionName = "ZendeskTicketFields";
 

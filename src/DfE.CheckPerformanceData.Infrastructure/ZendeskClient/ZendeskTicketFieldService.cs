@@ -16,7 +16,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
     /// but the singleton scope ensures the cache is shared across all requests
     /// within that instance (vs scoped where each request gets a fresh cache).
     /// </summary>
-    public class ZendeskTicketFieldService : IZendeskTicketFieldService
+    public sealed class ZendeskTicketFieldService : IZendeskTicketFieldService
     {
         private readonly ZendeskTicketFieldSettings _settings;
         private readonly IZendeskApi _zendeskApi;

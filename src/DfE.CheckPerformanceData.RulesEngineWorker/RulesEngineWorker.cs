@@ -22,6 +22,9 @@ public sealed class RulesEngineWorker : BackgroundService
         IOptions<RulesEngineOptions> options,
         IRequestDecisionHandler handler)
     {
+        if (options?.Value == null)
+            throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngine' section in appsettings.json or via environment variables.");
+
         _options = options.Value;
         _logger = logger;
         _queueClient = queueServiceClient.GetQueueClient(_options.QueueName);
@@ -54,7 +57,7 @@ public sealed class RulesEngineWorker : BackgroundService
     {
         QueueMessage[] messages = await _queueClient.ReceiveMessagesAsync(
             _options.MaxMessagesPerPoll, 
-            visibilityTimeout: null, 
+            visibilityTimeout: _options.VisibilityTimeout, 
             stoppingToken);
 
         if (messages.Length == 0)
@@ -110,4 +113,5 @@ public sealed class RulesEngineOptions
     public int MaxMessagesPerPoll { get; set; }
     public int EmptyQueueDelayMs { get; set; }
     public long MaxDequeueCount { get; set; }
+    public TimeSpan? VisibilityTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }

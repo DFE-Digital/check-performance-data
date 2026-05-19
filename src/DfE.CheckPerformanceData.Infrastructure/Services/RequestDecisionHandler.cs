@@ -40,11 +40,9 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
     {
         switch (message.DecisionType)
         {
-           // case DecisionType.Approved:
             case DecisionType.AutoApproved:
                 await HandleApprovedAsync(message as ApprovedRequestMessage, token);
                 break;
-           // case DecisionType.Rejected:
             case DecisionType.AutoRejected:
                 await HandleRejectedAsync(message as RejectedRequestMessage, token);
                 break;
@@ -80,7 +78,6 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Type = "task"
             }
         };
-
 
         ticketRequest = mapViewFields(message, ticketRequest);
 
@@ -122,7 +119,9 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Type = "task"
             }
         };
+
         ticketRequest = mapViewFields(message, ticketRequest);
+
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
         if (message.Uploads.Any())
@@ -158,8 +157,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Description = $"Request {message.RequestId} for window {message.CheckingWindowId} requires scrutiny.\nReason: {message.Reason}",
                 Status = "open",
                 Priority = "high",
-                Type = "task",
-                // add fields required to show in the view 
+                Type = "task"
             }
         };
 
@@ -171,36 +169,6 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             response.Ticket.Id, message.RequestId);
     }
 
-
-/// <summary>
-/// 
-/// ### Create the `evidence-uploads` container
-///Azurite doesn't auto-create containers — you need to create it once. You can do this via the Azure Storage Explorer tool, or via the Azure CLI/Azurite REST API:
-
-/// # Using curl to create the container via Azurite REST API
-///curl -X PUT "http://127.0.0.1:10000/devstoreaccount1/evidence-uploads?restype=container" \
-///  -H "x-ms-version: 2023-01-03" \
-///  -H "x-ms-date: $(date -u +%a,%d%b%Y%H:%M:%SGMT)" \
-///  -H "Authorization: SharedKeyLite devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
-///Or use Azure Storage Explorer (connect to "Azure Storage Emulator (Azurite)").
-/// 
-/// ### Upload blobs to test
-
-///Upload test blobs to the `evidence-uploads` container. The blob name should match the `upload.Id` (as a string) used in your `RequestMessage.Uploads`:
-///# Example: upload a file as blob named "1" (matching upload.Id = 1)
-// curl -X PUT "http://127.0.0.1:10000/devstoreaccount1/evidence-uploads/1" \
-//   -T /path/to/testfile.pdf \
-//   -H "x-ms-blob-type: BlockBlob" \
-//   -H "x-ms-version: 2023-01-03" \
-//   -H "x-ms-date: $(date -u +%a,%d%b%Y%H:%M:%SGMT)" \
-//   -H "Authorization: SharedKeyLite devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
-
-
-/// </summary>
-/// <param name="ticketId"></param>
-/// <param name="upload"></param>
-/// <param name="token"></param>
-/// <returns></returns>
     private async Task UploadAttachmentToTicketAsync(long ticketId, UploadInfo upload, CancellationToken token)
     {
         try
@@ -209,7 +177,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
             await _zendeskAttachmentService.AddAttachmentAsync(
                 ticketId, upload.Filename, stream, $"Evidence: {upload.Filename}");
-            
+
             _logger.LogInformation(
                 "Uploaded attachment '{Filename}' to ticket {TicketId}",
                 upload.Filename, ticketId);
@@ -259,9 +227,6 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 });
             }
         }
-        
-
-
 
         // Map School URN
         var schoolUrnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SchoolUrnName);
@@ -273,7 +238,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Value = message.School.Urn
             });
         }
-        
+
         // Map CYPMD ID
         var cypmdId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName);
         if (cypmdId.HasValue)
@@ -284,7 +249,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Value = message.Pupil.CypmdId
             });
         }
-        
+
         // Map UPN
         var upnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.UpnName);
         if (upnId.HasValue)
@@ -292,10 +257,10 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = upnId.Value,
-                Value = message.Pupil.Id //  NB! this should be a long value
+                Value = message.Pupil.Id
             });
         }
-        
+
         // Map LDS Matched Pupil ID
         var ldsMatchedPupilId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
         if (ldsMatchedPupilId.HasValue)
@@ -303,10 +268,10 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = ldsMatchedPupilId.Value,
-                Value = 30280000 // message.Pupil.Id -- N.B! this is a long field. needs to be considered in the payload
+                Value = 0 // TODO: Map to actual LDS matched pupil ID when available in the payload
             });
         }
-        
+
         // Map Surname
         var surnameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SurnameCypmdName);
         if (surnameId.HasValue)
@@ -317,7 +282,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
                 Value = message.Pupil.Surname.ToUpperInvariant()
             });
         }
-        
+
         // Map Forename
         var forenameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ForenameCypmdName);
         if (forenameId.HasValue)
@@ -333,13 +298,20 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         var dobId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DateOfBirthCypmdName);
         if (dobId.HasValue)
         {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            if (DateTime.TryParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var dob))
             {
-                Id = dobId.Value,
-                Value = DateTime.ParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", null).ToString("yyyy-MM-dd") //N.B! the format passed to the message is imporant.
-            });
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = dobId.Value,
+                    Value = dob.ToString("yyyy-MM-dd")
+                });
+            }
+            else
+            {
+                _logger.LogWarning("Unable to parse DateOfBirth '{DateOfBirth}' for pupil, skipping field.", message.Pupil.DateOfBirth);
+            }
         }
-        
+
         // Map Sex using options constant
         var sexId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SexName);
         if (sexId.HasValue)

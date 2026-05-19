@@ -27,11 +27,9 @@ public static class DependencyManager
     public static IServiceCollection AddInfrastructureDependencies(this IServiceCollection services, IConfiguration config)
     {
         services.AddScoped<IRequestDecisionHandler, RequestDecisionHandler>();
-        // todo - esnure this is setup and evidence-uploads exists or choose another name.
         var conn = config.GetConnectionString("AzureStorage");
         if (!string.IsNullOrEmpty(conn))
         {
-            // todo work out blob storage details
             services.AddSingleton(new BlobServiceClient(conn).GetBlobContainerClient("evidence-uploads"));
         }
 

@@ -9,21 +9,17 @@ public abstract class RequestMessage
     public string ReferenceNumber { get; set; }
     public DateTime SubmittedAt { get; set; }
     public SubmittedBy SubmittedBy { get; set; }
-    public Guid CheckingWindowId { get; set; } 
-    public string CheckingWindowType { get; set; } 
+    public Guid CheckingWindowId { get; set; }
+    public string CheckingWindowType { get; set; }
     public string WhatToChange { get; set; }
     public School School { get; set; }
     public Pupil Pupil { get; set; }
     public List<Answer> Answers { get; set; }
 
-  
-    [JsonConverter(typeof(JsonStringEnumConverter))] // todo - consider/ discuss using newtonsoft instead of sytem.text.json
-    public DecisionType DecisionType { get; set; } = DecisionType.Scrutiny; // this is not in the json. disuss this with the team
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DecisionType DecisionType { get; set; } = DecisionType.Scrutiny;
 
-    
-    public Guid RequestId { get; set; }  // should this come from the queue message metadata instead of the message body?
-
-    public abstract Task ProcessAsync(CancellationToken token); // this is not needed if we use the request decision handler to centralize the processing of all request messages, but we can keep it here for now and implement it in the future if needed when we have more clarity on the processing logic and how it will differ between different decision types
+    public Guid RequestId { get; set; }
 }
 
 public sealed class School
@@ -37,6 +33,7 @@ public sealed class SubmittedBy
     public string UserId { get; set; }
     public string DisplayName { get; set; }
 }
+
 public sealed class Answer
 {
     public string QuestionId { get; set; }

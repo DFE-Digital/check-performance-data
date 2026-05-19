@@ -173,7 +173,7 @@ public static class DependencyManager
         services.Configure<ZendeskTicketFieldSettings>(config.GetSection(ZendeskTicketFieldSettings.SectionName));
         services.AddSingleton<ZendeskTicketFieldSettings>(
             sp => sp.GetRequiredService<IOptions<ZendeskTicketFieldSettings>>().Value);
-        services.AddScoped<IZendeskTicketFieldService, ZendeskTicketFieldService>();
+        services.AddSingleton<IZendeskTicketFieldService, ZendeskTicketFieldService>();
 
         services.AddOptions<PollySettings>()
             .Bind(config.GetSection(PollySettings.SectionName))

@@ -10,13 +10,21 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
     /// <summary>
     /// Service for resolving Zendesk ticket field IDs by name.
     /// Tries configuration first, falls back to querying the Zendesk API.
+    /// 
+    /// Registered as Singleton with thread-safe in-memory caching.
+    /// In a load-balanced environment, each instance maintains its own cache,
+    /// but the singleton scope ensures the cache is shared across all requests
+    /// within that instance (vs scoped where each request gets a fresh cache).
     /// </summary>
     public class ZendeskTicketFieldService : IZendeskTicketFieldService
     {
         private readonly ZendeskTicketFieldSettings _settings;
         private readonly IZendeskApi _zendeskApi;
         private readonly ILogger<ZendeskTicketFieldService> _logger;
-        private readonly Dictionary<string, long?> _fieldIdCache = new();
+        
+        // Thread-safe cache for field ID lookups
+        private readonly object _cacheLock = new object();
+        private readonly Dictionary<string, long?> _fieldIdCache = new Dictionary<string, long?>();
 
         public ZendeskTicketFieldService(
             ZendeskTicketFieldSettings settings,
@@ -55,17 +63,23 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 
         public async Task<long?> GetFieldIdAsync(string fieldName)
         {
-            // Check cache first
-            if (_fieldIdCache.TryGetValue(fieldName, out var cachedId) && cachedId.HasValue)
+            // Check cache first (thread-safe read)
+            lock (_cacheLock)
             {
-                return cachedId;
+                if (_fieldIdCache.TryGetValue(fieldName, out var cachedId))
+                {
+                    return cachedId;
+                }
             }
 
             // Try configuration first
             var configId = _settings.GetFieldIdByName(fieldName);
             if (configId.HasValue)
             {
-                _fieldIdCache[fieldName] = configId;
+                lock (_cacheLock)
+                {
+                    _fieldIdCache[fieldName] = configId;
+                }
                 return configId;
             }
 
@@ -78,13 +92,19 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
                 var field = response.TicketFields.FirstOrDefault(f => f.Title == fieldName);
                 if (field != null)
                 {
-                    _fieldIdCache[fieldName] = field.Id;
+                    lock (_cacheLock)
+                    {
+                        _fieldIdCache[fieldName] = field.Id;
+                    }
                     _logger.LogInformation("Found field ID {Id} for '{FieldName}' via Zendesk API.", field.Id, fieldName);
                     return field.Id;
                 }
 
                 _logger.LogWarning("Field '{FieldName}' not found in Zendesk API.", fieldName);
-                _fieldIdCache[fieldName] = null;
+                lock (_cacheLock)
+                {
+                    _fieldIdCache[fieldName] = null;
+                }
                 return null;
             }
             catch (System.Exception ex)

@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class PupilSearchController(
     ICheckYourPupilDataService service,
     IQuestionFlowService flowService,
-    IJourneyService journeyService) : Controller
+    IJourneyValidationService journeyService) : Controller
 {
     [Route("/PupilSearch/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -73,7 +73,7 @@ public sealed class PupilSearchController(
         var state = HttpContext.Session.GetRequestState(windowId);
         if (state.SelectedWhatToChange.HasValue && state.CheckingWindow is not null)
         {
-            var config = flowService.GetConfig(state.SelectedWhatToChange.Value, state.CheckingWindow.CheckingWindowType);
+            var config = await flowService.GetConfigAsync(state.SelectedWhatToChange.Value, state.CheckingWindow.CheckingWindowType);
             if (config is not null)
                 return RedirectToAction("Page", "Journey", new { windowId, pageId = config.FirstPageId });
         }

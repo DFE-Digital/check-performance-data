@@ -16,7 +16,7 @@
         && impCookie == DevImpersonationConstants.EditorValue;
     var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
     var signOutHref = hasRealDfeAuth
-        ? Url.Action("DfeSignOut", "Secret")
+        ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
 
     string? displayName = null;

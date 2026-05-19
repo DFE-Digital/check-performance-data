@@ -1,46 +1,45 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 
-namespace DfE.CheckPerformanceData.Application.Journey;
+namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
-public sealed class JourneyService(ICurrentUserService currentUserService) : IJourneyService
+public sealed class RequestService(
+    IQuestionFlowService flowService,
+    IRequestBlobClient requestBlobClient,
+    IRequestRepository requestRepository,
+    ICurrentUserService currentUserService) : IRequestService
 {
-    private const int MaxTotalPages = 6;
+    public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
+    {
+        if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
+            throw new InvalidOperationException("Session state is incomplete for request submission.");
 
-    public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle) =>
-        question.Type switch
+        if (journey.ReferenceNumber is not null && await requestRepository.ExistsAsync(journey.ReferenceNumber))
+            return;
+
+        var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        if (config is null)
+            throw new InvalidOperationException(
+                $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");
+
+        var context = new JourneySubmissionContext
         {
-            QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
-                => $"{resolvedTitle} is required",
-            QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{resolvedTitle} is required",
-            QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
-                => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
-            QuestionType.Date => null,
-            _ when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{resolvedTitle} is required",
-            _ => null
+            WindowId = windowId,
+            ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
+            WhatToChange = journey.SelectedWhatToChange.Value,
+            Pupil = journey.SelectedPupil,
+            CheckingWindow = journey.CheckingWindow,
+            Answers = journey.QuestionAnswers,
+            History = journey.QuestionHistory
         };
 
-    public string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles)
-    {
-        var currentTotal = existingFiles.Sum(f => f.PageCount);
-        if (currentTotal + newPageCount <= MaxTotalPages) return null;
-
-        return $"'{fileName}' has {newPageCount} {(newPageCount == 1 ? "page" : "pages")}. " +
-            $"Adding it would bring the total to {currentTotal + newPageCount} pages, " +
-            $"which exceeds the {MaxTotalPages}-page limit.";
+        var document = BuildRequestDocument(context, config);
+        await requestBlobClient.SaveRequestAsync(windowId, document);
+        await requestRepository.SaveAsync(document);
     }
 
-    public string GenerateReference(CheckingWindowType? windowType)
-    {
-        var type = windowType?.ToString() ?? "Unknown";
-        var uniqueId = Guid.NewGuid().ToString("N")[..7].ToUpper();
-        return $"CYPMD_{type}_{uniqueId}";
-    }
-
-    public RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
+    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
     {
         var pupil = context.Pupil;
         var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
@@ -61,7 +60,6 @@ public sealed class JourneyService(ICurrentUserService currentUserService) : IJo
 
         return new RequestDocument
         {
-            Status = RequestStatus.Submitted,
             ReferenceNumber = context.ReferenceNumber,
             SubmittedAt = DateTime.UtcNow,
             SubmittedBy = new UserDetails
@@ -85,7 +83,8 @@ public sealed class JourneyService(ICurrentUserService currentUserService) : IJo
                 Surname = pupil.Surname,
                 DateOfBirth = pupil.DateOfBirth,
                 Sex = pupil.Sex,
-                Age = pupil.Age
+                Age = pupil.Age,
+                Upn = pupil.Upn
             },
             Answers = answers
         };

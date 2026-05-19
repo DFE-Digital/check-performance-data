@@ -61,7 +61,7 @@ public sealed class LayoutRenderTests
 	public void Layout_SignOutHref_GoesToDfeSignOut_ForRealAuth()
 	{
 		var view = ReadLayout();
-		Assert.Contains("Url.Action(\"DfeSignOut\", \"Secret\")", view);
+		Assert.Contains("Url.Action(\"DfeSignOut\", \"Account\")", view);
 	}
 
 	[Fact]

@@ -81,8 +81,8 @@ public sealed class RulesEngineWorker : BackgroundService
             var parsedMessage = RequestMessageFactory.Parse(messageBody)
                 ?? throw new InvalidOperationException("Failed to parse message.");
 
-            _logger.LogInformation("Processing message: RequestId={RequestId}, DecisionType={DecisionType}",
-                parsedMessage.RequestId, parsedMessage.DecisionType);
+            _logger.LogInformation("Processing message: DecisionType={DecisionType}",
+                parsedMessage.DecisionType);
 
             await _handler.HandleAsync(parsedMessage, stoppingToken);
             await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);

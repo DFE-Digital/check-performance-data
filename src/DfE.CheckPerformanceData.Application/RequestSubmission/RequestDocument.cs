@@ -7,8 +7,6 @@ public class RequestDocument
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public DecisionType DecisionType { get; init; } = DecisionType.Rejected;
-    public Guid RequestId { get; set; }
-
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public RequestStatus Status { get; init; }

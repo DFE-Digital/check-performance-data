@@ -36,7 +36,7 @@
 
     var parens = new List<string>();
     if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasAdminImpersonation) parens.Add("impersonating CMS admin");
+    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
     else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
 

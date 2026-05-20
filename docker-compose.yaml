@@ -95,7 +95,7 @@
     profiles: [storage, all, e2e]
     container_name: cypd_azurite
     restart: unless-stopped
-    image: mcr.microsoft.com/azure-storage/azurite:latest
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
     ports:
       - "10000:10000"  # Blob
       - "10001:10001"  # Queue

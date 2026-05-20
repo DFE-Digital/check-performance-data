@@ -191,7 +191,14 @@ try
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
-        await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
+        try
+        {
+            await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
+        }
+        catch (Azure.RequestFailedException ex) when (app.Environment.IsDevelopment())
+        {
+            app.Logger.LogWarning(ex, "Question-flow seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows seeded locally.", ex.Status, ex.ErrorCode);
+        }
     }
 
     app.UseHttpsRedirection();

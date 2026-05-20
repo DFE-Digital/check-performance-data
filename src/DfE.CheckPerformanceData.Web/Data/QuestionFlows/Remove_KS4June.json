@@ -10,6 +10,7 @@
           "type": "Radio",
           "title": "Why are you asking to remove {pupilName} from the performance data?",
           "hint": "Select one option",
+          "useAsRequestType" : true,
           "options": [
             {
               "value": "permanent-exclusion",

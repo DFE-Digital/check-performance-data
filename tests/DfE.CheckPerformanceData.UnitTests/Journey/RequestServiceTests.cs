@@ -259,6 +259,30 @@ public class RequestServiceTests
         Assert.Equal("123123", captured.PupilUpn);
         Assert.Equal(100000L, captured.OrganisationUrn);
         Assert.Equal("Test User", captured.SubmittedByName);
+        Assert.Equal(RequestStatus.Draft, captured.Status);
+        // Config is null in this test so RequestType falls back to the WhatToChange prefix only
+        Assert.Equal("Remove", captured.RequestType);
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_RequestTypePrefixedWithWhatToChange()
+    {
+        var journey = ValidJourney();
+        var config = MakeConfig([new JourneyPage { Id = "reason", Questions = [
+            new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                UseAsRequestType = true,
+                Options = [new QuestionOption { Value = "perm-ex", Label = "Permanently excluded" }] }
+        ]}]);
+        journey.QuestionHistory = ["reason"];
+        journey.QuestionAnswers["reason"] = new QuestionAnswer { TextValue = "perm-ex" };
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(config);
+        _flowService.ResolveRequestType(config, Arg.Any<RequestState>()).Returns("Permanently excluded");
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        Assert.Equal("Remove - Permanently excluded", captured!.RequestType);
     }
 
     [Fact]

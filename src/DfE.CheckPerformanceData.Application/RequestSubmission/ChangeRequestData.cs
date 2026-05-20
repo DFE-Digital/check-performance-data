@@ -14,4 +14,5 @@ public sealed class ChangeRequestData
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
     public required RequestStatus Status { get; init; }
+    public required string RequestType { get; init; }
 }

@@ -26,7 +26,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 .SetProperty(r => r.PupilFirstname, data.PupilFirstname)
                 .SetProperty(r => r.PupilSurname, data.PupilSurname)
                 .SetProperty(r => r.SubmittedById, data.SubmittedById)
-                .SetProperty(r => r.SubmittedByName, data.SubmittedByName));
+                .SetProperty(r => r.SubmittedByName, data.SubmittedByName)
+                .SetProperty(r => r.RequestType, data.RequestType));
 
         if (updated == 0)
         {
@@ -42,7 +43,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 Submitted = timestamp,
                 SubmittedById = data.SubmittedById,
                 SubmittedByName = data.SubmittedByName,
-                Status = data.Status
+                Status = data.Status,
+                RequestType = data.RequestType
             });
             await db.SaveChangesAsync();
         }

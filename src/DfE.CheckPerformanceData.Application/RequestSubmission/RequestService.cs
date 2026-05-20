@@ -37,7 +37,7 @@ public sealed class RequestService(
 
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted));
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey)
@@ -47,10 +47,20 @@ public sealed class RequestService(
             throw new InvalidOperationException("Session state is incomplete for draft submission.");
 
         await draftBlobClient.SaveDraftAsync(windowId, journey.ReferenceNumber, journey);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Draft));
+        var draftConfig = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Draft, draftConfig));
     }
 
-    private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status) =>
+    private string BuildRequestType(RequestState journey, QuestionFlowConfig? config)
+    {
+        var prefix = journey.SelectedWhatToChange!.Value.ToString();
+        if (config is null) return prefix;
+
+        var detail = flowService.ResolveRequestType(config, journey);
+        return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
+    }
+
+    private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status, QuestionFlowConfig? config) =>
         new()
         {
             WindowId = windowId,
@@ -62,7 +72,8 @@ public sealed class RequestService(
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
-            Status = status
+            Status = status,
+            RequestType = BuildRequestType(journey, config)
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)

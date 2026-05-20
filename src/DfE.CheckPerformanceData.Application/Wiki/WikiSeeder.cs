@@ -50,7 +50,7 @@ public sealed class WikiSeeder(IWikiService wikiService)
     private static IReadOnlyList<SeedPage> BuildTree() =>
     [
         new("Getting started",
-            "## Getting started\n\nThis section explains how to access the Check Performance Data service and the prerequisites for headteachers and authorised users.",
+            "## Getting started\n\nThis section explains how to access the Check Performance Data service and the prerequisites for headteachers and authorised users.\n\n<div class=\"govuk-warning-text\">\n  <span class=\"govuk-warning-text__icon\" aria-hidden=\"true\">!</span>\n  <strong class=\"govuk-warning-text__text\">\n    <span class=\"govuk-visually-hidden\">Warning</span>\n    Performance data shown in this service is provisional until the checking window closes. Do not share unpublished figures outside your school.\n  </strong>\n</div>",
             [
                 new("Requesting an account",
                     "## Requesting an account\n\nHeadteachers and principals must request an account to access the checking exercise. Your details must match those held in **Get Information About Schools** (GIAS).\n\nUse the **Contact us** form if your details do not match."),

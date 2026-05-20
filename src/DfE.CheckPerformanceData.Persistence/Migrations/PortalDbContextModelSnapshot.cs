@@ -18,7 +18,7 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "10.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -103,6 +103,65 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("WikiPageVersions");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("OrganisationUrn")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PupilFirstname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PupilSurname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PupilUpn")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Submitted")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("SubmittedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SubmittedByName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("WindowId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("WindowId", "OrganisationUrn");
+
+                    b.ToTable("ChangeRequests");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
@@ -368,6 +427,15 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasConstraintName("FK_WikiPageVersion_WikiPage_WikiPageId");
 
                     b.Navigation("WikiPage");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
+                        .WithMany()
+                        .HasForeignKey("WindowId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlockVersion", b =>

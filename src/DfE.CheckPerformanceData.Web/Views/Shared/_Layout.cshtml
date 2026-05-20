@@ -16,7 +16,7 @@
         && impCookie == DevImpersonationConstants.EditorValue;
     var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
     var signOutHref = hasRealDfeAuth
-        ? Url.Action("DfeSignOut", "Secret")
+        ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
 
     string? displayName = null;
@@ -171,5 +171,6 @@
 @section BodyEnd {
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
+    <script src="~/js/confirm-modal.js" defer></script>
     @RenderSection("Scripts", required: false)
 }

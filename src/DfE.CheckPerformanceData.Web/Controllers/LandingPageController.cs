@@ -33,7 +33,7 @@ public sealed class LandingPageController(ILogger<LandingPageController> logger,
             // DfeSignOut lives on SecretController, not HomeController — Home/DfeSignOut
             // 404s. Pre-existing bug surfaced once dev impersonation made the null path
             // reachable without a real DfE sign-in.
-            return RedirectToAction("DfeSignOut", "Secret");
+            return RedirectToAction("DfeSignOut", "Account");
         }
 
         var landingPageViewModel = new LandingPageViewModel(

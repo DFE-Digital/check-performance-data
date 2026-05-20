@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Persistence.Contexts;
 
 public interface IPortalDbContext
 {
+    DbSet<ChangeRequest> ChangeRequests { get; }
     DbSet<AuditEntry> AuditEntries { get; }
     DbSet<CheckingWindow> CheckingWindows { get; }
     DbSet<ContentBlock> ContentBlocks { get; }

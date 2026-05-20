@@ -31,6 +31,7 @@ public sealed class PupilDto
     public required string DateOfBirth { get; init; }
     public required int Age { get; init; }
     public required string Cypmd_Id { get; init; }
+    public required string Upn { get; init; }
 }
 
 public record PupilSuggestionDto(Guid Id, string Label);

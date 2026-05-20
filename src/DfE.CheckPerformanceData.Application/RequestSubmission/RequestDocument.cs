@@ -42,6 +42,7 @@ public sealed class PupilDetails
     public required string DateOfBirth { get; init; }
     public required string Sex { get; init; }
     public required int Age { get; init; }
+    public required string Upn { get; init; }
 }
 
 public sealed class AnswerRecord

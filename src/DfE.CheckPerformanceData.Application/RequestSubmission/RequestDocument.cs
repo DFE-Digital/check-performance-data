@@ -1,9 +1,16 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using System.Text.Json.Serialization;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
-public sealed class RequestDocument
+public class RequestDocument
 {
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DecisionType DecisionType { get; init; } = DecisionType.Rejected;
+    public Guid RequestId { get; set; }
+
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
     public DateTime SubmittedAt { get; init; }

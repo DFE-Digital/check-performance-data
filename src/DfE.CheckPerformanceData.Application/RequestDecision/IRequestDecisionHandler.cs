@@ -1,8 +1,9 @@
-using DfE.CheckPerformanceData.Domain.QueueMessages;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+
 
 namespace DfE.CheckPerformanceData.Application.RequestDecision;
 
 public interface IRequestDecisionHandler
 {
-    Task HandleAsync(RequestMessage message, CancellationToken token);
+    Task HandleAsync(RequestDocument message, CancellationToken token);
 }

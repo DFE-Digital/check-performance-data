@@ -1,8 +1,8 @@
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -36,7 +36,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         _logger = logger;
     }
 
-    public async Task HandleAsync(RequestMessage message, CancellationToken token)
+    public async Task HandleAsync(RequestDocument message, CancellationToken token)
     {
         switch (message.DecisionType)
         {
@@ -79,18 +79,23 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         ticketRequest = MapViewFields(message, ticketRequest);
 
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
-
-        if (message.Uploads.Any())
-        {
-            foreach (var upload in message.Uploads)
-            {
-                await UploadAttachmentToTicketAsync(response.Ticket.Id, upload, token);
-            }
-        }
+        await UploadFilesAsync(message, response, token);
 
         _logger.LogInformation(
             "Created Zendesk ticket {TicketId} for approved request {RequestId}",
             response.Ticket.Id, message.RequestId);
+    }
+
+    private async Task UploadFilesAsync(RequestDocument message, CreateTicketResponseDto response, CancellationToken token)
+    {
+        var files = message.Answers.SelectMany(x => x.Files ?? Enumerable.Empty<FileRecord>()).ToList();
+        if (files.Any())
+        {
+            foreach (var upload in files)
+            {
+                await UploadAttachmentToTicketAsync(response.Ticket.Id, upload, token);
+            }
+        }
     }
 
     private async Task HandleRejectedAsync(RejectedRequestMessage? message, CancellationToken token)
@@ -118,13 +123,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
 
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
-        if (message.Uploads.Any())
-        {
-            foreach (var upload in message.Uploads)
-            {
-                await UploadAttachmentToTicketAsync(response.Ticket.Id, upload, token);
-            }
-        }
+        await UploadFilesAsync(message, response, token);
 
         _logger.LogInformation(
             "Created Zendesk ticket {TicketId} for rejected request {RequestId}",
@@ -160,28 +159,28 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             response.Ticket.Id, message.RequestId);
     }
 
-    private async Task UploadAttachmentToTicketAsync(long ticketId, UploadInfo upload, CancellationToken token)
+    private async Task UploadAttachmentToTicketAsync(long ticketId, FileRecord upload, CancellationToken token)
     {
         try
         {
-            var blobClient = _blobContainerClient.GetBlobClient(upload.Id.ToString());
+            var blobClient = _blobContainerClient.GetBlobClient(upload.StoredFileName.ToString());
             using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
             await _zendeskAttachmentService.AddAttachmentAsync(
-                ticketId, upload.Filename, stream, $"Evidence: {upload.Filename}");
+                ticketId, upload.OriginalFileName, stream, $"Evidence: {upload.OriginalFileName}");
 
             _logger.LogInformation(
-                "Uploaded attachment '{Filename}' to ticket {TicketId}",
-                upload.Filename, ticketId);
+                "Uploaded attachment '{OriginalFileName}' to ticket {TicketId}",
+                upload.OriginalFileName, ticketId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Failed to upload attachment '{Filename}' (Id={Id}) to ticket {TicketId}",
-                upload.Filename, upload.Id, ticketId);
+                "Failed to upload attachment '{OriginalFileName}' (StoredFileName={StoredFileName}) to ticket {TicketId}",
+                upload.OriginalFileName, upload.StoredFileName, ticketId);
         }
     }
 
-    private CreateTicketRequestDto MapViewFields(RequestMessage message, CreateTicketRequestDto dto)
+    private CreateTicketRequestDto MapViewFields(RequestDocument message, CreateTicketRequestDto dto)
     {
         dto.Ticket.Subject = "School Checking Exercise";
         dto.Ticket.BrandId = _checkingExerciseSettings.BrandId;

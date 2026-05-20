@@ -46,7 +46,7 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
             await menu.Locator("a", new() { HasTextString = "As CMS Editor" }).ClickAsync();
             await Page.StabiliseAsync();
 
-            await Expect(signInLi).ToContainTextAsync("Sign out (impersonating CMS admin)");
+            await Expect(signInLi).ToContainTextAsync("Sign out (impersonating CMS editor)");
             // Caret + dropdown disappear once a sign-out is showing.
             await Expect(toggle).ToHaveCountAsync(0);
 

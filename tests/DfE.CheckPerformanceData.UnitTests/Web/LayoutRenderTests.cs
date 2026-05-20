@@ -92,9 +92,13 @@ public sealed class LayoutRenderTests
 	public void Layout_SignOutLabel_IncludesImpersonatingSuffix()
 	{
 		var view = ReadLayout();
-		Assert.Contains("impersonating CMS admin", view);
+		// Editor cookie → "impersonating CMS editor"; admin cookie → "impersonating CMS administrator".
+		// The suffixes are role-specific so a viewer can tell at a glance which synthetic
+		// principal is in play.
+		Assert.Contains("impersonating CMS editor", view);
+		Assert.Contains("impersonating CMS administrator", view);
 		// The label assembles parts with ", " — pins the join separator so the combined
-		// "Sign out (Lance Keay, impersonating CMS admin)" output stays consistent.
+		// "Sign out (Lance Keay, impersonating CMS editor)" output stays consistent.
 		Assert.Contains("\", \"", view);
 	}
 

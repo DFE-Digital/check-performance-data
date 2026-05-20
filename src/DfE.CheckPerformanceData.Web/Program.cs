@@ -73,7 +73,8 @@ try
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
         .AddPersistenceDependencies(configuration, seedData)
-        .AddApplicationDependencies();
+        .AddApplicationDependencies()
+        .AddAdminNavEntries();
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered

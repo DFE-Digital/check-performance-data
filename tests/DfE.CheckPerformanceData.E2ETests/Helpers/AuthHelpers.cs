@@ -24,6 +24,11 @@ public static class AuthHelpers
         return cookie;
     }
 
+    public static Task<string?> ImpersonateAsAdminAsync(PlaywrightFixture fixture)
+    {
+        throw new NotImplementedException("Admin impersonation endpoint not wired yet.");
+    }
+
     // Hits the dev-only clear endpoint that deletes the impersonation cookie entirely,
     // restoring true-anonymous state. Distinct from ImpersonateAsUnprivilegedUserAsync
     // (which keeps a synthetic "user" principal). Powers the UI sign-out from the

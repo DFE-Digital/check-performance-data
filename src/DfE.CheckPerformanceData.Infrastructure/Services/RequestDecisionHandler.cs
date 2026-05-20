@@ -250,7 +250,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = upnId.Value,
-                Value = message.Pupil.Id
+                Value = message.Pupil.Upn
             });
         }
 

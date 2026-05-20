@@ -538,6 +538,154 @@
   padding-top: 15px;
 }
 
+/* ==========================================================================
+   GOV.UK confirm modal — destructive-action dialog (govuk-modal-dialogue)
+
+   Structure (rendered by GovukConfirmModalTagHelper, see /docs/govuk-confirm-modal.md):
+
+       dialog.govuk-modal-dialogue__box     — native <dialog>, opened via .showModal()
+         .govuk-modal-dialogue__header      — black band + right-aligned X close
+         .govuk-modal-dialogue__content     — heading + form + warning + buttons
+
+   Dimming is provided by the dialog's ::backdrop pseudo, not a sibling element:
+   .showModal() makes everything outside the dialog inert, so a sibling backdrop
+   would be unclickable. Backdrop click-to-dismiss is handled in confirm-modal.js
+   via `e.target === dialog` (children intercept their own clicks).
+
+   Colour and spacing match the GDS modal-dialogue pattern (Modal.md): black 3px
+   border, black header band, focus-yellow outline, 80% black backdrop.
+   ========================================================================== */
+
+/* No `display` rule — the UA defaults a <dialog> to display:none until [open]
+   is set (by .showModal() / .show()), then display:block. Forcing display:block
+   unconditionally renders the in-DOM modal markup on page load. */
+dialog.govuk-modal-dialogue__box {
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 102;
+  width: 90%;
+  max-width: calc(100vw - 30px);
+  max-height: calc(100vh - 60px);
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 3px solid #0b0c0c;
+  background: #ffffff;
+  color: #0b0c0c;
+}
+
+dialog.govuk-modal-dialogue__box:focus {
+  outline: 3px solid #fd0;
+}
+
+dialog.govuk-modal-dialogue__box::backdrop {
+  background-color: rgba(11, 12, 12, 0.8);
+}
+
+@media (min-width: 641px) {
+  dialog.govuk-modal-dialogue__box {
+    width: 66.66%;
+  }
+}
+
+@media (min-width: 769px) {
+  dialog.govuk-modal-dialogue__box {
+    width: 640px;
+  }
+}
+
+.govuk-modal-dialogue__header {
+  margin-bottom: 0;
+  padding: 5px 10px 3px;
+  color: #ffffff;
+  background-color: #0b0c0c;
+  text-align: right;
+}
+
+.govuk-modal-dialogue__close {
+  display: inline-block;
+  width: auto;
+  min-width: 44px;
+  margin: 0;
+  padding: 2px 8px;
+  color: #ffffff;
+  background-color: #0b0c0c;
+  box-shadow: none !important;
+  border: 0;
+  font-size: 1.6875rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.govuk-modal-dialogue__close:hover {
+  color: #0b0c0c;
+  background-color: #fd0;
+}
+
+.govuk-modal-dialogue__close:focus {
+  outline: 3px solid #fd0;
+  outline-offset: 0;
+  color: #0b0c0c;
+  background-color: #fd0;
+}
+
+.govuk-modal-dialogue__content {
+  padding: 30px;
+  padding-top: 30px;
+  font-size: 1rem;
+}
+
+.govuk-modal-dialogue__heading {
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+.govuk-modal-dialogue__description {
+  margin-bottom: 20px;
+}
+
+.govuk-modal-dialogue__description:last-child,
+.govuk-modal-dialogue__description > :last-child,
+.govuk-modal-dialogue__content > :last-child {
+  margin-bottom: 0;
+}
+
+/* The Cancel link is autofocused on .showModal() so a reflex Enter dismisses
+   safely (destructive-confirm-first convention). The default GDS :focus state
+   paints a yellow background, which is jarring on open before the user has
+   interacted. We strip it for programmatic focus and restore the standard
+   GDS focus indicator via :focus-visible — keyboard Tab to Cancel still gets
+   the yellow ring; opening the modal does not. */
+.govuk-modal-dialogue__content [data-confirm-cancel]:focus {
+  outline: 0;
+  background-color: transparent;
+  color: #1d70b8;
+  box-shadow: none;
+  text-decoration: underline;
+}
+
+.govuk-modal-dialogue__content [data-confirm-cancel]:focus-visible {
+  outline: 3px solid transparent;
+  background-color: #fd0;
+  color: #0b0c0c;
+  box-shadow: 0 -2px #fd0, 0 4px #0b0c0c;
+  text-decoration: none;
+}
+
+/* Animation guard — explicit none so future @layer additions cannot accidentally
+   destabilise snapshot tests. */
+dialog.govuk-modal-dialogue__box,
+dialog.govuk-modal-dialogue__box::backdrop {
+  animation: none !important;
+  transition: none !important;
+}
+
 /* Push the Sign in / Sign out cluster to the far right of the service nav row.
    Selector specificity matches govuk-frontend's own .govuk-service-navigation__item
    rule so margin-left:auto isn't overridden. */

@@ -1,0 +1,107 @@
+@using System.Security.Claims
+@using DfE.CheckPerformanceData.Web.Authentication
+@using DfE.CheckPerformanceData.Web.Controllers
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@*
+    Minimal admin layout — visual treatment evolved separately.
+    Provides a working layout target for Views/Admin/_ViewStart.cshtml so the admin
+    landing renders end-to-end. Functionally equivalent to _Layout.cshtml so analytics,
+    cookie banner and the impersonation-aware sign-in cluster all carry across.
+*@
+@{
+    Layout = "_GovUkPageTemplate";
+
+    var hasRealDfeAuth = User.Identity?.IsAuthenticated == true
+        && User.Identities.Any(i => i.IsAuthenticated
+            && i.AuthenticationType != DevImpersonationConstants.Scheme);
+    var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
+        && impCookie == DevImpersonationConstants.EditorValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
+    var signOutHref = hasRealDfeAuth
+        ? Url.Action("DfeSignOut", "Account")
+        : "/dev/impersonate/clear";
+
+    string? displayName = null;
+    if (hasRealDfeAuth)
+    {
+        var given = User.FindFirst(ClaimTypes.GivenName)?.Value;
+        var surname = User.FindFirst(ClaimTypes.Surname)?.Value;
+        displayName = string.Join(" ", new[] { given, surname }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = User.Identity?.Name;
+    }
+
+    var parens = new List<string>();
+    if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
+    if (hasEditorImpersonation) parens.Add("impersonating CMS admin");
+    var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+}
+<head>
+    @await Html.PartialAsync("_GtmHead")
+    @Html.GovUkFrontendStyleImports()
+    <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+    <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />
+    <link rel="stylesheet" href="~/css/moj-frontend-9.0.0.min.css" />
+</head>
+@section BodyStart {
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await Html.PartialAsync("_CookieBanner")
+    @await Html.PartialAsync("_GtmBody")
+}
+
+@section Header {
+    <govuk-header home-page-url="https://gov.uk/"/>
+    <section class="govuk-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
+        <div class="govuk-width-container">
+            <div class="govuk-service-navigation__container">
+                <span class="govuk-service-navigation__service-name">
+                    <a href="/admin" class="govuk-service-navigation__link">Check Performance Data</a>
+                </span>
+                <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
+                    <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                        <li class="govuk-service-navigation__item sign-in-nav-item">
+                            @if (showSignOut)
+                            {
+                                <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
+                            }
+                            else
+                            {
+                                <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                            }
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </section>
+}
+
+@Html.GovUkFrontendJsEnabledScript()
+@RenderBody()
+@Html.GovUkFrontendScriptImports()
+
+@section Footer {
+    <footer class="govuk-footer">
+        <div class="govuk-width-container">
+            <hr class="govuk-footer__section-break">
+            <div class="govuk-footer__meta">
+                <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+                    <span class="govuk-footer__licence-description">All content is available under the <a
+                            class="govuk-footer__link"
+                            href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+                            rel="license">Open Government Licence v3.0</a>, except where otherwise stated</span>
+                </div>
+                <div class="govuk-footer__meta-item">
+                    <a class="govuk-footer__link govuk-footer__copyright-logo"
+                       href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/">© Crown copyright</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+}
+
+@section BodyEnd {
+    <script src="~/js/site.js"></script>
+    <script src="~/js/cookies.js"></script>
+    @RenderSection("Scripts", required: false)
+}

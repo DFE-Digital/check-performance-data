@@ -1,0 +1,28 @@
+@model IReadOnlyList<DfE.CheckPerformanceData.Web.Admin.Nav.IAdminNavEntry>
+@{
+    ViewData["Title"] = "Administration";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-xl">Administration</h1>
+        <ul class="govuk-list">
+            @foreach (var entry in Model)
+            {
+                <li>
+                    @if (entry.Enabled)
+                    {
+                        <a class="govuk-link" href="@entry.Url">@entry.Title</a>
+                        <p class="govuk-hint">@entry.Description</p>
+                    }
+                    else
+                    {
+                        <span class="govuk-tag govuk-tag--grey">Coming soon</span>
+                        <span>@entry.Title</span>
+                        <p class="govuk-hint">@entry.Description</p>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+</div>

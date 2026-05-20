@@ -14,7 +14,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
     private readonly IZendeskService _zendeskService;
     private readonly IZendeskAttachmentService _zendeskAttachmentService;
     private readonly IZendeskTicketFieldService _ticketFieldService;
-    private readonly BlobContainerClient _blobContainerClient;
+    private readonly BlobServiceClient _blobServiceClient;
     private readonly SchoolCheckingExerciseSettings _checkingExerciseSettings;
     private readonly ILogger<RequestDecisionHandler> _logger;
 
@@ -22,14 +22,14 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         IZendeskService zendeskService,
         IZendeskAttachmentService zendeskAttachmentService,
         IZendeskTicketFieldService ticketFieldService,
-        BlobContainerClient blobContainerClient,
+        BlobServiceClient blobServiceClient,
         IOptions<SchoolCheckingExerciseSettings> schoolCheckingExerciseSettings,
         ILogger<RequestDecisionHandler> logger)
     {
         _zendeskService = zendeskService;
         _zendeskAttachmentService = zendeskAttachmentService;
         _ticketFieldService = ticketFieldService;
-        _blobContainerClient = blobContainerClient;
+        _blobServiceClient = blobServiceClient;
         if (schoolCheckingExerciseSettings?.Value == null)
             throw new ArgumentException("The School Checking Exercise Settings are required.");
         _checkingExerciseSettings = schoolCheckingExerciseSettings.Value;
@@ -93,7 +93,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         {
             foreach (var upload in files)
             {
-                await UploadAttachmentToTicketAsync(response.Ticket.Id, upload, token);
+                await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, upload, token);
             }
         }
     }
@@ -159,11 +159,14 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             response.Ticket.Id);
     }
 
-    private async Task UploadAttachmentToTicketAsync(long ticketId, FileRecord upload, CancellationToken token)
+    private const string EvidenceFolder = "evidence-uploads";
+
+    private async Task UploadAttachmentToTicketAsync(long ticketId, Guid checkingWindowId, FileRecord upload, CancellationToken token)
     {
         try
         {
-            var blobClient = _blobContainerClient.GetBlobClient(upload.StoredFileName.ToString());
+            var container = _blobServiceClient.GetBlobContainerClient(checkingWindowId.ToString());
+            var blobClient = container.GetBlobClient($"{EvidenceFolder}/{upload.StoredFileName}");
             using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
             await _zendeskAttachmentService.AddAttachmentAsync(
                 ticketId, upload.OriginalFileName, stream, $"Evidence: {upload.OriginalFileName}");

@@ -30,7 +30,7 @@ public static class DependencyManager
         var conn = config.GetConnectionString("AzureStorage");
         if (!string.IsNullOrEmpty(conn))
         {
-            services.AddSingleton(new BlobServiceClient(conn).GetBlobContainerClient("evidence-uploads"));
+            services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
 
         return services;

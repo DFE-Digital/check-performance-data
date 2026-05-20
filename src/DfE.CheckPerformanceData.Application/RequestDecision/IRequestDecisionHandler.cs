@@ -1,6 +1,6 @@
 using DfE.CheckPerformanceData.Domain.QueueMessages;
 
-namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
+namespace DfE.CheckPerformanceData.Application.RequestDecision;
 
 public interface IRequestDecisionHandler
 {

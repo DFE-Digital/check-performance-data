@@ -1,8 +1,7 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 
-namespace DfE.CheckPerformanceData.Application.QueueMessages;
+namespace DfE.CheckPerformanceData.Domain.QueueMessages;
 
 public static class RequestMessageFactory
 {

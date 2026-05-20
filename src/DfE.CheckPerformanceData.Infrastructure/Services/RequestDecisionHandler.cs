@@ -1,5 +1,5 @@
 using Azure.Storage.Blobs;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Domain.QueueMessages;
@@ -71,15 +71,12 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         {
             Ticket = new CreateTicketDto
             {
-                Subject = $"CPMD Request Approved: {message.RequestId}",
                 Description = $"Request {message.RequestId} for window {message.CheckingWindowId} has been approved.\nReason: {message.Reason}",
-                Status = "open",
                 Priority = "normal",
-                Type = "task"
             }
         };
 
-        ticketRequest = mapViewFields(message, ticketRequest);
+        ticketRequest = MapViewFields(message, ticketRequest);
 
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
@@ -112,15 +109,12 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         {
             Ticket = new CreateTicketDto
             {
-                Subject = $"CPMD Request Rejected: {message.RequestId}",
                 Description = $"Request {message.RequestId} for window {message.CheckingWindowId} has been rejected.\nReason: {message.Reason}",
-                Status = "open",
                 Priority = "normal",
-                Type = "task"
             }
         };
 
-        ticketRequest = mapViewFields(message, ticketRequest);
+        ticketRequest = MapViewFields(message, ticketRequest);
 
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
@@ -152,16 +146,13 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         var ticketRequest = new CreateTicketRequestDto
         {
             Ticket = new CreateTicketDto
-            {
-                Subject = $"CPMD Request Requires Scrutiny: {message.RequestId}",
+            {                
                 Description = $"Request {message.RequestId} for window {message.CheckingWindowId} requires scrutiny.\nReason: {message.Reason}",
-                Status = "open",
                 Priority = "high",
-                Type = "task"
             }
         };
 
-        ticketRequest = mapViewFields(message, ticketRequest);
+        ticketRequest = MapViewFields(message, ticketRequest);
         var response = await _zendeskService.CreateTicketAsync(ticketRequest);
 
         _logger.LogInformation(
@@ -190,7 +181,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         }
     }
 
-    private CreateTicketRequestDto mapViewFields(RequestMessage message, CreateTicketRequestDto dto)
+    private CreateTicketRequestDto MapViewFields(RequestMessage message, CreateTicketRequestDto dto)
     {
         dto.Ticket.Subject = "School Checking Exercise";
         dto.Ticket.BrandId = _checkingExerciseSettings.BrandId;

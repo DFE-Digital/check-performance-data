@@ -15,7 +15,8 @@ public static class DevImpersonationTicketBuilder
     public static AuthenticationTicket? TryBuild(string cookieValue)
     {
         if (cookieValue != DevImpersonationConstants.EditorValue
-            && cookieValue != DevImpersonationConstants.UserValue)
+            && cookieValue != DevImpersonationConstants.UserValue
+            && cookieValue != DevImpersonationConstants.AdminValue)
         {
             return null;
         }
@@ -29,6 +30,14 @@ public static class DevImpersonationTicketBuilder
         if (cookieValue == DevImpersonationConstants.EditorValue)
         {
             claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
+        }
+
+        // Admin role is orthogonal to the editor role — the admin cookie stamps only
+        // cypmd_admin and never the editor role. A user who needs both gets both
+        // assignments at the DSI level.
+        if (cookieValue == DevImpersonationConstants.AdminValue)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
         }
 
         var identity = new ClaimsIdentity(claims, DevImpersonationConstants.Scheme);

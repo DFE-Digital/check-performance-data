@@ -27,7 +27,8 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
         }
 
         if (value != DevImpersonationConstants.EditorValue
-            && value != DevImpersonationConstants.UserValue)
+            && value != DevImpersonationConstants.UserValue
+            && value != DevImpersonationConstants.AdminValue)
         {
             return Task.FromResult(principal);
         }
@@ -35,10 +36,11 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
         var clone = principal.Clone();
 
         // Check across ALL identities — DfE Sign-In's ClaimsEnrichmentService adds
-        // roles on a separate "DfeSignIn" identity via AddIdentity, so the editor role
-        // is rarely on the first (OIDC) identity. Use principal.IsInRole which iterates
-        // every identity rather than scanning one in isolation.
+        // roles on a separate "DfeSignIn" identity via AddIdentity, so role claims
+        // rarely live on the first (OIDC) identity. Use principal.IsInRole which
+        // iterates every identity rather than scanning one in isolation.
         var hasEditorRole = clone.IsInRole(WikiConstants.EditorRole);
+        var hasAdminRole = clone.IsInRole(WikiConstants.AdminRole);
 
         if (value == DevImpersonationConstants.EditorValue && !hasEditorRole)
         {
@@ -63,6 +65,18 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
                     id.RemoveClaim(claim);
                 }
             }
+        }
+        else if (value == DevImpersonationConstants.AdminValue && !hasAdminRole)
+        {
+            // Admin overlay is additive only — it stamps cypmd_admin and never touches
+            // the editor role. Mirrors the editor branch's identity-creation pattern.
+            var target = clone.Identities.FirstOrDefault();
+            if (target is null)
+            {
+                target = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
+                clone.AddIdentity(target);
+            }
+            target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
         }
 
         return Task.FromResult(clone);

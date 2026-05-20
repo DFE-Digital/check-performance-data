@@ -113,7 +113,15 @@ public sealed class LayoutRenderTests
 	{
 		var view = ReadLayout();
 		Assert.Contains("/dev/impersonate/editor", view);
-		Assert.Contains("As CMS admin", view);
+		Assert.Contains("As CMS Editor", view);
+	}
+
+	[Fact]
+	public void Layout_SignInDropdown_TargetsImpersonateAdminEndpoint()
+	{
+		var view = ReadLayout();
+		Assert.Contains("/dev/impersonate/admin", view);
+		Assert.Contains("As CMS Admin", view);
 	}
 
 	[Fact]
@@ -125,8 +133,8 @@ public sealed class LayoutRenderTests
 		Assert.Contains("sign-in-dropdown-menu", view);
 		Assert.Contains("aria-expanded=\"false\"", view);
 		Assert.Contains("aria-controls=\"sign-in-dropdown-menu\"", view);
-		// Tooltip text moved from the old pink pill onto the As CMS admin menu item.
-		Assert.Contains("Take on the CMS admin role for this session.", view);
+		// Tooltip text on the As CMS Admin menu item.
+		Assert.Contains("Take on the admin role for this session.", view);
 	}
 
 	[Fact]

@@ -39,6 +39,15 @@ public sealed class DevImpersonationController(IHostEnvironment env) : Controlle
         return RedirectToReferrer();
     }
 
+    [HttpGet("dev/impersonate/admin")]
+    [HttpPost("dev/impersonate/admin")]
+    public IActionResult Admin()
+    {
+        if (!IsAllowed) return NotFound();
+        SetCookie(DevImpersonationConstants.AdminValue);
+        return RedirectToReferrer();
+    }
+
     // Fully clears the dev-impersonation cookie so there's no synthetic principal at
     // all on the next request. Distinct from /user (which keeps the synthetic
     // principal but drops the editor role) because the UI sign-out should make the

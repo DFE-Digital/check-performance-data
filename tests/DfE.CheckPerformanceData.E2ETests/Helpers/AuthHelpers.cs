@@ -24,9 +24,11 @@ public static class AuthHelpers
         return cookie;
     }
 
-    public static Task<string?> ImpersonateAsAdminAsync(PlaywrightFixture fixture)
+    public static async Task<string?> ImpersonateAsAdminAsync(PlaywrightFixture fixture)
     {
-        throw new NotImplementedException("Admin impersonation endpoint not wired yet.");
+        var cookie = await CallEndpointAsync(fixture, "/dev/impersonate/admin");
+        TestHttpClients.ImpersonationCookieHeader = cookie;
+        return cookie;
     }
 
     // Hits the dev-only clear endpoint that deletes the impersonation cookie entirely,

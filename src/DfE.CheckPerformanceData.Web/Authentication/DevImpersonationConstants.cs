@@ -9,4 +9,5 @@ public static class DevImpersonationConstants
     public const string CookieName = "cypd-dev-impersonation";
     public const string EditorValue = "editor";
     public const string UserValue = "user";
+    public const string AdminValue = "admin";
 }

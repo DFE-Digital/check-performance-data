@@ -36,17 +36,34 @@ public sealed class DevImpersonationAdminTests
 		};
 	}
 
-	// --- TicketBuilder_Admin_Cookie_Maps_To_Principal_With_AdminRole_Only ---
+	// --- TicketBuilder_Admin_Cookie_Stamps_AdminAndEditorRoles ---
 
 	[Fact]
-	public void TicketBuilder_Admin_Cookie_Maps_To_Principal_With_AdminRole_Only()
+	public void TicketBuilder_Admin_Cookie_Stamps_AdminAndEditorRoles()
 	{
+		// Admin implies editor (one-way hierarchy) — the admin cookie stamps both role
+		// claims so every existing [Authorize(Roles = EditorRole)] endpoint accepts an
+		// admin principal without per-endpoint composition. Editor cookie still does NOT
+		// grant admin (asserted by the absence of a corresponding test in this class).
 		var ticket = DevImpersonationTicketBuilder.TryBuild(DevImpersonationConstants.AdminValue);
 
 		Assert.NotNull(ticket);
 		Assert.True(ticket!.Principal.Identity?.IsAuthenticated);
 		Assert.True(ticket.Principal.IsInRole(WikiConstants.AdminRole));
-		Assert.False(ticket.Principal.IsInRole(WikiConstants.EditorRole));
+		Assert.True(ticket.Principal.IsInRole(WikiConstants.EditorRole));
+	}
+
+	// --- TicketBuilder_Editor_Cookie_Does_Not_Grant_Admin ---
+
+	[Fact]
+	public void TicketBuilder_Editor_Cookie_Does_Not_Grant_Admin()
+	{
+		// Hierarchy is one-way — editor never implies admin.
+		var ticket = DevImpersonationTicketBuilder.TryBuild(DevImpersonationConstants.EditorValue);
+
+		Assert.NotNull(ticket);
+		Assert.True(ticket!.Principal.IsInRole(WikiConstants.EditorRole));
+		Assert.False(ticket.Principal.IsInRole(WikiConstants.AdminRole));
 	}
 
 	// --- TicketBuilder_Unknown_Cookie_Value_Returns_Null ---
@@ -61,11 +78,14 @@ public sealed class DevImpersonationAdminTests
 		Assert.Null(ticket);
 	}
 
-	// --- ClaimsTransformer_Admin_Cookie_Stamps_AdminRole_Without_EditorRole ---
+	// --- ClaimsTransformer_Admin_Cookie_Stamps_BothAdminAndEditorRoles ---
 
 	[Fact]
-	public async Task ClaimsTransformer_Admin_Cookie_Stamps_AdminRole_Without_EditorRole()
+	public async Task ClaimsTransformer_Admin_Cookie_Stamps_BothAdminAndEditorRoles()
 	{
+		// Admin implies editor (one-way hierarchy). The transformer overlays both role
+		// claims so editor-gated endpoints accept admin principals without per-endpoint
+		// policy composition.
 		SetCookie(DevImpersonationConstants.AdminValue);
 		var principal = new ClaimsPrincipal(new ClaimsIdentity(
 			[new Claim(ClaimTypes.NameIdentifier, "user-1")],
@@ -74,7 +94,7 @@ public sealed class DevImpersonationAdminTests
 		var result = await CreateTransformerSut().TransformAsync(principal);
 
 		Assert.True(result.IsInRole(WikiConstants.AdminRole));
-		Assert.False(result.IsInRole(WikiConstants.EditorRole));
+		Assert.True(result.IsInRole(WikiConstants.EditorRole));
 	}
 
 	// --- ClaimsTransformer_Admin_Cookie_Does_Not_Clobber_Existing_EditorRole ---

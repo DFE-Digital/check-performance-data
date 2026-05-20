@@ -66,17 +66,29 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
                 }
             }
         }
-        else if (value == DevImpersonationConstants.AdminValue && !hasAdminRole)
+        else if (value == DevImpersonationConstants.AdminValue)
         {
-            // Admin overlay is additive only — it stamps cypmd_admin and never touches
-            // the editor role. Mirrors the editor branch's identity-creation pattern.
-            var target = clone.Identities.FirstOrDefault();
-            if (target is null)
+            // Admin implies editor (one-way hierarchy). The admin overlay stamps BOTH
+            // cypmd_admin AND cypmd_content_access_user so every editor-gated endpoint
+            // automatically accepts an admin principal without per-endpoint policy
+            // composition. The reverse is not true — an editor cookie never grants admin.
+            ClaimsIdentity? target = null;
+            if (!hasAdminRole)
             {
-                target = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
-                clone.AddIdentity(target);
+                target = clone.Identities.FirstOrDefault();
+                if (target is null)
+                {
+                    target = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
+                    clone.AddIdentity(target);
+                }
+                target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
             }
-            target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
+            if (!hasEditorRole)
+            {
+                target ??= clone.Identities.FirstOrDefault()
+                    ?? throw new InvalidOperationException("Expected at least one identity to overlay editor role onto.");
+                target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
+            }
         }
 
         return Task.FromResult(clone);

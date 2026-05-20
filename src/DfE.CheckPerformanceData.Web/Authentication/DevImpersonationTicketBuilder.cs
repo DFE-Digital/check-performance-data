@@ -32,12 +32,14 @@ public static class DevImpersonationTicketBuilder
             claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
         }
 
-        // Admin role is orthogonal to the editor role — the admin cookie stamps only
-        // cypmd_admin and never the editor role. A user who needs both gets both
-        // assignments at the DSI level.
+        // Admin implies editor (one-way hierarchy). Stamping both role claims here
+        // means every existing [Authorize(Roles = WikiConstants.EditorRole)] endpoint
+        // automatically accepts an admin principal without any per-endpoint change.
+        // The reverse is NOT true — an editor cookie never grants admin access.
         if (cookieValue == DevImpersonationConstants.AdminValue)
         {
             claims.Add(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
+            claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
         }
 
         var identity = new ClaimsIdentity(claims, DevImpersonationConstants.Scheme);

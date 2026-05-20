@@ -14,10 +14,13 @@
             && i.AuthenticationType != DevImpersonationConstants.Scheme);
     var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
         && impCookie == DevImpersonationConstants.EditorValue;
-    var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
+    var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
+        && adminCookie == DevImpersonationConstants.AdminValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
     var signOutHref = hasRealDfeAuth
         ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
+    var showAdminLink = User.IsInRole(WikiConstants.AdminRole);
 
     string? displayName = null;
     if (hasRealDfeAuth)
@@ -31,7 +34,8 @@
 
     var parens = new List<string>();
     if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasEditorImpersonation) parens.Add("impersonating CMS admin");
+    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
+    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
 
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
@@ -82,6 +86,12 @@
                              - Real DfE auth + impersonation:  "Sign out (impersonating CMS admin)"  -> DfeSignOut
                              - Synthetic editor impersonation: "Sign out (impersonating CMS admin)"  -> /dev/impersonate/clear (deletes cookie, true anonymous)
                              - Anonymous (or non-editor synthetic): "Sign in" + caret dropdown for "As CMS admin" (non-prod only) *@
+                        @if (showAdminLink)
+                        {
+                            <li class="govuk-service-navigation__item admin-link-nav-item">
+                                <a class="govuk-service-navigation__link" href="/admin">Admin</a>
+                            </li>
+                        }
                         <li class="govuk-service-navigation__item sign-in-nav-item">
                             @if (showSignOut)
                             {

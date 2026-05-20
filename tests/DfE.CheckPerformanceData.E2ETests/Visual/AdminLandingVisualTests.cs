@@ -21,11 +21,23 @@ public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : Seeding
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 
-        await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
 
-        await Page.GotoAsync($"{Fixture.BaseUrl}/admin");
-        await Page.StabiliseAsync();
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin");
+            await Page.StabiliseAsync();
 
-        await Page.MatchSnapshotAsync("admin-landing-page.png");
+            await Page.MatchSnapshotAsync("admin-landing-page.png");
+        }
+        finally
+        {
+            // Restore the fixture-level editor cookie so subsequent tests in the
+            // collection that rely on the editor impersonation (e.g. WikiCrudTests'
+            // antiforgery scrape of /help?edit) still see an editor principal.
+            // Admin and editor roles are orthogonal — leaving the admin cookie set
+            // would render /help?edit as a read-only page with no antiforgery form.
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
     }
 }

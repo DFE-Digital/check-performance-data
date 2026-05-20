@@ -234,3 +234,8 @@ test-e2e-fast: ## Run E2E suite natively on host SDK, skipping visual regression
 .PHONY: clean-test-bin
 clean-test-bin: ## Remove cross-OS bin/obj pollution from the E2ETests project (run between native and container test runs)
 	rm -rf tests/DfE.CheckPerformanceData.E2ETests/bin tests/DfE.CheckPerformanceData.E2ETests/obj
+
+.PHONY: clean-e2e-seeds
+clean-e2e-seeds: ## Purge any orphan e2e-{guid}-prefixed seed pages/content blocks from the local dev DB
+	docker compose exec -T db psql -U postgres -d cypd -c "UPDATE \"WikiPages\" SET \"IsDeleted\" = true WHERE \"Slug\" LIKE 'e2e-%' AND NOT \"IsDeleted\";"
+	docker compose exec -T db psql -U postgres -d cypd -c "DELETE FROM \"ContentBlockVersions\" WHERE \"ContentBlockId\" IN (SELECT \"Id\" FROM \"ContentBlocks\" WHERE \"Key\" LIKE 'e2e-%'); DELETE FROM \"ContentBlocks\" WHERE \"Key\" LIKE 'e2e-%';"

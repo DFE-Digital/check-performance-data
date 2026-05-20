@@ -90,6 +90,87 @@ public static class SeedHelpers
         return (id, seededSlug);
     }
 
+    // Edits an existing wiki page (POST /help/edit/{id}) which appends a new row to
+    // WikiPageVersions. Returns the page slug after the edit (slug may change if Title
+    // changes, but for revert-modal tests we keep the original prefixed title).
+    public static async Task<string> EditWikiPageAsync(
+        HttpClient client,
+        int id,
+        string title,
+        string body)
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+
+        var formFields = new[]
+        {
+            new KeyValuePair<string, string>("Title", title),
+            new KeyValuePair<string, string>("Content", body),
+            new KeyValuePair<string, string>("editMode", "true"),
+            new KeyValuePair<string, string>("__RequestVerificationToken", token)
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/help/edit/{id}")
+        {
+            Content = new FormUrlEncodedContent(formFields)
+        };
+        request.Headers.Add("Cookie", cookie);
+        request.Headers.Add("X-XSRF-TOKEN", token);
+
+        var response = await SendWithoutFollowingRedirects(client, request);
+
+        if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
+        {
+            response.EnsureSuccessStatusCode();
+            throw new InvalidOperationException(
+                $"Editing wiki page {id} returned {(int)response.StatusCode} {response.StatusCode}; expected 302.");
+        }
+
+        var location = response.Headers.Location?.ToString() ?? string.Empty;
+        var slugPath = location;
+        var queryIndex = slugPath.IndexOf('?');
+        if (queryIndex >= 0) slugPath = slugPath[..queryIndex];
+        const string prefix = "/help/";
+        return slugPath.StartsWith(prefix, StringComparison.Ordinal)
+            ? slugPath[prefix.Length..]
+            : slugPath;
+    }
+
+    // Saves a new value over an existing content block key (POST /content-block/save),
+    // which appends a row to ContentBlockVersions.
+    public static async Task EditContentBlockAsync(
+        HttpClient client,
+        string key,
+        string newValue)
+    {
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+
+        var formFields = new[]
+        {
+            new KeyValuePair<string, string>("Key", key),
+            new KeyValuePair<string, string>("BlockType", "Content"),
+            new KeyValuePair<string, string>("Value", newValue),
+            new KeyValuePair<string, string>("OriginalValue", string.Empty),
+            new KeyValuePair<string, string>("ReturnUrl", "/"),
+            new KeyValuePair<string, string>("__RequestVerificationToken", token)
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/content-block/save")
+        {
+            Content = new FormUrlEncodedContent(formFields)
+        };
+        request.Headers.Add("Cookie", cookie);
+        request.Headers.Add("X-XSRF-TOKEN", token);
+
+        var response = await SendWithoutFollowingRedirects(client, request);
+
+        if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.Redirect)
+        {
+            response.EnsureSuccessStatusCode();
+            throw new InvalidOperationException(
+                $"Editing content block '{key}' returned {(int)response.StatusCode} {response.StatusCode}; expected 302.");
+        }
+    }
+
     public static async Task<string> SeedContentBlockAsync(
         HttpClient client,
         string keyPrefix,
@@ -126,6 +207,48 @@ public static class SeedHelpers
         }
 
         return key;
+    }
+
+    // Sweeps any wiki page still visible in the tree whose slug starts with "e2e-"
+    // and soft-deletes it. The e2e- prefix is the seed "tag" (every test seed sets it
+    // via SeedWikiPageReturningSlugAsync) so this catches orphans left behind when a
+    // test crashed before SeedingPageTest.DisposeAsync ran its tracked cleanup. Best-
+    // effort: per-page failures are swallowed so the sweep doesn't mask test outcomes.
+    public static async Task SweepOrphanE2eWikiPagesAsync(HttpClient client)
+    {
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.GetAsync("/help");
+        }
+        catch
+        {
+            return; // app is unreachable; nothing we can do at teardown
+        }
+
+        if (!response.IsSuccessStatusCode) return;
+
+        var html = await response.Content.ReadAsStringAsync();
+        var ids = new HashSet<int>();
+
+        foreach (Match match in SlugToIdPattern.Matches(html))
+        {
+            var slug = match.Groups["slug"].Value;
+            if (!slug.StartsWith("e2e-", StringComparison.Ordinal)) continue;
+            if (int.TryParse(match.Groups["id"].Value, out var id)) ids.Add(id);
+        }
+
+        foreach (var id in ids)
+        {
+            try
+            {
+                await SoftDeleteWikiPageAsync(client, id);
+            }
+            catch
+            {
+                // best-effort
+            }
+        }
     }
 
     public static async Task SoftDeleteWikiPageAsync(HttpClient client, int id)

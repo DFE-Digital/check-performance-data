@@ -768,3 +768,73 @@ dialog.govuk-modal-dialogue__box::backdrop {
   color: #0b0c0c;
   text-decoration: underline;
 }
+
+/* ==========================================================================
+   Admin chrome — black-banded GDS header for the /admin area
+   ========================================================================== */
+
+/* GDS Black token = #0b0c0c. The same token is already used for the modal
+   header band above; keep this in lock-step so the admin chrome looks like
+   the rest of the destructive / authoritative GDS surfaces. */
+.admin-chrome .govuk-header {
+  background-color: #0b0c0c;
+  border-bottom: 0;
+}
+
+.admin-chrome .govuk-header__container {
+  border-bottom-color: #ffdd00;
+}
+
+.admin-chrome .govuk-service-navigation.admin-service-navigation {
+  background-color: #1d1d1d;
+  border-bottom: 1px solid #0b0c0c;
+}
+
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link:hover,
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link:focus {
+  color: #0b0c0c;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link {
+  color: #ffffff;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:hover,
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:focus {
+  color: #0b0c0c;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item__toggle {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Admin landing — Coming soon list
+   ========================================================================== */
+
+.admin-nav-list__item {
+  padding: 15px 0;
+  border-bottom: 1px solid #b1b4b6;
+}
+
+.admin-nav-list__item:last-child {
+  border-bottom: 0;
+}
+
+.admin-nav-list__tag {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.admin-nav-list__title--muted {
+  color: #505a5f;
+}
+
+.admin-nav-list__description--muted {
+  color: #505a5f;
+}

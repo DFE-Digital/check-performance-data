@@ -3,10 +3,11 @@
 @using DfE.CheckPerformanceData.Web.Controllers
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @*
-    Minimal admin layout — visual treatment evolved separately.
-    Provides a working layout target for Views/Admin/_ViewStart.cshtml so the admin
-    landing renders end-to-end. Functionally equivalent to _Layout.cshtml so analytics,
-    cookie banner and the impersonation-aware sign-in cluster all carry across.
+    Admin chrome — black-banded header and "Administration" wordmark
+    to make the admin context unambiguous. The public Beta phase banner
+    is intentionally omitted on admin pages; service-nav links to /help
+    and /pupils are also dropped because they belong to the public flow.
+    Shared partials (cookie banner, GTM, footer, skip-link) are preserved.
 *@
 @{
     Layout = "_GovUkPageTemplate";
@@ -16,7 +17,9 @@
             && i.AuthenticationType != DevImpersonationConstants.Scheme);
     var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
         && impCookie == DevImpersonationConstants.EditorValue;
-    var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
+    var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
+        && adminCookie == DevImpersonationConstants.AdminValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
     var signOutHref = hasRealDfeAuth
         ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
@@ -33,8 +36,11 @@
 
     var parens = new List<string>();
     if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasEditorImpersonation) parens.Add("impersonating CMS admin");
+    if (hasAdminImpersonation) parens.Add("impersonating CMS admin");
+    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+
+    var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -50,30 +56,42 @@
 }
 
 @section Header {
-    <govuk-header home-page-url="https://gov.uk/"/>
-    <section class="govuk-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
-        <div class="govuk-width-container">
-            <div class="govuk-service-navigation__container">
-                <span class="govuk-service-navigation__service-name">
-                    <a href="/admin" class="govuk-service-navigation__link">Check Performance Data</a>
-                </span>
-                <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
-                    <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
-                        <li class="govuk-service-navigation__item sign-in-nav-item">
-                            @if (showSignOut)
-                            {
-                                <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
-                            }
-                            else
-                            {
-                                <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
-                            }
-                        </li>
-                    </ul>
-                </nav>
+    <div class="admin-chrome">
+        <govuk-header home-page-url="https://gov.uk/"/>
+        <section class="govuk-service-navigation admin-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
+            <div class="govuk-width-container">
+                <div class="govuk-service-navigation__container">
+                    <span class="govuk-service-navigation__service-name">
+                        <a href="/admin" class="govuk-service-navigation__link">Check Performance Data: Administration</a>
+                    </span>
+                    <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
+                        <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                            <li class="govuk-service-navigation__item sign-in-nav-item">
+                                @if (showSignOut)
+                                {
+                                    <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
+                                }
+                                else
+                                {
+                                    <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                                    @if (showImpersonateDropdown)
+                                    {
+                                        <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
+                                            <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
+                                        </button>
+                                        <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
+                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session.">As CMS Editor</a></li>
+                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session.">As CMS Admin</a></li>
+                                        </ul>
+                                    }
+                                }
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
             </div>
-        </div>
-    </section>
+        </section>
+    </div>
 }
 
 @Html.GovUkFrontendJsEnabledScript()

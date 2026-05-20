@@ -6,20 +6,28 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
         <h1 class="govuk-heading-xl">Administration</h1>
-        <ul class="govuk-list">
+        <p class="govuk-body-l">
+            Administrative tools for managing the Check Performance Data service.
+        </p>
+
+        <ul class="govuk-list admin-nav-list">
             @foreach (var entry in Model)
             {
-                <li>
+                <li class="admin-nav-list__item">
                     @if (entry.Enabled)
                     {
-                        <a class="govuk-link" href="@entry.Url">@entry.Title</a>
-                        <p class="govuk-hint">@entry.Description</p>
+                        <h2 class="govuk-heading-m">
+                            <a class="govuk-link" href="@entry.Url">@entry.Title</a>
+                        </h2>
+                        <p class="govuk-body">@entry.Description</p>
                     }
                     else
                     {
-                        <span class="govuk-tag govuk-tag--grey">Coming soon</span>
-                        <span>@entry.Title</span>
-                        <p class="govuk-hint">@entry.Description</p>
+                        <h2 class="govuk-heading-m admin-nav-list__title--muted">
+                            @entry.Title
+                            <strong class="govuk-tag govuk-tag--grey admin-nav-list__tag">Coming soon</strong>
+                        </h2>
+                        <p class="govuk-body admin-nav-list__description--muted">@entry.Description</p>
                     }
                 </li>
             }

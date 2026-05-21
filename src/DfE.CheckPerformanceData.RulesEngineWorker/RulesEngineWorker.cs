@@ -1,7 +1,11 @@
-using System.Text;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
+using DfE.CheckPerformanceData.Application.QueueMessages;
+using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Options;
+using System.Text;
+using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker;
 
@@ -10,12 +14,21 @@ public sealed class RulesEngineWorker : BackgroundService
     private readonly ILogger<RulesEngineWorker> _logger;
     private readonly QueueClient _queueClient;
     private readonly RulesEngineOptions _options;
+    private readonly IRequestDecisionHandler _handler;
 
-    public RulesEngineWorker(ILogger<RulesEngineWorker> logger, QueueServiceClient queueServiceClient, IOptions<RulesEngineOptions> options)
+    public RulesEngineWorker(
+        ILogger<RulesEngineWorker> logger,
+        QueueServiceClient queueServiceClient,
+        IOptions<RulesEngineOptions> options,
+        IRequestDecisionHandler handler)
     {
+        if (options?.Value == null)
+            throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngine' section in appsettings.json or via environment variables.");
+
         _options = options.Value;
         _logger = logger;
         _queueClient = queueServiceClient.GetQueueClient(_options.QueueName);
+        _handler = handler;
     }
     
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,7 +55,10 @@ public sealed class RulesEngineWorker : BackgroundService
 
     private async Task PollQueueAsync(CancellationToken stoppingToken)
     {
-        QueueMessage[] messages = await _queueClient.ReceiveMessagesAsync(_options.MaxMessagesPerPoll, visibilityTimeout: null, stoppingToken);
+        QueueMessage[] messages = await _queueClient.ReceiveMessagesAsync(
+            _options.MaxMessagesPerPoll, 
+            visibilityTimeout: _options.VisibilityTimeout, 
+            stoppingToken);
 
         if (messages.Length == 0)
         {
@@ -60,9 +76,16 @@ public sealed class RulesEngineWorker : BackgroundService
     {
         try
         {
-            _logger.LogInformation("Processing message: {MessageContents}", Encoding.UTF8.GetString(message.Body));
+            var messageBody = Encoding.UTF8.GetString(message.Body);
+
+            var parsedMessage = RequestMessageFactory.Parse(messageBody)
+                ?? throw new InvalidOperationException("Failed to parse message.");
+
+            _logger.LogInformation("Processing message: DecisionType={DecisionType}",
+                parsedMessage.DecisionType);
+
+            await _handler.HandleAsync(parsedMessage, stoppingToken);
             await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
-            
         }
         catch (Exception ex)
         {
@@ -86,8 +109,9 @@ public sealed class RulesEngineWorker : BackgroundService
 public sealed class RulesEngineOptions
 {
     public int RetryDelayMs { get; set; }
-    public string QueueName { get; set; }
+    public string QueueName { get; set; } = string.Empty;
     public int MaxMessagesPerPoll { get; set; }
     public int EmptyQueueDelayMs { get; set; }
     public long MaxDequeueCount { get; set; }
+    public TimeSpan? VisibilityTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }

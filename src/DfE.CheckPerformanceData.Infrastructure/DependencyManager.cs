@@ -1,7 +1,14 @@
-﻿using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http.Headers;
+using System.Security.Claims;
+using System.Text;
+using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -12,15 +19,23 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Refit;
-using System.IdentityModel.Tokens.Jwt;
-using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
 public static class DependencyManager
 {
+    public static IServiceCollection AddInfrastructureDependencies(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddScoped<IRequestDecisionHandler, RequestDecisionHandler>();
+        var conn = config.GetConnectionString("AzureStorage");
+        if (!string.IsNullOrEmpty(conn))
+        {
+            services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
+        }
+
+        return services;
+    }
+
     public static IServiceCollection AddDfeSignInAuthentication(this IServiceCollection services, IConfiguration config)
     {
         var settings = config.GetSection(DfeSigninSettings.SectionName).Get<DfeSigninSettings>()
@@ -48,7 +63,8 @@ public static class DependencyManager
                 //     ctx.Response.Redirect("/user-with-no-role");
                 //     return Task.CompletedTask;
                 // };
-            }).AddOpenIdConnect(options =>
+            })
+            .AddOpenIdConnect(options =>
             {
                 options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 options.MetadataAddress = settings.MetadataAddress;
@@ -68,10 +84,10 @@ public static class DependencyManager
                 options.Scope.Add("profile");
                 options.Scope.Add("organisationid");
 
-                options.Events.OnTokenResponseReceived = ctx 
+                options.Events.OnTokenResponseReceived = ctx
                     => Task.CompletedTask;
 
-                options.Events.OnUserInformationReceived = ctx 
+                options.Events.OnUserInformationReceived = ctx
                     => Task.CompletedTask;
 
                 options.Events.OnTokenValidated = async ctx =>
@@ -125,7 +141,6 @@ public static class DependencyManager
 
     public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
     {
-        // optional logging setup.
         services.AddTransient<RefitLoggingHandler>();
 
         var settings = config.GetSection(ZendeskSettings.SectionName).Get<ZendeskSettings>();
@@ -136,14 +151,10 @@ public static class DependencyManager
         }
         services.Configure<ZendeskSettings>(s => s = settings);
 
-        
-
-
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
             ContentSerializer = new NewtonsoftJsonContentSerializer()
         })
-
            .ConfigureHttpClient(c =>
            {
                c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
@@ -155,6 +166,12 @@ public static class DependencyManager
 
         services.AddScoped<IZendeskService, ZendeskService>();
         services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();
+
+        // Register ZendeskTicketFieldSettings and IZendeskTicketFieldService
+        services.Configure<ZendeskTicketFieldSettings>(config.GetSection(ZendeskTicketFieldSettings.SectionName));
+        services.AddSingleton<ZendeskTicketFieldSettings>(
+            sp => sp.GetRequiredService<IOptions<ZendeskTicketFieldSettings>>().Value);
+        services.AddSingleton<IZendeskTicketFieldService, ZendeskTicketFieldService>();
 
         services.AddOptions<PollySettings>()
             .Bind(config.GetSection(PollySettings.SectionName))

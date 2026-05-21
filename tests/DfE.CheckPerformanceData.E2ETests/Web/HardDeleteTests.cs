@@ -21,7 +21,16 @@ public sealed class HardDeleteTests(PlaywrightFixture fixture)
 
     private async Task<bool> PageRowVisibleOnDeletedListAsync(int id)
     {
-        var response = await _fixture.SeedClient.GetAsync("/help/deleted");
+        // /help/deleted is editor-gated; SeedClient has no auto-cookie handling, so
+        // attach the impersonation cookie explicitly. Without this the GET 302s
+        // back to DSI sign-in (which then 400s on the test client).
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/help/deleted");
+        var impersonation = TestHttpClients.ImpersonationCookieHeader;
+        if (!string.IsNullOrEmpty(impersonation))
+        {
+            request.Headers.Add("Cookie", impersonation);
+        }
+        var response = await TestHttpClients.SendAsync(request);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync();
         return DeletedRowIdPattern.Matches(body).Any(m => m.Groups["id"].Value == id.ToString());
@@ -158,16 +167,48 @@ public sealed class HardDeleteTests(PlaywrightFixture fixture)
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             Assert.Contains("/help/deleted", response.Headers.Location?.ToString() ?? string.Empty);
 
+            // Capture the TempData session cookie set by the POST response so the
+            // follow-up GET can read TempData["HardDeleteError"] (TempData is bound
+            // to the session cookie, and TestHttpClients.SendAsync does not auto-
+            // propagate cookies between requests).
+            var tempDataCookies = new List<string>();
+            if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
+            {
+                foreach (var sc in setCookies)
+                {
+                    var nameValue = sc.Split(';', 2)[0].Trim();
+                    if (!string.IsNullOrEmpty(nameValue))
+                    {
+                        tempDataCookies.Add(nameValue);
+                    }
+                }
+            }
+
             // Follow the redirect and confirm the error banner surfaced via TempData.
+            // /help/deleted is editor-gated — attach the impersonation cookie alongside
+            // the antiforgery cookie + the TempData session cookies so the follow GET
+            // authenticates AND can read the TempData payload.
             using var followRequest = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/help/deleted");
-            followRequest.Headers.Add("Cookie", cookie);
+            var impersonation = TestHttpClients.ImpersonationCookieHeader;
+            var cookieParts = new List<string>();
+            if (!string.IsNullOrEmpty(impersonation)) cookieParts.Add(impersonation);
+            cookieParts.Add(cookie);
+            cookieParts.AddRange(tempDataCookies);
+            followRequest.Headers.Add("Cookie", string.Join("; ", cookieParts));
             var followResponse = await TestHttpClients.SendAsync(followRequest);
             var followBody = await followResponse.Content.ReadAsStringAsync();
             Assert.Contains("govuk-error-summary", followBody);
             Assert.Contains("Could not delete the page", followBody);
 
-            // The LIVE page row must still be present in the tree.
-            var treeResponse = await _fixture.SeedClient.GetAsync("/help");
+            // The LIVE page row must still be present in the tree. /help is editor-
+            // gated for the data-page-id attribute (which only renders in edit mode);
+            // attach the impersonation cookie and hit /help?edit explicitly.
+            using var treeRequest = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/help?edit");
+            if (!string.IsNullOrEmpty(impersonation))
+            {
+                treeRequest.Headers.Add("Cookie", impersonation);
+            }
+            var treeResponse = await TestHttpClients.SendAsync(treeRequest);
             treeResponse.EnsureSuccessStatusCode();
             var treeBody = await treeResponse.Content.ReadAsStringAsync();
             Assert.Contains($"data-page-id=\"{id}\"", treeBody);

@@ -266,6 +266,24 @@ public sealed partial class WikiService(
 		await repository.SoftDeleteRecursiveAsync(id);
 	}
 
+	public async Task HardDeletePageAsync(int id)
+	{
+		_ = await repository.GetByIdIncludingDeletedAsync(id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		// Confused-deputy guard: refuse to hard-delete a page that is still live.
+		// Runs OUTSIDE the transaction so the transaction is never opened for a refused call.
+		var isDeleted = await repository.GetIsDeletedAsync(id);
+		if (!isDeleted)
+			throw new InvalidOperationException(
+				$"Wiki page {id} is not soft-deleted; hard-delete refused.");
+
+		await repository.ExecuteInTransactionAsync(async () =>
+		{
+			await repository.HardDeleteAsync(id);
+		});
+	}
+
 	public async Task MovePageAsync(int id, int? newParentId, int newSortOrder)
 	{
 		var page = await repository.GetByIdAsync(id)

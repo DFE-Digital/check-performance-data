@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Wiki;
@@ -14,7 +15,7 @@ public sealed class HelpControllerSearchTests
 
     public HelpControllerSearchTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), NullLogger<HelpController>.Instance);
     }
 
     // --- Search action — validation ---

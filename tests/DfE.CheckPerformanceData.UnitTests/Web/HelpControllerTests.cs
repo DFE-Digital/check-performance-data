@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -23,7 +24,7 @@ public sealed class HelpControllerTests
 		//     ControllerContext (standard ASP.NET Core unit-test pattern).
 		_wikiService.GetNavigationTreeAsync().Returns(new List<WikiPageTreeNodeDto>());
 		var seeder = new WikiSeeder(_wikiService);
-		var sut = new HelpController(_wikiService, seeder)
+		var sut = new HelpController(_wikiService, seeder, NullLogger<HelpController>.Instance)
 		{
 			ControllerContext = new ControllerContext
 			{

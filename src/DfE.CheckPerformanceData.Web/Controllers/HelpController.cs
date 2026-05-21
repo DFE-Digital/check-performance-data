@@ -2,10 +2,14 @@ using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
+public sealed class HelpController(
+    IWikiService wikiService,
+    WikiSeeder wikiSeeder,
+    ILogger<HelpController> logger) : Controller
 {
     private bool IsEditMode =>
         (Request.Query.ContainsKey(WikiConstants.EditQueryKey)
@@ -186,6 +190,24 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     {
         var page = await wikiService.RestorePageAsync(id, newParentId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+    }
+
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpPost("help/delete-permanently/{id:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePermanently(int id)
+    {
+        try
+        {
+            await wikiService.HardDeletePageAsync(id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Hard-delete refused for page {PageId}", id);
+            TempData["HardDeleteError"] = ex.Message;
+        }
+
+        return Redirect("/help/deleted");
     }
 
     [Authorize(Roles = WikiConstants.EditorRole)]

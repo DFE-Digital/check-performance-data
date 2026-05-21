@@ -13,7 +13,7 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    [Migration("20260518121634_AddChangeRequest")]
+    [Migration("20260520102855_AddChangeRequest")]
     partial class AddChangeRequest
     {
         /// <inheritdoc />

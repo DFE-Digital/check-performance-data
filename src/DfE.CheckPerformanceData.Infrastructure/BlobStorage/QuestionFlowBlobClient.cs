@@ -33,6 +33,8 @@ public sealed class QuestionFlowBlobClient(BlobServiceClient blobServiceClient) 
     public async Task UploadConfigAsync(WhatToChange whatToChange, CheckingWindowType checkingWindowType, string json)
     {
         var container = blobServiceClient.GetBlobContainerClient(ContainerName);
+        await container.CreateIfNotExistsAsync();
+
         var blob = container.GetBlobClient($"{whatToChange}_{checkingWindowType}.json");
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true);

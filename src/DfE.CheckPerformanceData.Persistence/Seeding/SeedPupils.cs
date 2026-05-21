@@ -6,14 +6,17 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public static class SeedPupils
 {
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid[] checkingWindowIds)
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, string urn, string laestab, bool addIncluded, bool addNonIncluded, Guid[] checkingWindowIds)
     {
-        await dbContext.Pupils.ExecuteDeleteAsync();
-
         foreach (var checkingWindowId in checkingWindowIds)
         {
-            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, checkingWindowId));
-            await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: false, firstnameOffset: 10, surnameOffset: 5, checkingWindowId));
+            if (addIncluded)
+                await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0,
+                    surnameOffset: 0, checkingWindowId, laestab, urn));
+            
+            if (addNonIncluded)
+                await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: false,
+                    firstnameOffset: 10, surnameOffset: 5, checkingWindowId, laestab, urn));
         }
 
         await dbContext.SaveChangesAsync();
@@ -53,7 +56,8 @@ public static class SeedPupils
     private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
-    private static IEnumerable<Pupil> GeneratePupils(int count, bool includedPincl, int firstnameOffset, int surnameOffset, Guid checkingWindowId) =>
+    private static IEnumerable<Pupil> GeneratePupils(int count, bool includedPincl, int firstnameOffset, int surnameOffset, 
+        Guid checkingWindowId, string laestab, string urn) =>
         Enumerable.Range(0, count).Select(i =>
         {
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
@@ -66,7 +70,7 @@ public static class SeedPupils
             {
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
-                Laestab = "8604070",
+                Laestab = laestab,
                 Firstname = Firstnames[(i + firstnameOffset) % Firstnames.Length],
                 Surname = Surnames[(i + surnameOffset) % Surnames.Length],
                 Sex = Sexes[i % 2],
@@ -79,7 +83,7 @@ public static class SeedPupils
                 Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
                 EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc),
-                Urn = "142313",
+                Urn = urn,
                 Cypmd_Id = $"{(i + firstnameOffset + 1):D6}",
                 MatchRef = 10000 + i + firstnameOffset,
                 Upn = $"A8604070{(i + firstnameOffset + 1):D4}B"

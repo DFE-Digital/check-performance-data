@@ -2,6 +2,6 @@
 {
     public sealed class CreateTicketResponseDto
     {
-        public TicketDto? Ticket { get; set; }
+        public TicketDto Ticket { get; set; } = new();
     }
 }

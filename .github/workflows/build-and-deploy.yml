@@ -131,6 +131,8 @@ jobs:
       pull-requests: write
 
     steps:
+    - uses: actions/checkout@v4
+
     - name: Deploy App to Review
       id: deploy_review
       uses: DFE-Digital/github-actions/deploy-to-aks@master
@@ -147,6 +149,17 @@ jobs:
         # smoke-test: true
 #        gcp-wip: ${{ vars.GCP_WIP }}
 #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
+
+    - name: Upload question flow configs to blob storage
+      run: |
+        ACCOUNT=$(terraform -chdir=${{ env.TERRAFORM_BASE }} output -raw storage_account_name)
+        az storage blob upload-batch \
+          --account-name "$ACCOUNT" \
+          --destination question-flows \
+          --source src/DfE.CheckPerformanceData.Web/Data/QuestionFlows \
+          --pattern "*.json" \
+          --auth-mode login \
+          --overwrite
 
   deploy:
     name: Deploy environments
@@ -167,6 +180,8 @@ jobs:
         environment: [development, qa, preproduction, production]
 
     steps:
+    - uses: actions/checkout@v4
+
     - name: Deploy app to ${{ matrix.environment }}
       id: deploy_app
       uses: DFE-Digital/github-actions/deploy-to-aks@master
@@ -184,6 +199,17 @@ jobs:
 #        gcp-wip: ${{ vars.GCP_WIP }}
 #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 
+    - name: Upload question flow configs to blob storage
+      run: |
+        ACCOUNT=$(terraform -chdir=${{ env.TERRAFORM_BASE }} output -raw storage_account_name)
+        az storage blob upload-batch \
+          --account-name "$ACCOUNT" \
+          --destination question-flows \
+          --source src/DfE.CheckPerformanceData.Web/Data/QuestionFlows \
+          --pattern "*.json" \
+          --auth-mode login \
+          --overwrite
+
   manual_deploy:
     name: Manual deploy
     if: ${{ github.event_name == 'workflow_dispatch' }}
@@ -196,6 +222,8 @@ jobs:
       pull-requests: write
 
     steps:
+    - uses: actions/checkout@v4
+
     - name: Deploy app to ${{ inputs.environment }}
       id: deploy_manual
       uses: DFE-Digital/github-actions/deploy-to-aks@master
@@ -210,6 +238,17 @@ jobs:
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
         service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+
+    - name: Upload question flow configs to blob storage
+      run: |
+        ACCOUNT=$(terraform -chdir=${{ env.TERRAFORM_BASE }} output -raw storage_account_name)
+        az storage blob upload-batch \
+          --account-name "$ACCOUNT" \
+          --destination question-flows \
+          --source src/DfE.CheckPerformanceData.Web/Data/QuestionFlows \
+          --pattern "*.json" \
+          --auth-mode login \
+          --overwrite
 #        smoke-test: true
 #         db-seed: ${{ inputs.environment == 'review' && 'true' || 'false' }}
 # #        gcp-wip: ${{ vars.GCP_WIP }}

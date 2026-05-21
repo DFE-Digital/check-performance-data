@@ -1,7 +1,10 @@
 @using System.Security.Claims
+@using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@inject IEnumerable<IAdminNavEntry> AdminNavEntries
 @*
     Admin chrome — black-banded header and "Administration" wordmark
     to make the admin context unambiguous. The public Beta phase banner
@@ -41,6 +44,23 @@
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
 
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
+
+    var navAll = AdminNavEntries.ToList();
+    var adminNavGroups = navAll
+        .Where(e => e.ParentKey is null)
+        .OrderBy(e => e.Order)
+        .Select(g => new AdminNavGroupViewModel
+        {
+            Key = g.Key,
+            Title = g.Title,
+            Description = g.Description,
+            Children = navAll
+                .Where(e => e.ParentKey == g.Key)
+                .OrderBy(e => e.Order)
+                .ToList()
+        })
+        .ToList();
+    var adminNavTreeModel = new AdminLandingViewModel { Groups = adminNavGroups };
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -95,7 +115,16 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
-@RenderBody()
+<div class="govuk-width-container">
+    <div class="admin-layout">
+        <aside class="admin-rail" aria-label="Administration sidebar">
+            @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
+        </aside>
+        <main class="admin-main" id="main-content">
+            @RenderBody()
+        </main>
+    </div>
+</div>
 @Html.GovUkFrontendScriptImports()
 
 @section Footer {

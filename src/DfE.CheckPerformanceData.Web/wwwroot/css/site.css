@@ -872,3 +872,60 @@ dialog.govuk-modal-dialogue__box::backdrop {
 .admin-nav-list__description--muted {
   color: #505a5f;
 }
+
+/* ==========================================================================
+   Admin two-column layout
+   ========================================================================== */
+
+.admin-layout {
+  display: flex;
+  gap: 24px;
+  min-height: 400px;
+  padding-top: 20px;
+}
+
+.admin-rail {
+  flex: 0 0 280px;
+  max-width: 280px;
+  box-sizing: border-box;
+}
+
+.admin-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .admin-layout { flex-direction: column; gap: 16px; }
+  .admin-rail { flex: 0 0 auto; max-width: none; }
+}
+
+.admin-nav-tree {
+  font-family: "GDS Transport", arial, sans-serif;
+}
+
+.admin-nav-group + .admin-nav-group {
+  border-top: 1px solid #b1b4b6;
+  padding-top: 20px;
+}
+
+.admin-tile-form { margin: 0; padding: 0; display: inline; }
+.admin-tile-form__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: #1d70b8;
+  text-decoration: underline;
+  text-underline-offset: 0.1em;
+  text-decoration-thickness: 1px;
+}
+.admin-tile-form__link:hover { text-decoration-thickness: 3px; }
+.admin-tile-form__link:focus-visible {
+  outline: 3px solid #ffdd00;
+  background: #ffdd00;
+  color: #0b0c0c;
+  text-decoration: none;
+  box-shadow: 0 2px 0 #0b0c0c;
+}

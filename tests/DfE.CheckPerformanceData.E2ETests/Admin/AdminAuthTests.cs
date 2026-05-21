@@ -104,9 +104,16 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             var body = await response.Content.ReadAsStringAsync();
             Assert.Contains("Version retention", body);
-            Assert.Contains("Visual Regression Dashboard", body);
-            Assert.Contains("Content Staging Import", body);
+            Assert.Contains("Visual regression dashboard", body);
+            Assert.Contains("Content staging import/export", body);
             Assert.Contains("Coming soon", body);
+
+            // New shape after the grouped admin landing rebuild.
+            Assert.Contains("CMS administration", body);
+            Assert.Contains("System administration", body);
+            Assert.Contains("Deleted pages", body);
+            Assert.Contains("Seed sample pages", body);
+            Assert.Contains("Rules engine", body);
         }
         finally
         {

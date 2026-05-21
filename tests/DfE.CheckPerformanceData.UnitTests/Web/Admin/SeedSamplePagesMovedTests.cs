@@ -10,30 +10,15 @@ public sealed class SeedSamplePagesMovedTests
 {
     private static string ReadHelpIndexCshtml()
     {
-        // Walk from AppContext.BaseDirectory up to the repo root (marked by the
-        // solution file) and locate the view file relative to that root.
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null
-            && !File.Exists(Path.Combine(current.FullName, "DfE.CheckPerformanceData.sln")))
-        {
-            current = current.Parent;
-        }
-
-        if (current is null)
-        {
-            throw new InvalidOperationException(
-                "Could not locate DfE.CheckPerformanceData.sln to resolve repo root.");
-        }
-
-        var path = Path.Combine(
-            current.FullName,
-            "src",
-            "DfE.CheckPerformanceData.Web",
-            "Views",
-            "Help",
-            "Index.cshtml");
-
-        return File.ReadAllText(path);
+        // Source-file-assertion pattern. AppContext.BaseDirectory points at
+        // tests/<project>/bin/Release/net10.0/; climb five segments to reach the
+        // repo root, then walk into src/.../Views/Help. Mirrors the helper in
+        // AdminLandingViewTests / AdminNavTreeRenderTests.
+        var viewsDir = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..", "..",
+            "src", "DfE.CheckPerformanceData.Web", "Views", "Help"));
+        return File.ReadAllText(Path.Combine(viewsDir, "Index.cshtml"));
     }
 
     // --- HelpIndex_DoesNotContain_WikiModeSeedForm_Class ---

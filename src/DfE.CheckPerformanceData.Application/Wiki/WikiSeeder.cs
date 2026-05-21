@@ -1,7 +1,14 @@
 namespace DfE.CheckPerformanceData.Application.Wiki;
 
-public sealed class WikiSeeder(IWikiService wikiService)
+public sealed class WikiSeeder(IWikiService wikiService, IWikiRepository repository)
 {
+    // The first slug created by BuildTree(). Used as the canonical idempotency
+    // sentinel — if a root page with this slug already exists, the seeder no-ops.
+    // Belt-and-braces with the GDS data-prevent-double-click on the admin tile;
+    // closes the historic "wiki (2)/(3) duplicate" landmine where editors double-
+    // clicked the seed button past the 1000ms client-side window.
+    private const string CanonicalSeedRootSlug = "getting-started";
+
     private sealed record SeedPage(string Title, string Content, IReadOnlyList<SeedPage> Children)
     {
         public SeedPage(string title, string content) : this(title, content, []) { }
@@ -9,6 +16,15 @@ public sealed class WikiSeeder(IWikiService wikiService)
 
     public async Task SeedAsync()
     {
+        // Idempotency guard. SlugExistsAsync delegates to EF Core AnyAsync against
+        // the WikiPages table (see WikiRepository.SlugExistsAsync). Returning early
+        // when the canonical root is already present makes repeated invocations
+        // safe regardless of the trigger (admin tile re-submit, scripted re-run).
+        if (await repository.SlugExistsAsync(CanonicalSeedRootSlug, null))
+        {
+            return;
+        }
+
         foreach (var root in BuildTree())
         {
             await CreateSubtreeAsync(root, parentId: null);

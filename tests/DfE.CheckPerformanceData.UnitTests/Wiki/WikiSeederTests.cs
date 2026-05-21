@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Wiki;
 public sealed class WikiSeederTests
 {
     private readonly IWikiService _wikiService = Substitute.For<IWikiService>();
+    private readonly IWikiRepository _repository = Substitute.For<IWikiRepository>();
     private readonly WikiSeeder _sut;
     private int _nextId = 1;
 
@@ -24,7 +25,10 @@ public sealed class WikiSeederTests
                 };
             });
 
-        _sut = new WikiSeeder(_wikiService);
+        // Existing tests run against a clean DB; the idempotency guard must pass through.
+        _repository.SlugExistsAsync(Arg.Any<string>(), Arg.Any<int?>()).Returns(false);
+
+        _sut = new WikiSeeder(_wikiService, _repository);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +14,22 @@ public sealed class AdminController(IEnumerable<IAdminNavEntry> navEntries) : Co
     [HttpGet("admin")]
     public IActionResult Index()
     {
-        IReadOnlyList<IAdminNavEntry> sorted = navEntries.OrderBy(e => e.Order).ToList();
-        return View(sorted);
+        var all = navEntries.ToList();
+        var groups = all
+            .Where(e => e.ParentKey is null)
+            .OrderBy(e => e.Order)
+            .Select(g => new AdminNavGroupViewModel
+            {
+                Key = g.Key,
+                Title = g.Title,
+                Description = g.Description,
+                Children = all
+                    .Where(e => e.ParentKey == g.Key)
+                    .OrderBy(e => e.Order)
+                    .ToList()
+            })
+            .ToList();
+
+        return View(new AdminLandingViewModel { Groups = groups });
     }
 }

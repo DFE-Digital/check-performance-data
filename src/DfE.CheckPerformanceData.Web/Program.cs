@@ -122,7 +122,12 @@ try
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
-    builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
+    // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
+    if (builder.Environment.IsDevelopment())
+        builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
+    else
+        builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
+            new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),

@@ -196,6 +196,89 @@ public class QuestionFlowServiceTests
         Assert.EndsWith("-social-care", key);
     }
 
+    // ── ResolveRequestType ──────────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveRequestType_WhenUseAsRequestTypeQuestion_ReturnsItsLabel()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        UseAsRequestType = true,
+                        Options = [new QuestionOption { Value = "social-care", Label = "Social care involvement" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "social-care" } });
+
+        Assert.Equal("Social care involvement", _sut.ResolveRequestType(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestType_WhenNoUseAsRequestTypeQuestion_FallsBackToFirstAnsweredQuestion()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        Options = [new QuestionOption { Value = "other", Label = "Other reason" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "other" } });
+
+        Assert.Equal("Other reason", _sut.ResolveRequestType(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestType_SkipsUseAsRequestTypeQuestionWithNoAnswer()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "p1",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "p1",
+                    Questions = [
+                        new Question { Id = "q-flag", Type = QuestionType.Radio, Title = "Flagged",
+                            UseAsRequestType = true,
+                            Options = [new QuestionOption { Value = "x", Label = "X" }] },
+                        new Question { Id = "q-other", Type = QuestionType.Radio, Title = "Other",
+                            Options = [new QuestionOption { Value = "y", Label = "Y" }] }
+                    ]
+                }
+            ]
+        };
+        // flagged question has no answer — should fall back to first answered question
+        var journey = MakeJourney(
+            history: ["p1"],
+            answers: new() { ["q-other"] = new() { TextValue = "y" } });
+
+        Assert.Equal("Y", _sut.ResolveRequestType(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestType_WhenNoAnswers_ReturnsEmptyString()
+    {
+        var journey = MakeJourney(history: ["reason"]);
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestType(_config, journey));
+    }
+
     // ── GetConfigAsync ──────────────────────────────────────────────────────
 
     [Fact]

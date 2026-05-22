@@ -1,0 +1,39 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+
+@{
+    ViewBag.Title = Model.ResolvedTitle ?? string.Empty;
+    Layout = "_Layout";
+}
+
+@await Html.PartialAsync("_JourneyBackLink", Model)
+
+@if (Model.HasErrors)
+{
+    @await Html.PartialAsync("_JourneyErrorSummary", Model)
+}
+
+@if (Model.ResolvedTitle is not null)
+{
+    <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
+}
+
+@* File upload partial sits outside the continue form to avoid nested forms *@
+@foreach (var qm in Model.FileUploadModels)
+{
+    await Html.RenderPartialAsync("_FileUpload", qm);
+}
+
+<form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+    @foreach (var qm in Model.NonFileUploadModels)
+    {
+        await Html.RenderPartialAsync("_Question", qm);
+    }
+
+    <govuk-button type="submit">Continue</govuk-button>
+    <govuk-button type="submit"
+        formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })"
+        class="govuk-button--secondary">Save and continue later</govuk-button>
+</form>

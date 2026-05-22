@@ -14,6 +14,7 @@ public sealed class QuestionPartialModel
     public string? UploadError { get; init; }
 
     public string FieldName => $"q_{Question.Id.Replace("-", "_")}";
+    public string ErrorFieldRef => Question.Type == QuestionType.Date ? $"{FieldName}_day" : FieldName;
     public bool HasError => Error is not null;
     public string ResolvedTitle { get; init; } = string.Empty;
 

@@ -14,17 +14,18 @@ public class RequestServiceTests
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IRequestBlobClient _blobClient = Substitute.For<IRequestBlobClient>();
+    private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
     {
-        _currentUser.UserId.Returns("user-1");
+        _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _blobClient, _requestRepository, _currentUser);
+        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -52,12 +53,12 @@ public class RequestServiceTests
     public async Task ConfirmRequestAsync_WhenAlreadySubmitted_ReturnsSilentlyWithoutWrites()
     {
         var journey = ValidJourney();
-        _requestRepository.ExistsAsync(journey.ReferenceNumber!).Returns(true);
+        _requestRepository.IsSubmittedAsync(journey.ReferenceNumber!).Returns(true);
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
         await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
-        await _requestRepository.DidNotReceive().SaveAsync(Arg.Any<RequestDocument>());
+        await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
     // ── Document building ───────────────────────────────────────────────────
@@ -69,7 +70,7 @@ public class RequestServiceTests
 
         var doc = await CaptureDocument(journey, config);
 
-        Assert.Equal("user-1", doc.SubmittedBy.UserId);
+        Assert.Equal("11111111-1111-1111-1111-111111111111", doc.SubmittedBy.UserId);
         Assert.Equal("Test User", doc.SubmittedBy.DisplayName);
         Assert.Equal("100000", doc.School.Urn);
         Assert.Equal("Test School", doc.School.Name);
@@ -95,7 +96,7 @@ public class RequestServiceTests
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _requestRepository.Received(1).SaveAsync(Arg.Any<RequestDocument>());
+        await _requestRepository.Received(1).UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
     [Fact]
@@ -106,7 +107,7 @@ public class RequestServiceTests
         var callOrder = new List<string>();
         _blobClient.SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>())
             .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
-        _requestRepository.SaveAsync(Arg.Any<RequestDocument>())
+        _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
@@ -199,6 +200,104 @@ public class RequestServiceTests
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
         await _blobClient.Received(1).SaveRequestAsync(WindowId, Arg.Any<RequestDocument>());
+    }
+
+    // ── SaveDraftAsync ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SaveDraftAsync_WhenSessionIncomplete_Throws()
+    {
+        var journey = new RequestState(); // missing required fields
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _sut.SaveDraftAsync(WindowId, journey));
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_WhenReferenceNumberMissing_Throws()
+    {
+        var journey = ValidJourney();
+        journey.ReferenceNumber = null;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _sut.SaveDraftAsync(WindowId, journey));
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_SavesBlobWithCorrectWindowIdAndReferenceNumber()
+    {
+        var journey = ValidJourney();
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        await _draftBlobClient.Received(1).SaveDraftAsync(WindowId, journey.ReferenceNumber!, journey);
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_UpsertsRecordWithDraftStatusAndCorrectReferenceNumber()
+    {
+        var journey = ValidJourney();
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        await _requestRepository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.ReferenceNumber == journey.ReferenceNumber &&
+            d.Status == RequestStatus.Draft));
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_MapsCorrectPupilAndSchoolDetails()
+    {
+        var journey = ValidJourney();
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        Assert.Equal("Jane", captured!.PupilFirstname);
+        Assert.Equal("Smith", captured.PupilSurname);
+        Assert.Equal("123123", captured.PupilUpn);
+        Assert.Equal(100000L, captured.OrganisationUrn);
+        Assert.Equal("Test User", captured.SubmittedByName);
+        Assert.Equal(RequestStatus.Draft, captured.Status);
+        // Config is null in this test so RequestType falls back to the WhatToChange prefix only
+        Assert.Equal("Remove", captured.RequestType);
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_RequestTypePrefixedWithWhatToChange()
+    {
+        var journey = ValidJourney();
+        var config = MakeConfig([new JourneyPage { Id = "reason", Questions = [
+            new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                UseAsRequestType = true,
+                Options = [new QuestionOption { Value = "perm-ex", Label = "Permanently excluded" }] }
+        ]}]);
+        journey.QuestionHistory = ["reason"];
+        journey.QuestionAnswers["reason"] = new QuestionAnswer { TextValue = "perm-ex" };
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(config);
+        _flowService.ResolveRequestType(config, Arg.Any<RequestState>()).Returns("Permanently excluded");
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        Assert.Equal("Remove - Permanently excluded", captured!.RequestType);
+    }
+
+    [Fact]
+    public async Task SaveDraftAsync_SavesBlobBeforeUpsertingRecord()
+    {
+        var journey = ValidJourney();
+        var callOrder = new List<string>();
+        _draftBlobClient.SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
+            .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
+        _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
+            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+
+        await _sut.SaveDraftAsync(WindowId, journey);
+
+        Assert.Equal(["blob", "db"], callOrder);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

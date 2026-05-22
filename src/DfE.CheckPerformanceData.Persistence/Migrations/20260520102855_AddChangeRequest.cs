@@ -25,7 +25,8 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     SubmittedById = table.Column<Guid>(type: "uuid", nullable: false),
                     SubmittedByName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
-                    ReferenceNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
+                    ReferenceNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    RequestType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {

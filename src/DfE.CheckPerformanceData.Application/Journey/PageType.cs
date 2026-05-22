@@ -1,3 +1,3 @@
 namespace DfE.CheckPerformanceData.Application.Journey;
 
-public enum PageType { Question, Content }
+public enum PageType { Question, Content, EvidenceUpload }

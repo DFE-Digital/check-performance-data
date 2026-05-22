@@ -15,8 +15,8 @@ module "storage" {
   use_private_storage               = var.use_private_storage
   # Create containers for the application (all containers are private)
   containers = [
-    { name = "files" },                                                                                
-    { name = "question-flows" }     
+    { name = "files" },
+    { name = "question-flows" }
   ]
   # Configure blob lifecycle management (default: delete after 7 days)
   container_delete_retention_days = var.container_delete_retention_days

@@ -10,6 +10,7 @@ using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
@@ -24,6 +25,7 @@ public class JourneyControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly FakeSession _session = new();
+    private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -59,13 +61,12 @@ public class JourneyControllerTests
         _flowService.GetNextPageId(Config, "page-1", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns("page-2");
         _flowService.GetNextPageId(Config, "page-2", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
 
-        var httpContext = new DefaultHttpContext();
-        httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
+        _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService, _requestService, _env)
         {
-            ControllerContext = new ControllerContext { HttpContext = httpContext },
-            TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
+            ControllerContext = new ControllerContext { HttpContext = _httpContext },
+            TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
         };
     }
 
@@ -263,6 +264,78 @@ public class JourneyControllerTests
         Assert.Empty(remaining.QuestionHistory);
         Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
         Assert.NotNull(remaining.CheckingWindow);
+    }
+
+    // ── SaveDraft ────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task SaveDraft_WhenSessionNotReady_RedirectsToCheckYourData()
+    {
+        SetupSession(new RequestState());
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithoutPageId_CallsServiceAndRedirectsToCheckYourData()
+    {
+        SetupSession(ValidSession());
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        await _requestService.Received(1).SaveDraftAsync(WindowId, Arg.Any<RequestState>());
+        AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_CapturesTextAreaAnswerFromFormBeforeSaving()
+    {
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "page-2").Returns(Config.Pages[1]); // page-2 has TextArea q2
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_q2"] = "My explanation"
+        });
+
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "page-2");
+
+        Assert.NotNull(capturedJourney);
+        Assert.True(capturedJourney.QuestionAnswers.ContainsKey("q2"));
+        Assert.Equal("My explanation", capturedJourney.QuestionAnswers["q2"].TextValue);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_DoesNotSaveBlankFormAnswers()
+    {
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "page-2").Returns(Config.Pages[1]);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_q2"] = "   " // whitespace only
+        });
+
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "page-2");
+
+        Assert.NotNull(capturedJourney);
+        Assert.False(capturedJourney.QuestionAnswers.ContainsKey("q2"));
+    }
+
+    [Fact]
+    public async Task SaveDraft_AlwaysRedirectsToCheckYourData()
+    {
+        SetupSession(ValidSession());
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        AssertRedirectToCheckYourData(result);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

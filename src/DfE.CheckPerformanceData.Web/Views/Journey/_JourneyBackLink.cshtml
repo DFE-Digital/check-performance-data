@@ -1,0 +1,16 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PageViewModel
+
+@if (Model.FromSummary)
+{
+    <a asp-action="Summary" asp-controller="Journey" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
+else if (Model.BackPageId is not null)
+{
+    <a asp-action="Page" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId" asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="Index" asp-controller="PupilSearch" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}

@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 public sealed class EvidenceBlobStorageService(BlobServiceClient blobServiceClient) : IFileStorageService
 {
-    private const string EvidenceFolder = "Evidence";
+    private const string EvidenceFolder = "evidence-uploads";
 
     public async Task<string> SaveAsync(Guid windowId, byte[] bytes)
     {

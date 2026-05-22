@@ -2,6 +2,6 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public interface IRequestRepository
 {
-    Task<bool> ExistsAsync(string referenceNumber);
-    Task SaveAsync(RequestDocument document);
+    Task<bool> IsSubmittedAsync(string referenceNumber);
+    Task UpsertAsync(ChangeRequestData data);
 }

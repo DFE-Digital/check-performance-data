@@ -70,7 +70,81 @@
             {
               "value": "year-group-change",
               "label": "Year group change",
-              "nextPageId": "additional-info"
+              "nextPageId": "year-group-change-higher-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-higher-lower",
+      "questions": [
+        {
+          "id": "higher-lower",
+          "type": "Radio",
+          "title": "Is {pupilName} being moved to a year group higher or lower than year 11?",
+          "options": [
+            {
+              "value": "higher",
+              "label": "Higher",
+              "nextPageId": "year-group-change-higher"
+            },
+            {
+              "value": "lower",
+              "label": "Lower",
+              "nextPageId": "year-group-change-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-higher",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "year-group-higher-moved-to",
+          "type": "Radio",
+          "title": "Which year group should {pupilName} be moved to?",
+          "options": [
+            {
+              "value": "12",
+              "label": "12"
+            },
+            {
+              "value": "13",
+              "label": "13"
+            }
+          ]
+        },
+        {
+          "id": "year-group-higher-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName} was previously reported at the year of KS4?",
+          "hint" : "For example, 123456789"
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-lower",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "year-group-higher-moved-to",
+          "type": "Radio",
+          "title": "Which year group should {pupilName} be moved to?",
+          "options": [
+            {
+              "value": "8",
+              "label": "8"
+            },
+            {
+              "value": "9",
+              "label": "9"
+            },
+            {
+              "value": "10",
+              "label": "10"
             }
           ]
         }

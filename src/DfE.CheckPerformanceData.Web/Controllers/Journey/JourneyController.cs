@@ -67,7 +67,7 @@ public sealed class JourneyController(
             {
                 journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
                 var files = existing?.FileValues ?? [];
-                if (files.Count == 0)
+                if (files.Count == 0 && !question.Optional)
                 {
                     ModelState.AddModelError(question.Id, "Upload at least one file before continuing");
                     isValid = false;
@@ -80,11 +80,14 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
-                if (error is not null)
+                if (!question.Optional)
                 {
-                    ModelState.AddModelError(question.Id, error);
-                    isValid = false;
+                    var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
+                    if (error is not null)
+                    {
+                        ModelState.AddModelError(question.Id, error);
+                        isValid = false;
+                    }
                 }
                 newAnswers[question.Id] = answer;
             }
@@ -247,18 +250,27 @@ public sealed class JourneyController(
 
         var pupilName = GetPupilName(journey);
 
-        var rows = journey.QuestionHistory
-            .SelectMany(pid =>
+        var rows = new List<SummaryRow>();
+        var fileRows = new List<SummaryFileRow>();
+
+        foreach (var pid in journey.QuestionHistory)
+        {
+            var p = flowService.GetPage(config, pid);
+            if (p is null || p.Type == PageType.Content) continue;
+            foreach (var q in p.Questions)
             {
-                var p = flowService.GetPage(config, pid);
-                if (p is null || p.Type == PageType.Content) return Enumerable.Empty<SummaryRow>();
-                return p.Questions.Select(q =>
+                journey.QuestionAnswers.TryGetValue(q.Id, out var a);
+                if (q.Type == QuestionType.FileUpload)
                 {
-                    journey.QuestionAnswers.TryGetValue(q.Id, out var a);
-                    return new SummaryRow(p, q, a, Resolve(q.Title, pupilName));
-                });
-            })
-            .ToList();
+                    if (a?.FileValues is { Count: > 0 } files)
+                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes)));
+                }
+                else
+                {
+                    rows.Add(new SummaryRow(p, q, a, Resolve(q.SummaryTitle ?? q.Title, pupilName)));
+                }
+            }
+        }
 
         var backPageId = journey.QuestionHistory.Last();
 
@@ -266,7 +278,7 @@ public sealed class JourneyController(
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
             : null;
 
-        return View(new SummaryViewModel { WindowId = windowId, Rows = rows, BackPageId = backPageId, DebugJson = debugJson });
+        return View(new SummaryViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange!.Value, PupilName = pupilName, Rows = rows, FileRows = fileRows, BackPageId = backPageId, DebugJson = debugJson });
     }
 
     [HttpPost]
@@ -399,7 +411,7 @@ public sealed class JourneyController(
                 IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
                 Error = error,
                 UploadError = uploadError,
-                ResolvedTitle = Resolve(q.Title, pupilName)
+                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : "")
             };
         }).ToList();
 

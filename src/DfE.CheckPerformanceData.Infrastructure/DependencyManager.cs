@@ -6,8 +6,10 @@ using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -15,6 +17,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -32,6 +35,37 @@ public static class DependencyManager
         {
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="BlobRulesProvider"/> as both <see cref="IRulesProvider"/>
+    /// and an <see cref="IHostedService"/> so it loads the rules JSON before the
+    /// queue worker starts dequeuing messages. Also wires
+    /// <see cref="RulesProviderHealthCheck"/> into the host's health-check pipeline.
+    /// </summary>
+    public static IServiceCollection AddRulesProvider(this IServiceCollection services, IConfiguration config)
+    {
+        services.Configure<BlobRulesProviderOptions>(config.GetSection(BlobRulesProviderOptions.SectionName));
+
+        services.AddSingleton<IRulesBlobReader>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<BlobRulesProviderOptions>>().Value;
+            var connection = config.GetConnectionString("AzureStorage")
+                ?? throw new InvalidOperationException(
+                    "AzureStorage connection string is required for the rules provider.");
+            var container = new BlobServiceClient(connection).GetBlobContainerClient(options.RulesBlobContainer);
+            return new AzureRulesBlobReader(container);
+        });
+
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<BlobRulesProvider>();
+        services.AddSingleton<IRulesProvider>(sp => sp.GetRequiredService<BlobRulesProvider>());
+        services.AddHostedService(sp => sp.GetRequiredService<BlobRulesProvider>());
+
+        services.AddHealthChecks()
+            .AddCheck<RulesProviderHealthCheck>("rules-provider");
 
         return services;
     }

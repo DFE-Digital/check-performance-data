@@ -1,11 +1,10 @@
+using System.Text;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
-using DfE.CheckPerformanceData.Application.QueueMessages;
 using DfE.CheckPerformanceData.Application.RequestDecision;
-using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Domain.QueueMessages;
 using Microsoft.Extensions.Options;
-using System.Text;
-using System.Text.Json;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker;
 
@@ -15,26 +14,35 @@ public sealed class RulesEngineWorker : BackgroundService
     private readonly QueueClient _queueClient;
     private readonly RulesEngineOptions _options;
     private readonly IRequestDecisionHandler _handler;
+    private readonly IRulesProvider _rulesProvider;
+    private readonly IRulesEngine _rulesEngine;
+    private readonly IRuleContextMapper _contextMapper;
 
     public RulesEngineWorker(
         ILogger<RulesEngineWorker> logger,
         QueueServiceClient queueServiceClient,
         IOptions<RulesEngineOptions> options,
-        IRequestDecisionHandler handler)
+        IRequestDecisionHandler handler,
+        IRulesProvider rulesProvider,
+        IRulesEngine rulesEngine,
+        IRuleContextMapper contextMapper)
     {
         if (options?.Value == null)
-            throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngine' section in appsettings.json or via environment variables.");
+            throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngineOptions' section in appsettings.json or via environment variables.");
 
         _options = options.Value;
         _logger = logger;
         _queueClient = queueServiceClient.GetQueueClient(_options.QueueName);
         _handler = handler;
+        _rulesProvider = rulesProvider;
+        _rulesEngine = rulesEngine;
+        _contextMapper = contextMapper;
     }
-    
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await _queueClient.CreateIfNotExistsAsync(cancellationToken: stoppingToken);
-        
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -56,8 +64,8 @@ public sealed class RulesEngineWorker : BackgroundService
     private async Task PollQueueAsync(CancellationToken stoppingToken)
     {
         QueueMessage[] messages = await _queueClient.ReceiveMessagesAsync(
-            _options.MaxMessagesPerPoll, 
-            visibilityTimeout: _options.VisibilityTimeout, 
+            _options.MaxMessagesPerPoll,
+            visibilityTimeout: _options.VisibilityTimeout,
             stoppingToken);
 
         if (messages.Length == 0)
@@ -65,7 +73,7 @@ public sealed class RulesEngineWorker : BackgroundService
             await Task.Delay(_options.EmptyQueueDelayMs, stoppingToken);
             return;
         }
-        
+
         foreach (var message in messages)
         {
             await ProcessMessageAsync(message, stoppingToken);
@@ -77,14 +85,7 @@ public sealed class RulesEngineWorker : BackgroundService
         try
         {
             var messageBody = Encoding.UTF8.GetString(message.Body);
-
-            var parsedMessage = RequestMessageFactory.Parse(messageBody)
-                ?? throw new InvalidOperationException("Failed to parse message.");
-
-            _logger.LogInformation("Processing message: DecisionType={DecisionType}",
-                parsedMessage.DecisionType);
-
-            await _handler.HandleAsync(parsedMessage, stoppingToken);
+            await ProcessMessageBodyAsync(messageBody, stoppingToken);
             await _queueClient.DeleteMessageAsync(message.MessageId, message.PopReceipt, stoppingToken);
         }
         catch (Exception ex)
@@ -103,6 +104,43 @@ public sealed class RulesEngineWorker : BackgroundService
                     message.MessageId, message.PopReceipt, stoppingToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Pure(-ish) processing path: parse → map → evaluate → handle. Extracted
+    /// from <see cref="ProcessMessageAsync"/> so tests can drive it without
+    /// constructing Azure SDK <c>QueueMessage</c> objects.
+    /// </summary>
+    internal async Task ProcessMessageBodyAsync(string messageBody, CancellationToken stoppingToken)
+    {
+        var parsed = RequestMessageFactory.Parse(messageBody)
+            ?? throw new InvalidOperationException("Failed to parse message.");
+
+        var snapshot = _rulesProvider.Current;
+        Decision decision;
+        try
+        {
+            var context = _contextMapper.Map(parsed);
+            decision = _rulesEngine.Evaluate(snapshot.Rules, context, snapshot.Lookups);
+        }
+        catch (RuleContextMappingException ex)
+        {
+            _logger.LogError(ex,
+                "Mapper rejected message for RequestId={RequestId}; routing to Scrutiny.", parsed.RequestId);
+            decision = Decision.SyntheticScrutiny("_mapper_error", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Engine threw for RequestId={RequestId}; routing to Scrutiny.", parsed.RequestId);
+            decision = Decision.SyntheticScrutiny("_engine_error", ex.GetType().Name + ": " + ex.Message);
+        }
+
+        _logger.LogInformation(
+            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} RequestId={RequestId}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, snapshot.Version, parsed.RequestId);
+
+        await _handler.HandleAsync(parsed, decision, stoppingToken);
     }
 }
 

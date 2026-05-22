@@ -15,8 +15,14 @@ module "storage" {
   use_private_storage               = var.use_private_storage
   # Create containers for the application (all containers are private)
   containers = [
-    { name = "files" },                                                                                
-    { name = "question-flows" }     
+    { name = "files" },
+    { name = "question-flows" },
+    # Rules-engine configuration. Holds rules.json + country-languages.json,
+    # editable by business users without redeploying the worker.
+    # NOTE: the rules-engine blobs must be excluded from the lifecycle delete
+    # policy (a deleted rules.json would force the worker into cold-fallback);
+    # delegate that to the storage_account module's lifecycle rules.
+    { name = "rules-config" }
   ]
   # Configure blob lifecycle management (default: delete after 7 days)
   container_delete_retention_days = var.container_delete_retention_days

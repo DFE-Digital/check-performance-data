@@ -21,4 +21,15 @@
         <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
         <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+        <None Update="seed\rules.json" CopyToOutputDirectory="PreserveNewest" />
+        <None Update="seed\country-languages.json" CopyToOutputDirectory="PreserveNewest" />
+        <None Update="seed\README.md" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="DfE.CheckPerformanceData.Application.UnitTests" />
+        <InternalsVisibleTo Include="DfE.CheckPerformanceData.IntegrationTests" />
+    </ItemGroup>
 </Project>

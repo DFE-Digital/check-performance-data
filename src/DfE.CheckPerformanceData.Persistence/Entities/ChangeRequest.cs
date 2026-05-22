@@ -15,4 +15,5 @@ public class ChangeRequest
     public required string SubmittedByName { get; init; }
     public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
+    public string? CrmId { get; init; } = null;
 }

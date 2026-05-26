@@ -134,7 +134,7 @@
       "nextPageId": "evidence",
       "questions": [
         {
-          "id": "year-group-higher-moved-to",
+          "id": "year-group-lower-moved-to",
           "type": "Radio",
           "title": "Which year group should {pupilName} be moved to?",
           "summaryTitle": "Year group moved to",
@@ -224,7 +224,7 @@
           "title": "Explain how the evidence supports removing this pupil",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
-          "Optional": true
+          "optional": true
         }
       ]
     }

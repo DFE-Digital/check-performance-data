@@ -59,7 +59,7 @@ public sealed class SummaryFileRow(JourneyPage page, string originalFileName, lo
         get
         {
             var kb = fileSizeBytes / 1024.0;
-            return $"{kb:F2}kb";
+            return $"{kb:F2}KB";
         }
     }
 }

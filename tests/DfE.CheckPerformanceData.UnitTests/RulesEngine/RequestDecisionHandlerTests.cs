@@ -167,7 +167,7 @@ public sealed class RequestDecisionHandlerTests
     }
 
     [Fact]
-    public async Task Uploads_AreNotAttached_OnScrutiny()
+    public async Task Uploads_AreAttached_OnScrutiny()
     {
         var sut = NewSut();
         var msg = NewMessage("Terminal/Critical illness");
@@ -175,10 +175,17 @@ public sealed class RequestDecisionHandlerTests
         var decision = new Decision(DecisionStatus.Scrutiny, "TerminalCriticalIllness", "TCI-DEF",
             Array.Empty<string>());
 
+        // Scrutiny is exactly when the caseworker needs the uploaded files, so they
+        // must be attached too. Stub the blob read so OpenReadAsync returns a stream.
+        var blob = Substitute.For<BlobClient>();
+        blob.OpenReadAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Stream>(new MemoryStream(new byte[] { 1, 2, 3 })));
+        _blobs.GetBlobClient(Arg.Any<string>()).Returns(blob);
+
         await sut.HandleAsync(msg, decision, CancellationToken.None);
 
-        await _attachments.DidNotReceive().AddAttachmentAsync(
-            Arg.Any<long>(), Arg.Any<string>(), Arg.Any<Stream>(), Arg.Any<string>());
+        await _attachments.Received(1).AddAttachmentAsync(
+            999, "letter.pdf", Arg.Any<Stream>(), Arg.Any<string>());
     }
 
     [Fact]

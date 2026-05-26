@@ -57,10 +57,9 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         var ticket = BuildTicket(message, decision);
         var response = await _zendeskService.CreateTicketAsync(ticket);
 
-        // Attach evidence for auto-decisions whose message carries uploads.
-        // Scrutiny tickets defer uploads to the human reviewer.
-        if (decision.Status != DecisionStatus.Scrutiny &&
-            message is IRequestMessageUploads withUploads &&
+        // Always attach the evidence the school uploaded, regardless of decision.
+        // Scrutiny especially needs the files in front of the caseworker.
+        if (message is IRequestMessageUploads withUploads &&
             withUploads.Uploads is { Count: > 0 } uploads)
         {
             foreach (var upload in uploads)

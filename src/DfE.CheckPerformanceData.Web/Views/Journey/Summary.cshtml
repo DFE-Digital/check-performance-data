@@ -12,8 +12,31 @@
    class="govuk-back-link">Back</a>
 
 <h1 class="govuk-heading-xl">Summary of amendment request</h1>
+<h2 class="govuk-heading-m">Check details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
 
 <dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">What pupil data would you like to change?</dt>
+        <dd class="govuk-summary-list__value">@Model.WhatToChangeLabel</dd>
+        <dd class="govuk-summary-list__actions">
+            <a class="govuk-link"
+               asp-action="Index" asp-controller="WhatToChange"
+               asp-route-windowId="@Model.WindowId">
+                Change<span class="govuk-visually-hidden"> what pupil data you would like to change</span>
+            </a>
+        </dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Pupil name</dt>
+        <dd class="govuk-summary-list__value">@Model.PupilName</dd>
+        <dd class="govuk-summary-list__actions">
+            <a class="govuk-link"
+               asp-action="Index" asp-controller="PupilSearch"
+               asp-route-windowId="@Model.WindowId">
+                Change<span class="govuk-visually-hidden"> pupil name</span>
+            </a>
+        </dd>
+    </div>
     @foreach (var row in Model.Rows)
     {
         <div class="govuk-summary-list__row">
@@ -31,6 +54,40 @@
         </div>
     }
 </dl>
+
+@if (Model.FileRows.Count > 0)
+{
+    <h2 class="govuk-heading-m">Summary of uploaded documents</h2>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">File name</th>
+                <th scope="col" class="govuk-table__header">File size</th>
+                <th scope="col" class="govuk-table__header">Type</th>
+                <th scope="col" class="govuk-table__header">Action</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var file in Model.FileRows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@file.OriginalFileName</td>
+                    <td class="govuk-table__cell">@file.FormattedFileSize</td>
+                    <td class="govuk-table__cell">@file.FileType</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link"
+                           asp-action="Page" asp-controller="Journey"
+                           asp-route-windowId="@Model.WindowId"
+                           asp-route-pageId="@file.Page.Id"
+                           asp-route-fromSummary="true">
+                            Change<span class="govuk-visually-hidden"> @file.OriginalFileName</span>
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()

@@ -9,6 +9,7 @@
           "contentKey": true,
           "type": "Radio",
           "title": "Why are you asking to remove {pupilName} from the performance data?",
+          "summaryTitle": "Reason for removal",
           "hint": "Select one option",
           "useAsRequestType" : true,
           "options": [
@@ -70,7 +71,85 @@
             {
               "value": "year-group-change",
               "label": "Year group change",
-              "nextPageId": "additional-info"
+              "nextPageId": "year-group-change-higher-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-higher-lower",
+      "questions": [
+        {
+          "id": "higher-lower",
+          "type": "Radio",
+          "title": "Is {pupilName} being moved to a year group higher or lower than year 11?",
+          "summaryTitle": "Higher or lower year group",
+          "options": [
+            {
+              "value": "higher",
+              "label": "Higher",
+              "nextPageId": "year-group-change-higher"
+            },
+            {
+              "value": "lower",
+              "label": "Lower",
+              "nextPageId": "year-group-change-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-higher",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "year-group-higher-moved-to",
+          "type": "Radio",
+          "title": "Which year group should {pupilName} be moved to?",
+          "summaryTitle": "Year group moved to",
+          "options": [
+            {
+              "value": "12",
+              "label": "12"
+            },
+            {
+              "value": "13",
+              "label": "13"
+            }
+          ]
+        },
+        {
+          "id": "year-group-higher-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName} was previously reported at the year of KS4?",
+          "summaryTitle": "DfE number of school at KS4",
+          "hint" : "For example, 123456789"
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-lower",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "year-group-lower-moved-to",
+          "type": "Radio",
+          "title": "Which year group should {pupilName} be moved to?",
+          "summaryTitle": "Year group moved to",
+          "options": [
+            {
+              "value": "8",
+              "label": "8"
+            },
+            {
+              "value": "9",
+              "label": "9"
+            },
+            {
+              "value": "10",
+              "label": "10"
             }
           ]
         }
@@ -85,6 +164,7 @@
           "contentKey": true,
           "type": "Radio",
           "title": "What happened to {pupilName} that made it very hard for them to go to school or sit exams?",
+          "summaryTitle": "Social care reason",
           "hint": "Select one option",
           "options": [
             {
@@ -105,6 +185,7 @@
           "id": "sat-exams",
           "type": "Radio",
           "title": "Has {pupilName} sat any exams as a year 11 pupil?",
+          "summaryTitle": "Sat exams as year 11",
           "options": [
             {
               "value": "yes",
@@ -141,7 +222,9 @@
           "id": "how-evidence-supports",
           "type": "TextArea",
           "title": "Explain how the evidence supports removing this pupil",
-          "characterLimit": 1000
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
         }
       ]
     }

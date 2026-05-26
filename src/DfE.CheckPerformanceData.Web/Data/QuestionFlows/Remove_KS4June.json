@@ -66,12 +66,62 @@
             {
               "value": "life-limiting-illness",
               "label": "Life-limiting or critical illness",
-              "nextPageId": "additional-info"
+              "nextPageId": "life-limiting-illness"
             },
             {
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "life-limiting-illness",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "life-limiting-illness-health-issue",
+          "type": "Radio",
+          "title": "Which severe health issue has had a profound effect on {pupilName} and their ability to access education?",
+          "summaryTitle": "Health issue",
+          "options": [
+            {
+              "value": "life-limiting",
+              "label": "Received a life-limiting illness diagnosis"
+            },
+            {
+              "value": "twelve-months-critically-ill",
+              "label": "Been critically ill for 12 months or more"
+            },
+            {
+              "value": "life-changing-illness",
+              "label": "Been diagnosed with a life changing illness"
+            },
+            {
+              "value": "life-changing-injury",
+              "label": "Experienced a life changing injury"
+            },
+            {
+              "value": "investigated",
+              "label": "Been investigated for a serious or life changing injury for 12 months or more"
+            }
+          ]
+        },
+        {
+          "id": "sat-exams",
+          "type": "Radio",
+          "title": "Has {pupilName} sat any exams as a year 11 pupil?",
+          "summaryTitle": "Sat exams as year 11",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
             }
           ]
         }

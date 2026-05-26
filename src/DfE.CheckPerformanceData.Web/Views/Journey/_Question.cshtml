@@ -1,0 +1,17 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.QuestionPartialModel
+
+@switch (Model.Question.Type)
+{
+    case QuestionType.Radio:
+        await Html.RenderPartialAsync("_Radio", Model);
+        break;
+    case QuestionType.FreeText:
+        await Html.RenderPartialAsync("_FreeText", Model);
+        break;
+    case QuestionType.Date:
+        await Html.RenderPartialAsync("_Date", Model);
+        break;
+    case QuestionType.TextArea:
+        await Html.RenderPartialAsync("_TextArea", Model);
+        break;
+}

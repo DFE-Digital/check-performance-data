@@ -74,4 +74,45 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
 
         return string.Join("-", new[] { "journey", windowId.ToString(), whatToChange }.Concat(radioValues));
     }
+
+    public string ResolveRequestType(QuestionFlowConfig config, RequestState journey)
+    {
+        // Primary: first answered question flagged UseAsRequestType in the visited branch
+        foreach (var pageId in journey.QuestionHistory)
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) continue;
+
+            foreach (var question in page.Questions)
+            {
+                if (!question.UseAsRequestType) continue;
+                if (!journey.QuestionAnswers.TryGetValue(question.Id, out var answer)) continue;
+                return ResolveAnswerLabel(question, answer);
+            }
+        }
+
+        // Fallback: answer to the first question in history
+        foreach (var pageId in journey.QuestionHistory)
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) continue;
+
+            foreach (var question in page.Questions)
+            {
+                if (journey.QuestionAnswers.TryGetValue(question.Id, out var answer))
+                    return ResolveAnswerLabel(question, answer);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string ResolveAnswerLabel(Question question, QuestionAnswer answer)
+    {
+        if (question.Type == QuestionType.Radio && answer.TextValue is not null)
+            return question.Options?.FirstOrDefault(o => o.Value == answer.TextValue)?.Label
+                   ?? answer.TextValue;
+
+        return answer.TextValue ?? string.Empty;
+    }
 }

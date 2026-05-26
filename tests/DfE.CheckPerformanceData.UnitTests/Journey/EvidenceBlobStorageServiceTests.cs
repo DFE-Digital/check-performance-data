@@ -13,6 +13,7 @@ public class EvidenceBlobStorageServiceTests
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly byte[] AnyBytes = [1, 2, 3];
+    private readonly string _evidenceFolderName = "evidence-uploads";
 
     public EvidenceBlobStorageServiceTests()
     {
@@ -36,7 +37,7 @@ public class EvidenceBlobStorageServiceTests
     {
         await _sut.SaveAsync(WindowId, AnyBytes);
 
-        _containerClient.Received(1).GetBlobClient(Arg.Is<string>(s => s.StartsWith("Evidence/")));
+        _containerClient.Received(1).GetBlobClient(Arg.Is<string>(s => s.StartsWith($"{_evidenceFolderName}/")));
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class EvidenceBlobStorageServiceTests
     {
         var result = await _sut.SaveAsync(WindowId, AnyBytes);
 
-        _containerClient.Received(1).GetBlobClient($"Evidence/{result}");
+        _containerClient.Received(1).GetBlobClient($"{_evidenceFolderName}/{result}");
     }
 
     [Fact]
@@ -83,6 +84,6 @@ public class EvidenceBlobStorageServiceTests
 
         await _sut.DeleteAsync(WindowId, blobName);
 
-        _containerClient.Received(1).GetBlobClient($"Evidence/{blobName}");
+        _containerClient.Received(1).GetBlobClient($"{_evidenceFolderName}/{blobName}");
     }
 }

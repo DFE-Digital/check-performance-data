@@ -1,5 +1,5 @@
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 
@@ -166,7 +166,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void MissingAnswer_BecomesUnknown()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: Array.Empty<Answer>());
+        var msg = NewMessage("Terminal/Critical illness", answers: Array.Empty<AnswerRecord>());
 
         var ctx = _sut.Map(msg);
 
@@ -241,33 +241,28 @@ public sealed class RuleContextMapperTests
 
     // --- helpers ---
 
-    private static RequestMessage NewMessage(
+    private static RequestDocument NewMessage(
         string whatToChange,
         string checkingWindowType = "KS4",
-        IEnumerable<Answer>? answers = null,
-        int pupilAge = 0)
-    {
-        var msg = new TestMessage
+        IEnumerable<AnswerRecord>? answers = null,
+        int pupilAge = 0) =>
+        new()
         {
+            ReferenceNumber    = "REF",
             WhatToChange       = whatToChange,
             CheckingWindowType = checkingWindowType,
             CheckingWindowId   = Guid.NewGuid(),
-            Pupil              = new Pupil { Age = pupilAge },
-            Answers            = (answers ?? Array.Empty<Answer>()).ToList(),
+            SubmittedAt        = DateTime.UtcNow,
+            SubmittedBy        = new UserDetails { UserId = "u", DisplayName = "x" },
+            School             = new SchoolDetails { Urn = "1", Name = "S" },
+            Pupil              = new PupilDetails
+            {
+                Id = "p", CypmdId = "c", Firstname = "A", Surname = "B",
+                DateOfBirth = "01/01/2010", Sex = "F", Age = pupilAge, Upn = "UPN",
+            },
+            Answers            = (answers ?? Array.Empty<AnswerRecord>()).ToList(),
         };
-        return msg;
-    }
 
-    private static Answer Answer(string id, string value) =>
+    private static AnswerRecord Answer(string id, string value) =>
         new() { QuestionId = id, QuestionTitle = id, Type = "text", Value = value };
-
-    /// <summary>
-    /// Minimal concrete <see cref="RequestMessage"/> for tests. The abstract
-    /// <see cref="RequestMessage.ProcessAsync"/> is a no-op since the mapper
-    /// never invokes it.
-    /// </summary>
-    private sealed class TestMessage : RequestMessage
-    {
-        public override Task ProcessAsync(CancellationToken token) => Task.CompletedTask;
-    }
 }

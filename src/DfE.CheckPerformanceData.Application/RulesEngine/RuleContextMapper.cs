@@ -1,18 +1,18 @@
 using System.Globalization;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 
 namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
 /// Default <see cref="IRuleContextMapper"/>. Projects a queue
-/// <see cref="RequestMessage"/> into a typed <see cref="RuleContext"/>:
+/// <see cref="RequestDocument"/> into a typed <see cref="RuleContext"/>:
 ///
 /// <list type="bullet">
-///   <item><c>OutcomeKey</c> from <see cref="RequestMessage.WhatToChange"/> via
+///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.WhatToChange"/> via
 ///         <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/>.</item>
-///   <item><c>KeyStage</c> from <see cref="RequestMessage.CheckingWindowType"/> via
+///   <item><c>KeyStage</c> from <see cref="RequestDocument.CheckingWindowType"/> via
 ///         <see cref="AnswerFieldMap.NormaliseKeyStage"/>.</item>
-///   <item><c>Fields</c> from <c>Answer[]</c> via
+///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via
 ///         <see cref="AnswerFieldMap.QuestionToField"/>, parsed against the
 ///         <see cref="FieldCatalogue"/>'s expected types.</item>
 /// </list>
@@ -23,7 +23,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// </summary>
 public sealed class RuleContextMapper : IRuleContextMapper
 {
-    public RuleContext Map(RequestMessage message)
+    public RuleContext Map(RequestDocument message)
     {
         ArgumentNullException.ThrowIfNull(message);
 

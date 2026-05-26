@@ -1,7 +1,7 @@
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 using DfE.CheckPerformanceData.Infrastructure.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -15,7 +15,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 /// Verifies that <see cref="RequestDecisionHandler"/> composes the correct
 /// Zendesk ticket for each <see cref="DecisionStatus"/>. The handler's most
 /// important contract: the ticket the human reviewer sees must say what the
-/// engine decided and which rule got us there.
+/// engine decided and which rule got us there — and carry the school's evidence.
 /// </summary>
 public sealed class RequestDecisionHandlerTests
 {
@@ -93,11 +93,10 @@ public sealed class RequestDecisionHandlerTests
     }
 
     [Fact]
-    public async Task Description_IncludesOutcomeRuleAndTrace()
+    public async Task Description_IncludesOutcomeRuleTraceAndAnswers()
     {
         var sut = NewSut();
-        var msg = NewMessage("Deceased");
-        msg.Reason = "Death certificate provided.";
+        var msg = NewMessage("Deceased", Answer("Reason for removal", "Death certificate provided."));
         var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1",
             new[] { "first trace line", "second trace line" });
 
@@ -109,7 +108,7 @@ public sealed class RequestDecisionHandlerTests
             && t.Ticket.Description.Contains("Matched rule: DEC-1")
             && t.Ticket.Description.Contains("first trace line")
             && t.Ticket.Description.Contains("second trace line")
-            && t.Ticket.Description.Contains("Death certificate provided.")));
+            && t.Ticket.Description.Contains("Reason for removal: Death certificate provided.")));
     }
 
     [Fact]
@@ -148,17 +147,12 @@ public sealed class RequestDecisionHandlerTests
     public async Task Uploads_AreAttached_OnAutoApproved()
     {
         var sut = NewSut();
-        var msg = NewMessage("Terminal/Critical illness");
-        msg.Uploads.Add(new UploadInfo { Filename = "letter.pdf", Id = Guid.NewGuid() });
+        var msg = NewMessage("Terminal/Critical illness",
+            FileAnswer(storedFileName: Guid.NewGuid().ToString(), originalFileName: "letter.pdf"));
         var decision = new Decision(DecisionStatus.AutoApproved, "TerminalCriticalIllness", "TCI-KS4-REJ",
             Array.Empty<string>());
 
-        // BlobContainerClient stub returns a blob client; we don't need real bytes —
-        // OpenReadAsync just needs to not throw. NSubstitute returns a stub blob client.
-        var blob = Substitute.For<BlobClient>();
-        blob.OpenReadAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<Stream>(new MemoryStream(new byte[] { 1, 2, 3 })));
-        _blobs.GetBlobClient(Arg.Any<string>()).Returns(blob);
+        StubBlobRead();
 
         await sut.HandleAsync(msg, decision, CancellationToken.None);
 
@@ -170,17 +164,13 @@ public sealed class RequestDecisionHandlerTests
     public async Task Uploads_AreAttached_OnScrutiny()
     {
         var sut = NewSut();
-        var msg = NewMessage("Terminal/Critical illness");
-        msg.Uploads.Add(new UploadInfo { Filename = "letter.pdf", Id = Guid.NewGuid() });
+        var msg = NewMessage("Terminal/Critical illness",
+            FileAnswer(storedFileName: Guid.NewGuid().ToString(), originalFileName: "letter.pdf"));
         var decision = new Decision(DecisionStatus.Scrutiny, "TerminalCriticalIllness", "TCI-DEF",
             Array.Empty<string>());
 
-        // Scrutiny is exactly when the caseworker needs the uploaded files, so they
-        // must be attached too. Stub the blob read so OpenReadAsync returns a stream.
-        var blob = Substitute.For<BlobClient>();
-        blob.OpenReadAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<Stream>(new MemoryStream(new byte[] { 1, 2, 3 })));
-        _blobs.GetBlobClient(Arg.Any<string>()).Returns(blob);
+        // Scrutiny is exactly when the caseworker needs the uploaded files.
+        StubBlobRead();
 
         await sut.HandleAsync(msg, decision, CancellationToken.None);
 
@@ -192,8 +182,8 @@ public sealed class RequestDecisionHandlerTests
     public async Task UploadFailure_IsLogged_DoesNotPreventTicketCreation()
     {
         var sut = NewSut();
-        var msg = NewMessage("Elective home education");
-        msg.Uploads.Add(new UploadInfo { Filename = "evidence.pdf", Id = Guid.NewGuid() });
+        var msg = NewMessage("Elective home education",
+            FileAnswer(storedFileName: Guid.NewGuid().ToString(), originalFileName: "evidence.pdf"));
         var decision = new Decision(DecisionStatus.AutoRejected, "ElectiveHomeEducation", "EHE-KS4",
             Array.Empty<string>());
 
@@ -239,20 +229,48 @@ public sealed class RequestDecisionHandlerTests
             _blobServiceClient,
             Options.Create(_settings), NullLogger<RequestDecisionHandler>.Instance);
 
-    private static PendingRequestMessage NewMessage(string whatToChange) => new()
+    private void StubBlobRead()
     {
-        RequestId = Guid.NewGuid(),
+        var blob = Substitute.For<BlobClient>();
+        blob.OpenReadAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Stream>(new MemoryStream(new byte[] { 1, 2, 3 })));
+        _blobs.GetBlobClient(Arg.Any<string>()).Returns(blob);
+    }
+
+    private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) => new()
+    {
+        ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
         CheckingWindowType = "KS4",
         WhatToChange = whatToChange,
-        Reason = null,
-        ReferenceNumber = "REF",
-        Status = "submitted",
         SubmittedAt = DateTime.UtcNow,
-        School = new School { Urn = "1", Name = "Test School" },
-        SubmittedBy = new SubmittedBy { UserId = "u", DisplayName = "x" },
-        Pupil = new Pupil { Id = "p", Firstname = "A", Surname = "B", Sex = "F", Age = 14 },
-        Answers = new List<Answer>(),
-        Uploads = new List<UploadInfo>(),
+        SubmittedBy = new UserDetails { UserId = "u", DisplayName = "x" },
+        School = new SchoolDetails { Urn = "1", Name = "Test School" },
+        Pupil = new PupilDetails
+        {
+            Id = "p", CypmdId = "c", Firstname = "A", Surname = "B",
+            DateOfBirth = "01/01/2010", Sex = "F", Age = 14, Upn = "UPN",
+        },
+        Answers = answers.ToList(),
+    };
+
+    private static AnswerRecord Answer(string title, string value) =>
+        new() { QuestionId = title, QuestionTitle = title, Type = "text", Value = value };
+
+    private static AnswerRecord FileAnswer(string storedFileName, string originalFileName) => new()
+    {
+        QuestionId = "evidence",
+        QuestionTitle = "Evidence",
+        Type = "FileUpload",
+        Files = new List<FileRecord>
+        {
+            new()
+            {
+                OriginalFileName = originalFileName,
+                StoredFileName = storedFileName,
+                PageCount = 1,
+                FileSizeBytes = 3,
+            }
+        }
     };
 }

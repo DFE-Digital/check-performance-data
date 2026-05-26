@@ -2,8 +2,8 @@ using System.Text;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
 using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker;
@@ -113,7 +113,7 @@ public sealed class RulesEngineWorker : BackgroundService
     /// </summary>
     internal async Task ProcessMessageBodyAsync(string messageBody, CancellationToken stoppingToken)
     {
-        var parsed = RequestMessageFactory.Parse(messageBody)
+        var parsed = RequestDocumentParser.Parse(messageBody)
             ?? throw new InvalidOperationException("Failed to parse message.");
 
         var snapshot = _rulesProvider.Current;
@@ -126,19 +126,19 @@ public sealed class RulesEngineWorker : BackgroundService
         catch (RuleContextMappingException ex)
         {
             _logger.LogError(ex,
-                "Mapper rejected message for RequestId={RequestId}; routing to Scrutiny.", parsed.RequestId);
+                "Mapper rejected message for Reference={Reference}; routing to Scrutiny.", parsed.ReferenceNumber);
             decision = Decision.SyntheticScrutiny("_mapper_error", ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Engine threw for RequestId={RequestId}; routing to Scrutiny.", parsed.RequestId);
+                "Engine threw for Reference={Reference}; routing to Scrutiny.", parsed.ReferenceNumber);
             decision = Decision.SyntheticScrutiny("_engine_error", ex.GetType().Name + ": " + ex.Message);
         }
 
         _logger.LogInformation(
-            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} RequestId={RequestId}",
-            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, snapshot.Version, parsed.RequestId);
+            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, snapshot.Version, parsed.ReferenceNumber);
 
         await _handler.HandleAsync(parsed, decision, stoppingToken);
     }

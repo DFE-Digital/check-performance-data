@@ -2,8 +2,8 @@ using System.Text.Json;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine.Json;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -45,7 +45,7 @@ public sealed class RulesEngineEndToEndTests
         Decision? captured = null;
         var handler = Substitute.For<IRequestDecisionHandler>();
         handler
-            .When(h => h.HandleAsync(Arg.Any<RequestMessage>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>()))
+            .When(h => h.HandleAsync(Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>()))
             .Do(call => captured = call.ArgAt<Decision>(1));
 
         var sut = NewWorker(handler);
@@ -249,20 +249,16 @@ public sealed class RulesEngineEndToEndTests
 
                 return $$"""
                     {
-                      "RequestId": "11111111-2222-3333-4444-555555555555",
                       "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
                       "CheckingWindowType": "{{CheckingWindowType}}",
                       "WhatToChange": "{{WhatToChange}}",
-                      "Reason": "scenario {{Name}}",
                       "School": { "Urn": "123456", "Name": "Test School" },
                       "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
-                      "Pupil": { "Id": "p1", "Firstname": "Bob", "Surname": "Smith", "Sex": "M", "Age": {{PupilAge}} },
+                      "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{PupilAge}}, "Upn": "UPN1" },
                       "Answers": [
                           {{answersJson}}
                       ],
-                      "Uploads": [],
                       "ReferenceNumber": "REF-001",
-                      "Status": "submitted",
                       "SubmittedAt": "2026-05-14T10:00:00Z"
                     }
                     """;

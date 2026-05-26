@@ -8,6 +8,17 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// enqueues a placeholder string) — these are the IDs the producer will target
 /// when it is built out. Updating either side requires touching only this file.
 /// </summary>
+/// <remarks>
+/// This indirection is deliberate — it is an anti-corruption boundary so the rules
+/// (Application) layer never depends on Web journey-authoring ids. It cannot be
+/// removed by simply renaming the Journey question ids to canonical names, because
+/// the relationship is not 1:1: the same concept resolves to a different canonical
+/// field by key stage (e.g. <c>sat-exams</c> → <c>hasSatExamsAsYear11</c> for KS4
+/// but <c>hasSatExamsAsYear6</c> for KS2), and journey-only questions
+/// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out (see below).
+/// Question ids are also the contract for serialized in-flight draft state, so a
+/// rename would be a breaking change with no migration path.
+/// </remarks>
 public static class AnswerFieldMap
 {
     /// <summary>

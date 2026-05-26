@@ -2,7 +2,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
 /// The engine's input: a normalised view of a single request. Built by
-/// <see cref="IRuleContextMapper"/> from a queue <c>RequestMessage</c> so the
+/// <see cref="IRuleContextMapper"/> from a queue <c>RequestDocument</c> so the
 /// evaluator never has to know the message shape.
 /// </summary>
 /// <param name="OutcomeKey">

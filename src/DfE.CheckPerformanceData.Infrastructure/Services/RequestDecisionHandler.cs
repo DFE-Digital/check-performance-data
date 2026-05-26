@@ -2,9 +2,9 @@ using System.Globalization;
 using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
-using DfE.CheckPerformanceData.Domain.QueueMessages;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -12,14 +12,15 @@ using Microsoft.Extensions.Options;
 namespace DfE.CheckPerformanceData.Infrastructure.Services;
 
 /// <summary>
-/// Turns a parsed <see cref="RequestMessage"/> + engine-produced
+/// Turns a parsed <see cref="RequestDocument"/> + engine-produced
 /// <see cref="Decision"/> into a Zendesk ticket. Dispatch is on
-/// <see cref="Decision.Status"/>; the on-the-wire <c>DecisionType</c> is
-/// informational only. Evidence uploads (if any) are attached for auto-decisions.
+/// <see cref="Decision.Status"/> — the rules engine is the sole decision-maker.
+/// Any evidence the school uploaded is attached, regardless of decision.
 /// </summary>
 public sealed class RequestDecisionHandler : IRequestDecisionHandler
 {
-    private const string EvidenceFolder = "Evidence";
+    // Matches the folder EvidenceBlobStorageService writes uploads to.
+    private const string EvidenceFolder = "evidence-uploads";
 
     private readonly IZendeskService _zendeskService;
     private readonly IZendeskAttachmentService _zendeskAttachmentService;
@@ -45,42 +46,41 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         _logger = logger;
     }
 
-    public async Task HandleAsync(RequestMessage message, Decision decision, CancellationToken token)
+    public async Task HandleAsync(RequestDocument message, Decision decision, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(message);
         ArgumentNullException.ThrowIfNull(decision);
 
         _logger.LogInformation(
-            "Processing decision: Status={Status} Outcome={Outcome} Rule={Rule} RequestId={RequestId}",
-            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, message.RequestId);
+            "Processing decision: Status={Status} Outcome={Outcome} Rule={Rule} Reference={Reference}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, message.ReferenceNumber);
 
         var ticket = BuildTicket(message, decision);
         var response = await _zendeskService.CreateTicketAsync(ticket);
 
         // Always attach the evidence the school uploaded, regardless of decision.
         // Scrutiny especially needs the files in front of the caseworker.
-        if (message is IRequestMessageUploads withUploads &&
-            withUploads.Uploads is { Count: > 0 } uploads)
+        var files = message.Answers
+            .Where(a => a.Files is not null)
+            .SelectMany(a => a.Files!);
+        foreach (var file in files)
         {
-            foreach (var upload in uploads)
-            {
-                await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, upload, token);
-            }
+            await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, file, token);
         }
 
         _logger.LogInformation(
-            "Created Zendesk ticket {TicketId} for RequestId={RequestId} (Decision={Status}, Rule={Rule}).",
-            response.Ticket.Id, message.RequestId, decision.Status, decision.MatchedRuleId);
+            "Created Zendesk ticket {TicketId} for Reference={Reference} (Decision={Status}, Rule={Rule}).",
+            response.Ticket.Id, message.ReferenceNumber, decision.Status, decision.MatchedRuleId);
     }
 
-    private CreateTicketRequestDto BuildTicket(RequestMessage message, Decision decision)
+    private CreateTicketRequestDto BuildTicket(RequestDocument message, Decision decision)
     {
         var subject = decision.Status switch
         {
-            DecisionStatus.AutoApproved => $"CPMD Auto-Approved: {decision.OutcomeKey} ({message.RequestId})",
-            DecisionStatus.AutoRejected => $"CPMD Auto-Rejected: {decision.OutcomeKey} ({message.RequestId})",
-            DecisionStatus.Scrutiny     => $"CPMD Requires Scrutiny: {decision.OutcomeKey} ({message.RequestId})",
-            _                           => $"CPMD: {decision.OutcomeKey} ({message.RequestId})",
+            DecisionStatus.AutoApproved => $"CPMD Auto-Approved: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            DecisionStatus.AutoRejected => $"CPMD Auto-Rejected: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            DecisionStatus.Scrutiny     => $"CPMD Requires Scrutiny: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            _                           => $"CPMD: {decision.OutcomeKey} ({message.ReferenceNumber})",
         };
 
         var priority = decision.Status == DecisionStatus.Scrutiny ? "high" : "normal";
@@ -106,10 +106,10 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         return dto;
     }
 
-    private static string BuildDescription(RequestMessage message, Decision decision)
+    private static string BuildDescription(RequestDocument message, Decision decision)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Request {message.RequestId} for window {message.CheckingWindowId} ({message.CheckingWindowType}).");
+        sb.AppendLine($"Request {message.ReferenceNumber} for window {message.CheckingWindowId} ({message.CheckingWindowType}).");
         sb.AppendLine($"Outcome: {decision.OutcomeKey}");
         sb.AppendLine($"Decision: {decision.Status}");
         sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
@@ -124,23 +124,20 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             sb.AppendLine();
         }
 
-        var reason = ExtractReason(message);
-        if (!string.IsNullOrWhiteSpace(reason))
+        // Surface the school's answers so the caseworker sees the context behind
+        // the decision — most valuable on Scrutiny tickets.
+        var answers = message.Answers.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
+        if (answers.Count > 0)
         {
-            sb.AppendLine($"Reason supplied by school: {reason}");
+            sb.AppendLine("Answers:");
+            foreach (var answer in answers)
+            {
+                sb.AppendLine($"  - {answer.QuestionTitle}: {answer.Value}");
+            }
         }
 
         return sb.ToString();
     }
-
-    private static string? ExtractReason(RequestMessage message) => message switch
-    {
-        PendingRequestMessage p  => p.Reason,
-        ApprovedRequestMessage a => a.Reason,
-        RejectedRequestMessage r => r.Reason,
-        ScrutinyMessage s        => s.Reason,
-        _ => null,
-    };
 
     private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
@@ -174,7 +171,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         }
     }
 
-    private void MapPupilFields(CreateTicketRequestDto dto, RequestMessage message)
+    private void MapPupilFields(CreateTicketRequestDto dto, RequestDocument message)
     {
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
@@ -260,25 +257,25 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         }
     }
 
-    private async Task UploadAttachmentToTicketAsync(long ticketId, Guid checkingWindowId, UploadInfo upload, CancellationToken token)
+    private async Task UploadAttachmentToTicketAsync(long ticketId, Guid checkingWindowId, FileRecord file, CancellationToken token)
     {
         try
         {
             var container = _blobServiceClient.GetBlobContainerClient(checkingWindowId.ToString());
-            var blobClient = container.GetBlobClient($"{EvidenceFolder}/{upload.Id}");
+            var blobClient = container.GetBlobClient($"{EvidenceFolder}/{file.StoredFileName}");
             using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
             await _zendeskAttachmentService.AddAttachmentAsync(
-                ticketId, upload.Filename, stream, $"Evidence: {upload.Filename}");
+                ticketId, file.OriginalFileName, stream, $"Evidence: {file.OriginalFileName}");
 
             _logger.LogInformation(
-                "Uploaded attachment '{Filename}' (Id={Id}) to ticket {TicketId}.",
-                upload.Filename, upload.Id, ticketId);
+                "Uploaded attachment '{Filename}' (Stored={Stored}) to ticket {TicketId}.",
+                file.OriginalFileName, file.StoredFileName, ticketId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "Failed to upload attachment '{Filename}' (Id={Id}) to ticket {TicketId}.",
-                upload.Filename, upload.Id, ticketId);
+                "Failed to upload attachment '{Filename}' (Stored={Stored}) to ticket {TicketId}.",
+                file.OriginalFileName, file.StoredFileName, ticketId);
         }
     }
 }

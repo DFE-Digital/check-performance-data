@@ -61,5 +61,25 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         /// </summary>
         [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = false)]
         public long BrandId { get; set; }
+
+        /// <summary>
+        /// Optional Zendesk custom field ID for the rules-engine decision status
+        /// (AutoApproved / AutoRejected / Scrutiny). When 0 or unset, the field
+        /// is omitted from the ticket — useful before the field has been
+        /// provisioned in Zendesk admin.
+        /// </summary>
+        public long DecisionStatusCustomFieldId { get; set; }
+
+        /// <summary>
+        /// Optional Zendesk custom field ID for the engine outcome key
+        /// (e.g. "ElectiveHomeEducation"). Omitted when 0.
+        /// </summary>
+        public long OutcomeKeyCustomFieldId { get; set; }
+
+        /// <summary>
+        /// Optional Zendesk custom field ID for the matched rule branch id
+        /// (e.g. "EHE-KS4"). Omitted when 0.
+        /// </summary>
+        public long MatchedRuleIdCustomFieldId { get; set; }
     }
 }

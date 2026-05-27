@@ -1,16 +1,27 @@
+using System.Globalization;
+using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Services;
 
+/// <summary>
+/// Turns a parsed <see cref="RequestDocument"/> + engine-produced
+/// <see cref="Decision"/> into a Zendesk ticket. Dispatch is on
+/// <see cref="Decision.Status"/> — the rules engine is the sole decision-maker.
+/// Any evidence the school uploaded is attached, regardless of decision.
+/// </summary>
 public sealed class RequestDecisionHandler : IRequestDecisionHandler
 {
+    // Matches the folder EvidenceBlobStorageService writes uploads to.
+    private const string EvidenceFolder = "evidence-uploads";
+
     private readonly IZendeskService _zendeskService;
     private readonly IZendeskAttachmentService _zendeskAttachmentService;
     private readonly IZendeskTicketFieldService _ticketFieldService;
@@ -30,273 +41,199 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
         _zendeskAttachmentService = zendeskAttachmentService;
         _ticketFieldService = ticketFieldService;
         _blobServiceClient = blobServiceClient;
-        if (schoolCheckingExerciseSettings?.Value == null)
-            throw new ArgumentException("The School Checking Exercise Settings are required.");
-        _checkingExerciseSettings = schoolCheckingExerciseSettings.Value;
+        _checkingExerciseSettings = schoolCheckingExerciseSettings?.Value
+            ?? throw new ArgumentException("The School Checking Exercise Settings are required.");
         _logger = logger;
     }
 
-    public async Task HandleAsync(RequestDocument message, CancellationToken token)
+    public async Task HandleAsync(RequestDocument message, Decision decision, CancellationToken token)
     {
-        switch (message.DecisionType)
-        {
-            case DecisionType.AutoApproved:
-                await HandleApprovedAsync(message as ApprovedRequestMessage, token);
-                break;
-            case DecisionType.AutoRejected:
-                await HandleRejectedAsync(message as RejectedRequestMessage, token);
-                break;
-            case DecisionType.Scrutiny:
-                await HandleScrutinyAsync(message as ScrutinyMessage, token);
-                break;
-            default:
-                _logger.LogWarning("Unhandled decision type: {DecisionType}", message.DecisionType);
-                break;
-        }
-    }
+        ArgumentNullException.ThrowIfNull(message);
+        ArgumentNullException.ThrowIfNull(decision);
 
-    private async Task HandleApprovedAsync(ApprovedRequestMessage? message, CancellationToken token)
-    {
-        if (message == null)
+        _logger.LogInformation(
+            "Processing decision: Status={Status} Outcome={Outcome} Rule={Rule} Reference={Reference}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, message.ReferenceNumber);
+
+        var ticket = BuildTicket(message, decision);
+        var response = await _zendeskService.CreateTicketAsync(ticket);
+
+        // Always attach the evidence the school uploaded, regardless of decision.
+        // Scrutiny especially needs the files in front of the caseworker.
+        var files = message.Answers
+            .Where(a => a.Files is not null)
+            .SelectMany(a => a.Files!);
+        foreach (var file in files)
         {
-            _logger.LogError("ApprovedRequestMessage is null");
-            return;
+            await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, file, token);
         }
 
         _logger.LogInformation(
-            "Processing approved request: WindowId={WindowId}, DecisionType={DecisionType}",
-            message.CheckingWindowId, message.DecisionType);
+            "Created Zendesk ticket {TicketId} for Reference={Reference} (Decision={Status}, Rule={Rule}).",
+            response.Ticket.Id, message.ReferenceNumber, decision.Status, decision.MatchedRuleId);
+    }
 
-        var ticketRequest = new CreateTicketRequestDto
+    private CreateTicketRequestDto BuildTicket(RequestDocument message, Decision decision)
+    {
+        var subject = decision.Status switch
+        {
+            DecisionStatus.AutoApproved => $"CPMD Auto-Approved: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            DecisionStatus.AutoRejected => $"CPMD Auto-Rejected: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            DecisionStatus.Scrutiny     => $"CPMD Requires Scrutiny: {decision.OutcomeKey} ({message.ReferenceNumber})",
+            _                           => $"CPMD: {decision.OutcomeKey} ({message.ReferenceNumber})",
+        };
+
+        var priority = decision.Status == DecisionStatus.Scrutiny ? "high" : "normal";
+        var status = decision.Status == DecisionStatus.Scrutiny ? "new" : "open";
+        var type = decision.Status == DecisionStatus.Scrutiny ? "question" : "task";
+
+        var dto = new CreateTicketRequestDto
         {
             Ticket = new CreateTicketDto
             {
-                Description = $"Request for window {message.CheckingWindowId} has been approved.\nReason: {message.Reason}",
-                Priority = "normal",
+                Subject = subject,
+                Description = BuildDescription(message, decision),
+                Status = status,
+                Priority = priority,
+                Type = type,
+                BrandId = _checkingExerciseSettings.BrandId,
+                GroupId = _checkingExerciseSettings.GroupId,
             }
         };
 
-        ticketRequest = MapViewFields(message, ticketRequest);
-
-        var response = await _zendeskService.CreateTicketAsync(ticketRequest);
-        await UploadFilesAsync(message, response, token);
-
-        _logger.LogInformation(
-            "Created Zendesk ticket {TicketId} for approved request",
-            response.Ticket.Id);
+        AddEngineCustomFields(dto, decision);
+        MapPupilFields(dto, message);
+        return dto;
     }
 
-    private async Task UploadFilesAsync(RequestDocument message, CreateTicketResponseDto response, CancellationToken token)
+    private static string BuildDescription(RequestDocument message, Decision decision)
     {
-        var files = message.Answers.SelectMany(x => x.Files ?? Enumerable.Empty<FileRecord>()).ToList();
-        if (files.Any())
+        var sb = new StringBuilder();
+        sb.AppendLine($"Request {message.ReferenceNumber} for window {message.CheckingWindowId} ({message.CheckingWindowType}).");
+        sb.AppendLine($"Outcome: {decision.OutcomeKey}");
+        sb.AppendLine($"Decision: {decision.Status}");
+        sb.AppendLine($"Matched rule: {decision.MatchedRuleId}");
+        sb.AppendLine();
+        if (decision.Trace.Count > 0)
         {
-            foreach (var upload in files)
+            sb.AppendLine("Trace:");
+            foreach (var line in decision.Trace)
             {
-                await UploadAttachmentToTicketAsync(response.Ticket.Id, message.CheckingWindowId, upload, token);
+                sb.AppendLine($"  - {line}");
             }
-        }
-    }
-
-    private async Task HandleRejectedAsync(RejectedRequestMessage? message, CancellationToken token)
-    {
-        if (message == null)
-        {
-            _logger.LogError("RejectedRequestMessage is null");
-            return;
+            sb.AppendLine();
         }
 
-        _logger.LogInformation(
-            "Processing rejected request: WindowId={WindowId}, DecisionType={DecisionType}",
-            message.CheckingWindowId, message.DecisionType);
-
-        var ticketRequest = new CreateTicketRequestDto
+        // Surface the school's answers so the caseworker sees the context behind
+        // the decision — most valuable on Scrutiny tickets.
+        var answers = message.Answers.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
+        if (answers.Count > 0)
         {
-            Ticket = new CreateTicketDto
+            sb.AppendLine("Answers:");
+            foreach (var answer in answers)
             {
-                Description = $"Request for window {message.CheckingWindowId} has been rejected.\nReason: {message.Reason}",
-                Priority = "normal",
-            }
-        };
-
-        ticketRequest = MapViewFields(message, ticketRequest);
-
-        var response = await _zendeskService.CreateTicketAsync(ticketRequest);
-
-        await UploadFilesAsync(message, response, token);
-
-        _logger.LogInformation(
-            "Created Zendesk ticket {TicketId} for rejected request",
-            response.Ticket.Id);
-    }
-
-    private async Task HandleScrutinyAsync(ScrutinyMessage? message, CancellationToken token)
-    {
-        if (message == null)
-        {
-            _logger.LogError("ScrutinyMessage is null");
-            return;
-        }
-
-        _logger.LogInformation(
-            "Processing scrutiny request: WindowId={WindowId}",
-            message.CheckingWindowId);
-
-        var ticketRequest = new CreateTicketRequestDto
-        {
-            Ticket = new CreateTicketDto
-            {                
-                Description = $"Request for window {message.CheckingWindowId} requires scrutiny.\nReason: {message.Reason}",
-                Priority = "high",
-            }
-        };
-
-        ticketRequest = MapViewFields(message, ticketRequest);
-        var response = await _zendeskService.CreateTicketAsync(ticketRequest);
-
-        _logger.LogInformation(
-            "Created Zendesk ticket {TicketId} for scrutiny request",
-            response.Ticket.Id);
-    }
-
-    private const string EvidenceFolder = "evidence-uploads";
-
-    private async Task UploadAttachmentToTicketAsync(long ticketId, Guid checkingWindowId, FileRecord upload, CancellationToken token)
-    {
-        try
-        {
-            var container = _blobServiceClient.GetBlobContainerClient(checkingWindowId.ToString());
-            var blobClient = container.GetBlobClient($"{EvidenceFolder}/{upload.StoredFileName}");
-            using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
-            await _zendeskAttachmentService.AddAttachmentAsync(
-                ticketId, upload.OriginalFileName, stream, $"Evidence: {upload.OriginalFileName}");
-
-            _logger.LogInformation(
-                "Uploaded attachment '{OriginalFileName}' to ticket {TicketId}",
-                upload.OriginalFileName, ticketId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "Failed to upload attachment '{OriginalFileName}' (StoredFileName={StoredFileName}) to ticket {TicketId}",
-                upload.OriginalFileName, upload.StoredFileName, ticketId);
-        }
-    }
-
-    private CreateTicketRequestDto MapViewFields(RequestDocument message, CreateTicketRequestDto dto)
-    {
-        dto.Ticket.Subject = "School Checking Exercise";
-        dto.Ticket.BrandId = _checkingExerciseSettings.BrandId;
-        dto.Ticket.GroupId = _checkingExerciseSettings.GroupId;
-        dto.Ticket.Status = "new";
-        dto.Ticket.Type = "question";
-
-        // Build description from message
-        dto.Ticket.Description = string.IsNullOrWhiteSpace(dto.Ticket.Description)
-            ? $"Request for window {message.CheckingWindowId} ({message.CheckingWindowType}). " +
-              $"School: {message.School.Name} ({message.School.Urn}). " +
-              $"Pupil: {message.Pupil.Firstname} {message.Pupil.Surname} (DOB: {message.Pupil.DateOfBirth}). " +
-              $"Change requested: {message.WhatToChange}"
-            : dto.Ticket.Description;
-
-        // Map Decision Status using options constant
-        var decisionStatusId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
-        if (decisionStatusId.HasValue)
-        {
-            var decisionValue = message.DecisionType switch
-            {
-                DecisionType.Scrutiny => ZendeskTicketFieldOptions.DecisionStatus.Scrutiny,
-                DecisionType.AutoApproved => ZendeskTicketFieldOptions.DecisionStatus.AutoApproved,
-                DecisionType.AutoRejected => ZendeskTicketFieldOptions.DecisionStatus.AutoRejected,
-                _ => null
-            };
-
-            if (decisionValue != null)
-            {
-                dto.Ticket.CustomFields.Add(new CustomFieldDto
-                {
-                    Id = decisionStatusId.Value,
-                    Value = decisionValue
-                });
+                sb.AppendLine($"  - {answer.QuestionTitle}: {answer.Value}");
             }
         }
 
-        // Map School URN
+        return sb.ToString();
+    }
+
+    private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
+    {
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = _checkingExerciseSettings.DecisionStatusCustomFieldId,
+                Value = decision.Status.ToString(),
+            });
+        }
+
+        if (_checkingExerciseSettings.OutcomeKeyCustomFieldId > 0)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = _checkingExerciseSettings.OutcomeKeyCustomFieldId,
+                Value = decision.OutcomeKey,
+            });
+        }
+
+        if (_checkingExerciseSettings.MatchedRuleIdCustomFieldId > 0)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = _checkingExerciseSettings.MatchedRuleIdCustomFieldId,
+                Value = decision.MatchedRuleId,
+            });
+        }
+    }
+
+    private void MapPupilFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
         var schoolUrnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SchoolUrnName);
         if (schoolUrnId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = schoolUrnId.Value,
-                Value = message.School.Urn
+                Value = message.School.Urn,
             });
         }
 
-        // Map CYPMD ID
-        var cypmdId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName);
-        if (cypmdId.HasValue)
+        var cypmdFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName);
+        if (cypmdFieldId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = cypmdId.Value,
-                Value = message.Pupil.CypmdId
+                Id = cypmdFieldId.Value,
+                Value = message.Pupil.CypmdId,
             });
         }
 
-        // Map UPN
         var upnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.UpnName);
         if (upnId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = upnId.Value,
-                Value = message.Pupil.Upn
+                Value = message.Pupil.Id,
             });
         }
 
-        // Map LDS Matched Pupil ID
-        var ldsMatchedPupilId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
-        if (ldsMatchedPupilId.HasValue)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = ldsMatchedPupilId.Value,
-                Value = 0 // TODO: Map to actual LDS matched pupil ID when available in the payload
-            });
-        }
-
-        // Map Surname
         var surnameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SurnameCypmdName);
-        if (surnameId.HasValue)
+        if (surnameId.HasValue && !string.IsNullOrEmpty(message.Pupil.Surname))
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = surnameId.Value,
-                Value = message.Pupil.Surname.ToUpperInvariant()
+                Value = message.Pupil.Surname.ToUpperInvariant(),
             });
         }
 
-        // Map Forename
         var forenameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ForenameCypmdName);
-        if (forenameId.HasValue)
+        if (forenameId.HasValue && !string.IsNullOrEmpty(message.Pupil.Firstname))
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = forenameId.Value,
-                Value = message.Pupil.Firstname.ToUpperInvariant()
+                Value = message.Pupil.Firstname.ToUpperInvariant(),
             });
         }
 
-        // Map Date of Birth
         var dobId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DateOfBirthCypmdName);
-        if (dobId.HasValue)
+        if (dobId.HasValue && !string.IsNullOrEmpty(message.Pupil.DateOfBirth))
         {
-            if (DateTime.TryParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", null, System.Globalization.DateTimeStyles.None, out var dob))
+            if (DateTime.TryParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
             {
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
                 {
                     Id = dobId.Value,
-                    Value = dob.ToString("yyyy-MM-dd")
+                    Value = dob.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 });
             }
             else
@@ -305,22 +242,40 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             }
         }
 
-        // Map Sex using options constant
         var sexId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SexName);
-        if (sexId.HasValue)
+        if (sexId.HasValue && !string.IsNullOrEmpty(message.Pupil.Sex))
         {
-            var sexValue = _ticketFieldService.GetOptionValue(
-                ZendeskTicketFieldConstants.SexName, message.Pupil.Sex);
+            var sexValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.SexName, message.Pupil.Sex);
             if (sexValue != null)
             {
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
                 {
                     Id = sexId.Value,
-                    Value = sexValue
+                    Value = sexValue,
                 });
             }
         }
+    }
 
-        return dto;
+    private async Task UploadAttachmentToTicketAsync(long ticketId, Guid checkingWindowId, FileRecord file, CancellationToken token)
+    {
+        try
+        {
+            var container = _blobServiceClient.GetBlobContainerClient(checkingWindowId.ToString());
+            var blobClient = container.GetBlobClient($"{EvidenceFolder}/{file.StoredFileName}");
+            using var stream = await blobClient.OpenReadAsync(cancellationToken: token);
+            await _zendeskAttachmentService.AddAttachmentAsync(
+                ticketId, file.OriginalFileName, stream, $"Evidence: {file.OriginalFileName}");
+
+            _logger.LogInformation(
+                "Uploaded attachment '{Filename}' (Stored={Stored}) to ticket {TicketId}.",
+                file.OriginalFileName, file.StoredFileName, ticketId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to upload attachment '{Filename}' (Stored={Stored}) to ticket {TicketId}.",
+                file.OriginalFileName, file.StoredFileName, ticketId);
+        }
     }
 }

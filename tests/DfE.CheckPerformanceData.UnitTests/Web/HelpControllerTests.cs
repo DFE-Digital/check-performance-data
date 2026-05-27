@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
@@ -25,7 +26,7 @@ public sealed class HelpControllerTests
 		//     ControllerContext (standard ASP.NET Core unit-test pattern).
 		_wikiService.GetNavigationTreeAsync().Returns(new List<WikiPageTreeNodeDto>());
 		var seeder = new WikiSeeder(_wikiService);
-		var sut = new HelpController(_wikiService, seeder, NullLogger<HelpController>.Instance)
+		var sut = new HelpController(_wikiService, seeder, Substitute.For<ISettingService>(), NullLogger<HelpController>.Instance)
 		{
 			ControllerContext = new ControllerContext
 			{
@@ -83,7 +84,7 @@ public sealed class HelpControllerTests
 	private HelpController CreateSeederController()
 	{
 		var seeder = new WikiSeeder(_wikiService);
-		return new HelpController(_wikiService, seeder, NullLogger<HelpController>.Instance)
+		return new HelpController(_wikiService, seeder, Substitute.For<ISettingService>(), NullLogger<HelpController>.Instance)
 		{
 			ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
 			TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())

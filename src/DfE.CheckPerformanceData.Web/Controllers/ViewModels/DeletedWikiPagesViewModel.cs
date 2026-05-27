@@ -6,4 +6,5 @@ public sealed class DeletedWikiPagesViewModel
 {
     public List<DeletedWikiPageDto> DeletedPages { get; set; } = [];
     public List<WikiParentOptionDto> AvailableParents { get; set; } = [];
+    public DeletedPagesResult Results { get; set; } = new();
 }

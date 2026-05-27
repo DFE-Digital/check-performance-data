@@ -1,4 +1,5 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -15,7 +16,7 @@ public sealed class HelpControllerSearchTests
 
     public HelpControllerSearchTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), NullLogger<HelpController>.Instance);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), Substitute.For<ISettingService>(), NullLogger<HelpController>.Instance);
     }
 
     // --- Search action — validation ---

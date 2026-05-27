@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class HelpController(
     IWikiService wikiService,
     WikiSeeder wikiSeeder,
+    ISettingService settingService,
     ILogger<HelpController> logger) : Controller
 {
     private bool IsEditMode =>
@@ -169,15 +171,24 @@ public sealed class HelpController(
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/deleted")]
-    public async Task<IActionResult> Deleted()
+    public async Task<IActionResult> Deleted(string? search, string? sort, string? dir, int page = 1)
     {
-        var deletedPages = await wikiService.GetDeletedPagesAsync();
+        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var result = await wikiService.GetDeletedPagesAsync(new DeletedPagesQuery
+        {
+            Search = search,
+            Sort = sort,
+            Direction = dir,
+            Page = page,
+            PageSize = pageSize
+        });
         var availableParents = await wikiService.GetAvailableParentsAsync();
 
         var vm = new DeletedWikiPagesViewModel
         {
-            DeletedPages = deletedPages,
-            AvailableParents = availableParents
+            DeletedPages = result.Items.ToList(),
+            AvailableParents = availableParents,
+            Results = result
         };
 
         return View(vm);

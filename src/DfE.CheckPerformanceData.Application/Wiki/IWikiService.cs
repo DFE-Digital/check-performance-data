@@ -14,7 +14,7 @@ public interface IWikiService
     Task MovePageAsync(int id, int? newParentId, int newSortOrder);
     Task<List<WikiPageVersionDto>> GetPageVersionsAsync(int pageId);
     Task<WikiPageDto> RevertToVersionAsync(int pageId, int versionId);
-    Task<List<DeletedWikiPageDto>> GetDeletedPagesAsync();
+    Task<DeletedPagesResult> GetDeletedPagesAsync(DeletedPagesQuery query);
     Task<List<WikiParentOptionDto>> GetAvailableParentsAsync();
     Task<WikiPageDto> RestorePageAsync(int rootId, int? newParentId);
 }

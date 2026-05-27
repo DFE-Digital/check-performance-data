@@ -380,7 +380,46 @@ public sealed partial class WikiService(
 		return string.Join("/", slugs);
 	}
 
-	public async Task<List<DeletedWikiPageDto>> GetDeletedPagesAsync()
+	public async Task<DeletedPagesResult> GetDeletedPagesAsync(DeletedPagesQuery query)
+	{
+		var all = await LoadEnrichedDeletedRootsAsync();
+
+		var search = query.Search?.Trim();
+		if (!string.IsNullOrEmpty(search))
+		{
+			all = all.Where(r =>
+					r.Title.Contains(search, StringComparison.OrdinalIgnoreCase)
+					|| r.OriginalSlugPath.Contains(search, StringComparison.OrdinalIgnoreCase))
+				.ToList();
+		}
+
+		var sort = DeletedPagesSort.Normalise(query.Sort);
+		var ascending = string.Equals(query.Direction, "asc", StringComparison.OrdinalIgnoreCase);
+		all = SortDeleted(all, sort, ascending);
+
+		var total = all.Count;
+		var pageSize = query.PageSize <= 0 ? DefaultPageSize : query.PageSize;
+		var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+		var page = Math.Clamp(query.Page < 1 ? 1 : query.Page, 1, totalPages);
+		var items = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+		return new DeletedPagesResult
+		{
+			Items = items,
+			TotalCount = total,
+			Page = page,
+			PageSize = pageSize,
+			TotalPages = totalPages,
+			Search = search,
+			Sort = sort,
+			Direction = ascending ? "asc" : "desc"
+		};
+	}
+
+	// Loads every deleted root and enriches it with its computed original slug path and
+	// deleted-descendant count. Search/sort/paging are applied over this enriched set
+	// because both the path and the count are derived, not stored columns.
+	private async Task<List<DeletedWikiPageDto>> LoadEnrichedDeletedRootsAsync()
 	{
 		var roots = await repository.GetDeletedRootsAsync();
 		var result = new List<DeletedWikiPageDto>(roots.Count);
@@ -407,10 +446,25 @@ public sealed partial class WikiService(
 			});
 		}
 
-		return result
-			.OrderByDescending(r => r.DeletedAt)
-			.ThenBy(r => r.Title)
-			.ToList();
+		return result;
+	}
+
+	private static List<DeletedWikiPageDto> SortDeleted(
+		List<DeletedWikiPageDto> source, string sort, bool ascending)
+	{
+		Func<DeletedWikiPageDto, IComparable?> key = sort switch
+		{
+			DeletedPagesSort.Title => r => r.Title,
+			DeletedPagesSort.Path => r => r.OriginalSlugPath,
+			DeletedPagesSort.Children => r => r.DescendantCount,
+			_ => r => r.DeletedAt
+		};
+
+		var ordered = ascending
+			? source.OrderBy(key).ThenBy(r => r.Title)
+			: source.OrderByDescending(key).ThenBy(r => r.Title);
+
+		return ordered.ToList();
 	}
 
 	public async Task<List<WikiParentOptionDto>> GetAvailableParentsAsync()

@@ -1,4 +1,5 @@
 using Azure.Storage.Queues;
+using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 
@@ -13,7 +14,9 @@ builder.Services.AddSingleton(sp => new QueueServiceClient(builder.Configuration
     }));
 
 builder.Services.AddZendeskApiClient(builder.Configuration);
-builder.Services.AddInfrastructureDependencies(builder.Configuration); 
+builder.Services.AddInfrastructureDependencies(builder.Configuration);
+builder.Services.AddApplicationDependencies();
+builder.Services.AddRulesProvider(builder.Configuration);
 
 builder.Services.AddHostedService<RulesEngineWorker>();
 

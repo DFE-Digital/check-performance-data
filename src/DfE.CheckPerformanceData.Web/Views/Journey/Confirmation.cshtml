@@ -17,7 +17,7 @@
 <p class="govuk-body">We have sent you an email to confirm that you have successfully submitted a request.</p>
 
 <govuk-notification-banner>
-    You still have until <strong>@Model.WindowCloseLabel</strong> to update this request or submit others.
+    You still have until <strong>@Model.WindowCloseLabel</strong> to update this request or <a class="govuk-link" asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">submit others</a>.
 </govuk-notification-banner>
 
 @await Component.InvokeAsync("EditableTitle", new {

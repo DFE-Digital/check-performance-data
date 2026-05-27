@@ -21,6 +21,7 @@ public sealed class PortalDbContext(
     public DbSet<Pupil> Pupils => Set<Pupil>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<Country> Countries => Set<Country>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new WikiPageVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());
         modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
+        modelBuilder.ApplyConfiguration(new CountryConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -10,6 +10,8 @@ public sealed class DevDataSeeder(IPortalDbContext dbContext)
 
     public async Task SeedAsync()
     {
+        await SeedCountries.ExecuteSeed(dbContext);
+
         await SeedCheckingWindows.ExecuteSeed(dbContext, _keyStage4JuneCheckingWindowId, _closedKeyStage4JuneCheckingWindowId);
         
         await dbContext.Pupils.ExecuteDeleteAsync();

@@ -12,4 +12,5 @@ public sealed class Question
     public bool UseAsRequestType { get; init; }
     public int? CharacterLimit { get; init; }
     public List<QuestionOption>? Options { get; init; }
+    public string? DataSource { get; init; }
 }

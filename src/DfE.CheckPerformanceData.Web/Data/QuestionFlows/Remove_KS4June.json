@@ -56,7 +56,7 @@
             {
               "value": "permanently-left-england",
               "label": "Permanently left England",
-              "nextPageId": "additional-info"
+              "nextPageId": "permanently-left-england-questions"
             },
             {
               "value": "social-care-involvement",
@@ -74,6 +74,27 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "permanently-left-england-questions",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "country-moved-to",
+          "type": "Autocomplete",
+          "title": "What country did {pupilName} move to?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country moved to",
+          "dataSource" : "countries"
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from roll"
         }
       ]
     },

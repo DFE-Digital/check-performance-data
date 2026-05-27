@@ -14,4 +14,7 @@
     case QuestionType.TextArea:
         await Html.RenderPartialAsync("_TextArea", Model);
         break;
+    case QuestionType.Autocomplete:
+        await Html.RenderPartialAsync("_Autocomplete", Model);
+        break;
 }

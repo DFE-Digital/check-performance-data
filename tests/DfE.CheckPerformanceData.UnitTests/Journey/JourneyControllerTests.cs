@@ -338,6 +338,51 @@ public class JourneyControllerTests
         AssertRedirectToCheckYourData(result);
     }
 
+    // ── DownloadEvidence ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DownloadEvidence_WhenFileInSession_ReturnsFileResult()
+    {
+        const string storedName = "stored-guid";
+        const string originalName = "evidence.pdf";
+        var bytes = new byte[] { 1, 2, 3 };
+
+        var state = ValidSession(answers: new Dictionary<string, QuestionAnswer>
+        {
+            ["q1"] = new() { FileValues = [new FileAnswer { StoredFileName = storedName, OriginalFileName = originalName, PageCount = 2, FileSizeBytes = 1024 }] }
+        });
+        SetupSession(state);
+        _fileStorageService.GetAsync(WindowId, storedName).Returns(bytes);
+
+        var result = await _sut.DownloadEvidence(WindowId, storedName);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal(bytes, file.FileContents);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal(originalName, file.FileDownloadName);
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenFileNotInSession_ReturnsNotFound()
+    {
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>()));
+
+        var result = await _sut.DownloadEvidence(WindowId, "unknown-file");
+
+        Assert.IsType<NotFoundResult>(result);
+        await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenNoSession_ReturnsNotFound()
+    {
+        SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
+
+        var result = await _sut.DownloadEvidence(WindowId, "any-file");
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void SetupSession(RequestState state)

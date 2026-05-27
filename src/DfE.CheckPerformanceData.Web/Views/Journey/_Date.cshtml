@@ -42,7 +42,7 @@
                     <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_day">Day</label>
                     <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(Model.HasError ? "govuk-input--error" : "")"
                            id="@(Model.FieldName)_day" name="@(Model.FieldName)_day"
-                           type="text" inputmode="numeric" value="@dayVal">
+                           type="text" inputmode="numeric" pattern="[0-9]*" value="@dayVal">
                 </div>
             </div>
             <div class="govuk-date-input__item">
@@ -50,7 +50,7 @@
                     <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_month">Month</label>
                     <input class="govuk-input govuk-date-input__input govuk-input--width-2 @(Model.HasError ? "govuk-input--error" : "")"
                            id="@(Model.FieldName)_month" name="@(Model.FieldName)_month"
-                           type="text" inputmode="numeric" value="@monthVal">
+                           type="text" inputmode="numeric" pattern="[0-9]*" value="@monthVal">
                 </div>
             </div>
             <div class="govuk-date-input__item">
@@ -58,9 +58,22 @@
                     <label class="govuk-label govuk-date-input__label" for="@(Model.FieldName)_year">Year</label>
                     <input class="govuk-input govuk-date-input__input govuk-input--width-4 @(Model.HasError ? "govuk-input--error" : "")"
                            id="@(Model.FieldName)_year" name="@(Model.FieldName)_year"
-                           type="text" inputmode="numeric" value="@yearVal">
+                           type="text" inputmode="numeric" pattern="[0-9]*" value="@yearVal">
                 </div>
             </div>
         </div>
     </fieldset>
 </div>
+
+<script>
+    (function () {
+        ['@(Model.FieldName)_day', '@(Model.FieldName)_month', '@(Model.FieldName)_year'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', function () {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                });
+            }
+        });
+    })();
+</script>

@@ -2,6 +2,7 @@
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -24,6 +25,7 @@ public static class DependencyManager
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
+        services.AddScoped<ICountryService, CountryService>();
 
         return services;
     }

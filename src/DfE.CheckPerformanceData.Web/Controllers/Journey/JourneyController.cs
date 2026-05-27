@@ -263,7 +263,7 @@ public sealed class JourneyController(
                 if (q.Type == QuestionType.FileUpload)
                 {
                     if (a?.FileValues is { Count: > 0 } files)
-                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes)));
+                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes, f.PageCount, f.StoredFileName)));
                 }
                 else
                 {
@@ -278,7 +278,25 @@ public sealed class JourneyController(
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
             : null;
 
-        return View(new SummaryViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange!.Value, PupilName = pupilName, Rows = rows, FileRows = fileRows, BackPageId = backPageId, DebugJson = debugJson });
+        return View(new SummaryViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange!.Value, PupilName = pupilName, Rows = rows, FileRows = fileRows, BackPageId = backPageId, MaxEvidencePages = journeyService.MaxEvidencePages, DebugJson = debugJson });
+    }
+
+    [Route("/Journey/{windowId}/evidence/{storedFileName}")]
+    public async Task<IActionResult> DownloadEvidence(Guid windowId, string storedFileName)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return NotFound();
+
+        var fileAnswer = journey.QuestionAnswers.Values
+            .SelectMany(a => a.FileValues ?? [])
+            .FirstOrDefault(f => f.StoredFileName == storedFileName);
+
+        if (fileAnswer is null) return NotFound();
+
+        var bytes = await fileStorageService.GetAsync(windowId, storedFileName);
+        if (bytes is null) return NotFound();
+
+        return File(bytes, "application/pdf", fileAnswer.OriginalFileName);
     }
 
     [HttpPost]

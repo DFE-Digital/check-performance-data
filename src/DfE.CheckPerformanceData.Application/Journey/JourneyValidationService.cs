@@ -6,11 +6,15 @@ public sealed class JourneyValidationService : IJourneyValidationService
 {
     private const int MaxTotalPages = 6;
 
+    public int MaxEvidencePages => MaxTotalPages;
+
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle) =>
         question.Type switch
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
                 => $"{resolvedTitle} is required",
+            QuestionType.Date when !IsValidDate(answer.DateValue!)
+                => $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => $"{resolvedTitle} is required",
             QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
@@ -20,6 +24,11 @@ public sealed class JourneyValidationService : IJourneyValidationService
                 => $"{resolvedTitle} is required",
             _ => null
         };
+
+    private static bool IsValidDate(DateAnswer d) =>
+        d.Month is >= 1 and <= 12 &&
+        d.Day >= 1 &&
+        d.Day <= DateTime.DaysInMonth(d.Year, d.Month);
 
     public string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles)
     {

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.Wiki;
@@ -41,6 +42,7 @@ public static class DependencyManager
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
+        services.AddScoped<ICountryRepository, CountryRepository>();
 
         return services;
     }

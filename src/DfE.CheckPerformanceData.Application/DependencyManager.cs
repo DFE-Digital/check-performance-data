@@ -19,6 +19,7 @@ public static class DependencyManager
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();
         services.AddScoped<WikiSeeder>();
+        services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();

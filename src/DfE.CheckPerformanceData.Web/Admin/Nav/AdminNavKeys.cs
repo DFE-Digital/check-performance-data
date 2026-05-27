@@ -12,6 +12,7 @@ public static class AdminNavKeys
     public const string ContentStaging = "content-staging";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
+    public const string CmsSettings = "cms-settings";
     public const string VrDashboard = "vr-dashboard";
     public const string RulesEngine = "rules-engine";
 }

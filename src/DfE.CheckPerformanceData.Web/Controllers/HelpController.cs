@@ -143,7 +143,8 @@ public sealed class HelpController(
     public async Task<IActionResult> Search(string? q, int page = 1)
     {
         var safePage = page < 1 ? 1 : page;
-        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage);
+        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage, pageSize);
         var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch

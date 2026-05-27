@@ -123,8 +123,14 @@ try
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
-    builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
+    // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
+    if (builder.Environment.IsDevelopment())
+        builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
+    else
+        builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
+            new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
+    builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
@@ -190,6 +196,11 @@ try
     {
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
         try
         {

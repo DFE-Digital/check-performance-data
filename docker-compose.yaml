@@ -1,4 +1,4 @@
-﻿services:
+services:
   web:
     profiles: [web, all, e2e]
     container_name: cypd_web
@@ -13,7 +13,7 @@
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
       - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
@@ -38,7 +38,7 @@
     image: cypd_rules_engine:latest
     environment:
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
-      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
+      - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}
       - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
       - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
       - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
@@ -51,10 +51,82 @@
       - RulesEngineOptions__MaxMessagesPerPoll=${RULESENGINEOPTIONS_MAXMESSAGESPERPOLL:-10}
       - RulesEngineOptions__EmptyQueueDelayMs=${RULESENGINEOPTIONS_EMPTYQUEUEDELAYMS:-1000}
       - RulesEngineOptions__MaxDequeueCount=${RULESENGINEOPTIONS_MAXDEQUEUECOUNT:-3}
+      - RulesEngineOptions__RulesBlobContainer=${RULESENGINEOPTIONS_RULESBLOBCONTAINER:-rules-config}
+      - RulesEngineOptions__RulesBlobName=${RULESENGINEOPTIONS_RULESBLOBNAME:-rules.json}
+      - RulesEngineOptions__LookupsBlobName=${RULESENGINEOPTIONS_LOOKUPSBLOBNAME:-country-languages.json}
+      - RulesEngineOptions__RefreshIntervalSeconds=${RULESENGINEOPTIONS_REFRESHINTERVALSECONDS:-300}
+      - RulesEngineOptions__StalenessWarningSeconds=${RULESENGINEOPTIONS_STALENESSWARNINGSECONDS:-1800}
+      - ZendeskSettings__Subdomain=${ZendeskSettings_Subdomain}
+      - ZendeskSettings__Domain=${ZendeskSettings_Domain}
+      - ZendeskSettings__Email=${ZendeskSettings_Email}
+      - ZendeskSettings__ApiToken=${ZendeskSettings_ApiToken}
+      - SchoolCheckingExercise__TargetViewTitle=${SchoolCheckingExercise_TargetViewTitle}
+      - SchoolCheckingExercise__GroupId=${SchoolCheckingExercise_GroupId}
+      - SchoolCheckingExercise__BrandId=${SchoolCheckingExercise_BrandId}
+      - ZendeskTicketFields__UpnId=${ZendeskTicketFields_UpnId}
+      - ZendeskTicketFields__TypeOfOrganisationId=${ZendeskTicketFields_TypeOfOrganisationId}
+      - ZendeskTicketFields__SurnameCypmdId=${ZendeskTicketFields_SurnameCypmdId}
+      - ZendeskTicketFields__SexId=${ZendeskTicketFields_SexId}
+      - ZendeskTicketFields__SchoolUrnId=${ZendeskTicketFields_SchoolUrnId}
+      - ZendeskTicketFields__ReasonForRemovalId=${ZendeskTicketFields_ReasonForRemovalId}
+      - ZendeskTicketFields__LdsMatchedPupilIdId=${ZendeskTicketFields_LdsMatchedPupilIdId}
+      - ZendeskTicketFields__KeyStageId=${ZendeskTicketFields_KeyStageId}
+      - ZendeskTicketFields__ForenameCypmdId=${ZendeskTicketFields_ForenameCypmdId}
+      - ZendeskTicketFields__DfeEstablishmentNumberId=${ZendeskTicketFields_DfeEstablishmentNumberId}
+      - ZendeskTicketFields__DecisionStatusId=${ZendeskTicketFields_DecisionStatusId}
+      - ZendeskTicketFields__DateOfBirthCypmdId=${ZendeskTicketFields_DateOfBirthCypmdId}
+      - ZendeskTicketFields__CypmdId=${ZendeskTicketFields_CypmdId}
+      - ZendeskTicketFields__CycleYearId=${ZendeskTicketFields_CycleYearId}
+      - ZendeskTicketFields__CycleMonthId=${ZendeskTicketFields_CycleMonthId}
+      - ZendeskTicketFields__CorrectionTypeId=${ZendeskTicketFields_CorrectionTypeId}
+      - ZendeskTicketFields__CorrectionReason31Id=${ZendeskTicketFields_CorrectionReason31Id}
+      - ZendeskTicketFields__AdmissionDateId=${ZendeskTicketFields_AdmissionDateId}
     depends_on:
-      - db
+      db:
+        condition: service_started
+      azurite:
+        condition: service_started
+      # Wait for the seed upload so the worker's first refresh reads real rules
+      # rather than starting on the cold-fallback path. The init container exits 0
+      # after a successful upload (or after the blobs already exist).
+      azurite_init:
+        condition: service_completed_successfully
+    networks:
+      - cypd
+
+  # One-shot init: waits for Azurite to be reachable, creates the rules-config
+  # container if missing, and uploads seed/rules.json + seed/country-languages.json.
+  # Idempotent: re-runs are a no-op if the blobs already exist.
+  azurite_init:
+    profiles: [rules_engine, all]
+    container_name: cypd_azurite_init
+    image: mcr.microsoft.com/azure-cli:latest
+    depends_on:
       - azurite
-    command: printenv ConnectionStrings_AzureStorage
+    volumes:
+      - ./src/DfE.CheckPerformanceData.RulesEngineWorker/seed:/seed:ro
+    environment:
+      - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      set -eu
+      echo "Waiting for Azurite to respond..."
+      for i in $$(seq 1 60); do
+        if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
+          break
+        fi
+        sleep 1
+      done
+      echo "Ensuring rules-config container..."
+      az storage container create --name rules-config --only-show-errors >/dev/null
+      echo "Uploading seed JSON..."
+      az storage blob upload-batch \
+        --destination rules-config \
+        --source /seed \
+        --pattern '*.json' \
+        --overwrite \
+        --only-show-errors
+      echo "Seed upload complete."
     networks:
       - cypd
 

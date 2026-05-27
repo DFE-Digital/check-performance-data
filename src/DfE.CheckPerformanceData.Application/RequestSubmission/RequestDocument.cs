@@ -1,6 +1,6 @@
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
-public sealed class RequestDocument
+public class RequestDocument
 {
     public required string ReferenceNumber { get; init; }
     public DateTime SubmittedAt { get; init; }

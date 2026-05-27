@@ -1,0 +1,86 @@
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+
+namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
+
+/// <summary>
+/// Pins the consumer parse seam: the worker deserialises a queue body into the
+/// same <see cref="RequestDocument"/> contract the producer serialises. A body
+/// that is malformed or missing a required field yields <c>null</c> (the worker
+/// treats that as an unparseable message) rather than a half-built document.
+/// </summary>
+public sealed class RequestDocumentParserTests
+{
+    [Fact]
+    public void Parse_ValidMessage_ReturnsDocument()
+    {
+        const string json = """
+            {
+              "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              "CheckingWindowType": "KS4",
+              "WhatToChange": "Deceased",
+              "ReferenceNumber": "REF-001",
+              "SubmittedAt": "2026-05-14T10:00:00Z",
+              "School": { "Urn": "123456", "Name": "Test School" },
+              "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
+              "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 15, "Upn": "UPN1" },
+              "Answers": [
+                { "QuestionId": "year-group-change", "QuestionTitle": "year group", "Type": "text", "Value": "Lower" }
+              ]
+            }
+            """;
+
+        var parsed = RequestDocumentParser.Parse(json);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Deceased", parsed!.WhatToChange);
+        Assert.Equal("KS4", parsed.CheckingWindowType);
+        Assert.Equal("REF-001", parsed.ReferenceNumber);
+        Assert.Single(parsed.Answers);
+        Assert.Equal("Lower", parsed.Answers[0].Value);
+    }
+
+    [Fact]
+    public void Parse_CaseInsensitiveProperties_Succeeds()
+    {
+        // The producer serialises PascalCase; this confirms case-insensitive parsing.
+        const string json = """
+            {
+              "checkingwindowtype": "KS2",
+              "whattochange": "Elective home education",
+              "referencenumber": "REF-2",
+              "school": { "urn": "9", "name": "S" },
+              "submittedby": { "userid": "u", "displayname": "x" },
+              "pupil": { "id": "p", "cypmdid": "c", "firstname": "A", "surname": "B", "dateofbirth": "01/01/2010", "sex": "F", "age": 8, "upn": "U" },
+              "answers": []
+            }
+            """;
+
+        var parsed = RequestDocumentParser.Parse(json);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Elective home education", parsed!.WhatToChange);
+    }
+
+    [Fact]
+    public void Parse_MalformedJson_ReturnsNull()
+    {
+        Assert.Null(RequestDocumentParser.Parse("{ not valid"));
+    }
+
+    [Fact]
+    public void Parse_MissingRequiredField_ReturnsNull()
+    {
+        // Pupil is required; omitting it must not yield a half-built document.
+        const string json = """
+            { "CheckingWindowType": "KS4", "WhatToChange": "Deceased", "ReferenceNumber": "R", "Answers": [] }
+            """;
+
+        Assert.Null(RequestDocumentParser.Parse(json));
+    }
+
+    [Fact]
+    public void Parse_NullInput_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => RequestDocumentParser.Parse(null!));
+    }
+}

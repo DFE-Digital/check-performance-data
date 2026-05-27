@@ -10,4 +10,5 @@ public interface IQuestionFlowService
     string? GetNextPageId(QuestionFlowConfig config, string pageId, Dictionary<string, QuestionAnswer> answers);
     JourneyNavigation? GetNavigationGuard(QuestionFlowConfig config, RequestState journey, string pageId);
     string BuildContentKey(Guid windowId, JourneyPage page, Dictionary<string, QuestionAnswer> answers, RequestState journey, QuestionFlowConfig config);
+    string ResolveRequestType(QuestionFlowConfig config, RequestState journey);
 }

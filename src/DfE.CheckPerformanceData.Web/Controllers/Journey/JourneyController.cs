@@ -37,7 +37,8 @@ public sealed class JourneyController(
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
             return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
-        return View("Page", BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
+        var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+        return View(viewName, BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
     }
 
     // ── Page (POST — Continue) ──────────────────────────────────────────────
@@ -66,7 +67,7 @@ public sealed class JourneyController(
             {
                 journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
                 var files = existing?.FileValues ?? [];
-                if (files.Count == 0)
+                if (files.Count == 0 && !question.Optional)
                 {
                     ModelState.AddModelError(question.Id, "Upload at least one file before continuing");
                     isValid = false;
@@ -79,11 +80,14 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
-                if (error is not null)
+                if (!question.Optional)
                 {
-                    ModelState.AddModelError(question.Id, error);
-                    isValid = false;
+                    var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
+                    if (error is not null)
+                    {
+                        ModelState.AddModelError(question.Id, error);
+                        isValid = false;
+                    }
                 }
                 newAnswers[question.Id] = answer;
             }
@@ -95,7 +99,8 @@ public sealed class JourneyController(
                 .Concat(newAnswers)
                 .GroupBy(kv => kv.Key)
                 .ToDictionary(g => g.Key, g => g.Last().Value);
-            return View("Page", BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
+            var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
         }
 
         if (fromSummary)
@@ -245,18 +250,27 @@ public sealed class JourneyController(
 
         var pupilName = GetPupilName(journey);
 
-        var rows = journey.QuestionHistory
-            .SelectMany(pid =>
+        var rows = new List<SummaryRow>();
+        var fileRows = new List<SummaryFileRow>();
+
+        foreach (var pid in journey.QuestionHistory)
+        {
+            var p = flowService.GetPage(config, pid);
+            if (p is null || p.Type == PageType.Content) continue;
+            foreach (var q in p.Questions)
             {
-                var p = flowService.GetPage(config, pid);
-                if (p is null || p.Type == PageType.Content) return Enumerable.Empty<SummaryRow>();
-                return p.Questions.Select(q =>
+                journey.QuestionAnswers.TryGetValue(q.Id, out var a);
+                if (q.Type == QuestionType.FileUpload)
                 {
-                    journey.QuestionAnswers.TryGetValue(q.Id, out var a);
-                    return new SummaryRow(p, q, a, Resolve(q.Title, pupilName));
-                });
-            })
-            .ToList();
+                    if (a?.FileValues is { Count: > 0 } files)
+                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes)));
+                }
+                else
+                {
+                    rows.Add(new SummaryRow(p, q, a, Resolve(q.SummaryTitle ?? q.Title, pupilName)));
+                }
+            }
+        }
 
         var backPageId = journey.QuestionHistory.Last();
 
@@ -264,7 +278,7 @@ public sealed class JourneyController(
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
             : null;
 
-        return View(new SummaryViewModel { WindowId = windowId, Rows = rows, BackPageId = backPageId, DebugJson = debugJson });
+        return View(new SummaryViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange!.Value, PupilName = pupilName, Rows = rows, FileRows = fileRows, BackPageId = backPageId, DebugJson = debugJson });
     }
 
     [HttpPost]
@@ -290,6 +304,38 @@ public sealed class JourneyController(
         });
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
+    }
+
+    // ── Save draft ─────────────────────────────────────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/draft")]
+    public async Task<IActionResult> SaveDraft(Guid windowId, string? pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        // If posted from a question page, capture any unsaved non-file answers from the form
+        if (pageId is not null)
+        {
+            var config = await GetConfigAsync(journey);
+            var page = config is not null ? flowService.GetPage(config, pageId) : null;
+            if (page is not null)
+            {
+                foreach (var question in page.Questions.Where(q => q.Type != QuestionType.FileUpload))
+                {
+                    var answer = ReadFormAnswer(question);
+                    if (!string.IsNullOrWhiteSpace(answer.TextValue))
+                        HttpContext.Session.SaveRequestState(windowId,
+                            s => s.QuestionAnswers[question.Id] = answer);
+                }
+                journey = HttpContext.Session.GetRequestState(windowId);
+            }
+        }
+
+        await requestService.SaveDraftAsync(windowId, journey);
+        return RedirectToCheckYourData(windowId);
     }
 
     // ── Confirmation ───────────────────────────────────────────────────────
@@ -343,10 +389,31 @@ public sealed class JourneyController(
         };
 
         var pupilName = GetPupilName(journey);
+        var isSingleQuestion = page.Questions.Count == 1;
+        var uploadError = TempData["UploadError"] as string;
 
         string? contentKey = null;
         if (page.Type == PageType.Content && config is not null)
             contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
+
+        var questionModels = page.Questions.Select(q =>
+        {
+            var error = ModelState.TryGetValue(q.Id, out var entry)
+                ? entry.Errors.FirstOrDefault()?.ErrorMessage
+                : null;
+            return new QuestionPartialModel
+            {
+                WindowId = windowId,
+                PageId = page.Id,
+                Question = q,
+                ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
+                FromSummary = fromSummary,
+                IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
+                Error = error,
+                UploadError = uploadError,
+                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : "")
+            };
+        }).ToList();
 
         return new PageViewModel
         {
@@ -357,7 +424,8 @@ public sealed class JourneyController(
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,
-            UploadError = TempData["UploadError"] as string
+            UploadError = uploadError,
+            QuestionModels = questionModels
         };
     }
 

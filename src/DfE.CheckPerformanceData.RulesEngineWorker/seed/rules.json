@@ -1,0 +1,339 @@
+{
+  "version": "2026.05.14-01",
+  "updatedAt": "2026-05-14T10:00:00Z",
+  "outcomes": [
+
+    {
+      "key": "Inclusion",
+      "label": "Inclusion",
+      "rules": [
+        { "id": "INC-ACC", "status": "AutoApproved",
+          "when": { "field": "inclusionFlag", "in": ["402", "404", "407", "408", "422"] } },
+        { "id": "INC-REJ", "status": "AutoRejected",
+          "when": { "field": "inclusionFlag", "in": ["413", "430"] } },
+        { "id": "INC-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "AdmittedFollowingPermanentExclusion",
+      "label": "Admitted following permanent exclusion",
+      "rules": [
+        { "id": "AFE-PRE2023", "status": "AutoRejected",
+          "when": { "field": "dateOfPermanentExclusion", "lt": "2023-09-01" } },
+        { "id": "AFE-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "AdmittedFromAbroadEal",
+      "label": "Admitted from abroad with English not first language",
+      "rules": [
+        { "id": "EAL-REJ-ENG", "status": "AutoRejected",
+          "when": { "field": "firstLanguage", "eq": "ENG" } },
+        { "id": "EAL-REJ-OTH-ENGCOUNTRY", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "officialLanguageIs": "English", "countryField": "countryOfOrigin" }
+          ] } },
+
+        { "id": "EAL-ACC-NEWADM-2022-ALL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "isAddBack", "eq": false },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2022-09-01" },
+            { "field": "firstSchoolAdmissionDate", "gte": "2022-09-01" }
+          ] } },
+        { "id": "EAL-ACC-NEWADM-2022-ARRIVAL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "isAddBack", "eq": false },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2022-09-01" },
+            { "isKnownAndCertain": "dateOfArrivalInEngland" },
+            { "field": "dateOfArrivalInEngland", "gte": "2022-09-01" }
+          ] } },
+
+        { "id": "EAL-ACC-ADDBACK-2021-ALL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "isAddBack", "eq": true },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2021-09-01" },
+            { "field": "firstSchoolAdmissionDate", "gte": "2021-09-01" }
+          ] } },
+        { "id": "EAL-ACC-ADDBACK-2021-ARRIVAL", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "isAddBack", "eq": true },
+            { "field": "firstLanguage", "eq": "OTH" },
+            { "not": { "officialLanguageIs": "English", "countryField": "countryOfOrigin" } },
+            { "field": "schoolAdmissionDate", "gte": "2021-09-01" },
+            { "isKnownAndCertain": "dateOfArrivalInEngland" },
+            { "field": "dateOfArrivalInEngland", "gte": "2021-09-01" }
+          ] } },
+
+        { "id": "EAL-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "CompletedKs4Elsewhere",
+      "label": "Completed KS4 studies this academic year in year 11 at another school or college",
+      "rules": [
+        { "id": "CKS4-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "MergePupils",
+      "label": "Merge pupils",
+      "rules": [
+        { "id": "MRG-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "SocialCareInvolvement",
+      "label": "Social care involvement - including police/prison",
+      "rules": [
+        { "id": "SCI-KS4-REJ", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS4" },
+            { "any": [
+              { "all": [
+                { "field": "hadSocialCareInvolvement",  "eq": false },
+                { "field": "hadRecentPoliceInvolvement", "eq": false },
+                { "field": "hasBeenDetainedInPrison",    "eq": false }
+              ] },
+              { "field": "hasSatExamsAsYear11", "eq": true }
+            ] }
+          ] } },
+        { "id": "SCI-KS2-REJ", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS2" },
+            { "any": [
+              { "all": [
+                { "field": "hadSocialCareInvolvement",  "eq": false },
+                { "field": "hadRecentPoliceInvolvement", "eq": false }
+              ] },
+              { "field": "hasSatExamsAsYear6", "eq": true }
+            ] }
+          ] } },
+        { "id": "SCI-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "TerminalCriticalIllness",
+      "label": "Terminal/Critical illness",
+      "rules": [
+        { "id": "TCI-TERM-SCR", "status": "Scrutiny",
+          "when": { "field": "hasTerminalIllness", "eq": true } },
+
+        { "id": "TCI-KS4-REJ", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS4" },
+            { "any": [
+              { "all": [
+                { "field": "hasTerminalIllness",                "eq": false },
+                { "field": "hasCriticalIllness12mPlus",         "eq": false },
+                { "field": "hasRecentLifeChangingDiagnosis",    "eq": false },
+                { "field": "hasRecentLifeChangingInjury",       "eq": false },
+                { "field": "underInvestigation12mPlus",         "eq": false },
+                { "field": "illnessHasSevereProfoundEffect",    "eq": false }
+              ] },
+              { "all": [
+                { "field": "hasTerminalIllness",   "eq": false },
+                { "field": "hasSatExamsAsYear11",  "eq": true  }
+              ] }
+            ] }
+          ] } },
+
+        { "id": "TCI-KS2-REJ", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS2" },
+            { "any": [
+              { "all": [
+                { "field": "hasTerminalIllness",                "eq": false },
+                { "field": "hasCriticalIllness12mPlus",         "eq": false },
+                { "field": "hasRecentLifeChangingDiagnosis",    "eq": false },
+                { "field": "hasRecentLifeChangingInjury",       "eq": false },
+                { "field": "underInvestigation12mPlus",         "eq": false },
+                { "field": "illnessHasSevereProfoundEffect",    "eq": false }
+              ] },
+              { "all": [
+                { "field": "hasTerminalIllness",  "eq": false },
+                { "field": "hasSatExamsAsYear6",  "eq": true  }
+              ] }
+            ] }
+          ] } },
+
+        { "id": "TCI-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "YearGroupChange",
+      "label": "Year group change",
+      "rules": [
+        { "id": "YGC-LOWER", "status": "AutoApproved",
+          "when": { "field": "yearGroupChange", "eq": "Lower" } },
+        { "id": "YGC-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "Deceased",
+      "label": "Deceased",
+      "rules": [
+        { "id": "DEC-1", "status": "AutoApproved", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "ElectiveHomeEducation",
+      "label": "Elective home education",
+      "rules": [
+        { "id": "EHE-KS4", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS4" },
+            { "field": "dateOfRemoval", "gt": "2025-01-16" }
+          ] } },
+        { "id": "EHE-KS2", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS2" },
+            { "field": "dateOfRemoval", "gt": "2025-05-12" }
+          ] } },
+        { "id": "EHE-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "MovedSchoolDualRegistration",
+      "label": "Moved school/Dual registration",
+      "rules": [
+        { "id": "MSD-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "NotOnRoll",
+      "label": "Not on roll",
+      "rules": [
+        { "id": "NOR-NONPOST16", "status": "AutoApproved",
+          "when": { "field": "keyStage", "neq": "Post16" } },
+        { "id": "NOR-POST16-REASON", "status": "AutoApproved",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "Post16" },
+            { "field": "removalReasonAtSchool", "in": ["Apprentice", "External candidate", "International student"] }
+          ] } },
+        { "id": "NOR-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "PermanentlyExcludedFromCurrentSchool",
+      "label": "Permanently excluded from current school",
+      "rules": [
+        { "id": "PEX-KS4", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS4" },
+            { "field": "dateOfPermanentExclusion", "gt": "2025-01-16" }
+          ] } },
+        { "id": "PEX-KS2", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS2" },
+            { "field": "dateOfPermanentExclusion", "gt": "2025-05-12" }
+          ] } },
+        { "id": "PEX-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "PermanentlyLeftEngland",
+      "label": "Permanently left England",
+      "rules": [
+        { "id": "PLE-KS4", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS4" },
+            { "field": "dateOfRemoval", "gt": "2025-05-09" }
+          ] } },
+        { "id": "PLE-KS2", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "keyStage", "eq": "KS2" },
+            { "field": "dateOfRemoval", "gt": "2025-05-12" }
+          ] } },
+        { "id": "PLE-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "PupilMissingInEducation",
+      "label": "Pupil missing in Education",
+      "rules": [
+        { "id": "PMIE-REJ", "status": "AutoRejected",
+          "when": { "all": [
+            { "field": "whereaboutsKnown",              "eq": false },
+            { "field": "locatedAfterReasonableEfforts", "eq": false }
+          ] } },
+        { "id": "PMIE-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "AssessmentsDeferred",
+      "label": "One or more end-of-key stage assessments deferred by a year",
+      "rules": [
+        { "id": "ASD-REJ", "status": "AutoRejected",
+          "when": { "field": "isContinuingKS2Studies", "eq": false } },
+        { "id": "ASD-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "PupilAddedAfterSummerTerm",
+      "label": "Pupil added to school roll after start of summer term",
+      "rules": [
+        { "id": "PAS-REJ", "status": "AutoRejected",
+          "when": { "field": "dateAddedToRoll", "lt": "2025-04-01" } },
+        { "id": "PAS-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "PupilNotOnJuneList",
+      "label": "Pupil not on June list",
+      "rules": [
+        { "id": "PNJL-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "NotAtEndOf16To18Study",
+      "label": "Not at end of 16 to 18 study",
+      "rules": [
+        { "id": "N16-GTE18", "status": "AutoRejected",
+          "when": { "all": [
+            { "isKnownAndCertain": "pupilAge" },
+            { "field": "pupilAge", "gte": 18 }
+          ] } },
+        { "id": "N16-LT18", "status": "AutoApproved",
+          "when": { "all": [
+            { "isKnownAndCertain": "pupilAge" },
+            { "field": "pupilAge", "lt": 18 }
+          ] } },
+        { "id": "N16-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    },
+
+    {
+      "key": "Other",
+      "label": "Other",
+      "rules": [
+        { "id": "OTH-DEF", "status": "Scrutiny", "when": "otherwise" }
+      ]
+    }
+
+  ]
+}

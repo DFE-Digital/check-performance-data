@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -23,8 +24,7 @@ public sealed class HelpControllerTests
 		//     reads Request.Query, so the test provides a DefaultHttpContext via
 		//     ControllerContext (standard ASP.NET Core unit-test pattern).
 		_wikiService.GetNavigationTreeAsync().Returns(new List<WikiPageTreeNodeDto>());
-		var repository = Substitute.For<IWikiRepository>();
-		var seeder = new WikiSeeder(_wikiService, repository);
+		var seeder = new WikiSeeder(_wikiService);
 		var sut = new HelpController(_wikiService, seeder, NullLogger<HelpController>.Instance)
 		{
 			ControllerContext = new ControllerContext
@@ -51,5 +51,42 @@ public sealed class HelpControllerTests
 		Assert.Contains("<govuk-input", partial);
 		Assert.Contains("type=\"search\"", partial);
 		Assert.Contains("name=\"q\"", partial);
+	}
+
+	[Fact]
+	public async Task Seed_SetsAddedFeedback_WhenPagesCreated()
+	{
+		_wikiService.CreatePageIfMissingAsync(Arg.Any<CreateWikiPageDto>())
+			.Returns(ci => new WikiPageCreationResult(
+				new WikiPageDto { Id = 1, Title = ci.Arg<CreateWikiPageDto>().Title }, Created: true));
+		var sut = CreateSeederController();
+
+		var result = await sut.Seed();
+
+		Assert.IsType<RedirectResult>(result);
+		Assert.Equal("Added 21 sample pages.", sut.TempData["SeedResult"]);
+	}
+
+	[Fact]
+	public async Task Seed_SetsAlreadyPresentFeedback_WhenNothingCreated()
+	{
+		_wikiService.CreatePageIfMissingAsync(Arg.Any<CreateWikiPageDto>())
+			.Returns(ci => new WikiPageCreationResult(
+				new WikiPageDto { Id = 1, Title = ci.Arg<CreateWikiPageDto>().Title }, Created: false));
+		var sut = CreateSeederController();
+
+		await sut.Seed();
+
+		Assert.Equal("Sample pages are already present. Nothing was added.", sut.TempData["SeedResult"]);
+	}
+
+	private HelpController CreateSeederController()
+	{
+		var seeder = new WikiSeeder(_wikiService);
+		return new HelpController(_wikiService, seeder, NullLogger<HelpController>.Instance)
+		{
+			ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+			TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
+		};
 	}
 }

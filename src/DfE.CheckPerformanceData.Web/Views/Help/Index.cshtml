@@ -135,6 +135,24 @@
             </div>
         </div>
 
+        @if (TempData["SeedResult"] is string seedResult)
+        {
+            var seedAdded = seedResult.StartsWith("Added", StringComparison.Ordinal);
+            <div class="govuk-notification-banner @(seedAdded ? "govuk-notification-banner--success" : "")"
+                 role="@(seedAdded ? "alert" : "region")"
+                 aria-labelledby="seed-result-banner-title"
+                 data-module="govuk-notification-banner">
+                <div class="govuk-notification-banner__header">
+                    <h2 class="govuk-notification-banner__title" id="seed-result-banner-title">
+                        @(seedAdded ? "Success" : "Important")
+                    </h2>
+                </div>
+                <div class="govuk-notification-banner__content">
+                    <p class="govuk-notification-banner__heading">@seedResult</p>
+                </div>
+            </div>
+        }
+
         @if (Model.CurrentPage != null)
         {
             @if (Model.IsEditMode)

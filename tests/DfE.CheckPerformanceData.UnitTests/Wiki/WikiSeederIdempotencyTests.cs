@@ -4,79 +4,85 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Wiki;
 
 /// <summary>
-/// Server-side idempotency guard on WikiSeeder.SeedAsync. Editor double-clicks past
-/// the GDS data-prevent-double-click 1000ms window were the historical cause of
-/// the wiki (2) / (3) duplicate-page landmine (see user memory
-/// `cpd_seeding_correct_picture`). When the canonical seed root slug
-/// ("getting-started") is already present, SeedAsync must exit without calling
-/// IWikiService.CreatePageAsync.
+/// Additive idempotency for WikiSeeder.SeedAsync. Re-running the seeder re-creates only
+/// the sample pages that are currently missing and never produces "(2)" / "(3)" duplicate
+/// titles. This replaces the prior all-or-nothing guard keyed off the "getting-started"
+/// root, which turned the admin "Seed sample pages" tile into a silent no-op once any
+/// content existed (and prevented re-adding pages an editor had deleted). Per-page skip is
+/// delegated to IWikiService.CreatePageIfMissingAsync.
 /// </summary>
 public sealed class WikiSeederIdempotencyTests
 {
     private readonly IWikiService _wikiService = Substitute.For<IWikiService>();
-    private readonly IWikiRepository _repository = Substitute.For<IWikiRepository>();
     private int _nextId = 1;
 
-    public WikiSeederIdempotencyTests()
+    private WikiSeeder CreateSut(ISet<string> existingTitles)
     {
-        _wikiService.CreatePageAsync(Arg.Any<CreateWikiPageDto>())
+        _wikiService.CreatePageIfMissingAsync(Arg.Any<CreateWikiPageDto>())
             .Returns(ci =>
             {
                 var dto = ci.Arg<CreateWikiPageDto>();
-                return new WikiPageDto
+                var page = new WikiPageDto
                 {
                     Id = _nextId++,
                     Title = dto.Title,
                     Slug = dto.Title.ToLowerInvariant().Replace(" ", "-"),
                     ParentId = dto.ParentId
                 };
+                return new WikiPageCreationResult(page, Created: !existingTitles.Contains(dto.Title));
             });
+        return new WikiSeeder(_wikiService);
     }
 
-    // --- SeedAsync_ExitsEarly_WhenCanonicalRootSlug_AlreadyExists ---
+    [Fact]
+    public async Task SeedAsync_ReturnsZero_WhenEveryPageAlreadyExists()
+    {
+        // Every page reports already-present: nothing is created, but the tree is still
+        // walked so children are correctly parented under existing pages.
+        var sut = CreateSut(AllTitles());
+
+        var created = await sut.SeedAsync();
+
+        Assert.Equal(0, created);
+    }
 
     [Fact]
-    public async Task SeedAsync_ExitsEarly_WhenCanonicalRootSlug_AlreadyExists()
+    public async Task SeedAsync_CreatesOnlyMissingPages_WhenSomeExist()
     {
-        // The "Getting started" root in the seed tree slugifies to "getting-started"
-        // at the root level (ParentId == null). When the seeder finds an existing
-        // page at that canonical slug, it must no-op.
-        _repository.SlugExistsAsync("getting-started", null).Returns(true);
+        // "Getting started" and its three children already exist (4 of 21 pages present);
+        // the seeder must re-create only the 17 missing pages.
+        var present = new HashSet<string>
+        {
+            "Getting started", "Requesting an account", "Signing in", "Roles and permissions"
+        };
+        var sut = CreateSut(present);
 
-        var sut = new WikiSeeder(_wikiService, _repository);
+        var created = await sut.SeedAsync();
+
+        Assert.Equal(21 - 4, created);
+    }
+
+    [Fact]
+    public async Task SeedAsync_NeverAppendsRunCounter_AndNeverUsesThrowingCreate()
+    {
+        var sut = CreateSut(new HashSet<string> { "Getting started" });
 
         await sut.SeedAsync();
 
+        // No "(2)"/"(3)" titles are ever requested...
+        await _wikiService.DidNotReceive().CreatePageIfMissingAsync(
+            Arg.Is<CreateWikiPageDto>(d => d.Title.Contains('(')));
+        // ...and the legacy throw-on-duplicate create path is no longer used by the seeder.
         await _wikiService.DidNotReceive().CreatePageAsync(Arg.Any<CreateWikiPageDto>());
     }
 
-    // --- SeedAsync_CreatesPages_WhenCanonicalRootSlug_Absent ---
-
-    [Fact]
-    public async Task SeedAsync_CreatesPages_WhenCanonicalRootSlug_Absent()
-    {
-        // Happy-path: the guard does not interfere with a clean seed.
-        _repository.SlugExistsAsync("getting-started", null).Returns(false);
-
-        var sut = new WikiSeeder(_wikiService, _repository);
-
-        await sut.SeedAsync();
-
-        await _wikiService.Received().CreatePageAsync(
-            Arg.Is<CreateWikiPageDto>(d => d.Title == "Getting started" && d.ParentId == null));
-    }
-
-    // --- SeedAsync_AsksRepository_ForCanonicalRootSlug_BeforeCreating ---
-
-    [Fact]
-    public async Task SeedAsync_AsksRepository_ForCanonicalRootSlug_BeforeCreating()
-    {
-        _repository.SlugExistsAsync("getting-started", null).Returns(false);
-
-        var sut = new WikiSeeder(_wikiService, _repository);
-
-        await sut.SeedAsync();
-
-        await _repository.Received().SlugExistsAsync("getting-started", null);
-    }
+    private static HashSet<string> AllTitles() =>
+    [
+        "Getting started", "Requesting an account", "Signing in", "Roles and permissions",
+        "Checking exercises", "Key Stage 2", "KS2 checking", "KS2 checked",
+        "Key Stage 4", "KS4 June checking", "KS4 checking", "KS4 checked",
+        "16 to 18 performance data",
+        "Submitting amendments", "Reading the guidance", "Errata for late re-marks", "Tracking your request",
+        "Help and support", "Frequently asked questions", "Security advice", "Contact the helpline"
+    ];
 }

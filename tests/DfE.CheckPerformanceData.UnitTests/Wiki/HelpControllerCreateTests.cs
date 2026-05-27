@@ -19,8 +19,7 @@ public sealed class HelpControllerCreateTests
 
     public HelpControllerCreateTests()
     {
-        var repository = Substitute.For<IWikiRepository>();
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService, repository), NullLogger<HelpController>.Instance);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), NullLogger<HelpController>.Instance);
 
         var httpContext = new DefaultHttpContext();
         _tempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());

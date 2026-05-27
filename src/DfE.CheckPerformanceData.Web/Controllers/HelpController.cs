@@ -242,7 +242,13 @@ public sealed class HelpController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Seed()
     {
-        await wikiSeeder.SeedAsync();
+        var created = await wikiSeeder.SeedAsync();
+        TempData["SeedResult"] = created switch
+        {
+            0 => "Sample pages are already present. Nothing was added.",
+            1 => "Added 1 sample page.",
+            _ => $"Added {created} sample pages."
+        };
         return Redirect("/help");
     }
 

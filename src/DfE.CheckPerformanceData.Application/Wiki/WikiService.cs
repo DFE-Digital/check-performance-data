@@ -227,6 +227,22 @@ public sealed partial class WikiService(
 		return EnrichDto(page!, slugPath);
 	}
 
+	// Idempotent create used by sample-page seeding. Reuses GenerateSlug so the existence
+	// check matches exactly how CreatePageAsync would slug the title; if a page already
+	// exists at that slug under the same parent it is returned untouched (Created = false),
+	// otherwise it is created (Created = true). Never produces "(2)" duplicate titles.
+	public async Task<WikiPageCreationResult> CreatePageIfMissingAsync(CreateWikiPageDto dto)
+	{
+		var slug = GenerateSlug(dto.Title);
+
+		var existing = await repository.GetBySlugAndParentAsync(slug, dto.ParentId);
+		if (existing is not null)
+			return new WikiPageCreationResult(existing, Created: false);
+
+		var created = await CreatePageAsync(dto);
+		return new WikiPageCreationResult(created, Created: true);
+	}
+
 	public async Task<WikiPageDto> UpdatePageAsync(int id, UpdateWikiPageDto dto)
 	{
 		var slug = GenerateSlug(dto.Title);

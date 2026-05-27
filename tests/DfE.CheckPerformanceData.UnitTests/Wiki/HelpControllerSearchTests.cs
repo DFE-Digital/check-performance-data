@@ -15,8 +15,7 @@ public sealed class HelpControllerSearchTests
 
     public HelpControllerSearchTests()
     {
-        var repository = Substitute.For<IWikiRepository>();
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService, repository), NullLogger<HelpController>.Instance);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), NullLogger<HelpController>.Instance);
     }
 
     // --- Search action — validation ---

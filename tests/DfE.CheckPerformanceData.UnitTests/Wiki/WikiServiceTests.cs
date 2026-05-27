@@ -206,6 +206,40 @@ public sealed class WikiServiceTests
         await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
     }
 
+    // --- CreatePageIfMissingAsync (additive seeding) ---
+
+    [Fact]
+    public async Task CreatePageIfMissingAsync_ReturnsExistingWithoutCreating_WhenSlugExists()
+    {
+        var existing = MakePage(id: 7, title: "Getting started", slug: "getting-started", parentId: null);
+        _repository.GetBySlugAndParentAsync("getting-started", null).Returns(existing);
+
+        var result = await _sut.CreatePageIfMissingAsync(
+            new CreateWikiPageDto { Title = "Getting started", Content = "x", ParentId = null });
+
+        Assert.False(result.Created);
+        Assert.Equal(7, result.Page.Id);
+        await _repository.DidNotReceive().AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task CreatePageIfMissingAsync_CreatesAndReportsCreated_WhenSlugMissing()
+    {
+        _repository.GetBySlugAndParentAsync("new-page", null).ReturnsNull();
+        _repository.SlugExistsAsync("new-page", null).Returns(false);
+        _repository.GetMaxSortOrderAsync(null).Returns(0);
+        var added = MakePage(id: 42, title: "New page", slug: "new-page");
+        _repository.AddPageAsync(Arg.Any<CreateWikiPageDto>(), "new-page", 1, Arg.Any<string>()).Returns(added);
+
+        var result = await _sut.CreatePageIfMissingAsync(
+            new CreateWikiPageDto { Title = "New page", Content = "x", ParentId = null });
+
+        Assert.True(result.Created);
+        Assert.Equal(42, result.Page.Id);
+        await _repository.Received(1).AddPageAsync(Arg.Any<CreateWikiPageDto>(), "new-page", 1, Arg.Any<string>());
+    }
+
     // --- UpdatePageAsync ---
 
     [Fact]

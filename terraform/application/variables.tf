@@ -84,7 +84,19 @@ variable "enable_logit" { default = true }
 
 variable "replicas" {
   default = 1
-  type = number
+  type    = number
+}
+
+variable "worker_docker_image" {
+  type        = string
+  default     = ""
+  description = "Docker image for the Rules Engine Worker. Includes docker registry, repository and tag."
+}
+
+variable "worker_replicas" {
+  default     = 1
+  type        = number
+  description = "Number of replicas for the Rules Engine Worker."
 }
 
 variable "blob_delete_after_days" {

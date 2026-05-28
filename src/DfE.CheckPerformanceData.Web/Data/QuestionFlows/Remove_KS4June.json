@@ -56,7 +56,7 @@
             {
               "value": "permanently-left-england",
               "label": "Permanently left England",
-              "nextPageId": "additional-info"
+              "nextPageId": "permanently-left-england-questions"
             },
             {
               "value": "social-care-involvement",
@@ -66,12 +66,83 @@
             {
               "value": "life-limiting-illness",
               "label": "Life-limiting or critical illness",
-              "nextPageId": "additional-info"
+              "nextPageId": "life-limiting-illness"
             },
             {
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "permanently-left-england-questions",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "country-moved-to",
+          "type": "Autocomplete",
+          "title": "What country did {pupilName} move to?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country moved to",
+          "dataSource" : "countries"
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from roll"
+        }
+      ]
+    },
+    {
+      "id": "life-limiting-illness",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "life-limiting-illness-health-issue",
+          "type": "Radio",
+          "title": "Which severe health issue has had a profound effect on {pupilName} and their ability to access education?",
+          "summaryTitle": "Health issue",
+          "options": [
+            {
+              "value": "life-limiting",
+              "label": "Received a life-limiting illness diagnosis"
+            },
+            {
+              "value": "twelve-months-critically-ill",
+              "label": "Been critically ill for 12 months or more"
+            },
+            {
+              "value": "life-changing-illness",
+              "label": "Been diagnosed with a life changing illness"
+            },
+            {
+              "value": "life-changing-injury",
+              "label": "Experienced a life changing injury"
+            },
+            {
+              "value": "investigated",
+              "label": "Been investigated for a serious or life changing injury for 12 months or more"
+            }
+          ]
+        },
+        {
+          "id": "sat-exams",
+          "type": "Radio",
+          "title": "Has {pupilName} sat any exams as a year 11 pupil?",
+          "summaryTitle": "Sat exams as year 11",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
             }
           ]
         }

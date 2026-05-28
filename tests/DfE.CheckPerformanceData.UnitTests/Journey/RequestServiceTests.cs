@@ -61,6 +61,36 @@ public class RequestServiceTests
         await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenConflictingRequestExists_ThrowsDuplicateRequestException()
+    {
+        var journey = ValidJourney();
+        _requestRepository
+            .HasConflictingRequestAsync(
+                WindowId,
+                journey.SelectedPupil!.Upn,
+                100000L,
+                journey.ReferenceNumber!)
+            .Returns(true);
+
+        await Assert.ThrowsAsync<DuplicateRequestException>(() =>
+            _sut.ConfirmRequestAsync(WindowId, journey));
+
+        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+        await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenNoConflictingRequest_DoesNotThrow()
+    {
+        // HasConflictingRequestAsync returns false by default (NSubstitute default for bool)
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        // Should complete without throwing
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+    }
+
     // ── Document building ───────────────────────────────────────────────────
 
     [Fact]

@@ -11,7 +11,11 @@ public sealed class SummaryViewModel
     public required List<SummaryRow> Rows { get; init; }
     public required List<SummaryFileRow> FileRows { get; init; }
     public required string BackPageId { get; init; }
+    public required int MaxEvidencePages { get; init; }
     public string? DebugJson { get; init; }
+    public string? ConflictError { get; init; }
+
+    public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
     public string WhatToChangeLabel => WhatToChange switch
     {
@@ -40,17 +44,19 @@ public sealed class SummaryRow(JourneyPage page, Question question, QuestionAnsw
     public string DisplayAnswer => Question.Type switch
     {
         QuestionType.Date when Answer?.DateValue is { } d =>
-            $"{d.Day:D2}/{d.Month:D2}/{d.Year}",
+            $"{d.Day} {new DateTime(d.Year, d.Month, d.Day):MMMM yyyy}",
         QuestionType.Radio when Answer?.TextValue is { } v =>
             Question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
         _ => Answer?.TextValue ?? string.Empty
     };
 }
 
-public sealed class SummaryFileRow(JourneyPage page, string originalFileName, long fileSizeBytes)
+public sealed class SummaryFileRow(JourneyPage page, string originalFileName, long fileSizeBytes, int pageCount, string storedFileName)
 {
     public JourneyPage Page { get; } = page;
     public string OriginalFileName { get; } = originalFileName;
+    public int PageCount { get; } = pageCount;
+    public string StoredFileName { get; } = storedFileName;
 
     public string FileType => Path.GetExtension(OriginalFileName).TrimStart('.').ToUpperInvariant();
 

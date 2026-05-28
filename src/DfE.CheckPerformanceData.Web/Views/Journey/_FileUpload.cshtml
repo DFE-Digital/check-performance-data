@@ -31,7 +31,14 @@ else
         @foreach (var row in Model.UploadedFileRows)
         {
             <tr class="govuk-table__row">
-                <td class="govuk-table__cell">@row.File.OriginalFileName</td>
+                <td class="govuk-table__cell">
+                    <a class="govuk-link"
+                       asp-action="DownloadEvidence" asp-controller="Journey"
+                       asp-route-windowId="@Model.WindowId"
+                       asp-route-storedFileName="@row.File.StoredFileName">
+                        @row.File.OriginalFileName
+                    </a>
+                </td>
                 <td class="govuk-table__cell">@row.FormattedSize</td>
                 <td class="govuk-table__cell">@row.File.PageCount</td>
                 <td class="govuk-table__cell">PDF</td>

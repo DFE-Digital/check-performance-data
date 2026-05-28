@@ -11,6 +11,8 @@ public sealed class RequestService(
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService) : IRequestService
 {
+    private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
+
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
@@ -18,6 +20,11 @@ public sealed class RequestService(
 
         if (journey.ReferenceNumber is not null && await requestRepository.IsSubmittedAsync(journey.ReferenceNumber))
             return;
+
+        var urnLong = OrganisationUrnLong;
+        var refNum = journey.ReferenceNumber ?? string.Empty;
+        if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Upn, urnLong, refNum))
+            throw new DuplicateRequestException();
 
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
@@ -65,7 +72,7 @@ public sealed class RequestService(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber!,
-            OrganisationUrn = long.Parse(currentUserService.OrganisationUrn),
+            OrganisationUrn = OrganisationUrnLong,
             PupilUpn = journey.SelectedPupil!.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,

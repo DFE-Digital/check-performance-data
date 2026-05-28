@@ -15,6 +15,7 @@ public interface IPortalDbContext
     DbSet<WikiPageVersion> WikiPageVersions { get; }
     DbSet<Pupil> Pupils { get; }
     DbSet<Setting> Settings { get; }
+    DbSet<Country> Countries { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

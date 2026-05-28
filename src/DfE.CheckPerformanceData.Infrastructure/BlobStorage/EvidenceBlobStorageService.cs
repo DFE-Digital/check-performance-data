@@ -27,4 +27,15 @@ public sealed class EvidenceBlobStorageService(BlobServiceClient blobServiceClie
         var blob = container.GetBlobClient($"{EvidenceFolder}/{blobName}");
         await blob.DeleteIfExistsAsync();
     }
+
+    public async Task<byte[]?> GetAsync(Guid windowId, string blobName)
+    {
+        var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
+        var blob = container.GetBlobClient($"{EvidenceFolder}/{blobName}");
+
+        if (!await blob.ExistsAsync()) return null;
+
+        var response = await blob.DownloadContentAsync();
+        return response.Value.Content.ToArray();
+    }
 }

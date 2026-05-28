@@ -1,0 +1,97 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model QuestionPartialModel
+
+@{
+    var hintId = $"{Model.FieldName}-hint";
+    var errorId = $"{Model.FieldName}-error";
+    var containerId = $"{Model.FieldName}-container";
+    var inputId = $"{Model.FieldName}-input";
+    var suggestionsUrl = $"/{Model.Question.DataSource}/suggestions";
+    var existingLabel = Model.ExistingAnswer?.TextValue ?? "";
+    var describedByParts = new List<string>();
+    if (Model.Question.Hint is not null) describedByParts.Add(hintId);
+    if (Model.HasError) describedByParts.Add(errorId);
+    var describedBy = string.Join(" ", describedByParts);
+}
+
+<div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
+    @if (Model.IsPageHeading)
+    {
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="@inputId">@Model.ResolvedTitle</label>
+        </h1>
+    }
+    else
+    {
+        <label class="govuk-label govuk-label--m" for="@inputId">@Model.ResolvedTitle</label>
+    }
+    @if (Model.Question.Hint is not null)
+    {
+        <div class="govuk-hint" id="@hintId">@Model.Question.Hint</div>
+    }
+    @if (Model.HasError)
+    {
+        <p class="govuk-error-message" id="@errorId">
+            <span class="govuk-visually-hidden">Error:</span> @Model.Error
+        </p>
+    }
+
+    @* Label hidden field — submitted as TextValue by ReadFormAnswer default case *@
+    <input type="hidden" name="@Model.FieldName" id="@(Model.FieldName)-label-value" value="@existingLabel" />
+    @* Code hidden field — available for downstream use *@
+    <input type="hidden" name="@(Model.FieldName)_code" id="@(Model.FieldName)-code-value" value="" />
+
+    <div id="@containerId"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var fieldName = '@Model.FieldName';
+        var suggestionsUrl = @Json.Serialize(suggestionsUrl);
+        var hasError = @(Model.HasError ? "true" : "false");
+        var initialLabel = @Json.Serialize(existingLabel);
+        var describedBy = @Json.Serialize(describedBy);
+        var currentSuggestions = [];
+
+        var autocompleteConfig = {
+            element: document.querySelector('#' + fieldName + '-container'),
+            id: fieldName + '-input',
+            name: fieldName + '-display',
+            displayMenu: 'overlay',
+            minLength: 2,
+            inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+            source: function (query, populateResults) {
+                fetch(suggestionsUrl + '?query=' + encodeURIComponent(query))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        currentSuggestions = data;
+                        populateResults(data.map(function (d) { return d.label; }));
+                    })
+                    .catch(function () { populateResults([]); });
+            },
+            onConfirm: function (value) {
+                var labelField = document.getElementById(fieldName + '-label-value');
+                var codeField = document.getElementById(fieldName + '-code-value');
+                if (!value) {
+                    labelField.value = '';
+                    codeField.value = '';
+                    return;
+                }
+                var match = currentSuggestions.find(function (s) { return s.label === value; });
+                labelField.value = value;
+                codeField.value = match ? match.id : '';
+            },
+            confirmOnBlur: false
+        };
+
+        if (describedBy) {
+            autocompleteConfig.inputAttributes = { 'aria-describedby': describedBy };
+        }
+
+        accessibleAutocomplete(autocompleteConfig);
+
+        if (initialLabel) {
+            document.getElementById(fieldName + '-input').value = initialLabel;
+        }
+    });
+</script>

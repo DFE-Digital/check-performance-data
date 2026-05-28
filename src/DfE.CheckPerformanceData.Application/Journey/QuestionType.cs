@@ -6,5 +6,6 @@ public enum QuestionType
     FreeText,
     Date,
     FileUpload,
-    TextArea
+    TextArea,
+    Autocomplete
 }

@@ -11,6 +11,14 @@
    asp-route-pageId="@Model.BackPageId"
    class="govuk-back-link">Back</a>
 
+@if (Model.ConflictError is not null)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        <govuk-error-summary-item>@Model.ConflictError</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
 <h1 class="govuk-heading-xl">Summary of amendment request</h1>
 <h2 class="govuk-heading-m">Check details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
 
@@ -58,6 +66,7 @@
 @if (Model.FileRows.Count > 0)
 {
     <h2 class="govuk-heading-m">Summary of uploaded documents</h2>
+    <p class="govuk-body">@Model.TotalPagesUsed @(Model.TotalPagesUsed == 1 ? "page" : "pages") of the @Model.MaxEvidencePages page evidence allowance used</p>
     <table class="govuk-table">
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
@@ -71,7 +80,14 @@
             @foreach (var file in Model.FileRows)
             {
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@file.OriginalFileName</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link"
+                           asp-action="DownloadEvidence" asp-controller="Journey"
+                           asp-route-windowId="@Model.WindowId"
+                           asp-route-storedFileName="@file.StoredFileName">
+                            @file.OriginalFileName
+                        </a>
+                    </td>
                     <td class="govuk-table__cell">@file.FormattedFileSize</td>
                     <td class="govuk-table__cell">@file.FileType</td>
                     <td class="govuk-table__cell">

@@ -30,4 +30,8 @@
     <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Seeding/Data/FCDO_Geographical_Names_Index.csv" />
+  </ItemGroup>
+
 </Project>

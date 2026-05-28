@@ -251,6 +251,37 @@ public class JourneyControllerTests
     // ── SummaryConfirm ───────────────────────────────────────────────────────
 
     [Fact]
+    public async Task SummaryConfirm_WhenDuplicateRequestException_ReturnsSummaryViewWithConflictError()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns<Task>(_ => throw new DuplicateRequestException());
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Summary", view.ViewName);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.Equal("A request for this pupil has already been submitted. Select a different pupil.", vm.ConflictError);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenDuplicateRequestException_DoesNotClearSession()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        SetupSession(state);
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns<Task>(_ => throw new DuplicateRequestException());
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.NotNull(remaining.SelectedPupil);
+        Assert.NotNull(remaining.SelectedWhatToChange);
+        Assert.NotEmpty(remaining.QuestionHistory);
+    }
+
+    [Fact]
     public async Task SummaryConfirm_AfterSuccess_ClearsJourneyButPreservesConfirmationData()
     {
         SetupSession(ValidSession(history: ["page-1"]));
@@ -336,6 +367,51 @@ public class JourneyControllerTests
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    // ── DownloadEvidence ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DownloadEvidence_WhenFileInSession_ReturnsFileResult()
+    {
+        var storedName = Guid.NewGuid().ToString();
+        const string originalName = "evidence.pdf";
+        var bytes = new byte[] { 1, 2, 3 };
+
+        var state = ValidSession(answers: new Dictionary<string, QuestionAnswer>
+        {
+            ["q1"] = new() { FileValues = [new FileAnswer { StoredFileName = storedName, OriginalFileName = originalName, PageCount = 2, FileSizeBytes = 1024 }] }
+        });
+        SetupSession(state);
+        _fileStorageService.GetAsync(WindowId, storedName).Returns(bytes);
+
+        var result = await _sut.DownloadEvidence(WindowId, storedName);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal(bytes, file.FileContents);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal(originalName, file.FileDownloadName);
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenFileNotInSession_ReturnsNotFound()
+    {
+        SetupSession(ValidSession(answers: new Dictionary<string, QuestionAnswer>()));
+
+        var result = await _sut.DownloadEvidence(WindowId, "unknown-file");
+
+        Assert.IsType<NotFoundResult>(result);
+        await _fileStorageService.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task DownloadEvidence_WhenNoSession_ReturnsNotFound()
+    {
+        SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
+
+        var result = await _sut.DownloadEvidence(WindowId, "any-file");
+
+        Assert.IsType<NotFoundResult>(result);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

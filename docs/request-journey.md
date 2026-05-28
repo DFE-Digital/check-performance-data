@@ -127,8 +127,19 @@ The config is cached in-process with `Priority = NeverRemove` — it is fetched 
 Each page in the JSON has:
 - `id` — unique string identifier
 - `type` — `Question` (default), `Content`, or `EvidenceUpload`
-- `questions` — list of questions with `type` (`Radio`, `TextArea`, `FreeText`, `Date`, `FileUpload`)
+- `questions` — list of questions; see question types below
 - `nextPageId` — default next page (overridden per radio option for branching)
+
+**Question types:**
+
+| `type` | Renders | Answer stored as | Notes |
+|---|---|---|---|
+| `Radio` | Radio buttons | `TextValue` — the selected option value | Options can include `nextPageId` to branch the flow |
+| `FreeText` | Single-line input | `TextValue` | |
+| `TextArea` | Multi-line textarea | `TextValue` | Optional `charLimit` |
+| `Date` | Day / month / year inputs | `DateValue` (`DateAnswer`) | |
+| `FileUpload` | PDF upload widget | `FileValues` (list of `FileAnswer`) | Handled via separate upload/remove endpoints; max 6 total pages |
+| `Autocomplete` | Accessible-autocomplete dropdown | `TextValue` — the selected display name | Requires `dataSource` in JSON (e.g. `"countries"`). Suggestions fetched from `GET /{dataSource}/suggestions?query=`. A `{fieldName}_code` hidden field carries the machine-readable code but is not currently persisted in `QuestionAnswer`. |
 
 ### Navigation guard
 
@@ -171,6 +182,18 @@ The text area on the evidence page is submitted via the normal `PagePost` route.
 
 Pages with `type: "Content"` display CMS-managed content (via `EditableContent` view components) and have no questions. The user clicks Continue, which adds the page to history and moves to the next page.
 
+### Autocomplete data sources
+
+The `Autocomplete` question type is generic — the `dataSource` field in the question JSON determines which lookup is used at runtime. The partial view (`_Autocomplete.cshtml`) constructs the suggestions URL as `/{dataSource}/suggestions?query=...`.
+
+Currently available data sources:
+
+| `dataSource` | Endpoint | Backed by |
+|---|---|---|
+| `countries` | `GET /Countries/suggestions` | `Countries` table (seeded from FCDO Geographical Names Index + UK home nations + Crown Dependencies) |
+
+The `Countries` table contains ~203 entries: ~195 FCDO sovereign states (excluding `GB`), four UK home nations (`GB-ENG`, `GB-SCT`, `GB-WLS`, `GB-NIR`), and three Crown Dependencies (`IM`, `JE`, `GG`). All entries carry a `CountryKind` discriminator (`Sovereign`, `HomeNation`, `CrownDependency`, `OverseasTerritory`). Note that `GB-ENG` is retained in the dataset — question flow configs for journeys where England should not appear as an option must filter it at the config level (e.g. by using a dedicated flow for schools in England).
+
 ---
 
 ## Stage 5 — Summary
@@ -180,7 +203,7 @@ Pages with `type: "Content"` display CMS-managed content (via `EditableContent` 
 
 The summary page renders a GOV.UK summary list of all answers. It can only be reached when `QuestionHistory` is complete (i.e. `GetNextPageId` after the last visited page returns null). Incomplete journeys are redirected back to the next unanswered page.
 
-Each row shows the resolved question title and display answer. Radio answers show their label (not raw value). File uploads show filename and page count. Dates show as DD/MM/YYYY.
+Each row shows the resolved question title and display answer. Radio answers show their label (not raw value). File uploads show filename and page count. Dates show as "5 January 2026" (day without leading zero, full month name, four-digit year).
 
 The user can click "Change" on any row to return to that page (`fromSummary=true`). When they submit from a summary-edit page, only pages up to and including the edited page are kept in history — any later pages that depended on a changed radio branch are trimmed.
 

@@ -33,6 +33,12 @@
                            value="@option.Value"
                            @(Model.ExistingAnswer?.TextValue == option.Value ? "checked" : "")>
                     <label class="govuk-label govuk-radios__label" for="@optionId">@option.Label</label>
+                    @if (option.SubLabel is not null)
+                    {
+                        <div id="@(optionId+"-item-hint")" class="govuk-hint govuk-radios__hint">
+                            @option.SubLabel
+                        </div>   
+                    }
                 </div>
             }
         </div>

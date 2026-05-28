@@ -16,42 +16,37 @@
             {
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion (not registered independent schools)",
-              "nextPageId": "provide-correct-evidence"
+              "nextPageId": "permanent-exclusion"
             },
             {
               "value": "english-not-first-language",
               "label": "Admitted from abroad with English not first language",
-              "nextPageId": "additional-info"
+              "nextPageId": "english-not-first-language"
             },
             {
               "value": "child-missing-education",
               "label": "Child missing education",
-              "nextPageId": "additional-info"
+              "nextPageId": "child-missing-education"
             },
             {
               "value": "pupil-died",
               "label": "Pupil has died",
-              "nextPageId": "additional-info"
+              "nextPageId": "pupil-died"
             },
             {
               "value": "dual-registered-moved",
               "label": "Dual registered or moved school",
-              "nextPageId": "additional-info"
+              "nextPageId": "dual-registered-moved"
             },
             {
               "value": "elective-home-education",
               "label": "Elective home education",
-              "nextPageId": "additional-info"
-            },
-            {
-              "value": "not-on-roll",
-              "label": "Not on roll",
-              "nextPageId": "additional-info"
+              "nextPageId": "elective-home-education"
             },
             {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
-              "nextPageId": "additional-info"
+              "nextPageId": "permanently-excluded"
             },
             {
               "value": "permanently-left-england",
@@ -74,6 +69,195 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "permanently-excluded",
+      "nextPageId" : "evidence",
+      "questions": [
+        {
+          "id": "date-permanently-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} permanently excluded from your school?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date permanently excluded"
+        },
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "optional": true,
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName} went to?",
+          "summaryTitle": "DfE number of the school went to",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "elective-home-education",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school roll"
+        }
+      ]
+    },
+    {
+      "id": "dual-registered-moved",
+      "questions": [
+        {
+          "id": "dual-registered-moved-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
+          "summaryTitle": "School DfE number",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "pupil-died",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school roll"
+        }
+      ]
+    },
+    {
+      "id": "child-missing-education",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "why-removed",
+          "type": "Radio",
+          "title": "Why has {pupilName} been removed from your school roll?",
+          "hint": "Select one option",
+          "summaryTitle": "Why removed from school",
+          "options": [
+            {
+              "value": "not-returned-after-agreed-leave",
+              "label": "Not come back after an agreed period of leave",
+              "subLabel": "Ground H of the School Attendance Regulations 2024"
+            },
+            {
+              "value": "no-agreed-leave-or-reason",
+              "label": "Been absent for a long time with no agreed leave and no clear reason",
+              "subLabel": "Ground I of the School Attendance Regulations 2024"
+            }
+          ]
+        },
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school roll"
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language",
+      "nextPageId": "english-not-first-language-details",
+      "questions": [
+        {
+          "id": "first-language",
+          "type": "Radio",
+          "title": "What is {pupilName}'s first language?",
+          "summaryTitle": "First language",
+          "options": [
+            {
+              "value": "english",
+              "label": "English"
+            },
+            {
+              "value": "believed-english",
+              "label": "Not known but believed English"
+            },
+            {
+              "value": "other",
+              "label": "Other than English"
+            },
+            {
+              "value": "believed-other",
+              "label": "Not known but believed other than English"
+            },
+            {
+              "value": "chose-not-to-say",
+              "label": "Chose not to say"
+            },
+            {
+              "value": "not-known",
+              "label": "Not known"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language-details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "country-originally-from",
+          "type": "Autocomplete",
+          "title": "What country is {pupilName} originally from?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country originally from",
+          "dataSource" : "countries"
+        },
+        {
+          "id": "date-pupil-started",
+          "type": "Date",
+          "title": "When did {pupilName} start at your school?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date started at school"
+        },
+        {
+          "id": "date-pupil-started-school-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} first start at a school in England?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date started at a school in England"
+        },
+        {
+          "id": "date-pupil-arrived-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} arrive in England?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date arrived in England",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "permanent-exclusion",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school which excluded {pupilName}?",
+          "summaryTitle": "DfE number of the excluding school",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        },
+        {
+          "id": "date-pupil-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} excluded?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date of permanent exclusion"
         }
       ]
     },
@@ -173,7 +357,7 @@
     },
     {
       "id": "year-group-change-higher",
-      "nextPageId": "evidence",
+      "nextPageId": "year-group-change-evidence",
       "questions": [
         {
           "id": "year-group-higher-moved-to",
@@ -202,7 +386,7 @@
     },
     {
       "id": "year-group-change-lower",
-      "nextPageId": "evidence",
+      "nextPageId": "year-group-change-evidence",
       "questions": [
         {
           "id": "year-group-lower-moved-to",
@@ -227,8 +411,30 @@
       ]
     },
     {
+      "id": "year-group-change-evidence",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports removing this pupil",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    },
+    {
       "id": "social-care",
-      "nextPageId": "provide-correct-evidence",
+      "nextPageId": "evidence",
       "questions": [
         {
           "id": "social-care-reason",
@@ -271,14 +477,6 @@
       ]
     },
     {
-      "id": "provide-correct-evidence",
-      "type": "Content",
-      "title": "Provide the correct evidence",
-      "subheading": "The selected `reason` (The selected `social-care-reason`)",
-      "content": "You will need the pupil's details to hand.",
-      "nextPageId": "evidence"
-    },
-    {
       "id": "evidence",
       "type": "EvidenceUpload",
       "title": "Provide evidence for the removal of {pupilName}",
@@ -294,8 +492,7 @@
           "type": "TextArea",
           "title": "Explain how the evidence supports removing this pupil",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
-          "optional": true
+          "characterLimit": 1000
         }
       ]
     }

@@ -161,7 +161,12 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
             }
 
             await Page.GotoAsync($"{Fixture.BaseUrl}/admin");
-            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            // Wait for the rail element, not NetworkIdle: deployed environments emit
+            // background telemetry beacons that keep NetworkIdle from settling within
+            // the 30s timeout (intermittent CI failure). The computed-CSS pins below
+            // only need the rail rendered and styled, which the load event guarantees.
+            await Page.Locator(".admin-rail").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
             // (a) Rail width pinned to 280px
             var railFlexBasis = await Page.EvaluateAsync<string>(

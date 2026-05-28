@@ -47,7 +47,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var fieldName = '@Model.FieldName';
-        var suggestionsUrl = '@suggestionsUrl';
+        var suggestionsUrl = @Json.Serialize(suggestionsUrl);
         var hasError = @(Model.HasError ? "true" : "false");
         var initialLabel = @Json.Serialize(existingLabel);
         var describedBy = @Json.Serialize(describedBy);

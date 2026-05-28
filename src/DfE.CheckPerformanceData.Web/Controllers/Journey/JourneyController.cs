@@ -254,6 +254,8 @@ public sealed class JourneyController(
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string storedFileName)
     {
+        if (!Guid.TryParse(storedFileName, out _)) return NotFound();
+
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return NotFound();
 

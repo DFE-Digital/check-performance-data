@@ -694,6 +694,17 @@ dialog.govuk-modal-dialogue__box::backdrop {
   position: relative;
 }
 
+/* When the Admin link is present it sits immediately to the left of the
+   sign-out cluster. Pushing the Admin item right with margin-left:auto absorbs
+   the free flex space so both items end up flush to the right edge with default
+   inter-item spacing between them. */
+.govuk-service-navigation__list .govuk-service-navigation__item.admin-link-nav-item {
+  margin-left: auto;
+}
+.govuk-service-navigation__list .govuk-service-navigation__item.admin-link-nav-item + .govuk-service-navigation__item.sign-in-nav-item {
+  margin-left: 0;
+}
+
 /* Caret button sits inline next to the Sign in link, styled as a flat affordance
    that mirrors the link colour. Non-prod only — the markup isn't rendered in prod. */
 .sign-in-nav-item__toggle {
@@ -767,4 +778,154 @@ dialog.govuk-modal-dialogue__box::backdrop {
   background-color: #fd0;
   color: #0b0c0c;
   text-decoration: underline;
+}
+
+/* ==========================================================================
+   Admin chrome — black-banded GDS header for the /admin area
+   ========================================================================== */
+
+/* GDS Black token = #0b0c0c. The same token is already used for the modal
+   header band above; keep this in lock-step so the admin chrome looks like
+   the rest of the destructive / authoritative GDS surfaces. */
+.admin-chrome .govuk-header {
+  background-color: #0b0c0c;
+  border-bottom: 0;
+}
+
+.admin-chrome .govuk-header__container {
+  border-bottom-color: #ffdd00;
+}
+
+.admin-chrome .govuk-service-navigation.admin-service-navigation {
+  background-color: #1d1d1d;
+  border-bottom: 1px solid #0b0c0c;
+}
+
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.1em;
+}
+
+.admin-chrome .admin-service-navigation .govuk-service-navigation__service-name .govuk-service-navigation__link:focus {
+  color: #0b0c0c;
+  background-color: #ffdd00;
+  box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
+  outline: 3px solid transparent;
+  text-decoration: none;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link,
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link {
+  color: #ffffff;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:hover,
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 0.1em;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item .govuk-service-navigation__link:focus,
+.admin-chrome .admin-service-navigation .admin-link-nav-item .govuk-service-navigation__link:focus {
+  color: #0b0c0c;
+  background-color: #ffdd00;
+  box-shadow: 0 -2px #ffdd00, 0 4px #0b0c0c;
+  outline: 3px solid transparent;
+  text-decoration: none;
+}
+
+.admin-chrome .admin-service-navigation .sign-in-nav-item__toggle {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Admin landing — Coming soon list
+   ========================================================================== */
+
+.admin-nav-list__item {
+  padding: 15px 0;
+  border-bottom: 1px solid #b1b4b6;
+}
+
+.admin-nav-list__item:last-child {
+  border-bottom: 0;
+}
+
+.admin-nav-list__tag {
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.admin-nav-list__title--muted {
+  color: #505a5f;
+}
+
+.admin-nav-list__description--muted {
+  color: #505a5f;
+}
+
+/* ==========================================================================
+   Admin two-column layout
+   ========================================================================== */
+
+.admin-layout {
+  display: flex;
+  gap: 24px;
+  min-height: 400px;
+  padding-top: 20px;
+}
+
+.admin-rail {
+  flex: 0 0 280px;
+  max-width: 280px;
+  box-sizing: border-box;
+}
+
+.admin-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .admin-layout { flex-direction: column; gap: 16px; }
+  .admin-rail { flex: 0 0 auto; max-width: none; }
+}
+
+.admin-nav-tree {
+  font-family: "GDS Transport", arial, sans-serif;
+}
+
+.admin-nav-group + .admin-nav-group {
+  border-top: 1px solid #b1b4b6;
+  padding-top: 20px;
+}
+
+.admin-tile-form { margin: 0; padding: 0; display: inline; }
+.admin-tile-form__link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: #1d70b8;
+  text-decoration: underline;
+  text-underline-offset: 0.1em;
+  text-decoration-thickness: 1px;
+}
+.admin-tile-form__link:hover { text-decoration-thickness: 3px; }
+.admin-tile-form__link:focus-visible {
+  outline: 3px solid #ffdd00;
+  background: #ffdd00;
+  color: #0b0c0c;
+  text-decoration: none;
+  box-shadow: 0 2px 0 #0b0c0c;
 }

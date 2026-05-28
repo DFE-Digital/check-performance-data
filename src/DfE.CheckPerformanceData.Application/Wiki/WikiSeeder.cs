@@ -7,44 +7,40 @@ public sealed class WikiSeeder(IWikiService wikiService)
         public SeedPage(string title, string content) : this(title, content, []) { }
     }
 
-    public async Task SeedAsync()
+    // Additive, idempotent seed. Each page is created only if a page with its slug does
+    // not already exist under the same parent (CreatePageIfMissingAsync), so re-running
+    // re-adds any sample pages that were removed and never produces "(2)" duplicate titles.
+    // Returns the number of pages actually created so the caller can give the editor
+    // meaningful feedback ("Added N pages" vs "already present").
+    public async Task<int> SeedAsync()
     {
+        var created = 0;
         foreach (var root in BuildTree())
         {
-            await CreateSubtreeAsync(root, parentId: null);
+            created += await CreateSubtreeAsync(root, parentId: null);
         }
+
+        return created;
     }
 
-    private async Task CreateSubtreeAsync(SeedPage page, int? parentId)
+    private async Task<int> CreateSubtreeAsync(SeedPage page, int? parentId)
     {
-        var created = await CreateWithRetryAsync(page, parentId);
+        var result = await wikiService.CreatePageIfMissingAsync(new CreateWikiPageDto
+        {
+            Title = page.Title,
+            Content = page.Content,
+            ParentId = parentId
+        });
+
+        var count = result.Created ? 1 : 0;
         foreach (var child in page.Children)
         {
-            await CreateSubtreeAsync(child, created.Id);
+            // Recurse under the page's id whether it was just created or already existed,
+            // so a partial tree (e.g. a deleted subtree) is correctly re-parented.
+            count += await CreateSubtreeAsync(child, result.Page.Id);
         }
-    }
 
-    private async Task<WikiPageDto> CreateWithRetryAsync(SeedPage page, int? parentId)
-    {
-        var attempt = 1;
-        var title = page.Title;
-        while (true)
-        {
-            try
-            {
-                return await wikiService.CreatePageAsync(new CreateWikiPageDto
-                {
-                    Title = title,
-                    Content = page.Content,
-                    ParentId = parentId
-                });
-            }
-            catch (DuplicateWikiPageException)
-            {
-                attempt++;
-                title = $"{page.Title} ({attempt})";
-            }
-        }
+        return count;
     }
 
     private static IReadOnlyList<SeedPage> BuildTree() =>

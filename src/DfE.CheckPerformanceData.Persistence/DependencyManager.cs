@@ -38,6 +38,7 @@ public static class DependencyManager
 
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<IWikiRepository, WikiRepository>();
+        services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();

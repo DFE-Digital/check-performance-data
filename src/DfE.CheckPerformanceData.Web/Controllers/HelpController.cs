@@ -1,11 +1,17 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeeder) : Controller
+public sealed class HelpController(
+    IWikiService wikiService,
+    WikiSeeder wikiSeeder,
+    ISettingService settingService,
+    ILogger<HelpController> logger) : Controller
 {
     private bool IsEditMode =>
         (Request.Query.ContainsKey(WikiConstants.EditQueryKey)
@@ -137,7 +143,8 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     public async Task<IActionResult> Search(string? q, int page = 1)
     {
         var safePage = page < 1 ? 1 : page;
-        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage);
+        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var result = await wikiService.SearchAsync(q ?? string.Empty, safePage, pageSize);
         var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch
@@ -165,15 +172,24 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/deleted")]
-    public async Task<IActionResult> Deleted()
+    public async Task<IActionResult> Deleted(string? search, string? sort, string? dir, int page = 1)
     {
-        var deletedPages = await wikiService.GetDeletedPagesAsync();
+        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var result = await wikiService.GetDeletedPagesAsync(new DeletedPagesQuery
+        {
+            Search = search,
+            Sort = sort,
+            Direction = dir,
+            Page = page,
+            PageSize = pageSize
+        });
         var availableParents = await wikiService.GetAvailableParentsAsync();
 
         var vm = new DeletedWikiPagesViewModel
         {
-            DeletedPages = deletedPages,
-            AvailableParents = availableParents
+            DeletedPages = result.Items.ToList(),
+            AvailableParents = availableParents,
+            Results = result
         };
 
         return View(vm);
@@ -186,6 +202,24 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     {
         var page = await wikiService.RestorePageAsync(id, newParentId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+    }
+
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpPost("help/delete-permanently/{id:int}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePermanently(int id)
+    {
+        try
+        {
+            await wikiService.HardDeletePageAsync(id);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "Hard-delete refused for page {PageId}", id);
+            TempData["HardDeleteError"] = ex.Message;
+        }
+
+        return Redirect("/help/deleted");
     }
 
     [Authorize(Roles = WikiConstants.EditorRole)]
@@ -220,7 +254,13 @@ public sealed class HelpController(IWikiService wikiService, WikiSeeder wikiSeed
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Seed()
     {
-        await wikiSeeder.SeedAsync();
+        var created = await wikiSeeder.SeedAsync();
+        TempData["SeedResult"] = created switch
+        {
+            0 => "Sample pages are already present. Nothing was added.",
+            1 => "Added 1 sample page.",
+            _ => $"Added {created} sample pages."
+        };
         return Redirect("/help");
     }
 

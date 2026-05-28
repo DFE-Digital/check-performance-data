@@ -27,6 +27,8 @@ public interface IWikiRepository
     Task AddVersionAsync(int wikiPageId, string title, string? content, int versionNumber);
     Task UpdatePageAsync(int id, string title, string? content, string slug, string bodyPlainText);
     Task SoftDeleteRecursiveAsync(int id);
+    Task HardDeleteAsync(int id);
+    Task<bool> GetIsDeletedAsync(int id);
     Task RestoreSubtreeAsync(int rootId, int? newParentId, string slug, int sortOrder, string bodyPlainText);
     Task MovePageAsync(int id, int? newParentId, int newSortOrder);
     Task ReorderSiblingsAsync(int? parentId, int excludeId, int insertAtPosition);

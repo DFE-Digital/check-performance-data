@@ -37,16 +37,16 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
             var menu = Page.Locator("#sign-in-dropdown-menu");
             await Expect(menu).ToBeHiddenAsync();
 
-            // 2. Click caret → dropdown opens, "As CMS admin" visible.
+            // 2. Click caret → dropdown opens, "As CMS Editor" visible.
             await toggle.ClickAsync();
             await Expect(menu).ToBeVisibleAsync();
-            await Expect(menu).ToContainTextAsync("As CMS admin");
+            await Expect(menu).ToContainTextAsync("As CMS Editor");
 
-            // 3. Click "As CMS admin" → impersonation cookie set, page reloads, nav flips.
-            await menu.Locator("a", new() { HasTextString = "As CMS admin" }).ClickAsync();
+            // 3. Click "As CMS Editor" → impersonation cookie set, page reloads, nav flips.
+            await menu.Locator("a", new() { HasTextString = "As CMS Editor" }).ClickAsync();
             await Page.StabiliseAsync();
 
-            await Expect(signInLi).ToContainTextAsync("Sign out (impersonating CMS admin)");
+            await Expect(signInLi).ToContainTextAsync("Sign out (impersonating CMS editor)");
             // Caret + dropdown disappear once a sign-out is showing.
             await Expect(toggle).ToHaveCountAsync(0);
 

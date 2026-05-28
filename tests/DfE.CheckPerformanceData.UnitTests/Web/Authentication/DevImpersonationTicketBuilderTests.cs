@@ -34,7 +34,6 @@ public sealed class DevImpersonationTicketBuilderTests
 
 	[Theory]
 	[InlineData("")]
-	[InlineData("admin")]
 	[InlineData("editor;DROP TABLE")]
 	[InlineData("EDITOR")]   // case-sensitive on purpose; the controller writes lowercase
 	public void TryBuild_UnknownValue_ReturnsNull(string cookieValue)

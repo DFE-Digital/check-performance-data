@@ -44,14 +44,9 @@
               "nextPageId": "elective-home-education"
             },
             {
-              "value": "not-on-roll",
-              "label": "Not on roll",
-              "nextPageId": "additional-info"
-            },
-            {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
-              "nextPageId": "additional-info"
+              "nextPageId": "permanently-excluded"
             },
             {
               "value": "permanently-left-england",
@@ -74,6 +69,29 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "permanently-excluded",
+      "nextPageId" : "evidence",
+      "questions": [
+        {
+          "id": "date-permanently-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} permanently excluded from your school?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date permanently excluded"
+        },
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "optional": true,
+          "type": "FreeText",
+          "title": "What is the DfE number of the school {pupilName} went to?",
+          "summaryTitle": "DfE number of the school went to",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
       ]
     },

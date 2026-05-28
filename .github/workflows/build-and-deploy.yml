@@ -42,6 +42,7 @@ jobs:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
     outputs:
       docker-image-tag: ${{ steps.build-image.outputs.tag }}
+      worker-docker-image-tag: ${{ steps.build-worker-image.outputs.tag }}
     permissions:
       packages: write
       pull-requests: write
@@ -58,6 +59,18 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         context: ./src
         dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
+        docker-repository: ${{ env.DOCKER_REPOSITORY }}
+        max-cache: true
+        reuse-cache: true
+        snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Build and push worker docker image
+      id: build-worker-image
+      uses: DFE-Digital/github-actions/build-docker-image@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        context: ./src
+        dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
         docker-repository: ${{ env.DOCKER_REPOSITORY }}
         max-cache: true
         reuse-cache: true
@@ -141,6 +154,7 @@ jobs:
         environment: review
         pr-number: ${{ github.event.pull_request.number }}
         sha: ${{ needs.build.outputs.docker-image-tag }}
+        worker-sha: ${{ needs.build.outputs.worker-docker-image-tag }}
         terraform-base: ${{ env.TERRAFORM_BASE }}
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         # db-seed: true
@@ -176,6 +190,7 @@ jobs:
         azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         environment: ${{ matrix.environment }}
         sha: ${{ needs.build.outputs.docker-image-tag }}
+        worker-sha: ${{ needs.build.outputs.worker-docker-image-tag }}
         terraform-base: ${{ env.TERRAFORM_BASE }}
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

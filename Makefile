@@ -65,6 +65,7 @@ terraform-init: composed-variables set-azure-account
 	$(eval export TF_VAR_service_name=${SERVICE_NAME})
 	$(eval export TF_VAR_service_short=${SERVICE_SHORT})
 	$(eval export TF_VAR_docker_image=${DOCKER_REPOSITORY}:${DOCKER_IMAGE_TAG})
+	$(eval export TF_VAR_worker_docker_image=${DOCKER_REPOSITORY}:${WORKER_DOCKER_IMAGE_TAG})
 
 terraform-plan: terraform-init
 	terraform -chdir=terraform/application plan -var-file "config/${CONFIG}.tfvars.json"

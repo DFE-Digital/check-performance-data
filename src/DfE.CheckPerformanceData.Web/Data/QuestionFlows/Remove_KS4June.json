@@ -111,10 +111,10 @@
       "id": "dual-registered-moved",
       "questions": [
         {
-          "id": "permanent-exclusion-dfe-number",
+          "id": "dual-registered-moved-dfe-number",
           "type": "FreeText",
-          "title": "What is the DfE number of the school which excluded {pupilName}?",
-          "summaryTitle": "DfE number of the excluding school",
+          "title": "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
+          "summaryTitle": "School DfE number",
           "hint" : "For example, 502135326",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
@@ -357,7 +357,7 @@
     },
     {
       "id": "year-group-change-higher",
-      "nextPageId": "evidence",
+      "nextPageId": "year-group-change-evidence",
       "questions": [
         {
           "id": "year-group-higher-moved-to",
@@ -386,7 +386,7 @@
     },
     {
       "id": "year-group-change-lower",
-      "nextPageId": "evidence",
+      "nextPageId": "year-group-change-evidence",
       "questions": [
         {
           "id": "year-group-lower-moved-to",
@@ -407,6 +407,28 @@
               "label": "10"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "year-group-change-evidence",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports removing this pupil",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
         }
       ]
     },
@@ -470,8 +492,7 @@
           "type": "TextArea",
           "title": "Explain how the evidence supports removing this pupil",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000,
-          "optional": true
+          "characterLimit": 1000
         }
       ]
     }

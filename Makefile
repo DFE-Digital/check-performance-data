@@ -70,9 +70,13 @@ terraform-init: composed-variables set-azure-account
 terraform-plan: terraform-init
 	terraform -chdir=terraform/application plan -var-file "config/${CONFIG}.tfvars.json"
 
-terraform-apply: terraform-init
-	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" ${AUTO_APPROVE}
+#terraform-apply: terraform-init
+#	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" ${AUTO_APPROVE}
 
+terraform-apply: terraform-init
+	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE} || \
+	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE}
+	
 terraform-destroy: terraform-init
 	terraform -chdir=terraform/application destroy -var-file "config/${CONFIG}.tfvars.json" ${AUTO_APPROVE}
 

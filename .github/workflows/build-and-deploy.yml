@@ -14,11 +14,15 @@ on:
         - qa
         - preproduction
         - production
-      docker-image-tag:
-        description: "Docker image tag to deploy (optional)"
-        required: true
-        type: string
-      pull-request-number:
+       docker-image-tag:
+         description: "Docker image tag to deploy (optional)"
+         required: true
+         type: string
+       worker-docker-image-tag:
+         description: "Worker docker image tag to deploy (optional)"
+         required: false
+         type: string
+       pull-request-number:
         description: "Pull request number (required for review environment)"
         required: false
         type: string
@@ -220,11 +224,12 @@ jobs:
         azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         environment: ${{ inputs.environment }}
         pr-number: ${{ inputs.pull-request-number }}
-        sha: ${{ inputs.docker-image-tag }}
-        terraform-base: ${{ env.TERRAFORM_BASE }}
-        healthcheck: ${{ env.HEALTHCHECK_CMD }}
-        teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+         sha: ${{ inputs.docker-image-tag }}
+         worker-sha: ${{ inputs.worker-docker-image-tag }}
+         terraform-base: ${{ env.TERRAFORM_BASE }}
+         healthcheck: ${{ env.HEALTHCHECK_CMD }}
+         teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+         service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
 #        smoke-test: true
 #         db-seed: ${{ inputs.environment == 'review' && 'true' || 'false' }}
 # #        gcp-wip: ${{ vars.GCP_WIP }}

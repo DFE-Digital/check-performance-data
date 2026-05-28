@@ -10,8 +10,11 @@ Prerequisites
 - ~~[Node.js](https://nodejs.org/en/download/) (for building web artefacts: (S)CSS, JS, etc.)~~
 - IDE/Editor of choice (e.g., Visual Studio, Visual Studio Code, JetBrains Rider, etc.)
 - [Docker Desktop](https://docs.docker.com/desktop/) (for development time hosting of dependencies)
-   
- 
+
+## Infrastructure validation workflow
+
+The scheduled workflow defined in `.github/workflows/validate-infra.yml` runs Terraform plan validations for the AKS cluster plus domains infrastructure/environment each day at **07:00 UTC** against **production** only. Failures and drift notifications are sent to the SD Infra alerts Teams channel via the `TEAMS_WEBHOOK_URL_INFRA` secret.
+
 
 Clone the repository
 ```sh
@@ -26,7 +29,7 @@ dotnet build
 Confirm tests are passing locally
 ```sh
 dotnet test
-``` 
+```
 
 ```sh
 docker compose up --build -d

@@ -31,17 +31,17 @@
             {
               "value": "pupil-died",
               "label": "Pupil has died",
-              "nextPageId": "additional-info"
+              "nextPageId": "pupil-died"
             },
             {
               "value": "dual-registered-moved",
               "label": "Dual registered or moved school",
-              "nextPageId": "additional-info"
+              "nextPageId": "dual-registered-moved"
             },
             {
               "value": "elective-home-education",
               "label": "Elective home education",
-              "nextPageId": "additional-info"
+              "nextPageId": "elective-home-education"
             },
             {
               "value": "not-on-roll",
@@ -74,6 +74,44 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "elective-home-education",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school roll"
+        }
+      ]
+    },
+    {
+      "id": "dual-registered-moved",
+      "questions": [
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school which excluded {pupilName}?",
+          "summaryTitle": "DfE number of the excluding school",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "pupil-died",
+      "questions": [
+        {
+          "id": "date-removed-from-roll",
+          "type": "Date",
+          "title": "When was {pupilName} removed from your school roll?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date removed from school roll"
         }
       ]
     },

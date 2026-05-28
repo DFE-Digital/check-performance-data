@@ -16,7 +16,7 @@
             {
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion (not registered independent schools)",
-              "nextPageId": "provide-correct-evidence"
+              "nextPageId": "permanent-exclusion"
             },
             {
               "value": "english-not-first-language",
@@ -74,6 +74,28 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "permanent-exclusion",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "permanent-exclusion-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school which excluded {pupilName}?",
+          "summaryTitle": "DfE number of the excluding school",
+          "hint" : "For example, 502135326",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        },
+        {
+          "id": "date-pupil-excluded",
+          "type": "Date",
+          "title": "When was {pupilName} excluded?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date of permanent exclusion"
         }
       ]
     },

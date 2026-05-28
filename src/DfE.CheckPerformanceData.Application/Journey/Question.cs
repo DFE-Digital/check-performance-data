@@ -13,4 +13,6 @@ public sealed class Question
     public int? CharacterLimit { get; init; }
     public List<QuestionOption>? Options { get; init; }
     public string? DataSource { get; init; }
+    public string? QuestionHelpTitle { get; init; }
+    public string? QuestionHelpText { get; init; }
 }

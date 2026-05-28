@@ -18,3 +18,18 @@
         await Html.RenderPartialAsync("_Autocomplete", Model);
         break;
 }
+
+@if (Model.Question.QuestionHelpTitle is not null)
+{
+    <details class="govuk-details govuk-!-margin-top-6">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">@Model.Question.QuestionHelpTitle</span>
+        </summary>
+        <div class="govuk-details__text">
+            @Html.Raw(@Model.Question.QuestionHelpText)
+        </div>
+    </details>
+}
+
+
+

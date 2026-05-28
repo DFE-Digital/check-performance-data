@@ -1,8 +1,10 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Wiki;
@@ -10,11 +12,33 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Wiki;
 public sealed class HelpControllerSearchTests
 {
     private readonly IWikiService _wikiService = Substitute.For<IWikiService>();
+    private readonly ISettingService _settingService = Substitute.For<ISettingService>();
     private readonly HelpController _sut;
 
     public HelpControllerSearchTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), _settingService, NullLogger<HelpController>.Instance);
+    }
+
+    // --- Search action — page size from setting ---
+
+    [Fact]
+    public async Task Search_UsesWikiPageLengthSetting_AsPageSize()
+    {
+        _settingService.GetIntAsync(SettingKeys.WikiPageLength).Returns(7);
+        _wikiService.SearchAsync("publish", Arg.Any<int>(), Arg.Any<int>())
+            .Returns(new WikiSearchResultsDto
+            {
+                Query = "publish",
+                Page = 1,
+                PageSize = 7,
+                TotalCount = 0,
+                Items = []
+            });
+
+        await _sut.Search(q: "publish", page: 1);
+
+        await _wikiService.Received(1).SearchAsync("publish", 1, 7);
     }
 
     // --- Search action — validation ---

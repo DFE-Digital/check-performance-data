@@ -206,6 +206,40 @@ public sealed class WikiServiceTests
         await Assert.ThrowsAsync<DuplicateWikiPageException>(() => _sut.CreatePageAsync(dto));
     }
 
+    // --- CreatePageIfMissingAsync (additive seeding) ---
+
+    [Fact]
+    public async Task CreatePageIfMissingAsync_ReturnsExistingWithoutCreating_WhenSlugExists()
+    {
+        var existing = MakePage(id: 7, title: "Getting started", slug: "getting-started", parentId: null);
+        _repository.GetBySlugAndParentAsync("getting-started", null).Returns(existing);
+
+        var result = await _sut.CreatePageIfMissingAsync(
+            new CreateWikiPageDto { Title = "Getting started", Content = "x", ParentId = null });
+
+        Assert.False(result.Created);
+        Assert.Equal(7, result.Page.Id);
+        await _repository.DidNotReceive().AddPageAsync(
+            Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task CreatePageIfMissingAsync_CreatesAndReportsCreated_WhenSlugMissing()
+    {
+        _repository.GetBySlugAndParentAsync("new-page", null).ReturnsNull();
+        _repository.SlugExistsAsync("new-page", null).Returns(false);
+        _repository.GetMaxSortOrderAsync(null).Returns(0);
+        var added = MakePage(id: 42, title: "New page", slug: "new-page");
+        _repository.AddPageAsync(Arg.Any<CreateWikiPageDto>(), "new-page", 1, Arg.Any<string>()).Returns(added);
+
+        var result = await _sut.CreatePageIfMissingAsync(
+            new CreateWikiPageDto { Title = "New page", Content = "x", ParentId = null });
+
+        Assert.True(result.Created);
+        Assert.Equal(42, result.Page.Id);
+        await _repository.Received(1).AddPageAsync(Arg.Any<CreateWikiPageDto>(), "new-page", 1, Arg.Any<string>());
+    }
+
     // --- UpdatePageAsync ---
 
     [Fact]
@@ -392,7 +426,7 @@ public sealed class WikiServiceTests
         _repository.CountDeletedDescendantsAsync(1).Returns(0);
         _repository.CountDeletedDescendantsAsync(2).Returns(3);
 
-        var result = await _sut.GetDeletedPagesAsync();
+        var result = (await _sut.GetDeletedPagesAsync(new DeletedPagesQuery())).Items;
 
         Assert.Equal(2, result.Count);
         Assert.Equal(2, result[0].Id);
@@ -416,10 +450,133 @@ public sealed class WikiServiceTests
         _repository.CountDeletedDescendantsAsync(5).Returns(0);
         _repository.GetByIdIncludingDeletedAsync(4).Returns(deletedParent);
 
-        var result = await _sut.GetDeletedPagesAsync();
+        var result = (await _sut.GetDeletedPagesAsync(new DeletedPagesQuery())).Items;
 
         Assert.Single(result);
         Assert.Equal("parent/child", result[0].OriginalSlugPath);
+    }
+
+    // --- GetDeletedPagesAsync: search / sort / paging ---
+
+    private void StubDeletedRoots(
+        params (int Id, string Title, string Slug, DateTime Deleted, int Descendants)[] roots)
+    {
+        var infos = roots.Select(r => new DeletedWikiPageInfo
+        {
+            Id = r.Id,
+            Title = r.Title,
+            Slug = r.Slug,
+            ParentId = null,
+            DeletedAt = r.Deleted
+        }).ToList();
+        _repository.GetDeletedRootsAsync().Returns(infos);
+        foreach (var r in roots)
+            _repository.CountDeletedDescendantsAsync(r.Id).Returns(r.Descendants);
+    }
+
+    private static DateTime Day(int day) => new(2026, 4, day, 0, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_Search_FiltersByTitle_CaseInsensitive()
+    {
+        StubDeletedRoots(
+            (1, "Pupil premium", "pupil-premium", Day(1), 0),
+            (2, "Checking exercises", "checking-exercises", Day(2), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(new DeletedPagesQuery { Search = "PUPIL" });
+
+        Assert.Single(result.Items);
+        Assert.Equal(1, result.Items[0].Id);
+        Assert.Equal(1, result.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_Search_FiltersBySlugPath()
+    {
+        StubDeletedRoots(
+            (1, "Alpha", "alpha", Day(1), 0),
+            (2, "Beta", "beta-slug", Day(2), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(new DeletedPagesQuery { Search = "beta-slug" });
+
+        Assert.Single(result.Items);
+        Assert.Equal(2, result.Items[0].Id);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_Sort_ByTitleAscending()
+    {
+        StubDeletedRoots(
+            (1, "Zebra", "zebra", Day(1), 0),
+            (2, "Apple", "apple", Day(2), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(
+            new DeletedPagesQuery { Sort = "title", Direction = "asc" });
+
+        Assert.Equal(new[] { "Apple", "Zebra" }, result.Items.Select(i => i.Title).ToArray());
+        Assert.Equal("title", result.Sort);
+        Assert.Equal("asc", result.Direction);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_Sort_ByDescendantCountDescending()
+    {
+        StubDeletedRoots(
+            (1, "Few", "few", Day(1), 1),
+            (2, "Many", "many", Day(2), 9));
+
+        var result = await _sut.GetDeletedPagesAsync(
+            new DeletedPagesQuery { Sort = "children", Direction = "desc" });
+
+        Assert.Equal(new[] { 2, 1 }, result.Items.Select(i => i.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_DefaultsToDeletedAtDescending()
+    {
+        StubDeletedRoots(
+            (1, "Older", "older", Day(1), 0),
+            (2, "Newer", "newer", Day(5), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(new DeletedPagesQuery());
+
+        Assert.Equal(new[] { 2, 1 }, result.Items.Select(i => i.Id).ToArray());
+        Assert.Equal("deleted", result.Sort);
+        Assert.Equal("desc", result.Direction);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_Paginates_UsingPageSize()
+    {
+        StubDeletedRoots(
+            (1, "A", "a", Day(1), 0),
+            (2, "B", "b", Day(2), 0),
+            (3, "C", "c", Day(3), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(
+            new DeletedPagesQuery { Page = 1, PageSize = 2, Sort = "title", Direction = "asc" });
+
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal(new[] { "A", "B" }, result.Items.Select(i => i.Title).ToArray());
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal(2, result.TotalPages);
+        Assert.Equal(1, result.Page);
+    }
+
+    [Fact]
+    public async Task GetDeletedPagesAsync_ClampsPage_AboveLastPage()
+    {
+        StubDeletedRoots(
+            (1, "A", "a", Day(1), 0),
+            (2, "B", "b", Day(2), 0),
+            (3, "C", "c", Day(3), 0));
+
+        var result = await _sut.GetDeletedPagesAsync(
+            new DeletedPagesQuery { Page = 99, PageSize = 2, Sort = "title", Direction = "asc" });
+
+        Assert.Equal(2, result.Page); // clamped to the last page
+        Assert.Single(result.Items);
+        Assert.Equal("C", result.Items[0].Title);
     }
 
     // --- GetAvailableParentsAsync ---

@@ -24,6 +24,13 @@ public static class AuthHelpers
         return cookie;
     }
 
+    public static async Task<string?> ImpersonateAsAdminAsync(PlaywrightFixture fixture)
+    {
+        var cookie = await CallEndpointAsync(fixture, "/dev/impersonate/admin");
+        TestHttpClients.ImpersonationCookieHeader = cookie;
+        return cookie;
+    }
+
     // Hits the dev-only clear endpoint that deletes the impersonation cookie entirely,
     // restoring true-anonymous state. Distinct from ImpersonateAsUnprivilegedUserAsync
     // (which keeps a synthetic "user" principal). Powers the UI sign-out from the

@@ -3,9 +3,11 @@
 # .NET image, so canonical Linux-Chromium baselines apply equally to every dev
 # machine and to CI. Diff/actual PNGs from test runs stay untracked.
 
-# Diff and actual outputs written by PageSnapshotExtensions on failure:
+# Diff/actual/expected outputs written by PageSnapshotExtensions on failure:
 /Snapshots/**/*.diff.png
 /Snapshots/**/*.actual.png
+/Snapshots/**/*.expected.png
+/Snapshots/diffs/
 
 # Any non-canonical baseline directory (e.g. baselines accidentally generated
 # outside the container on Windows/macOS native) — keep untracked so they

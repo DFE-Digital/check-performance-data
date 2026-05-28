@@ -1,0 +1,74 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminSettingsViewModel
+@{
+    ViewData["Title"] = "CMS settings";
+}
+
+<h1 class="govuk-heading-xl">CMS settings</h1>
+<p class="govuk-body-l">
+    Configure service settings. Clear a value and save to restore its default.
+</p>
+
+@if (TempData["SettingsResult"] is string saved)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="settings-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="settings-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@saved</p>
+        </div>
+    </div>
+}
+
+@if (TempData["SettingsError"] is string error)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <h2 class="govuk-error-summary__title">There is a problem</h2>
+        <div class="govuk-error-summary__body">
+            <p class="govuk-body">@error</p>
+        </div>
+    </div>
+}
+
+<table class="govuk-table">
+    <caption class="govuk-table__caption govuk-visually-hidden">Service settings</caption>
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Setting</th>
+            <th scope="col" class="govuk-table__header">Value</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @foreach (var setting in Model.Settings)
+        {
+            var inputId = $"setting-{setting.Key.Replace(':', '-').ToLowerInvariant()}";
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">
+                    <code class="govuk-!-font-weight-bold">@setting.Key</code>
+                    <p class="govuk-body-s govuk-!-margin-bottom-0">@setting.Description</p>
+                    <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-0">
+                        Default: @setting.DefaultValue@(setting.IsDefault ? " (in use)" : "")
+                    </p>
+                </td>
+                <td class="govuk-table__cell">
+                    <form action="/admin/settings/save" method="post" class="admin-setting-form">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="key" value="@setting.Key" />
+                        <div class="govuk-form-group govuk-!-margin-bottom-0">
+                            <label class="govuk-label govuk-visually-hidden" for="@inputId">
+                                Value for @setting.Key
+                            </label>
+                            <input class="govuk-input govuk-input--width-10" id="@inputId"
+                                   name="value" type="text" value="@setting.Value" />
+                        </div>
+                        <button type="submit" class="govuk-button govuk-!-margin-bottom-0"
+                                data-module="govuk-button" data-prevent-double-click="true">
+                            Save
+                        </button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

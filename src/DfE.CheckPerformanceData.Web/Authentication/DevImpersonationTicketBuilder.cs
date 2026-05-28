@@ -15,7 +15,8 @@ public static class DevImpersonationTicketBuilder
     public static AuthenticationTicket? TryBuild(string cookieValue)
     {
         if (cookieValue != DevImpersonationConstants.EditorValue
-            && cookieValue != DevImpersonationConstants.UserValue)
+            && cookieValue != DevImpersonationConstants.UserValue
+            && cookieValue != DevImpersonationConstants.AdminValue)
         {
             return null;
         }
@@ -28,6 +29,16 @@ public static class DevImpersonationTicketBuilder
 
         if (cookieValue == DevImpersonationConstants.EditorValue)
         {
+            claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
+        }
+
+        // Admin implies editor (one-way hierarchy). Stamping both role claims here
+        // means every existing [Authorize(Roles = WikiConstants.EditorRole)] endpoint
+        // automatically accepts an admin principal without any per-endpoint change.
+        // The reverse is NOT true — an editor cookie never grants admin access.
+        if (cookieValue == DevImpersonationConstants.AdminValue)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
             claims.Add(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
         }
 

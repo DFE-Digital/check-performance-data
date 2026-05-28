@@ -27,7 +27,8 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
         }
 
         if (value != DevImpersonationConstants.EditorValue
-            && value != DevImpersonationConstants.UserValue)
+            && value != DevImpersonationConstants.UserValue
+            && value != DevImpersonationConstants.AdminValue)
         {
             return Task.FromResult(principal);
         }
@@ -35,10 +36,11 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
         var clone = principal.Clone();
 
         // Check across ALL identities — DfE Sign-In's ClaimsEnrichmentService adds
-        // roles on a separate "DfeSignIn" identity via AddIdentity, so the editor role
-        // is rarely on the first (OIDC) identity. Use principal.IsInRole which iterates
-        // every identity rather than scanning one in isolation.
+        // roles on a separate "DfeSignIn" identity via AddIdentity, so role claims
+        // rarely live on the first (OIDC) identity. Use principal.IsInRole which
+        // iterates every identity rather than scanning one in isolation.
         var hasEditorRole = clone.IsInRole(WikiConstants.EditorRole);
+        var hasAdminRole = clone.IsInRole(WikiConstants.AdminRole);
 
         if (value == DevImpersonationConstants.EditorValue && !hasEditorRole)
         {
@@ -62,6 +64,30 @@ public sealed class DevImpersonationClaimsTransformer(IHttpContextAccessor httpC
                 {
                     id.RemoveClaim(claim);
                 }
+            }
+        }
+        else if (value == DevImpersonationConstants.AdminValue)
+        {
+            // Admin implies editor (one-way hierarchy). The admin overlay stamps BOTH
+            // cypmd_admin AND cypmd_content_access_user so every editor-gated endpoint
+            // automatically accepts an admin principal without per-endpoint policy
+            // composition. The reverse is not true — an editor cookie never grants admin.
+            ClaimsIdentity? target = null;
+            if (!hasAdminRole)
+            {
+                target = clone.Identities.FirstOrDefault();
+                if (target is null)
+                {
+                    target = new ClaimsIdentity(authenticationType: DevImpersonationConstants.Scheme);
+                    clone.AddIdentity(target);
+                }
+                target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.AdminRole));
+            }
+            if (!hasEditorRole)
+            {
+                target ??= clone.Identities.FirstOrDefault()
+                    ?? throw new InvalidOperationException("Expected at least one identity to overlay editor role onto.");
+                target.AddClaim(new Claim(ClaimTypes.Role, WikiConstants.EditorRole));
             }
         }
 

@@ -1,0 +1,154 @@
+@using System.Security.Claims
+@using DfE.CheckPerformanceData.Web.Admin.Nav
+@using DfE.CheckPerformanceData.Web.Authentication
+@using DfE.CheckPerformanceData.Web.Controllers
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@inject IEnumerable<IAdminNavEntry> AdminNavEntries
+@*
+    Admin chrome — black-banded header and "Administration" wordmark
+    to make the admin context unambiguous. The public Beta phase banner
+    is intentionally omitted on admin pages; service-nav links to /help
+    and /pupils are also dropped because they belong to the public flow.
+    Shared partials (cookie banner, GTM, footer, skip-link) are preserved.
+*@
+@{
+    Layout = "_GovUkPageTemplate";
+
+    var hasRealDfeAuth = User.Identity?.IsAuthenticated == true
+        && User.Identities.Any(i => i.IsAuthenticated
+            && i.AuthenticationType != DevImpersonationConstants.Scheme);
+    var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
+        && impCookie == DevImpersonationConstants.EditorValue;
+    var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
+        && adminCookie == DevImpersonationConstants.AdminValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
+    var signOutHref = hasRealDfeAuth
+        ? Url.Action("DfeSignOut", "Account")
+        : "/dev/impersonate/clear";
+
+    string? displayName = null;
+    if (hasRealDfeAuth)
+    {
+        var given = User.FindFirst(ClaimTypes.GivenName)?.Value;
+        var surname = User.FindFirst(ClaimTypes.Surname)?.Value;
+        displayName = string.Join(" ", new[] { given, surname }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = User.Identity?.Name;
+    }
+
+    var parens = new List<string>();
+    if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
+    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
+    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
+    var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
+
+    var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
+
+    var navAll = AdminNavEntries.ToList();
+    var adminNavGroups = navAll
+        .Where(e => e.ParentKey is null)
+        .OrderBy(e => e.Order)
+        .Select(g => new AdminNavGroupViewModel
+        {
+            Key = g.Key,
+            Title = g.Title,
+            Description = g.Description,
+            Children = navAll
+                .Where(e => e.ParentKey == g.Key)
+                .OrderBy(e => e.Order)
+                .ToList()
+        })
+        .ToList();
+    var adminNavTreeModel = new AdminLandingViewModel { Groups = adminNavGroups };
+}
+<head>
+    @await Html.PartialAsync("_GtmHead")
+    @Html.GovUkFrontendStyleImports()
+    <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+    <link rel="stylesheet" href="~/css/accessible-autocomplete.min.css" />
+    <link rel="stylesheet" href="~/css/moj-frontend-9.0.0.min.css" />
+</head>
+@section BodyStart {
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await Html.PartialAsync("_CookieBanner")
+    @await Html.PartialAsync("_GtmBody")
+}
+
+@section Header {
+    <div class="admin-chrome">
+        <govuk-header home-page-url="https://gov.uk/"/>
+        <section class="govuk-service-navigation admin-service-navigation" data-module="govuk-service-navigation" aria-label="Service information">
+            <div class="govuk-width-container">
+                <div class="govuk-service-navigation__container">
+                    <span class="govuk-service-navigation__service-name">
+                        <a href="/admin" class="govuk-service-navigation__link">Check Performance Data: Administration</a>
+                    </span>
+                    <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
+                        <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                            <li class="govuk-service-navigation__item sign-in-nav-item">
+                                @if (showSignOut)
+                                {
+                                    <a class="govuk-service-navigation__link" href="@signOutHref">@signOutLabel</a>
+                                }
+                                else
+                                {
+                                    <a class="govuk-service-navigation__link sign-in-nav-item__primary" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                                    @if (showImpersonateDropdown)
+                                    {
+                                        <button type="button" class="sign-in-nav-item__toggle" aria-expanded="false" aria-controls="sign-in-dropdown-menu" aria-label="Show sign in options">
+                                            <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
+                                        </button>
+                                        <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
+                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session.">As CMS Editor</a></li>
+                                            <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session.">As CMS Admin</a></li>
+                                        </ul>
+                                    }
+                                }
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </section>
+    </div>
+}
+
+@Html.GovUkFrontendJsEnabledScript()
+<div class="govuk-width-container">
+    <div class="admin-layout">
+        <aside class="admin-rail" aria-label="Administration sidebar">
+            @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
+        </aside>
+        <main class="admin-main" id="main-content">
+            @RenderBody()
+        </main>
+    </div>
+</div>
+@Html.GovUkFrontendScriptImports()
+
+@section Footer {
+    <footer class="govuk-footer">
+        <div class="govuk-width-container">
+            <hr class="govuk-footer__section-break">
+            <div class="govuk-footer__meta">
+                <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+                    <span class="govuk-footer__licence-description">All content is available under the <a
+                            class="govuk-footer__link"
+                            href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+                            rel="license">Open Government Licence v3.0</a>, except where otherwise stated</span>
+                </div>
+                <div class="govuk-footer__meta-item">
+                    <a class="govuk-footer__link govuk-footer__copyright-logo"
+                       href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/">© Crown copyright</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+}
+
+@section BodyEnd {
+    <script src="~/js/site.js"></script>
+    <script src="~/js/cookies.js"></script>
+    @RenderSection("Scripts", required: false)
+}

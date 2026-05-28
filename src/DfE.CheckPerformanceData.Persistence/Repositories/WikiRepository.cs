@@ -309,6 +309,26 @@ public sealed class WikiRepository(
 		await context.SaveChangesAsync();
 	}
 
+	public async Task HardDeleteAsync(int id)
+	{
+		var entity = await context.WikiPages
+			.IgnoreQueryFilters()
+			.Include(p => p.Versions)
+			.FirstOrDefaultAsync(p => p.Id == id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		await HardDeleteRecursiveInternalAsync(entity);
+		await context.SaveChangesAsync();
+	}
+
+	public async Task<bool> GetIsDeletedAsync(int id) =>
+		await context.WikiPages
+			.AsNoTracking()
+			.IgnoreQueryFilters()
+			.Where(p => p.Id == id)
+			.Select(p => p.IsDeleted)
+			.FirstOrDefaultAsync();
+
 	public async Task RestoreSubtreeAsync(int rootId, int? newParentId, string slug, int sortOrder, string bodyPlainText)
 	{
 		var root = await context.WikiPages
@@ -410,5 +430,25 @@ public sealed class WikiRepository(
 
 		foreach (var child in children)
 			await SoftDeleteRecursiveInternalAsync(child);
+	}
+
+	private async Task HardDeleteRecursiveInternalAsync(WikiPage page)
+	{
+		// Depth-first walk through descendants — IgnoreQueryFilters so soft-deleted children
+		// are reachable. Audit emission is handled by PortalDbContext.SaveChangesAsync; do
+		// NOT hand-roll AuditEntries.Add here.
+		var children = await context.WikiPages
+			.IgnoreQueryFilters()
+			.Include(p => p.Versions)
+			.Where(p => p.ParentId == page.Id)
+			.ToListAsync();
+
+		foreach (var child in children)
+			await HardDeleteRecursiveInternalAsync(child);
+
+		if (page.Versions is { Count: > 0 })
+			context.WikiPageVersions.RemoveRange(page.Versions);
+
+		context.WikiPages.Remove(page);
 	}
 }

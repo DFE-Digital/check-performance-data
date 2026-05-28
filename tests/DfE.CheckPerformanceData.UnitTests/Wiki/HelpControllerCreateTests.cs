@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 
@@ -18,7 +20,7 @@ public sealed class HelpControllerCreateTests
 
     public HelpControllerCreateTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService));
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), Substitute.For<ISettingService>(), NullLogger<HelpController>.Instance);
 
         var httpContext = new DefaultHttpContext();
         _tempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());

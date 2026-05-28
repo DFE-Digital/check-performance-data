@@ -1,0 +1,57 @@
+@using DfE.CheckPerformanceData.Web.Admin.Nav
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model AdminLandingViewModel
+@{
+    var currentPath = (string)(ViewData["AdminCurrentPath"] ?? string.Empty);
+    var activeKey = (string?)ViewData["AdminActiveKey"];
+    var adminHomeActive = string.Equals(currentPath, "/admin", StringComparison.Ordinal);
+}
+
+<nav class="admin-nav-tree" aria-label="Administration navigation">
+    <ul class="tv tv-root">
+        <li class="tv-item">
+            <div class="tv-row">
+                <span class="tv-connector"></span>
+                <a href="/admin" class="tv-link @(adminHomeActive ? "tv-link-active" : "")" @(adminHomeActive ? "aria-current=page" : "")>Administration</a>
+            </div>
+        </li>
+
+        @foreach (var group in Model.Groups)
+        {
+            var groupActive = group.Children.Any(c => c.Key == activeKey);
+            var isGroupLast = group == Model.Groups.Last();
+            var expandedInitial = activeKey == null || groupActive;
+
+            <li class="tv-item @(isGroupLast ? "tv-item-last" : "")">
+                <div class="tv-row">
+                    <button class="tv-toggle" type="button" aria-expanded="@(expandedInitial ? "true" : "false")" aria-label="Toggle @group.Title">
+                        <span class="tv-icon tv-icon-minus"></span>
+                    </button>
+                    <span class="tv-link tv-link-parent @(groupActive ? "tv-link-active" : "")">@group.Title</span>
+                </div>
+                <ul class="tv tv-children">
+                    @foreach (var child in group.Children)
+                    {
+                        var isChildLast = child == group.Children.Last();
+                        var enabled = child.Enabled && !string.IsNullOrEmpty(child.Url);
+                        var childActive = child.Key == activeKey;
+
+                        <li class="tv-item @(isChildLast ? "tv-item-last" : "")">
+                            <div class="tv-row">
+                                <span class="tv-connector"></span>
+                                @if (enabled)
+                                {
+                                    <a href="@child.Url" class="tv-link @(childActive ? "tv-link-active" : "")" @(childActive ? "aria-current=page" : "")>@child.Title</a>
+                                }
+                                else
+                                {
+                                    <span class="tv-link admin-nav-list__title--muted" aria-disabled="true">@child.Title</span>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </li>
+        }
+    </ul>
+</nav>

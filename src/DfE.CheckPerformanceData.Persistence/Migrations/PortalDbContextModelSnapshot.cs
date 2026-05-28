@@ -353,6 +353,23 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("Pupils");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Setting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("Settings");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", b =>
                 {
                     b.Property<int>("Id")

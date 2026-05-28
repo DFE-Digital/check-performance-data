@@ -14,10 +14,13 @@
             && i.AuthenticationType != DevImpersonationConstants.Scheme);
     var hasEditorImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var impCookie)
         && impCookie == DevImpersonationConstants.EditorValue;
-    var showSignOut = hasRealDfeAuth || hasEditorImpersonation;
+    var hasAdminImpersonation = Context.Request.Cookies.TryGetValue(DevImpersonationConstants.CookieName, out var adminCookie)
+        && adminCookie == DevImpersonationConstants.AdminValue;
+    var showSignOut = hasRealDfeAuth || hasEditorImpersonation || hasAdminImpersonation;
     var signOutHref = hasRealDfeAuth
         ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
+    var showAdminLink = User.IsInRole(WikiConstants.AdminRole);
 
     string? displayName = null;
     if (hasRealDfeAuth)
@@ -31,7 +34,8 @@
 
     var parens = new List<string>();
     if (!string.IsNullOrWhiteSpace(displayName)) parens.Add(displayName!);
-    if (hasEditorImpersonation) parens.Add("impersonating CMS admin");
+    if (hasAdminImpersonation) parens.Add("impersonating CMS administrator");
+    else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
 
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
@@ -82,6 +86,12 @@
                              - Real DfE auth + impersonation:  "Sign out (impersonating CMS admin)"  -> DfeSignOut
                              - Synthetic editor impersonation: "Sign out (impersonating CMS admin)"  -> /dev/impersonate/clear (deletes cookie, true anonymous)
                              - Anonymous (or non-editor synthetic): "Sign in" + caret dropdown for "As CMS admin" (non-prod only) *@
+                        @if (showAdminLink)
+                        {
+                            <li class="govuk-service-navigation__item admin-link-nav-item">
+                                <a class="govuk-service-navigation__link" href="/admin">Admin</a>
+                            </li>
+                        }
                         <li class="govuk-service-navigation__item sign-in-nav-item">
                             @if (showSignOut)
                             {
@@ -96,7 +106,8 @@
                                         <svg class="sign-in-nav-item__caret" width="10" height="6" viewBox="0 0 10 6" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0 L5 6 L10 0 Z"/></svg>
                                     </button>
                                     <ul id="sign-in-dropdown-menu" class="sign-in-dropdown-menu" hidden>
-                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS admin role for this session. Useful when your real account doesn't have the admin role assigned, or when browsing anonymously, and you want to test admin-only CMS features.">As CMS admin</a></li>
+                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/editor" title="Take on the CMS editor role for this session. Useful when your real account doesn't have the editor role assigned, or when browsing anonymously, and you want to test editor-only CMS features.">As CMS Editor</a></li>
+                                        <li><a class="sign-in-dropdown-menu__item" href="/dev/impersonate/admin" title="Take on the admin role for this session. Use this when testing admin-only surfaces.">As CMS Admin</a></li>
                                     </ul>
                                 }
                             }

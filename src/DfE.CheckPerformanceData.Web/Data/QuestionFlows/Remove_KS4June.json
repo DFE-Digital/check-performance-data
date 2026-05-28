@@ -21,7 +21,7 @@
             {
               "value": "english-not-first-language",
               "label": "Admitted from abroad with English not first language",
-              "nextPageId": "additional-info"
+              "nextPageId": "english-not-first-language"
             },
             {
               "value": "child-missing-education",
@@ -74,6 +74,80 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language",
+      "nextPageId": "english-not-first-language-details",
+      "questions": [
+        {
+          "id": "first-language",
+          "type": "Radio",
+          "title": "What is {pupilName}'s first language?",
+          "summaryTitle": "First language",
+          "options": [
+            {
+              "value": "english",
+              "label": "English"
+            },
+            {
+              "value": "believed-english",
+              "label": "Not known but believed English"
+            },
+            {
+              "value": "other",
+              "label": "Other than English"
+            },
+            {
+              "value": "believed-other",
+              "label": "Not known but believed other than English"
+            },
+            {
+              "value": "chose-not-to-say",
+              "label": "Chose not to say"
+            },
+            {
+              "value": "not-known",
+              "label": "Not known"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "english-not-first-language-details",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "country-originally-from",
+          "type": "Autocomplete",
+          "title": "What country is {pupilName} originally from?",
+          "hint": "Start typing to see a list of countries",
+          "summaryTitle": "Country originally from",
+          "dataSource" : "countries"
+        },
+        {
+          "id": "date-pupil-started",
+          "type": "Date",
+          "title": "When did {pupilName} start at your school?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date started at school"
+        },
+        {
+          "id": "date-pupil-started-school-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} first start at a school in England?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date started at a school in England"
+        },
+        {
+          "id": "date-pupil-arrived-in-england",
+          "type": "Date",
+          "title": "When did {pupilName} arrive in England?",
+          "hint": "For example, 27 3 2026",
+          "summaryTitle": "Date arrived in England",
+          "optional": true
         }
       ]
     },
@@ -250,7 +324,7 @@
     },
     {
       "id": "social-care",
-      "nextPageId": "provide-correct-evidence",
+      "nextPageId": "evidence",
       "questions": [
         {
           "id": "social-care-reason",
@@ -291,14 +365,6 @@
           ]
         }
       ]
-    },
-    {
-      "id": "provide-correct-evidence",
-      "type": "Content",
-      "title": "Provide the correct evidence",
-      "subheading": "The selected `reason` (The selected `social-care-reason`)",
-      "content": "You will need the pupil's details to hand.",
-      "nextPageId": "evidence"
     },
     {
       "id": "evidence",

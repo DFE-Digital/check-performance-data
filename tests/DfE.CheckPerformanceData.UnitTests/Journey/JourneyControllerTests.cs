@@ -374,7 +374,7 @@ public class JourneyControllerTests
     [Fact]
     public async Task DownloadEvidence_WhenFileInSession_ReturnsFileResult()
     {
-        const string storedName = "stored-guid";
+        var storedName = Guid.NewGuid().ToString();
         const string originalName = "evidence.pdf";
         var bytes = new byte[] { 1, 2, 3 };
 

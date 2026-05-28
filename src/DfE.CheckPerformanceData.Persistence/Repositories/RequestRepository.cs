@@ -12,6 +12,14 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         db.ChangeRequests.AnyAsync(r => r.ReferenceNumber == referenceNumber
                                      && r.Status == RequestStatus.Submitted);
 
+    public Task<bool> HasConflictingRequestAsync(
+        Guid windowId, string pupilUpn, long organisationUrn, string currentReferenceNumber) =>
+        db.ChangeRequests.AnyAsync(r =>
+            r.WindowId == windowId &&
+            r.PupilUpn == pupilUpn &&
+            r.OrganisationUrn == organisationUrn &&
+            r.ReferenceNumber != currentReferenceNumber);
+
     public async Task UpsertAsync(ChangeRequestData data)
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Unspecified);

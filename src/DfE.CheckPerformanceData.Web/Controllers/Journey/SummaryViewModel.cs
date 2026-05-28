@@ -13,6 +13,7 @@ public sealed class SummaryViewModel
     public required string BackPageId { get; init; }
     public required int MaxEvidencePages { get; init; }
     public string? DebugJson { get; init; }
+    public string? ConflictError { get; init; }
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 

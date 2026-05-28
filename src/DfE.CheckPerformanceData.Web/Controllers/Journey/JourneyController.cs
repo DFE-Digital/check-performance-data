@@ -248,37 +248,7 @@ public sealed class JourneyController(
         if (nextExpected is not null)
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
-        var pupilName = GetPupilName(journey);
-
-        var rows = new List<SummaryRow>();
-        var fileRows = new List<SummaryFileRow>();
-
-        foreach (var pid in journey.QuestionHistory)
-        {
-            var p = flowService.GetPage(config, pid);
-            if (p is null || p.Type == PageType.Content) continue;
-            foreach (var q in p.Questions)
-            {
-                journey.QuestionAnswers.TryGetValue(q.Id, out var a);
-                if (q.Type == QuestionType.FileUpload)
-                {
-                    if (a?.FileValues is { Count: > 0 } files)
-                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes, f.PageCount, f.StoredFileName)));
-                }
-                else
-                {
-                    rows.Add(new SummaryRow(p, q, a, Resolve(q.SummaryTitle ?? q.Title, pupilName)));
-                }
-            }
-        }
-
-        var backPageId = journey.QuestionHistory.Last();
-
-        var debugJson = env.IsDevelopment()
-            ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
-            : null;
-
-        return View(new SummaryViewModel { WindowId = windowId, WhatToChange = journey.SelectedWhatToChange!.Value, PupilName = pupilName, Rows = rows, FileRows = fileRows, BackPageId = backPageId, MaxEvidencePages = journeyService.MaxEvidencePages, DebugJson = debugJson });
+        return View(BuildSummaryVm(windowId, journey, config));
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
@@ -307,7 +277,17 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        await requestService.ConfirmRequestAsync(windowId, journey);
+        try
+        {
+            await requestService.ConfirmRequestAsync(windowId, journey);
+        }
+        catch (DuplicateRequestException)
+        {
+            var config = await GetConfigAsync(journey);
+            if (config is null) return RedirectToCheckYourData(windowId);
+            return View("Summary", BuildSummaryVm(windowId, journey, config,
+                conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
+        }
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
@@ -462,6 +442,50 @@ public sealed class JourneyController(
                 }
             },
             _ => new QuestionAnswer { TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim() }
+        };
+    }
+
+    private SummaryViewModel BuildSummaryVm(Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null)
+    {
+        var pupilName = GetPupilName(journey);
+        var rows = new List<SummaryRow>();
+        var fileRows = new List<SummaryFileRow>();
+
+        foreach (var pid in journey.QuestionHistory)
+        {
+            var p = flowService.GetPage(config, pid);
+            if (p is null || p.Type == PageType.Content) continue;
+            foreach (var q in p.Questions)
+            {
+                journey.QuestionAnswers.TryGetValue(q.Id, out var a);
+                if (q.Type == QuestionType.FileUpload)
+                {
+                    if (a?.FileValues is { Count: > 0 } files)
+                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes, f.PageCount, f.StoredFileName)));
+                }
+                else
+                {
+                    rows.Add(new SummaryRow(p, q, a, Resolve(q.SummaryTitle ?? q.Title, pupilName)));
+                }
+            }
+        }
+
+        var backPageId = journey.QuestionHistory.Last();
+        var debugJson = env.IsDevelopment()
+            ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
+            : null;
+
+        return new SummaryViewModel
+        {
+            WindowId = windowId,
+            WhatToChange = journey.SelectedWhatToChange!.Value,
+            PupilName = pupilName,
+            Rows = rows,
+            FileRows = fileRows,
+            BackPageId = backPageId,
+            MaxEvidencePages = journeyService.MaxEvidencePages,
+            DebugJson = debugJson,
+            ConflictError = conflictError
         };
     }
 

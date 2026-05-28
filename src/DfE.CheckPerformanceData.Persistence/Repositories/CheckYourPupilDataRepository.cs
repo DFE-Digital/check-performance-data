@@ -86,13 +86,22 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             .ToListAsync();
 
     private async Task<IReadOnlyList<PupilSuggestionDto>> SearchAsync(Guid windowId, string urn, string query, bool included)
-        => await BaseQuery(windowId, urn, included)
-            .Where(p => EF.Functions.ILike(p.Surname, $"%{query}%") ||
-                        EF.Functions.ILike(p.Firstname, $"%{query}%"))
+    {
+        var urnLong = long.Parse(urn);
+        var existingUpns = dbContext.ChangeRequests
+            .AsNoTracking()
+            .Where(r => r.WindowId == windowId && r.OrganisationUrn == urnLong)
+            .Select(r => r.PupilUpn);
+
+        return await BaseQuery(windowId, urn, included)
+            .Where(p => (EF.Functions.ILike(p.Surname, $"%{query}%") ||
+                         EF.Functions.ILike(p.Firstname, $"%{query}%")) &&
+                        !existingUpns.Contains(p.Upn))
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
             .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {p.DateOfBirth}"))
             .ToListAsync();
+    }
 
     private static System.Linq.Expressions.Expression<Func<Pupil, PupilDto>> ToPupilDto =>
         p => new PupilDto

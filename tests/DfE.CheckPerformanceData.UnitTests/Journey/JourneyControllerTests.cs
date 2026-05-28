@@ -251,6 +251,37 @@ public class JourneyControllerTests
     // ── SummaryConfirm ───────────────────────────────────────────────────────
 
     [Fact]
+    public async Task SummaryConfirm_WhenDuplicateRequestException_ReturnsSummaryViewWithConflictError()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns<Task>(_ => throw new DuplicateRequestException());
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Summary", view.ViewName);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.Equal("A request for this pupil has already been submitted. Select a different pupil.", vm.ConflictError);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenDuplicateRequestException_DoesNotClearSession()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        SetupSession(state);
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns<Task>(_ => throw new DuplicateRequestException());
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.NotNull(remaining.SelectedPupil);
+        Assert.NotNull(remaining.SelectedWhatToChange);
+        Assert.NotEmpty(remaining.QuestionHistory);
+    }
+
+    [Fact]
     public async Task SummaryConfirm_AfterSuccess_ClearsJourneyButPreservesConfirmationData()
     {
         SetupSession(ValidSession(history: ["page-1"]));

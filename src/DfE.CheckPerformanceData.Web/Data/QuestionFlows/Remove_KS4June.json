@@ -46,7 +46,7 @@
             {
               "value": "not-on-roll",
               "label": "Not on roll",
-              "nextPageId": "not-set-yet",
+              "nextPageId": "not-on-roll",
               "visibleWhen": "SchoolIsIndependent"
             },
             {
@@ -73,6 +73,29 @@
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "on-school-roll",
+          "type": "Radio",
+          "title": "Was {pupilName} on your school roll in the 2025 to 2026 academic year?",
+          "hint": "Select one option",
+          "summaryTitle": "Why removed from school",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
             }
           ]
         }

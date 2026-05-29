@@ -61,4 +61,19 @@ public sealed class RulesConfigVersionRepositoryTests(PostgresFixture fixture)
         await using var ctx = _fixture.CreateContext();
         Assert.Equal(1, ctx.AuditEntries.Count(a => a.EntityType == "RulesConfig" && a.Action == "Save"));
     }
+
+    [Fact]
+    public async Task GetById_returns_dto_when_present_and_null_when_absent()
+    {
+        await TruncateAsync();
+        Assert.Null(await NewRepo().GetByIdAsync(999));
+
+        await NewRepo().AddVersionAsync(RulesConfigType.Rules, 1, "{\"v\":1}", "alice", DateTime.UtcNow);
+        var saved = (await NewRepo().ListAsync(RulesConfigType.Rules))[0];
+
+        var fetched = await NewRepo().GetByIdAsync(saved.Id);
+        Assert.NotNull(fetched);
+        Assert.Equal(1, fetched!.VersionNumber);
+        Assert.Equal("alice", fetched.CreatedBy);
+    }
 }

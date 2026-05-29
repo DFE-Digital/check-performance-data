@@ -8,6 +8,17 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RulesConfigVersionRepository(IPortalDbContext context) : IRulesConfigVersionRepository
 {
+    private static readonly System.Linq.Expressions.Expression<Func<RulesConfigVersion, RulesConfigVersionDto>> ToDto =
+        v => new RulesConfigVersionDto
+        {
+            Id = v.Id,
+            ConfigType = v.ConfigType,
+            VersionNumber = v.VersionNumber,
+            Content = v.Content,
+            CreatedAt = v.CreatedAt,
+            CreatedBy = v.CreatedBy
+        };
+
     public async Task<int> GetMaxVersionNumberAsync(RulesConfigType type, CancellationToken ct = default)
     {
         var max = await context.RulesConfigVersions
@@ -30,15 +41,17 @@ public sealed class RulesConfigVersionRepository(IPortalDbContext context) : IRu
 
     public async Task<IReadOnlyList<RulesConfigVersionDto>> ListAsync(RulesConfigType type, CancellationToken ct = default) =>
         await context.RulesConfigVersions
+            .AsNoTracking()
             .Where(v => v.ConfigType == type)
             .OrderByDescending(v => v.VersionNumber)
-            .Select(v => ToDto(v))
+            .Select(ToDto)
             .ToListAsync(ct);
 
     public async Task<RulesConfigVersionDto?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await context.RulesConfigVersions
+            .AsNoTracking()
             .Where(v => v.Id == id)
-            .Select(v => ToDto(v))
+            .Select(ToDto)
             .FirstOrDefaultAsync(ct);
 
     public async Task AddAuditAsync(string entityType, string entityId, string action, string? userId,
@@ -53,10 +66,4 @@ public sealed class RulesConfigVersionRepository(IPortalDbContext context) : IRu
 
     public Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken ct = default) =>
         context.ExecuteInTransactionAsync(work, ct);
-
-    private static RulesConfigVersionDto ToDto(RulesConfigVersion v) => new()
-    {
-        Id = v.Id, ConfigType = v.ConfigType, VersionNumber = v.VersionNumber,
-        Content = v.Content, CreatedAt = v.CreatedAt, CreatedBy = v.CreatedBy
-    };
 }

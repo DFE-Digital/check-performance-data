@@ -156,4 +156,38 @@ public sealed class RulesConfigServiceTests
         Assert.Equal(2, result.VersionNumber);
         Assert.Equal(2, repo.Versions.Count);
     }
+
+    [Fact]
+    public async Task Rollback_writes_a_rollback_audit_entry()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        await svc.SaveRulesAsync(ValidRules(), null);   // audit ":Save:"
+        var v1 = repo.Versions[0];
+
+        await svc.RollbackAsync(v1.Id, store.CurrentETag);
+
+        Assert.Contains(repo.Audits, a => a.Contains(":Rollback:"));
+        Assert.Contains(repo.Audits, a => a.Contains(":Save:"));
+    }
+
+    [Fact]
+    public async Task SaveLookups_valid_writes_blob_version_and_audit()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        var lookups = new Lookups(new Dictionary<string, IReadOnlyList<string>> { ["GB"] = new[] { "English" } });
+
+        var result = await svc.SaveLookupsAsync(lookups, null);
+
+        Assert.True(result.Saved);
+        Assert.Equal(1, store.Writes);
+        Assert.Single(repo.Versions);
+        Assert.Equal(RulesConfigType.Lookups, repo.Versions[0].ConfigType);
+        Assert.Single(repo.Audits);
+    }
 }

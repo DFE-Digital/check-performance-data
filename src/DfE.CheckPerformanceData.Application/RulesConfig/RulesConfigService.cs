@@ -27,34 +27,11 @@ public sealed class RulesConfigService(
         return (DeserialiseLookups(blob.Content), blob.ETag);
     }
 
-    public async Task<RulesConfigSaveResult> SaveRulesAsync(RuleSet rules, string? expectedETag, CancellationToken ct = default)
-    {
-        var validation = rulesValidator.Validate(rules);
-        if (!validation.IsValid)
-        {
-            return RulesConfigSaveResult.Invalid(validation.Errors);
-        }
+    public Task<RulesConfigSaveResult> SaveRulesAsync(RuleSet rules, string? expectedETag, CancellationToken ct = default) =>
+        SaveRulesCoreAsync(rules, expectedETag, "Save", ct);
 
-        var stamped = validation.ResolvedRules! with
-        {
-            Version = NewVersionString(),
-            UpdatedAt = timeProvider.GetUtcNow()
-        };
-        var json = JsonSerializer.Serialize(stamped, RulesJson.Options);
-        return await PersistAsync(RulesConfigType.Rules, json, expectedETag, ct);
-    }
-
-    public async Task<RulesConfigSaveResult> SaveLookupsAsync(Lookups lookups, string? expectedETag, CancellationToken ct = default)
-    {
-        var validation = lookupsValidator.Validate(lookups);
-        if (!validation.IsValid)
-        {
-            return RulesConfigSaveResult.Invalid(validation.Errors);
-        }
-
-        var json = SerialiseLookups(lookups);
-        return await PersistAsync(RulesConfigType.Lookups, json, expectedETag, ct);
-    }
+    public Task<RulesConfigSaveResult> SaveLookupsAsync(Lookups lookups, string? expectedETag, CancellationToken ct = default) =>
+        SaveLookupsCoreAsync(lookups, expectedETag, "Save", ct);
 
     public Task<IReadOnlyList<RulesConfigVersionDto>> ListVersionsAsync(RulesConfigType type, CancellationToken ct = default) =>
         versions.ListAsync(type, ct);
@@ -68,23 +45,59 @@ public sealed class RulesConfigService(
         {
             var rules = JsonSerializer.Deserialize<RuleSet>(snapshot.Content, RulesJson.Options)
                 ?? throw new InvalidOperationException("Stored rules snapshot deserialised to null.");
-            return await SaveRulesAsync(rules, expectedETag, ct);
+            return await SaveRulesCoreAsync(rules, expectedETag, "Rollback", ct);
         }
 
-        return await SaveLookupsAsync(DeserialiseLookups(snapshot.Content), expectedETag, ct);
+        return await SaveLookupsCoreAsync(DeserialiseLookups(snapshot.Content), expectedETag, "Rollback", ct);
     }
 
-    private async Task<RulesConfigSaveResult> PersistAsync(RulesConfigType type, string json, string? expectedETag, CancellationToken ct)
+    private async Task<RulesConfigSaveResult> SaveRulesCoreAsync(RuleSet rules, string? expectedETag, string action, CancellationToken ct)
     {
-        var nextVersion = await versions.GetMaxVersionNumberAsync(type, ct) + 1;
+        var validation = rulesValidator.Validate(rules);
+        if (!validation.IsValid)
+        {
+            return RulesConfigSaveResult.Invalid(validation.Errors);
+        }
+
+        var stamped = validation.ResolvedRules! with
+        {
+            Version = NewVersionString(),
+            UpdatedAt = timeProvider.GetUtcNow()
+        };
+        var json = JsonSerializer.Serialize(stamped, RulesJson.Options);
+        return await PersistAsync(RulesConfigType.Rules, json, expectedETag, action, ct);
+    }
+
+    private async Task<RulesConfigSaveResult> SaveLookupsCoreAsync(Lookups lookups, string? expectedETag, string action, CancellationToken ct)
+    {
+        var validation = lookupsValidator.Validate(lookups);
+        if (!validation.IsValid)
+        {
+            return RulesConfigSaveResult.Invalid(validation.Errors);
+        }
+
+        var json = SerialiseLookups(lookups);
+        return await PersistAsync(RulesConfigType.Lookups, json, expectedETag, action, ct);
+    }
+
+    // Writes the blob then the version + audit rows together. The blob write happens first so an
+    // ETag conflict aborts before any DB row is written. The blob is not part of the DB transaction:
+    // if a DB write fails AFTER a successful blob write, the live blob is advanced without a version
+    // row — acceptable because the version history is append-only and self-heals on the next save.
+    // nextVersion is read INSIDE the transaction so concurrent saves can't compute the same number.
+    private async Task<RulesConfigSaveResult> PersistAsync(
+        RulesConfigType type, string json, string? expectedETag, string action, CancellationToken ct)
+    {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var who = string.IsNullOrWhiteSpace(currentUser.DisplayName) ? currentUser.UserId : currentUser.DisplayName;
+        var nextVersion = 0;
 
         await versions.ExecuteInTransactionAsync(async () =>
         {
+            nextVersion = await versions.GetMaxVersionNumberAsync(type, ct) + 1;
             await store.WriteAsync(type, json, expectedETag, ct);
             await versions.AddVersionAsync(type, nextVersion, json, who, now, ct);
-            await versions.AddAuditAsync("RulesConfig", type.ToString(), "Save", currentUser.UserId, now, ct);
+            await versions.AddAuditAsync("RulesConfig", type.ToString(), action, currentUser.UserId, now, ct);
         }, ct);
 
         return RulesConfigSaveResult.Success(nextVersion);

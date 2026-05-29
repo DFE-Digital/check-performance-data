@@ -83,7 +83,9 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                if (!question.Optional)
+                // Required answers are validated unconditionally; optional answers are
+                // still format-checked (char limit, real date) when they have been filled in.
+                if (!question.Optional || journeyService.IsAnswered(question, answer))
                 {
                     var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
                     if (error is not null)
@@ -96,6 +98,15 @@ public sealed class JourneyController(
             }
         }
 
+        // Page-level "at least one answered" rule (e.g. EvidenceUpload pages).
+        var atLeastOne = journeyService.ValidateRequireAtLeastOne(page, newAnswers, pupilName);
+        if (atLeastOne is not null)
+        {
+            foreach (var (qId, msg) in atLeastOne.FieldErrors)
+                ModelState.AddModelError(qId, msg);
+            isValid = false;
+        }
+
         if (!isValid)
         {
             var displayAnswers = journey.QuestionAnswers
@@ -103,7 +114,7 @@ public sealed class JourneyController(
                 .GroupBy(kv => kv.Key)
                 .ToDictionary(g => g.Key, g => g.Last().Value);
             var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
-            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
+            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config, atLeastOne?.SummaryMessage));
         }
 
         if (fromSummary)
@@ -393,7 +404,7 @@ public sealed class JourneyController(
 
     private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
         Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,
-        QuestionFlowConfig? config = null)
+        QuestionFlowConfig? config = null, string? atLeastOneError = null)
     {
         var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
         var backPageId = historyIndex switch
@@ -445,6 +456,7 @@ public sealed class JourneyController(
             PupilName = pupilName,
             ContentKey = contentKey,
             UploadError = uploadError,
+            AtLeastOneError = atLeastOneError,
             QuestionModels = questionModels
         };
     }

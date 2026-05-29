@@ -2,6 +2,10 @@
 
 <govuk-error-summary>
     <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+    @if (Model.AtLeastOneError is not null)
+    {
+        <govuk-error-summary-description>@Model.AtLeastOneError</govuk-error-summary-description>
+    }
     @if (Model.UploadError is not null)
     {
         <govuk-error-summary-item href="#fileUpload">@Model.UploadError</govuk-error-summary-item>

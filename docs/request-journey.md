@@ -122,6 +122,8 @@ e.g.  CYPMD_KS4June_A3F8D12
 
 The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`). This file is uploaded to Azure Blob Storage on startup in dev via `SeedQuestionFlows`, and fetched at runtime via `IQuestionFlowBlobClient`.
 
+> For a page-by-page breakdown and branching diagram of the `Remove_KS4June.json` flow, see [Remove (KS4 June) — Question Flow](./Remove_KS4June-flow.md).
+
 The config is cached in-process with `Priority = NeverRemove` — it is fetched from blob storage once per application lifetime per flow type.
 
 Each page in the JSON has:

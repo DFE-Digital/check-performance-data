@@ -80,22 +80,24 @@ public sealed class RulesConfigService(
         return await PersistAsync(RulesConfigType.Lookups, json, expectedETag, action, ct);
     }
 
-    // Writes the blob then the version + audit rows together. The blob write happens first so an
-    // ETag conflict aborts before any DB row is written. The blob is not part of the DB transaction:
-    // if a DB write fails AFTER a successful blob write, the live blob is advanced without a version
-    // row — acceptable because the version history is append-only and self-heals on the next save.
-    // nextVersion is read INSIDE the transaction so concurrent saves can't compute the same number.
+    // Write the blob FIRST and OUTSIDE the transaction. An ETag conflict therefore aborts before
+    // any DB row is written, and — crucially — the blob write is never re-run by EF's retrying
+    // execution strategy (a retry would otherwise re-send a now-consumed ETag and raise a spurious
+    // conflict). The version snapshot + audit then commit together inside the transaction; they are
+    // safe to retry. A DB failure after a successful blob write leaves the live blob advanced without
+    // a version row — acceptable because the history is append-only and self-heals on the next save.
     private async Task<RulesConfigSaveResult> PersistAsync(
         RulesConfigType type, string json, string? expectedETag, string action, CancellationToken ct)
     {
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var who = string.IsNullOrWhiteSpace(currentUser.DisplayName) ? currentUser.UserId : currentUser.DisplayName;
-        var nextVersion = 0;
 
+        await store.WriteAsync(type, json, expectedETag, ct);
+
+        var nextVersion = 0;
         await versions.ExecuteInTransactionAsync(async () =>
         {
             nextVersion = await versions.GetMaxVersionNumberAsync(type, ct) + 1;
-            await store.WriteAsync(type, json, expectedETag, ct);
             await versions.AddVersionAsync(type, nextVersion, json, who, now, ct);
             await versions.AddAuditAsync("RulesConfig", type.ToString(), action, currentUser.UserId, now, ct);
         }, ct);

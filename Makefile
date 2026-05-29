@@ -72,8 +72,7 @@ terraform-plan: terraform-init
 
 terraform-apply: terraform-init
 	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE} || \
-	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE}
-	
+	(sleep 120 && terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE})
 terraform-destroy: terraform-init
 	terraform -chdir=terraform/application destroy -var-file "config/${CONFIG}.tfvars.json" ${AUTO_APPROVE}
 

@@ -44,6 +44,12 @@
               "nextPageId": "elective-home-education"
             },
             {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "not-set-yet",
+              "visibleWhen": "SchoolIsIndependent"
+            },
+            {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
               "nextPageId": "permanently-excluded"
@@ -67,12 +73,6 @@
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower"
-            },
-            {
-              "value": "not-on-roll",
-              "label": "Not on roll",
-              "nextPageId": "not-set-yet",
-              "visibleWhen": "SchoolIsIndependent"
             }
           ]
         }

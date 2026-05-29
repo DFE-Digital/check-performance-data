@@ -31,10 +31,17 @@ public sealed class BlobRulesConfigStore : IRulesConfigStore
     public async Task<RulesConfigBlob> ReadAsync(RulesConfigType type, CancellationToken ct = default)
     {
         var client = _container.GetBlobClient(BlobName(type));
-        var response = await client.DownloadContentAsync(ct).ConfigureAwait(false);
-        var content = response.Value.Content?.ToString() ?? string.Empty;
-        var etag = response.Value.Details.ETag.ToString();
-        return new RulesConfigBlob(content, etag);
+        try
+        {
+            var response = await client.DownloadContentAsync(ct).ConfigureAwait(false);
+            var content = response.Value.Content?.ToString() ?? string.Empty;
+            var etag = response.Value.Details.ETag.ToString();
+            return new RulesConfigBlob(content, etag);
+        }
+        catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+        {
+            throw new RulesConfigNotFoundException($"The {type} config blob '{BlobName(type)}' does not exist.");
+        }
     }
 
     public async Task WriteAsync(RulesConfigType type, string content, string? expectedETag, CancellationToken ct = default)

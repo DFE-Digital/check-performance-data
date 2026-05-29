@@ -37,4 +37,11 @@ public sealed class BlobRulesConfigStoreTests(AzuriteFixture fixture)
         await Assert.ThrowsAsync<RulesConfigConflictException>(() =>
             store.WriteAsync(RulesConfigType.Lookups, "{\"y\":2}", first.ETag));
     }
+
+    [Fact]
+    public async Task ReadAsync_missing_blob_throws_not_found()
+    {
+        var store = CreateStore();   // fresh empty container, nothing written
+        await Assert.ThrowsAsync<RulesConfigNotFoundException>(() => store.ReadAsync(RulesConfigType.Rules));
+    }
 }

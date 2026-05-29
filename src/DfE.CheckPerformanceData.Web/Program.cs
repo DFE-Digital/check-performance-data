@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
@@ -123,6 +124,13 @@ try
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+    builder.Services.Configure<DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions>(
+        builder.Configuration.GetSection(
+            DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions.SectionName));
+    builder.Services.TryAddSingleton(TimeProvider.System);
+    builder.Services.AddScoped<
+        DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
+        DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
     // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
     if (builder.Environment.IsDevelopment())
         builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();

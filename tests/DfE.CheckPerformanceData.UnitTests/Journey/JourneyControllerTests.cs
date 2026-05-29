@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -23,6 +24,8 @@ public class JourneyControllerTests
     private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();
     private readonly IFileStorageService _fileStorageService = Substitute.For<IFileStorageService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
+    private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
+    private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
@@ -61,9 +64,14 @@ public class JourneyControllerTests
         _flowService.GetNextPageId(Config, "page-1", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns("page-2");
         _flowService.GetNextPageId(Config, "page-2", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
 
+        _optionVisibilityService
+            .GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
+
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new JourneyController(_flowService, _journeyService, _fileStorageService, _requestService, _env)
+        _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
+            _requestService, _optionVisibilityService, _currentUserService, _env)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -92,6 +100,24 @@ public class JourneyControllerTests
         var result = await _sut.Page(WindowId, "page-1");
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task Page_RadioQuestion_UsesFilteredVisibleOptions()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+
+        var visible = new List<QuestionOption> { new() { Value = "opt1", Label = "Option 1" } };
+        _optionVisibilityService
+            .GetVisibleOptions(Arg.Is<Question>(q => q.Id == "q1"), Arg.Any<JourneyConditionContext>())
+            .Returns(visible);
+
+        var result = await _sut.Page(WindowId, "page-1");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PageViewModel>(view.Model);
+        var radioModel = model.QuestionModels.Single(qm => qm.Question.Id == "q1");
+        Assert.Same(visible, radioModel.VisibleOptions);
     }
 
     // ── Session guard — Summary GET ──────────────────────────────────────────

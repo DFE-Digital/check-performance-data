@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -12,6 +13,8 @@ public sealed class JourneyController(
     IJourneyValidationService journeyService,
     IFileStorageService fileStorageService,
     IRequestService requestService,
+    IOptionVisibilityService optionVisibilityService,
+    ICurrentUserService currentUserService,
     IWebHostEnvironment env) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -373,6 +376,18 @@ public sealed class JourneyController(
     private static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;
 
+    private JourneyConditionContext BuildConditionContext(RequestState journey) => new()
+    {
+        Journey = journey,
+        User = new JourneyUserContext
+        {
+            OrganisationUrn = currentUserService.OrganisationUrn,
+            OrganisationId = currentUserService.OrganisationId,
+            OrganisationName = currentUserService.OrganisationName,
+            OrganisationTypeId = currentUserService.OrganisationTypeId
+        }
+    };
+
     private static string Resolve(string template, string pupilName) =>
         template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
 
@@ -396,6 +411,8 @@ public sealed class JourneyController(
         if (page.Type == PageType.Content && config is not null)
             contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
 
+        var conditionContext = BuildConditionContext(journey);
+
         var questionModels = page.Questions.Select(q =>
         {
             var error = ModelState.TryGetValue(q.Id, out var entry)
@@ -411,7 +428,10 @@ public sealed class JourneyController(
                 IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
                 Error = error,
                 UploadError = uploadError,
-                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : "")
+                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
+                VisibleOptions = q.Type == QuestionType.Radio
+                    ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
+                    : q.Options ?? []
             };
         }).ToList();
 

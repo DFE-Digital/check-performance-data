@@ -67,6 +67,12 @@
               "value": "year-group-change",
               "label": "Year group change",
               "nextPageId": "year-group-change-higher-lower"
+            },
+            {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "not-set-yet",
+              "visibleWhen": "SchoolIsIndependent"
             }
           ]
         }

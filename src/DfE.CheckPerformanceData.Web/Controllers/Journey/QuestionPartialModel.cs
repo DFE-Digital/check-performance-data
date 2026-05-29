@@ -17,6 +17,7 @@ public sealed class QuestionPartialModel
     public string ErrorFieldRef => Question.Type == QuestionType.Date ? $"{FieldName}_day" : FieldName;
     public bool HasError => Error is not null;
     public string ResolvedTitle { get; init; } = string.Empty;
+    public IReadOnlyList<QuestionOption> VisibleOptions { get; init; } = [];
 
     // File upload computed properties
     public IReadOnlyList<FileAnswer> UploadedFiles => ExistingAnswer?.FileValues ?? [];

@@ -1,9 +1,8 @@
 using DfE.CheckPerformanceData.Application.RulesEngine;
-using Xunit;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 
-public class RuleSetValidatorDuplicateKeyTests
+public sealed class RuleSetValidatorDuplicateKeyTests
 {
     private static RuleBranch Otherwise(string id) =>
         new(id, DecisionStatus.Scrutiny, Predicate.Otherwise.Instance);

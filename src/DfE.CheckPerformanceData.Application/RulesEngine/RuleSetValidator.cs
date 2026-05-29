@@ -36,6 +36,7 @@ public sealed record RuleSetValidationResult(
 ///   <item>Every <c>field</c> referenced exists in <see cref="FieldCatalogue"/>.</item>
 ///   <item>Every literal coerces successfully to the field's catalogue type.</item>
 ///   <item>Branch IDs are unique within an outcome.</item>
+///   <item>Outcome keys are unique across all outcomes.</item>
 /// </list>
 /// </summary>
 public sealed class RuleSetValidator
@@ -58,6 +59,16 @@ public sealed class RuleSetValidator
         foreach (var outcome in rules.Outcomes)
         {
             resolvedOutcomes.Add(ValidateOutcome(outcome, errors));
+        }
+
+        // Check for duplicate outcome keys.
+        var seenKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var outcome in rules.Outcomes)
+        {
+            if (!string.IsNullOrWhiteSpace(outcome.Key) && !seenKeys.Add(outcome.Key))
+            {
+                errors.Add($"RuleSet has duplicate outcome key '{outcome.Key}'.");
+            }
         }
 
         return errors.Count == 0

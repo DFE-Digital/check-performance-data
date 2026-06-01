@@ -44,6 +44,12 @@
               "nextPageId": "elective-home-education"
             },
             {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "not-on-roll",
+              "visibleWhen": "SchoolIsIndependent"
+            },
+            {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
               "nextPageId": "permanently-excluded"
@@ -69,6 +75,52 @@
               "nextPageId": "year-group-change-higher-lower"
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll",
+      "nextPageId": "not-on-roll-evidence",
+      "questions": [
+        {
+          "id": "on-school-roll",
+          "type": "Radio",
+          "title": "Was {pupilName} on your school roll in the 2025 to 2026 academic year?",
+          "hint": "Select one option",
+          "summaryTitle": "On school roll 2025 to 2026",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll-evidence",
+      "type": "EvidenceUpload",
+      "requireAtLeastOne": true,
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports removing this pupil",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
         }
       ]
     },

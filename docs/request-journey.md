@@ -136,7 +136,7 @@ Each page in the JSON has:
 
 | `type` | Renders | Answer stored as | Notes |
 |---|---|---|---|
-| `Radio` | Radio buttons | `TextValue` — the selected option value | Options can include `nextPageId` to branch the flow |
+| `Radio` | Radio buttons | `TextValue` — the selected option value | Options can include `nextPageId` to branch the flow, and `visibleWhen` to gate visibility per user (see [Conditional option visibility](#conditional-option-visibility)) |
 | `FreeText` | Single-line input | `TextValue` | |
 | `TextArea` | Multi-line textarea | `TextValue` | Optional `charLimit` |
 | `Date` | Day / month / year inputs | `DateValue` (`DateAnswer`) | |
@@ -154,9 +154,22 @@ Pages already in `QuestionHistory` are always allowed.
 ### Answering questions
 
 On each `PagePost`:
-1. Answers are validated (`IJourneyValidationService.ValidateAnswer`)
-2. If valid, answers are written to `QuestionAnswers` and the page ID is appended to `QuestionHistory`
-3. The next page is determined from the config (radio answers can branch)
+1. Each answer is validated (`IJourneyValidationService.ValidateAnswer`). Required answers are validated unconditionally; an `optional` answer is skipped unless it has actually been filled in, in which case its format rules (character limit, real date) are still enforced.
+2. If the page sets `requireAtLeastOne`, the page-level rule is checked (see [Require at least one](#require-at-least-one)).
+3. If valid, answers are written to `QuestionAnswers` and the page ID is appended to `QuestionHistory`
+4. The next page is determined from the config (radio answers can branch)
+
+### Conditional option visibility
+
+A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is rendered only when a registered `IJourneyCondition` with that `Name` evaluates `true` for the current user/journey. This lets one config show different options to different schools — e.g. the **Not on roll** removal reason appears only for independent schools.
+
+- `JourneyController.BuildPageVm` assembles a `JourneyConditionContext` from the session `RequestState` plus a `JourneyUserContext` snapshot taken from `ICurrentUserService` (so the Application layer never touches `HttpContext`).
+- `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters the options in order. Options with no `visibleWhen` always show; an option naming an **unregistered** condition is hidden (fail closed). The result is exposed as `QuestionPartialModel.VisibleOptions`, which `_Radio.cshtml` iterates instead of the raw config options.
+- Conditions are pure-logic classes in `Application/Journey/Conditions/`, registered as `IJourneyCondition` in the Application `DependencyManager`. Current condition: `SchoolIsIndependentCondition` — true when the GIAS establishment type id (`organisation_type_id` claim, sourced from the DfE Sign-in `$.type.id` field) is `"11"` (Other Independent School; type 10 is deliberately excluded).
+
+### Require at least one
+
+A page with `"requireAtLeastOne": true` must have at least one of its questions answered, even when each question is individually `optional`. This is used by the **Not on roll** evidence page, where either an uploaded file *or* a written explanation is acceptable. `IJourneyValidationService.ValidateRequireAtLeastOne` returns a `RequireAtLeastOneResult` (a summary lead-in message plus per-question field errors) when nothing is answered; the controller adds these to `ModelState` and surfaces the summary message in `_JourneyErrorSummary.cshtml` via `PageViewModel.AtLeastOneError`.
 
 **Session after each page:**
 | Field | Updated to |
@@ -178,7 +191,7 @@ The evidence page has `type: "EvidenceUpload"` in the JSON and renders a distinc
   The GUID blob name is returned and stored in session as `FileAnswer.StoredFileName`. The original filename and page count are also stored in session but the bytes themselves live only in blob storage.
 - Removing a file (`/remove`) deletes the blob and removes the `FileAnswer` entry from session
 
-The text area on the evidence page is submitted via the normal `PagePost` route.
+The text area on the evidence page is submitted via the normal `PagePost` route. An evidence page may set `requireAtLeastOne` so that the file upload and explanation are each `optional` individually but at least one must be provided — see [Require at least one](#require-at-least-one).
 
 ### Content pages
 
@@ -257,6 +270,7 @@ From the Summary, the user can:
 | `Id` | New `Guid` (or existing Draft row's Id) |
 | `WindowId` | The checking window GUID |
 | `ReferenceNumber` | e.g. `CYPMD_KS4June_A3F8D12` |
+| `RequestType` | The chosen reason value from the `useAsRequestType` question (e.g. `not-on-roll`) |
 | `Status` | `Submitted` |
 | `OrganisationUrn` | School URN (long) |
 | `PupilUpn` | Pupil's UPN |

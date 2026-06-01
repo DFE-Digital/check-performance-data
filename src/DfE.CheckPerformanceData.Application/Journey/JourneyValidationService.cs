@@ -8,6 +8,35 @@ public sealed class JourneyValidationService : IJourneyValidationService
 
     public int MaxEvidencePages => MaxTotalPages;
 
+    public bool IsAnswered(Question question, QuestionAnswer? answer) =>
+        question.Type switch
+        {
+            QuestionType.FileUpload => answer?.FileValues is { Count: > 0 },
+            QuestionType.Date => answer?.DateValue is { Day: > 0, Month: > 0, Year: > 0 },
+            _ => !string.IsNullOrWhiteSpace(answer?.TextValue)
+        };
+
+    public RequireAtLeastOneResult? ValidateRequireAtLeastOne(
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
+    {
+        if (!page.RequireAtLeastOne) return null;
+
+        var anyAnswered = page.Questions.Any(q =>
+            IsAnswered(q, answers.TryGetValue(q.Id, out var a) ? a : null));
+        if (anyAnswered) return null;
+
+        var fieldErrors = page.Questions.ToDictionary(
+            q => q.Id,
+            q => q.Type == QuestionType.FileUpload
+                ? "Upload at least one file"
+                : Resolve(q.Title, pupilName));
+
+        return new RequireAtLeastOneResult("You must answer at least one of these questions", fieldErrors);
+    }
+
+    private static string Resolve(string template, string pupilName) =>
+        template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
+
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle) =>
         question.Type switch
         {

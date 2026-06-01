@@ -9,13 +9,14 @@ the Key Stage 4 (June) performance data.
 
 - **First page:** `reason`
 - **Terminal pages** (no `nextPageId`): `evidence`, `year-group-change-evidence`,
-  `elective-home-education`, `dual-registered-moved`, `pupil-died`
+  `not-on-roll-evidence`, `elective-home-education`, `dual-registered-moved`,
+  `pupil-died`
 
 ## Flow diagram
 
 ```mermaid
 flowchart TD
-    reason["reason<br/>(Radio · 11 options)"]
+    reason["reason<br/>(Radio · 12 options, 1 conditional)"]
 
     %% --- branches off the reason question ---
     reason -->|Admitted following permanent exclusion| permanent-exclusion
@@ -24,6 +25,7 @@ flowchart TD
     reason -->|Pupil has died| pupil-died
     reason -->|Dual registered or moved school| dual-registered-moved
     reason -->|Elective home education| elective-home-education
+    reason -->|Not on roll · independent schools only| not-on-roll
     reason -->|Permanently excluded from current school| permanently-excluded
     reason -->|Permanently left England| permanently-left-england-questions
     reason -->|Social care involvement| social-care
@@ -49,17 +51,21 @@ flowchart TD
     year-group-change-higher --> year-group-change-evidence
     year-group-change-lower --> year-group-change-evidence
 
+    %% --- not on roll has its own evidence page ---
+    not-on-roll --> not-on-roll-evidence
+
     %% --- terminal pages ---
     pupil-died --> done([End / Check answers])
     dual-registered-moved --> done
     elective-home-education --> done
     evidence --> done
     year-group-change-evidence --> done
+    not-on-roll-evidence --> done
 
     classDef terminal fill:#d4edda,stroke:#28a745;
     classDef start fill:#cce5ff,stroke:#004085;
     class reason start;
-    class evidence,year-group-change-evidence,pupil-died,dual-registered-moved,elective-home-education terminal;
+    class evidence,year-group-change-evidence,not-on-roll-evidence,pupil-died,dual-registered-moved,elective-home-education terminal;
 ```
 
 ## Page-by-page breakdown
@@ -76,6 +82,7 @@ Single `Radio` question driving the whole flow. `useAsRequestType: true` and
 | `pupil-died` | Pupil has died | `pupil-died` |
 | `dual-registered-moved` | Dual registered or moved school | `dual-registered-moved` |
 | `elective-home-education` | Elective home education | `elective-home-education` |
+| `not-on-roll` | Not on roll — **only shown when `visibleWhen: SchoolIsIndependent`** (GIAS type id `11`) | `not-on-roll` |
 | `permanently-excluded` | Permanently excluded from current school | `permanently-excluded` |
 | `permanently-left-england` | Permanently left England | `permanently-left-england-questions` |
 | `social-care-involvement` | Social care involvement - including police or prison | `social-care` |
@@ -161,6 +168,25 @@ No evidence step.
 
 ---
 
+### `not-on-roll` → `not-on-roll-evidence`
+Reached only when the `not-on-roll` reason is shown (independent schools, GIAS
+type id `11` — see [conditional visibility](#notes)).
+
+| Question | Type | Notes |
+|---|---|---|
+| `on-school-roll` | Radio | Was {pupilName} on your school roll in the 2025 to 2026 academic year? (Yes / No). |
+
+### `not-on-roll-evidence` → *end*  (terminal)
+`EvidenceUpload` page with `requireAtLeastOne: true`. Both questions are
+**optional** individually, but at least one must be answered.
+
+| Question | Type | Notes |
+|---|---|---|
+| `evidence` | FileUpload (optional) | PDF, max 6 pages across all files. |
+| `how-evidence-supports` | TextArea (optional) | Explain how the evidence supports removal. 1000 char limit. |
+
+---
+
 ### `permanently-left-england-questions` → `evidence`
 
 | Question | Type | Notes |
@@ -233,9 +259,16 @@ Shared `EvidenceUpload` page reached by most reasons. Both questions are
 
 ## Notes
 
-- **Two evidence pages exist.** `evidence` requires uploads and explanation;
-  `year-group-change-evidence` makes both optional. Only the year-group-change
-  branch uses the latter.
+- **Three evidence pages exist.** `evidence` requires both upload and
+  explanation; `year-group-change-evidence` makes both optional; and
+  `not-on-roll-evidence` makes both optional but sets `requireAtLeastOne: true`,
+  so at least one of the two must be provided. Each is used only by its
+  respective branch.
+- **Conditional option.** The `not-on-roll` reason carries
+  `"visibleWhen": "SchoolIsIndependent"`, so it is rendered only for independent
+  schools (GIAS establishment type id `11`). The gate is evaluated server-side
+  by `IOptionVisibilityService` / `SchoolIsIndependentCondition`; see
+  [request-journey.md → Conditional option visibility](./request-journey.md#conditional-option-visibility).
 - **Three reasons skip evidence entirely** and end after a single page:
   `pupil-died`, `dual-registered-moved`, and `elective-home-education`.
 - **`date-removed-from-roll`** is reused across `elective-home-education`,

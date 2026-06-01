@@ -24,7 +24,7 @@
             </p>
         }
         <div class="govuk-radios">
-            @foreach (var option in Model.Question.Options ?? [])
+            @foreach (var option in Model.VisibleOptions)
             {
                 var optionId = $"{Model.FieldName}-{option.Value}";
                 <div class="govuk-radios__item">

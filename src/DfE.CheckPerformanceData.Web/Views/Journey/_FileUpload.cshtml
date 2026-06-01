@@ -67,14 +67,15 @@ else
           novalidate>
         @Html.AntiForgeryToken()
 
-        <div class="govuk-form-group @(Model.UploadError is not null ? "govuk-form-group--error" : "")">
-            @if (Model.UploadError is not null)
+        @{ var fileError = Model.UploadError ?? Model.Error; }
+        <div class="govuk-form-group @(fileError is not null ? "govuk-form-group--error" : "")">
+            @if (fileError is not null)
             {
                 <p class="govuk-error-message" id="fileUpload-error">
-                    <span class="govuk-visually-hidden">Error:</span> @Model.UploadError
+                    <span class="govuk-visually-hidden">Error:</span> @fileError
                 </p>
             }
-            <input class="govuk-file-upload @(Model.UploadError is not null ? "govuk-file-upload--error" : "")"
+            <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
                    id="fileUpload" name="fileUpload" type="file"
                    accept=".pdf,application/pdf"
                    aria-describedby="@Model.DescribedBy">

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.Conditions;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -28,6 +29,8 @@ public static class DependencyManager
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
         services.AddScoped<ICountryService, CountryService>();
+        services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
+        services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
 
         services.AddSingleton<IRulesEngine, RulesEngine.RulesEngine>();
         services.AddSingleton<IRuleContextMapper, RuleContextMapper>();

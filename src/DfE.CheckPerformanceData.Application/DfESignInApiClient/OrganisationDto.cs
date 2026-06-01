@@ -14,6 +14,9 @@ public sealed class OrganisationDto
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }
 
+    /// <summary>GIAS establishment type, from the API field <c>$.type</c>.</summary>
+    public OrganisationTypeDto? Type { get; init; }
+
     public string Address { get; init; } = string.Empty;
     
     public List<OrganisationKeyStageDto> KeyStages =>
@@ -33,6 +36,12 @@ public static class OrganisationKeyStages
 }
 
 public record OrganisationKeyStageDto(int Id, string Title, int LowAge, int HighAge, KeyStages KeyStage);
+
+public sealed class OrganisationTypeDto
+{
+    public string? Id { get; init; }
+    public string? Name { get; init; }
+}
 
 //
 // [ {

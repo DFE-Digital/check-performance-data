@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -12,6 +13,8 @@ public sealed class JourneyController(
     IJourneyValidationService journeyService,
     IFileStorageService fileStorageService,
     IRequestService requestService,
+    IOptionVisibilityService optionVisibilityService,
+    ICurrentUserService currentUserService,
     IWebHostEnvironment env) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -80,7 +83,9 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                if (!question.Optional)
+                // Required answers are validated unconditionally; optional answers are
+                // still format-checked (char limit, real date) when they have been filled in.
+                if (!question.Optional || journeyService.IsAnswered(question, answer))
                 {
                     var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
                     if (error is not null)
@@ -93,6 +98,15 @@ public sealed class JourneyController(
             }
         }
 
+        // Page-level "at least one answered" rule (e.g. EvidenceUpload pages).
+        var atLeastOne = journeyService.ValidateRequireAtLeastOne(page, newAnswers, pupilName);
+        if (atLeastOne is not null)
+        {
+            foreach (var (qId, msg) in atLeastOne.FieldErrors)
+                ModelState.AddModelError(qId, msg);
+            isValid = false;
+        }
+
         if (!isValid)
         {
             var displayAnswers = journey.QuestionAnswers
@@ -100,7 +114,7 @@ public sealed class JourneyController(
                 .GroupBy(kv => kv.Key)
                 .ToDictionary(g => g.Key, g => g.Last().Value);
             var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
-            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config));
+            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config, atLeastOne?.SummaryMessage));
         }
 
         if (fromSummary)
@@ -373,12 +387,24 @@ public sealed class JourneyController(
     private static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;
 
+    private JourneyConditionContext BuildConditionContext(RequestState journey) => new()
+    {
+        Journey = journey,
+        User = new JourneyUserContext
+        {
+            OrganisationUrn = currentUserService.OrganisationUrn,
+            OrganisationId = currentUserService.OrganisationId,
+            OrganisationName = currentUserService.OrganisationName,
+            OrganisationTypeId = currentUserService.OrganisationTypeId
+        }
+    };
+
     private static string Resolve(string template, string pupilName) =>
         template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
 
     private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
         Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,
-        QuestionFlowConfig? config = null)
+        QuestionFlowConfig? config = null, string? atLeastOneError = null)
     {
         var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
         var backPageId = historyIndex switch
@@ -396,6 +422,8 @@ public sealed class JourneyController(
         if (page.Type == PageType.Content && config is not null)
             contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
 
+        var conditionContext = BuildConditionContext(journey);
+
         var questionModels = page.Questions.Select(q =>
         {
             var error = ModelState.TryGetValue(q.Id, out var entry)
@@ -411,7 +439,10 @@ public sealed class JourneyController(
                 IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
                 Error = error,
                 UploadError = uploadError,
-                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : "")
+                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
+                VisibleOptions = q.Type == QuestionType.Radio
+                    ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
+                    : q.Options ?? []
             };
         }).ToList();
 
@@ -425,6 +456,7 @@ public sealed class JourneyController(
             PupilName = pupilName,
             ContentKey = contentKey,
             UploadError = uploadError,
+            AtLeastOneError = atLeastOneError,
             QuestionModels = questionModels
         };
     }

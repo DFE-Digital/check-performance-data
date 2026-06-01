@@ -35,7 +35,7 @@ public sealed class JourneyValidationService : IJourneyValidationService
     }
 
     private static string Resolve(string template, string pupilName) =>
-        template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
+        template.Replace("{pupilName}", pupilName, StringComparison.Ordinal);
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle) =>
         question.Type switch

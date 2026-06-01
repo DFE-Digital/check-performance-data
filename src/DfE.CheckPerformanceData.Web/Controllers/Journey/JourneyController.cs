@@ -404,7 +404,7 @@ public sealed class JourneyController(
     };
 
     private static string Resolve(string template, string pupilName) =>
-        template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
+        template.Replace("{pupilName}", pupilName, StringComparison.Ordinal);
 
     private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
         Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,

@@ -8,7 +8,6 @@ public sealed record RulesConfigCardViewModel
 {
     public bool IsEmpty { get; init; }
     public string? Version { get; init; }
-    public DateTimeOffset? UpdatedAt { get; init; }
     public int ItemCount { get; init; }            // outcomes (rules) or countries (lookups)
     public string ItemNoun { get; init; } = string.Empty;
     public int? LatestVersionNumber { get; init; }

@@ -3,11 +3,11 @@
 
 @if (Model.IsLeaf)
 {
-    <li class="govuk-body govuk-!-margin-bottom-1">@Model.Text</li>
+    <li>@Model.Text</li>
 }
 else
 {
-    <li class="govuk-body govuk-!-margin-bottom-1">
+    <li>
         @Model.Text
         <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
             @foreach (var child in Model.Children)

@@ -17,7 +17,6 @@ public static class RulesAdminViewModelFactory
         {
             IsEmpty = false,
             Version = rules.Version,
-            UpdatedAt = rules.UpdatedAt,
             ItemCount = rules.Outcomes.Count,
             ItemNoun = "outcomes",
             LatestVersionNumber = latest?.VersionNumber,

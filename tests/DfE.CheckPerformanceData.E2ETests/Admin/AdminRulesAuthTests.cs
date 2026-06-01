@@ -6,14 +6,14 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
 [Collection("E2E")]
 [Trait("Category", "W4")]
-public sealed class AdminAuthTests(PlaywrightFixture fixture)
+public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    // --- Admin_AsAnon_Redirects_To_Signin ---
+    // --- Rules_AsAnon_Redirects_To_Signin ---
 
     [Fact]
-    public async Task Admin_AsAnon_Redirects_To_Signin()
+    public async Task Rules_AsAnon_Redirects_To_Signin()
     {
         try
         {
@@ -21,7 +21,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"{_fixture.BaseUrl}/admin");
+                $"{_fixture.BaseUrl}/admin/rules");
 
             var response = await TestHttpClients.SendAsync(request);
 
@@ -36,10 +36,10 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Admin_AsNonAdmin_Redirects_To_AccessDenied ---
+    // --- Rules_AsNonAdmin_Redirects_To_AccessDenied ---
 
     [Fact]
-    public async Task Admin_AsNonAdmin_Redirects_To_AccessDenied()
+    public async Task Rules_AsNonAdmin_Redirects_To_AccessDenied()
     {
         try
         {
@@ -47,7 +47,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"{_fixture.BaseUrl}/admin");
+                $"{_fixture.BaseUrl}/admin/rules");
 
             var response = await TestHttpClients.SendAsync(request);
 
@@ -60,10 +60,10 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Admin_AsEditorOnly_Redirects_To_AccessDenied ---
+    // --- Rules_AsEditorOnly_Redirects_To_AccessDenied ---
 
     [Fact]
-    public async Task Admin_AsEditorOnly_Redirects_To_AccessDenied()
+    public async Task Rules_AsEditorOnly_Redirects_To_AccessDenied()
     {
         // Orthogonality: holding the editor role does NOT implicitly grant admin access.
         try
@@ -72,7 +72,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"{_fixture.BaseUrl}/admin");
+                $"{_fixture.BaseUrl}/admin/rules");
 
             var response = await TestHttpClients.SendAsync(request);
 
@@ -85,10 +85,10 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Admin_AsAdmin_Returns_200 ---
+    // --- Rules_AsAdmin_Returns_200_With_Both_Cards ---
 
     [Fact]
-    public async Task Admin_AsAdmin_Returns_200()
+    public async Task Rules_AsAdmin_Returns_200_With_Both_Cards()
     {
         try
         {
@@ -96,25 +96,16 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
-                $"{_fixture.BaseUrl}/admin");
+                $"{_fixture.BaseUrl}/admin/rules");
 
             var response = await TestHttpClients.SendAsync(request);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Version retention", body);
-            Assert.Contains("Visual regression dashboard", body);
-            Assert.Contains("Content staging import/export", body);
-            Assert.Contains("Coming soon", body);
-
-            // New shape after the grouped admin landing rebuild.
-            Assert.Contains("CMS administration", body);
-            Assert.Contains("System administration", body);
-            Assert.Contains("Deleted pages", body);
-            Assert.Contains("Seed sample pages", body);
-            Assert.Contains("Rules engine", body);
             Assert.Contains("Rules configuration", body);
+            Assert.Contains("Decision rules", body);
+            Assert.Contains("Country languages", body);
         }
         finally
         {

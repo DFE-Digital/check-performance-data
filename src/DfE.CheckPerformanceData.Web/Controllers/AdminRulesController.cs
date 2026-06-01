@@ -16,6 +16,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string IndexView = "~/Views/Admin/Rules/Index.cshtml";
     private const string OutcomesView = "~/Views/Admin/Rules/Outcomes.cshtml";
     private const string OutcomeView = "~/Views/Admin/Rules/Outcome.cshtml";
+    private const string LookupsView = "~/Views/Admin/Rules/Lookups.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -48,6 +49,13 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var (ruleSet, _) = await TryGetRulesAsync(ct);
         var model = RulesAdminViewModelFactory.Outcome(ruleSet, key);
         return model is null ? NotFound() : View(OutcomeView, model);
+    }
+
+    [HttpGet("admin/rules/lookups")]
+    public async Task<IActionResult> Lookups(CancellationToken ct)
+    {
+        var (lookups, _) = await TryGetLookupsAsync(ct);
+        return View(LookupsView, RulesAdminViewModelFactory.Lookups(lookups));
     }
 
     // --- helpers (shared by later GET actions) ---

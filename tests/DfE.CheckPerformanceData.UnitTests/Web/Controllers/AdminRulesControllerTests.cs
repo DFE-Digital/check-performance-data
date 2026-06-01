@@ -141,4 +141,30 @@ public sealed class AdminRulesControllerTests
 
         Assert.IsType<NotFoundResult>(result);
     }
+
+    [Fact]
+    public async Task Lookups_Returns_Rows()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetLookupsAsync(Arg.Any<CancellationToken>()).Returns((SampleLookups(), "etag"));
+
+        var result = await NewController(svc).Lookups(default);
+
+        var model = Assert.IsType<LookupsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Single(model.Rows);
+        Assert.Equal("GB", model.Rows[0].CountryCode);
+    }
+
+    [Fact]
+    public async Task Lookups_Empty_When_Missing()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetLookupsAsync(Arg.Any<CancellationToken>())
+            .Returns<(Lookups, string?)>(_ => throw new RulesConfigNotFoundException("country-languages.json not found"));
+
+        var result = await NewController(svc).Lookups(default);
+
+        var model = Assert.IsType<LookupsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.IsEmpty);
+    }
 }

@@ -1,0 +1,38 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model LookupsViewModel
+@{
+    ViewData["Title"] = "Country languages";
+}
+
+<a href="/admin/rules" class="govuk-back-link">Back to rules configuration</a>
+
+<h1 class="govuk-heading-xl">Country languages</h1>
+<p class="govuk-body">
+    Maps a country code to its official languages. Used by the "official language" rule condition.
+</p>
+
+@if (Model.IsEmpty)
+{
+    <p class="govuk-body">No country-language lookups have been published yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Country languages</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Country code</th>
+                <th scope="col" class="govuk-table__header">Official languages</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell"><code>@row.CountryCode</code></td>
+                    <td class="govuk-table__cell">@row.Languages</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

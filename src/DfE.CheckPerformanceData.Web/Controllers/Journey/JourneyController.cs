@@ -83,6 +83,10 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
+                // visibleWhen is a render-only gate: radio values are not validated against
+                // the visible-options set here. A user who hand-crafts a hidden option value
+                // will be routed into that branch and their request will reach Zendesk staff,
+                // who review all submissions before acting on them.
                 // Required answers are validated unconditionally; optional answers are
                 // still format-checked (char limit, real date) when they have been filled in.
                 if (!question.Optional || journeyService.IsAnswered(question, answer))

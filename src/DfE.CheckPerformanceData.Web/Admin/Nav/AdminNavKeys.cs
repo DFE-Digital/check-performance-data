@@ -15,4 +15,5 @@ public static class AdminNavKeys
     public const string CmsSettings = "cms-settings";
     public const string VrDashboard = "vr-dashboard";
     public const string RulesEngine = "rules-engine";
+    public const string RulesConfig = "rules-config";
 }

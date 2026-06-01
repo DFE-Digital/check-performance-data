@@ -22,6 +22,7 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, CmsSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, VisualRegressionNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
+        services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
         return services;
     }
 }

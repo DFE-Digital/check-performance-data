@@ -48,16 +48,16 @@ public sealed class AdminNavRegistryGroupingTests
 		}
 	}
 
-	// --- All_Keys_Are_Unique_Across_Nine_Registrations ---
+	// --- All_Keys_Are_Unique_Across_Ten_Registrations ---
 
 	[Fact]
-	public void All_Keys_Are_Unique_Across_Nine_Registrations()
+	public void All_Keys_Are_Unique_Across_Ten_Registrations()
 	{
 		var entries = ResolveEntries();
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(9, keys.Count);
+		Assert.Equal(10, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

@@ -1,0 +1,67 @@
+using DfE.CheckPerformanceData.Application.RulesConfig;
+using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Web.Admin.Rules;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DfE.CheckPerformanceData.Web.Controllers;
+
+// Read-only admin surface for the rules engine config (Milestone 2). GET-only;
+// editing/saving arrives in later milestones. Admin-only. Views live under
+// Views/Admin/Rules so they inherit the admin layout via the Views/Admin/_ViewStart
+// cascade, hence the explicit view paths.
+[Authorize(Roles = WikiConstants.AdminRole)]
+public sealed class AdminRulesController(IRulesConfigService rules) : Controller
+{
+    private const string IndexView = "~/Views/Admin/Rules/Index.cshtml";
+
+    [HttpGet("admin/rules")]
+    public async Task<IActionResult> Index(CancellationToken ct)
+    {
+        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var (lookups, _) = await TryGetLookupsAsync(ct);
+
+        var rulesLatest = ruleSet is null ? null : await LatestVersionAsync(RulesConfigType.Rules, ct);
+        var lookupsLatest = lookups is null ? null : await LatestVersionAsync(RulesConfigType.Lookups, ct);
+
+        var model = new RulesLandingViewModel
+        {
+            Rules = RulesAdminViewModelFactory.RulesCard(ruleSet, rulesLatest),
+            Lookups = RulesAdminViewModelFactory.LookupsCard(lookups, lookupsLatest)
+        };
+
+        return View(IndexView, model);
+    }
+
+    // --- helpers (shared by later GET actions) ---
+
+    private async Task<(RuleSet? Rules, string? ETag)> TryGetRulesAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await rules.GetRulesAsync(ct);
+        }
+        catch (RulesConfigNotFoundException)
+        {
+            return (null, null);
+        }
+    }
+
+    private async Task<(Lookups? Lookups, string? ETag)> TryGetLookupsAsync(CancellationToken ct)
+    {
+        try
+        {
+            return await rules.GetLookupsAsync(ct);
+        }
+        catch (RulesConfigNotFoundException)
+        {
+            return (null, null);
+        }
+    }
+
+    private async Task<RulesConfigVersionDto?> LatestVersionAsync(RulesConfigType type, CancellationToken ct)
+    {
+        var versions = await rules.ListVersionsAsync(type, ct);
+        return versions.Count == 0 ? null : versions.MaxBy(v => v.VersionNumber);
+    }
+}

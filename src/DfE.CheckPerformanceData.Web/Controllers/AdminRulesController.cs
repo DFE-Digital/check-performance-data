@@ -17,6 +17,8 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string OutcomesView = "~/Views/Admin/Rules/Outcomes.cshtml";
     private const string OutcomeView = "~/Views/Admin/Rules/Outcome.cshtml";
     private const string LookupsView = "~/Views/Admin/Rules/Lookups.cshtml";
+    private const string HistoryView = "~/Views/Admin/Rules/History.cshtml";
+    private const string VersionView = "~/Views/Admin/Rules/Version.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -56,6 +58,31 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     {
         var (lookups, _) = await TryGetLookupsAsync(ct);
         return View(LookupsView, RulesAdminViewModelFactory.Lookups(lookups));
+    }
+
+    [HttpGet("admin/rules/history/{type}")]
+    public async Task<IActionResult> History(string type, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        var versions = await rules.ListVersionsAsync(configType, ct);
+        return View(HistoryView, RulesAdminViewModelFactory.History(configType, versions));
+    }
+
+    [HttpGet("admin/rules/history/{type}/{id:int}")]
+    public async Task<IActionResult> Version(string type, int id, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        var versions = await rules.ListVersionsAsync(configType, ct);
+        var dto = versions.FirstOrDefault(v => v.Id == id);
+        return dto is null ? NotFound() : View(VersionView, RulesAdminViewModelFactory.VersionDetail(dto));
     }
 
     // --- helpers (shared by later GET actions) ---

@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model VersionDetailViewModel
+@{
+    var typeName = Model.ConfigType.ToString();
+    ViewData["Title"] = $"Version {Model.VersionNumber}";
+}
+
+<a href="/admin/rules/history/@typeName" class="govuk-back-link">Back to version history</a>
+
+<span class="govuk-caption-xl">@typeName configuration</span>
+<h1 class="govuk-heading-xl">Version @Model.VersionNumber</h1>
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Saved</dt>
+        <dd class="govuk-summary-list__value">@Model.CreatedAt.ToString("d MMM yyyy HH:mm") UTC</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">By</dt>
+        <dd class="govuk-summary-list__value">@(Model.CreatedBy ?? "Unknown")</dd>
+    </div>
+</dl>
+
+<h2 class="govuk-heading-m">Stored JSON</h2>
+<pre class="govuk-!-padding-3" style="overflow:auto; background:#f3f2f1;"><code>@Model.Content</code></pre>

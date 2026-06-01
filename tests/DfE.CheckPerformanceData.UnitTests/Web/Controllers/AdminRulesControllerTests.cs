@@ -167,4 +167,66 @@ public sealed class AdminRulesControllerTests
         var model = Assert.IsType<LookupsViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.True(model.IsEmpty);
     }
+
+    private static RulesConfigVersionDto Version(int id, int num, string content = "{}") => new()
+    {
+        Id = id, ConfigType = RulesConfigType.Rules, VersionNumber = num,
+        CreatedAt = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "Ada", Content = content
+    };
+
+    [Fact]
+    public async Task History_Returns_Versions_For_Valid_Type()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(new[] { Version(1, 1), Version(2, 2) });
+
+        var result = await NewController(svc).History("Rules", default);
+
+        var model = Assert.IsType<HistoryViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(RulesConfigType.Rules, model.ConfigType);
+        Assert.Equal(2, model.Versions.Count);
+        Assert.Equal(2, model.Versions[0].VersionNumber); // newest first
+    }
+
+    [Fact]
+    public async Task History_NotFound_For_Invalid_Type()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        var result = await NewController(svc).History("Bananas", default);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Version_Returns_Detail_For_Known_Id()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(new[] { Version(7, 3, "{\"x\":1}") });
+
+        var result = await NewController(svc).Version("Rules", 7, default);
+
+        var model = Assert.IsType<VersionDetailViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(3, model.VersionNumber);
+        Assert.Equal("{\"x\":1}", model.Content);
+    }
+
+    [Fact]
+    public async Task Version_NotFound_For_Unknown_Id()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(new[] { Version(7, 3) });
+
+        var result = await NewController(svc).Version("Rules", 999, default);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Version_NotFound_For_Invalid_Type()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        var result = await NewController(svc).Version("Bananas", 1, default);
+        Assert.IsType<NotFoundResult>(result);
+    }
 }

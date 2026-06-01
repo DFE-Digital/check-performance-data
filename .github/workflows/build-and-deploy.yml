@@ -44,6 +44,7 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' }}
     env:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
+      WORKER_DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data-worker
     outputs:
       docker-image-tag: ${{ steps.build-image.outputs.tag }}
       worker-docker-image-tag: ${{ steps.build-worker-image.outputs.tag }}
@@ -75,7 +76,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         context: ./src
         dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
-        docker-repository: ${{ env.DOCKER_REPOSITORY }}
+        docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
         max-cache: true
         reuse-cache: true
         snyk-token: ${{ secrets.SNYK_TOKEN }}
@@ -156,7 +157,7 @@ jobs:
         # passing it via `with:` is silently dropped. Set the Terraform variable
         # directly. Remove this env block once the upstream action accepts
         # `worker-sha` and add the `worker-sha:` line back into `with:` below.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ needs.build.outputs.worker-docker-image-tag }}
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -195,7 +196,7 @@ jobs:
       uses: DFE-Digital/github-actions/deploy-to-aks@master
       env:
         # See note on the review-app deploy step.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ needs.build.outputs.worker-docker-image-tag }}
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -227,7 +228,7 @@ jobs:
       uses: DFE-Digital/github-actions/deploy-to-aks@master
       env:
         # See note on the review-app deploy step.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ inputs.worker-docker-image-tag }}
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ inputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}

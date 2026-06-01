@@ -10,6 +10,9 @@ public sealed class OrganisationDto
     [JsonIgnore]
     public string Laestab { get; set; } = null!;
 
+    // required: a non-school org (e.g. an LA) would have urn=null in the API response and
+    // cause deserialization to throw. Acceptable because DfE Sign-in restricts access to
+    // school establishment types before users reach this app.
     public required string Urn { get; init; }
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }

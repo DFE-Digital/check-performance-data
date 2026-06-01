@@ -78,4 +78,67 @@ public sealed class AdminRulesControllerTests
         Assert.True(model.Rules.IsEmpty);
         Assert.False(model.Lookups.IsEmpty); // lookups still rendered
     }
+
+    [Fact]
+    public async Task Outcomes_Returns_List_Model()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((SampleRules(), "etag"));
+
+        var result = await NewController(svc).Outcomes(default);
+
+        var model = Assert.IsType<OutcomesViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Single(model.Outcomes);
+        Assert.Equal("Inclusion", model.Outcomes[0].Key);
+    }
+
+    [Fact]
+    public async Task Outcomes_Empty_When_Rules_Missing()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>())
+            .Returns<(RuleSet, string?)>(_ => throw new RulesConfigNotFoundException("rules.json not found"));
+
+        var result = await NewController(svc).Outcomes(default);
+
+        var model = Assert.IsType<OutcomesViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.IsEmpty);
+    }
+
+    [Fact]
+    public async Task Outcome_Returns_Detail_For_Known_Key()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((SampleRules(), "etag"));
+
+        var result = await NewController(svc).Outcome("Inclusion", default);
+
+        var model = Assert.IsType<OutcomeDetailViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("Inclusion", model.Key);
+        Assert.Single(model.Branches);
+        Assert.Equal("Otherwise (always matches)", model.Branches[0].Condition.Text);
+    }
+
+    [Fact]
+    public async Task Outcome_Returns_NotFound_For_Unknown_Key()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((SampleRules(), "etag"));
+
+        var result = await NewController(svc).Outcome("Nope", default);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Outcome_Returns_NotFound_When_Rules_Missing()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>())
+            .Returns<(RuleSet, string?)>(_ => throw new RulesConfigNotFoundException("rules.json not found"));
+
+        var result = await NewController(svc).Outcome("Inclusion", default);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
 }

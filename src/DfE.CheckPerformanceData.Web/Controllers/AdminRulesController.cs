@@ -14,6 +14,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 {
     private const string IndexView = "~/Views/Admin/Rules/Index.cshtml";
+    private const string OutcomesView = "~/Views/Admin/Rules/Outcomes.cshtml";
+    private const string OutcomeView = "~/Views/Admin/Rules/Outcome.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -31,6 +33,21 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         };
 
         return View(IndexView, model);
+    }
+
+    [HttpGet("admin/rules/outcomes")]
+    public async Task<IActionResult> Outcomes(CancellationToken ct)
+    {
+        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        return View(OutcomesView, RulesAdminViewModelFactory.Outcomes(ruleSet));
+    }
+
+    [HttpGet("admin/rules/outcomes/{key}")]
+    public async Task<IActionResult> Outcome(string key, CancellationToken ct)
+    {
+        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var model = RulesAdminViewModelFactory.Outcome(ruleSet, key);
+        return model is null ? NotFound() : View(OutcomeView, model);
     }
 
     // --- helpers (shared by later GET actions) ---

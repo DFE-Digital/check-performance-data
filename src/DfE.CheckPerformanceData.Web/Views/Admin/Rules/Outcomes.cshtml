@@ -1,0 +1,39 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model OutcomesViewModel
+@{
+    ViewData["Title"] = "Decision outcomes";
+}
+
+<a href="/admin/rules" class="govuk-back-link">Back to rules configuration</a>
+
+<h1 class="govuk-heading-xl">Decision outcomes</h1>
+
+@if (Model.IsEmpty)
+{
+    <p class="govuk-body">No rules have been published yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Decision outcomes</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Outcome</th>
+                <th scope="col" class="govuk-table__header">Key</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Branches</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var o in Model.Outcomes)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/rules/outcomes/@Uri.EscapeDataString(o.Key)">@o.Label</a>
+                    </td>
+                    <td class="govuk-table__cell"><code>@o.Key</code></td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@o.BranchCount</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

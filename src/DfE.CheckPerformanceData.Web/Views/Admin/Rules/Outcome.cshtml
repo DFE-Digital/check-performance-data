@@ -1,0 +1,50 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model OutcomeDetailViewModel
+@{
+    ViewData["Title"] = Model.Label;
+
+    string TagClass(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "govuk-tag--green",
+        DecisionStatus.AutoRejected => "govuk-tag--red",
+        _ => "govuk-tag--yellow"
+    };
+
+    string TagText(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "Auto approved",
+        DecisionStatus.AutoRejected => "Auto rejected",
+        _ => "Scrutiny"
+    };
+}
+
+<a href="/admin/rules/outcomes" class="govuk-back-link">Back to outcomes</a>
+
+<span class="govuk-caption-xl">Decision outcome</span>
+<h1 class="govuk-heading-xl">@Model.Label</h1>
+<p class="govuk-body-s govuk-hint">Key: <code>@Model.Key</code></p>
+
+<p class="govuk-body">
+    Branches are evaluated top to bottom. The first branch whose condition is true decides the outcome.
+</p>
+
+@foreach (var branch in Model.Branches)
+{
+    <div class="govuk-summary-card">
+        <div class="govuk-summary-card__title-wrapper">
+            <h2 class="govuk-summary-card__title">@branch.Id</h2>
+            <ul class="govuk-summary-card__actions">
+                <li class="govuk-summary-card__action">
+                    <strong class="govuk-tag @TagClass(branch.Status)">@TagText(branch.Status)</strong>
+                </li>
+            </ul>
+        </div>
+        <div class="govuk-summary-card__content">
+            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">When</h3>
+            <ul class="govuk-list">
+                @await Html.PartialAsync("_PredicateNode", branch.Condition)
+            </ul>
+        </div>
+    </div>
+}

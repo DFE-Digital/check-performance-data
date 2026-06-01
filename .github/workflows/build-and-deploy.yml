@@ -151,6 +151,12 @@ jobs:
     - name: Deploy App to Review
       id: deploy_review
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # deploy-to-aks@master does not yet declare a `worker-sha` input, so
+        # passing it via `with:` is silently dropped. Set the Terraform variable
+        # directly. Remove this env block once the upstream action accepts
+        # `worker-sha` and add the `worker-sha:` line back into `with:` below.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -158,7 +164,6 @@ jobs:
         environment: review
         pr-number: ${{ github.event.pull_request.number }}
         sha: ${{ needs.build.outputs.docker-image-tag }}
-        worker-sha: ${{ needs.build.outputs.worker-docker-image-tag }}
         terraform-base: ${{ env.TERRAFORM_BASE }}
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         # db-seed: true
@@ -188,13 +193,15 @@ jobs:
     - name: Deploy app to ${{ matrix.environment }}
       id: deploy_app
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # See note on the review-app deploy step.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         environment: ${{ matrix.environment }}
         sha: ${{ needs.build.outputs.docker-image-tag }}
-        worker-sha: ${{ needs.build.outputs.worker-docker-image-tag }}
         terraform-base: ${{ env.TERRAFORM_BASE }}
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
@@ -218,6 +225,9 @@ jobs:
     - name: Deploy app to ${{ inputs.environment }}
       id: deploy_manual
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # See note on the review-app deploy step.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data:${{ inputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -225,7 +235,6 @@ jobs:
         environment: ${{ inputs.environment }}
         pr-number: ${{ inputs.pull-request-number }}
         sha: ${{ inputs.docker-image-tag }}
-        worker-sha: ${{ inputs.worker-docker-image-tag }}
         terraform-base: ${{ env.TERRAFORM_BASE }}
         healthcheck: ${{ env.HEALTHCHECK_CMD }}
         teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}

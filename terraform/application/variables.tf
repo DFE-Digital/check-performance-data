@@ -89,8 +89,12 @@ variable "replicas" {
 
 variable "worker_docker_image" {
   type        = string
-  default     = ""
   description = "Docker image for the Rules Engine Worker. Includes docker registry, repository and tag."
+
+  validation {
+    condition     = length(var.worker_docker_image) > 0 && !endswith(var.worker_docker_image, ":")
+    error_message = "worker_docker_image must include both repository and tag (no empty or trailing-colon values)."
+  }
 }
 
 variable "worker_replicas" {

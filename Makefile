@@ -65,15 +65,17 @@ terraform-init: composed-variables set-azure-account
 	$(eval export TF_VAR_service_name=${SERVICE_NAME})
 	$(eval export TF_VAR_service_short=${SERVICE_SHORT})
 	$(eval export TF_VAR_docker_image=${DOCKER_REPOSITORY}:${DOCKER_IMAGE_TAG})
-	$(eval export TF_VAR_worker_docker_image=${DOCKER_REPOSITORY}:${WORKER_DOCKER_IMAGE_TAG})
+	# Only export the worker image var when a tag is actually set; otherwise an
+	# unconditional eval produces "<repo>:" (trailing colon) and clobbers any
+	# value set at workflow level via env: TF_VAR_worker_docker_image.
+	$(if $(strip ${WORKER_DOCKER_IMAGE_TAG}),$(eval export TF_VAR_worker_docker_image=${DOCKER_REPOSITORY}:${WORKER_DOCKER_IMAGE_TAG}))
 
 terraform-plan: terraform-init
 	terraform -chdir=terraform/application plan -var-file "config/${CONFIG}.tfvars.json"
 
 terraform-apply: terraform-init
-	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE} || \
-	(sleep 180 && terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE}) || \
-	(sleep 180 && terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE})
+	terraform -chdir=terraform/application apply -var-file "config/${CONFIG}.tfvars.json" -lock-timeout=5m ${AUTO_APPROVE}
+
 terraform-destroy: terraform-init
 	terraform -chdir=terraform/application destroy -var-file "config/${CONFIG}.tfvars.json" ${AUTO_APPROVE}
 

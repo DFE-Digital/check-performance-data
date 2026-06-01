@@ -21,7 +21,7 @@ jobs:
 
     - name: Build without cache and push docker image
       id: build-image
-      uses: DFE-Digital/github-actions/build-docker-image@master
+      uses: DFE-Digital/github-actions/build-docker-image@dependabot/github_actions/build-docker-image/docker/setup-buildx-action-4
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         context: ./src

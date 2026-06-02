@@ -19,6 +19,8 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string LookupsView = "~/Views/Admin/Rules/Lookups.cshtml";
     private const string HistoryView = "~/Views/Admin/Rules/History.cshtml";
     private const string VersionView = "~/Views/Admin/Rules/Version.cshtml";
+    private const string BranchEditView = "~/Views/Admin/Rules/BranchEdit.cshtml";
+    private const string RemoveBranchView = "~/Views/Admin/Rules/RemoveBranch.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -83,6 +85,62 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var versions = await rules.ListVersionsAsync(configType, ct);
         var dto = versions.FirstOrDefault(v => v.Id == id);
         return dto is null ? NotFound() : View(VersionView, RulesAdminViewModelFactory.VersionDetail(dto));
+    }
+
+    [HttpGet("admin/rules/outcomes/{key}/branches/{id}/edit")]
+    public async Task<IActionResult> EditBranch(string key, string id, CancellationToken ct)
+    {
+        var (ruleSet, etag) = await TryGetRulesAsync(ct);
+        var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
+        var branch = outcome?.Rules.FirstOrDefault(b => b.Id == id);
+        if (outcome is null || branch is null || branch.When is Predicate.Otherwise)
+        {
+            return NotFound();
+        }
+
+        var form = new BranchEditForm
+        {
+            OutcomeKey = outcome.Key,
+            OutcomeLabel = outcome.Label,
+            BranchId = branch.Id,
+            IsNew = false,
+            Status = branch.Status,
+            LoadETag = etag,
+            Nodes = PredicateForm.Flatten(branch.When)
+        };
+        return View(BranchEditView, BranchEditViewModel.For(form));
+    }
+
+    [HttpGet("admin/rules/outcomes/{key}/branches/add")]
+    public async Task<IActionResult> AddBranch(string key, CancellationToken ct)
+    {
+        var (ruleSet, etag) = await TryGetRulesAsync(ct);
+        var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
+        if (outcome is null)
+        {
+            return NotFound();
+        }
+
+        var form = new BranchEditForm
+        {
+            OutcomeKey = outcome.Key,
+            OutcomeLabel = outcome.Label,
+            BranchId = NewBranchId(outcome),
+            IsNew = true,
+            Status = DecisionStatus.Scrutiny,
+            LoadETag = etag,
+            Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }
+        };
+        return View(BranchEditView, BranchEditViewModel.For(form));
+    }
+
+    private static string NewBranchId(OutcomeRules outcome)
+    {
+        for (var n = 1; ; n++)
+        {
+            var candidate = $"{outcome.Key}-{n}";
+            if (outcome.Rules.All(b => b.Id != candidate)) return candidate;
+        }
     }
 
     // --- helpers (shared by later GET actions) ---

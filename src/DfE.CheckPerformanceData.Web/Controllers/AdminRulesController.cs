@@ -22,6 +22,9 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string BranchEditView = "~/Views/Admin/Rules/BranchEdit.cshtml";
     private const string RemoveBranchView = "~/Views/Admin/Rules/RemoveBranch.cshtml";
     private const string LookupRowEditView = "~/Views/Admin/Rules/LookupRowEdit.cshtml";
+    private const string OutcomeAddView = "~/Views/Admin/Rules/OutcomeAdd.cshtml";
+    private const string OutcomeDeleteView = "~/Views/Admin/Rules/OutcomeDelete.cshtml";
+    private const string RollbackConfirmView = "~/Views/Admin/Rules/RollbackConfirm.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -54,6 +57,53 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var (ruleSet, _) = await TryGetRulesAsync(ct);
         var model = RulesAdminViewModelFactory.Outcome(ruleSet, key);
         return model is null ? NotFound() : View(OutcomeView, model);
+    }
+
+    [HttpGet("admin/rules/outcomes/add")]
+    public IActionResult AddOutcomeForm() =>
+        View(OutcomeAddView, AddOutcomeViewModel.For(new AddOutcomeForm()));
+
+    [HttpPost("admin/rules/outcomes/add")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddOutcome(AddOutcomeForm form, CancellationToken ct)
+    {
+        var (current, etag) = await TryGetRulesAsync(ct);
+        if (current is null)
+        {
+            return View(OutcomeAddView, AddOutcomeViewModel.For(form,
+                new[] { "The rules could not be loaded. Reload and try again." }));
+        }
+
+        var key = form.Key?.Trim() ?? string.Empty;
+        var errors = OutcomeKeyValidator.Validate(key, current.Outcomes.Select(o => o.Key));
+        if (errors.Count > 0)
+        {
+            return View(OutcomeAddView, AddOutcomeViewModel.For(form, errors));
+        }
+
+        var label = string.IsNullOrWhiteSpace(form.Label) ? key : form.Label.Trim();
+        var outcome = new OutcomeRules(key, label, new[]
+        {
+            new RuleBranch($"{key}-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance)
+        });
+        var spliced = RuleSetSplicer.AddOutcome(current, outcome);
+
+        try
+        {
+            var result = await rules.SaveRulesAsync(spliced, etag, ct);
+            if (!result.Saved)
+            {
+                return View(OutcomeAddView, AddOutcomeViewModel.For(form, result.Errors));
+            }
+            TempData["SuccessMessage"] =
+                $"Outcome '{key}' created (version {result.VersionNumber}). Add its decision branches below. The rules service refreshes within about 5 minutes.";
+            return RedirectToAction(nameof(Outcome), new { key });
+        }
+        catch (RulesConfigConflictException)
+        {
+            return View(OutcomeAddView, AddOutcomeViewModel.For(form,
+                new[] { "The rules were changed by someone else. Nothing was saved — reload and try again." }));
+        }
     }
 
     [HttpGet("admin/rules/lookups")]

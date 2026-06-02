@@ -55,6 +55,16 @@ public static class RuleSetSplicer
             return list;
         });
 
+    public static RuleSet AddOutcome(RuleSet rules, OutcomeRules newOutcome) =>
+        rules with { Outcomes = rules.Outcomes.Append(newOutcome).ToList() };
+
+    public static RuleSet RemoveOutcome(RuleSet rules, string outcomeKey)
+    {
+        var outcome = rules.Outcomes.FirstOrDefault(o => o.Key == outcomeKey)
+            ?? throw new InvalidOperationException($"Outcome '{outcomeKey}' not found.");
+        return rules with { Outcomes = rules.Outcomes.Where(o => o != outcome).ToList() };
+    }
+
     private static RuleSet MapOutcome(RuleSet rules, string key, Func<IReadOnlyList<RuleBranch>, List<RuleBranch>> edit)
     {
         var outcomes = rules.Outcomes.Select(o =>

@@ -72,4 +72,40 @@ public sealed class RuleSetSplicerTests
         Assert.Equal("EAL-2", result.Outcomes[0].Rules[1].Id);
         Assert.IsType<Predicate.Otherwise>(result.Outcomes[0].Rules[2].When);
     }
+
+    [Fact]
+    public void AddOutcome_Appends_And_Preserves_Existing()
+    {
+        var added = new OutcomeRules("NewOne", "New one",
+            new[] { new RuleBranch("NewOne-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance) });
+
+        var result = RuleSetSplicer.AddOutcome(Sample(), added);
+
+        Assert.Equal(2, result.Outcomes.Count);
+        Assert.Equal("EAL", result.Outcomes[0].Key);
+        Assert.Equal("NewOne", result.Outcomes[1].Key);
+    }
+
+    [Fact]
+    public void RemoveOutcome_Drops_Target()
+    {
+        var twoOutcomes = Sample() with
+        {
+            Outcomes = Sample().Outcomes
+                .Append(new OutcomeRules("Keep", "Keep",
+                    new[] { new RuleBranch("Keep-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance) }))
+                .ToList()
+        };
+
+        var result = RuleSetSplicer.RemoveOutcome(twoOutcomes, "EAL");
+
+        Assert.Single(result.Outcomes);
+        Assert.Equal("Keep", result.Outcomes[0].Key);
+    }
+
+    [Fact]
+    public void RemoveOutcome_Throws_For_Unknown_Key()
+    {
+        Assert.Throws<InvalidOperationException>(() => RuleSetSplicer.RemoveOutcome(Sample(), "Nope"));
+    }
 }

@@ -9,6 +9,7 @@ public sealed class PageViewModel
     public required Dictionary<string, QuestionAnswer> Answers { get; init; }
     public required IReadOnlyList<QuestionPartialModel> QuestionModels { get; init; }
     public string? BackPageId { get; init; }
+    public bool BackPageIsPupilSearch { get; init; }
     public bool FromSummary { get; init; }
     public string PupilName { get; init; } = string.Empty;
     public string? ContentKey { get; init; }

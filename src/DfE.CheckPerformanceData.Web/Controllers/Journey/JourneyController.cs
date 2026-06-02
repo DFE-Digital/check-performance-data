@@ -514,6 +514,8 @@ public sealed class JourneyController(
             0  => null,
             _  => journey.QuestionHistory[historyIndex - 1]
         };
+        var backPageIsPupilSearch = backPageId is not null && config is not null
+            && flowService.GetPage(config, backPageId)?.Type == PageType.PupilSearch;
 
         var pupilName = GetPupilName(journey);
         var isSingleQuestion = page.Questions.Count == 1;
@@ -553,6 +555,7 @@ public sealed class JourneyController(
             Page = page,
             Answers = answers,
             BackPageId = backPageId,
+            BackPageIsPupilSearch = backPageIsPupilSearch,
             FromSummary = fromSummary,
             PupilName = pupilName,
             ContentKey = contentKey,

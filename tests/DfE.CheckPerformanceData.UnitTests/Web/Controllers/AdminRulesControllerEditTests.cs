@@ -279,4 +279,98 @@ public sealed class AdminRulesControllerEditTests
             Arg.Is<RuleSet>(r => r.Outcomes.First(o => o.Key == "EAL").Rules[0].Id == "EAL-2"),
             "etag-1", Arg.Any<CancellationToken>());
     }
+
+    // --- Lookup row editing tests (M3) ---
+
+    private static Lookups SampleLookups() => new(new Dictionary<string, IReadOnlyList<string>>
+    {
+        ["GB"] = new[] { "English" }
+    });
+
+    private static IRulesConfigService SvcWithLookups(string etag = "L1")
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetLookupsAsync(Arg.Any<CancellationToken>()).Returns((SampleLookups(), etag));
+        return svc;
+    }
+
+    [Fact]
+    public async Task EditLookupRow_Loads_Existing_Languages()
+    {
+        var vm = Assert.IsType<LookupRowEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(SvcWithLookups()).EditLookupRow("GB", default)).Model);
+        Assert.Equal("GB", vm.Form.Code);
+        Assert.Contains("English", vm.Form.Languages);
+        Assert.False(vm.Form.IsNew);
+    }
+
+    [Fact]
+    public async Task AddLookupRow_Seeds_New_Form()
+    {
+        var vm = Assert.IsType<LookupRowEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(SvcWithLookups()).AddLookupRow(default)).Model);
+        Assert.True(vm.Form.IsNew);
+        Assert.Single(vm.Form.Languages);
+    }
+
+    [Fact]
+    public async Task SaveLookupRow_Persists_Merged_Map()
+    {
+        var svc = SvcWithLookups("L1");
+        Lookups? captured = null;
+        svc.SaveLookupsAsync(Arg.Do<Lookups>(l => captured = l), "L1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(2));
+
+        var form = new LookupRowEditForm
+        {
+            Code = "FR", IsNew = true, LoadETag = "L1", Action = "save",
+            Languages = new List<string> { "French" }
+        };
+
+        var result = await NewController(svc).SaveLookupRow(form, default);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.True(captured!.CountryLanguages.ContainsKey("FR"));
+        Assert.True(captured.CountryLanguages.ContainsKey("GB"));
+    }
+
+    [Fact]
+    public async Task SaveLookupRow_Invalid_Shows_Errors()
+    {
+        var svc = SvcWithLookups("L1");
+        var form = new LookupRowEditForm { Code = "", IsNew = true, LoadETag = "L1", Action = "save",
+            Languages = new List<string> { "" } };
+
+        var vm = Assert.IsType<LookupRowEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveLookupRow(form, default)).Model);
+
+        Assert.NotEmpty(vm.Errors);
+        await svc.DidNotReceive().SaveLookupsAsync(Arg.Any<Lookups>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TransformLookupRow_AddLanguage_ReRenders()
+    {
+        var form = new LookupRowEditForm { Code = "GB", LoadETag = "L1", Action = "addLanguage",
+            Languages = new List<string> { "English" } };
+
+        var vm = Assert.IsType<LookupRowEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(SvcWithLookups()).TransformLookupRow(form, default)).Model);
+
+        Assert.Equal(2, vm.Form.Languages.Count);
+    }
+
+    [Fact]
+    public async Task RemoveLookupRow_Persists_Without_Code()
+    {
+        var svc = SvcWithLookups("L1");
+        Lookups? captured = null;
+        svc.SaveLookupsAsync(Arg.Do<Lookups>(l => captured = l), "L1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(3));
+
+        var result = await NewController(svc).RemoveLookupRow("GB", default);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.False(captured!.CountryLanguages.ContainsKey("GB"));
+    }
 }

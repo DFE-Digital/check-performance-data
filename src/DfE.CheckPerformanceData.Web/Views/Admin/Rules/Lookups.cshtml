@@ -6,10 +6,24 @@
 
 <a href="/admin/rules" class="govuk-back-link">Back to rules configuration</a>
 
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@success</p>
+        </div>
+    </div>
+}
+
 <h1 class="govuk-heading-xl">Country languages</h1>
 <p class="govuk-body">
     Maps a country code to its official languages. Used by the "official language" rule condition.
 </p>
+<a class="govuk-button" data-module="govuk-button" href="/admin/rules/lookups/add">Add country</a>
 
 @if (Model.IsEmpty)
 {
@@ -23,6 +37,7 @@ else
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Country code</th>
                 <th scope="col" class="govuk-table__header">Official languages</th>
+                <th scope="col" class="govuk-table__header">Actions</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
@@ -31,6 +46,14 @@ else
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell"><code>@row.CountryCode</code></td>
                     <td class="govuk-table__cell">@row.Languages</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/rules/lookups/@row.CountryCode/edit">Edit</a>
+                        <form method="post" action="/admin/rules/lookups/@row.CountryCode/remove" style="display:inline; margin-left:10px;">
+                            @Html.AntiForgeryToken()
+                            <button class="govuk-link govuk-button--text" type="submit"
+                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Remove</button>
+                        </form>
+                    </td>
                 </tr>
             }
         </tbody>

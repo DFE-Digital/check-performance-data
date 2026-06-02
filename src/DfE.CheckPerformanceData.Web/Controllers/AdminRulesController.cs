@@ -21,6 +21,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string VersionView = "~/Views/Admin/Rules/Version.cshtml";
     private const string BranchEditView = "~/Views/Admin/Rules/BranchEdit.cshtml";
     private const string RemoveBranchView = "~/Views/Admin/Rules/RemoveBranch.cshtml";
+    private const string LookupRowEditView = "~/Views/Admin/Rules/LookupRowEdit.cshtml";
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -260,6 +261,106 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             TempData["SuccessMessage"] = "The rules were changed by someone else. Nothing was reordered — reload and try again.";
         }
         return RedirectToAction(nameof(Outcome), new { key });
+    }
+
+    [HttpGet("admin/rules/lookups/{code}/edit")]
+    public async Task<IActionResult> EditLookupRow(string code, CancellationToken ct)
+    {
+        var (lookups, etag) = await TryGetLookupsAsync(ct);
+        if (lookups is null || !lookups.CountryLanguages.TryGetValue(code, out var langs))
+        {
+            return NotFound();
+        }
+
+        var form = new LookupRowEditForm
+        {
+            Code = code, IsNew = false, LoadETag = etag, Languages = langs.ToList()
+        };
+        return View(LookupRowEditView, LookupRowEditViewModel.For(form));
+    }
+
+    [HttpGet("admin/rules/lookups/add")]
+    public async Task<IActionResult> AddLookupRow(CancellationToken ct)
+    {
+        var (_, etag) = await TryGetLookupsAsync(ct);
+        var form = new LookupRowEditForm
+        {
+            Code = "", IsNew = true, LoadETag = etag, Languages = new List<string> { "" }
+        };
+        return View(LookupRowEditView, LookupRowEditViewModel.For(form));
+    }
+
+    [HttpPost("admin/rules/lookups/row/transform")]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> TransformLookupRow(LookupRowEditForm form, CancellationToken ct)
+    {
+        var (verb, args) = SplitAction(form.Action);
+        if (verb == "addLanguage") form.Languages.Add("");
+        else if (verb == "removeLanguage" && int.TryParse(args.ElementAtOrDefault(0), out var idx)
+                 && idx >= 0 && idx < form.Languages.Count) form.Languages.RemoveAt(idx);
+
+        return Task.FromResult<IActionResult>(View(LookupRowEditView, LookupRowEditViewModel.For(form)));
+    }
+
+    [HttpPost("admin/rules/lookups/{code}/save")]
+    [HttpPost("admin/rules/lookups/save")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveLookupRow(LookupRowEditForm form, CancellationToken ct)
+    {
+        var languages = form.Languages.Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
+        var (current, etag) = await TryGetLookupsAsync(ct);
+        var map = current?.CountryLanguages.ToDictionary(kv => kv.Key, kv => kv.Value)
+                  ?? new Dictionary<string, IReadOnlyList<string>>();
+        map[form.Code.Trim()] = languages;
+        var merged = new Lookups(map);
+
+        var validator = new LookupsValidator();
+        var validation = validator.Validate(merged);
+        if (!validation.IsValid)
+        {
+            return View(LookupRowEditView, LookupRowEditViewModel.For(form, validation.Errors));
+        }
+
+        try
+        {
+            var result = await rules.SaveLookupsAsync(merged, etag, ct);
+            if (!result.Saved)
+            {
+                return View(LookupRowEditView, LookupRowEditViewModel.For(form, result.Errors));
+            }
+            TempData["SuccessMessage"] =
+                $"Lookup '{form.Code}' saved (version {result.VersionNumber}). The rules service refreshes within about 5 minutes.";
+            return RedirectToAction(nameof(Lookups));
+        }
+        catch (RulesConfigConflictException)
+        {
+            return View(LookupRowEditView, LookupRowEditViewModel.For(form,
+                new[] { "The lookups were changed by someone else. Nothing was saved — reload and try again." }));
+        }
+    }
+
+    [HttpPost("admin/rules/lookups/{code}/remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveLookupRow(string code, CancellationToken ct)
+    {
+        var (current, etag) = await TryGetLookupsAsync(ct);
+        if (current is null) return NotFound();
+
+        var map = current.CountryLanguages.Where(kv => kv.Key != code)
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+        try
+        {
+            var result = await rules.SaveLookupsAsync(new Lookups(map), etag, ct);
+            TempData["SuccessMessage"] = result.Saved
+                ? $"Lookup '{code}' removed (version {result.VersionNumber})."
+                : "Could not remove the lookup: " + string.Join("; ", result.Errors);
+        }
+        catch (RulesConfigConflictException)
+        {
+            TempData["SuccessMessage"] = "The lookups were changed by someone else. Nothing was removed — reload and try again.";
+        }
+        return RedirectToAction(nameof(Lookups));
     }
 
     // Parses "<verb>:<arg>[:<arg2>]" and mutates form.Nodes. No persistence.

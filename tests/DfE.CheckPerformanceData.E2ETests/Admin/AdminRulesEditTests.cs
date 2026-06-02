@@ -32,16 +32,10 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         {
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
 
-            using var listReq = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/outcomes");
-            var listBody = await (await TestHttpClients.SendAsync(listReq)).Content.ReadAsStringAsync();
-            Assert.Contains("/admin/rules/outcomes/", listBody);
-
-            var start = listBody.IndexOf("/admin/rules/outcomes/", StringComparison.Ordinal);
-            var href = listBody.Substring(start, listBody.IndexOf('"', start) - start);
-            var key = href.Replace("/admin/rules/outcomes/", "").Trim('/');
-
+            // "Inclusion" is a stable seeded outcome. (Don't scrape the first outcomes link —
+            // the page also contains the "/admin/rules/outcomes/add" button.)
             using var addReq = new HttpRequestMessage(HttpMethod.Get,
-                $"{_fixture.BaseUrl}/admin/rules/outcomes/{key}/branches/add");
+                $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/add");
             var addResp = await TestHttpClients.SendAsync(addReq);
 
             Assert.Equal(HttpStatusCode.OK, addResp.StatusCode);
@@ -76,12 +70,8 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         {
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
 
-            using var listReq = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/outcomes");
-            var listBody = await (await TestHttpClients.SendAsync(listReq)).Content.ReadAsStringAsync();
-            var start = listBody.IndexOf("/admin/rules/outcomes/", StringComparison.Ordinal);
-            var href = listBody.Substring(start, listBody.IndexOf('"', start) - start);
-
-            using var detailReq = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}{href}");
+            // "Inclusion" is a stable seeded outcome with branches that render via the partial.
+            using var detailReq = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion");
             var detailResp = await TestHttpClients.SendAsync(detailReq);
 
             Assert.Equal(HttpStatusCode.OK, detailResp.StatusCode);

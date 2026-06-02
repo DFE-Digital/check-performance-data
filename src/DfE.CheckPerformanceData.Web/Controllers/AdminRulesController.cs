@@ -6,10 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Read-only admin surface for the rules engine config (Milestone 2). GET-only;
-// editing/saving arrives in later milestones. Admin-only. Views live under
-// Views/Admin/Rules so they inherit the admin layout via the Views/Admin/_ViewStart
-// cascade, hence the explicit view paths.
+// Admin surface for the rules engine config. Reads the config (M2), edits branches/
+// predicates and lookups (M3), and manages the outcome lifecycle + rollback (M4). Admin-only.
+// Views live under Views/Admin/Rules so they inherit the admin layout via the
+// Views/Admin/_ViewStart cascade, hence the explicit view paths.
 [Authorize(Roles = WikiConstants.AdminRole)]
 public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 {

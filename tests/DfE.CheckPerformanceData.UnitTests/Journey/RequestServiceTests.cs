@@ -179,7 +179,7 @@ public class RequestServiceTests
     public async Task ConfirmRequestAsync_ExcludesPupilSearchPages()
     {
         var config = MakeConfig([
-            new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, PupilKey = "primary" },
+            new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, PupilKey = JourneyPage.PrimaryKey },
             new JourneyPage { Id = "reason", Questions = [MakeQuestion(QuestionType.Radio, id: "reason")] }
         ]);
         var journey = ValidJourney(history: ["select-pupil", "reason"]);

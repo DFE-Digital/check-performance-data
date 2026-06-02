@@ -65,4 +65,43 @@ public sealed class AdminRulesControllerEditTests
         Assert.StartsWith("EAL-", vm.Form.BranchId);
         Assert.Equal(DecisionStatus.Scrutiny, vm.Form.Status);
     }
+
+    [Fact]
+    public async Task Transform_AddCondition_ReRenders_Without_Persisting()
+    {
+        var svc = SvcWithRules();
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", Status = DecisionStatus.Scrutiny, LoadETag = "etag-1",
+            Action = "addCondition:1",
+            Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }
+        };
+
+        var result = await NewController(svc).TransformBranch(form, default);
+
+        var vm = Assert.IsType<BranchEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(2, vm.Form.Nodes.Count);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Transform_GroupSelected_Builds_New_Composite()
+    {
+        var svc = SvcWithRules();
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", LoadETag = "etag-1", Action = "group:any",
+            Nodes = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "A", Selected = true },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "B", Selected = true },
+            }
+        };
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).TransformBranch(form, default)).Model);
+
+        Assert.Contains(vm.Form.Nodes, n => n.Kind == PredicateKind.AnyOf && n.ParentId == 1);
+    }
 }

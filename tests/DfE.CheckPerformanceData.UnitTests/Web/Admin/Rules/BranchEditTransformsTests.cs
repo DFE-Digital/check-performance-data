@@ -131,4 +131,21 @@ public sealed class BranchEditTransformsTests
         BranchEditTransforms.RemoveValue(list, id: 1, index: 0);
         Assert.Single(list[0].Values);
     }
+
+    [Fact]
+    public void Remove_Terminates_On_Tampered_ParentId_Cycle()
+    {
+        // node 2 and node 3 reference each other (crafted cycle); removing node 2 must not hang.
+        var list = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.AllOf },
+            new() { Id = 3, ParentId = 2, Kind = PredicateKind.AllOf },
+        };
+        list.Single(n => n.Id == 2).ParentId = 3; // 2 -> 3 -> 2 cycle
+
+        BranchEditTransforms.Remove(list, id: 2);
+
+        Assert.DoesNotContain(list, n => n.Id == 2);
+    }
 }

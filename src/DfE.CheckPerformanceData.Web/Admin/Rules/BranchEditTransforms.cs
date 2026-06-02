@@ -109,14 +109,18 @@ public static class BranchEditTransforms
     /// </summary>
     private static List<int> Descendants(IReadOnlyList<PredicateNodeForm> nodes, int id)
     {
-        // Assumes an acyclic ParentId graph (guaranteed by the editor + controller-side validation).
         var result = new List<int>();
-        var direct = nodes.Where(n => n.ParentId == id).Select(n => n.Id).ToList();
-        foreach (var childId in direct)
+        var visited = new HashSet<int>();
+        void Walk(int parentId)
         {
-            result.Add(childId);
-            result.AddRange(Descendants(nodes, childId));
+            foreach (var childId in nodes.Where(n => n.ParentId == parentId).Select(n => n.Id))
+            {
+                if (!visited.Add(childId)) continue; // already seen — guards against tampered ParentId cycles
+                result.Add(childId);
+                Walk(childId);
+            }
         }
+        Walk(id);
         return result;
     }
 

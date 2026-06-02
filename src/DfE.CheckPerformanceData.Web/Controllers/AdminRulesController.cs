@@ -134,6 +134,50 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         return View(BranchEditView, BranchEditViewModel.For(form));
     }
 
+    [HttpPost("admin/rules/branch/transform")]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> TransformBranch(BranchEditForm form, CancellationToken ct)
+    {
+        ApplyTransform(form);
+        return Task.FromResult<IActionResult>(View(BranchEditView, BranchEditViewModel.For(form)));
+    }
+
+    // Parses "<verb>:<arg>[:<arg2>]" and mutates form.Nodes. No persistence.
+    private static void ApplyTransform(BranchEditForm form)
+    {
+        LeafNormalizer.NormalizeAll(form.Nodes); // apply pending operator/field selections first
+
+        var (verb, args) = SplitAction(form.Action);
+        switch (verb)
+        {
+            case "addCondition": BranchEditTransforms.AddCondition(form.Nodes, int.Parse(args[0])); break;
+            case "addGroup": BranchEditTransforms.AddGroup(form.Nodes, int.Parse(args[0])); break;
+            case "remove": BranchEditTransforms.Remove(form.Nodes, int.Parse(args[0])); break;
+            case "ungroup": BranchEditTransforms.Ungroup(form.Nodes, int.Parse(args[0])); break;
+            case "setCombinator":
+                BranchEditTransforms.SetCombinator(form.Nodes, int.Parse(args[0]), Enum.Parse<PredicateKind>(args[1])); break;
+            case "setField": BranchEditTransforms.SetField(form.Nodes, int.Parse(args[0]), args[1]); break;
+            case "addValue": BranchEditTransforms.AddValue(form.Nodes, int.Parse(args[0])); break;
+            case "removeValue": BranchEditTransforms.RemoveValue(form.Nodes, int.Parse(args[0]), int.Parse(args[1])); break;
+            case "group": BranchEditTransforms.GroupSelected(form.Nodes,
+                args[0] == "any" ? PredicateKind.AnyOf : PredicateKind.AllOf); break;
+            case "ungroupSelected":
+                foreach (var sel in form.Nodes.Where(n => n.Selected
+                    && n.Kind is PredicateKind.AllOf or PredicateKind.AnyOf or PredicateKind.Not).ToList())
+                {
+                    BranchEditTransforms.Ungroup(form.Nodes, sel.Id);
+                }
+                break;
+        }
+    }
+
+    private static (string Verb, string[] Args) SplitAction(string? action)
+    {
+        if (string.IsNullOrEmpty(action)) return ("", Array.Empty<string>());
+        var parts = action.Split(':');
+        return (parts[0], parts.Skip(1).ToArray());
+    }
+
     private static string NewBranchId(OutcomeRules outcome)
     {
         for (var n = 1; ; n++)

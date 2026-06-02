@@ -30,7 +30,7 @@
             <span class="govuk-visually-hidden">Error:</span> @Model.Error
         </p>
     }
-    <input class="govuk-input @(Model.HasError ? "govuk-input--error" : "")"
+    <input class="govuk-input govuk-input--width-20 @(Model.HasError ? "govuk-input--error" : "")"
            id="@Model.FieldName" name="@Model.FieldName" type="text"
            value="@Model.ExistingAnswer?.TextValue"
            @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>

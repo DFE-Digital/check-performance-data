@@ -91,7 +91,9 @@ public sealed class JourneyController(
                 // still format-checked (char limit, real date) when they have been filled in.
                 if (!question.Optional || journeyService.IsAnswered(question, answer))
                 {
-                    var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName));
+                    var resolvedValidationFailure = question.ValidationFailure is not null
+                        ? Resolve(question.ValidationFailure, pupilName) : null;
+                    var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName), resolvedValidationFailure);
                     if (error is not null)
                     {
                         ModelState.AddModelError(question.Id, error);
@@ -423,7 +425,7 @@ public sealed class JourneyController(
         var uploadError = TempData["UploadError"] as string;
 
         string? contentKey = null;
-        if (page.Type == PageType.Content && config is not null)
+        if (page.Type is PageType.Content or PageType.EvidenceUpload && config is not null)
             contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
 
         var conditionContext = BuildConditionContext(journey);

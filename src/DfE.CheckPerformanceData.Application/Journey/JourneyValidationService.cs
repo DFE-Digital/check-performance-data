@@ -37,20 +37,20 @@ public sealed class JourneyValidationService : IJourneyValidationService
     private static string Resolve(string template, string pupilName) =>
         template.Replace("{pupilName}", pupilName, StringComparison.Ordinal);
 
-    public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle) =>
+    public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null) =>
         question.Type switch
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
-                => $"{resolvedTitle} is required",
+                => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             QuestionType.Date when !IsValidDate(answer.DateValue!)
                 => $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{resolvedTitle} is required",
+                => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
                 => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
             QuestionType.Date => null,
             _ when string.IsNullOrWhiteSpace(answer.TextValue)
-                => $"{resolvedTitle} is required",
+                => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             _ => null
         };
 

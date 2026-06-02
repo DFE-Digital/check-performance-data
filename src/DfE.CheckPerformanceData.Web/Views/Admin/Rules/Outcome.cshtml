@@ -44,6 +44,18 @@
 
 <a class="govuk-button" data-module="govuk-button" href="/admin/rules/outcomes/@Model.Key/branches/add">Add branch</a>
 
+@if (OutcomeDeletionPolicy.IsFormBound(Model.Key))
+{
+    <div class="govuk-inset-text">
+        This outcome can't be deleted because the request form still routes to it. Remove it from the form
+        mapping in code (<code>AnswerFieldMap</code>) before it can be deleted.
+    </div>
+}
+else
+{
+    <p class="govuk-body"><a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/delete">Delete this outcome</a></p>
+}
+
 @foreach (var branch in Model.Branches)
 {
     <div class="govuk-summary-card">

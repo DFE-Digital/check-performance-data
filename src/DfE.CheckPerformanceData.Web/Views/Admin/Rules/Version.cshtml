@@ -23,3 +23,10 @@
 
 <h2 class="govuk-heading-m">Stored JSON</h2>
 <pre class="govuk-!-padding-3" style="overflow:auto; background:#f3f2f1;"><code>@Model.Content</code></pre>
+
+@{
+    var versionRouteId = ViewContext.RouteData.Values["id"];
+}
+<form method="get" action="/admin/rules/history/@Model.ConfigType/@versionRouteId/rollback">
+    <button class="govuk-button govuk-button--warning" data-module="govuk-button" type="submit">Roll back to this version</button>
+</form>

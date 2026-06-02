@@ -1,0 +1,46 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model AddOutcomeViewModel
+@{
+    ViewData["Title"] = "Add outcome";
+}
+
+<a href="/admin/rules/outcomes" class="govuk-back-link">Back to outcomes</a>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var error in Model.Errors) { <li>@error</li> }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">Add outcome</h1>
+
+<div class="govuk-inset-text">
+    A new outcome is not routed from the request form until its key is added to the form mapping in code
+    (<code>AnswerFieldMap</code>). Until then the outcome exists in the rules but the form cannot produce requests for it.
+</div>
+
+<form method="post" action="/admin/rules/outcomes/add">
+    @Html.AntiForgeryToken()
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Key">Outcome key</label>
+        <div id="Key-hint" class="govuk-hint">Letters and numbers only, starting with a letter (e.g. <code>NewOutcome</code>). Used in the rules JSON and tickets.</div>
+        <input class="govuk-input govuk-input--width-20" id="Key" name="Key" value="@Model.Form.Key" aria-describedby="Key-hint" />
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Label">Label</label>
+        <div id="Label-hint" class="govuk-hint">Human-readable name shown in the admin pages. Defaults to the key if left blank.</div>
+        <input class="govuk-input" id="Label" name="Label" value="@Model.Form.Label" aria-describedby="Label-hint" />
+    </div>
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" type="submit">Create outcome</button>
+        <a class="govuk-link" href="/admin/rules/outcomes">Cancel</a>
+    </div>
+</form>

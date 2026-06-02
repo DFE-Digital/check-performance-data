@@ -147,4 +147,66 @@ public sealed class AdminRulesControllerM4Tests
         Assert.Equal("Outcomes", redirect.ActionName);
         Assert.DoesNotContain(captured!.Outcomes, o => o.Key == "AdminAdded");
     }
+
+    private static RulesConfigVersionDto Version(int id, int num) => new()
+    {
+        Id = id, ConfigType = RulesConfigType.Rules, VersionNumber = num,
+        CreatedAt = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), CreatedBy = "Ada", Content = "{}"
+    };
+
+    [Fact]
+    public async Task ConfirmRollback_Renders_Version_Detail()
+    {
+        var svc = SvcWithRules();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(new[] { Version(7, 3) });
+
+        var vm = Assert.IsType<RollbackConfirmViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).ConfirmRollback("Rules", 7, default)).Model);
+
+        Assert.Equal(7, vm.VersionId);
+        Assert.Equal(3, vm.VersionNumber);
+        Assert.Equal(RulesConfigType.Rules, vm.ConfigType);
+    }
+
+    [Fact]
+    public async Task ConfirmRollback_NotFound_For_Unknown_Version()
+    {
+        var svc = SvcWithRules();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<RulesConfigVersionDto>());
+        Assert.IsType<NotFoundResult>(await NewController(svc).ConfirmRollback("Rules", 7, default));
+    }
+
+    [Fact]
+    public async Task ConfirmRollback_NotFound_For_Invalid_Type()
+    {
+        Assert.IsType<NotFoundResult>(await NewController(SvcWithRules()).ConfirmRollback("Bananas", 1, default));
+    }
+
+    [Fact]
+    public async Task Rollback_Calls_Service_With_Current_ETag_And_Redirects()
+    {
+        var svc = SvcWithRules("etag-current");
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(new[] { Version(7, 3) });
+        svc.RollbackAsync(7, "etag-current", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(4));
+
+        var result = await NewController(svc).Rollback("Rules", 7, default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("History", redirect.ActionName);
+        await svc.Received(1).RollbackAsync(7, "etag-current", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Rollback_NotFound_For_Unknown_Version()
+    {
+        var svc = SvcWithRules();
+        svc.ListVersionsAsync(RulesConfigType.Rules, Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<RulesConfigVersionDto>());
+        Assert.IsType<NotFoundResult>(await NewController(svc).Rollback("Rules", 7, default));
+        await svc.DidNotReceive().RollbackAsync(Arg.Any<int>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
 }

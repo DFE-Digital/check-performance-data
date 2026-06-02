@@ -354,6 +354,62 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         return RedirectToAction(nameof(Outcome), new { key });
     }
 
+    [HttpGet("admin/rules/history/{type}/{id:int}/rollback")]
+    public async Task<IActionResult> ConfirmRollback(string type, int id, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        var versions = await rules.ListVersionsAsync(configType, ct);
+        var dto = versions.FirstOrDefault(v => v.Id == id);
+        if (dto is null)
+        {
+            return NotFound();
+        }
+
+        return View(RollbackConfirmView, new RollbackConfirmViewModel
+        {
+            ConfigType = configType, VersionId = dto.Id, VersionNumber = dto.VersionNumber,
+            CreatedAt = dto.CreatedAt, CreatedBy = dto.CreatedBy
+        });
+    }
+
+    [HttpPost("admin/rules/history/{type}/{id:int}/rollback")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rollback(string type, int id, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        var versions = await rules.ListVersionsAsync(configType, ct);
+        if (versions.All(v => v.Id != id))
+        {
+            return NotFound();
+        }
+
+        var etag = configType == RulesConfigType.Rules
+            ? (await TryGetRulesAsync(ct)).ETag
+            : (await TryGetLookupsAsync(ct)).ETag;
+
+        try
+        {
+            var result = await rules.RollbackAsync(id, etag, ct);
+            TempData["SuccessMessage"] = result.Saved
+                ? $"Rolled back (saved as version {result.VersionNumber})."
+                : "Could not roll back: " + string.Join("; ", result.Errors);
+        }
+        catch (RulesConfigConflictException)
+        {
+            TempData["SuccessMessage"] = "The config was changed by someone else. Nothing was rolled back — reload and try again.";
+        }
+
+        return RedirectToAction(nameof(History), new { type });
+    }
+
     [HttpPost("admin/rules/outcomes/{key}/branches/{id}/move")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MoveBranch(string key, string id, string direction, CancellationToken ct)

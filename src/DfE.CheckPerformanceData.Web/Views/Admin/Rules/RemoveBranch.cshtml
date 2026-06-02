@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model BranchViewModel
+@{
+    ViewData["Title"] = $"Remove branch {Model.Id}";
+    var key = ViewData["OutcomeKey"] as string ?? "";
+}
+
+<a href="/admin/rules/outcomes/@key" class="govuk-back-link">Back</a>
+
+<h1 class="govuk-heading-xl">Remove branch @Model.Id?</h1>
+<p class="govuk-body">This permanently removes the branch from the outcome. A new version is recorded and the change can be rolled back from version history.</p>
+
+<div class="govuk-inset-text">
+    <ul class="govuk-list govuk-list--bullet">
+        @await Html.PartialAsync("_PredicateNode", Model.Condition)
+    </ul>
+</div>
+
+<form method="post" action="/admin/rules/outcomes/@key/branches/@Model.Id/remove">
+    @Html.AntiForgeryToken()
+    <div class="govuk-button-group">
+        <button class="govuk-button govuk-button--warning" data-module="govuk-button" type="submit">Remove branch</button>
+        <a class="govuk-link" href="/admin/rules/outcomes/@key">Cancel</a>
+    </div>
+</form>

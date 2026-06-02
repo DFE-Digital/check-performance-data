@@ -1,0 +1,85 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@using DfE.CheckPerformanceData.Web.Views.Admin.Rules
+@model BranchEditViewModel
+@{
+    ViewData["Title"] = Model.Form.IsNew ? "Add branch" : $"Edit branch {Model.Form.BranchId}";
+    var root = Model.Form.Nodes.FirstOrDefault(n => n.ParentId is null);
+}
+
+<a href="/admin/rules/outcomes/@Model.Form.OutcomeKey" class="govuk-back-link">Back to @Model.Form.OutcomeLabel</a>
+
+@if (Model.ConcurrencyConflict)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">These rules were changed by someone else</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">Since you opened this page the rules were saved by another admin.
+                Reload to see the latest version, then re-apply your change. Nothing has been saved.</p>
+                <a class="govuk-link" href="/admin/rules/outcomes/@Model.Form.OutcomeKey/branches/@Model.Form.BranchId/edit">Reload this branch</a>
+            </div>
+        </div>
+    </div>
+}
+else if (Model.Errors.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var error in Model.Errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<span class="govuk-caption-xl">@Model.Form.OutcomeLabel</span>
+<h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
+
+<form method="post" action="/admin/rules/branch/save">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="OutcomeKey" value="@Model.Form.OutcomeKey" />
+    <input type="hidden" name="OutcomeLabel" value="@Model.Form.OutcomeLabel" />
+    <input type="hidden" name="BranchId" value="@Model.Form.BranchId" />
+    <input type="hidden" name="IsNew" value="@Model.Form.IsNew.ToString().ToLowerInvariant()" />
+    <input type="hidden" name="LoadETag" value="@Model.Form.LoadETag" />
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Status">Decision</label>
+        <select class="govuk-select" id="Status" name="Status">
+            @foreach (var status in Model.Statuses)
+            {
+                <option value="@status" selected="@(status == Model.Form.Status)">@status</option>
+            }
+        </select>
+    </div>
+
+    <h2 class="govuk-heading-l">Condition</h2>
+    @if (root is not null)
+    {
+        @await Html.PartialAsync("_PredicateEditorNode", new EditorNodeContext
+        {
+            Nodes = Model.Form.Nodes, AllFields = Model.AllFields, Node = root
+        })
+    }
+
+    <div class="govuk-button-group govuk-!-margin-top-4">
+        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                name="Action" value="group:all" formaction="/admin/rules/branch/transform" type="submit">Group selected as ALL</button>
+        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                name="Action" value="group:any" formaction="/admin/rules/branch/transform" type="submit">Group selected as ANY</button>
+        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                name="Action" value="ungroupSelected" formaction="/admin/rules/branch/transform" type="submit">Ungroup selected</button>
+    </div>
+
+    <div class="govuk-button-group govuk-!-margin-top-4">
+        <button class="govuk-button" data-module="govuk-button" name="Action" value="save" type="submit">Save branch</button>
+        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Form.OutcomeKey">Cancel</a>
+    </div>
+</form>

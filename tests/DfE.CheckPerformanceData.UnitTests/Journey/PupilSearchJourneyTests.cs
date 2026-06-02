@@ -41,7 +41,7 @@ public class PupilSearchJourneyTests
         Type = PageType.PupilSearch,
         Title = "Which pupil do you want to remove?",
         PupilFilter = PupilFilter.Included,
-        PupilKey = "primary",
+        PupilKey = JourneyPage.PrimaryKey,
         NextPageId = "reason"
     };
 
@@ -51,7 +51,7 @@ public class PupilSearchJourneyTests
         Type = PageType.PupilSearch,
         Title = "Which pupil should {pupilName} be merged with?",
         PupilFilter = PupilFilter.All,
-        PupilKey = "match"
+        PupilKey = JourneyPage.MatchKey
         // NextPageId intentionally absent → redirects to summary
     };
 
@@ -281,7 +281,7 @@ public class PupilSearchJourneyTests
         var pageWithMessage = new JourneyPage
         {
             Id = "select-pupil", Type = PageType.PupilSearch,
-            PupilFilter = PupilFilter.Included, PupilKey = "primary",
+            PupilFilter = PupilFilter.Included, PupilKey = JourneyPage.PrimaryKey,
             NextPageId = "reason", ValidationFailure = "Select a pupil to remove"
         };
         var config = new QuestionFlowConfig { FirstPageId = "select-pupil", Pages = [pageWithMessage, QuestionPage] };
@@ -301,7 +301,7 @@ public class PupilSearchJourneyTests
         var pageWithMessage = new JourneyPage
         {
             Id = "select-match-pupil", Type = PageType.PupilSearch,
-            PupilFilter = PupilFilter.All, PupilKey = "match",
+            PupilFilter = PupilFilter.All, PupilKey = JourneyPage.MatchKey,
             ValidationFailure = "Select the pupil to merge with {pupilName}"
         };
         var config = new QuestionFlowConfig { FirstPageId = "select-pupil", Pages = [PrimarySearchPage, pageWithMessage] };

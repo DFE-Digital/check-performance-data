@@ -90,7 +90,7 @@ public sealed class JourneyController(
         if (string.IsNullOrEmpty(selectedPupilId) || !Guid.TryParse(selectedPupilId, out var pupilId))
         {
             var validationMessage = page.ValidationFailure is not null
-                ? Resolve(page.ValidationFailure, GetPupilName(journey))
+                ? JourneyTemplate.Resolve(page.ValidationFailure, GetPupilName(journey))
                 : "Enter the name of the pupil";
             ModelState.AddModelError("selectedPupilId", validationMessage);
             return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey, config));
@@ -180,8 +180,8 @@ public sealed class JourneyController(
                 if (!question.Optional || journeyService.IsAnswered(question, answer))
                 {
                     var resolvedValidationFailure = question.ValidationFailure is not null
-                        ? Resolve(question.ValidationFailure, pupilName) : null;
-                    var error = journeyService.ValidateAnswer(question, answer, Resolve(question.Title, pupilName), resolvedValidationFailure);
+                        ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
+                    var error = journeyService.ValidateAnswer(question, answer, JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure);
                     if (error is not null)
                     {
                         ModelState.AddModelError(question.Id, error);
@@ -500,9 +500,6 @@ public sealed class JourneyController(
         }
     };
 
-    private static string Resolve(string template, string pupilName) =>
-        template.Replace("{pupilName}", pupilName, StringComparison.Ordinal);
-
     private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
         Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,
         QuestionFlowConfig? config = null, string? atLeastOneError = null)
@@ -542,7 +539,7 @@ public sealed class JourneyController(
                 IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
                 Error = error,
                 UploadError = uploadError,
-                ResolvedTitle = Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
+                ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
                 VisibleOptions = q.Type == QuestionType.Radio
                     ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
                     : q.Options ?? []
@@ -603,7 +600,7 @@ public sealed class JourneyController(
                 }
                 else
                 {
-                    rows.Add(new SummaryRow(p, q, a, Resolve(q.SummaryTitle ?? q.Title, pupilName)));
+                    rows.Add(new SummaryRow(p, q, a, JourneyTemplate.Resolve(q.SummaryTitle ?? q.Title, pupilName)));
                 }
             }
         }
@@ -652,7 +649,7 @@ public sealed class JourneyController(
     private PupilSearchViewModel BuildPupilSearchVm(Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config)
     {
         var pupilName = GetPupilName(journey);
-        var title = page.Title is not null ? Resolve(page.Title, pupilName) : string.Empty;
+        var title = page.Title is not null ? JourneyTemplate.Resolve(page.Title, pupilName) : string.Empty;
         Guid? excludeId = null;
         if (page.PupilKey == JourneyPage.MatchKey && Guid.TryParse(journey.SelectedPupilId, out var pid))
             excludeId = pid;

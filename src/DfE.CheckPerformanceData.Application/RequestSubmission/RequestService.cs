@@ -88,7 +88,6 @@ public sealed class RequestService(
     {
         var pupil = context.Pupil;
         var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
-        string Resolve(string template) => template.Replace("{pupilName}", pupilName, StringComparison.OrdinalIgnoreCase);
 
         var answers = context.History
             .SelectMany(pid =>
@@ -98,7 +97,7 @@ public sealed class RequestService(
                 return page.Questions.Select(q =>
                 {
                     context.Answers.TryGetValue(q.Id, out var ans);
-                    return BuildAnswerRecord(q, ans, Resolve);
+                    return BuildAnswerRecord(q, ans, pupilName);
                 });
             })
             .ToList();
@@ -146,9 +145,9 @@ public sealed class RequestService(
         };
     }
 
-    private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, Func<string, string> resolve)
+    private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)
     {
-        var title = resolve(question.Title);
+        var title = JourneyTemplate.Resolve(question.Title, pupilName);
 
         if (question.Type == QuestionType.FileUpload)
         {

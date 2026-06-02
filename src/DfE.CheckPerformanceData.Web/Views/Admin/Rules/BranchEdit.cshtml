@@ -63,7 +63,7 @@ else if (Model.Errors.Count > 0)
     <h2 class="govuk-heading-l">Condition</h2>
     @if (root is not null)
     {
-        @await Html.PartialAsync("_PredicateEditorNode", new EditorNodeContext
+        @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateEditorNode.cshtml", new EditorNodeContext
         {
             Nodes = Model.Form.Nodes, AllFields = Model.AllFields, Node = root
         })

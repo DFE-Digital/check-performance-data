@@ -1,6 +1,9 @@
 {
-  "_comment": "Seed map of ISO 3166-1 country codes (alpha-2 or alpha-3) to official languages. Used by the rules engine's officialLanguageIs predicate. This list is intentionally minimal at seed time; business users extend it via the rules-config blob without redeploying the worker. Names are case-insensitive when matched.",
-
+  // Seed map of ISO 3166-1 country codes (alpha-2 or alpha-3) to official languages. Used by the
+  // rules engine's officialLanguageIs predicate. This list is intentionally minimal at seed time;
+  // business users extend it via the rules-config blob without redeploying the worker. Names are
+  // case-insensitive when matched. (Must be a // comment, not a "_comment" key: lookups deserialize
+  // as Dictionary<string,List<string>>, so a string-valued key breaks the parse.)
   "GB": ["English", "Welsh", "Scottish Gaelic"],
   "IE": ["English", "Irish"],
   "US": ["English"],

@@ -12,7 +12,7 @@ else
         <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
             @foreach (var child in Model.Children)
             {
-                @await Html.PartialAsync("_PredicateNode", child)
+                @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNode.cshtml", child)
             }
         </ul>
     </li>

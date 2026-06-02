@@ -30,7 +30,7 @@
 
         @foreach (var child in children)
         {
-            @await Html.PartialAsync("_PredicateEditorNode", Model.Recurse(child))
+            @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateEditorNode.cshtml", Model.Recurse(child))
         }
 
         <div class="govuk-button-group govuk-!-margin-top-2">

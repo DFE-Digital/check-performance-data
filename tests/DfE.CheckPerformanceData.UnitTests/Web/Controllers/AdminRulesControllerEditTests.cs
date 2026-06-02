@@ -225,4 +225,58 @@ public sealed class AdminRulesControllerEditTests
         Assert.Equal("EAL-NEW", rules[^2].Id);
         Assert.IsType<Predicate.Otherwise>(rules[^1].When);
     }
+
+    [Fact]
+    public async Task ConfirmRemoveBranch_Returns_View_For_Editable_Branch()
+    {
+        var result = await NewController(SvcWithRules()).ConfirmRemoveBranch("EAL", "EAL-1", default);
+        var model = Assert.IsType<BranchViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("EAL-1", model.Id);
+    }
+
+    [Fact]
+    public async Task ConfirmRemoveBranch_NotFound_For_Otherwise()
+    {
+        var result = await NewController(SvcWithRules()).ConfirmRemoveBranch("EAL", "EAL-OTHER", default);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task RemoveBranch_Persists_And_Redirects()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(3));
+
+        var result = await NewController(svc).RemoveBranch("EAL", "EAL-1", default);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await svc.Received(1).SaveRulesAsync(
+            Arg.Is<RuleSet>(r => r.Outcomes.First(o => o.Key == "EAL").Rules.All(b => b.Id != "EAL-1")),
+            "etag-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task MoveBranch_Persists_Reordered_Set()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((new RuleSet("v1", DateTimeOffset.UnixEpoch, new[]
+        {
+            new OutcomeRules("EAL", "EAL", new[]
+            {
+                new RuleBranch("EAL-1", DecisionStatus.Scrutiny, new Predicate.IsKnownAndCertain("keyStage")),
+                new RuleBranch("EAL-2", DecisionStatus.Scrutiny, new Predicate.IsKnownAndCertain("pupilAge")),
+                new RuleBranch("EAL-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
+            })
+        }), "etag-1"));
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(4));
+
+        var result = await NewController(svc).MoveBranch("EAL", "EAL-2", "up", default);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await svc.Received(1).SaveRulesAsync(
+            Arg.Is<RuleSet>(r => r.Outcomes.First(o => o.Key == "EAL").Rules[0].Id == "EAL-2"),
+            "etag-1", Arg.Any<CancellationToken>());
+    }
 }

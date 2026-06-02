@@ -199,6 +199,69 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         return RedirectToAction(nameof(Outcome), new { key = form.OutcomeKey });
     }
 
+    [HttpGet("admin/rules/outcomes/{key}/branches/{id}/remove")]
+    public async Task<IActionResult> ConfirmRemoveBranch(string key, string id, CancellationToken ct)
+    {
+        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var branch = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key)?.Rules.FirstOrDefault(b => b.Id == id);
+        if (branch is null || branch.When is Predicate.Otherwise)
+        {
+            return NotFound();
+        }
+
+        ViewData["OutcomeKey"] = key;
+        return View(RemoveBranchView,
+            new BranchViewModel(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When)));
+    }
+
+    [HttpPost("admin/rules/outcomes/{key}/branches/{id}/remove")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveBranch(string key, string id, CancellationToken ct)
+    {
+        var (current, etag) = await TryGetRulesAsync(ct);
+        if (current is null) return NotFound();
+
+        RuleSet spliced;
+        try { spliced = RuleSetSplicer.RemoveBranch(current, key, id); }
+        catch (InvalidOperationException) { return NotFound(); }
+
+        try
+        {
+            var result = await rules.SaveRulesAsync(spliced, etag, ct);
+            TempData["SuccessMessage"] = result.Saved
+                ? $"Branch '{id}' removed (version {result.VersionNumber})."
+                : "Could not remove the branch: " + string.Join("; ", result.Errors);
+        }
+        catch (RulesConfigConflictException)
+        {
+            TempData["SuccessMessage"] = "The rules were changed by someone else. Nothing was removed — reload and try again.";
+        }
+        return RedirectToAction(nameof(Outcome), new { key });
+    }
+
+    [HttpPost("admin/rules/outcomes/{key}/branches/{id}/move")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveBranch(string key, string id, string direction, CancellationToken ct)
+    {
+        var (current, etag) = await TryGetRulesAsync(ct);
+        if (current is null) return NotFound();
+
+        var spliced = RuleSetSplicer.MoveBranch(current, key, id, up: direction == "up");
+        try
+        {
+            var result = await rules.SaveRulesAsync(spliced, etag, ct);
+            if (!result.Saved)
+            {
+                TempData["SuccessMessage"] = "Could not reorder: " + string.Join("; ", result.Errors);
+            }
+        }
+        catch (RulesConfigConflictException)
+        {
+            TempData["SuccessMessage"] = "The rules were changed by someone else. Nothing was reordered — reload and try again.";
+        }
+        return RedirectToAction(nameof(Outcome), new { key });
+    }
+
     // Parses "<verb>:<arg>[:<arg2>]" and mutates form.Nodes. No persistence.
     private static void ApplyTransform(BranchEditForm form)
     {

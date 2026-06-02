@@ -69,6 +69,34 @@ Quick functional sweep (excludes visual regression):
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --filter "Category!=VisualRegression"
 ```
 
+### Narrowing in & TDD inner loop
+
+After a prior `dotnet build --configuration Release` of the solution, skip the rebuild on subsequent runs with `--no-build` — saves ~20s per iteration:
+
+```bash
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release --no-build
+```
+
+Just one test class — `~` is a contains-match against `FullyQualifiedName`:
+
+```bash
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~SoftDeleteWikiPageTests" --configuration Release --no-build
+```
+
+Exactly one test — `=` is an exact match against the full FQN, so you need the full `Namespace.Class.Method`:
+
+```bash
+dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName=DfE.CheckPerformanceData.E2ETests.Wiki.SoftDeleteWikiPageTests.SoftDeletedPage_DoesNotAppearInSearch" --configuration Release --no-build
+```
+
+Watch mode — re-runs the matched tests whenever a source file under the test project (or its referenced projects) changes:
+
+```bash
+dotnet watch test --project tests/DfE.CheckPerformanceData.E2ETests/ -- --filter "FullyQualifiedName~WarningTextRenderTests"
+```
+
+The `--` separator passes everything after it through to `dotnet test` rather than `dotnet watch`. Pair with a non-VR filter — VR tests skip cleanly on Windows/macOS but the skip still spins up the runner, which slows the watch loop unnecessarily. Watch mode assumes the compose stack (`docker compose --profile e2e up -d web db azurite`) is already up; if it isn't, the fixture's readiness probe will fail every iteration.
+
 ## Visual regression
 
 Visual regression tests live under `Visual/` and capture full-page Chromium screenshots which are pixel-diffed against committed `.png` artefacts under `Snapshots/linux-chromium/`. The diff helper is `IPage.MatchSnapshotAsync(name, maxDiffPixelRatio: 0.005)` in `Helpers/PageSnapshotExtensions.cs` — it uses `SixLabors.ImageSharp` for the per-pixel comparison with a small per-channel tolerance so anti-aliasing jitter does not cause false positives below the 0.5% diff threshold.

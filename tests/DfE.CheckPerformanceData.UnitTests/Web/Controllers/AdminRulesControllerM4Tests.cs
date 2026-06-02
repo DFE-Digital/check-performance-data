@@ -97,4 +97,54 @@ public sealed class AdminRulesControllerM4Tests
 
         Assert.Equal("Blankish", captured!.Outcomes.Single(o => o.Key == "Blankish").Label);
     }
+
+    [Fact]
+    public async Task ConfirmDeleteOutcome_Blocks_Form_Bound_Outcome()
+    {
+        var result = await NewController(SvcWithRules()).ConfirmDeleteOutcome("Inclusion", default);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task ConfirmDeleteOutcome_Renders_For_Deletable_Outcome()
+    {
+        var vm = Assert.IsType<DeleteOutcomeViewModel>(
+            Assert.IsType<ViewResult>(await NewController(SvcWithRules()).ConfirmDeleteOutcome("AdminAdded", default)).Model);
+        Assert.Equal("AdminAdded", vm.Key);
+        Assert.Equal(1, vm.BranchCount);
+    }
+
+    [Fact]
+    public async Task DeleteOutcome_Blocks_Form_Bound_Even_If_Posted()
+    {
+        var svc = SvcWithRules();
+        var result = await NewController(svc).DeleteOutcome("Inclusion", "Inclusion", default);
+        Assert.IsType<NotFoundResult>(result);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteOutcome_Rejects_Mismatched_Typed_Key()
+    {
+        var svc = SvcWithRules();
+        var vm = Assert.IsType<DeleteOutcomeViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).DeleteOutcome("AdminAdded", "WrongKey", default)).Model);
+        Assert.NotEmpty(vm.Errors);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task DeleteOutcome_Removes_And_Redirects_On_Match()
+    {
+        var svc = SvcWithRules("etag-1");
+        RuleSet? captured = null;
+        svc.SaveRulesAsync(Arg.Do<RuleSet>(r => captured = r), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(3));
+
+        var result = await NewController(svc).DeleteOutcome("AdminAdded", "AdminAdded", default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Outcomes", redirect.ActionName);
+        Assert.DoesNotContain(captured!.Outcomes, o => o.Key == "AdminAdded");
+    }
 }

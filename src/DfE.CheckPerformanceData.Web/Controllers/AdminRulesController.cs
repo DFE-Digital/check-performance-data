@@ -106,6 +106,70 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         }
     }
 
+    [HttpGet("admin/rules/outcomes/{key}/delete")]
+    public async Task<IActionResult> ConfirmDeleteOutcome(string key, CancellationToken ct)
+    {
+        if (OutcomeDeletionPolicy.IsFormBound(key))
+        {
+            return NotFound();
+        }
+
+        var (ruleSet, _) = await TryGetRulesAsync(ct);
+        var outcome = ruleSet?.Outcomes.FirstOrDefault(o => o.Key == key);
+        if (outcome is null)
+        {
+            return NotFound();
+        }
+
+        return View(OutcomeDeleteView, new DeleteOutcomeViewModel
+        {
+            Key = outcome.Key, Label = outcome.Label, BranchCount = outcome.Rules.Count
+        });
+    }
+
+    [HttpPost("admin/rules/outcomes/{key}/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteOutcome(string key, string confirmKey, CancellationToken ct)
+    {
+        if (OutcomeDeletionPolicy.IsFormBound(key))
+        {
+            return NotFound();
+        }
+
+        var (current, etag) = await TryGetRulesAsync(ct);
+        var outcome = current?.Outcomes.FirstOrDefault(o => o.Key == key);
+        if (current is null || outcome is null)
+        {
+            return NotFound();
+        }
+
+        DeleteOutcomeViewModel Vm(IReadOnlyList<string> errors) => new()
+        {
+            Key = outcome.Key, Label = outcome.Label, BranchCount = outcome.Rules.Count, Errors = errors
+        };
+
+        if (!string.Equals(confirmKey?.Trim(), key, StringComparison.Ordinal))
+        {
+            return View(OutcomeDeleteView, Vm(new[] { "Enter the exact outcome key to confirm deletion." }));
+        }
+
+        var spliced = RuleSetSplicer.RemoveOutcome(current, key);
+        try
+        {
+            var result = await rules.SaveRulesAsync(spliced, etag, ct);
+            if (!result.Saved)
+            {
+                return View(OutcomeDeleteView, Vm(result.Errors));
+            }
+            TempData["SuccessMessage"] = $"Outcome '{key}' deleted (version {result.VersionNumber}).";
+            return RedirectToAction(nameof(Outcomes));
+        }
+        catch (RulesConfigConflictException)
+        {
+            return View(OutcomeDeleteView, Vm(new[] { "The rules were changed by someone else. Nothing was deleted — reload and try again." }));
+        }
+    }
+
     [HttpGet("admin/rules/lookups")]
     public async Task<IActionResult> Lookups(CancellationToken ct)
     {

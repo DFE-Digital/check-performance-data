@@ -27,6 +27,7 @@ public class JourneyControllerTests
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
+    private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
@@ -71,7 +72,7 @@ public class JourneyControllerTests
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _optionVisibilityService, _currentUserService, _env)
+            _requestService, _optionVisibilityService, _currentUserService, _env, _pupilDataService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -84,18 +85,6 @@ public class JourneyControllerTests
     public async Task Page_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
-
-        var result = await _sut.Page(WindowId, "page-1");
-
-        AssertRedirectToCheckYourData(result);
-    }
-
-    [Fact]
-    public async Task Page_WhenPupilNotSelected_RedirectsToCheckYourData()
-    {
-        var state = ValidSession();
-        state.SelectedPupil = null;
-        SetupSession(state);
 
         var result = await _sut.Page(WindowId, "page-1");
 
@@ -126,18 +115,6 @@ public class JourneyControllerTests
     public async Task Summary_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());
-
-        var result = await _sut.Summary(WindowId);
-
-        AssertRedirectToCheckYourData(result);
-    }
-
-    [Fact]
-    public async Task Summary_WhenPupilNotSelected_RedirectsToCheckYourData()
-    {
-        var state = ValidSession();
-        state.SelectedPupil = null;
-        SetupSession(state);
 
         var result = await _sut.Summary(WindowId);
 

@@ -14,6 +14,11 @@ public sealed class SummaryViewModel
     public required int MaxEvidencePages { get; init; }
     public string? DebugJson { get; init; }
     public string? ConflictError { get; init; }
+    public string? PrimaryPupilPageId { get; init; }
+    public string? FirstRecordDisplay { get; init; }
+    public string? SecondRecordDisplay { get; init; }
+    public string? MatchedPupilPageId { get; init; }
+    public bool BackPageIsPupilSearch { get; init; }
 
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 

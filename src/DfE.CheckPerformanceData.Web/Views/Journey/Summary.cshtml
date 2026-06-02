@@ -6,7 +6,7 @@
     Layout = "_Layout";
 }
 
-<a asp-action="Page" asp-controller="Journey"
+<a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
    asp-route-windowId="@Model.WindowId"
    asp-route-pageId="@Model.BackPageId"
    class="govuk-back-link">Back</a>
@@ -29,17 +29,57 @@
         <dd class="govuk-summary-list__actions">
         </dd>
     </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Pupil name</dt>
-        <dd class="govuk-summary-list__value">@Model.PupilName</dd>
-        <dd class="govuk-summary-list__actions">
-            <a class="govuk-link"
-               asp-action="Index" asp-controller="PupilSearch"
-               asp-route-windowId="@Model.WindowId">
-                Change<span class="govuk-visually-hidden"> pupil name</span>
-            </a>
-        </dd>
-    </div>
+    @if (Model.SecondRecordDisplay is not null)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">First record to merge</dt>
+            <dd class="govuk-summary-list__value">@Model.FirstRecordDisplay</dd>
+            <dd class="govuk-summary-list__actions">
+                @if (Model.PrimaryPupilPageId is not null)
+                {
+                    <a class="govuk-link"
+                       asp-action="PupilSearchPage" asp-controller="Journey"
+                       asp-route-windowId="@Model.WindowId"
+                       asp-route-pageId="@Model.PrimaryPupilPageId">
+                        Change<span class="govuk-visually-hidden"> first record to merge</span>
+                    </a>
+                }
+            </dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Second record to merge</dt>
+            <dd class="govuk-summary-list__value">@Model.SecondRecordDisplay</dd>
+            <dd class="govuk-summary-list__actions">
+                @if (Model.MatchedPupilPageId is not null)
+                {
+                    <a class="govuk-link"
+                       asp-action="PupilSearchPage" asp-controller="Journey"
+                       asp-route-windowId="@Model.WindowId"
+                       asp-route-pageId="@Model.MatchedPupilPageId">
+                        Change<span class="govuk-visually-hidden"> second record to merge</span>
+                    </a>
+                }
+            </dd>
+        </div>
+    }
+    else
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Pupil name</dt>
+            <dd class="govuk-summary-list__value">@Model.PupilName</dd>
+            <dd class="govuk-summary-list__actions">
+                @if (Model.PrimaryPupilPageId is not null)
+                {
+                    <a class="govuk-link"
+                       asp-action="PupilSearchPage" asp-controller="Journey"
+                       asp-route-windowId="@Model.WindowId"
+                       asp-route-pageId="@Model.PrimaryPupilPageId">
+                        Change<span class="govuk-visually-hidden"> pupil name</span>
+                    </a>
+                }
+            </dd>
+        </div>
+    }
     @foreach (var row in Model.Rows)
     {
         <div class="govuk-summary-list__row">

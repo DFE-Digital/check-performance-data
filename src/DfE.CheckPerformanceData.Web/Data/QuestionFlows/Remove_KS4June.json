@@ -1,6 +1,14 @@
 {
-  "firstPageId": "reason",
+  "firstPageId": "select-pupil",
   "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "Enter the name of the pupil to be removed",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "reason"
+    },
     {
       "id": "reason",
       "questions": [

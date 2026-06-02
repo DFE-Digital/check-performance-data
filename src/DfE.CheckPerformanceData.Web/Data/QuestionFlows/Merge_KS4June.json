@@ -1,0 +1,23 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the pupil for the first duplicate record to be merged?",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "select-match-pupil",
+      "validationFailure": "Enter the name of the pupil for the first duplicate record to be merged."
+    },
+    {
+      "id": "select-match-pupil",
+      "type": "PupilSearch",
+      "title": "What is the CYPMD ID of the second duplicate record to be merged?",
+      "subHeading": "Start typing ID to search records",
+      "pupilFilter": "All",
+      "pupilKey": "match",
+      "validationFailure": "Enter the CYPMD ID for the second duplicate record to be merged. CYPMD ID for second duplicate record must be different to first record."
+    }
+  ]
+}

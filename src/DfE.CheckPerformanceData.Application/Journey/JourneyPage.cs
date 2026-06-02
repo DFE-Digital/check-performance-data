@@ -10,4 +10,7 @@ public sealed class JourneyPage
     public bool RequireAtLeastOne { get; init; }
     public List<Question> Questions { get; init; } = [];
     public string? NextPageId { get; init; }
+    public PupilFilter? PupilFilter { get; init; }
+    public string? PupilKey { get; init; }
+    public string? ValidationFailure { get; init; }
 }

@@ -37,6 +37,7 @@ public sealed class RequestService(
             ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
             WhatToChange = journey.SelectedWhatToChange.Value,
             Pupil = journey.SelectedPupil,
+            MatchedPupil = journey.MatchedPupil,
             CheckingWindow = journey.CheckingWindow,
             Answers = journey.QuestionAnswers,
             History = journey.QuestionHistory
@@ -93,7 +94,7 @@ public sealed class RequestService(
             .SelectMany(pid =>
             {
                 var page = config.Pages.FirstOrDefault(p => p.Id == pid);
-                if (page is null || page.Type == PageType.Content) return Enumerable.Empty<AnswerRecord>();
+                if (page is null || page.Type == PageType.Content || page.Type == PageType.PupilSearch) return Enumerable.Empty<AnswerRecord>();
                 return page.Questions.Select(q =>
                 {
                     context.Answers.TryGetValue(q.Id, out var ans);
@@ -130,6 +131,17 @@ public sealed class RequestService(
                 Age = pupil.Age,
                 Upn = pupil.Upn
             },
+            MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
+            {
+                Id = mp.Id.ToString(),
+                CypmdId = mp.Cypmd_Id,
+                Firstname = mp.Firstname,
+                Surname = mp.Surname,
+                DateOfBirth = mp.DateOfBirth,
+                Sex = mp.Sex,
+                Age = mp.Age,
+                Upn = mp.Upn
+            } : null,
             Answers = answers
         };
     }

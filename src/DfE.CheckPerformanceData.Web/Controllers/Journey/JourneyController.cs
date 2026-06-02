@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -15,7 +16,8 @@ public sealed class JourneyController(
     IRequestService requestService,
     IOptionVisibilityService optionVisibilityService,
     ICurrentUserService currentUserService,
-    IWebHostEnvironment env) : Controller
+    IWebHostEnvironment env,
+    ICheckYourPupilDataService pupilDataService) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -35,6 +37,9 @@ public sealed class JourneyController(
         var page = flowService.GetPage(config, pageId);
         if (page is null) return NotFound();
 
+        if (page.Type == PageType.PupilSearch)
+            return RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId });
+
         var nav = flowService.GetNavigationGuard(config, journey, pageId);
         if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
@@ -42,6 +47,93 @@ public sealed class JourneyController(
 
         var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
         return View(viewName, BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
+    }
+
+    // ── PupilSearchPage (GET) ───────────────────────────────────────────────
+
+    [Route("/Journey/{windowId}/pupil-search/{pageId}")]
+    public async Task<IActionResult> PupilSearchPage(Guid windowId, string pageId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.PupilSearch) return NotFound();
+
+        var nav = flowService.GetNavigationGuard(config, journey, pageId);
+        if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
+        if (nav is RedirectToJourneyPage { PageId: var navPageId })
+            return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
+
+        return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey));
+    }
+
+    // ── PupilSearchPage (POST) ──────────────────────────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/Journey/{windowId}/pupil-search/{pageId}")]
+    public async Task<IActionResult> PupilSearchPost(Guid windowId, string pageId, string? selectedPupilId, string? selectedPupilLabel)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        var config = await GetConfigAsync(journey);
+        if (config is null) return RedirectToCheckYourData(windowId);
+
+        var page = flowService.GetPage(config, pageId);
+        if (page is null || page.Type != PageType.PupilSearch) return NotFound();
+
+        if (string.IsNullOrEmpty(selectedPupilId) || !Guid.TryParse(selectedPupilId, out var pupilId))
+        {
+            var validationMessage = page.ValidationFailure is not null
+                ? Resolve(page.ValidationFailure, GetPupilName(journey))
+                : "Enter the name of the pupil";
+            ModelState.AddModelError("selectedPupilId", validationMessage);
+            return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey));
+        }
+
+        var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
+
+        if (page.PupilKey == "match")
+        {
+            HttpContext.Session.SaveRequestState(windowId, s =>
+            {
+                s.MatchedPupilId = selectedPupilId;
+                s.MatchedPupilLabel = selectedPupilLabel;
+                s.MatchedPupil = pupil;
+            });
+        }
+        else
+        {
+            var reference = journeyService.GenerateReference(journey.CheckingWindow?.CheckingWindowType);
+            HttpContext.Session.SaveRequestState(windowId, s =>
+            {
+                s.SelectedPupilId = selectedPupilId;
+                s.SelectedPupilLabel = selectedPupilLabel;
+                s.SelectedPupil = pupil;
+                s.ReferenceNumber = reference;
+                s.QuestionAnswers = new Dictionary<string, QuestionAnswer>();
+                s.QuestionHistory = [];
+            });
+        }
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            if (!s.QuestionHistory.Contains(pageId))
+                s.QuestionHistory.Add(pageId);
+        });
+
+        if (page.NextPageId is null)
+            return RedirectToAction(nameof(Summary), new { windowId });
+
+        var nextPage = flowService.GetPage(config, page.NextPageId);
+        return nextPage?.Type == PageType.PupilSearch
+            ? RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId = page.NextPageId })
+            : RedirectToAction(nameof(Page), new { windowId, pageId = page.NextPageId });
     }
 
     // ── Page (POST — Continue) ──────────────────────────────────────────────
@@ -381,8 +473,7 @@ public sealed class JourneyController(
 
     private static bool IsSessionReady(RequestState journey) =>
         journey.SelectedWhatToChange is not null &&
-        journey.CheckingWindow is not null &&
-        journey.SelectedPupil is not null;
+        journey.CheckingWindow is not null;
 
     private RedirectToActionResult RedirectToCheckYourData(Guid windowId) =>
         RedirectToAction("Index", "CheckYourPupilData", new { windowId });
@@ -494,7 +585,7 @@ public sealed class JourneyController(
         foreach (var pid in journey.QuestionHistory)
         {
             var p = flowService.GetPage(config, pid);
-            if (p is null || p.Type == PageType.Content) continue;
+            if (p is null || p.Type == PageType.Content || p.Type == PageType.PupilSearch) continue;
             foreach (var q in p.Questions)
             {
                 journey.QuestionAnswers.TryGetValue(q.Id, out var a);
@@ -511,9 +602,26 @@ public sealed class JourneyController(
         }
 
         var backPageId = journey.QuestionHistory.Last();
+        var backPage = flowService.GetPage(config, backPageId);
         var debugJson = env.IsDevelopment()
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
             : null;
+
+        var primaryPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == "primary");
+        var matchPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == "match");
+
+        string? firstRecordDisplay = null;
+        string? secondRecordDisplay = null;
+        if (journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
+        {
+            var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var d)
+                ? d.ToString("d MMMM yyyy")
+                : sp.DateOfBirth;
+            firstRecordDisplay = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
+            secondRecordDisplay = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
+        }
 
         return new SummaryViewModel
         {
@@ -525,7 +633,37 @@ public sealed class JourneyController(
             BackPageId = backPageId,
             MaxEvidencePages = journeyService.MaxEvidencePages,
             DebugJson = debugJson,
-            ConflictError = conflictError
+            ConflictError = conflictError,
+            PrimaryPupilPageId = primaryPupilPage?.Id,
+            FirstRecordDisplay = firstRecordDisplay,
+            SecondRecordDisplay = secondRecordDisplay,
+            MatchedPupilPageId = matchPupilPage?.Id,
+            BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch
+        };
+    }
+
+    private PupilSearchViewModel BuildPupilSearchVm(Guid windowId, string pageId, JourneyPage page, RequestState journey)
+    {
+        var pupilName = GetPupilName(journey);
+        var title = page.Title is not null ? Resolve(page.Title, pupilName) : string.Empty;
+        Guid? excludeId = null;
+        if (page.PupilKey == "match" && Guid.TryParse(journey.SelectedPupilId, out var pid))
+            excludeId = pid;
+
+        var (existingId, existingLabel) = page.PupilKey == "match"
+            ? (journey.MatchedPupilId, journey.MatchedPupilLabel)
+            : (journey.SelectedPupilId, journey.SelectedPupilLabel);
+
+        return new PupilSearchViewModel
+        {
+            WindowId = windowId,
+            PageId = pageId,
+            Title = title,
+            Filter = page.PupilFilter ?? PupilFilter.Included,
+            ExcludePupilId = excludeId,
+            SelectedPupilId = existingId,
+            SelectedPupilLabel = existingLabel,
+            Hint = page.Subheading
         };
     }
 

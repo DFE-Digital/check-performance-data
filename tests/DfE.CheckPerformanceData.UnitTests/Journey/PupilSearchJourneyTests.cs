@@ -509,6 +509,51 @@ public class PupilSearchJourneyTests
         Assert.Equal("select-pupil", vm.PrimaryPupilPageId);
     }
 
+    // ── PupilSearchPage GET — back link ─────────────────────────────────────
+
+    [Fact]
+    public async Task PupilSearchPage_WhenFirstPageAndEmptyHistory_BackPageIdIsNull()
+    {
+        SetupSession(SessionWithoutPupil());
+
+        var result = await _sut.PupilSearchPage(WindowId, "select-pupil");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
+        Assert.Null(vm.BackPageId);
+    }
+
+    [Fact]
+    public async Task PupilSearchPage_WhenSecondPageAndFirstPageInHistory_BackPageIdIsFirstPage()
+    {
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+
+        var state = SessionWithPupil(history: ["select-pupil"]);
+        SetupSession(state);
+
+        var result = await _sut.PupilSearchPage(WindowId, "select-match-pupil");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
+        Assert.Equal("select-pupil", vm.BackPageId);
+        Assert.True(vm.BackPageIsPupilSearch);
+    }
+
+    [Fact]
+    public async Task PupilSearchPage_WhenReturningToFirstPageFromSummary_BackPageIdIsNull()
+    {
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+
+        var state = SessionWithPupil(history: ["select-pupil", "select-match-pupil"]);
+        SetupSession(state);
+
+        var result = await _sut.PupilSearchPage(WindowId, "select-pupil");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PupilSearchViewModel>(view.Model);
+        Assert.Null(vm.BackPageId);
+    }
+
     // ── IsSessionReady — no longer requires pupil ────────────────────────────
 
     [Fact]

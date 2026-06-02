@@ -2,6 +2,9 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 
 public sealed class JourneyPage
 {
+    public const string PrimaryKey = "primary";
+    public const string MatchKey = "match";
+
     public required string Id { get; init; }
     public PageType Type { get; init; } = PageType.Question;
     public string? Title { get; init; }

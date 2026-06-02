@@ -1,5 +1,4 @@
 using DfE.CheckPerformanceData.Application.Journey;
-using Microsoft.AspNetCore.Mvc.Razor;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.Journey;
 
@@ -13,4 +12,6 @@ public sealed class PupilSearchViewModel
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public string? Hint { get; set; }
+    public string? BackPageId { get; set; }
+    public bool BackPageIsPupilSearch { get; set; }
 }

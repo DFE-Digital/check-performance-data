@@ -8,7 +8,17 @@
         ?? "Enter the name of the pupil";
 }
 
-<a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+@if (Model.BackPageId is not null)
+{
+    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId"
+       asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
 
 @if (hasError)
 {

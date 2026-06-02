@@ -66,9 +66,9 @@ public sealed class JourneyController(
         var nav = flowService.GetNavigationGuard(config, journey, pageId);
         if (nav is RedirectToJourneySummary) return RedirectToAction(nameof(Summary), new { windowId });
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
-            return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
+            return RedirectToJourneyAction(config, windowId, navPageId);
 
-        return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey));
+        return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey, config));
     }
 
     // ── PupilSearchPage (POST) ──────────────────────────────────────────────
@@ -93,18 +93,20 @@ public sealed class JourneyController(
                 ? Resolve(page.ValidationFailure, GetPupilName(journey))
                 : "Enter the name of the pupil";
             ModelState.AddModelError("selectedPupilId", validationMessage);
-            return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey));
+            return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
 
-        if (page.PupilKey == "match")
+        if (page.PupilKey == JourneyPage.MatchKey)
         {
             HttpContext.Session.SaveRequestState(windowId, s =>
             {
                 s.MatchedPupilId = selectedPupilId;
                 s.MatchedPupilLabel = selectedPupilLabel;
                 s.MatchedPupil = pupil;
+                if (!s.QuestionHistory.Contains(pageId))
+                    s.QuestionHistory.Add(pageId);
             });
         }
         else
@@ -117,15 +119,9 @@ public sealed class JourneyController(
                 s.SelectedPupil = pupil;
                 s.ReferenceNumber = reference;
                 s.QuestionAnswers = new Dictionary<string, QuestionAnswer>();
-                s.QuestionHistory = [];
+                s.QuestionHistory = [pageId];
             });
         }
-
-        HttpContext.Session.SaveRequestState(windowId, s =>
-        {
-            if (!s.QuestionHistory.Contains(pageId))
-                s.QuestionHistory.Add(pageId);
-        });
 
         if (page.NextPageId is null)
             return RedirectToAction(nameof(Summary), new { windowId });
@@ -478,6 +474,14 @@ public sealed class JourneyController(
     private RedirectToActionResult RedirectToCheckYourData(Guid windowId) =>
         RedirectToAction("Index", "CheckYourPupilData", new { windowId });
 
+    private RedirectToActionResult RedirectToJourneyAction(QuestionFlowConfig config, Guid windowId, string pageId)
+    {
+        var target = flowService.GetPage(config, pageId);
+        return target?.Type == PageType.PupilSearch
+            ? RedirectToAction(nameof(PupilSearchPage), new { windowId, pageId })
+            : RedirectToAction(nameof(Page), new { windowId, pageId });
+    }
+
     private Task<QuestionFlowConfig?> GetConfigAsync(RequestState journey) =>
         flowService.GetConfigAsync(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
 
@@ -607,8 +611,8 @@ public sealed class JourneyController(
             ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
             : null;
 
-        var primaryPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == "primary");
-        var matchPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == "match");
+        var primaryPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == JourneyPage.PrimaryKey);
+        var matchPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == JourneyPage.MatchKey);
 
         string? firstRecordDisplay = null;
         string? secondRecordDisplay = null;
@@ -642,17 +646,31 @@ public sealed class JourneyController(
         };
     }
 
-    private PupilSearchViewModel BuildPupilSearchVm(Guid windowId, string pageId, JourneyPage page, RequestState journey)
+    private PupilSearchViewModel BuildPupilSearchVm(Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config)
     {
         var pupilName = GetPupilName(journey);
         var title = page.Title is not null ? Resolve(page.Title, pupilName) : string.Empty;
         Guid? excludeId = null;
-        if (page.PupilKey == "match" && Guid.TryParse(journey.SelectedPupilId, out var pid))
+        if (page.PupilKey == JourneyPage.MatchKey && Guid.TryParse(journey.SelectedPupilId, out var pid))
             excludeId = pid;
 
-        var (existingId, existingLabel) = page.PupilKey == "match"
+        var (existingId, existingLabel) = page.PupilKey == JourneyPage.MatchKey
             ? (journey.MatchedPupilId, journey.MatchedPupilLabel)
             : (journey.SelectedPupilId, journey.SelectedPupilLabel);
+
+        string? backPageId = null;
+        bool backPageIsPupilSearch = false;
+        var historyIndex = journey.QuestionHistory.IndexOf(pageId);
+        var backEntry = historyIndex > 0
+            ? journey.QuestionHistory[historyIndex - 1]
+            : historyIndex < 0 && journey.QuestionHistory.Count > 0
+                ? journey.QuestionHistory[^1]
+                : null;
+        if (backEntry is not null)
+        {
+            backPageId = backEntry;
+            backPageIsPupilSearch = flowService.GetPage(config, backEntry)?.Type == PageType.PupilSearch;
+        }
 
         return new PupilSearchViewModel
         {
@@ -663,7 +681,9 @@ public sealed class JourneyController(
             ExcludePupilId = excludeId,
             SelectedPupilId = existingId,
             SelectedPupilLabel = existingLabel,
-            Hint = page.Subheading
+            Hint = page.Subheading,
+            BackPageId = backPageId,
+            BackPageIsPupilSearch = backPageIsPupilSearch
         };
     }
 

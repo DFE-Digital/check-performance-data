@@ -2,7 +2,9 @@ using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
 using DfE.CheckPerformanceData.Web.Controllers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
@@ -25,7 +27,25 @@ public sealed class AdminRulesControllerEditTests
         return svc;
     }
 
-    private static AdminRulesController NewController(IRulesConfigService svc) => new(svc);
+    private static AdminRulesController NewController(IRulesConfigService svc)
+    {
+        var controller = new AdminRulesController(svc);
+        controller.TempData = new TempDataDictionary(
+            new DefaultHttpContext(),
+            Substitute.For<ITempDataProvider>());
+        return controller;
+    }
+
+    private static BranchEditForm SaveableForm(string etag) => new()
+    {
+        OutcomeKey = "EAL", BranchId = "EAL-1", IsNew = false, Status = DecisionStatus.AutoApproved,
+        LoadETag = etag, Action = "save",
+        Nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+        }
+    };
 
     [Fact]
     public async Task EditBranch_Loads_Form_With_Captured_ETag()
@@ -103,5 +123,106 @@ public sealed class AdminRulesControllerEditTests
             Assert.IsType<ViewResult>(await NewController(svc).TransformBranch(form, default)).Model);
 
         Assert.Contains(vm.Form.Nodes, n => n.Kind == PredicateKind.AnyOf && n.ParentId == 1);
+    }
+
+    [Fact]
+    public async Task Save_Persists_And_Redirects_On_Success()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(5));
+
+        var result = await NewController(svc).SaveBranch(SaveableForm("etag-1"), default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Outcome", redirect.ActionName);
+        await svc.Received(1).SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_Blocks_On_Empty_Composite_Without_Calling_Service()
+    {
+        var svc = SvcWithRules("etag-1");
+        var form = SaveableForm("etag-1");
+        form.Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } };
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveBranch(form, default)).Model);
+
+        Assert.NotEmpty(vm.Errors);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_Shows_Error_Summary_On_Validation_Failure()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Invalid(new[] { "bad rules" }));
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveBranch(SaveableForm("etag-1"), default)).Model);
+
+        Assert.Contains("bad rules", vm.Errors);
+    }
+
+    [Fact]
+    public async Task Save_Blocks_On_Concurrency_Conflict()
+    {
+        var svc = SvcWithRules("etag-CURRENT");
+        var form = SaveableForm("etag-STALE");
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveBranch(form, default)).Model);
+
+        Assert.True(vm.ConcurrencyConflict);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_Maps_Blob_Conflict_To_Friendly_Rerender()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns<RulesConfigSaveResult>(_ => throw new RulesConfigConflictException("If-Match failed"));
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveBranch(SaveableForm("etag-1"), default)).Model);
+
+        Assert.True(vm.ConcurrencyConflict);
+    }
+
+    [Fact]
+    public async Task Save_Blocks_When_Outcome_Key_Unknown()
+    {
+        var svc = SvcWithRules("etag-1");
+        var form = SaveableForm("etag-1");
+        form.OutcomeKey = "DOES-NOT-EXIST";
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveBranch(form, default)).Model);
+
+        Assert.Contains(vm.Errors, e => e.Contains("no longer exists"));
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_New_Branch_Inserts_Before_Otherwise()
+    {
+        var svc = SvcWithRules("etag-1");
+        RuleSet? captured = null;
+        svc.SaveRulesAsync(Arg.Do<RuleSet>(r => captured = r), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(2));
+
+        var form = SaveableForm("etag-1");
+        form.IsNew = true;
+        form.BranchId = "EAL-NEW";
+
+        await NewController(svc).SaveBranch(form, default);
+
+        var rules = captured!.Outcomes.First(o => o.Key == "EAL").Rules;
+        Assert.Equal(3, rules.Count);
+        Assert.Equal("EAL-NEW", rules[^2].Id);
+        Assert.IsType<Predicate.Otherwise>(rules[^1].When);
     }
 }

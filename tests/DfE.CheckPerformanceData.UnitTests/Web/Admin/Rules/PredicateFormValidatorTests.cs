@@ -61,6 +61,13 @@ public sealed class PredicateFormValidatorTests
     }
 
     [Fact]
+    public void Empty_Node_List_Is_Rejected()
+    {
+        Assert.Contains(PredicateFormValidator.Validate(new List<PredicateNodeForm>()),
+            e => e.Contains("at least one condition"));
+    }
+
+    [Fact]
     public void Well_Formed_Tree_Has_No_Errors()
     {
         var nodes = new List<PredicateNodeForm>

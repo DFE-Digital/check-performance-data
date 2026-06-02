@@ -11,6 +11,11 @@ public static class PredicateFormValidator
     public static IReadOnlyList<string> Validate(IReadOnlyList<PredicateNodeForm> nodes)
     {
         var errors = new List<string>();
+        if (nodes.Count == 0)
+        {
+            errors.Add("The branch must have at least one condition.");
+            return errors;
+        }
         foreach (var node in nodes)
         {
             var childCount = nodes.Count(n => n.ParentId == node.Id);

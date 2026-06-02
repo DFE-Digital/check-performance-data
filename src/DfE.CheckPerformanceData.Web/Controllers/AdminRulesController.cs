@@ -142,6 +142,63 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         return Task.FromResult<IActionResult>(View(BranchEditView, BranchEditViewModel.For(form)));
     }
 
+    [HttpPost("admin/rules/branch/save")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveBranch(BranchEditForm form, CancellationToken ct)
+    {
+        LeafNormalizer.NormalizeAll(form.Nodes);
+
+        var structural = PredicateFormValidator.Validate(form.Nodes);
+        if (structural.Count > 0)
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form, structural));
+        }
+
+        var (current, currentETag) = await TryGetRulesAsync(ct);
+        if (current is null)
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form,
+                new[] { "The rules could not be loaded. Reload and try again." }));
+        }
+        // App-level check catches the common case (two admins editing at once) cheaply.
+        // The service's blob If-Match below is the authoritative guard against the residual race.
+        if (currentETag != form.LoadETag)
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form, concurrencyConflict: true));
+        }
+
+        if (!current.Outcomes.Any(o => o.Key == form.OutcomeKey))
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form,
+                new[] { $"Outcome '{form.OutcomeKey}' no longer exists. Reload and try again." }));
+        }
+
+        var predicate = PredicateForm.RebuildPredicate(form.Nodes);
+        var branch = new RuleBranch(form.BranchId, form.Status, predicate);
+        var spliced = form.IsNew
+            ? RuleSetSplicer.InsertBranch(current, form.OutcomeKey, branch)
+            : RuleSetSplicer.ReplaceBranch(current, form.OutcomeKey, form.BranchId, branch);
+
+        RulesConfigSaveResult result;
+        try
+        {
+            result = await rules.SaveRulesAsync(spliced, form.LoadETag, ct);
+        }
+        catch (RulesConfigConflictException)
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form, concurrencyConflict: true));
+        }
+
+        if (!result.Saved)
+        {
+            return View(BranchEditView, BranchEditViewModel.For(form, result.Errors));
+        }
+
+        TempData["SuccessMessage"] =
+            $"Branch '{form.BranchId}' saved (version {result.VersionNumber}). The rules service refreshes within about 5 minutes.";
+        return RedirectToAction(nameof(Outcome), new { key = form.OutcomeKey });
+    }
+
     // Parses "<verb>:<arg>[:<arg2>]" and mutates form.Nodes. No persistence.
     private static void ApplyTransform(BranchEditForm form)
     {

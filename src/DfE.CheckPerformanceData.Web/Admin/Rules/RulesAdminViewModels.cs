@@ -29,7 +29,7 @@ public sealed record OutcomesViewModel
     public bool IsEmpty => Outcomes.Count == 0;
 }
 
-public sealed record BranchViewModel(string Id, DecisionStatus Status, PredicateNode Condition);
+public sealed record BranchViewModel(string Id, DecisionStatus Status, PredicateNode Condition, bool IsOtherwise);
 
 public sealed record OutcomeDetailViewModel
 {

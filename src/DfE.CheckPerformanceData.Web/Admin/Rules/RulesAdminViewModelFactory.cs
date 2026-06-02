@@ -63,7 +63,7 @@ public static class RulesAdminViewModelFactory
             Key = outcome.Key,
             Label = outcome.Label,
             Branches = outcome.Rules
-                .Select(b => new BranchViewModel(b.Id, b.Status, PredicateDescriber.Describe(b.When)))
+                .Select(b => new BranchViewModel(b.Id, b.Status, PredicateDescriber.Describe(b.When), b.When is Predicate.Otherwise))
                 .ToList()
         };
     }

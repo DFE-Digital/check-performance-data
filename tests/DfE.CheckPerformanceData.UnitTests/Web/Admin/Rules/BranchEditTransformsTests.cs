@@ -76,14 +76,6 @@ public sealed class BranchEditTransformsTests
     }
 
     [Fact]
-    public void SetCombinator_Changes_Composite_Kind()
-    {
-        var list = Tree();
-        BranchEditTransforms.SetCombinator(list, id: 1, PredicateKind.AnyOf);
-        Assert.Equal(PredicateKind.AnyOf, list.Single(n => n.Id == 1).Kind);
-    }
-
-    [Fact]
     public void SetField_Resets_Operator_And_Value_When_Type_Changes()
     {
         var list = Tree();

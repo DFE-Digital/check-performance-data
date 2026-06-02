@@ -212,7 +212,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 
         ViewData["OutcomeKey"] = key;
         return View(RemoveBranchView,
-            new BranchViewModel(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When)));
+            new BranchViewModel(branch.Id, branch.Status, PredicateDescriber.Describe(branch.When), branch.When is Predicate.Otherwise));
     }
 
     [HttpPost("admin/rules/outcomes/{key}/branches/{id}/remove")]
@@ -308,7 +308,13 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     public async Task<IActionResult> SaveLookupRow(LookupRowEditForm form, CancellationToken ct)
     {
         var languages = form.Languages.Where(l => !string.IsNullOrWhiteSpace(l)).ToList();
-        var (current, etag) = await TryGetLookupsAsync(ct);
+        var (current, currentETag) = await TryGetLookupsAsync(ct);
+        if (currentETag != form.LoadETag)
+        {
+            return View(LookupRowEditView, LookupRowEditViewModel.For(form,
+                new[] { "The lookups were changed by someone else since you opened this page. Reload and try again." }));
+        }
+
         var map = current?.CountryLanguages.ToDictionary(kv => kv.Key, kv => kv.Value)
                   ?? new Dictionary<string, IReadOnlyList<string>>();
         map[form.Code.Trim()] = languages;
@@ -323,7 +329,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 
         try
         {
-            var result = await rules.SaveLookupsAsync(merged, etag, ct);
+            var result = await rules.SaveLookupsAsync(merged, form.LoadETag, ct);
             if (!result.Saved)
             {
                 return View(LookupRowEditView, LookupRowEditViewModel.For(form, result.Errors));
@@ -375,8 +381,6 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             case "addGroup": BranchEditTransforms.AddGroup(form.Nodes, int.Parse(args[0])); break;
             case "remove": BranchEditTransforms.Remove(form.Nodes, int.Parse(args[0])); break;
             case "ungroup": BranchEditTransforms.Ungroup(form.Nodes, int.Parse(args[0])); break;
-            case "setCombinator":
-                BranchEditTransforms.SetCombinator(form.Nodes, int.Parse(args[0]), Enum.Parse<PredicateKind>(args[1])); break;
             case "setField": BranchEditTransforms.SetField(form.Nodes, int.Parse(args[0]), args[1]); break;
             case "addValue": BranchEditTransforms.AddValue(form.Nodes, int.Parse(args[0])); break;
             case "removeValue": BranchEditTransforms.RemoveValue(form.Nodes, int.Parse(args[0]), int.Parse(args[1])); break;

@@ -105,6 +105,26 @@ public sealed class AdminRulesControllerEditTests
     }
 
     [Fact]
+    public async Task Transform_Rerender_Preserves_Bound_Combinator_Kind()
+    {
+        var svc = SvcWithRules();
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", LoadETag = "etag-1", Action = "rerender",
+            Nodes = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf }, // user switched AllOf -> AnyOf via the bound select
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            }
+        };
+
+        var vm = Assert.IsType<BranchEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).TransformBranch(form, default)).Model);
+
+        Assert.Equal(PredicateKind.AnyOf, vm.Form.Nodes.Single(n => n.Id == 1).Kind); // not reverted
+    }
+
+    [Fact]
     public async Task Transform_GroupSelected_Builds_New_Composite()
     {
         var svc = SvcWithRules();
@@ -332,6 +352,23 @@ public sealed class AdminRulesControllerEditTests
         Assert.IsType<RedirectToActionResult>(result);
         Assert.True(captured!.CountryLanguages.ContainsKey("FR"));
         Assert.True(captured.CountryLanguages.ContainsKey("GB"));
+    }
+
+    [Fact]
+    public async Task SaveLookupRow_Blocks_On_Concurrency_Conflict()
+    {
+        var svc = SvcWithLookups("L-CURRENT"); // store moved on since load
+        var form = new LookupRowEditForm
+        {
+            Code = "GB", IsNew = false, LoadETag = "L-STALE", Action = "save",
+            Languages = new List<string> { "English" }
+        };
+
+        var vm = Assert.IsType<LookupRowEditViewModel>(
+            Assert.IsType<ViewResult>(await NewController(svc).SaveLookupRow(form, default)).Model);
+
+        Assert.NotEmpty(vm.Errors);
+        await svc.DidNotReceive().SaveLookupsAsync(Arg.Any<Lookups>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

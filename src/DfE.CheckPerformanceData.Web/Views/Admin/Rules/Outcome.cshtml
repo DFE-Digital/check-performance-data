@@ -53,7 +53,7 @@
                 <li class="govuk-summary-card__action">
                     <strong class="govuk-tag @TagClass(branch.Status)">@TagText(branch.Status)</strong>
                 </li>
-                @if (branch.Condition.Text != "Otherwise (always matches)")
+                @if (!branch.IsOtherwise)
                 {
                     <li class="govuk-summary-card__action">
                         <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/edit">Edit</a>

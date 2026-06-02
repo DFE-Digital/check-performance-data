@@ -72,12 +72,6 @@ public static class BranchEditTransforms
         nodes.Remove(composite);
     }
 
-    public static void SetCombinator(List<PredicateNodeForm> nodes, int id, PredicateKind kind)
-    {
-        var node = nodes.FirstOrDefault(n => n.Id == id);
-        if (node is not null) node.Kind = kind;
-    }
-
     public static void SetField(List<PredicateNodeForm> nodes, int id, string newField)
     {
         var node = nodes.FirstOrDefault(n => n.Id == id);

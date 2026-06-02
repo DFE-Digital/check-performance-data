@@ -261,3 +261,75 @@ What each line is doing — read alongside the seven-step checklist above:
 | No `IAsyncLifetime` / no `SeedHelpers` | This test creates no DB rows. When you write a test that *does* (a wiki page, a content block) — implement `IAsyncLifetime`, seed in `InitializeAsync`, clean up in `DisposeAsync`, and prefix every slug/key with `e2e-{Guid:N}-` so a half-cleaned fixture still leaves the rest of the suite green. |
 
 When you stop writing test scaffolding and need to seed a real wiki page or content block, the helpers in `Helpers/SeedHelpers.cs` do the antiforgery-scrape + POST handshake for you — call `await SeedHelpers.SeedWikiPageAsync(_fixture.SeedClient, ...)` and assert against the page that comes back.
+
+
+# How do I run all the tests manually? / CHEATSHEET
+
+● Bash syntax — works in PowerShell too for the simple commands:
+
+  One-by-one, layered
+
+  ### 1. Build everything in Release (~20s) — surfaces compile errors before tests
+  dotnet build src/DfE.CheckPerformanceData.slnx -c Release --nologo
+
+  ### 2. Unit tests only (~60s) — fast loop, no Docker needed
+  dotnet test tests/DfE.CheckPerformanceData.UnitTests/ -c Release --no-build --nologo
+
+  ### 3. Integration tests only (~15s) — needs Docker running (Testcontainers Postgres)
+  dotnet test tests/DfE.CheckPerformanceData.IntegrationTests/ -c Release --no-build --nologo
+
+  ### 4. E2E without visual regression (~30s) — fast Playwright sweep, host-native
+  make test-e2e-fast
+  #### Or, equivalently, without make:
+  dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" -c Release --no-build --nologo
+
+  ### 5. E2E WITH visual regression (~10-15min) — Linux-Chromium container, the canonical baseline
+  make test-e2e
+  #### Or, equivalently, without make:
+  docker compose --profile e2e run --rm e2e-tests
+
+  One-shot equivalents
+
+  ### Everything except E2E (unit + integration in one command)
+  dotnet test src/DfE.CheckPerformanceData.slnx --filter "FullyQualifiedName!~E2ETests" -c Release --nologo
+
+  ### Literally everything via dotnet, including E2E + VR (assumes browsers are installed)
+  dotnet test src/DfE.CheckPerformanceData.slnx -c Release --nologo
+
+  The one-shot dotnet command works but the VR tests inside it use the host's Chromium pixels, not the canonical Linux container — so the diff   
+  thresholds are tuned wrong and you'll get false positives on Windows/macOS. Use make test-e2e for the real VR run.
+
+  ## Useful filters when narrowing in
+
+  ### Just one test class:
+  dotnet test tests/DfE.CheckPerformanceData.UnitTests/ --filter "FullyQualifiedName~AdminControllerTests" -c Release --no-build
+
+  ### Just one named test:
+  dotnet test tests/DfE.CheckPerformanceData.UnitTests/ --filter
+  "FullyQualifiedName=DfE.CheckPerformanceData.UnitTests.Wiki.WikiServiceTests.MovePageAsync_Reorder" -c Release --no-build
+
+  ### Only VR tests:
+  dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category=VisualRegression" -c Release --no-build
+
+  ## Watch mode (TDD inner loop)
+
+  ### Re-runs the matched tests whenever source changes
+  dotnet watch test --project tests/DfE.CheckPerformanceData.UnitTests/ -- --filter "FullyQualifiedName~WikiServiceTests"
+
+  Cleanup when switching between native and container E2E
+
+  make clean-test-bin
+  #### Or, without make:
+  rm -rf tests/DfE.CheckPerformanceData.E2ETests/bin tests/DfE.CheckPerformanceData.E2ETests/obj
+
+  Needed because the native run and the container run produce mutually-incompatible bin/ artefacts (different platform IDs); skipping this       
+  between modes is the #1 source of "but it worked yesterday" on this project.
+
+  Order of operations I'd suggest for a "full sweep" before a PR:
+
+  1. dotnet build src/DfE.CheckPerformanceData.slnx -c Release --nologo — fast smoke for compile errors
+  2. dotnet test src/DfE.CheckPerformanceData.slnx --filter "FullyQualifiedName!~E2ETests" -c Release --no-build --nologo — unit + integration in
+  one shot
+  3. make test-e2e — full E2E + VR in the canonical container
+
+  That's the pattern I'd run automatically given more autonomy on this repo. The first two together are ~90 seconds; the third is the long pole.

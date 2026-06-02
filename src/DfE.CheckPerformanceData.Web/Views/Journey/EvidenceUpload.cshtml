@@ -17,6 +17,22 @@
     <h1 class="govuk-heading-xl">@Model.ResolvedTitle</h1>
 }
 
+<details class="govuk-details">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            What evidence do I need?
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        @await Component.InvokeAsync("EditableContent", new {
+            key = Model.ContentKey+"-evidence",
+            defaultHtml = @"<p class=""govuk-body"">
+                    PLACEHOLDER EVIDENCE REQUIREMENTS COPY
+                    </p>"
+        })
+    </div>
+</details>
+
 @* File upload partial sits outside the continue form to avoid nested forms *@
 @foreach (var qm in Model.FileUploadModels)
 {

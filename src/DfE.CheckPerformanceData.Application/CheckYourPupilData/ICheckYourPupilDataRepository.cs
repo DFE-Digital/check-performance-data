@@ -11,5 +11,5 @@ public interface ICheckYourPupilDataRepository
     Task<IReadOnlyList<PupilCsvDto>> GetAllIncludedPupilsAsync(Guid windowId, string urn);
     Task<IReadOnlyList<PupilCsvDto>> GetAllNonIncludedPupilsAsync(Guid windowId, string urn);
     Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string urn, string query, PupilFilter filter, Guid? excludeId = null);
-    Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
+    Task<PupilDto> GetPupilAsync(Guid windowId, string urn, Guid pupilId);
 }

@@ -33,10 +33,10 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate })
             .SingleAsync();
 
-    public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
+    public async Task<PupilDto> GetPupilAsync(Guid windowId, string urn, Guid pupilId)
         => await dbContext.Pupils
             .AsNoTracking()
-            .Where(p => p.CheckingWindowId == windowId && p.Id == pupilId)
+            .Where(p => p.CheckingWindowId == windowId && p.Urn == urn && p.Id == pupilId)
             .Select(ToPupilDto)
             .SingleAsync();
 

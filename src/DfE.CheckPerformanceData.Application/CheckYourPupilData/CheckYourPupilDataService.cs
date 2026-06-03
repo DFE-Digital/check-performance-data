@@ -42,6 +42,9 @@ public sealed class CheckYourPupilDataService(
     }
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
-        => await repository.GetPupilAsync(windowId, pupilId);
+    {
+        var urn = currentUserService.OrganisationUrn;
+        return await repository.GetPupilAsync(windowId, urn, pupilId);
+    }
 }
 

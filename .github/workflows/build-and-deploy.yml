@@ -15,9 +15,13 @@ on:
         - preproduction
         - production
       docker-image-tag:
-        description: "Docker image tag to deploy (optional)"
-        required: true
-        type: string
+         description: "Docker image tag to deploy (optional)"
+         required: true
+         type: string
+      worker-docker-image-tag:
+         description: "Worker docker image tag to deploy (optional)"
+         required: false
+         type: string
       pull-request-number:
         description: "Pull request number (required for review environment)"
         required: false
@@ -40,8 +44,10 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' }}
     env:
       DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data
+      WORKER_DOCKER_REPOSITORY: ghcr.io/dfe-digital/check-performance-data-worker
     outputs:
       docker-image-tag: ${{ steps.build-image.outputs.tag }}
+      worker-docker-image-tag: ${{ steps.build-worker-image.outputs.tag }}
     permissions:
       packages: write
       pull-requests: write
@@ -59,6 +65,18 @@ jobs:
         context: ./src
         dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
         docker-repository: ${{ env.DOCKER_REPOSITORY }}
+        max-cache: true
+        reuse-cache: true
+        snyk-token: ${{ secrets.SNYK_TOKEN }}
+
+    - name: Build and push worker docker image
+      id: build-worker-image
+      uses: DFE-Digital/github-actions/build-docker-image@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        context: ./src
+        dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+        docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
         max-cache: true
         reuse-cache: true
         snyk-token: ${{ secrets.SNYK_TOKEN }}
@@ -134,6 +152,12 @@ jobs:
     - name: Deploy App to Review
       id: deploy_review
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # deploy-to-aks@master does not yet declare a `worker-sha` input, so
+        # passing it via `with:` is silently dropped. Set the Terraform variable
+        # directly. Remove this env block once the upstream action accepts
+        # `worker-sha` and add the `worker-sha:` line back into `with:` below.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -170,6 +194,9 @@ jobs:
     - name: Deploy app to ${{ matrix.environment }}
       id: deploy_app
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # See note on the review-app deploy step.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -199,6 +226,9 @@ jobs:
     - name: Deploy app to ${{ inputs.environment }}
       id: deploy_manual
       uses: DFE-Digital/github-actions/deploy-to-aks@master
+      env:
+        # See note on the review-app deploy step.
+        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ inputs.worker-docker-image-tag }}
       with:
         azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
         azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}

@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 public sealed class AdminNavRegistryTests
 {
-	// --- AddAdminNavEntries_Registers_Nine_Hierarchical_Entries ---
+	// --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
 
 	[Fact]
-	public void AddAdminNavEntries_Registers_Nine_Hierarchical_Entries()
+	public void AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(9, entries.Count);
+		Assert.Equal(11, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
@@ -29,6 +29,8 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Deleted pages", titles);
 		Assert.Contains("Seed sample pages", titles);
 		Assert.Contains("CMS settings", titles);
+		Assert.Contains("Storage administration", titles);
+		Assert.Contains("Blob storage browser", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

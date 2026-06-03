@@ -5,7 +5,7 @@
 }
 
 <p class="govuk-body">
-    <a class="govuk-link" href="/admin/storage/@Model.ContainerName">
+    <a class="govuk-link" href="/admin/storage/@Model.AccountKey/@Model.ContainerName">
         &larr; Back to @Model.ContainerName
     </a>
 </p>
@@ -13,6 +13,10 @@
 <h1 class="govuk-heading-xl">Preview</h1>
 
 <dl class="govuk-summary-list govuk-!-margin-bottom-6">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Account</dt>
+        <dd class="govuk-summary-list__value">@Model.AccountDisplayName</dd>
+    </div>
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Container</dt>
         <dd class="govuk-summary-list__value"><code>@Model.ContainerName</code></dd>
@@ -28,7 +32,7 @@
 </dl>
 
 <p class="govuk-body">
-    <a class="govuk-link" href="/admin/storage/@Model.ContainerName/download?blob=@encodedBlob">Download this blob</a>
+    <a class="govuk-link" href="/admin/storage/@Model.AccountKey/@Model.ContainerName/download?blob=@encodedBlob">Download this blob</a>
 </p>
 
 @if (Model.Content is not null)

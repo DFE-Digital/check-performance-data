@@ -31,6 +31,7 @@ public class JourneyControllerTests
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
+    private readonly JourneyViewModelBuilder _viewModelBuilder;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -71,8 +72,11 @@ public class JourneyControllerTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
+        _viewModelBuilder = new JourneyViewModelBuilder(
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _optionVisibilityService, _currentUserService, _env, _pupilDataService)
+            _requestService, _pupilDataService, _viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

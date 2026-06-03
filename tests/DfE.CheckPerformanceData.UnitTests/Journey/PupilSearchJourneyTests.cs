@@ -110,8 +110,11 @@ public class PupilSearchJourneyTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
+        var viewModelBuilder = new JourneyViewModelBuilder(
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _optionVisibilityService, _currentUserService, _env, _pupilDataService)
+            _requestService, _pupilDataService, viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

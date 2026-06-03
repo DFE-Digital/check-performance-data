@@ -1,5 +1,4 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -14,10 +13,8 @@ public sealed class JourneyController(
     IJourneyValidationService journeyService,
     IFileStorageService fileStorageService,
     IRequestService requestService,
-    IOptionVisibilityService optionVisibilityService,
-    ICurrentUserService currentUserService,
-    IWebHostEnvironment env,
-    ICheckYourPupilDataService pupilDataService) : Controller
+    ICheckYourPupilDataService pupilDataService,
+    JourneyViewModelBuilder viewModelBuilder) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -46,7 +43,8 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
         var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
-        return View(viewName, BuildPageVm(windowId, page, journey.QuestionAnswers, journey, fromSummary, config));
+        return View(viewName, viewModelBuilder.BuildPageVm(windowId, page, journey.QuestionAnswers,
+            journey, fromSummary, ModelState, config));
     }
 
     // ── PupilSearchPage (GET) ───────────────────────────────────────────────
@@ -68,7 +66,7 @@ public sealed class JourneyController(
         if (nav is RedirectToJourneyPage { PageId: var navPageId })
             return RedirectToJourneyAction(config, windowId, navPageId);
 
-        return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey, config));
+        return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
     }
 
     // ── PupilSearchPage (POST) ──────────────────────────────────────────────
@@ -90,10 +88,10 @@ public sealed class JourneyController(
         if (string.IsNullOrEmpty(selectedPupilId) || !Guid.TryParse(selectedPupilId, out var pupilId))
         {
             var validationMessage = page.ValidationFailure is not null
-                ? JourneyTemplate.Resolve(page.ValidationFailure, GetPupilName(journey))
+                ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Enter the name of the pupil";
             ModelState.AddModelError("selectedPupilId", validationMessage);
-            return View("PupilSearch", BuildPupilSearchVm(windowId, pageId, page, journey, config));
+            return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
@@ -149,7 +147,7 @@ public sealed class JourneyController(
         if (page is null) return NotFound();
 
         var newAnswers = new Dictionary<string, QuestionAnswer>();
-        var pupilName = GetPupilName(journey);
+        var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
 
         foreach (var question in page.Questions)
@@ -208,7 +206,10 @@ public sealed class JourneyController(
                 .GroupBy(kv => kv.Key)
                 .ToDictionary(g => g.Key, g => g.Last().Value);
             var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
-            return View(invalidViewName, BuildPageVm(windowId, page, displayAnswers, journey, fromSummary, config, atLeastOne?.SummaryMessage));
+            return View(invalidViewName, viewModelBuilder.BuildPageVm(windowId, page, displayAnswers,
+                journey, fromSummary, ModelState, config,
+                uploadError: TempData["UploadError"] as string,
+                atLeastOneError: atLeastOne?.SummaryMessage));
         }
 
         if (fromSummary)
@@ -356,7 +357,7 @@ public sealed class JourneyController(
         if (nextExpected is not null)
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
-        return View(BuildSummaryVm(windowId, journey, config));
+        return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config));
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
@@ -395,7 +396,7 @@ public sealed class JourneyController(
         {
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
-            return View("Summary", BuildSummaryVm(windowId, journey, config,
+            return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
         }
 
@@ -485,83 +486,6 @@ public sealed class JourneyController(
     private Task<QuestionFlowConfig?> GetConfigAsync(RequestState journey) =>
         flowService.GetConfigAsync(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
 
-    private static string GetPupilName(RequestState journey) =>
-        journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;
-
-    private JourneyConditionContext BuildConditionContext(RequestState journey) => new()
-    {
-        Journey = journey,
-        User = new JourneyUserContext
-        {
-            OrganisationUrn = currentUserService.OrganisationUrn,
-            OrganisationId = currentUserService.OrganisationId,
-            OrganisationName = currentUserService.OrganisationName,
-            OrganisationTypeId = currentUserService.OrganisationTypeId
-        }
-    };
-
-    private PageViewModel BuildPageVm(Guid windowId, JourneyPage page,
-        Dictionary<string, QuestionAnswer> answers, RequestState journey, bool fromSummary,
-        QuestionFlowConfig? config = null, string? atLeastOneError = null)
-    {
-        var historyIndex = journey.QuestionHistory.IndexOf(page.Id);
-        var backPageId = historyIndex switch
-        {
-            -1 => journey.QuestionHistory.LastOrDefault(),
-            0  => null,
-            _  => journey.QuestionHistory[historyIndex - 1]
-        };
-        var backPageIsPupilSearch = backPageId is not null && config is not null
-            && flowService.GetPage(config, backPageId)?.Type == PageType.PupilSearch;
-
-        var pupilName = GetPupilName(journey);
-        var isSingleQuestion = page.Questions.Count == 1;
-        var uploadError = TempData["UploadError"] as string;
-
-        string? contentKey = null;
-        if (page.Type is PageType.Content or PageType.EvidenceUpload && config is not null)
-            contentKey = flowService.BuildContentKey(windowId, page, answers, journey, config);
-
-        var conditionContext = BuildConditionContext(journey);
-
-        var questionModels = page.Questions.Select(q =>
-        {
-            var error = ModelState.TryGetValue(q.Id, out var entry)
-                ? entry.Errors.FirstOrDefault()?.ErrorMessage
-                : null;
-            return new QuestionPartialModel
-            {
-                WindowId = windowId,
-                PageId = page.Id,
-                Question = q,
-                ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
-                FromSummary = fromSummary,
-                IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
-                Error = error,
-                UploadError = uploadError,
-                ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
-                VisibleOptions = q.Type == QuestionType.Radio
-                    ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
-                    : q.Options ?? []
-            };
-        }).ToList();
-
-        return new PageViewModel
-        {
-            WindowId = windowId,
-            Page = page,
-            Answers = answers,
-            BackPageId = backPageId,
-            BackPageIsPupilSearch = backPageIsPupilSearch,
-            FromSummary = fromSummary,
-            PupilName = pupilName,
-            ContentKey = contentKey,
-            UploadError = uploadError,
-            AtLeastOneError = atLeastOneError,
-            QuestionModels = questionModels
-        };
-    }
-
     private QuestionAnswer ReadFormAnswer(Question question)
     {
         var fieldName = FieldName(question.Id);
@@ -577,113 +501,6 @@ public sealed class JourneyController(
                 }
             },
             _ => new QuestionAnswer { TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim() }
-        };
-    }
-
-    private SummaryViewModel BuildSummaryVm(Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null)
-    {
-        var pupilName = GetPupilName(journey);
-        var rows = new List<SummaryRow>();
-        var fileRows = new List<SummaryFileRow>();
-
-        foreach (var pid in journey.QuestionHistory)
-        {
-            var p = flowService.GetPage(config, pid);
-            if (p is null || p.Type == PageType.Content || p.Type == PageType.PupilSearch) continue;
-            foreach (var q in p.Questions)
-            {
-                journey.QuestionAnswers.TryGetValue(q.Id, out var a);
-                if (q.Type == QuestionType.FileUpload)
-                {
-                    if (a?.FileValues is { Count: > 0 } files)
-                        fileRows.AddRange(files.Select(f => new SummaryFileRow(p, f.OriginalFileName, f.FileSizeBytes, f.PageCount, f.StoredFileName)));
-                }
-                else
-                {
-                    rows.Add(new SummaryRow(p, q, a, JourneyTemplate.Resolve(q.SummaryTitle ?? q.Title, pupilName)));
-                }
-            }
-        }
-
-        var backPageId = journey.QuestionHistory.Last();
-        var backPage = flowService.GetPage(config, backPageId);
-        var debugJson = env.IsDevelopment()
-            ? System.Text.Json.JsonSerializer.Serialize(journey, new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
-            : null;
-
-        var primaryPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == JourneyPage.PrimaryKey);
-        var matchPupilPage = config.Pages.FirstOrDefault(p => p.Type == PageType.PupilSearch && p.PupilKey == JourneyPage.MatchKey);
-
-        string? firstRecordDisplay = null;
-        string? secondRecordDisplay = null;
-        if (journey.MatchedPupil is { } mp && journey.SelectedPupil is { } sp)
-        {
-            var dob = DateTime.TryParseExact(sp.DateOfBirth, "dd/MM/yyyy",
-                System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var d)
-                ? d.ToString("d MMMM yyyy")
-                : sp.DateOfBirth;
-            firstRecordDisplay = $"{sp.Firstname} {sp.Surname}, {dob}".Trim();
-            secondRecordDisplay = $"{mp.Cypmd_Id}, {mp.Firstname} {mp.Surname}".Trim();
-        }
-
-        return new SummaryViewModel
-        {
-            WindowId = windowId,
-            WhatToChange = journey.SelectedWhatToChange!.Value,
-            PupilName = pupilName,
-            Rows = rows,
-            FileRows = fileRows,
-            BackPageId = backPageId,
-            MaxEvidencePages = journeyService.MaxEvidencePages,
-            DebugJson = debugJson,
-            ConflictError = conflictError,
-            PrimaryPupilPageId = primaryPupilPage?.Id,
-            FirstRecordDisplay = firstRecordDisplay,
-            SecondRecordDisplay = secondRecordDisplay,
-            MatchedPupilPageId = matchPupilPage?.Id,
-            BackPageIsPupilSearch = backPage?.Type == PageType.PupilSearch
-        };
-    }
-
-    private PupilSearchViewModel BuildPupilSearchVm(Guid windowId, string pageId, JourneyPage page, RequestState journey, QuestionFlowConfig config)
-    {
-        var pupilName = GetPupilName(journey);
-        var title = page.Title is not null ? JourneyTemplate.Resolve(page.Title, pupilName) : string.Empty;
-        Guid? excludeId = null;
-        if (page.PupilKey == JourneyPage.MatchKey && Guid.TryParse(journey.SelectedPupilId, out var pid))
-            excludeId = pid;
-
-        var (existingId, existingLabel) = page.PupilKey == JourneyPage.MatchKey
-            ? (journey.MatchedPupilId, journey.MatchedPupilLabel)
-            : (journey.SelectedPupilId, journey.SelectedPupilLabel);
-
-        string? backPageId = null;
-        bool backPageIsPupilSearch = false;
-        var historyIndex = journey.QuestionHistory.IndexOf(pageId);
-        var backEntry = historyIndex > 0
-            ? journey.QuestionHistory[historyIndex - 1]
-            : historyIndex < 0 && journey.QuestionHistory.Count > 0
-                ? journey.QuestionHistory[^1]
-                : null;
-        if (backEntry is not null)
-        {
-            backPageId = backEntry;
-            backPageIsPupilSearch = flowService.GetPage(config, backEntry)?.Type == PageType.PupilSearch;
-        }
-
-        return new PupilSearchViewModel
-        {
-            WindowId = windowId,
-            PageId = pageId,
-            Title = title,
-            Filter = page.PupilFilter ?? PupilFilter.Included,
-            ExcludePupilId = excludeId,
-            SelectedPupilId = existingId,
-            SelectedPupilLabel = existingLabel,
-            Hint = page.Subheading,
-            BackPageId = backPageId,
-            BackPageIsPupilSearch = backPageIsPupilSearch
         };
     }
 

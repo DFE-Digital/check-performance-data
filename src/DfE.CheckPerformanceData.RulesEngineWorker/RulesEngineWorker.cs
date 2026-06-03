@@ -41,12 +41,23 @@ public sealed class RulesEngineWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await _queueClient.CreateIfNotExistsAsync(cancellationToken: stoppingToken);
+        // Queue creation is inside the loop so a transient storage error at startup
+        // is retried like any other failure rather than escaping ExecuteAsync. An
+        // unhandled exception here would stop the host, and the worker has no
+        // readiness probe, so the pod would crash-loop and the deploy rollout would
+        // time out. Once created, the flag short-circuits the idempotent call.
+        var queueReady = false;
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                if (!queueReady)
+                {
+                    await _queueClient.CreateIfNotExistsAsync(cancellationToken: stoppingToken);
+                    queueReady = true;
+                }
+
                 await PollQueueAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

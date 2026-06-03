@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -10,7 +11,7 @@ public interface ICheckYourPupilDataService
     Task<IReadOnlyList<PupilCsvDto>> GetIncludedPupilsCsvAsync(Guid windowId);
     Task<IReadOnlyList<PupilCsvDto>> GetNonIncludedPupilsCsvAsync(Guid windowId);
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        WhatToChange? whatToChange);
+        PupilFilter filter, Guid? excludeId = null);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }

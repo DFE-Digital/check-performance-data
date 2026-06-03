@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -22,8 +23,8 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
     public Task<IReadOnlyList<PupilCsvDto>> GetAllNonIncludedPupilsAsync(Guid windowId, string urn)
         => GetAllAsync(windowId, urn, included: false);
 
-    public Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string urn, string query, bool included)
-        => SearchAsync(windowId, urn, query, included);
+    public Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string urn, string query, PupilFilter filter, Guid? excludeId = null)
+        => SearchAsync(windowId, urn, query, filter, excludeId);
 
     public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => await dbContext.CheckingWindows
@@ -32,10 +33,10 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate })
             .SingleAsync();
 
-    public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
+    public async Task<PupilDto> GetPupilAsync(Guid windowId, string urn, Guid pupilId)
         => await dbContext.Pupils
             .AsNoTracking()
-            .Where(p => p.CheckingWindowId == windowId && p.Id == pupilId)
+            .Where(p => p.CheckingWindowId == windowId && p.Urn == urn && p.Id == pupilId)
             .Select(ToPupilDto)
             .SingleAsync();
 
@@ -85,7 +86,7 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             })
             .ToListAsync();
 
-    private async Task<IReadOnlyList<PupilSuggestionDto>> SearchAsync(Guid windowId, string urn, string query, bool included)
+    private async Task<IReadOnlyList<PupilSuggestionDto>> SearchAsync(Guid windowId, string urn, string query, PupilFilter filter, Guid? excludeId)
     {
         var urnLong = long.Parse(urn);
         var existingUpns = dbContext.ChangeRequests
@@ -93,10 +94,21 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             .Where(r => r.WindowId == windowId && r.OrganisationUrn == urnLong)
             .Select(r => r.PupilUpn);
 
-        return await BaseQuery(windowId, urn, included)
-            .Where(p => (EF.Functions.ILike(p.Surname, $"%{query}%") ||
+        var baseQuery = filter == PupilFilter.All
+            ? dbContext.Pupils.AsNoTracking().Where(p => p.CheckingWindowId == windowId && p.Urn == urn)
+            : BaseQuery(windowId, urn, included: filter == PupilFilter.Included);
+
+        var filtered = baseQuery
+            .Where(p => (p.Upn.StartsWith(query) ||
+                         p.Cypmd_Id.StartsWith(query) ||
+                         EF.Functions.ILike(p.Surname, $"%{query}%") ||
                          EF.Functions.ILike(p.Firstname, $"%{query}%")) &&
-                        !existingUpns.Contains(p.Upn))
+                        !existingUpns.Contains(p.Upn));
+
+        if (excludeId.HasValue)
+            filtered = filtered.Where(p => p.Id != excludeId.Value);
+
+        return await filtered
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
             .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {p.DateOfBirth}"))

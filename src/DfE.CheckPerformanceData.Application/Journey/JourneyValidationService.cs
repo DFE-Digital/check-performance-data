@@ -29,13 +29,10 @@ public sealed class JourneyValidationService : IJourneyValidationService
             q => q.Id,
             q => q.Type == QuestionType.FileUpload
                 ? "Upload at least one file"
-                : Resolve(q.Title, pupilName));
+                : JourneyTemplate.Resolve(q.Title, pupilName));
 
         return new RequireAtLeastOneResult("You must answer at least one of these questions", fieldErrors);
     }
-
-    private static string Resolve(string template, string pupilName) =>
-        template.Replace("{pupilName}", pupilName, StringComparison.Ordinal);
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null) =>
         question.Type switch

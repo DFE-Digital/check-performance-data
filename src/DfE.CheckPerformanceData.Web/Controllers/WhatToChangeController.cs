@@ -1,10 +1,13 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class WhatToChangeController(ICheckYourPupilDataService service) : Controller
+public sealed class WhatToChangeController(
+    ICheckYourPupilDataService service,
+    IQuestionFlowService flowService) : Controller
 {
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -36,6 +39,9 @@ public sealed class WhatToChangeController(ICheckYourPupilDataService service) :
             s.CheckingWindow = window;
         });
 
-        return RedirectToAction("Index", "PupilSearch", new { windowId });
+        var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);
+        if (config is null) return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+
+        return RedirectToAction("Page", "Journey", new { windowId, pageId = config.FirstPageId });
     }
 }

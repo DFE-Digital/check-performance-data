@@ -27,9 +27,11 @@ public class JourneyControllerTests
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
+    private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
+    private readonly JourneyViewModelBuilder _viewModelBuilder;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -70,8 +72,11 @@ public class JourneyControllerTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
+        _viewModelBuilder = new JourneyViewModelBuilder(
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _optionVisibilityService, _currentUserService, _env)
+            _requestService, _pupilDataService, _viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -84,18 +89,6 @@ public class JourneyControllerTests
     public async Task Page_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());  // empty — no WhatToChange, no window, no pupil
-
-        var result = await _sut.Page(WindowId, "page-1");
-
-        AssertRedirectToCheckYourData(result);
-    }
-
-    [Fact]
-    public async Task Page_WhenPupilNotSelected_RedirectsToCheckYourData()
-    {
-        var state = ValidSession();
-        state.SelectedPupil = null;
-        SetupSession(state);
 
         var result = await _sut.Page(WindowId, "page-1");
 
@@ -126,18 +119,6 @@ public class JourneyControllerTests
     public async Task Summary_WhenNoSession_RedirectsToCheckYourData()
     {
         SetupSession(new RequestState());
-
-        var result = await _sut.Summary(WindowId);
-
-        AssertRedirectToCheckYourData(result);
-    }
-
-    [Fact]
-    public async Task Summary_WhenPupilNotSelected_RedirectsToCheckYourData()
-    {
-        var state = ValidSession();
-        state.SelectedPupil = null;
-        SetupSession(state);
 
         var result = await _sut.Summary(WindowId);
 
@@ -321,6 +302,23 @@ public class JourneyControllerTests
         Assert.Empty(remaining.QuestionHistory);
         Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
         Assert.NotNull(remaining.CheckingWindow);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_AfterSuccess_ClearsMatchedPupil()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.MatchedPupil = new PupilDto { Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe", Sex = "M", DateOfBirth = "02/02/2010", Age = 16, Cypmd_Id = "CYPMD456", Upn = "456456" };
+        state.MatchedPupilId = state.MatchedPupil.Id.ToString();
+        state.MatchedPupilLabel = "Doe, John";
+        SetupSession(state);
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Null(remaining.MatchedPupil);
+        Assert.Null(remaining.MatchedPupilId);
+        Assert.Null(remaining.MatchedPupilLabel);
     }
 
     // ── SaveDraft ────────────────────────────────────────────────────────────

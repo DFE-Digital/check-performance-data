@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
@@ -48,7 +49,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         CheckingWindowType = CheckingWindowType.KS4June,
     };
 
-    private static Pupil NewPupil(Guid windowId, string urn, string surname, string upn) => new()
+    private static Pupil NewPupil(Guid windowId, string urn, string surname, string upn, int pincl = IncludedPincl) => new()
     {
         Id = Guid.NewGuid(),
         CheckingWindowId = windowId,
@@ -60,7 +61,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         DateOfBirth = "01/01/2000",
         Age = 16,
         FirstLanguage = "English",
-        Pincl = IncludedPincl,
+        Pincl = pincl,
         NewMobile = false,
         ActualYearGroup = "11",
         Ethnicity = "A1",
@@ -101,7 +102,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();
-        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Smith", included: true);
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Smith", PupilFilter.Included);
 
         Assert.Empty(results);
     }
@@ -122,7 +123,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();
-        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Jones", included: true);
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Jones", PupilFilter.Included);
 
         Assert.Single(results);
     }
@@ -142,7 +143,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();
-        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Taylor", included: true);
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Taylor", PupilFilter.Included);
 
         Assert.Single(results);
     }
@@ -161,8 +162,65 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();
-        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Brown", included: true);
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Brown", PupilFilter.Included);
 
         Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task FilterAll_ReturnsBothIncludedAndNonIncludedPupils()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+
+        await using var ctx = fixture.CreateContext();
+        ctx.CheckingWindows.Add(NewWindow(windowId));
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000005", pincl: 401));  // included
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000006", pincl: 999));  // non-included
+        await ctx.SaveChangesAsync();
+
+        var repo = CreateRepo();
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Wilson", PupilFilter.All);
+
+        Assert.Equal(2, results.Count);
+    }
+
+    [Fact]
+    public async Task FilterIncluded_ReturnsOnlyIncludedPupils()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+
+        await using var ctx = fixture.CreateContext();
+        ctx.CheckingWindows.Add(NewWindow(windowId));
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000007", pincl: 401));  // included
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000008", pincl: 999));  // non-included
+        await ctx.SaveChangesAsync();
+
+        var repo = CreateRepo();
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Wilson", PupilFilter.Included);
+
+        Assert.Single(results);
+    }
+
+    [Fact]
+    public async Task ExcludeId_ExcludesSpecificPupilFromResults()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+        var pupilToExclude = NewPupil(windowId, TestUrn, "Adams", "A100000000009");
+        var otherPupil = NewPupil(windowId, TestUrn, "Adams", "A100000000010");
+
+        await using var ctx = fixture.CreateContext();
+        ctx.CheckingWindows.Add(NewWindow(windowId));
+        ctx.Pupils.Add(pupilToExclude);
+        ctx.Pupils.Add(otherPupil);
+        await ctx.SaveChangesAsync();
+
+        var repo = CreateRepo();
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Adams", PupilFilter.All, excludeId: pupilToExclude.Id);
+
+        Assert.Single(results);
+        Assert.Equal(otherPupil.Id, results[0].Id);
     }
 }

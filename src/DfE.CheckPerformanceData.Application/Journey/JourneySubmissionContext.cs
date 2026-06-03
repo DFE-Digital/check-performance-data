@@ -9,6 +9,7 @@ public sealed class JourneySubmissionContext
     public required string ReferenceNumber { get; init; }
     public WhatToChange WhatToChange { get; init; }
     public required PupilDto Pupil { get; init; }
+    public PupilDto? MatchedPupil { get; init; }
     public required CheckingWindowDto CheckingWindow { get; init; }
     public required Dictionary<string, QuestionAnswer> Answers { get; init; }
     public required List<string> History { get; init; }

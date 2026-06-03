@@ -13,9 +13,7 @@ Check Your Pupil Data
         ↓
 What Would You Like to Change?
         ↓
-Pupil Search
-        ↓
-Question Flow  (one or more pages, config-driven)
+Question Flow  (starts with one or more PupilSearch pages, then config-driven questions)
         ↓
 Summary  →  Submit  →  Confirmation
               or
@@ -39,7 +37,7 @@ HttpContext.Session.ClearRequestState(windowId);
 
 This means navigating back to this page from mid-journey abandons any in-progress request. The `windowId` is a `Guid` matching the `CheckingWindow.Id` in the database.
 
-From here, the user clicks a "Request change" or equivalent link for a specific pupil, which takes them to:
+From here, the user clicks a "Request change" or equivalent link, which takes them to:
 
 ---
 
@@ -58,69 +56,39 @@ HttpContext.Session.SaveRequestState(windowId, s =>
 });
 ```
 
+The controller then fetches the question flow config for the selected `WhatToChange` + window type combination and redirects to the config's first page:
+
+**Redirects to:** `GET /Journey/{windowId}/page/{config.FirstPageId}`
+
+This first page is always a `PupilSearch` page — see [PupilSearch pages](#pupilsearch-pages) below.
+
 **Session after this stage:**
 | Field | Value |
 |---|---|
 | `SelectedWhatToChange` | e.g. `WhatToChange.Remove` |
 | `CheckingWindow` | `CheckingWindowDto` (Id, Title, Type, StartDate, EndDate) |
 
-**Redirects to:** `GET /PupilSearch/{windowId}`
-
 ---
 
-## Stage 3 — Pupil Search
-
-**URL:** `GET /PupilSearch/{windowId}`  
-**Controller:** `PupilSearchController`
-
-The user searches for and selects the pupil they want to raise the request about. The search uses an autocomplete (`GET /PupilSearch/{windowId}/suggestions?query=...`) that queries pupils from the PostgreSQL database via `ICheckYourPupilDataService`.
-
-On POST (pupil selected):
-
-```csharp
-HttpContext.Session.SaveRequestState(windowId, s =>
-{
-    s.SelectedPupil = pupil;            // PupilDto from blob storage
-    s.SelectedPupilId = ...;
-    s.SelectedPupilLabel = ...;
-    s.ReferenceNumber = reference;      // e.g. "CYPMD_KS4June_A3F8D12"
-    s.QuestionAnswers = new();
-    s.QuestionHistory = new();
-});
-```
-
-The **reference number** is generated here and stays fixed for the life of the request:
-
-```
-CYPMD_{CheckingWindowType}_{7-char random uppercase hex}
-e.g.  CYPMD_KS4June_A3F8D12
-```
-
-**Session after this stage:**
-| Field | Value |
-|---|---|
-| `SelectedPupil` | `PupilDto` (name, DOB, UPN, Cypmd_Id, etc.) |
-| `ReferenceNumber` | `"CYPMD_KS4June_A3F8D12"` |
-| `QuestionAnswers` | `{}` (empty) |
-| `QuestionHistory` | `[]` (empty) |
-
-**Redirects to:** `GET /Journey/{windowId}/page/{firstPageId}` — the first page of the question flow.
-
----
-
-## Stage 4 — Question Flow
+## Stage 3 — Question Flow
 
 **URLs:**
-- `GET /Journey/{windowId}/page/{pageId}` — display a page
+- `GET  /Journey/{windowId}/page/{pageId}` — display a question page
 - `POST /Journey/{windowId}/page/{pageId}` — submit answers and advance
+- `GET  /Journey/{windowId}/pupil-search/{pageId}` — display a pupil search page
+- `POST /Journey/{windowId}/pupil-search/{pageId}` — submit pupil selection and advance
 - `POST /Journey/{windowId}/page/{pageId}/question/{questionId}/upload` — upload a file
 - `POST /Journey/{windowId}/page/{pageId}/question/{questionId}/remove` — remove a file
 
 **Controller:** `JourneyController`
 
+### Session readiness
+
+The journey checks `IsSessionReady` before every action. This requires only `SelectedWhatToChange` and `CheckingWindow` to be non-null — pupil selection happens within the journey via `PupilSearch` pages and does not need to be pre-populated.
+
 ### Config
 
-The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`). This file is uploaded to Azure Blob Storage on startup in dev via `SeedQuestionFlows`, and fetched at runtime via `IQuestionFlowBlobClient`.
+The question flow is defined by a JSON file in `Web/Data/QuestionFlows/{WhatToChange}_{CheckingWindowType}.json` (e.g. `Remove_KS4June.json`, `Merge_KS4June.json`). This file is uploaded to Azure Blob Storage on startup in dev via `SeedQuestionFlows`, and fetched at runtime via `IQuestionFlowBlobClient`.
 
 > For a page-by-page breakdown and branching diagram of the `Remove_KS4June.json` flow, see [Remove (KS4 June) — Question Flow](./Remove_KS4June-flow.md).
 
@@ -128,11 +96,87 @@ The config is cached in-process with `Priority = NeverRemove` — it is fetched 
 
 Each page in the JSON has:
 - `id` — unique string identifier
-- `type` — `Question` (default), `Content`, or `EvidenceUpload`
-- `questions` — list of questions; see question types below
-- `nextPageId` — default next page (overridden per radio option for branching)
+- `type` — `Question` (default), `Content`, `EvidenceUpload`, or `PupilSearch`
+- `questions` — list of questions (question pages only)
+- `nextPageId` — default next page (overridden per radio option for branching; absent on `PupilSearch` pages means redirect to Summary)
 
-**Question types:**
+### PupilSearch pages
+
+All flow configs begin with one or more `PupilSearch` pages. These are full-page accessible-autocomplete pupil selectors handled by `JourneyController.PupilSearchPage` / `PupilSearchPost`. The `JourneyController.Page` (GET) dispatcher transparently redirects to `PupilSearchPage` when the requested page has `type: "PupilSearch"`, so navigation guards, summary redirects, and `GetNextPageId` all work uniformly.
+
+```json
+{
+  "id": "select-pupil",
+  "type": "PupilSearch",
+  "title": "Which pupil do you want to remove?",
+  "pupilFilter": "Included",
+  "pupilKey": "primary",
+  "nextPageId": "reason",
+  "validationFailure": "Select the name of the pupil you want to remove"
+}
+```
+
+**`PupilSearch` page fields:**
+
+| Field | Required | Values | Notes |
+|---|---|---|---|
+| `pupilFilter` | yes | `"Included"` / `"All"` | `Included` limits results to Pincl codes `[401,403,414,421,431]`; `All` returns every pupil for the school |
+| `pupilKey` | yes | `"primary"` / `"match"` | Controls which session field is populated (see below) |
+| `nextPageId` | no | page id string | Absent → redirect to Summary after selection |
+| `validationFailure` | no | string | Error shown when no pupil is submitted. Supports `{pupilName}`. Falls back to `"Enter the name of the pupil"` |
+
+**Suggestions endpoint:** `GET /pupils/suggestions?windowId={id}&query={q}&filter=Included|All&excludePupilId={guid}`  
+Served by `PupilSuggestionsController`. Queries PostgreSQL via `ICheckYourPupilDataService.GetPupilSuggestionsAsync`. The `match` pupil page automatically passes the primary pupil's ID as `excludePupilId` so the same pupil cannot be selected twice.
+
+**On successful pupil selection (`PupilSearchPost`):**
+
+- **`pupilKey: "primary"`** — saves to `SelectedPupil*`, generates the reference number, resets `QuestionAnswers` and `QuestionHistory`. This is the pupil the request is about.
+- **`pupilKey: "match"`** — saves to `MatchedPupil*`. Preserves existing history and answers. Used by Merge to identify the second record.
+
+After either key, the page ID is appended to `QuestionHistory` (identical to how question pages work), and navigation proceeds to `nextPageId` (or Summary if absent).
+
+**Example — Remove (one PupilSearch page):**
+```
+GET /Journey/{windowId}/page/select-pupil
+  → redirects to GET /Journey/{windowId}/pupil-search/select-pupil
+  → user selects primary pupil
+POST /Journey/{windowId}/pupil-search/select-pupil
+  → saves SelectedPupil, generates reference
+  → redirects to GET /Journey/{windowId}/page/reason
+```
+
+**Example — Merge (two PupilSearch pages):**
+```
+GET /Journey/{windowId}/pupil-search/select-pupil   ← primary (Included filter)
+POST → saves SelectedPupil, generates reference
+     → redirects to GET /Journey/{windowId}/pupil-search/select-match-pupil
+
+GET /Journey/{windowId}/pupil-search/select-match-pupil   ← match (All filter, excludes primary)
+POST → saves MatchedPupil
+     → no nextPageId → redirects to Summary
+```
+
+**Session after primary PupilSearch page:**
+| Field | Value |
+|---|---|
+| `SelectedPupil` | `PupilDto` (name, DOB, UPN, Cypmd_Id, etc.) |
+| `SelectedPupilId` | GUID string |
+| `SelectedPupilLabel` | Display label from autocomplete |
+| `ReferenceNumber` | e.g. `"CYPMD_KS4June_A3F8D12"` |
+| `QuestionAnswers` | `{}` (reset) |
+| `QuestionHistory` | `["select-pupil"]` |
+
+**Session additionally after match PupilSearch page (Merge only):**
+| Field | Value |
+|---|---|
+| `MatchedPupil` | `PupilDto` |
+| `MatchedPupilId` | GUID string |
+| `MatchedPupilLabel` | Display label from autocomplete |
+| `QuestionHistory` | `["select-pupil", "select-match-pupil"]` |
+
+### Question types
+
+**Question pages** (`type: "Question"` or default) contain one or more questions:
 
 | `type` | Renders | Answer stored as | Notes |
 |---|---|---|---|
@@ -145,7 +189,7 @@ Each page in the JSON has:
 
 ### Navigation guard
 
-Every `Page` GET runs `IQuestionFlowService.GetNavigationGuard` before rendering. This prevents users from:
+Every `Page` and `PupilSearchPage` GET runs `IQuestionFlowService.GetNavigationGuard` before rendering. This prevents users from:
 - Jumping ahead to an unvisited page (redirected to the correct next page)
 - Revisiting a page after completing the journey (redirected to Summary)
 
@@ -171,11 +215,11 @@ A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is ren
 
 A page with `"requireAtLeastOne": true` must have at least one of its questions answered, even when each question is individually `optional`. This is used by the **Not on roll** evidence page, where either an uploaded file *or* a written explanation is acceptable. `IJourneyValidationService.ValidateRequireAtLeastOne` returns a `RequireAtLeastOneResult` (a summary lead-in message plus per-question field errors) when nothing is answered; the controller adds these to `ModelState` and surfaces the summary message in `_JourneyErrorSummary.cshtml` via `PageViewModel.AtLeastOneError`.
 
-**Session after each page:**
+**Session after each question page:**
 | Field | Updated to |
 |---|---|
 | `QuestionAnswers` | `{ "reason": { TextValue: "social-care-involvement" }, ... }` |
-| `QuestionHistory` | `["reason", "social-care", ...]` — ordered list of visited page IDs |
+| `QuestionHistory` | `["select-pupil", "reason", "social-care", ...]` — ordered list of visited page IDs |
 
 ### File uploads (EvidenceUpload page type)
 
@@ -211,16 +255,27 @@ The `Countries` table contains ~203 entries: ~195 FCDO sovereign states (excludi
 
 ---
 
-## Stage 5 — Summary
+## Stage 4 — Summary
 
 **URL:** `GET /Journey/{windowId}/summary`  
 **Controller:** `JourneyController.Summary`
 
 The summary page renders a GOV.UK summary list of all answers. It can only be reached when `QuestionHistory` is complete (i.e. `GetNextPageId` after the last visited page returns null). Incomplete journeys are redirected back to the next unanswered page.
 
-Each row shows the resolved question title and display answer. Radio answers show their label (not raw value). File uploads show filename and page count. Dates show as "5 January 2026" (day without leading zero, full month name, four-digit year).
+`PupilSearch` and `Content` pages are skipped when building summary rows — only question pages with answers appear.
 
-The user can click "Change" on any row to return to that page (`fromSummary=true`). When they submit from a summary-edit page, only pages up to and including the edited page are kept in history — any later pages that depended on a changed radio branch are trimmed.
+**Pupil rows:**
+
+- **Remove / Include** — a single "Pupil name" row shows `SelectedPupil` with a Change link to the primary `PupilSearch` page.
+- **Merge** — two rows replace the single "Pupil name" row:
+  - **"First record to merge"** — `"{Firstname} {Surname}, {d MMMM yyyy}"` (e.g. `"Jane Smith, 27 July 2010"`) with a Change link to the primary `PupilSearch` page.
+  - **"Second record to merge"** — `"{Cypmd_Id}, {Firstname} {Surname}"` (e.g. `"CYPMD456, John Doe"`) with a Change link to the match `PupilSearch` page.
+  
+  Change links for `PupilSearch` pages use the `PupilSearchPage` action rather than the `Page` action. The back link on the summary page also uses `PupilSearchPage` when the last page in `QuestionHistory` is a `PupilSearch` page.
+
+Each question row shows the resolved question title and display answer. Radio answers show their label (not raw value). File uploads show filename and page count. Dates show as "5 January 2026" (day without leading zero, full month name, four-digit year).
+
+The user can click "Change" on any question row to return to that page (`fromSummary=true`). When they submit from a summary-edit page, only pages up to and including the edited page are kept in history — any later pages that depended on a changed radio branch are trimmed.
 
 From the Summary, the user can:
 - **Submit the request** → `POST /Journey/{windowId}/summary`
@@ -228,7 +283,7 @@ From the Summary, the user can:
 
 ---
 
-## Stage 6a — Submission
+## Stage 5a — Submission
 
 **URL:** `POST /Journey/{windowId}/summary`  
 **Controller:** `JourneyController.SummaryConfirm`
@@ -241,8 +296,9 @@ From the Summary, the user can:
    - Reference number, submitted-at timestamp
    - Submitted-by (user ID and display name from `ICurrentUserService`)
    - School details (URN and name from `ICurrentUserService`)
-   - Pupil details (from session `SelectedPupil`)
-   - All answers in submission order (radio answers resolved to labels, dates formatted DD/MM/YYYY, files listed by filename)
+   - `Pupil` — primary pupil details (from session `SelectedPupil`)
+   - `MatchedPupil` — second pupil details (from session `MatchedPupil`, present for Merge only; null otherwise)
+   - All answers in submission order (radio answers resolved to labels, dates formatted DD/MM/YYYY, files listed by filename). `PupilSearch` and `Content` pages are excluded from the answers list.
 
 3. **Save request blob** — `IRequestBlobClient.SaveRequestAsync(windowId, document)` writes a JSON file to:
    ```
@@ -273,15 +329,15 @@ From the Summary, the user can:
 | `RequestType` | The chosen reason value from the `useAsRequestType` question (e.g. `not-on-roll`) |
 | `Status` | `Submitted` |
 | `OrganisationUrn` | School URN (long) |
-| `PupilUpn` | Pupil's UPN |
-| `PupilFirstname` / `PupilSurname` | From session |
+| `PupilUpn` | Primary pupil's UPN |
+| `PupilFirstname` / `PupilSurname` | From session `SelectedPupil` |
 | `Submitted` | UTC timestamp (`timestamp without time zone`) |
 | `SubmittedById` | DfE Sign-In user GUID |
 | `SubmittedByName` | User's display name |
 
 ---
 
-## Stage 6b — Save Draft
+## Stage 5b — Save Draft
 
 **URL:** `POST /Journey/{windowId}/draft`  
 **Controller:** `JourneyController.SaveDraft`
@@ -311,7 +367,7 @@ Same structure as submitted, but `Status = Draft`. The `Submitted` column holds 
 
 ---
 
-## Stage 7 — Confirmation
+## Stage 6 — Confirmation
 
 **URL:** `GET /Journey/{windowId}/confirmation`  
 **Controller:** `JourneyController.Confirmation`
@@ -328,15 +384,18 @@ Reads `ReferenceNumber` and `CheckingWindow.EndDate` from the remaining session 
 |---|---|---|
 | `SelectedWhatToChange` | `WhatToChange?` | Stage 2 |
 | `CheckingWindow` | `CheckingWindowDto?` | Stage 2 |
-| `SelectedPupil` | `PupilDto?` | Stage 3 |
-| `SelectedPupilId` | `string?` | Stage 3 |
-| `SelectedPupilLabel` | `string?` | Stage 3 |
-| `ReferenceNumber` | `string?` | Stage 3 |
-| `QuestionAnswers` | `Dictionary<string, QuestionAnswer>` | Stage 4 |
-| `QuestionHistory` | `List<string>` | Stage 4 |
+| `SelectedPupil` | `PupilDto?` | Stage 3 — primary `PupilSearch` page |
+| `SelectedPupilId` | `string?` | Stage 3 — primary `PupilSearch` page |
+| `SelectedPupilLabel` | `string?` | Stage 3 — primary `PupilSearch` page |
+| `MatchedPupil` | `PupilDto?` | Stage 3 — match `PupilSearch` page (Merge only) |
+| `MatchedPupilId` | `string?` | Stage 3 — match `PupilSearch` page (Merge only) |
+| `MatchedPupilLabel` | `string?` | Stage 3 — match `PupilSearch` page (Merge only) |
+| `ReferenceNumber` | `string?` | Stage 3 — primary `PupilSearch` page |
+| `QuestionAnswers` | `Dictionary<string, QuestionAnswer>` | Stage 3 (question pages) |
+| `QuestionHistory` | `List<string>` | Stage 3 (all pages including `PupilSearch`) |
 | `SelectedNextStep` | `NextSteps?` | Not used in journey (future) |
 
-`IsSessionReady` checks that `SelectedWhatToChange`, `CheckingWindow`, and `SelectedPupil` are all non-null. Any action that requires a valid journey redirects to Check Your Pupil Data if this check fails.
+`IsSessionReady` checks that `SelectedWhatToChange` and `CheckingWindow` are non-null. Pupil selection is handled in-journey via `PupilSearch` pages and is not required before the journey begins. Any action that fails this check redirects to Check Your Pupil Data.
 
 ---
 
@@ -360,14 +419,15 @@ The `question-flows` container is separate and global:
 
 ```
 Container: question-flows
-└── Remove_KS4June.json                             ← Question flow config
+├── Remove_KS4June.json                             ← Remove flow config
+└── Merge_KS4June.json                              ← Merge flow config
 ```
 
 ---
 
 ## Guard rails and failure modes
 
-**Navigation guards** — `GetNavigationGuard` prevents URL manipulation to skip pages or jump branches. Attempts to access an out-of-order page redirect to the correct next page.
+**Navigation guards** — `GetNavigationGuard` prevents URL manipulation to skip pages or jump branches. Attempts to access an out-of-order page redirect to the correct next page. This applies equally to `PupilSearch` pages and question pages.
 
 **Double-submit on confirmation** — the idempotency check (`IsSubmittedAsync`) means re-firing the confirmation POST (back button, double click, network retry) is silent and safe. The blob write is also idempotent (`overwrite: true`). The session partial wipe means `IsSessionReady` returns false for subsequent attempts after the first, providing a second layer of defence.
 

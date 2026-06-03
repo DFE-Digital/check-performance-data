@@ -176,6 +176,57 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task ConfirmRequestAsync_ExcludesPupilSearchPages()
+    {
+        var config = MakeConfig([
+            new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, PupilKey = JourneyPage.PrimaryKey },
+            new JourneyPage { Id = "reason", Questions = [MakeQuestion(QuestionType.Radio, id: "reason")] }
+        ]);
+        var journey = ValidJourney(history: ["select-pupil", "reason"]);
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.All(doc.Answers, a => Assert.NotEqual("select-pupil", a.QuestionId));
+        Assert.Single(doc.Answers);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenMatchedPupilSet_PopulatesMatchedPupilInDocument()
+    {
+        var (journey, config) = MakeSubmission();
+        journey.MatchedPupil = new PupilDto
+        {
+            Id = Guid.NewGuid(),
+            Firstname = "John",
+            Surname = "Doe",
+            Sex = "M",
+            DateOfBirth = "02/02/2010",
+            Age = 16,
+            Cypmd_Id = "CYPMD456",
+            Upn = "456456"
+        };
+        journey.MatchedPupilId = journey.MatchedPupil.Id.ToString();
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.NotNull(doc.MatchedPupil);
+        Assert.Equal("John", doc.MatchedPupil.Firstname);
+        Assert.Equal("Doe", doc.MatchedPupil.Surname);
+        Assert.Equal("456456", doc.MatchedPupil.Upn);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenNoMatchedPupil_MatchedPupilIsNullInDocument()
+    {
+        var (journey, config) = MakeSubmission();
+        // MatchedPupil is not set (Remove journey)
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Null(doc.MatchedPupil);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_RadioAnswer_ResolvesLabel()
     {
         var question = new Question

@@ -10,6 +10,9 @@ public sealed class RequestState
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public PupilDto? SelectedPupil { get; set; }
+    public string? MatchedPupilId { get; set; }
+    public string? MatchedPupilLabel { get; set; }
+    public PupilDto? MatchedPupil { get; set; }
     public CheckingWindowDto? CheckingWindow { get; set; }
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();

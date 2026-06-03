@@ -1,37 +1,46 @@
-@model DfE.CheckPerformanceData.Web.Controllers.PupilSearchIndexViewModel
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.PupilSearchViewModel
 
 @{
-    ViewBag.Title = "Search for a pupil";
+    ViewBag.Title = Model.Title;
     Layout = "_Layout";
     var hasError = !ViewData.ModelState.IsValid;
+    var errorMessage = ViewData.ModelState["selectedPupilId"]?.Errors.FirstOrDefault()?.ErrorMessage
+        ?? "Enter the name of the pupil";
 }
 
-<a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+@if (Model.BackPageId is not null)
+{
+    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId"
+       asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
 
 @if (hasError)
 {
     <govuk-error-summary>
         <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-        <govuk-error-summary-item href="#pupil-search">@Model.WhatToChangeMessage</govuk-error-summary-item>
+        <govuk-error-summary-item href="#pupil-search">@errorMessage</govuk-error-summary-item>
     </govuk-error-summary>
 }
 
-<h1 class="govuk-heading-xl">@Model.WhatToChangeMessage</h1>
+<h1 class="govuk-heading-xl">@Model.Title</h1>
 
-<form method="post" action="@Url.Action("Index", "PupilSearch", new { windowId = Model.WindowId })">
+<form method="post" action="@Url.Action("PupilSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
     @Html.AntiForgeryToken()
-    <input type="hidden" name="SelectedPupilId" id="SelectedPupilId" value="@Model.SelectedPupilId" />
+    <input type="hidden" name="selectedPupilId" id="selectedPupilId" value="@Model.SelectedPupilId" />
 
     <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
-        @* <label class="govuk-label govuk-label--m" for="pupil-search"> *@
-        @*     Pupil name *@
-        @* </label> *@
-        <div class="govuk-hint">Start typing to see a list of names</div>
+        <div class="govuk-hint">@(Model.Hint ?? "Start typing to see a list of names")</div>
         @if (hasError)
         {
             <p id="pupil-search-error" class="govuk-error-message">
                 <span class="govuk-visually-hidden">Error:</span>
-                @Model.WhatToChangeMessage
+                @errorMessage
             </p>
         }
         <div id="pupil-search-container"></div>
@@ -44,6 +53,8 @@
     <script>
         (function () {
             var windowId = '@Model.WindowId';
+            var filter = '@Model.Filter.ToString().ToLower()';
+            var excludePupilId = '@(Model.ExcludePupilId?.ToString() ?? "")';
             var hasError = @(hasError ? "true" : "false");
             var initialLabel = @Json.Serialize(Model.SelectedPupilLabel ?? "");
             var currentSuggestions = [];
@@ -51,12 +62,17 @@
             accessibleAutocomplete({
                 element: document.querySelector('#pupil-search-container'),
                 id: 'pupil-search',
-                name: 'SelectedPupilLabel',
+                name: 'selectedPupilLabel',
                 displayMenu: 'overlay',
                 minLength: 2,
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
                 source: function (query, populateResults) {
-                    fetch('/PupilSearch/' + windowId + '/suggestions?query=' + encodeURIComponent(query))
+                    var url = '/pupils/suggestions?windowId=' + windowId
+                        + '&query=' + encodeURIComponent(query)
+                        + '&filter=' + filter;
+                    if (excludePupilId) url += '&excludePupilId=' + excludePupilId;
+
+                    fetch(url)
                         .then(function (r) { return r.json(); })
                         .then(function (data) {
                             currentSuggestions = data;
@@ -65,7 +81,7 @@
                         .catch(function () { populateResults([]); });
                 },
                 onConfirm: function (value) {
-                    var hiddenField = document.getElementById('SelectedPupilId');
+                    var hiddenField = document.getElementById('selectedPupilId');
                     if (!value) { hiddenField.value = ''; return; }
                     var match = currentSuggestions.find(function (s) { return s.label === value; });
                     hiddenField.value = match ? match.id : '';

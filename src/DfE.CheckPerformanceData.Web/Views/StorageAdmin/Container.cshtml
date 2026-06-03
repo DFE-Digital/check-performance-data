@@ -4,7 +4,7 @@
 }
 
 <p class="govuk-body">
-    <a class="govuk-link" href="/admin/storage">All containers</a>
+    <a class="govuk-link" href="/admin/storage/@Model.AccountKey">@Model.AccountDisplayName — all containers</a>
 </p>
 
 <h1 class="govuk-heading-xl">
@@ -45,11 +45,11 @@ else
                     <td class="govuk-table__cell">@(blob.LastModified?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
                     <td class="govuk-table__cell">
                         <a class="govuk-link govuk-!-margin-right-2"
-                           href="/admin/storage/@Model.ContainerName/preview?blob=@encodedBlob">Preview</a>
+                           href="/admin/storage/@Model.AccountKey/@Model.ContainerName/preview?blob=@encodedBlob">Preview</a>
                         <a class="govuk-link govuk-!-margin-right-2"
-                           href="/admin/storage/@Model.ContainerName/download?blob=@encodedBlob">Download</a>
+                           href="/admin/storage/@Model.AccountKey/@Model.ContainerName/download?blob=@encodedBlob">Download</a>
                         <form method="post"
-                              action="/admin/storage/@Model.ContainerName/delete"
+                              action="/admin/storage/@Model.AccountKey/@Model.ContainerName/delete"
                               style="display:inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="blobName" value="@blob.Name" />

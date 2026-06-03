@@ -2,6 +2,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public sealed class StorageBlobListViewModel
 {
+    public string AccountKey { get; init; } = string.Empty;
+    public string AccountDisplayName { get; init; } = string.Empty;
     public string ContainerName { get; init; } = string.Empty;
     public IReadOnlyList<StorageBlobItemViewModel> Blobs { get; init; } = [];
 }

@@ -1,34 +1,31 @@
-@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.StorageContainerListViewModel
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.StorageAccountListViewModel
 @{
-    ViewData["Title"] = "Blob storage — containers";
+    ViewData["Title"] = "Blob storage";
 }
 
 <h1 class="govuk-heading-xl">Blob storage</h1>
-<p class="govuk-body-l">@Model.Containers.Count container(s) in the connected storage account.</p>
 
-@if (Model.Containers.Count == 0)
+@if (Model.Accounts.Count == 0)
 {
-    <p class="govuk-body">No containers found.</p>
+    <p class="govuk-body">No storage accounts configured.</p>
 }
 else
 {
     <table class="govuk-table">
-        <caption class="govuk-table__caption govuk-visually-hidden">Storage containers</caption>
+        <caption class="govuk-table__caption govuk-visually-hidden">Storage accounts</caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">Container name</th>
+                <th scope="col" class="govuk-table__header">Account</th>
                 <th scope="col" class="govuk-table__header govuk-table__header--numeric">Actions</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
-            @foreach (var container in Model.Containers)
+            @foreach (var account in Model.Accounts)
             {
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">
-                        <code>@container</code>
-                    </td>
+                    <td class="govuk-table__cell">@account.DisplayName</td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">
-                        <a class="govuk-link" href="/admin/storage/@container">Browse</a>
+                        <a class="govuk-link" href="/admin/storage/@account.Key">Browse</a>
                     </td>
                 </tr>
             }

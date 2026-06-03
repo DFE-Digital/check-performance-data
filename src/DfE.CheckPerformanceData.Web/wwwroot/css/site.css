@@ -929,3 +929,16 @@ dialog.govuk-modal-dialogue__box::backdrop {
   text-decoration: none;
   box-shadow: 0 2px 0 #0b0c0c;
 }
+
+/* ==========================================================================
+   Rules configuration — landing cards
+   ========================================================================== */
+
+/* The two rules-config cards sit in half-width grid columns, so the GOV.UK
+   default summary-list key column (30%) is too narrow and short labels like
+   "Outcomes", "Countries" and "Last saved" wrap onto a second line. Widen the
+   key column within these cards and keep each label on a single line. */
+.rules-config-card__summary .govuk-summary-list__key {
+  width: 40%;
+  white-space: nowrap;
+}

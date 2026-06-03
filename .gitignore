@@ -497,3 +497,7 @@ terraform/domains/environment_domains/vendor
 terraform/domains/infrastructure/vendor
 terraform.tfstate*
 *.lscache
+
+# Superpowers working files (brainstorms, specs, plans) — local only, not committed
+.superpowers/
+docs/superpowers/

@@ -350,6 +350,24 @@ public class PupilSearchJourneyTests
     }
 
     [Fact]
+    public async Task PupilSearchPost_WhenPrimaryKey_ClearsMatchedPupil()
+    {
+        var state = SessionWithPupil(history: ["select-pupil", "select-match-pupil"]);
+        state.MatchedPupil = MatchPupil;
+        state.MatchedPupilId = MatchPupilId.ToString();
+        state.MatchedPupilLabel = "Doe, John, 02/02/2010";
+        SetupSession(state);
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(PrimaryPupil);
+
+        await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Null(saved.MatchedPupil);
+        Assert.Null(saved.MatchedPupilId);
+        Assert.Null(saved.MatchedPupilLabel);
+    }
+
+    [Fact]
     public async Task PupilSearchPost_WhenPrimaryKey_AppendsPageIdToHistory()
     {
         SetupSession(SessionWithoutPupil());

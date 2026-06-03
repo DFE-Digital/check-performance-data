@@ -304,6 +304,23 @@ public class JourneyControllerTests
         Assert.NotNull(remaining.CheckingWindow);
     }
 
+    [Fact]
+    public async Task SummaryConfirm_AfterSuccess_ClearsMatchedPupil()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.MatchedPupil = new PupilDto { Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe", Sex = "M", DateOfBirth = "02/02/2010", Age = 16, Cypmd_Id = "CYPMD456", Upn = "456456" };
+        state.MatchedPupilId = state.MatchedPupil.Id.ToString();
+        state.MatchedPupilLabel = "Doe, John";
+        SetupSession(state);
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Null(remaining.MatchedPupil);
+        Assert.Null(remaining.MatchedPupilId);
+        Assert.Null(remaining.MatchedPupilLabel);
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]

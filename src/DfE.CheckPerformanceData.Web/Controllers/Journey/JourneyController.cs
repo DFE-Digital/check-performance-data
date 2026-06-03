@@ -118,6 +118,9 @@ public sealed class JourneyController(
                 s.ReferenceNumber = reference;
                 s.QuestionAnswers = new Dictionary<string, QuestionAnswer>();
                 s.QuestionHistory = [pageId];
+                s.MatchedPupil = null;
+                s.MatchedPupilId = null;
+                s.MatchedPupilLabel = null;
             });
         }
 
@@ -407,6 +410,9 @@ public sealed class JourneyController(
             s.SelectedPupilId = null;
             s.SelectedPupilLabel = null;
             s.SelectedNextStep = null;
+            s.MatchedPupil = null;
+            s.MatchedPupilId = null;
+            s.MatchedPupilLabel = null;
             s.QuestionAnswers = new();
             s.QuestionHistory = new();
             // ReferenceNumber and CheckingWindow preserved for the Confirmation page

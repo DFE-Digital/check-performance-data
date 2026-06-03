@@ -13,7 +13,7 @@ public class RequestServiceTests
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IRequestBlobClient _blobClient = Substitute.For<IRequestBlobClient>();
+    private readonly IRequestQueueClient _queueClient = Substitute.For<IRequestQueueClient>();
     private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
@@ -25,7 +25,7 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser);
+        _sut = new RequestService(_flowService, _queueClient, _draftBlobClient, _requestRepository, _currentUser);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -57,7 +57,7 @@ public class RequestServiceTests
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+        await _queueClient.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
         await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
@@ -76,7 +76,7 @@ public class RequestServiceTests
         await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
 
-        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+        await _queueClient.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
         await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
@@ -130,19 +130,19 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SavesRepositoryAfterBlob()
+    public async Task ConfirmRequestAsync_SavesRepositoryAfterQueue()
     {
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
         var callOrder = new List<string>();
-        _blobClient.SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>())
-            .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
+        _queueClient.EnqueueRequestAsync(Arg.Any<RequestDocument>())
+            .Returns(_ => { callOrder.Add("queue"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        Assert.Equal(["blob", "db"], callOrder);
+        Assert.Equal(["queue", "db"], callOrder);
     }
 
     [Fact]
@@ -222,14 +222,14 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SavesDocumentToBlobStorage()
+    public async Task ConfirmRequestAsync_SavesDocumentToQueue()
     {
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _blobClient.Received(1).SaveRequestAsync(WindowId, Arg.Any<RequestDocument>());
+        await _queueClient.Received(1).EnqueueRequestAsync(Arg.Any<RequestDocument>());
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
@@ -336,7 +336,8 @@ public class RequestServiceTests
     {
         SetupConfig(config);
         RequestDocument? captured = null;
-        await _blobClient.SaveRequestAsync(WindowId, Arg.Do<RequestDocument>(d => captured = d));
+        _queueClient.EnqueueRequestAsync(Arg.Do<RequestDocument>(d => captured = d))
+            .Returns(Task.CompletedTask);
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 

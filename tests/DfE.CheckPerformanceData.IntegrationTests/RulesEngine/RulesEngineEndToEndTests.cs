@@ -12,21 +12,6 @@ using WorkerHost = DfE.CheckPerformanceData.RulesEngineWorker;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RulesEngine;
 
-/// <summary>
-/// End-to-end coverage of the worker pipeline: queue-shaped JSON →
-/// <see cref="WorkerHost.RulesEngineWorker.ProcessMessageBodyAsync"/> →
-/// real <see cref="RuleContextMapper"/> → real <see cref="RulesEngineImpl"/> →
-/// captured <see cref="Decision"/> handed to a stubbed
-/// <see cref="IRequestDecisionHandler"/>.
-///
-/// Rules and lookups come from the seed JSON shipped at
-/// <c>src/DfE.CheckPerformanceData.RulesEngineWorker/seed/</c> — the same files
-/// <c>BlobRulesProvider</c> loads in production. One happy-path scenario per
-/// Stage 1 outcome guards against drift in routing or per-table evaluation.
-///
-/// No Postgres fixture: the worker's pipeline has no DB writes (the handler
-/// produces Zendesk tickets), so spinning up a container would prove nothing.
-/// </summary>
 public sealed class RulesEngineEndToEndTests
 {
     private static readonly RulesSnapshot Snapshot = LoadSeedSnapshot();
@@ -56,8 +41,6 @@ public sealed class RulesEngineEndToEndTests
         Assert.Equal(scenario.ExpectedStatus, captured!.Status);
         Assert.Equal(scenario.ExpectedRuleId, captured.MatchedRuleId);
     }
-
-    // --- scenarios ---------------------------------------------------------
 
     private static IEnumerable<OutcomeScenario> BuildScenarios()
     {
@@ -156,14 +139,12 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.Scrutiny, "OTH-DEF");
     }
 
-    // --- wiring ------------------------------------------------------------
-
     private static WorkerHost.RulesEngineWorker NewWorker(IRequestDecisionHandler handler)
     {
         var queueServiceClient = Substitute.For<QueueServiceClient>();
         queueServiceClient.GetQueueClient("test-queue").Returns(Substitute.For<QueueClient>());
 
-        var options = Options.Create(new WorkerHost.RulesEngineOptions
+        var options = Options.Create(new RulesEngineOptions
         {
             QueueName = "test-queue",
             MaxMessagesPerPoll = 1,

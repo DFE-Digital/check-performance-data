@@ -6,7 +6,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public sealed class RequestService(
     IQuestionFlowService flowService,
-    IRequestBlobClient requestBlobClient,
+    IRequestQueueClient requestQueueClient,
     IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService) : IRequestService
@@ -43,7 +43,7 @@ public sealed class RequestService(
         };
 
         var document = BuildRequestDocument(context, config);
-        await requestBlobClient.SaveRequestAsync(windowId, document);
+        await requestQueueClient.EnqueueRequestAsync(document);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
     }
 

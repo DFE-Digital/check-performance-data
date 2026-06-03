@@ -59,6 +59,11 @@ public static class DependencyManager
             return new AzureRulesBlobReader(container);
         });
 
+        services.AddOptions<RulesEngineOptions>()
+            .Bind(config.GetSection(RulesEngineOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<BlobRulesProvider>();
         services.AddSingleton<IRulesProvider>(sp => sp.GetRequiredService<BlobRulesProvider>());

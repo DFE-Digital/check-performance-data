@@ -130,6 +130,7 @@ try
         builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
             new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
+    builder.Services.AddScoped<IRequestQueueClient, RequestQueueClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),

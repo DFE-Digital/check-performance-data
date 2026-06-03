@@ -94,6 +94,15 @@ public sealed class JourneyController(
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
+        if (page.PupilKey == JourneyPage.MatchKey && selectedPupilId == journey.SelectedPupilId)
+        {
+            var validationMessage = page.ValidationFailure is not null
+                ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
+                : "Select a different pupil to the first record";
+            ModelState.AddModelError("selectedPupilId", validationMessage);
+            return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
+        }
+
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
 
         if (page.PupilKey == JourneyPage.MatchKey)

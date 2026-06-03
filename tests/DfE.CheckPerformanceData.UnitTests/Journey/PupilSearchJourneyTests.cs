@@ -394,6 +394,34 @@ public class PupilSearchJourneyTests
     // ── PupilSearchPost — match pupil ────────────────────────────────────────
 
     [Fact]
+    public async Task PupilSearchPost_WhenMatchKeyAndSameAsPrimaryPupil_ReturnsViewWithError()
+    {
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+        var state = SessionWithPupil(history: ["select-pupil"]);
+        SetupSession(state);
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-match-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PupilSearch", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenMatchKeyAndSameAsPrimaryPupil_DoesNotSaveMatchedPupil()
+    {
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+        var state = SessionWithPupil(history: ["select-pupil"]);
+        SetupSession(state);
+
+        await _sut.PupilSearchPost(WindowId, "select-match-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Null(saved.MatchedPupil);
+        Assert.Null(saved.MatchedPupilId);
+    }
+
+    [Fact]
     public async Task PupilSearchPost_WhenMatchKey_SavesMatchedPupil()
     {
         _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);

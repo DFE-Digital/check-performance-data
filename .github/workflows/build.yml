@@ -22,6 +22,8 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Restore dependencies
+      env:
+        NUGET_CERT_REVOCATION_MODE: offline
       run: dotnet restore src/DfE.CheckPerformanceData.slnx
 
     - name: Build

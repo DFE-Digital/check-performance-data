@@ -1,0 +1,37 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.StorageContainerListViewModel
+@{
+    ViewData["Title"] = "Blob storage — containers";
+}
+
+<h1 class="govuk-heading-xl">Blob storage</h1>
+<p class="govuk-body-l">@Model.Containers.Count container(s) in the connected storage account.</p>
+
+@if (Model.Containers.Count == 0)
+{
+    <p class="govuk-body">No containers found.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Storage containers</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Container name</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var container in Model.Containers)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <code>@container</code>
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">
+                        <a class="govuk-link" href="/admin/storage/@container">Browse</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

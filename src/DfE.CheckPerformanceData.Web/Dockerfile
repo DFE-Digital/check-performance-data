@@ -1,6 +1,7 @@
 # Build
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+ENV NUGET_CERT_REVOCATION_MODE=offline
 WORKDIR /src
 
 COPY Directory.Packages.props ./

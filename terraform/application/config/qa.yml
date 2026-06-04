@@ -34,3 +34,41 @@ ZendeskSettings__Domain: zendesk
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
 SchoolCheckingExercise__GroupId: 0
 SchoolCheckingExercise__BrandId: 0
+ 
+# Zendesk Ticket Field IDs
+ 
+ZendeskTicketFields__UpnId: 0
+ 
+ZendeskTicketFields__TypeOfOrganisationId: 0
+ 
+ZendeskTicketFields__SurnameCypmdId: 0
+ 
+ZendeskTicketFields__SexId: 0
+ 
+ZendeskTicketFields__SchoolUrnId: 0
+ 
+ZendeskTicketFields__ReasonForRemovalId: 0
+ 
+ZendeskTicketFields__LdsMatchedPupilIdId: 0
+ 
+ZendeskTicketFields__KeyStageId: 0
+ 
+ZendeskTicketFields__DfeEstablishmentNumberId: 0
+ 
+ZendeskTicketFields__DecisionStatusId: 0
+ 
+ZendeskTicketFields__DateOfBirthCypmdId: 0
+ 
+ZendeskTicketFields__CypmdId: 0
+ 
+ZendeskTicketFields__CycleYearId: 0
+ 
+ZendeskTicketFields__CycleMonthId: 0
+ 
+ZendeskTicketFields__CorrectionTypeId: 0
+ 
+ZendeskTicketFields__CorrectionReason31Id: 0
+ 
+ZendeskTicketFields__AdmissionDateId: 0
+ 
+ZendeskTicketFields__ForenameCypmdId: 0

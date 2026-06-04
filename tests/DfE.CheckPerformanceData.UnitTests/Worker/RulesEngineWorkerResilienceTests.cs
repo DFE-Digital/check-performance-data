@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using WorkerService = DfE.CheckPerformanceData.RulesEngineWorker.RulesEngineWorker;
-using RulesEngineOptions = DfE.CheckPerformanceData.RulesEngineWorker.RulesEngineOptions;
+using RulesEngineOptions = DfE.CheckPerformanceData.Application.RulesEngine.RulesEngineOptions;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Worker;
 

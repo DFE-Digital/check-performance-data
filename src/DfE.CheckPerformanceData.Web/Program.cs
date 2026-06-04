@@ -25,6 +25,7 @@ using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -135,10 +136,15 @@ try
     builder.Services.AddScoped<IRequestQueueClient, RequestQueueClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
+    builder.Services.AddOptions<RulesEngineOptions>()
+         .Bind(builder.Configuration.GetSection(RulesEngineOptions.SectionName))
+         .ValidateDataAnnotations()
+         .ValidateOnStart();
+
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
         {
-            MessageEncoding = QueueMessageEncoding.Base64
+            //MessageEncoding = QueueMessageEncoding.Base64
         }));
     
     builder.Services.AddAntiforgery(options =>

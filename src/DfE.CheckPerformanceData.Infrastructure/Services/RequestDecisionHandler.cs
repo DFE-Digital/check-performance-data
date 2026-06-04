@@ -142,12 +142,13 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
     private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-
-        if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
+        var decisionStatusFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+        if (decisionStatusFieldId.HasValue && decisionStatusFieldId.Value > 0)
+        //if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = _checkingExerciseSettings.DecisionStatusCustomFieldId,
+                Id = decisionStatusFieldId.Value, // todo investigaet and remove these settings ://_checkingExerciseSettings.DecisionStatusCustomFieldId,
                 Value = decision.Status.ToString(),
             });
         }

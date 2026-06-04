@@ -1,5 +1,6 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 

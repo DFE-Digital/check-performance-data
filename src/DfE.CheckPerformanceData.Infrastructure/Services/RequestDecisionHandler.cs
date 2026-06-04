@@ -142,31 +142,34 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
     private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-        var decisionStatusFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+        
+        var decisionStatusFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);     
         if (decisionStatusFieldId.HasValue && decisionStatusFieldId.Value > 0)
-        //if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
+     
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = decisionStatusFieldId.Value, // todo investigaet and remove these settings ://_checkingExerciseSettings.DecisionStatusCustomFieldId,
+                Id = decisionStatusFieldId.Value, 
                 Value = decision.Status.ToString(),
             });
         }
 
-        if (_checkingExerciseSettings.OutcomeKeyCustomFieldId > 0)
+        var outcomeKeyFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName);
+        if(outcomeKeyFieldId.HasValue && outcomeKeyFieldId.Value > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = _checkingExerciseSettings.OutcomeKeyCustomFieldId,
+                Id = outcomeKeyFieldId,
                 Value = decision.OutcomeKey,
             });
         }
 
-        if (_checkingExerciseSettings.MatchedRuleIdCustomFieldId > 0)
+        var matchedRuleIdCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleId);
+        if (matchedRuleIdCustomFieldId.HasValue && matchedRuleIdCustomFieldId.Value > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = _checkingExerciseSettings.MatchedRuleIdCustomFieldId,
+                Id = matchedRuleIdCustomFieldId,
                 Value = decision.MatchedRuleId,
             });
         }

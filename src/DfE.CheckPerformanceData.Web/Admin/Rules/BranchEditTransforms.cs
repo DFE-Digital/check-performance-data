@@ -72,16 +72,21 @@ public static class BranchEditTransforms
         nodes.Remove(composite);
     }
 
-    public static void SetField(List<PredicateNodeForm> nodes, int id, string newField)
+    /// <summary>
+    /// Re-syncs a leaf to its (already model-bound) <see cref="PredicateNodeForm.Field"/> after the
+    /// user picks a new field: clears the now-meaningless value and snaps the operator to one the new
+    /// field's type allows. The field itself is taken from <paramref name="nodes"/> — NOT passed in —
+    /// so the user's dropdown choice is honoured rather than overwritten with a stale render-time value.
+    /// </summary>
+    public static void SetField(List<PredicateNodeForm> nodes, int id)
     {
         var node = nodes.FirstOrDefault(n => n.Id == id);
-        if (node is null) return;
+        if (node is null || node.Field is null) return;
 
-        node.Field = newField;
         node.Value = "";
         node.Values = new List<string>();
 
-        var allowed = LeafEditorOptions.OperatorTokensFor(newField).Select(o => o.Token).ToList();
+        var allowed = LeafEditorOptions.OperatorTokensFor(node.Field).Select(o => o.Token).ToList();
         if (node.Operator is null || !allowed.Contains(node.Operator))
         {
             node.Operator = allowed.FirstOrDefault() ?? "eq";

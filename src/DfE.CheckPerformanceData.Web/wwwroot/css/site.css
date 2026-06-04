@@ -942,3 +942,54 @@ dialog.govuk-modal-dialogue__box::backdrop {
   width: 40%;
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   Rules branch editor — condition cards
+   ========================================================================== */
+
+/* Each leaf condition is a self-contained card so a branch with several
+   conditions reads as a tidy vertical stack with consistently aligned,
+   label-above controls — rather than the previous single ragged flex row. */
+.rules-condition {
+  border: 1px solid #b1b4b6;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #ffffff;
+}
+
+/* Stack the field / operator / value controls with even vertical rhythm. */
+.rules-condition__controls .govuk-form-group + .govuk-form-group {
+  margin-top: 15px;
+}
+
+/* Keep the field and operator menus to a sensible, consistent width so the
+   cards line up; the long field list otherwise stretches to its widest option. */
+.rules-condition__field .govuk-select,
+.rules-condition__operator .govuk-select {
+  max-width: 22em;
+}
+
+.rules-condition__select {
+  margin-bottom: 10px;
+}
+
+/* Card footer for per-condition actions (Remove), separated from the controls. */
+.rules-condition__actions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f3f2f1;
+}
+
+/* One row per value in the "is one of" list editor: input beside its Remove. */
+.rules-condition__value-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+/* Progressive enhancement: with JS, the field change auto-submits (admin-rules.js),
+   so the manual "Update field" fallback button is hidden. GovUkFrontendJsEnabledScript()
+   adds the js-enabled class to <body>. Without JS the button stays visible and works. */
+body.js-enabled .rules-condition__apply {
+  display: none;
+}

@@ -551,7 +551,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             case "addGroup": BranchEditTransforms.AddGroup(form.Nodes, int.Parse(args[0])); break;
             case "remove": BranchEditTransforms.Remove(form.Nodes, int.Parse(args[0])); break;
             case "ungroup": BranchEditTransforms.Ungroup(form.Nodes, int.Parse(args[0])); break;
-            case "setField": BranchEditTransforms.SetField(form.Nodes, int.Parse(args[0]), args[1]); break;
+            case "setField": BranchEditTransforms.SetField(form.Nodes, int.Parse(args[0])); break;
             case "addValue": BranchEditTransforms.AddValue(form.Nodes, int.Parse(args[0])); break;
             case "removeValue": BranchEditTransforms.RemoveValue(form.Nodes, int.Parse(args[0]), int.Parse(args[1])); break;
             case "group": BranchEditTransforms.GroupSelected(form.Nodes,

@@ -79,7 +79,10 @@ public sealed class BranchEditTransformsTests
     public void SetField_Resets_Operator_And_Value_When_Type_Changes()
     {
         var list = Tree();
-        BranchEditTransforms.SetField(list, id: 2, newField: "pupilAge");
+        // The model binder has already applied the user's new field selection onto the node;
+        // SetField must honour it, not revert to a stale value.
+        list.Single(n => n.Id == 2).Field = "pupilAge";
+        BranchEditTransforms.SetField(list, id: 2);
         var node = list.Single(n => n.Id == 2);
         Assert.Equal("pupilAge", node.Field);
         Assert.Equal("eq", node.Operator);
@@ -87,11 +90,23 @@ public sealed class BranchEditTransformsTests
     }
 
     [Fact]
+    public void SetField_Keeps_Bound_Field_And_Does_Not_Revert()
+    {
+        // Regression guard: the old SetField overwrote the bound field with a render-time arg,
+        // reverting the user's choice. The field the user picked must survive.
+        var list = Tree();
+        list.Single(n => n.Id == 2).Field = "pupilAge"; // user changed keyStage -> pupilAge
+        BranchEditTransforms.SetField(list, id: 2);
+        Assert.Equal("pupilAge", list.Single(n => n.Id == 2).Field);
+    }
+
+    [Fact]
     public void SetField_To_Type_Without_Current_Operator_Picks_First_Valid()
     {
         var list = Tree();
         list.Single(n => n.Id == 2).Operator = "in";
-        BranchEditTransforms.SetField(list, id: 2, newField: "isAddBack");
+        list.Single(n => n.Id == 2).Field = "isAddBack";
+        BranchEditTransforms.SetField(list, id: 2);
         var node = list.Single(n => n.Id == 2);
         Assert.Equal("eq", node.Operator);
     }

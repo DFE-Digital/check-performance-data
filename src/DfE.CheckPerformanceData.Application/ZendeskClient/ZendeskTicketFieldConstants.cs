@@ -30,7 +30,7 @@ public static class ZendeskTicketFieldConstants
     public const string ReasonForRemovalName = "Reason for removal";
     public const string CypmdName = "CYPMD_ID";
     public const string RulesEngineOutcomeKeyName = "RulesEngineOutcomeKey";
-    public const string RulesEngineMatchedRuleId = "RulesEngineMatchedRuleId";
+    public const string RulesEngineMatchedRuleIdName = "RulesEngineMatchedRuleId";
 
     /// <summary>
     /// Gets all field names as a list.
@@ -58,7 +58,7 @@ public static class ZendeskTicketFieldConstants
             ReasonForRemovalName,
             CypmdName,
             RulesEngineOutcomeKeyName,
-            RulesEngineMatchedRuleId
+            RulesEngineMatchedRuleIdName
         };
     }
 }

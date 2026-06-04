@@ -164,7 +164,7 @@ public sealed class RequestDecisionHandler : IRequestDecisionHandler
             });
         }
 
-        var matchedRuleIdCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleId);
+        var matchedRuleIdCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName);
         if (matchedRuleIdCustomFieldId.HasValue && matchedRuleIdCustomFieldId.Value > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto

@@ -127,9 +127,13 @@ public sealed class RequestDecisionHandlerTests
     [Fact]
     public async Task CustomFields_PopulatedWhenIdsConfigured()
     {
-        _settings.DecisionStatusCustomFieldId = 100;
-        _settings.OutcomeKeyCustomFieldId = 200;
-        _settings.MatchedRuleIdCustomFieldId = 300;
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName)
+            .Returns(100L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName)
+            .Returns(200L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName)
+            .Returns(300L);
+
         var sut = NewSut();
         var msg = NewMessage("Inclusion");
         var decision = new Decision(DecisionStatus.AutoApproved, "Inclusion", "INC-ACC",

@@ -34,6 +34,3 @@ ZendeskSettings__Domain: zendesk
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
 SchoolCheckingExercise__GroupId: 0
 SchoolCheckingExercise__BrandId: 0
-SchoolCheckingExercise__DecisionStatusCustomFieldId: 0
-SchoolCheckingExercise__OutcomeKeyCustomFieldId: 0
-SchoolCheckingExercise__MatchedRuleIdCustomFieldId: 0

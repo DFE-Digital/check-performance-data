@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 public sealed class AdminNavRegistryTests
 {
-	// --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
+    // --- AddAdminNavEntries_Registers_Twelve_Hierarchical_Entries ---
 
-	[Fact]
-	public void AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries()
+    [Fact]
+	public void AddAdminNavEntries_Registers_Twelve_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(11, entries.Count);
+		Assert.Equal(12, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);

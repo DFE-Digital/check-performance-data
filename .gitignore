@@ -498,6 +498,9 @@ terraform/domains/infrastructure/vendor
 terraform.tfstate*
 *.lscache
 
-# Superpowers working files (brainstorms, specs, plans) — local only, not committed
+# Claude / superpowers working files — local only, never committed.
+# Superpowers data now lives outside the repo at C:\Repos\DfE\.superpowers
 .superpowers/
 docs/superpowers/
+CLAUDE.md
+.claude/

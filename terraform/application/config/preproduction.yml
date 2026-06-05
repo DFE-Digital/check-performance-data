@@ -1,3 +1,31 @@
 ---
 ASPNETCORE_ENVIRONMENT: Preproduction
-EXAMPLE_KEY: example value 3
+
+# Rules Engine Worker configuration
+RulesEngineOptions__QueueName: performance-requests
+RulesEngineOptions__RetryDelayMs: 5000
+RulesEngineOptions__MaxMessagesPerPoll: 10
+RulesEngineOptions__EmptyQueueDelayMs: 5000
+RulesEngineOptions__MaxDequeueCount: 5
+RulesEngineOptions__RulesBlobContainer: rules-config
+RulesEngineOptions__RulesBlobName: rules.json
+RulesEngineOptions__LookupsBlobName: country-languages.json
+RulesEngineOptions__RefreshIntervalSeconds: 300
+RulesEngineOptions__StalenessWarningSeconds: 1800
+
+# Polly resilience settings
+PollySettings__MaxRetryAttempts: 3
+PollySettings__BaseDelayMilliseconds: 1000
+PollySettings__JitterMilliseconds: 500
+
+# Zendesk configuration (non-sensitive)
+ZendeskSettings__Subdomain: dfe
+ZendeskSettings__Domain: zendesk
+
+# School Checking Exercise Zendesk settings
+SchoolCheckingExercise__TargetViewTitle: School Performance Checks
+SchoolCheckingExercise__GroupId: 0
+SchoolCheckingExercise__BrandId: 0
+SchoolCheckingExercise__DecisionStatusCustomFieldId: 0
+SchoolCheckingExercise__OutcomeKeyCustomFieldId: 0
+SchoolCheckingExercise__MatchedRuleIdCustomFieldId: 0

@@ -1,0 +1,46 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.StorageBlobPreviewViewModel
+@{
+    ViewData["Title"] = $"Preview: {Model.BlobName}";
+    var encodedBlob = Uri.EscapeDataString(Model.BlobName);
+}
+
+<p class="govuk-body">
+    <a class="govuk-link" href="/admin/storage/@Model.AccountKey/@Model.ContainerName">
+        &larr; Back to @Model.ContainerName
+    </a>
+</p>
+
+<h1 class="govuk-heading-xl">Preview</h1>
+
+<dl class="govuk-summary-list govuk-!-margin-bottom-6">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Account</dt>
+        <dd class="govuk-summary-list__value">@Model.AccountDisplayName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Container</dt>
+        <dd class="govuk-summary-list__value"><code>@Model.ContainerName</code></dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Blob</dt>
+        <dd class="govuk-summary-list__value"><code>@Model.BlobName</code></dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Content type</dt>
+        <dd class="govuk-summary-list__value">@(Model.ContentType ?? "—")</dd>
+    </div>
+</dl>
+
+<p class="govuk-body">
+    <a class="govuk-link" href="/admin/storage/@Model.AccountKey/@Model.ContainerName/download?blob=@encodedBlob">Download this blob</a>
+</p>
+
+@if (Model.Content is not null)
+{
+    <h2 class="govuk-heading-m">Content</h2>
+    <pre class="govuk-body" style="background:#f3f2f1;padding:1rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all">@Model.Content</pre>
+}
+else
+{
+    <p class="govuk-body">Binary or unsupported content type — use the download link above.</p>
+}

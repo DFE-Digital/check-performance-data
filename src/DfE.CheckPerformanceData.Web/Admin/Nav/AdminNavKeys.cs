@@ -16,4 +16,6 @@ public static class AdminNavKeys
     public const string VrDashboard = "vr-dashboard";
     public const string RulesEngine = "rules-engine";
     public const string RulesConfig = "rules-config";
+    public const string StorageAdmin = "storage-admin";
+    public const string StorageBrowser = "storage-browser";
 }

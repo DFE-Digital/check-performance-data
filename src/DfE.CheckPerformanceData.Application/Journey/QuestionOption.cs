@@ -6,4 +6,5 @@ public sealed class QuestionOption
     public required string Label { get; init; }
     public string? SubLabel { get; init; }
     public string? NextPageId { get; init; }
+    public string? VisibleWhen { get; init; }
 }

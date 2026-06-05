@@ -2,11 +2,18 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 
 public sealed class JourneyPage
 {
+    public const string PrimaryKey = "primary";
+    public const string MatchKey = "match";
+
     public required string Id { get; init; }
     public PageType Type { get; init; } = PageType.Question;
     public string? Title { get; init; }
     public string? Subheading { get; init; }
     public string? Content { get; init; }
+    public bool RequireAtLeastOne { get; init; }
     public List<Question> Questions { get; init; } = [];
     public string? NextPageId { get; init; }
+    public PupilFilter? PupilFilter { get; init; }
+    public string? PupilKey { get; init; }
+    public string? ValidationFailure { get; init; }
 }

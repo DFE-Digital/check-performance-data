@@ -7,4 +7,5 @@ public interface ICurrentUserService
     string OrganisationId { get; }
     string OrganisationName { get; }
     string OrganisationUrn { get; }
+    string OrganisationTypeId { get; }
 }

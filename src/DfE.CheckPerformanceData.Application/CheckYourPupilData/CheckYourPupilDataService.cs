@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 
 namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
@@ -34,14 +35,16 @@ public sealed class CheckYourPupilDataService(
         return await repository.GetAllNonIncludedPupilsAsync(windowId, urn);
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, WhatToChange? whatToChange)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query, PupilFilter filter, Guid? excludeId = null)
     {
         var urn = currentUserService.OrganisationUrn;
-        var included = whatToChange != WhatToChange.Include;
-        return await repository.SearchPupilsAsync(windowId, urn, query, included);
+        return await repository.SearchPupilsAsync(windowId, urn, query, filter, excludeId);
     }
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId)
-        => await repository.GetPupilAsync(windowId, pupilId);
+    {
+        var urn = currentUserService.OrganisationUrn;
+        return await repository.GetPupilAsync(windowId, urn, pupilId);
+    }
 }
 

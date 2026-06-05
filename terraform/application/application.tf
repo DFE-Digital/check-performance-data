@@ -17,12 +17,13 @@ module "application_configuration" {
     PGSSLMODE        = local.postgres_ssl_mode
   }
   secret_variables = {
-    DATABASE_URL                  = module.postgres.url
-    ConnectionStrings__Postgres   = module.postgres.dotnet_connection_string
-    ConnectionStrings__AzureStorage = module.storage.primary_connection_string
-    AZURE_STORAGE_ACCOUNT_NAME = local.azure_storage_account_name
-    AZURE_STORAGE_ACCESS_KEY   = local.azure_storage_access_key
-    AZURE_STORAGE_CONTAINER    = local.azure_storage_container
+    DATABASE_URL                       = module.postgres.url
+    ConnectionStrings__Postgres        = module.postgres.dotnet_connection_string
+    ConnectionStrings__AzureStorage    = module.storage.primary_connection_string
+    ConnectionStrings__IngressStorage  = module.storage_private.primary_connection_string
+    AZURE_STORAGE_ACCOUNT_NAME         = local.azure_storage_account_name
+    AZURE_STORAGE_ACCESS_KEY           = local.azure_storage_access_key
+    AZURE_STORAGE_CONTAINER            = local.azure_storage_container
   }
 }
 
@@ -45,4 +46,23 @@ module "web_application" {
   web_port     = 8080
 
   send_traffic_to_maintenance_page = var.send_traffic_to_maintenance_page
+}
+
+# Rules Engine Worker - background service that processes requests from Azure Queue Storage
+module "rules_engine_worker" {
+  source = "./vendor/modules/aks//aks/application"
+
+  is_web = false
+
+  namespace    = var.namespace
+  environment  = var.environment
+  service_name = "${var.service_name}-worker"
+  replicas     = var.worker_replicas
+
+  cluster_configuration_map  = module.cluster_data.configuration_map
+  kubernetes_config_map_name = module.application_configuration.kubernetes_config_map_name
+  kubernetes_secret_name     = module.application_configuration.kubernetes_secret_name
+
+  docker_image = var.worker_docker_image
+  enable_logit = var.enable_logit
 }

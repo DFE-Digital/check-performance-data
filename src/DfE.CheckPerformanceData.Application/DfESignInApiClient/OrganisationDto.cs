@@ -10,9 +10,15 @@ public sealed class OrganisationDto
     [JsonIgnore]
     public string Laestab { get; set; } = null!;
 
+    // required: a non-school org (e.g. an LA) would have urn=null in the API response and
+    // cause deserialization to throw. Acceptable because DfE Sign-in restricts access to
+    // school establishment types before users reach this app.
     public required string Urn { get; init; }
     public int? StatutoryLowAge { get; init; }
     public int? StatutoryHighAge { get; init; }
+
+    /// <summary>GIAS establishment type, from the API field <c>$.type</c>.</summary>
+    public OrganisationTypeDto? Type { get; init; }
 
     public string Address { get; init; } = string.Empty;
     
@@ -33,6 +39,12 @@ public static class OrganisationKeyStages
 }
 
 public record OrganisationKeyStageDto(int Id, string Title, int LowAge, int HighAge, KeyStages KeyStage);
+
+public sealed class OrganisationTypeDto
+{
+    public string? Id { get; init; }
+    public string? Name { get; init; }
+}
 
 //
 // [ {

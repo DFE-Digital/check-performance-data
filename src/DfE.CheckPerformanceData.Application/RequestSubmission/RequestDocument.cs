@@ -10,6 +10,7 @@ public class RequestDocument
     public required string WhatToChange { get; init; }
     public required SchoolDetails School { get; init; }
     public required PupilDetails Pupil { get; init; }
+    public PupilDetails? MatchedPupil { get; init; }
     public required List<AnswerRecord> Answers { get; init; }
 }
 

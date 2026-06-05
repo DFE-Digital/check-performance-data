@@ -13,6 +13,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using GovUk.Frontend.AspNetCore;
@@ -121,9 +122,22 @@ try
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
+    builder.Services.AddScoped<JourneyViewModelBuilder>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
+
+    builder.Services.AddSingleton<IReadOnlyDictionary<string, BlobServiceClient>>(_ =>
+    {
+        var clients = new Dictionary<string, BlobServiceClient>();
+        var appConn = builder.Configuration.GetConnectionString("AzureStorage");
+        if (!string.IsNullOrEmpty(appConn))
+            clients["app"] = new BlobServiceClient(appConn);
+        var ingressConn = builder.Configuration.GetConnectionString("IngressStorage");
+        if (!string.IsNullOrEmpty(ingressConn))
+            clients["ingress"] = new BlobServiceClient(ingressConn);
+        return clients;
+    });
     builder.Services.Configure<DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions>(
         builder.Configuration.GetSection(
             DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions.SectionName));

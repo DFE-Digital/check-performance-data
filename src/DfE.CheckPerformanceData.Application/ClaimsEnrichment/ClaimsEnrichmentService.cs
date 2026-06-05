@@ -28,6 +28,8 @@ public sealed class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : ICl
         newIdentity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_name", organisation!.Name, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_urn", organisation.Urn, ClaimValueTypes.String));
+        if (organisation.Type?.Id is { } typeId)
+            newIdentity.AddClaim(new Claim("organisation_type_id", typeId, ClaimValueTypes.String));
         return newIdentity;
     }
 }

@@ -25,10 +25,11 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		Assert.Equal(2, groups.Count);
+		Assert.Equal(3, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("cms-admin", groupKeys);
 		Assert.Contains("system-admin", groupKeys);
+		Assert.Contains("storage-admin", groupKeys);
 	}
 
 	// --- Tiles_Have_NonNull_ParentKey_Matching_A_Group ---
@@ -48,16 +49,16 @@ public sealed class AdminNavRegistryGroupingTests
 		}
 	}
 
-	// --- All_Keys_Are_Unique_Across_Ten_Registrations ---
+	// --- All_Keys_Are_Unique_Across_Eleven_Registrations ---
 
 	[Fact]
-	public void All_Keys_Are_Unique_Across_Ten_Registrations()
+	public void All_Keys_Are_Unique_Across_Eleven_Registrations()
 	{
 		var entries = ResolveEntries();
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(10, keys.Count);
+		Assert.Equal(11, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

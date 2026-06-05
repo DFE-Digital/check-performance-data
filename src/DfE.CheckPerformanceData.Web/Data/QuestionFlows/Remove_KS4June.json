@@ -1,6 +1,14 @@
 {
-  "firstPageId": "reason",
+  "firstPageId": "select-pupil",
   "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "Enter the name of the pupil to be removed",
+      "pupilFilter": "Included",
+      "pupilKey": "primary",
+      "nextPageId": "reason"
+    },
     {
       "id": "reason",
       "questions": [
@@ -12,6 +20,7 @@
           "summaryTitle": "Reason for removal",
           "hint": "Select one option",
           "useAsRequestType" : true,
+          "validationFailure": "Select a reason for removing {pupilName} from the performance data",
           "options": [
             {
               "value": "permanent-exclusion",
@@ -44,6 +53,12 @@
               "nextPageId": "elective-home-education"
             },
             {
+              "value": "not-on-roll",
+              "label": "Not on roll",
+              "nextPageId": "not-on-roll",
+              "visibleWhen": "SchoolIsIndependent"
+            },
+            {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
               "nextPageId": "permanently-excluded"
@@ -73,6 +88,54 @@
       ]
     },
     {
+      "id": "not-on-roll",
+      "nextPageId": "not-on-roll-evidence",
+      "questions": [
+        {
+          "id": "on-school-roll",
+          "type": "Radio",
+          "title": "Was {pupilName} on your school roll in the 2025 to 2026 academic year?",
+          "hint": "Select one option",
+          "summaryTitle": "On school roll 2025 to 2026",
+          "validationFailure": "Select yes if {pupilName} was on your school roll in the 2025 to 2026 academic year",
+          "options": [
+            {
+              "value": "yes",
+              "label": "Yes"
+            },
+            {
+              "value": "no",
+              "label": "No"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "not-on-roll-evidence",
+      "type": "EvidenceUpload",
+      "requireAtLeastOne": true,
+      "title": "Provide evidence for the removal of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "How does the evidence demonstrate why the pupil should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
+          "summaryTitle": "How evidence demonstrates removal",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    },
+    {
       "id": "permanently-excluded",
       "nextPageId" : "evidence",
       "questions": [
@@ -81,14 +144,15 @@
           "type": "Date",
           "title": "When was {pupilName} permanently excluded from your school?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date permanently excluded"
+          "summaryTitle": "Date of permanent exclusion",
+          "validationFailure": "Enter the date {pupilName} was permanently excluded from your school"
         },
         {
-          "id": "permanent-exclusion-dfe-number",
+          "id": "permanently-excluded-dfe-number",
           "optional": true,
           "type": "FreeText",
           "title": "What is the DfE number of the school {pupilName} went to?",
-          "summaryTitle": "DfE number of the school went to",
+          "summaryTitle": "School DfE number pupil went to",
           "hint" : "For example, 502135326",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
@@ -97,13 +161,15 @@
     },
     {
       "id": "elective-home-education",
+      "nextPageId" : "evidence",
       "questions": [
         {
           "id": "date-removed-from-roll",
           "type": "Date",
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date removed from school roll"
+          "summaryTitle": "Date removed from school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
         }
       ]
     },
@@ -116,6 +182,7 @@
           "title": "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
           "summaryTitle": "School DfE number",
           "hint" : "For example, 502135326",
+          "validationFailure": "Enter the DfE number of the school {pupilName}'s exam results should be transferred to",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
@@ -129,7 +196,8 @@
           "type": "Date",
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date removed from school roll"
+          "summaryTitle": "Date removed from school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
         }
       ]
     },
@@ -142,7 +210,8 @@
           "type": "Radio",
           "title": "Why has {pupilName} been removed from your school roll?",
           "hint": "Select one option",
-          "summaryTitle": "Why removed from school",
+          "summaryTitle": "Why has {pupilName} been removed from your school roll",
+          "validationFailure": "Select why {pupilName} has been removed from your school roll",
           "options": [
             {
               "value": "not-returned-after-agreed-leave",
@@ -161,7 +230,8 @@
           "type": "Date",
           "title": "When was {pupilName} removed from your school roll?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date removed from school roll"
+          "summaryTitle": "When was {pupilName} removed from your school roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
         }
       ]
     },
@@ -174,6 +244,7 @@
           "type": "Radio",
           "title": "What is {pupilName}'s first language?",
           "summaryTitle": "First language",
+          "validationFailure": "Select {pupilName}'s first language",
           "options": [
             {
               "value": "english",
@@ -212,7 +283,8 @@
           "type": "Autocomplete",
           "title": "What country is {pupilName} originally from?",
           "hint": "Start typing to see a list of countries",
-          "summaryTitle": "Country originally from",
+          "summaryTitle": "Country of origin",
+          "validationFailure": "Enter the country {pupilName} is originally from",
           "dataSource" : "countries"
         },
         {
@@ -220,21 +292,23 @@
           "type": "Date",
           "title": "When did {pupilName} start at your school?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date started at school"
+          "summaryTitle": "Date started at school",
+          "validationFailure": "Enter the date {pupilName} started at your school"
         },
         {
           "id": "date-pupil-started-school-in-england",
           "type": "Date",
           "title": "When did {pupilName} first start at a school in England?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date started at a school in England"
+          "summaryTitle": "First date of admission to a school/college in England",
+          "validationFailure": "Enter the date {pupilName} first started at a school in England"
         },
         {
           "id": "date-pupil-arrived-in-england",
           "type": "Date",
           "title": "When did {pupilName} arrive in England?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date arrived in England",
+          "summaryTitle": "Date of arrival in England",
           "optional": true
         }
       ]
@@ -249,6 +323,7 @@
           "title": "What is the DfE number of the school which excluded {pupilName}?",
           "summaryTitle": "DfE number of the excluding school",
           "hint" : "For example, 502135326",
+          "validationFailure": "Enter the DfE number of the school which excluded {pupilName}",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         },
@@ -257,7 +332,8 @@
           "type": "Date",
           "title": "When was {pupilName} excluded?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date of permanent exclusion"
+          "summaryTitle": "Date of permanent exclusion",
+          "validationFailure": "Enter the date {pupilName} was excluded"
         }
       ]
     },
@@ -271,6 +347,7 @@
           "title": "What country did {pupilName} move to?",
           "hint": "Start typing to see a list of countries",
           "summaryTitle": "Country moved to",
+          "validationFailure": "Enter the country {pupilName} moved to",
           "dataSource" : "countries"
         },
         {
@@ -278,7 +355,8 @@
           "type": "Date",
           "title": "When was {pupilName} removed from your roll?",
           "hint": "For example, 27 3 2026",
-          "summaryTitle": "Date removed from roll"
+          "summaryTitle": "Date removed from roll",
+          "validationFailure": "Enter the date {pupilName} was removed from your roll"
         }
       ]
     },
@@ -291,6 +369,7 @@
           "type": "Radio",
           "title": "Which severe health issue has had a profound effect on {pupilName} and their ability to access education?",
           "summaryTitle": "Health issue",
+          "validationFailure": "Select the severe health issue that has had a profound effect on {pupilName}",
           "options": [
             {
               "value": "life-limiting",
@@ -319,6 +398,7 @@
           "type": "Radio",
           "title": "Has {pupilName} sat any exams as a year 11 pupil?",
           "summaryTitle": "Sat exams as year 11",
+          "validationFailure": "Select yes if {pupilName} has sat any exams as a year 11 pupil",
           "options": [
             {
               "value": "yes",
@@ -340,6 +420,7 @@
           "type": "Radio",
           "title": "Is {pupilName} being moved to a year group higher or lower than year 11?",
           "summaryTitle": "Higher or lower year group",
+          "validationFailure": "Select whether {pupilName} is being moved to a higher or lower year group than year 11",
           "options": [
             {
               "value": "higher",
@@ -364,6 +445,7 @@
           "type": "Radio",
           "title": "Which year group should {pupilName} be moved to?",
           "summaryTitle": "Year group moved to",
+          "validationFailure": "Select the year group {pupilName} should be moved to",
           "options": [
             {
               "value": "12",
@@ -380,7 +462,8 @@
           "type": "FreeText",
           "title": "What is the DfE number of the school {pupilName} was previously reported at the year of KS4?",
           "summaryTitle": "DfE number of school at KS4",
-          "hint" : "For example, 123456789"
+          "hint" : "For example, 123456789",
+          "validationFailure": "Enter the DfE number of the school {pupilName} was previously reported at in the year of KS4"
         }
       ]
     },
@@ -393,6 +476,7 @@
           "type": "Radio",
           "title": "Which year group should {pupilName} be moved to?",
           "summaryTitle": "Year group moved to",
+          "validationFailure": "Select the year group {pupilName} should be moved to",
           "options": [
             {
               "value": "8",
@@ -425,7 +509,8 @@
         {
           "id": "how-evidence-supports",
           "type": "TextArea",
-          "title": "Explain how the evidence supports removing this pupil",
+          "title": "How does the evidence demonstrate why the pupil should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
           "optional": true
@@ -443,6 +528,7 @@
           "title": "What happened to {pupilName} that made it very hard for them to go to school or sit exams?",
           "summaryTitle": "Social care reason",
           "hint": "Select one option",
+          "validationFailure": "Select what happened to {pupilName} that made it very hard for them to go to school or sit exams",
           "options": [
             {
               "value": "social-care-situation",
@@ -463,6 +549,7 @@
           "type": "Radio",
           "title": "Has {pupilName} sat any exams as a year 11 pupil?",
           "summaryTitle": "Sat exams as year 11",
+          "validationFailure": "Select yes if {pupilName} has sat any exams as a year 11 pupil",
           "options": [
             {
               "value": "yes",
@@ -490,9 +577,11 @@
         {
           "id": "how-evidence-supports",
           "type": "TextArea",
-          "title": "Explain how the evidence supports removing this pupil",
+          "title": "How does the evidence demonstrate why the pupil should be removed?",
+          "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
-          "characterLimit": 1000
+          "characterLimit": 1000,
+          "validationFailure": "Explain how the evidence supports removing {pupilName}"
         }
       ]
     }

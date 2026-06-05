@@ -15,4 +15,5 @@ public sealed class Question
     public string? DataSource { get; init; }
     public string? QuestionHelpTitle { get; init; }
     public string? QuestionHelpText { get; init; }
+    public string? ValidationFailure { get; init; }
 }

@@ -84,7 +84,23 @@ variable "enable_logit" { default = true }
 
 variable "replicas" {
   default = 1
-  type = number
+  type    = number
+}
+
+variable "worker_docker_image" {
+  type        = string
+  description = "Docker image for the Rules Engine Worker. Includes docker registry, repository and tag."
+
+  validation {
+    condition     = length(var.worker_docker_image) > 0 && !endswith(var.worker_docker_image, ":")
+    error_message = "worker_docker_image must include both repository and tag (no empty or trailing-colon values)."
+  }
+}
+
+variable "worker_replicas" {
+  default     = 1
+  type        = number
+  description = "Number of replicas for the Rules Engine Worker."
 }
 
 variable "blob_delete_after_days" {

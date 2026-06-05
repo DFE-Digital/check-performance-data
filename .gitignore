@@ -504,3 +504,4 @@ terraform.tfstate*
 docs/superpowers/
 CLAUDE.md
 .claude/
+/.playwright-mcp

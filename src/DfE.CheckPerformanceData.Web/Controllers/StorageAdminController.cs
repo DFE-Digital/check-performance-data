@@ -6,21 +6,48 @@ using Microsoft.AspNetCore.Mvc;
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 [Authorize(Roles = WikiConstants.AdminRole)]
-public sealed class StorageAdminController(BlobServiceClient blobServiceClient) : Controller
+public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServiceClient> storageAccounts) : Controller
 {
-    [HttpGet("admin/storage")]
-    public async Task<IActionResult> Index()
+    private static readonly IReadOnlyDictionary<string, string> DisplayNames = new Dictionary<string, string>
     {
-        var containers = new List<string>();
-        await foreach (var item in blobServiceClient.GetBlobContainersAsync())
-            containers.Add(item.Name);
-        return View(new StorageContainerListViewModel { Containers = containers });
+        ["app"] = "App Storage",
+        ["ingress"] = "Ingress Storage",
+    };
+
+    [HttpGet("admin/storage")]
+    public IActionResult Index()
+    {
+        var accounts = storageAccounts.Keys
+            .Select(k => new StorageAccountViewModel { Key = k, DisplayName = GetDisplayName(k) })
+            .ToList();
+        return View(new StorageAccountListViewModel { Accounts = accounts });
     }
 
-    [HttpGet("admin/storage/{containerName}")]
-    public async Task<IActionResult> Container(string containerName)
+    [HttpGet("admin/storage/{account}")]
+    public async Task<IActionResult> Containers(string account)
     {
-        var container = blobServiceClient.GetBlobContainerClient(containerName);
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var containers = new List<string>();
+        await foreach (var item in client.GetBlobContainersAsync())
+            containers.Add(item.Name);
+
+        return View(new StorageContainerListViewModel
+        {
+            AccountKey = account,
+            AccountDisplayName = GetDisplayName(account),
+            Containers = containers,
+        });
+    }
+
+    [HttpGet("admin/storage/{account}/{containerName}")]
+    public async Task<IActionResult> Container(string account, string containerName)
+    {
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var container = client.GetBlobContainerClient(containerName);
         if (!await container.ExistsAsync())
             return NotFound();
 
@@ -36,13 +63,22 @@ public sealed class StorageAdminController(BlobServiceClient blobServiceClient) 
             });
         }
 
-        return View(new StorageBlobListViewModel { ContainerName = containerName, Blobs = blobs });
+        return View(new StorageBlobListViewModel
+        {
+            AccountKey = account,
+            AccountDisplayName = GetDisplayName(account),
+            ContainerName = containerName,
+            Blobs = blobs,
+        });
     }
 
-    [HttpGet("admin/storage/{containerName}/preview")]
-    public async Task<IActionResult> Preview(string containerName, [FromQuery] string blob)
+    [HttpGet("admin/storage/{account}/{containerName}/preview")]
+    public async Task<IActionResult> Preview(string account, string containerName, [FromQuery] string blob)
     {
-        var container = blobServiceClient.GetBlobContainerClient(containerName);
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var container = client.GetBlobContainerClient(containerName);
         var blobClient = container.GetBlobClient(blob);
         if (!await blobClient.ExistsAsync())
             return NotFound();
@@ -69,6 +105,8 @@ public sealed class StorageAdminController(BlobServiceClient blobServiceClient) 
 
         return View(new StorageBlobPreviewViewModel
         {
+            AccountKey = account,
+            AccountDisplayName = GetDisplayName(account),
             ContainerName = containerName,
             BlobName = blob,
             ContentType = contentType,
@@ -76,10 +114,13 @@ public sealed class StorageAdminController(BlobServiceClient blobServiceClient) 
         });
     }
 
-    [HttpGet("admin/storage/{containerName}/download")]
-    public async Task<IActionResult> Download(string containerName, [FromQuery] string blob)
+    [HttpGet("admin/storage/{account}/{containerName}/download")]
+    public async Task<IActionResult> Download(string account, string containerName, [FromQuery] string blob)
     {
-        var container = blobServiceClient.GetBlobContainerClient(containerName);
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var container = client.GetBlobContainerClient(containerName);
         var blobClient = container.GetBlobClient(blob);
         if (!await blobClient.ExistsAsync())
             return NotFound();
@@ -90,15 +131,24 @@ public sealed class StorageAdminController(BlobServiceClient blobServiceClient) 
         return File(download.Value.Content, contentType, fileName);
     }
 
-    [HttpPost("admin/storage/{containerName}/delete")]
+    [HttpPost("admin/storage/{account}/{containerName}/delete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string containerName, string blobName)
+    public async Task<IActionResult> Delete(string account, string containerName, string blobName)
     {
-        var container = blobServiceClient.GetBlobContainerClient(containerName);
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var container = client.GetBlobContainerClient(containerName);
         var blobClient = container.GetBlobClient(blobName);
         await blobClient.DeleteIfExistsAsync();
-        return Redirect($"/admin/storage/{containerName}");
+        return Redirect($"/admin/storage/{account}/{containerName}");
     }
+
+    private BlobServiceClient? GetClient(string account) =>
+        storageAccounts.TryGetValue(account, out var client) ? client : null;
+
+    private static string GetDisplayName(string account) =>
+        DisplayNames.TryGetValue(account, out var name) ? name : account;
 
     private static bool IsTextContent(string? contentType, string blobName) =>
         contentType?.StartsWith("text/", StringComparison.OrdinalIgnoreCase) == true ||

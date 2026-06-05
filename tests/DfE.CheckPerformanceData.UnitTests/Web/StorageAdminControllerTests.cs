@@ -34,14 +34,17 @@ public sealed class StorageAdminNavEntryTests
 
 public sealed class StorageAdminControllerTests
 {
-    private static StorageAdminController BuildSut(BlobServiceClient client) =>
-        new(client)
+    private static StorageAdminController BuildSut(IReadOnlyDictionary<string, BlobServiceClient> accounts) =>
+        new(accounts)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext()
             }
         };
+
+    private static StorageAdminController BuildSut(string account, BlobServiceClient client) =>
+        BuildSut(new Dictionary<string, BlobServiceClient> { [account] = client });
 
     [Fact]
     public async Task Delete_DeletesBlob_AndRedirectsToContainerView()
@@ -58,12 +61,12 @@ public sealed class StorageAdminControllerTests
             Arg.Any<CancellationToken>())
             .Returns(Response.FromValue(true, Substitute.For<Response>()));
 
-        var sut = BuildSut(blobServiceClient);
+        var sut = BuildSut("app", blobServiceClient);
 
-        var result = await sut.Delete("my-container", "request_123.json");
+        var result = await sut.Delete("app", "my-container", "request_123.json");
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/admin/storage/my-container", redirect.Url);
+        Assert.Equal("/admin/storage/app/my-container", redirect.Url);
     }
 
     [Fact]
@@ -81,11 +84,21 @@ public sealed class StorageAdminControllerTests
             Arg.Any<CancellationToken>())
             .Returns(Response.FromValue(true, Substitute.For<Response>()));
 
-        var sut = BuildSut(blobServiceClient);
+        var sut = BuildSut("app", blobServiceClient);
 
-        var result = await sut.Delete("window-123", "draft_requests/abc.json");
+        var result = await sut.Delete("app", "window-123", "draft_requests/abc.json");
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/admin/storage/window-123", redirect.Url);
+        Assert.Equal("/admin/storage/app/window-123", redirect.Url);
+    }
+
+    [Fact]
+    public async Task Delete_UnknownAccount_ReturnsNotFound()
+    {
+        var sut = BuildSut(new Dictionary<string, BlobServiceClient>());
+
+        var result = await sut.Delete("unknown", "my-container", "blob.json");
+
+        Assert.IsType<NotFoundResult>(result);
     }
 }

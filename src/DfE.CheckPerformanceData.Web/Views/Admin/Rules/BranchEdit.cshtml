@@ -70,15 +70,6 @@ else if (Model.Errors.Count > 0)
     }
 
     <div class="govuk-button-group govuk-!-margin-top-4">
-        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
-                name="Action" value="group:all" formaction="/admin/rules/branch/transform" type="submit">Group selected as ALL</button>
-        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
-                name="Action" value="group:any" formaction="/admin/rules/branch/transform" type="submit">Group selected as ANY</button>
-        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
-                name="Action" value="ungroupSelected" formaction="/admin/rules/branch/transform" type="submit">Ungroup selected</button>
-    </div>
-
-    <div class="govuk-button-group govuk-!-margin-top-4">
         <button class="govuk-button" data-module="govuk-button" name="Action" value="save" type="submit">Save branch</button>
         <a class="govuk-link" href="/admin/rules/outcomes/@Model.Form.OutcomeKey">Cancel</a>
     </div>

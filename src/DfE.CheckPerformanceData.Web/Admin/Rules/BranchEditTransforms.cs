@@ -32,34 +32,6 @@ public static class BranchEditTransforms
         nodes.RemoveAll(n => doomed.Contains(n.Id));
     }
 
-    /// <summary>
-    /// Wraps all selected nodes (which must be siblings) in a new composite of the
-    /// given <paramref name="kind"/>. The new composite is inserted at the position
-    /// of the first selected sibling so that sibling order is preserved.
-    /// </summary>
-    public static void GroupSelected(List<PredicateNodeForm> nodes, PredicateKind kind)
-    {
-        var selected = nodes.Where(n => n.Selected).ToList();
-        if (selected.Count == 0) return;
-
-        // All selected nodes must be siblings. The UI enforces this; a crafted POST might not.
-        // Bail rather than silently corrupt the tree.
-        var parentId = selected[0].ParentId;
-        if (selected.Any(n => n.ParentId != parentId)) return;
-
-        var group = new PredicateNodeForm { Id = NextId(nodes), ParentId = parentId, Kind = kind };
-
-        var firstIndex = nodes.IndexOf(selected[0]);
-        nodes.Insert(firstIndex, group);
-
-        // 'selected' is a pre-materialised snapshot, so the Insert above does not affect this loop.
-        foreach (var n in selected)
-        {
-            n.ParentId = group.Id;
-            n.Selected = false;
-        }
-    }
-
     public static void Ungroup(List<PredicateNodeForm> nodes, int compositeId)
     {
         var composite = nodes.FirstOrDefault(n => n.Id == compositeId);

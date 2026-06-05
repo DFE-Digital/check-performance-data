@@ -51,22 +51,6 @@ public sealed class BranchEditTransformsTests
     }
 
     [Fact]
-    public void GroupSelected_Wraps_Ticked_Siblings_In_New_Composite()
-    {
-        var list = Tree();
-        list.Single(n => n.Id == 2).Selected = true;
-        list.Single(n => n.Id == 3).Selected = true;
-
-        BranchEditTransforms.GroupSelected(list, PredicateKind.AnyOf);
-
-        var group = list.Single(n => n.Id == 5);
-        Assert.Equal(PredicateKind.AnyOf, group.Kind);
-        Assert.Equal(1, group.ParentId);
-        Assert.Equal(5, list.Single(n => n.Id == 2).ParentId);
-        Assert.Equal(5, list.Single(n => n.Id == 3).ParentId);
-    }
-
-    [Fact]
     public void Ungroup_Reparents_Children_And_Deletes_Composite()
     {
         var list = Tree();
@@ -109,20 +93,6 @@ public sealed class BranchEditTransformsTests
         BranchEditTransforms.SetField(list, id: 2);
         var node = list.Single(n => n.Id == 2);
         Assert.Equal("eq", node.Operator);
-    }
-
-    [Fact]
-    public void GroupSelected_Ignores_Selection_Spanning_Different_Parents()
-    {
-        var list = Tree(); // node 2's parent is 1; node 4's parent is 3
-        list.Single(n => n.Id == 2).Selected = true;
-        list.Single(n => n.Id == 4).Selected = true;
-
-        BranchEditTransforms.GroupSelected(list, PredicateKind.AllOf);
-
-        Assert.Equal(4, list.Count);                                  // no group added
-        Assert.Equal(1, list.Single(n => n.Id == 2).ParentId);        // unchanged
-        Assert.Equal(3, list.Single(n => n.Id == 4).ParentId);        // unchanged
     }
 
     [Fact]

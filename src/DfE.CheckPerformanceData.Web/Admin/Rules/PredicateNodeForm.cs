@@ -15,5 +15,4 @@ public sealed class PredicateNodeForm
     public string? Op { get; set; }        // CompareOp name; set by LeafNormalizer.Normalize and PredicateForm.Flatten for FieldCompare
     public string? Value { get; set; }     // scalar literal (also the language for OfficialLanguageIs)
     public List<string> Values { get; set; } = new(); // for FieldIn
-    public bool Selected { get; set; }     // transient: ticked for select-then-group
 }

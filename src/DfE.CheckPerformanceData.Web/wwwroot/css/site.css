@@ -969,10 +969,6 @@ dialog.govuk-modal-dialogue__box::backdrop {
   max-width: 22em;
 }
 
-.rules-condition__select {
-  margin-bottom: 10px;
-}
-
 /* Card footer for per-condition actions (Remove), separated from the controls. */
 .rules-condition__actions {
   margin-top: 15px;

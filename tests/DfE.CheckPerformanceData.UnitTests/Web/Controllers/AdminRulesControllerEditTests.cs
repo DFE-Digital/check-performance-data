@@ -125,27 +125,6 @@ public sealed class AdminRulesControllerEditTests
     }
 
     [Fact]
-    public async Task Transform_GroupSelected_Builds_New_Composite()
-    {
-        var svc = SvcWithRules();
-        var form = new BranchEditForm
-        {
-            OutcomeKey = "EAL", BranchId = "EAL-1", LoadETag = "etag-1", Action = "group:any",
-            Nodes = new List<PredicateNodeForm>
-            {
-                new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "A", Selected = true },
-                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "B", Selected = true },
-            }
-        };
-
-        var vm = Assert.IsType<BranchEditViewModel>(
-            Assert.IsType<ViewResult>(await NewController(svc).TransformBranch(form, default)).Model);
-
-        Assert.Contains(vm.Form.Nodes, n => n.Kind == PredicateKind.AnyOf && n.ParentId == 1);
-    }
-
-    [Fact]
     public async Task Save_Persists_And_Redirects_On_Success()
     {
         var svc = SvcWithRules("etag-1");

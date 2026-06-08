@@ -374,6 +374,59 @@ public sealed class AdminRulesControllerEditTests
         await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task Transform_Collapse_Ajax_Sets_Flag_And_Keeps_Children()
+    {
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", Status = DecisionStatus.Scrutiny, LoadETag = "etag-1",
+            Action = "collapse:1",
+            Nodes = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+            }
+        };
+
+        var result = await NewController(SvcWithRules(), ajax: true).TransformBranch(form, default);
+
+        var partial = Assert.IsType<PartialViewResult>(result);
+        Assert.Contains("_BranchConditionEditor", partial.ViewName);
+        var vm = Assert.IsType<BranchEditViewModel>(partial.Model);
+        Assert.True(vm.Form.Nodes.Single(n => n.Id == 1).Collapsed);
+        // Children are not dropped by collapsing — they must survive to be re-rendered/saved.
+        Assert.Equal(3, vm.Form.Nodes.Count);
+    }
+
+    [Fact]
+    public async Task Save_After_Collapse_Rebuilds_Full_Predicate_With_Children()
+    {
+        var svc = SvcWithRules("etag-1");
+        RuleSet? captured = null;
+        svc.SaveRulesAsync(Arg.Do<RuleSet>(r => captured = r), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(9));
+
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", IsNew = false, Status = DecisionStatus.AutoApproved,
+            LoadETag = "etag-1", Action = "save",
+            Nodes = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf, Collapsed = true }, // collapsed group
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+            }
+        };
+
+        await NewController(svc, ajax: true).SaveBranch(form, default);
+
+        // Collapsed is a UI flag only — the saved predicate keeps both conditions.
+        var branch = captured!.Outcomes.First(o => o.Key == "EAL").Rules.First(b => b.Id == "EAL-1");
+        var all = Assert.IsType<Predicate.AllOf>(branch.When);
+        Assert.Equal(2, all.Items.Count);
+    }
+
     // --- Lookup row editing tests (M3) ---
 
     private static Lookups SampleLookups() => new(new Dictionary<string, IReadOnlyList<string>>

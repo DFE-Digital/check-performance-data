@@ -65,6 +65,22 @@ public static class BranchEditTransforms
         }
     }
 
+    /// <summary>Collapse a composite group to its read-only summary. No-op for leaves/missing.</summary>
+    public static void Collapse(List<PredicateNodeForm> nodes, int id)
+    {
+        var node = nodes.FirstOrDefault(n => n.Id == id);
+        if (node is null) return;
+        if (node.Kind is not (PredicateKind.AllOf or PredicateKind.AnyOf or PredicateKind.Not)) return;
+        node.Collapsed = true;
+    }
+
+    /// <summary>Expand a collapsed group back to the full editor.</summary>
+    public static void Expand(List<PredicateNodeForm> nodes, int id)
+    {
+        var node = nodes.FirstOrDefault(n => n.Id == id);
+        if (node is not null) node.Collapsed = false;
+    }
+
     public static void AddValue(List<PredicateNodeForm> nodes, int id) =>
         nodes.FirstOrDefault(n => n.Id == id)?.Values.Add("");
 

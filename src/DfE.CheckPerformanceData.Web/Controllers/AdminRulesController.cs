@@ -581,6 +581,8 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             case "setField": BranchEditTransforms.SetField(form.Nodes, int.Parse(args[0])); break;
             case "addValue": BranchEditTransforms.AddValue(form.Nodes, int.Parse(args[0])); break;
             case "removeValue": BranchEditTransforms.RemoveValue(form.Nodes, int.Parse(args[0]), int.Parse(args[1])); break;
+            case "collapse": BranchEditTransforms.Collapse(form.Nodes, int.Parse(args[0])); break;
+            case "expand": BranchEditTransforms.Expand(form.Nodes, int.Parse(args[0])); break;
         }
     }
 

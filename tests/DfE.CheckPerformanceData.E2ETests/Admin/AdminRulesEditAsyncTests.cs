@@ -75,4 +75,42 @@ public sealed class AdminRulesEditAsyncTests(PlaywrightFixture fixture) : Seedin
         }
         finally { await AuthHelpers.ImpersonateAsEditorAsync(Fixture); }
     }
+
+    // --- Collapse_Replaces_Group_With_Summary_And_Expand_Restores ---
+
+    [SkippableFact]
+    public async Task Collapse_Replaces_Group_With_Summary_And_Expand_Restores()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux), "Playwright interaction test Linux-only");
+
+        const string nestedEditUrl = "/admin/rules/outcomes/TerminalCriticalIllness/branches/TCI-KS4-REJ/edit";
+        var combinators = Page.Locator("select[id*='Combinator']");
+
+        try
+        {
+            await SignInAsAdminInBrowserAsync();
+            await Page.GotoAsync($"{Fixture.BaseUrl}{nestedEditUrl}");
+
+            var before = await combinators.CountAsync();
+            Assert.True(before >= 2, "TCI-KS4-REJ should render multiple nested groups");
+
+            // The toggle lives in each group's header (which renders before its children), so the
+            // LAST Collapse button targets the innermost leaf-only group
+            // (hasTerminalIllness false / hasSatExamsAsYear11 true) — no nested groups inside it.
+            await Page.GetByRole(AriaRole.Button, new() { Name = "Collapse" }).Last.ClickAsync();
+
+            // That group is replaced by its read-only summary (async, no navigation). The line below
+            // is unique to that group, so the locator is unambiguous.
+            await Expect(Page.Locator(".rules-group--collapsed")).ToHaveCountAsync(1);
+            await Expect(Page.GetByText("hasSatExamsAsYear11 is true")).ToBeVisibleAsync();
+            await Expect(combinators).ToHaveCountAsync(before - 1); // one group's editor is gone
+            Assert.EndsWith("/edit", Page.Url);
+
+            // Expand restores the full editor.
+            await Page.GetByRole(AriaRole.Button, new() { Name = "Expand" }).First.ClickAsync();
+            await Expect(Page.Locator(".rules-group--collapsed")).ToHaveCountAsync(0);
+            await Expect(combinators).ToHaveCountAsync(before);
+        }
+        finally { await AuthHelpers.ImpersonateAsEditorAsync(Fixture); }
+    }
 }

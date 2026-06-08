@@ -147,6 +147,26 @@ public sealed class PredicateFormTests
         Assert.IsType<Predicate.FieldEq>(inner.Items[0]);
     }
 
+    [Fact]
+    public void RebuildFromNode_Builds_The_SubTree_Rooted_At_The_Given_Node()
+    {
+        // root AllOf(1) -> [ FieldEq(2), AnyOf(3) -> [ FieldEq(4), FieldEq(5) ] ]
+        var nodes = new List<PredicateNodeForm>
+        {
+            new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 3, ParentId = 1, Kind = PredicateKind.AnyOf },
+            new() { Id = 4, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+            new() { Id = 5, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS1" },
+        };
+
+        var subtree = PredicateForm.RebuildFromNode(nodes, nodeId: 3);
+
+        var any = Assert.IsType<Predicate.AnyOf>(subtree);
+        Assert.Equal(2, any.Items.Count);
+        Assert.All(any.Items, item => Assert.IsType<Predicate.FieldEq>(item));
+    }
+
     [Theory]
     [InlineData(CompareOp.Lt, "lt")]
     [InlineData(CompareOp.Lte, "lte")]

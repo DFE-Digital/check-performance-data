@@ -110,6 +110,31 @@ public sealed class BranchEditTransformsTests
     }
 
     [Fact]
+    public void Collapse_Sets_Flag_On_Group()
+    {
+        var list = Tree();
+        BranchEditTransforms.Collapse(list, id: 3); // the AnyOf group
+        Assert.True(list.Single(n => n.Id == 3).Collapsed);
+    }
+
+    [Fact]
+    public void Collapse_Ignores_A_Leaf()
+    {
+        var list = Tree();
+        BranchEditTransforms.Collapse(list, id: 2); // a FieldEq leaf
+        Assert.False(list.Single(n => n.Id == 2).Collapsed);
+    }
+
+    [Fact]
+    public void Expand_Clears_Flag()
+    {
+        var list = Tree();
+        list.Single(n => n.Id == 3).Collapsed = true;
+        BranchEditTransforms.Expand(list, id: 3);
+        Assert.False(list.Single(n => n.Id == 3).Collapsed);
+    }
+
+    [Fact]
     public void Remove_Terminates_On_Tampered_ParentId_Cycle()
     {
         // node 2 and node 3 reference each other (crafted cycle); removing node 2 must not hang.

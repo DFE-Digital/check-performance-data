@@ -68,6 +68,24 @@ public static class PredicateForm
         };
     }
 
+    /// <summary>
+    /// Builds the predicate for the sub-tree rooted at <paramref name="nodeId"/> (not just the
+    /// document root). Used to render a read-only summary of a collapsed group. Unlike
+    /// <see cref="RebuildPredicate"/> it does not collapse a single-child root wrapper — the
+    /// summary should mirror the group exactly as edited.
+    /// </summary>
+    public static Predicate RebuildFromNode(IReadOnlyList<PredicateNodeForm> nodes, int nodeId)
+    {
+        var childrenByParent = nodes
+            .Where(n => n.ParentId is not null)
+            .GroupBy(n => n.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var node = nodes.FirstOrDefault(n => n.Id == nodeId)
+            ?? throw new ArgumentException($"Node {nodeId} not found.", nameof(nodeId));
+        return Build(node, childrenByParent);
+    }
+
     /// <summary>UI operator token for an existing predicate node (reverse of Normalize).</summary>
     public static string OperatorToken(PredicateKind kind, string? op) => kind switch
     {

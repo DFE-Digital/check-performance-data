@@ -15,4 +15,9 @@ public sealed class PredicateNodeForm
     public string? Op { get; set; }        // CompareOp name; set by LeafNormalizer.Normalize and PredicateForm.Flatten for FieldCompare
     public string? Value { get; set; }     // scalar literal (also the language for OfficialLanguageIs)
     public List<string> Values { get; set; } = new(); // for FieldIn
+
+    // UI-only: when true, a composite group renders as a read-only summary instead of the full
+    // editor. Round-trips via the form; ignored by PredicateForm.Build, so it never affects the
+    // saved predicate. Always false for leaves.
+    public bool Collapsed { get; set; }
 }

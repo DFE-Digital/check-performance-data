@@ -84,6 +84,25 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
     }
 
+    // A branch with nested groups (TCI-KS4-REJ) must render a Collapse control on each group.
+    // Runs everywhere (no browser needed).
+    [Fact]
+    public async Task EditBranch_With_Nested_Groups_Renders_Collapse_Control()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{_fixture.BaseUrl}/admin/rules/outcomes/TerminalCriticalIllness/branches/TCI-KS4-REJ/edit");
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("value=\"collapse:", body);
+        }
+        finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
+    }
+
     // Regression: the outcome detail page renders the recursive _PredicateNode partial.
     // A bare-name partial reference does not resolve from /Views/Admin/Rules for the
     // AdminRules controller, so this page must use a rooted partial path or it 500s.

@@ -991,6 +991,44 @@ body.js-enabled .rules-condition__apply {
 }
 
 /* ==========================================================================
+   Rules branch editor — collapsible groups
+   ========================================================================== */
+
+/* Header row of a group: the combinator control (or collapsed tag) on the left,
+   the Collapse/Expand toggle on the right — so the toggle is always top-right of the
+   group, VS-region style. */
+.rules-group__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* Collapsed groups have a single-line tag on the left, so centre the toggle against it. */
+.rules-group--collapsed .rules-group__header {
+  align-items: center;
+}
+
+/* Keep the toggle from stretching and hold it at the top-right of the header row. */
+.rules-group__toggle {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* The combinator label ("All of these" etc.) shown in place of the dropdown
+   while the group is collapsed. */
+.rules-group__combinator {
+  margin: 0;
+}
+
+/* Read-only summary of a collapsed group's conditions — mirrors the outcome
+   detail page's bulleted predicate description. */
+.rules-group__summary {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
    Rules branch editor — "Saved" toast
    ========================================================================== */
 

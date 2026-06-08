@@ -20,6 +20,8 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string HistoryView = "~/Views/Admin/Rules/History.cshtml";
     private const string VersionView = "~/Views/Admin/Rules/Version.cshtml";
     private const string BranchEditView = "~/Views/Admin/Rules/BranchEdit.cshtml";
+    private const string BranchConditionEditorView = "~/Views/Admin/Rules/_BranchConditionEditor.cshtml";
+    private const string BranchEditMessagesView = "~/Views/Admin/Rules/_BranchEditMessages.cshtml";
     private const string RemoveBranchView = "~/Views/Admin/Rules/RemoveBranch.cshtml";
     private const string LookupRowEditView = "~/Views/Admin/Rules/LookupRowEdit.cshtml";
     private const string OutcomeAddView = "~/Views/Admin/Rules/OutcomeAdd.cshtml";
@@ -249,42 +251,58 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         return View(BranchEditView, BranchEditViewModel.For(form));
     }
 
+    // Whether the request came from the editor's fetch() layer (admin-rules.js). When true the
+    // transform/save actions return HTML/JSON fragments for in-place updates; when false (no-JS)
+    // they fall back to the full-page postback behaviour, so progressive enhancement is preserved.
+    private static bool IsAjax(HttpRequest request) =>
+        request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
     [HttpPost("admin/rules/branch/transform")]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> TransformBranch(BranchEditForm form, CancellationToken ct)
     {
         ApplyTransform(form);
-        return Task.FromResult<IActionResult>(View(BranchEditView, BranchEditViewModel.For(form)));
+        var model = BranchEditViewModel.For(form);
+        IActionResult result = IsAjax(Request)
+            ? PartialView(BranchConditionEditorView, model) // just the re-rendered condition tree
+            : View(BranchEditView, model);
+        return Task.FromResult(result);
     }
 
     [HttpPost("admin/rules/branch/save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveBranch(BranchEditForm form, CancellationToken ct)
     {
+        // For an AJAX save the JS distinguishes failure (text/html messages fragment) from success
+        // (application/json) by content-type; the no-JS path re-renders the whole edit page.
+        IActionResult Failure(BranchEditViewModel m) => IsAjax(Request)
+            ? PartialView(BranchEditMessagesView, m)
+            : View(BranchEditView, m);
+
         LeafNormalizer.NormalizeAll(form.Nodes);
 
         var structural = PredicateFormValidator.Validate(form.Nodes);
         if (structural.Count > 0)
         {
-            return View(BranchEditView, BranchEditViewModel.For(form, structural));
+            return Failure(BranchEditViewModel.For(form, structural));
         }
 
         var (current, currentETag) = await TryGetRulesAsync(ct);
         if (current is null)
         {
-            return View(BranchEditView, BranchEditViewModel.For(form,
+            return Failure(BranchEditViewModel.For(form,
                 new[] { "The rules could not be loaded. Reload and try again." }));
         }
         // App-level check catches the common case (two admins editing at once) cheaply.
         // The service's blob If-Match below is the authoritative guard against the residual race.
         if (currentETag != form.LoadETag)
         {
-            return View(BranchEditView, BranchEditViewModel.For(form, concurrencyConflict: true));
+            return Failure(BranchEditViewModel.For(form, concurrencyConflict: true));
         }
 
         if (!current.Outcomes.Any(o => o.Key == form.OutcomeKey))
         {
-            return View(BranchEditView, BranchEditViewModel.For(form,
+            return Failure(BranchEditViewModel.For(form,
                 new[] { $"Outcome '{form.OutcomeKey}' no longer exists. Reload and try again." }));
         }
 
@@ -301,12 +319,21 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         }
         catch (RulesConfigConflictException)
         {
-            return View(BranchEditView, BranchEditViewModel.For(form, concurrencyConflict: true));
+            return Failure(BranchEditViewModel.For(form, concurrencyConflict: true));
         }
 
         if (!result.Saved)
         {
-            return View(BranchEditView, BranchEditViewModel.For(form, result.Errors));
+            return Failure(BranchEditViewModel.For(form, result.Errors));
+        }
+
+        if (IsAjax(Request))
+        {
+            // The save changed the blob's ETag; hand the new one back so the page can keep editing
+            // and re-save without a spurious concurrency conflict. One extra read; the optimistic
+            // check makes the tiny TOCTOU window benign.
+            var (_, newETag) = await TryGetRulesAsync(ct);
+            return Json(new { ok = true, message = "Saved", newETag });
         }
 
         TempData["SuccessMessage"] =

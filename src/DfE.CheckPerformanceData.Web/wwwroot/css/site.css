@@ -989,3 +989,49 @@ dialog.govuk-modal-dialogue__box::backdrop {
 body.js-enabled .rules-condition__apply {
   display: none;
 }
+
+/* ==========================================================================
+   Rules branch editor — "Saved" toast
+   ========================================================================== */
+
+/* Live-region wrapper. Empty until a save; the toast inside is fixed-positioned so the
+   wrapper itself needs no box. */
+.rules-toast-region {
+  position: static;
+}
+
+/* A small, non-modal confirmation shown after an async save. GOV.UK success green,
+   pinned near the TOP OF THE VIEWPORT (position: fixed) so it's visible no matter how far
+   the user has scrolled when they press Save. Announces "Saved" politely (role="status")
+   and is removed by admin-rules.js once it has faded. */
+.rules-toast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  margin: 0;
+  padding: 12px 40px;
+  min-width: 260px;
+  text-align: center;
+  background: #00703c; /* govuk-colour("green") */
+  color: #ffffff;
+  font-size: 1.1875rem;
+  font-weight: 700;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Hold briefly, then fade out over the back end of a ~3s lifetime. Motion is opt-in
+   so users who prefer reduced motion get a static toast that the JS timeout removes. */
+@media (prefers-reduced-motion: no-preference) {
+  .rules-toast {
+    animation: rules-toast-fade 3s ease-in forwards;
+  }
+}
+
+@keyframes rules-toast-fade {
+  0%   { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { opacity: 0; }
+}

@@ -60,6 +60,30 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
     }
 
+    // The async editor (admin-rules.js) needs these hooks to intercept the form, swap the
+    // condition tree, update the ETag and show the toast. This guards them against accidental
+    // removal — runs everywhere (no browser needed).
+    [Fact]
+    public async Task EditBranch_AsAdmin_Renders_Async_Editor_Hooks()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/INC-REJ/edit");
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("data-rules-editor-form", body);
+            Assert.Contains("id=\"rules-condition-editor\"", body);
+            Assert.Contains("id=\"rules-edit-messages\"", body);
+            Assert.Contains("id=\"rules-toast-region\"", body);
+            Assert.Contains("id=\"LoadETag\"", body);
+        }
+        finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
+    }
+
     // Regression: the outcome detail page renders the recursive _PredicateNode partial.
     // A bare-name partial reference does not resolve from /Views/Admin/Rules for the
     // AdminRules controller, so this page must use a rooted partial path or it 500s.

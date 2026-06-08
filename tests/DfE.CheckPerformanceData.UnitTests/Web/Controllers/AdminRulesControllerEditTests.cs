@@ -27,14 +27,25 @@ public sealed class AdminRulesControllerEditTests
         return svc;
     }
 
-    private static AdminRulesController NewController(IRulesConfigService svc)
+    private static AdminRulesController NewController(IRulesConfigService svc, bool ajax = false)
     {
-        var controller = new AdminRulesController(svc);
-        controller.TempData = new TempDataDictionary(
-            new DefaultHttpContext(),
-            Substitute.For<ITempDataProvider>());
+        var httpContext = new DefaultHttpContext();
+        if (ajax)
+        {
+            // Mirrors the X-Requested-With header admin-rules.js sends so the action
+            // returns a fragment/JSON instead of the full view.
+            httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
+        }
+        var controller = new AdminRulesController(svc)
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
+        };
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
         return controller;
     }
+
+    private static object? Prop(object source, string name) =>
+        source.GetType().GetProperty(name)?.GetValue(source);
 
     private static BranchEditForm SaveableForm(string etag) => new()
     {
@@ -280,6 +291,87 @@ public sealed class AdminRulesControllerEditTests
         await svc.Received(1).SaveRulesAsync(
             Arg.Is<RuleSet>(r => r.Outcomes.First(o => o.Key == "EAL").Rules[0].Id == "EAL-2"),
             "etag-1", Arg.Any<CancellationToken>());
+    }
+
+    // --- Async (AJAX) editor tests ---
+
+    [Fact]
+    public async Task Transform_Ajax_Returns_ConditionEditor_Partial()
+    {
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", Status = DecisionStatus.Scrutiny, LoadETag = "etag-1",
+            Action = "addCondition:1",
+            Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }
+        };
+
+        var result = await NewController(SvcWithRules(), ajax: true).TransformBranch(form, default);
+
+        var partial = Assert.IsType<PartialViewResult>(result);
+        Assert.Contains("_BranchConditionEditor", partial.ViewName);
+        var vm = Assert.IsType<BranchEditViewModel>(partial.Model);
+        Assert.Equal(2, vm.Form.Nodes.Count); // the added condition is present
+    }
+
+    [Fact]
+    public async Task Transform_NonAjax_Still_Returns_Full_View()
+    {
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", Status = DecisionStatus.Scrutiny, LoadETag = "etag-1",
+            Action = "addCondition:1",
+            Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }
+        };
+
+        var result = await NewController(SvcWithRules()).TransformBranch(form, default);
+
+        Assert.IsType<ViewResult>(result);
+    }
+
+    [Fact]
+    public async Task Save_Ajax_Success_Returns_Json_With_NewETag()
+    {
+        var svc = SvcWithRules("etag-1");
+        svc.SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(7));
+
+        var result = await NewController(svc, ajax: true).SaveBranch(SaveableForm("etag-1"), default);
+
+        var json = Assert.IsType<JsonResult>(result);
+        Assert.Equal(true, Prop(json.Value!, "ok"));
+        Assert.Equal("Saved", Prop(json.Value!, "message"));
+        Assert.Equal("etag-1", Prop(json.Value!, "newETag")); // re-read after save
+        await svc.Received(1).SaveRulesAsync(Arg.Any<RuleSet>(), "etag-1", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_Ajax_Validation_Failure_Returns_Messages_Partial()
+    {
+        var svc = SvcWithRules("etag-1");
+        var form = SaveableForm("etag-1");
+        form.Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }; // empty group
+
+        var result = await NewController(svc, ajax: true).SaveBranch(form, default);
+
+        var partial = Assert.IsType<PartialViewResult>(result);
+        Assert.Contains("_BranchEditMessages", partial.ViewName);
+        var vm = Assert.IsType<BranchEditViewModel>(partial.Model);
+        Assert.NotEmpty(vm.Errors);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Save_Ajax_Concurrency_Conflict_Returns_Messages_Partial()
+    {
+        var svc = SvcWithRules("etag-CURRENT");
+
+        var result = await NewController(svc, ajax: true).SaveBranch(SaveableForm("etag-STALE"), default);
+
+        var partial = Assert.IsType<PartialViewResult>(result);
+        Assert.Contains("_BranchEditMessages", partial.ViewName);
+        var vm = Assert.IsType<BranchEditViewModel>(partial.Model);
+        Assert.True(vm.ConcurrencyConflict);
+        await svc.DidNotReceive().SaveRulesAsync(Arg.Any<RuleSet>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     // --- Lookup row editing tests (M3) ---

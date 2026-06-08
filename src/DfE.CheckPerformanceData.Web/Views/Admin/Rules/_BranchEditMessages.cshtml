@@ -1,0 +1,38 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@using DfE.CheckPerformanceData.Web.Views.Admin.Rules
+@model BranchEditViewModel
+@*
+    Concurrency-conflict / validation-error banners for the branch editor.
+    Rendered server-side inside #rules-edit-messages for the no-JS path, and returned
+    as a fragment by SaveBranch on an AJAX save failure (the JS swaps it into the same
+    container). role="alert" announces the problem to assistive technology.
+*@
+@if (Model.ConcurrencyConflict)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">These rules were changed by someone else</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">Since you opened this page the rules were saved by another admin.
+                Reload to see the latest version, then re-apply your change. Nothing has been saved.</p>
+                <a class="govuk-link" href="/admin/rules/outcomes/@Model.Form.OutcomeKey/branches/@Model.Form.BranchId/edit">Reload this branch</a>
+            </div>
+        </div>
+    </div>
+}
+else if (Model.Errors.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var error in Model.Errors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}

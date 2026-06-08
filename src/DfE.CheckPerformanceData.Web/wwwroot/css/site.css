@@ -1043,7 +1043,7 @@ body.js-enabled .rules-condition__apply {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 20px;
 }
 
 /* Put the "Match" label inline with its combinator dropdown rather than stacked. */

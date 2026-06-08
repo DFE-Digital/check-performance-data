@@ -119,12 +119,12 @@ public sealed class AdminRulesControllerEditTests
     }
 
     [Fact]
-    public async Task Transform_Rerender_Preserves_Bound_Combinator_Kind()
+    public async Task Transform_Preserves_Bound_Combinator_Kind()
     {
         var svc = SvcWithRules();
         var form = new BranchEditForm
         {
-            OutcomeKey = "EAL", BranchId = "EAL-1", LoadETag = "etag-1", Action = "rerender",
+            OutcomeKey = "EAL", BranchId = "EAL-1", LoadETag = "etag-1", Action = "addCondition:1",
             Nodes = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf }, // user switched AllOf -> AnyOf via the bound select
@@ -135,7 +135,37 @@ public sealed class AdminRulesControllerEditTests
         var vm = Assert.IsType<BranchEditViewModel>(
             Assert.IsType<ViewResult>(await NewController(svc).TransformBranch(form, default)).Model);
 
-        Assert.Equal(PredicateKind.AnyOf, vm.Form.Nodes.Single(n => n.Id == 1).Kind); // not reverted
+        Assert.Equal(PredicateKind.AnyOf, vm.Form.Nodes.Single(n => n.Id == 1).Kind); // a transform postback keeps the bound combinator
+    }
+
+    [Fact]
+    public async Task Save_Persists_Changed_Combinator_Kind()
+    {
+        var svc = SvcWithRules("etag-1");
+        RuleSet? captured = null;
+        svc.SaveRulesAsync(Arg.Do<RuleSet>(r => captured = r), "etag-1", Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(8));
+
+        // The combinator dropdown is model-bound on Save, so switching it then clicking Save
+        // persists the new kind with no intermediate "Change" step. Two children so the
+        // single-child root collapse in RebuildPredicate doesn't apply.
+        var form = new BranchEditForm
+        {
+            OutcomeKey = "EAL", BranchId = "EAL-1", IsNew = false, Status = DecisionStatus.AutoApproved,
+            LoadETag = "etag-1", Action = "save",
+            Nodes = new List<PredicateNodeForm>
+            {
+                new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+            }
+        };
+
+        await NewController(svc).SaveBranch(form, default);
+
+        var branch = captured!.Outcomes.First(o => o.Key == "EAL").Rules.First(b => b.Id == "EAL-1");
+        var any = Assert.IsType<Predicate.AnyOf>(branch.When);
+        Assert.Equal(2, any.Items.Count);
     }
 
     [Fact]

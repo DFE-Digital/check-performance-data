@@ -1025,6 +1025,16 @@ body.js-enabled .rules-condition__apply {
    Rules branch editor — collapsible groups
    ========================================================================== */
 
+/* Box each group like a condition card so nested structure is easy to follow: a full border
+   plus white background, keeping the heavier left edge as the depth-coloured spine (the
+   .rules-group--shade-* rules below colour it). The group's own padding keeps a clear gap
+   between this box and the condition/child-group boxes nested inside it. */
+.rules-group {
+  border: 1px solid #b1b4b6;
+  border-left-width: 10px;
+  background: #ffffff;
+}
+
 /* Header row of a group: the combinator control (or collapsed tag) on the left,
    the Collapse/Expand toggle on the right — so the toggle is always top-right of the
    group, VS-region style. */
@@ -1041,6 +1051,17 @@ body.js-enabled .rules-condition__apply {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* Alternate the group's left bar colour by nesting depth so nested groups read distinctly:
+   even depths keep GOV.UK mid-grey, odd depths use dark-grey. (Two classes beat the single
+   .govuk-inset-text selector on specificity.) */
+.rules-group--shade-a.govuk-inset-text {
+  border-left-color: #b1b4b6; /* govuk mid-grey */
+}
+
+.rules-group--shade-b.govuk-inset-text {
+  border-left-color: #1d70b8; /* govuk link blue (matches the admin nav links) */
 }
 
 /* Disclosure-chevron toggle, pinned top-right of the group header: a down-chevron when expanded

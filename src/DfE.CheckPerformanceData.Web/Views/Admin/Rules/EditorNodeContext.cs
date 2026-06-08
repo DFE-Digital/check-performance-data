@@ -13,6 +13,9 @@ public sealed class EditorNodeContext
     public required IReadOnlyList<string> AllFields { get; init; }
     public required PredicateNodeForm Node { get; init; }
 
+    /// <summary>Nesting depth of this node (root = 0). Used to alternate the group bar colour.</summary>
+    public int Depth { get; init; }
+
     public int Index => IndexOf(Node.Id);
 
     private int IndexOf(int id)
@@ -29,7 +32,7 @@ public sealed class EditorNodeContext
 
     public EditorNodeContext Recurse(PredicateNodeForm child) => new()
     {
-        Nodes = Nodes, AllFields = AllFields, Node = child
+        Nodes = Nodes, AllFields = AllFields, Node = child, Depth = Depth + 1
     };
 
     /// <summary>

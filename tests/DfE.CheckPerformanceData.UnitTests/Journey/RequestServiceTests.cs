@@ -286,12 +286,19 @@ public class RequestServiceTests
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
 
     [Fact]
+    public void RequestStatus_HasInProgressAndReadyToSubmitValues()
+    {
+        Assert.True(Enum.IsDefined(typeof(RequestStatus), RequestStatus.InProgress));
+        Assert.True(Enum.IsDefined(typeof(RequestStatus), RequestStatus.ReadyToSubmit));
+    }
+
+    [Fact]
     public async Task SaveDraftAsync_WhenSessionIncomplete_Throws()
     {
         var journey = new RequestState(); // missing required fields
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _sut.SaveDraftAsync(WindowId, journey));
+            _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress));
     }
 
     [Fact]
@@ -301,7 +308,7 @@ public class RequestServiceTests
         journey.ReferenceNumber = null;
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _sut.SaveDraftAsync(WindowId, journey));
+            _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress));
     }
 
     [Fact]
@@ -309,21 +316,21 @@ public class RequestServiceTests
     {
         var journey = ValidJourney();
 
-        await _sut.SaveDraftAsync(WindowId, journey);
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
         await _draftBlobClient.Received(1).SaveDraftAsync(WindowId, journey.ReferenceNumber!, journey);
     }
 
     [Fact]
-    public async Task SaveDraftAsync_UpsertsRecordWithDraftStatusAndCorrectReferenceNumber()
+    public async Task SaveDraftAsync_UpsertsRecordWithPassedStatusAndCorrectReferenceNumber()
     {
         var journey = ValidJourney();
 
-        await _sut.SaveDraftAsync(WindowId, journey);
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
         await _requestRepository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
             d.ReferenceNumber == journey.ReferenceNumber &&
-            d.Status == RequestStatus.Draft));
+            d.Status == RequestStatus.InProgress));
     }
 
     [Fact]
@@ -333,16 +340,29 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.SaveDraftAsync(WindowId, journey);
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.ReadyToSubmit);
 
         Assert.Equal("Jane", captured!.PupilFirstname);
         Assert.Equal("Smith", captured.PupilSurname);
         Assert.Equal("123123", captured.PupilUpn);
         Assert.Equal(100000L, captured.OrganisationUrn);
         Assert.Equal("Test User", captured.SubmittedByName);
-        Assert.Equal(RequestStatus.Draft, captured.Status);
+        Assert.Equal(RequestStatus.ReadyToSubmit, captured.Status);
         // Config is null in this test so RequestType falls back to the WhatToChange prefix only
         Assert.Equal("Remove", captured.RequestType);
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.InProgress)]
+    [InlineData(RequestStatus.ReadyToSubmit)]
+    public async Task SaveDraftAsync_ForwardsStatusToRepository(RequestStatus status)
+    {
+        var journey = ValidJourney();
+
+        await _sut.SaveDraftAsync(WindowId, journey, status);
+
+        await _requestRepository.Received(1).UpsertAsync(Arg.Is<ChangeRequestData>(d =>
+            d.Status == status));
     }
 
     [Fact]
@@ -361,7 +381,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.SaveDraftAsync(WindowId, journey);
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
         Assert.Equal("Remove - Permanently excluded", captured!.RequestType);
     }
@@ -376,7 +396,7 @@ public class RequestServiceTests
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
 
-        await _sut.SaveDraftAsync(WindowId, journey);
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
         Assert.Equal(["blob", "db"], callOrder);
     }

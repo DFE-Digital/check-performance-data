@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -458,7 +459,8 @@ public sealed class JourneyController(
             }
         }
 
-        await requestService.SaveDraftAsync(windowId, journey);
+        var status = pageId is null ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
+        await requestService.SaveDraftAsync(windowId, journey, status);
         return RedirectToCheckYourData(windowId);
     }
 

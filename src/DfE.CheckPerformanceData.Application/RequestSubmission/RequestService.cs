@@ -63,7 +63,7 @@ public sealed class RequestService(
         });
     }
 
-    public async Task SaveDraftAsync(Guid windowId, RequestState journey)
+    public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null
             || journey.ReferenceNumber is null)
@@ -71,7 +71,7 @@ public sealed class RequestService(
 
         await draftBlobClient.SaveDraftAsync(windowId, journey.ReferenceNumber, journey);
         var draftConfig = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Draft, draftConfig));
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig));
     }
 
     private string BuildRequestType(RequestState journey, QuestionFlowConfig? config)

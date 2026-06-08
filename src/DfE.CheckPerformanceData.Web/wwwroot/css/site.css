@@ -1053,15 +1053,16 @@ body.js-enabled .rules-condition__apply {
   gap: 10px;
 }
 
-/* Alternate the group's left bar colour by nesting depth so nested groups read distinctly:
-   even depths keep GOV.UK mid-grey, odd depths use dark-grey. (Two classes beat the single
-   .govuk-inset-text selector on specificity.) */
+/* Colour the whole group box by nesting depth so each group's area is clearly defined: even
+   depths are a mid-grey box, odd depths a GOV.UK-blue box. (Two classes beat the single
+   .govuk-inset-text selector on specificity; the base .rules-group rule supplies the widths,
+   keeping the heavier left spine.) */
 .rules-group--shade-a.govuk-inset-text {
-  border-left-color: #b1b4b6; /* govuk mid-grey */
+  border-color: #b1b4b6; /* govuk mid-grey */
 }
 
 .rules-group--shade-b.govuk-inset-text {
-  border-left-color: #1d70b8; /* govuk link blue (matches the admin nav links) */
+  border-color: #1d70b8; /* govuk link blue (matches the admin nav links) */
 }
 
 /* Disclosure-chevron toggle, pinned top-right of the group header: a down-chevron when expanded

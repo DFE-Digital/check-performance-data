@@ -1,0 +1,20 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ConfirmedCorrectViewModel
+
+@{
+    ViewBag.Title = "Confirmed";
+    Layout = "_Layout";
+}
+
+<div class="govuk-panel govuk-panel--confirmation">
+    <h1 class="govuk-panel__title">Data check complete</h1>
+    <div class="govuk-panel__body">
+        Your reference number<br>
+        <strong>@Model.ReferenceNumber</strong>
+    </div>
+</div>
+
+<p class="govuk-body">We have sent you an email to confirm that you have successfully complete the data check process.</p>
+
+<govuk-notification-banner>
+    You still have until <strong>@Model.EndDate</strong> to request any further amendments if you need to.
+</govuk-notification-banner>

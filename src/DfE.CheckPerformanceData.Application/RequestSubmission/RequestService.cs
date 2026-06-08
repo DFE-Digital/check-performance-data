@@ -48,6 +48,21 @@ public sealed class RequestService(
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
     }
 
+    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
+    {
+        await requestRepository.UpsertAsync(new ChangeRequestData
+        {
+            WindowId = windowId,
+            ReferenceNumber = referenceNumber,
+            OrganisationUrn = OrganisationUrnLong,
+            Timestamp = DateTime.UtcNow,
+            SubmittedById = Guid.Parse(currentUserService.UserId),
+            SubmittedByName = currentUserService.DisplayName,
+            Status = RequestStatus.Submitted,
+            RequestType = "Confirm Pupil Data Declaration"
+        });
+    }
+
     public async Task SaveDraftAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null

@@ -204,6 +204,24 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task FilterNonIncluded_ReturnsOnlyNonIncludedPupils()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+
+        await using var ctx = fixture.CreateContext();
+        ctx.CheckingWindows.Add(NewWindow(windowId));
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000011", pincl: 401));  // included
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000012", pincl: 999));  // non-included
+        await ctx.SaveChangesAsync();
+
+        var repo = CreateRepo();
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Wilson", PupilFilter.NonIncluded);
+
+        Assert.Single(results);
+    }
+
+    [Fact]
     public async Task ExcludeId_ExcludesSpecificPupilFromResults()
     {
         await ResetAsync();

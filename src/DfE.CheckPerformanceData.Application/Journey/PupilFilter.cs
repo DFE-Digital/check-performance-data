@@ -1,3 +1,3 @@
 namespace DfE.CheckPerformanceData.Application.Journey;
 
-public enum PupilFilter { Included, All }
+public enum PupilFilter { Included, All, NonIncluded }

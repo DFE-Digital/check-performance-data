@@ -267,9 +267,10 @@ public class JourneyValidationServiceTests
     [Fact]
     public void ValidateFileUpload_WhenExceedsLimit_ReturnsError()
     {
+        var sut = new JourneyValidationService(maxEvidencePages: 6);
         var existing = new[] { MakeFileAnswer(pageCount: 5) };
 
-        var result = _sut.ValidateFileUpload("evidence.pdf", 2, existing);
+        var result = sut.ValidateFileUpload("evidence.pdf", 2, existing);
 
         Assert.NotNull(result);
         Assert.Contains("evidence.pdf", result);
@@ -280,7 +281,9 @@ public class JourneyValidationServiceTests
     [Fact]
     public void ValidateFileUpload_PageCountSingular_UsesPageNotPages()
     {
-        var result = _sut.ValidateFileUpload("doc.pdf", 1, [MakeFileAnswer(pageCount: 6)]);
+        var sut = new JourneyValidationService(maxEvidencePages: 6);
+
+        var result = sut.ValidateFileUpload("doc.pdf", 1, [MakeFileAnswer(pageCount: 6)]);
 
         Assert.NotNull(result);
         Assert.Contains("1 page", result);

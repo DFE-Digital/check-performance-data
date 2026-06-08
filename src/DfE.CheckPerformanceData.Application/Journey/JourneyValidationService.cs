@@ -2,11 +2,10 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
-public sealed class JourneyValidationService : IJourneyValidationService
+// Pass maxEvidencePages > 0 to the DI registration to re-enable the page-count limit.
+public sealed class JourneyValidationService(int maxEvidencePages = 0) : IJourneyValidationService
 {
-    private const int MaxTotalPages = 6;
-
-    public int MaxEvidencePages => MaxTotalPages;
+    public int MaxEvidencePages => maxEvidencePages;
 
     public bool IsAnswered(Question question, QuestionAnswer? answer) =>
         question.Type switch
@@ -58,12 +57,14 @@ public sealed class JourneyValidationService : IJourneyValidationService
 
     public string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles)
     {
+        if (maxEvidencePages <= 0) return null;
+
         var currentTotal = existingFiles.Sum(f => f.PageCount);
-        if (currentTotal + newPageCount <= MaxTotalPages) return null;
+        if (currentTotal + newPageCount <= maxEvidencePages) return null;
 
         return $"'{fileName}' has {newPageCount} {(newPageCount == 1 ? "page" : "pages")}. " +
             $"Adding it would bring the total to {currentTotal + newPageCount} pages, " +
-            $"which exceeds the {MaxTotalPages}-page limit.";
+            $"which exceeds the {maxEvidencePages}-page limit.";
     }
 
     public string GenerateReference(CheckingWindowType? windowType)

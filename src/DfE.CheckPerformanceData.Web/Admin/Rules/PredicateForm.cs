@@ -30,6 +30,22 @@ public static class PredicateForm
         return list;
     }
 
+    /// <summary>
+    /// Flattens for the editor, guaranteeing a COMPOSITE root so the editor always shows
+    /// "Add condition"/"Add group". A bare leaf is wrapped in an AllOf first; existing
+    /// AllOf/AnyOf/Not roots (and Otherwise) are flattened unchanged. RebuildPredicate
+    /// collapses the wrapper again on save when it still has a single child.
+    /// </summary>
+    public static List<PredicateNodeForm> FlattenForEditing(Predicate predicate)
+    {
+        var rooted = predicate switch
+        {
+            Predicate.AllOf or Predicate.AnyOf or Predicate.Not or Predicate.Otherwise => predicate,
+            _ => new Predicate.AllOf(new[] { predicate })
+        };
+        return Flatten(rooted);
+    }
+
     public static Predicate RebuildPredicate(IReadOnlyList<PredicateNodeForm> nodes)
     {
         var childrenByParent = nodes
@@ -39,7 +55,17 @@ public static class PredicateForm
 
         var root = nodes.FirstOrDefault(n => n.ParentId is null)
             ?? throw new ArgumentException("Predicate node list must contain exactly one root (ParentId == null).", nameof(nodes));
-        return Build(root, childrenByParent);
+        var predicate = Build(root, childrenByParent);
+
+        // Collapse a redundant single-child AllOf/AnyOf ROOT back to its child, so a branch
+        // load-wrapped by FlattenForEditing round-trips to the identical bare leaf (no spurious
+        // {"all":[...]} churn; describer/view-mode output unchanged).
+        return predicate switch
+        {
+            Predicate.AllOf { Items.Count: 1 } a => a.Items[0],
+            Predicate.AnyOf { Items.Count: 1 } a => a.Items[0],
+            _ => predicate
+        };
     }
 
     /// <summary>UI operator token for an existing predicate node (reverse of Normalize).</summary>

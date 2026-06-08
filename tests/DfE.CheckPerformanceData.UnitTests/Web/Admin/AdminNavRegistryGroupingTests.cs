@@ -49,32 +49,17 @@ public sealed class AdminNavRegistryGroupingTests
 		}
 	}
 
-    // --- All_Keys_Are_Unique_Across_Twelve_Registrations ---
+    // --- All_Keys_Are_Unique_Across_Eleven_Registrations ---
 
     [Fact]
-	public void All_Keys_Are_Unique_Across_Twelve_Registrations()
+	public void All_Keys_Are_Unique_Across_Eleven_Registrations()
 	{
 		var entries = ResolveEntries();
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(12, keys.Count);
+		Assert.Equal(11, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
-	}
-
-	// --- RulesEngine_Is_System_Admin_Child_Order_20_Disabled_Empty_Url ---
-
-	[Fact]
-	public void RulesEngine_Is_System_Admin_Child_Order_20_Disabled_Empty_Url()
-	{
-		var entries = ResolveEntries();
-
-		var rulesEngine = entries.Single(e => e.Key == "rules-engine");
-
-		Assert.Equal("system-admin", rulesEngine.ParentKey);
-		Assert.Equal(20, rulesEngine.Order);
-		Assert.False(rulesEngine.Enabled);
-		Assert.Equal(string.Empty, rulesEngine.Url);
 	}
 
 	// --- CmsAdmin_Group_Has_Order_10_And_SystemAdmin_Has_Order_20 ---

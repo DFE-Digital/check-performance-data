@@ -56,7 +56,10 @@ public sealed class AdminRulesControllerEditTests
         Assert.Equal("EAL-1", vm.Form.BranchId);
         Assert.False(vm.Form.IsNew);
         Assert.Equal("etag-xyz", vm.Form.LoadETag);
-        Assert.NotEmpty(vm.Form.Nodes);
+        // A bare-leaf branch is wrapped in an AllOf root for editing so the editor shows
+        // the Add condition/Add group affordances (collapsed back to the leaf on save).
+        Assert.Equal(2, vm.Form.Nodes.Count);
+        Assert.Equal(PredicateKind.AllOf, vm.Form.Nodes.Single(n => n.ParentId is null).Kind);
     }
 
     [Fact]

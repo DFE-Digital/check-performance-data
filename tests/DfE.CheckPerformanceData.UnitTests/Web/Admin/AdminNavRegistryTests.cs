@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 public sealed class AdminNavRegistryTests
 {
-    // --- AddAdminNavEntries_Registers_Twelve_Hierarchical_Entries ---
+    // --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
 
     [Fact]
-	public void AddAdminNavEntries_Registers_Twelve_Hierarchical_Entries()
+	public void AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -17,14 +17,13 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(12, entries.Count);
+		Assert.Equal(11, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Visual regression dashboard", titles);
-		Assert.Contains("Rules engine", titles);
-		Assert.Contains("Rules configuration", titles);
+		Assert.Contains("Rules engine configuration", titles);
 		Assert.Contains("CMS administration", titles);
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Deleted pages", titles);
@@ -58,7 +57,7 @@ public sealed class AdminNavRegistryTests
 			.ToArray();
 
 		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
-		Assert.Equal(new[] { 10, 20, 30 }, systemOrders);
+		Assert.Equal(new[] { 10, 30 }, systemOrders);
 	}
 
 	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---

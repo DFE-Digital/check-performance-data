@@ -103,7 +103,7 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Rules configuration", body);
+            Assert.Contains("Rules engine configuration", body);
             Assert.Contains("Decision rules", body);
             Assert.Contains("Country languages", body);
         }

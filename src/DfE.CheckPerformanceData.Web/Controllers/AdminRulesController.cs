@@ -221,7 +221,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             IsNew = false,
             Status = branch.Status,
             LoadETag = etag,
-            Nodes = PredicateForm.Flatten(branch.When)
+            Nodes = PredicateForm.FlattenForEditing(branch.When)
         };
         return View(BranchEditView, BranchEditViewModel.For(form));
     }

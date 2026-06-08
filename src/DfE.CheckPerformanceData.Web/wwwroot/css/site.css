@@ -951,6 +951,7 @@ dialog.govuk-modal-dialogue__box::backdrop {
    conditions reads as a tidy vertical stack with consistently aligned,
    label-above controls — rather than the previous single ragged flex row. */
 .rules-condition {
+  position: relative; /* positioning context for the top-right remove icon */
   border: 1px solid #b1b4b6;
   padding: 15px;
   margin-bottom: 15px;
@@ -962,6 +963,11 @@ dialog.govuk-modal-dialogue__box::backdrop {
   margin-top: 15px;
 }
 
+/* Leave room so a full-width value input never slides under the remove icon. */
+.rules-condition__controls {
+  padding-right: 36px;
+}
+
 /* Keep the field and operator menus to a sensible, consistent width so the
    cards line up; the long field list otherwise stretches to its widest option. */
 .rules-condition__field .govuk-select,
@@ -969,11 +975,36 @@ dialog.govuk-modal-dialogue__box::backdrop {
   max-width: 22em;
 }
 
-/* Card footer for per-condition actions (Remove), separated from the controls. */
-.rules-condition__actions {
-  margin-top: 15px;
-  padding-top: 15px;
-  border-top: 1px solid #f3f2f1;
+/* Icon-only "remove condition" control: a white cross on a GOV.UK-red circle, pinned to the
+   top-right corner of the condition card. Stays a submit button (same remove transform), so the
+   accessible name lives on aria-label and the SVG is decorative. */
+.rules-condition__remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.rules-condition__remove-icon {
+  display: block;
+}
+
+/* Darken the circle on hover/focus for affordance (GOV.UK warning-hover red). */
+.rules-condition__remove:hover .rules-condition__remove-icon circle,
+.rules-condition__remove:focus-visible .rules-condition__remove-icon circle {
+  fill: #aa2a16;
+}
+
+/* GOV.UK focus style, matching the rest of the app. */
+.rules-condition__remove:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 0 0 1px #0b0c0c;
 }
 
 /* One row per value in the "is one of" list editor: input beside its Remove. */
@@ -1012,10 +1043,36 @@ body.js-enabled .rules-condition__apply {
   gap: 10px;
 }
 
-/* Keep the toggle from stretching and hold it at the top-right of the header row. */
+/* Disclosure-chevron toggle, pinned top-right of the group header: a down-chevron when expanded
+   (click to collapse) and a right-chevron when collapsed (click to expand). Stays a submit button
+   (same collapse/expand transform); the accessible name lives on aria-label, the SVG is decorative. */
 .rules-group__toggle {
   flex: 0 0 auto;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0b0c0c;
+  cursor: pointer;
+}
+
+.rules-group__toggle:hover {
+  background: #f3f2f1;
+}
+
+.rules-group__toggle:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 0 0 1px #0b0c0c;
+}
+
+.rules-group__toggle-icon {
+  display: block;
 }
 
 /* The combinator label ("All of these" etc.) shown in place of the dropdown

@@ -84,6 +84,27 @@ public sealed class AdminRulesEditTests(PlaywrightFixture fixture)
         finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
     }
 
+    // Each leaf condition's remove control is an accessible icon button (white cross on a red
+    // circle) that still drives the same remove transform. Runs everywhere (no browser needed).
+    [Fact]
+    public async Task EditBranch_Renders_Remove_Condition_As_Accessible_Icon_Button()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                $"{_fixture.BaseUrl}/admin/rules/outcomes/Inclusion/branches/INC-REJ/edit");
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("class=\"rules-condition__remove\"", body);
+            Assert.Contains("aria-label=\"Remove condition\"", body); // accessible name retained
+            Assert.Contains("value=\"remove:", body);                 // same transform as before
+        }
+        finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
+    }
+
     // A branch with nested groups (TCI-KS4-REJ) must render a Collapse control on each group.
     // Runs everywhere (no browser needed).
     [Fact]

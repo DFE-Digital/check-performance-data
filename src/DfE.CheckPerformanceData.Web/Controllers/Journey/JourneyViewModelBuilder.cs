@@ -125,6 +125,7 @@ public sealed class JourneyViewModelBuilder(
                 ExistingAnswer = answers.TryGetValue(q.Id, out var a) ? a : null,
                 FromSummary = fromSummary,
                 IsPageHeading = isSingleQuestion && string.IsNullOrEmpty(page.Title),
+                MaxEvidencePages = journeyService.MaxEvidencePages,
                 Error = error,
                 UploadError = uploadError,
                 ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),

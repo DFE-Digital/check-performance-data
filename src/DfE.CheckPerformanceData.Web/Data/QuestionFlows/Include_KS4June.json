@@ -1,0 +1,36 @@
+{
+  "firstPageId": "select-pupil",
+  "pages": [
+    {
+      "id": "select-pupil",
+      "type": "PupilSearch",
+      "title": "What is the name of the pupil to be included?",
+      "pupilFilter": "NonIncluded",
+      "pupilKey": "primary",
+      "nextPageId": "evidence",
+      "validationFailure": "Enter the name of the pupil to be included."
+    },
+    {
+      "id": "evidence",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for the inclusion of {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "Explain how the evidence supports including this pupil",
+          "summaryTitle": "How evidence supports pupil inclusion",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

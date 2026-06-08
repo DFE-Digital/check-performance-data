@@ -7,9 +7,9 @@ public class ChangeRequest
     public required Guid Id { get; init; }
     public required Guid WindowId { get; init; }
     public required long OrganisationUrn { get; init; }
-    public required string PupilUpn { get; init; }
-    public required string PupilFirstname { get; init; }
-    public required string PupilSurname { get; init; }
+    public string? PupilUpn { get; init; }
+    public string? PupilFirstname { get; init; }
+    public string? PupilSurname { get; init; }
     public required DateTime Submitted { get; init; }
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }

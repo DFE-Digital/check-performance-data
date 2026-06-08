@@ -1,7 +1,14 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ConfirmCorrectViewModel
 
 @{
-    ViewBag.Title = "title";
+    ViewBag.Title = "Confirm";
     Layout = "_Layout";
 }
 
-<h1 class="govuk-heading-xl">Confirm Correct Holding Page</h1>
+<a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+
+<h1 class="govuk-heading-xl">You can still request further amendments until @Model.EndDate</h1>
+
+<form method="post" action="@Url.Action("Confirm", "ConfirmCorrect", new { windowId = Model.WindowId })">
+    <govuk-button type="Submit">Continue</govuk-button>
+</form>

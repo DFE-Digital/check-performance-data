@@ -56,6 +56,13 @@ public class JourneyControllerTests
         ]
     };
 
+    private static readonly JourneyPage EvidencePage = new()
+    {
+        Id = "evidence-page",
+        Type = PageType.EvidenceUpload,
+        Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Evidence" }]
+    };
+
     public JourneyControllerTests()
     {
         _env.EnvironmentName.Returns("Production");
@@ -340,7 +347,7 @@ public class JourneyControllerTests
 
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
-        await _requestService.Received(1).SaveDraftAsync(WindowId, Arg.Any<RequestState>());
+        await _requestService.Received(1).SaveDraftAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<RequestStatus>());
         AssertRedirectToCheckYourData(result);
     }
 
@@ -355,7 +362,7 @@ public class JourneyControllerTests
         });
 
         RequestState? capturedJourney = null;
-        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s));
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
 
         await _sut.SaveDraft(WindowId, pageId: "page-2");
 
@@ -375,7 +382,7 @@ public class JourneyControllerTests
         });
 
         RequestState? capturedJourney = null;
-        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s));
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
 
         await _sut.SaveDraft(WindowId, pageId: "page-2");
 
@@ -391,6 +398,68 @@ public class JourneyControllerTests
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithoutPageId_PassesReadyToSubmitStatus()
+    {
+        SetupSession(ValidSession());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: null);
+
+        Assert.Equal(RequestStatus.ReadyToSubmit, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_PassesInProgressStatus()
+    {
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "page-2").Returns(Config.Pages[1]);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "page-2");
+
+        Assert.Equal(RequestStatus.InProgress, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WithFiles_PassesReadyToSubmitStatus()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "file.pdf", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 1024 }] }
+        };
+        SetupSession(ValidSession(answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(RequestStatus.ReadyToSubmit, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WithoutFiles_PassesInProgressStatus()
+    {
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(RequestStatus.InProgress, capturedStatus);
     }
 
     // ── DownloadEvidence ─────────────────────────────────────────────────────

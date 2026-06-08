@@ -72,7 +72,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         Upn = upn,
     };
 
-    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, string upn, RequestStatus status = RequestStatus.Submitted) => new()
+    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, string upn, RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = windowId,
@@ -149,7 +149,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task ExcludesWhenChangeRequestIsDraft()
+    public async Task ExcludesWhenChangeRequestIsInProgress()
     {
         await ResetAsync();
         var windowId = Guid.NewGuid();
@@ -158,7 +158,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await using var ctx = fixture.CreateContext();
         ctx.CheckingWindows.Add(NewWindow(windowId));
         ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Brown", upn));
-        ctx.ChangeRequests.Add(NewChangeRequest(windowId, TestUrnLong, upn, status: RequestStatus.Draft));
+        ctx.ChangeRequests.Add(NewChangeRequest(windowId, TestUrnLong, upn, status: RequestStatus.InProgress));
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();

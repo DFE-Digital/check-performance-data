@@ -8,10 +8,6 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
-    public Task<bool> IsSubmittedAsync(string referenceNumber) =>
-        db.ChangeRequests.AnyAsync(r => r.ReferenceNumber == referenceNumber
-                                     && r.Status == RequestStatus.Submitted);
-
     public Task<bool> HasConflictingRequestAsync(
         Guid windowId, string pupilUpn, long organisationUrn, string currentReferenceNumber) =>
         db.ChangeRequests.AnyAsync(r =>

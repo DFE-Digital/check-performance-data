@@ -56,6 +56,13 @@ public class JourneyControllerTests
         ]
     };
 
+    private static readonly JourneyPage EvidencePage = new()
+    {
+        Id = "evidence-page",
+        Type = PageType.EvidenceUpload,
+        Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Evidence" }]
+    };
+
     public JourneyControllerTests()
     {
         _env.EnvironmentName.Returns("Production");
@@ -417,6 +424,40 @@ public class JourneyControllerTests
             Arg.Do<RequestStatus>(s => capturedStatus = s));
 
         await _sut.SaveDraft(WindowId, pageId: "page-2");
+
+        Assert.Equal(RequestStatus.InProgress, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WithFiles_PassesReadyToSubmitStatus()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "file.pdf", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 1024 }] }
+        };
+        SetupSession(ValidSession(answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(RequestStatus.ReadyToSubmit, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WithoutFiles_PassesInProgressStatus()
+    {
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestStatus? capturedStatus = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
+            Arg.Do<RequestStatus>(s => capturedStatus = s));
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
 
         Assert.Equal(RequestStatus.InProgress, capturedStatus);
     }

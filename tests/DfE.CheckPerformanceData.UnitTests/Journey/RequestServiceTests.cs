@@ -50,18 +50,6 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_WhenAlreadySubmitted_ReturnsSilentlyWithoutWrites()
-    {
-        var journey = ValidJourney();
-        _requestRepository.IsSubmittedAsync(journey.ReferenceNumber!).Returns(true);
-
-        await _sut.ConfirmRequestAsync(WindowId, journey);
-
-        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
-        await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
-    }
-
-    [Fact]
     public async Task ConfirmRequestAsync_WhenConflictingRequestExists_ThrowsDuplicateRequestException()
     {
         var journey = ValidJourney();

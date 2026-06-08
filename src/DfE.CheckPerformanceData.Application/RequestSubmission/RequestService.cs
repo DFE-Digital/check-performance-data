@@ -18,9 +18,6 @@ public sealed class RequestService(
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
-        if (journey.ReferenceNumber is not null && await requestRepository.IsSubmittedAsync(journey.ReferenceNumber))
-            return;
-
         var urnLong = OrganisationUrnLong;
         var refNum = journey.ReferenceNumber ?? string.Empty;
         if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Upn, urnLong, refNum))
@@ -45,7 +42,7 @@ public sealed class RequestService(
 
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.Submitted, config));
+        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
@@ -58,7 +55,7 @@ public sealed class RequestService(
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
-            Status = RequestStatus.Submitted,
+            Status = RequestStatus.SubmittedUnCommitted,
             RequestType = "Confirm Pupil Data Declaration"
         });
     }

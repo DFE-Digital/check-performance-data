@@ -441,13 +441,14 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
-        // If posted from a question page, capture any unsaved non-file answers from the form
+        JourneyPage? page = null;
         if (pageId is not null)
         {
             var config = await GetConfigAsync(journey);
-            var page = config is not null ? flowService.GetPage(config, pageId) : null;
+            page = config is not null ? flowService.GetPage(config, pageId) : null;
             if (page is not null)
             {
+                // Capture any unsaved non-file answers from the form
                 foreach (var question in page.Questions.Where(q => q.Type != QuestionType.FileUpload))
                 {
                     var answer = ReadFormAnswer(question);
@@ -459,9 +460,42 @@ public sealed class JourneyController(
             }
         }
 
-        var status = pageId is null ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
+        var status = DetermineStatus(pageId, page, journey);
         await requestService.SaveDraftAsync(windowId, journey, status);
         return RedirectToCheckYourData(windowId);
+    }
+
+    private RequestStatus DetermineStatus(string? pageId, JourneyPage? page, RequestState journey)
+    {
+        if (pageId is null) return RequestStatus.ReadyToSubmit;
+        if (page?.Type != PageType.EvidenceUpload) return RequestStatus.InProgress;
+        var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
+        return IsEvidencePageValid(page, journey, pupilName) ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
+    }
+
+    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
+    {
+        foreach (var question in page.Questions)
+        {
+            if (question.Type == QuestionType.FileUpload)
+            {
+                journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
+                if (!question.Optional && (existing?.FileValues ?? []).Count == 0)
+                    return false;
+            }
+            else
+            {
+                journey.QuestionAnswers.TryGetValue(question.Id, out var answer);
+                answer ??= new QuestionAnswer();
+                if (!question.Optional || journeyService.IsAnswered(question, answer))
+                {
+                    if (journeyService.ValidateAnswer(question, answer,
+                            JourneyTemplate.Resolve(question.Title, pupilName), null) is not null)
+                        return false;
+                }
+            }
+        }
+        return journeyService.ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName) is null;
     }
 
     // ── Confirmation ───────────────────────────────────────────────────────

@@ -45,14 +45,14 @@ module "storage_private" {
   infrastructure_encryption_enabled = true
   create_encryption_scope           = false
 
-  # Create containers for the application (all containers are private)
   containers = [
     { name = "files" }
   ]
 
-  # Configure blob lifecycle management (default: delete after 7 days)
+  queues = [
+    { name = "performance-requests" }
+  ]
+
   container_delete_retention_days = var.container_delete_retention_days
-
-  blob_delete_after_days = var.blob_delete_after_days
-
+  blob_delete_after_days          = var.blob_delete_after_days
 }

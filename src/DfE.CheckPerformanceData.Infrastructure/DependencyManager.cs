@@ -181,7 +181,20 @@ public static class DependencyManager
 
         if (settings == null)
         {
-            throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
+            throw new InvalidOperationException(
+                "ZendeskSettings section is missing in the configuration. " +
+                "The RulesEngineWorker requires Zendesk to create tickets. " +
+                "Set ZendeskSettings_Subdomain and ZendeskSettings_Domain environment variables, " +
+                "or provide a ZendeskSettings section in your configuration.");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Subdomain) || string.IsNullOrWhiteSpace(settings.Domain))
+        {
+            throw new InvalidOperationException(
+                "ZendeskSettings.Subdomain and ZendeskSettings.Domain must be configured. " +
+                "The RulesEngineWorker requires Zendesk to create tickets. " +
+                "Set ZendeskSettings_Subdomain and ZendeskSettings_Domain environment variables, " +
+                "or provide a ZendeskSettings section in your configuration.");
         }
         services.Configure<ZendeskSettings>(s => s = settings);
 

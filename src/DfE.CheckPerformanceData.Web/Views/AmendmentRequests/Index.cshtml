@@ -1,0 +1,51 @@
+@model DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests.AmendmentRequestsViewModel
+
+@{
+    ViewBag.Title = "Amendment request summary";
+    Layout = "_Layout";
+}
+
+<a class="govuk-back-link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.WindowId })">Back</a>
+
+<span class="govuk-caption-l">Amendment requests</span>
+<h1 class="govuk-heading-xl">Amendment request summary</h1>
+
+<div class="govuk-inset-text">
+    <p class="govuk-body">Submit all requests by <strong>@Model.DeadlineText</strong></p>
+</div>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="govuk-inset-text">
+        <p class="govuk-body">You have no amendment requests for this window.</p>
+    </div>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Pupil</th>
+                <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Action</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@row.PupilName</td>
+                    <td class="govuk-table__cell">@row.RequestType</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
+                    </td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link govuk-!-margin-right-2" href="#">Edit</a>
+                        <a class="govuk-link" href="#">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

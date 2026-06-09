@@ -98,19 +98,22 @@ public sealed class RulesAdminViewModelFactoryTests
     }
 
     [Fact]
-    public void Lookups_listing_sorts_rows_by_country_code()
+    public void Lookups_listing_sorts_rows_by_country_name_and_populates_name()
     {
         var lookups = new Lookups(new Dictionary<string, IReadOnlyList<string>>
         {
-            ["FR"] = new[] { "French" },
-            ["GB"] = new[] { "English", "Welsh" }
+            // Codes deliberately out of name order: GB→"United Kingdom" sorts after FR→"France".
+            ["GB"] = new[] { "English", "Welsh" },
+            ["FR"] = new[] { "French" }
         });
 
         var vm = RulesAdminViewModelFactory.Lookups(lookups);
 
         Assert.Equal(2, vm.Rows.Count);
         Assert.Equal("FR", vm.Rows[0].CountryCode);
+        Assert.Equal("France", vm.Rows[0].CountryName);
         Assert.Equal("GB", vm.Rows[1].CountryCode);
+        Assert.Equal("United Kingdom", vm.Rows[1].CountryName);
         Assert.Equal("English, Welsh", vm.Rows[1].Languages);
     }
 

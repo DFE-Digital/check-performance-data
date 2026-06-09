@@ -35,6 +35,7 @@ else
         <caption class="govuk-table__caption govuk-visually-hidden">Country languages</caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Country name</th>
                 <th scope="col" class="govuk-table__header">Country code</th>
                 <th scope="col" class="govuk-table__header">Official languages</th>
                 <th scope="col" class="govuk-table__header">Actions</th>
@@ -44,15 +45,28 @@ else
             @foreach (var row in Model.Rows)
             {
                 <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@row.CountryName</td>
                     <td class="govuk-table__cell"><code>@row.CountryCode</code></td>
                     <td class="govuk-table__cell">@row.Languages</td>
                     <td class="govuk-table__cell">
-                        <a class="govuk-link" href="/admin/rules/lookups/@row.CountryCode/edit">Edit</a>
-                        <form method="post" action="/admin/rules/lookups/@row.CountryCode/remove" style="display:inline; margin-left:10px;">
-                            @Html.AntiForgeryToken()
-                            <button class="govuk-link govuk-button--text" type="submit"
-                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Remove</button>
-                        </form>
+                        <div class="rules-actions">
+                            <a class="rules-action rules-action--edit" href="/admin/rules/lookups/@row.CountryCode/edit"
+                               aria-label="Edit @row.CountryName" title="Edit">
+                                <svg class="rules-action__icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                                </svg>
+                            </a>
+                            <form class="rules-actions__form" method="post" action="/admin/rules/lookups/@row.CountryCode/remove">
+                                @Html.AntiForgeryToken()
+                                <button class="rules-action rules-action--remove" type="submit"
+                                        aria-label="Remove @row.CountryName" title="Remove">
+                                    <svg class="rules-action__icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <circle cx="12" cy="12" r="11" fill="#d4351c" />
+                                        <path d="M8 8l8 8M16 8l-8 8" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
             }

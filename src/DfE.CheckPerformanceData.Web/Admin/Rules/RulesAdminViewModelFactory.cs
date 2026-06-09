@@ -73,8 +73,10 @@ public static class RulesAdminViewModelFactory
         Rows = lookups is null
             ? Array.Empty<LookupRowViewModel>()
             : lookups.CountryLanguages
-                .OrderBy(kv => kv.Key, StringComparer.Ordinal)
-                .Select(kv => new LookupRowViewModel(kv.Key, string.Join(", ", kv.Value)))
+                .Select(kv => new LookupRowViewModel(
+                    kv.Key, CountryNames.DisplayName(kv.Key), string.Join(", ", kv.Value)))
+                .OrderBy(r => r.CountryName, StringComparer.CurrentCulture)
+                .ThenBy(r => r.CountryCode, StringComparer.Ordinal)
                 .ToList()
     };
 

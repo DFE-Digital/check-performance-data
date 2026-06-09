@@ -1022,6 +1022,66 @@ body.js-enabled .rules-condition__apply {
 }
 
 /* ==========================================================================
+   Rules lookups — icon row actions (Edit / Remove)
+   ========================================================================== */
+
+/* The actions cell lays its icon controls in a row. Each control is a link (Edit) or a submit
+   button (Remove) reduced to a tooltipped icon: the accessible name lives on aria-label (and is
+   row-specific, e.g. "Edit France"), the tooltip on title, and the SVG is decorative. The 32px box
+   keeps a comfortable WCAG 2.2 target size around the smaller glyph. */
+.rules-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rules-actions__form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.rules-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.rules-action:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 0 0 1px #0b0c0c;
+}
+
+.rules-action__icon {
+  display: block;
+}
+
+/* Edit: a pencil in GOV.UK link blue, darkening to the GOV.UK link-hover blue on hover/focus. */
+.rules-action--edit {
+  color: #1d70b8;
+}
+
+.rules-action--edit:hover,
+.rules-action--edit:focus-visible {
+  color: #003078;
+}
+
+/* Remove: a white cross on a GOV.UK-red circle (matching the branch editor's remove icon),
+   darkening the circle on hover/focus for affordance. */
+.rules-action--remove:hover .rules-action__icon circle,
+.rules-action--remove:focus-visible .rules-action__icon circle {
+  fill: #aa2a16;
+}
+
+/* ==========================================================================
    Rules branch editor — collapsible groups
    ========================================================================== */
 

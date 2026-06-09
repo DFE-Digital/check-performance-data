@@ -38,7 +38,7 @@ public sealed record OutcomeDetailViewModel
     public required IReadOnlyList<BranchViewModel> Branches { get; init; }
 }
 
-public sealed record LookupRowViewModel(string CountryCode, string Languages);
+public sealed record LookupRowViewModel(string CountryCode, string CountryName, string Languages);
 
 public sealed record LookupsViewModel
 {

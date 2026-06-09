@@ -27,6 +27,11 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     private const string OutcomeAddView = "~/Views/Admin/Rules/OutcomeAdd.cshtml";
     private const string OutcomeDeleteView = "~/Views/Admin/Rules/OutcomeDelete.cshtml";
     private const string RollbackConfirmView = "~/Views/Admin/Rules/RollbackConfirm.cshtml";
+    private const string UploadView = "~/Views/Admin/Rules/Upload.cshtml";
+
+    // The config blobs are tiny (a few KB); 1 MB is a generous ceiling that still rejects a
+    // mistaken large upload before we read it into memory.
+    private const long MaxUploadBytes = 1 * 1024 * 1024;
 
     [HttpGet("admin/rules")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -44,6 +49,75 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         };
 
         return View(IndexView, model);
+    }
+
+    // Upload escape hatch: only offered while a config is missing or has no usable data, so a fresh
+    // environment can be populated from the UI without clobbering an existing, in-use config.
+    [HttpGet("admin/rules/upload/{type}")]
+    public async Task<IActionResult> Upload(string type, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        var (_, hasData) = await CurrentConfigStateAsync(configType, ct);
+        if (hasData) return RedirectToAction(nameof(Index));
+
+        return View(UploadView, RulesAdminViewModelFactory.Upload(configType));
+    }
+
+    [HttpPost("admin/rules/upload/{type}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Upload(string type, IFormFile? file, CancellationToken ct)
+    {
+        if (!Enum.TryParse<RulesConfigType>(type, ignoreCase: true, out var configType))
+        {
+            return NotFound();
+        }
+
+        // Re-check the guard at write time: never overwrite a config that already holds data.
+        var (etag, hasData) = await CurrentConfigStateAsync(configType, ct);
+        if (hasData) return RedirectToAction(nameof(Index));
+
+        if (file is null || file.Length == 0)
+        {
+            return View(UploadView, RulesAdminViewModelFactory.Upload(configType, new[] { "Select a file to upload" }));
+        }
+
+        if (file.Length > MaxUploadBytes)
+        {
+            return View(UploadView, RulesAdminViewModelFactory.Upload(configType,
+                new[] { $"'{file.FileName}' must be 1 MB or less" }));
+        }
+
+        string json;
+        using (var reader = new StreamReader(file.OpenReadStream()))
+        {
+            json = await reader.ReadToEndAsync(ct);
+        }
+
+        try
+        {
+            var result = configType == RulesConfigType.Rules
+                ? await rules.ImportRulesAsync(json, etag, ct)
+                : await rules.ImportLookupsAsync(json, etag, ct);
+
+            if (!result.Saved)
+            {
+                return View(UploadView, RulesAdminViewModelFactory.Upload(configType, result.Errors));
+            }
+
+            var fileName = configType == RulesConfigType.Rules ? "rules.json" : "country-languages.json";
+            TempData["SuccessMessage"] =
+                $"{fileName} uploaded (version {result.VersionNumber}). The rules service refreshes within about 5 minutes.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (RulesConfigConflictException)
+        {
+            return View(UploadView, RulesAdminViewModelFactory.Upload(configType,
+                new[] { "The configuration was changed by someone else. Nothing was saved — reload and try again." }));
+        }
     }
 
     [HttpGet("admin/rules/outcomes")]
@@ -632,5 +706,20 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
     {
         var versions = await rules.ListVersionsAsync(type, ct);
         return versions.Count == 0 ? null : versions.MaxBy(v => v.VersionNumber);
+    }
+
+    // Current blob state for the upload guard: the ETag to write against (null when the blob is
+    // absent → create-only; non-null when it exists but is empty → overwrite), and whether the
+    // config already holds usable data (≥1 outcome / ≥1 country), in which case upload is refused.
+    private async Task<(string? ETag, bool HasData)> CurrentConfigStateAsync(RulesConfigType type, CancellationToken ct)
+    {
+        if (type == RulesConfigType.Rules)
+        {
+            var (ruleSet, etag) = await TryGetRulesAsync(ct);
+            return (etag, ruleSet is { Outcomes.Count: > 0 });
+        }
+
+        var (lookups, lookupsETag) = await TryGetLookupsAsync(ct);
+        return (lookupsETag, lookups is { CountryLanguages.Count: > 0 });
     }
 }

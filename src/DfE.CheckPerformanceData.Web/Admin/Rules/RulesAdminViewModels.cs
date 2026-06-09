@@ -13,12 +13,27 @@ public sealed record RulesConfigCardViewModel
     public int? LatestVersionNumber { get; init; }
     public DateTime? LastSavedAt { get; init; }
     public string? LastSavedBy { get; init; }
+
+    /// <summary>No file yet, or a file with no usable data — offer an upload escape hatch.</summary>
+    public bool CanUpload { get; init; }
+
+    /// <summary>At least one saved version exists — show the version history link.</summary>
+    public bool HasHistory { get; init; }
 }
 
 public sealed record RulesLandingViewModel
 {
     public required RulesConfigCardViewModel Rules { get; init; }
     public required RulesConfigCardViewModel Lookups { get; init; }
+}
+
+/// <summary>Backs the upload page for a single config blob.</summary>
+public sealed record RulesUploadViewModel
+{
+    public required RulesConfigType Type { get; init; }
+    public required string Title { get; init; }      // e.g. "Upload rules.json"
+    public required string FileName { get; init; }   // "rules.json" / "country-languages.json"
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 }
 
 public sealed record OutcomeSummaryViewModel(string Key, string Label, int BranchCount);

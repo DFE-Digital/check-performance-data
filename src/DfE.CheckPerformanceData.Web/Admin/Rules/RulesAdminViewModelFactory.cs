@@ -10,7 +10,7 @@ public static class RulesAdminViewModelFactory
     {
         if (rules is null)
         {
-            return new RulesConfigCardViewModel { IsEmpty = true, ItemNoun = "outcomes" };
+            return new RulesConfigCardViewModel { IsEmpty = true, ItemNoun = "outcomes", CanUpload = true };
         }
 
         return new RulesConfigCardViewModel
@@ -21,7 +21,9 @@ public static class RulesAdminViewModelFactory
             ItemNoun = "outcomes",
             LatestVersionNumber = latest?.VersionNumber,
             LastSavedAt = latest?.CreatedAt,
-            LastSavedBy = latest?.CreatedBy
+            LastSavedBy = latest?.CreatedBy,
+            CanUpload = rules.Outcomes.Count == 0,
+            HasHistory = latest is not null
         };
     }
 
@@ -29,7 +31,7 @@ public static class RulesAdminViewModelFactory
     {
         if (lookups is null)
         {
-            return new RulesConfigCardViewModel { IsEmpty = true, ItemNoun = "countries" };
+            return new RulesConfigCardViewModel { IsEmpty = true, ItemNoun = "countries", CanUpload = true };
         }
 
         return new RulesConfigCardViewModel
@@ -39,7 +41,9 @@ public static class RulesAdminViewModelFactory
             ItemNoun = "countries",
             LatestVersionNumber = latest?.VersionNumber,
             LastSavedAt = latest?.CreatedAt,
-            LastSavedBy = latest?.CreatedBy
+            LastSavedBy = latest?.CreatedBy,
+            CanUpload = lookups.CountryLanguages.Count == 0,
+            HasHistory = latest is not null
         };
     }
 
@@ -88,6 +92,18 @@ public static class RulesAdminViewModelFactory
             .Select(v => new VersionRowViewModel(v.Id, v.VersionNumber, v.CreatedAt, v.CreatedBy))
             .ToList()
     };
+
+    public static RulesUploadViewModel Upload(RulesConfigType type, IReadOnlyList<string>? errors = null)
+    {
+        var fileName = type == RulesConfigType.Rules ? "rules.json" : "country-languages.json";
+        return new RulesUploadViewModel
+        {
+            Type = type,
+            FileName = fileName,
+            Title = $"Upload {fileName}",
+            Errors = errors ?? Array.Empty<string>()
+        };
+    }
 
     public static VersionDetailViewModel VersionDetail(RulesConfigVersionDto dto) => new()
     {

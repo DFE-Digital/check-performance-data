@@ -45,12 +45,33 @@
                         <a class="govuk-link" href="@detailUrl">@detailLabel</a>
                     </p>
                 }
-                <p class="govuk-body">
-                    <a class="govuk-link" href="/admin/rules/history/@historyType">Version history</a>
-                </p>
+                @if (card.CanUpload)
+                {
+                    <a class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                       href="/admin/rules/upload/@historyType">Upload @file</a>
+                }
+                @if (card.HasHistory)
+                {
+                    <p class="govuk-body">
+                        <a class="govuk-link" href="/admin/rules/history/@historyType">Version history</a>
+                    </p>
+                }
             </div>
         </div>
     }
+}
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@success</p>
+        </div>
+    </div>
 }
 
 <h1 class="govuk-heading-xl">Rules engine configuration</h1>
@@ -59,8 +80,8 @@
 </p>
 
 <div class="govuk-inset-text">
-    This screen is read-only — editing is not yet available. The rules engine worker
-    reloads the published configuration about every 5 minutes.
+    Changes you publish here become the live configuration. The rules engine worker
+    reloads it about every 5 minutes.
 </div>
 
 <div class="govuk-grid-row">

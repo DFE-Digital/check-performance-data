@@ -40,6 +40,8 @@ public sealed class RulesAdminViewModelFactoryTests
         Assert.Equal(4, card.LatestVersionNumber);
         Assert.Equal("Ada", card.LastSavedBy);
         Assert.False(card.IsEmpty);
+        Assert.False(card.CanUpload);   // has data
+        Assert.True(card.HasHistory);   // has a saved version
     }
 
     [Fact]
@@ -48,6 +50,30 @@ public sealed class RulesAdminViewModelFactoryTests
         var card = RulesAdminViewModelFactory.RulesCard(null, null);
         Assert.True(card.IsEmpty);
         Assert.Equal(0, card.ItemCount);
+        Assert.True(card.CanUpload);    // no file → offer upload
+        Assert.False(card.HasHistory);  // nothing saved yet
+    }
+
+    [Fact]
+    public void RulesCard_can_upload_when_present_but_zero_outcomes()
+    {
+        var empty = new RuleSet("v0", new DateTimeOffset(2026, 5, 1, 9, 0, 0, TimeSpan.Zero), Array.Empty<OutcomeRules>());
+
+        var card = RulesAdminViewModelFactory.RulesCard(empty, null);
+
+        Assert.False(card.IsEmpty);     // a file exists...
+        Assert.True(card.CanUpload);    // ...but it has no data → still offer upload
+        Assert.False(card.HasHistory);
+    }
+
+    [Fact]
+    public void LookupsCard_can_upload_when_present_but_zero_countries()
+    {
+        var card = RulesAdminViewModelFactory.LookupsCard(Lookups.Empty, null);
+
+        Assert.False(card.IsEmpty);
+        Assert.True(card.CanUpload);
+        Assert.False(card.HasHistory);
     }
 
     [Fact]

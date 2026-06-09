@@ -191,4 +191,99 @@ public sealed class RulesConfigServiceTests
         Assert.Equal(RulesConfigType.Lookups, repo.Versions[0].ConfigType);
         Assert.Single(repo.Audits);
     }
+
+    [Fact]
+    public async Task ImportRules_valid_json_writes_version_and_import_audit()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+        var json = JsonSerializer.Serialize(ValidRules(), RulesJson.Options);
+
+        var result = await svc.ImportRulesAsync(json, expectedETag: null);
+
+        Assert.True(result.Saved);
+        Assert.Equal(1, result.VersionNumber);
+        Assert.Equal(1, store.Writes);
+        Assert.Single(repo.Versions);
+        Assert.Contains(repo.Audits, a => a.Contains(":Import:"));
+
+        var written = JsonSerializer.Deserialize<RuleSet>(store.Content[RulesConfigType.Rules], RulesJson.Options)!;
+        Assert.Equal("Deceased", written.Outcomes[0].Key);
+    }
+
+    [Fact]
+    public async Task ImportRules_malformed_json_returns_error_and_writes_nothing()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        var result = await svc.ImportRulesAsync("{ not valid json", expectedETag: null);
+
+        Assert.False(result.Saved);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(0, store.Writes);
+        Assert.Empty(repo.Versions);
+    }
+
+    [Fact]
+    public async Task ImportRules_zero_outcomes_returns_validation_error()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+        var json = JsonSerializer.Serialize(new RuleSet("v1", DateTimeOffset.UnixEpoch, Array.Empty<OutcomeRules>()), RulesJson.Options);
+
+        var result = await svc.ImportRulesAsync(json, expectedETag: null);
+
+        Assert.False(result.Saved);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(0, store.Writes);
+    }
+
+    [Fact]
+    public async Task ImportLookups_valid_json_writes_version_and_import_audit()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        var result = await svc.ImportLookupsAsync("{\"GB\":[\"English\",\"Welsh\"]}", expectedETag: null);
+
+        Assert.True(result.Saved);
+        Assert.Equal(1, store.Writes);
+        Assert.Single(repo.Versions);
+        Assert.Equal(RulesConfigType.Lookups, repo.Versions[0].ConfigType);
+        Assert.Contains(repo.Audits, a => a.Contains(":Import:"));
+    }
+
+    [Fact]
+    public async Task ImportLookups_empty_object_returns_error_and_writes_nothing()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        var result = await svc.ImportLookupsAsync("{}", expectedETag: null);
+
+        Assert.False(result.Saved);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(0, store.Writes);
+        Assert.Empty(repo.Versions);
+    }
+
+    [Fact]
+    public async Task ImportLookups_malformed_json_returns_error()
+    {
+        var store = new FakeStore();
+        var repo = new FakeRepo();
+        var svc = NewService(store, repo);
+
+        var result = await svc.ImportLookupsAsync("not json", expectedETag: null);
+
+        Assert.False(result.Saved);
+        Assert.NotEmpty(result.Errors);
+        Assert.Equal(0, store.Writes);
+    }
 }

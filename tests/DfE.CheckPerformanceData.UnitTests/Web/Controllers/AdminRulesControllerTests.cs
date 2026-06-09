@@ -1,10 +1,13 @@
 using System.Reflection;
+using System.Text;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
@@ -228,5 +231,119 @@ public sealed class AdminRulesControllerTests
         var svc = Substitute.For<IRulesConfigService>();
         var result = await NewController(svc).Version("Bananas", 1, default);
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    // --- Upload ---
+
+    private static IFormFile FakeFile(string content)
+    {
+        var file = Substitute.For<IFormFile>();
+        var bytes = Encoding.UTF8.GetBytes(content);
+        file.Length.Returns(bytes.LongLength);
+        file.FileName.Returns("rules.json");
+        file.OpenReadStream().Returns(_ => new MemoryStream(bytes));
+        return file;
+    }
+
+    private static AdminRulesController NewControllerWithTempData(IRulesConfigService svc)
+    {
+        var controller = NewController(svc);
+        controller.TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>());
+        return controller;
+    }
+
+    [Fact]
+    public async Task Upload_Get_NotFound_For_Invalid_Type()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        var result = await NewController(svc).Upload("Bananas", default);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Upload_Get_Returns_View_When_Config_Empty()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>())
+            .Returns<(RuleSet, string?)>(_ => throw new RulesConfigNotFoundException("rules.json not found"));
+
+        var result = await NewController(svc).Upload("Rules", default);
+
+        var model = Assert.IsType<RulesUploadViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(RulesConfigType.Rules, model.Type);
+        Assert.Empty(model.Errors);
+    }
+
+    [Fact]
+    public async Task Upload_Get_Redirects_When_Config_Has_Data()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((SampleRules(), "etag-r"));
+
+        var result = await NewController(svc).Upload("Rules", default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AdminRulesController.Index), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task Upload_Post_No_File_Returns_View_With_Error()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>())
+            .Returns<(RuleSet, string?)>(_ => throw new RulesConfigNotFoundException("rules.json not found"));
+
+        var result = await NewController(svc).Upload("Rules", file: null, default);
+
+        var model = Assert.IsType<RulesUploadViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Contains("Select a file to upload", model.Errors);
+        await svc.DidNotReceive().ImportRulesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_Post_When_Config_Has_Data_Redirects_Without_Importing()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>()).Returns((SampleRules(), "etag-r"));
+
+        var result = await NewController(svc).Upload("Rules", FakeFile("{}"), default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AdminRulesController.Index), redirect.ActionName);
+        await svc.DidNotReceive().ImportRulesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_Post_Valid_Imports_And_Redirects_With_Success()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetRulesAsync(Arg.Any<CancellationToken>())
+            .Returns<(RuleSet, string?)>(_ => throw new RulesConfigNotFoundException("rules.json not found"));
+        svc.ImportRulesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Success(1));
+
+        var controller = NewControllerWithTempData(svc);
+        var result = await controller.Upload("Rules", FakeFile("{\"version\":\"v1\"}"), default);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AdminRulesController.Index), redirect.ActionName);
+        Assert.Contains("uploaded", (string)controller.TempData["SuccessMessage"]!);
+        await svc.Received(1).ImportRulesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Upload_Post_Import_Errors_Re_Render_View()
+    {
+        var svc = Substitute.For<IRulesConfigService>();
+        svc.GetLookupsAsync(Arg.Any<CancellationToken>())
+            .Returns<(Lookups, string?)>(_ => throw new RulesConfigNotFoundException("country-languages.json not found"));
+        svc.ImportLookupsAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(RulesConfigSaveResult.Invalid(new[] { "The file contains no country-language entries." }));
+
+        var result = await NewController(svc).Upload("Lookups", FakeFile("{}"), default);
+
+        var model = Assert.IsType<RulesUploadViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(RulesConfigType.Lookups, model.Type);
+        Assert.NotEmpty(model.Errors);
     }
 }

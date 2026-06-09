@@ -33,6 +33,40 @@ public sealed class RulesConfigService(
     public Task<RulesConfigSaveResult> SaveLookupsAsync(Lookups lookups, string? expectedETag, CancellationToken ct = default) =>
         SaveLookupsCoreAsync(lookups, expectedETag, "Save", ct);
 
+    public async Task<RulesConfigSaveResult> ImportRulesAsync(string json, string? expectedETag, CancellationToken ct = default)
+    {
+        RuleSet? rules;
+        try
+        {
+            rules = JsonSerializer.Deserialize<RuleSet>(json, RulesJson.Options);
+        }
+        catch (JsonException ex)
+        {
+            return RulesConfigSaveResult.Invalid(new[] { $"The file is not valid rules JSON: {ex.Message}" });
+        }
+
+        return rules is null
+            ? RulesConfigSaveResult.Invalid(new[] { "The file is empty or not valid rules JSON." })
+            : await SaveRulesCoreAsync(rules, expectedETag, "Import", ct);
+    }
+
+    public async Task<RulesConfigSaveResult> ImportLookupsAsync(string json, string? expectedETag, CancellationToken ct = default)
+    {
+        Lookups lookups;
+        try
+        {
+            lookups = DeserialiseLookups(json);
+        }
+        catch (JsonException ex)
+        {
+            return RulesConfigSaveResult.Invalid(new[] { $"The file is not valid country-languages JSON: {ex.Message}" });
+        }
+
+        return lookups.CountryLanguages.Count == 0
+            ? RulesConfigSaveResult.Invalid(new[] { "The file contains no country-language entries." })
+            : await SaveLookupsCoreAsync(lookups, expectedETag, "Import", ct);
+    }
+
     public Task<IReadOnlyList<RulesConfigVersionDto>> ListVersionsAsync(RulesConfigType type, CancellationToken ct = default) =>
         versions.ListAsync(type, ct);
 

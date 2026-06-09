@@ -401,6 +401,19 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task SaveDraft_ClearsSessionAfterSaving()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.SaveDraft(WindowId, pageId: null);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Null(remaining.SelectedWhatToChange);
+        Assert.Null(remaining.CheckingWindow);
+        Assert.Null(remaining.ReferenceNumber);
+    }
+
+    [Fact]
     public async Task SaveDraft_WithoutPageId_PassesReadyToSubmitStatus()
     {
         SetupSession(ValidSession());

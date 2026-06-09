@@ -41,7 +41,7 @@ else
                         <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
                     </td>
                     <td class="govuk-table__cell">
-                        <a class="govuk-link govuk-!-margin-right-2" href="#">Edit</a>
+                        <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit</a>
                         <a class="govuk-link" href="#">Delete</a>
                     </td>
                 </tr>
@@ -49,3 +49,5 @@ else
         </tbody>
     </table>
 }
+
+<a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>

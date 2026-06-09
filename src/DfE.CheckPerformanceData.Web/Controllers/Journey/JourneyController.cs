@@ -462,6 +462,7 @@ public sealed class JourneyController(
 
         var status = DetermineStatus(pageId, page, journey);
         await requestService.SaveDraftAsync(windowId, journey, status);
+        HttpContext.Session.ClearRequestState(windowId);
         return RedirectToAction("Index", "AmendmentRequests", new { windowId });
     }
 

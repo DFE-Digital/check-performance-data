@@ -71,6 +71,9 @@ public sealed class RequestService(
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig));
     }
 
+    public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
+        draftBlobClient.GetDraftAsync(windowId, referenceNumber);
+
     private string BuildRequestType(RequestState journey, QuestionFlowConfig? config)
     {
         var prefix = journey.SelectedWhatToChange!.Value.ToString();

@@ -61,8 +61,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit))
-            .OrderBy(r => r.Submitted)
-            .ThenBy(r => r.ReferenceNumber)
+            .OrderBy(r => r.PupilSurname)
+            .ThenBy(r => r.PupilFirstname)
             .Select(r => new AmendmentRequestData
             {
                 PupilFirstname = r.PupilFirstname,

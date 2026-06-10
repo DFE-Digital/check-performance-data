@@ -1,0 +1,17 @@
+using DfE.CheckPerformanceData.Application.CurrentUser;
+
+namespace DfE.CheckPerformanceData.RulesEngineWorker;
+
+/// <summary>
+/// Identity used for audit entries the worker writes. The worker acts on behalf of
+/// the system rather than an interactive user, so it reports a fixed system id.
+/// </summary>
+public sealed class WorkerCurrentUserService : ICurrentUserService
+{
+    public string UserId => "rules-engine-worker";
+    public string DisplayName => "Rules Engine Worker";
+    public string OrganisationId => string.Empty;
+    public string OrganisationName => string.Empty;
+    public string OrganisationUrn => string.Empty;
+    public string OrganisationTypeId => string.Empty;
+}

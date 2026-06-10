@@ -1,0 +1,113 @@
+using DfE.CheckPerformanceData.Application.Queue;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+
+namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
+
+/// <summary>
+/// Shared dequeue loop for the queue consumers: claim a message, process it,
+/// ack on success or dead-letter once it exceeds the configured attempt cap.
+/// Cancellation is honoured cleanly and transient errors back off by the
+/// configured retry delay rather than tearing down the host.
+///
+/// When a <see cref="IServiceScopeFactory"/> is supplied (the hosting path), each
+/// message is processed inside its own DI scope so scoped collaborators such as the
+/// DbContext and queue service get a fresh, per-message instance. When it is absent
+/// (the unit-test path) the directly-injected collaborators are used as-is.
+/// </summary>
+public abstract class ConsumerBase : BackgroundService
+{
+    private readonly IQueueService? _queueService;
+    private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly QueueOptions _options;
+    private readonly ILogger _logger;
+
+    protected ConsumerBase(IQueueService queueService, IOptions<QueueOptions> options, ILogger logger)
+    {
+        _queueService = queueService;
+        _options = options?.Value ?? new QueueOptions();
+        _logger = logger;
+    }
+
+    protected ConsumerBase(IServiceScopeFactory scopeFactory, IOptions<QueueOptions> options, ILogger logger)
+    {
+        _scopeFactory = scopeFactory;
+        _options = options?.Value ?? new QueueOptions();
+        _logger = logger;
+    }
+
+    /// <summary>Queue this consumer claims messages from.</summary>
+    protected abstract string QueueName { get; }
+
+    /// <summary>
+    /// Process a single message body. Throwing routes the message to retry/DLQ.
+    /// <paramref name="services"/> is the per-message scope (the hosting path) or
+    /// <c>null</c> (the unit-test path, where collaborators are injected directly).
+    /// </summary>
+    public abstract Task ProcessMessageBodyAsync(string messageBody, CancellationToken cancellationToken);
+
+    protected virtual Task ProcessMessageBodyAsync(
+        string messageBody, IServiceProvider? services, CancellationToken cancellationToken) =>
+        ProcessMessageBodyAsync(messageBody, cancellationToken);
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await PollAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error polling queue {Queue}", QueueName);
+                await Task.Delay(_options.RetryDelay, stoppingToken);
+            }
+        }
+    }
+
+    private async Task PollAsync(CancellationToken stoppingToken)
+    {
+        if (_scopeFactory is not null)
+        {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var queueService = scope.ServiceProvider.GetRequiredService<IQueueService>();
+            await PollOnceAsync(queueService, scope.ServiceProvider, stoppingToken);
+        }
+        else
+        {
+            await PollOnceAsync(_queueService!, services: null, stoppingToken);
+        }
+    }
+
+    private async Task PollOnceAsync(IQueueService queueService, IServiceProvider? services, CancellationToken stoppingToken)
+    {
+        var message = await queueService.DequeueAsync(QueueName, stoppingToken);
+        if (message is null)
+        {
+            await Task.Delay(_options.RetryDelay, stoppingToken);
+            return;
+        }
+
+        try
+        {
+            await ProcessMessageBodyAsync(message.Payload, services, stoppingToken);
+            await queueService.AckAsync(message.Id, stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to process message {MessageId} on {Queue} (attempt {Attempt})",
+                message.Id, QueueName, message.Attempts);
+
+            if (message.Attempts >= _options.MaxAttempts)
+            {
+                await queueService.DeadLetterAsync(message.Id, ex.Message, stoppingToken);
+            }
+        }
+    }
+}

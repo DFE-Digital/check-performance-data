@@ -23,6 +23,8 @@ public sealed class PortalDbContext(
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<Country> Countries => Set<Country>();
     public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<QueueMessageEntity> QueueMessages => Set<QueueMessageEntity>();
+    public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,6 +37,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
         modelBuilder.ApplyConfiguration(new CountryConfiguration());
         modelBuilder.ApplyConfiguration(new SettingConfiguration());
+        modelBuilder.ApplyConfiguration(new QueueMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -81,14 +81,17 @@ public sealed class QueueServiceTests
         await enqueueSut.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "RESURFACE" });
 
         // First consumer dequeues but "crashes" (never acks). The visibility timeout must
-        // make the message available to a later dequeue — no permanently stranded lock.
+        // make the message available to a later dequeue — no permanently stranded lock. A
+        // zero timeout collapses the wait so the recovery path is exercised without sleeping.
+        var options = new QueueOptions { VisibilityTimeout = TimeSpan.Zero };
+
         await using var firstContext = _fixture.CreateContext();
-        var firstSut = new PostgresQueueService(firstContext);
+        var firstSut = new PostgresQueueService(firstContext, options);
         var firstTake = await firstSut.DequeueAsync(QueueOptions.RulesEngineQueue);
         Assert.NotNull(firstTake);
 
         await using var laterContext = _fixture.CreateContext();
-        var laterSut = new PostgresQueueService(laterContext);
+        var laterSut = new PostgresQueueService(laterContext, options);
         var resurfaced = await laterSut.DequeueAsync(QueueOptions.RulesEngineQueue);
 
         Assert.NotNull(resurfaced);

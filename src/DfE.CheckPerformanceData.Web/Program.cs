@@ -12,7 +12,9 @@ using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
@@ -122,6 +124,9 @@ try
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();
+
+    builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
+    builder.Services.AddScoped<IQueueService, PostgresQueueService>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));

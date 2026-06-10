@@ -114,7 +114,9 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
             Assert.Contains("Deleted pages", body);
             Assert.Contains("Seed sample pages", body);
             Assert.Contains("Queues", body);
+            Assert.Contains("Dead letter queue", body);
             Assert.Contains("Rules engine configuration", body);
+            Assert.Contains("System settings", body);
         }
         finally
         {

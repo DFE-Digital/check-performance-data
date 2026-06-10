@@ -19,10 +19,11 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ContentStagingImportExportNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeletedPagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
-        services.AddSingleton<IAdminNavEntry, CmsSettingsNavEntry>();
+        services.AddSingleton<IAdminNavEntry, SystemSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, VisualRegressionNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
+        services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
         return services;

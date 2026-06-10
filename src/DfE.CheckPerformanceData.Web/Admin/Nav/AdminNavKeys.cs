@@ -12,10 +12,11 @@ public static class AdminNavKeys
     public const string ContentStaging = "content-staging";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
-    public const string CmsSettings = "cms-settings";
+    public const string SystemSettings = "system-settings";
     public const string VrDashboard = "vr-dashboard";
     public const string RulesConfig = "rules-config";
     public const string RulesEngine = "rules-engine";
+    public const string DeadLetterQueue = "dead-letter-queue";
     public const string StorageAdmin = "storage-admin";
     public const string StorageBrowser = "storage-browser";
 }

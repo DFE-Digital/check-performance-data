@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// CMS settings page under the admin shell. Editor-or-admin gated: the admin role implies
+// System settings page under the admin shell. Editor-or-admin gated: the admin role implies
 // the editor role (Phase 3.2 one-way hierarchy), so gating on the editor role admits both.
 // Views live under Views/Admin/Settings so they inherit the admin layout via the
 // Views/Admin/_ViewStart cascade, hence the explicit view paths.

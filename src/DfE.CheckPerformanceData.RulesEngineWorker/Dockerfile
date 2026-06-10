@@ -1,4 +1,10 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# curl is used by the container orchestrator's exec probe to query the HTTP health surface.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
 USER $APP_UID
 WORKDIR /app
 

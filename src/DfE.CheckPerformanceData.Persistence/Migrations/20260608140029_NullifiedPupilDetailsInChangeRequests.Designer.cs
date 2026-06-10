@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260608140029_NullifiedPupilDetailsInChangeRequests")]
+    partial class NullifiedPupilDetailsInChangeRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,21 +118,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<DateTime?>("DecidedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DecisionOutcomeKey")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("DecisionStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("MatchedRuleId")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
                     b.Property<long>("OrganisationUrn")
                         .HasColumnType("bigint");
 
@@ -152,10 +140,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<string>("RequestType")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("RulesVersion")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -326,56 +310,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("Countries");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.DeadLetterEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<DateTime>("DeadLetteredAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("dead_lettered_at_utc");
-
-                    b.Property<DateTime>("EnqueuedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("enqueued_at_utc");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("payload");
-
-                    b.Property<string>("PayloadHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("payload_hash");
-
-                    b.Property<string>("QueueName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("queue_name");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)")
-                        .HasColumnName("reason");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DeadLetteredAtUtc")
-                        .HasDatabaseName("ix_queue_dead_letters_dead_lettered_at");
-
-                    b.ToTable("queue_dead_letters", (string)null);
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Pupil", b =>
                 {
                     b.Property<Guid>("Id")
@@ -451,50 +385,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Pupils");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.QueueMessageEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<DateTime>("EnqueuedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("enqueued_at_utc");
-
-                    b.Property<string>("Payload")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("payload");
-
-                    b.Property<string>("QueueName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("queue_name");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("VisibleAfterUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("visible_after_utc");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("QueueName", "Status", "VisibleAfterUtc")
-                        .HasDatabaseName("ix_queue_messages_claim");
-
-                    b.ToTable("queue_messages", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Setting", b =>

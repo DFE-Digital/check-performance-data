@@ -17,15 +17,12 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
             .IsRequired();
 
         builder.Property(x => x.PupilUpn)
-            .IsRequired()
             .HasMaxLength(50);
 
         builder.Property(x => x.PupilFirstname)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(x => x.PupilSurname)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(x => x.Submitted)

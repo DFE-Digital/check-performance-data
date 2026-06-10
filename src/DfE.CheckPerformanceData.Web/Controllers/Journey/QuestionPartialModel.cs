@@ -24,10 +24,12 @@ public sealed class QuestionPartialModel
     public string ResolvedTitle { get; init; } = string.Empty;
     public IReadOnlyList<QuestionOption> VisibleOptions { get; init; } = [];
 
+    public int MaxEvidencePages { get; init; }
+
     // File upload computed properties
     public IReadOnlyList<FileAnswer> UploadedFiles => ExistingAnswer?.FileValues ?? [];
     public int TotalPages => UploadedFiles.Sum(f => f.PageCount);
-    public bool AtLimit => TotalPages >= 6;
+    public bool AtLimit => MaxEvidencePages > 0 && TotalPages >= MaxEvidencePages;
     public string DescribedBy => UploadError is not null || Error is not null ? "fileUpload-hint fileUpload-error" : "fileUpload-hint";
     public IReadOnlyList<FileUploadRow> UploadedFileRows => UploadedFiles.Select(f => new FileUploadRow(f)).ToList();
 }

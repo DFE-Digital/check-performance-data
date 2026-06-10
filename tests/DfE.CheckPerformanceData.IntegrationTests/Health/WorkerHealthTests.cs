@@ -1,5 +1,8 @@
 using System.Net;
+using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.RulesEngineWorker.Health;
@@ -96,7 +99,10 @@ public sealed class WorkerHealthTests
             web.UseTestServer();
             web.ConfigureServices(services =>
             {
+                services.AddSingleton<ICurrentUserService, FakeCurrentUserService>();
                 services.AddDbContext<PortalDbContext>(o => o.UseNpgsql(connectionString));
+                services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
+                services.AddScoped<IQueueService, PostgresQueueService>();
 
                 var snapshot = new RulesSnapshot(
                     new RuleSet("test", DateTimeOffset.UtcNow, Array.Empty<OutcomeRules>()),
@@ -108,9 +114,14 @@ public sealed class WorkerHealthTests
                 provider.Current.Returns(snapshot);
                 services.AddSingleton(provider);
 
+                services.AddRouting();
                 services.AddWorkerHealthChecks();
             });
-            web.Configure(app => app.MapWorkerHealthChecks());
+            web.Configure(app =>
+            {
+                app.UseRouting();
+                app.UseEndpoints(endpoints => endpoints.MapWorkerHealthChecks());
+            });
         });
 
         var host = await builder.StartAsync();

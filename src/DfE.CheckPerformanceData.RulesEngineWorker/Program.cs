@@ -8,10 +8,12 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 using DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
+using DfE.CheckPerformanceData.RulesEngineWorker.Health;
 using DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddUserSecrets<Program>();
 
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
@@ -45,5 +47,8 @@ builder.Services.AddHostedService(sp =>
         sp.GetRequiredService<IServiceScopeFactory>(),
         sp.GetRequiredService<ILogger<DlqRetentionJob>>()));
 
-var host = builder.Build();
-host.Run();
+builder.Services.AddWorkerHealthChecks();
+
+var app = builder.Build();
+app.MapWorkerHealthChecks();
+app.Run();

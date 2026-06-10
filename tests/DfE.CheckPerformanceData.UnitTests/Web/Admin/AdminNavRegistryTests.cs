@@ -23,7 +23,7 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Visual regression dashboard", titles);
-		Assert.Contains("Rules engine", titles);
+		Assert.Contains("Queues", titles);
 		Assert.Contains("CMS administration", titles);
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Deleted pages", titles);

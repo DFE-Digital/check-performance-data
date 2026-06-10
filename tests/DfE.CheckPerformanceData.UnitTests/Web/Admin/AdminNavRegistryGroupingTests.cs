@@ -62,10 +62,10 @@ public sealed class AdminNavRegistryGroupingTests
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 
-	// --- RulesEngine_Is_System_Admin_Child_Order_20_Disabled_Empty_Url ---
+	// --- RulesEngine_Is_System_Admin_Child_Order_20_Live ---
 
 	[Fact]
-	public void RulesEngine_Is_System_Admin_Child_Order_20_Disabled_Empty_Url()
+	public void RulesEngine_Is_System_Admin_Child_Order_20_Live()
 	{
 		var entries = ResolveEntries();
 
@@ -73,8 +73,8 @@ public sealed class AdminNavRegistryGroupingTests
 
 		Assert.Equal("system-admin", rulesEngine.ParentKey);
 		Assert.Equal(20, rulesEngine.Order);
-		Assert.False(rulesEngine.Enabled);
-		Assert.Equal(string.Empty, rulesEngine.Url);
+		Assert.True(rulesEngine.Enabled);
+		Assert.Equal("/admin/queues", rulesEngine.Url);
 	}
 
 	// --- CmsAdmin_Group_Has_Order_10_And_SystemAdmin_Has_Order_20 ---

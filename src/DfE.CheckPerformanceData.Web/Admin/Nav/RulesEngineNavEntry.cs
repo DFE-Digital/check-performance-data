@@ -1,15 +1,14 @@
 namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 
-// Placeholder admin nav entry. Enabled flips to true and Url is populated when the
-// rules engine admin surface ships; until then the landing page renders this as a
-// "Coming soon" tile under the System administration group.
+// Admin nav entry for the queue and dead-letter admin surface, shown under the
+// System administration group.
 public sealed record RulesEngineNavEntry : IAdminNavEntry
 {
     public string Key => AdminNavKeys.RulesEngine;
     public string? ParentKey => AdminNavKeys.SystemAdmin;
-    public string Title => "Rules engine";
-    public string Description => "Surfaces queue depth and recent activity once the rules engine worker lands.";
-    public string Url => string.Empty;
-    public bool Enabled => false;
+    public string Title => "Queues";
+    public string Description => "Queue depth and latency, and the dead-letter queue.";
+    public string Url => "/admin/queues";
+    public bool Enabled => true;
     public int Order => 20;
 }

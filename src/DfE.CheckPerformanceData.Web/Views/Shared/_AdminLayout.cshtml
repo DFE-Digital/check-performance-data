@@ -86,6 +86,10 @@
                     </span>
                     <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
                         <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                            @if (User.IsInRole(WikiConstants.AdminRole))
+                            {
+                                @await Component.InvokeAsync("DlqBadge")
+                            }
                             <li class="govuk-service-navigation__item sign-in-nav-item">
                                 @if (showSignOut)
                                 {

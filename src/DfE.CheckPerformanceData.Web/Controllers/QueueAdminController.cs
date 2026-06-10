@@ -101,23 +101,99 @@ public sealed class QueueAdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Redrive(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
     {
-        var validated = (ids ?? Array.Empty<Guid>()).Where(id => id != Guid.Empty).ToArray();
-        if (validated.Length > 0)
+        var validated = Validate(ids);
+        if (validated.Length == 0)
+            return RedirectToAction(nameof(Dlq));
+
+        await WriteActionAuditAsync("Redrive", validated, cancellationToken);
+
+        try
+        {
             await _queueAdminService.RedriveAsync(validated, cancellationToken);
+            SetResult($"Requeued {Count(validated.Length, "message")}.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetResult($"Could not redrive: {ex.Message}");
+        }
 
         return RedirectToAction(nameof(Dlq));
     }
+
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpPost("admin/queues/dlq/{id:guid}/redrive")]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> RedriveMessage(Guid id, CancellationToken cancellationToken = default) =>
+        Redrive(new[] { id }, cancellationToken);
 
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpPost("admin/queues/dlq/purge")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Purge(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
     {
-        var validated = (ids ?? Array.Empty<Guid>()).Where(id => id != Guid.Empty).ToArray();
-        if (validated.Length > 0)
+        var validated = Validate(ids);
+        if (validated.Length == 0)
+            return RedirectToAction(nameof(Dlq));
+
+        // Capture the audit before the rows are deleted so the forensic trail survives the
+        // purge independently of the message it describes.
+        await WriteActionAuditAsync("Purge", validated, cancellationToken);
+
+        try
+        {
             await _queueAdminService.PurgeAsync(validated, cancellationToken);
+            SetResult($"Purged {Count(validated.Length, "message")}. The audit record is retained.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            SetResult($"Could not purge: {ex.Message}");
+        }
 
         return RedirectToAction(nameof(Dlq));
+    }
+
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpPost("admin/queues/dlq/{id:guid}/purge")]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> PurgeMessage(Guid id, CancellationToken cancellationToken = default) =>
+        Purge(new[] { id }, cancellationToken);
+
+    // Drops anything that is not a real message id (Guid.Empty / unknown placeholders) so a
+    // tampered form can never act on an unintended id. The dead-letter store itself only acts
+    // on ids it actually holds, giving a second server-side allow-list.
+    private static Guid[] Validate(IReadOnlyCollection<Guid>? ids) =>
+        (ids ?? Array.Empty<Guid>()).Where(id => id != Guid.Empty).Distinct().ToArray();
+
+    private static string Count(int n, string noun) =>
+        n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+
+    // Records an immutable forensic entry (who/when/what) for the destructive admin action.
+    // Written through the audited context so it carries the acting user and is retained
+    // independently of the messages it names.
+    private async Task WriteActionAuditAsync(string action, IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken)
+    {
+        if (_dbContext is null)
+            return;
+
+        _dbContext.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = "DlqMessage",
+            EntityId = string.Join(",", ids),
+            Action = action,
+            Timestamp = DateTime.UtcNow,
+            UserId = _currentUserService?.UserId,
+        });
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private void SetResult(string message)
+    {
+        // TempData is only available when an MVC TempData provider is wired (it is at
+        // runtime; it is not under bare unit-test construction) — guard so the success
+        // banner never NREs the action.
+        if (TempData is not null)
+            TempData["QueueAdminResult"] = message;
     }
 
     private async Task<bool> IsFullPayloadEnabledAsync()

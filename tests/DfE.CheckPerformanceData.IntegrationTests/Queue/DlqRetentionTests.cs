@@ -100,6 +100,70 @@ public sealed class DlqRetentionTests
         Assert.Null(second);
     }
 
+    // --- A redrive through the service audits the dead-letter removal, retained independently ---
+
+    [Fact]
+    public async Task Redrive_AuditsDeadLetterRemoval_RetainedAfterRow()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        var adminService = new QueueAdminService(queueService);
+
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "AUDIT-REDRIVE" });
+        var take = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+        await queueService.DeadLetterAsync(take!.Id, "needs redrive");
+
+        var dead = Assert.Single(await adminService.GetDlqMessagesAsync());
+
+        await adminService.RedriveAsync(new[] { dead.Id });
+
+        // The dead letter row is gone from the DLQ (requeued)...
+        Assert.Empty(await adminService.GetDlqMessagesAsync());
+
+        // ...but the audit trail naming the removed message and the actor survives.
+        await using var verify = _fixture.CreateContext();
+        var audit = verify.AuditEntries
+            .Where(a => a.EntityType == nameof(DeadLetterEntity)
+                && a.Action == "Delete"
+                && a.EntityId == dead.Id.ToString())
+            .ToList();
+        Assert.NotEmpty(audit);
+        Assert.All(audit, a => Assert.Equal("test-user", a.UserId));
+    }
+
+    // --- A purge through the service audits the deletion, surviving the purged message ---
+
+    [Fact]
+    public async Task Purge_AuditsDeletion_SurvivesPurgedMessage()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        var adminService = new QueueAdminService(queueService);
+
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "AUDIT-PURGE" });
+        var take = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+        await queueService.DeadLetterAsync(take!.Id, "needs purge");
+
+        var dead = Assert.Single(await adminService.GetDlqMessagesAsync());
+
+        await adminService.PurgeAsync(new[] { dead.Id });
+
+        Assert.Empty(await adminService.GetDlqMessagesAsync());
+
+        await using var verify = _fixture.CreateContext();
+        var audit = verify.AuditEntries
+            .Where(a => a.EntityType == nameof(DeadLetterEntity)
+                && a.Action == "Delete"
+                && a.EntityId == dead.Id.ToString())
+            .ToList();
+        Assert.NotEmpty(audit);
+        Assert.All(audit, a => Assert.Equal("test-user", a.UserId));
+    }
+
     // --- The retention job purges only dead letters older than the TTL ---
 
     [Fact]

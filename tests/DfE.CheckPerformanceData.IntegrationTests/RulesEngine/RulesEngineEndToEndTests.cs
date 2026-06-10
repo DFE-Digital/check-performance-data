@@ -61,27 +61,26 @@ public sealed class RulesEngineEndToEndTests
 
     private static IEnumerable<OutcomeScenario> BuildScenarios()
     {
-        yield return new("Inclusion-AutoApproved", "Inclusion", "KS4",
+        // WhatToChange carries the producer's contract string: the WhatToChange enum
+        // name, plus " - {reason option value}" where the flow has a useAsRequestType
+        // question (see AnswerFieldMap.WhatToChangeToOutcomeKey).
+        yield return new("Inclusion-AutoApproved", "Include", "KS4",
             Answers: [("inclusion-status-flag", "402")],
             DecisionStatus.AutoApproved, "INC-ACC");
 
-        yield return new("AdmittedFollowingPermanentExclusion-PreCutoff", "Admitted following permanent exclusion", "KS4",
+        yield return new("AdmittedFollowingPermanentExclusion-PreCutoff", "Remove - permanent-exclusion", "KS4",
             Answers: [("date-of-permanent-exclusion", "2022-01-01")],
             DecisionStatus.AutoRejected, "AFE-PRE2023");
 
-        yield return new("AdmittedFromAbroadEal-FirstLanguageEnglish", "Admitted from abroad with English not first language", "KS4",
+        yield return new("AdmittedFromAbroadEal-FirstLanguageEnglish", "Remove - english-not-first-language", "KS4",
             Answers: [("first-language", "ENG")],
             DecisionStatus.AutoRejected, "EAL-REJ-ENG");
 
-        yield return new("CompletedKs4Elsewhere-Default", "Completed KS4 studies this academic year in year 11 at another school or college", "KS4",
-            Answers: [],
-            DecisionStatus.Scrutiny, "CKS4-DEF");
-
-        yield return new("MergePupils-Default", "Merge pupils", "KS4",
+        yield return new("MergePupils-Default", "Merge", "KS4",
             Answers: [],
             DecisionStatus.Scrutiny, "MRG-DEF");
 
-        yield return new("SocialCareInvolvement-Ks4AllFlagsFalse", "Social care involvement - including police/prison", "KS4",
+        yield return new("SocialCareInvolvement-Ks4AllFlagsFalse", "Remove - social-care-involvement", "KS4",
             Answers:
             [
                 ("social-care-involvement", "no"),
@@ -90,39 +89,39 @@ public sealed class RulesEngineEndToEndTests
             ],
             DecisionStatus.AutoRejected, "SCI-KS4-REJ");
 
-        yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Terminal/Critical illness", "KS4",
+        yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Remove - life-limiting-illness", "KS4",
             Answers: [("terminal-illness", "yes")],
             DecisionStatus.Scrutiny, "TCI-TERM-SCR");
 
-        yield return new("YearGroupChange-Lower", "Year group change", "KS4",
+        yield return new("YearGroupChange-Lower", "Remove - year-group-change", "KS4",
             Answers: [("year-group-change", "Lower")],
             DecisionStatus.AutoApproved, "YGC-LOWER");
 
-        yield return new("Deceased-AutoApproved", "Deceased", "KS4",
+        yield return new("Deceased-AutoApproved", "Remove - pupil-died", "KS4",
             Answers: [],
             DecisionStatus.AutoApproved, "DEC-1");
 
-        yield return new("ElectiveHomeEducation-Ks4PostCutoff", "Elective home education", "KS4",
+        yield return new("ElectiveHomeEducation-Ks4PostCutoff", "Remove - elective-home-education", "KS4",
             Answers: [("date-of-removal-from-roll", "2025-02-01")],
             DecisionStatus.AutoRejected, "EHE-KS4");
 
-        yield return new("MovedSchoolDualRegistration-Default", "Moved school/Dual registration", "KS4",
+        yield return new("MovedSchoolDualRegistration-Default", "Remove - dual-registered-moved", "KS4",
             Answers: [],
             DecisionStatus.Scrutiny, "MSD-DEF");
 
-        yield return new("NotOnRoll-NonPost16", "Not on roll", "KS4",
+        yield return new("NotOnRoll-NonPost16", "Remove - not-on-roll", "KS4",
             Answers: [],
             DecisionStatus.AutoApproved, "NOR-NONPOST16");
 
-        yield return new("PermanentlyExcludedFromCurrentSchool-Ks4PostCutoff", "Permanently excluded from current school", "KS4",
+        yield return new("PermanentlyExcludedFromCurrentSchool-Ks4PostCutoff", "Remove - permanently-excluded", "KS4",
             Answers: [("date-of-permanent-exclusion", "2025-02-01")],
             DecisionStatus.AutoRejected, "PEX-KS4");
 
-        yield return new("PermanentlyLeftEngland-Ks4PostCutoff", "Permanently left England", "KS4",
+        yield return new("PermanentlyLeftEngland-Ks4PostCutoff", "Remove - permanently-left-england", "KS4",
             Answers: [("date-of-removal-from-roll", "2025-06-01")],
             DecisionStatus.AutoRejected, "PLE-KS4");
 
-        yield return new("PupilMissingInEducation-WhereaboutsUnknown", "Pupil missing in Education", "KS4",
+        yield return new("PupilMissingInEducation-WhereaboutsUnknown", "Remove - child-missing-education", "KS4",
             Answers:
             [
                 ("whereabouts-known", "no"),
@@ -130,30 +129,49 @@ public sealed class RulesEngineEndToEndTests
             ],
             DecisionStatus.AutoRejected, "PMIE-REJ");
 
-        yield return new("AssessmentsDeferred-NotContinuing", "One or more end-of-key stage assessments deferred by a year", "KS2",
-            Answers: [("continuing-ks2-studies", "no")],
-            DecisionStatus.AutoRejected, "ASD-REJ");
-
-        yield return new("PupilAddedAfterSummerTerm-Before", "Pupil added to school roll after start of summer term", "KS4",
-            Answers: [("date-added-to-roll", "2024-01-01")],
-            DecisionStatus.AutoRejected, "PAS-REJ");
-
-        yield return new("PupilNotOnJuneList-Default", "Pupil not on June list", "KS4",
+        // Per the "always Scrutiny on doubt" policy: a reason the AnswerFieldMap
+        // cannot route must surface to a human, not be dropped.
+        yield return new("UnroutedWhatToChange-FallsToScrutiny", "Remove - some-future-reason", "KS4",
             Answers: [],
-            DecisionStatus.Scrutiny, "PNJL-DEF");
+            DecisionStatus.Scrutiny, "_unmatched_outcome");
+    }
 
-        yield return new OutcomeScenario(
-            Name: "NotAtEndOf16To18Study-Under18",
-            WhatToChange: "Not at end of 16 to 18 study",
-            CheckingWindowType: "Post16",
-            Answers: [],
-            ExpectedStatus: DecisionStatus.AutoApproved,
-            ExpectedRuleId: "N16-LT18",
-            PupilAge: 16);
+    // --- pending outcomes (no journey flow yet) -----------------------------
 
-        yield return new("Other-Default", "Other", "KS4",
-            Answers: [],
-            DecisionStatus.Scrutiny, "OTH-DEF");
+    /// <summary>
+    /// Outcomes seeded in rules.json whose journey flows are not authored yet, so no
+    /// producer contract string routes to them (see
+    /// <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>). Their rule branches
+    /// are still exercised against the seed by driving the engine directly; move a
+    /// scenario up into <see cref="BuildScenarios"/> when its flow exists.
+    /// </summary>
+    public static TheoryData<string, string, DecisionStatus, string> PendingOutcomeScenarios() => new()
+    {
+        { "CompletedKs4Elsewhere",   "KS4",    DecisionStatus.Scrutiny,     "CKS4-DEF" },
+        { "AssessmentsDeferred",     "KS2",    DecisionStatus.AutoRejected, "ASD-REJ"  },
+        { "PupilAddedAfterSummerTerm", "KS4",  DecisionStatus.AutoRejected, "PAS-REJ"  },
+        { "PupilNotOnJuneList",      "KS4",    DecisionStatus.Scrutiny,     "PNJL-DEF" },
+        { "NotAtEndOf16To18Study",   "Post16", DecisionStatus.AutoApproved, "N16-LT18" },
+        { "Other",                   "KS4",    DecisionStatus.Scrutiny,     "OTH-DEF"  },
+    };
+
+    [Theory]
+    [MemberData(nameof(PendingOutcomeScenarios))]
+    public void Engine_RoutesPendingOutcome_ToExpectedDecision(
+        string outcomeKey, string keyStage, DecisionStatus expectedStatus, string expectedRuleId)
+    {
+        var ctx = new RuleContext(outcomeKey, keyStage, new Dictionary<string, FieldValue>
+        {
+            ["keyStage"]              = new FieldValue.Str(keyStage),
+            ["isContinuingKS2Studies"] = new FieldValue.Bool(false),
+            ["dateAddedToRoll"]       = new FieldValue.Date(new DateOnly(2024, 1, 1)),
+            ["pupilAge"]              = new FieldValue.Num(16),
+        });
+
+        var decision = new RulesEngineImpl().Evaluate(Snapshot.Rules, ctx, Snapshot.Lookups);
+
+        Assert.Equal(expectedStatus, decision.Status);
+        Assert.Equal(expectedRuleId, decision.MatchedRuleId);
     }
 
     // --- wiring ------------------------------------------------------------

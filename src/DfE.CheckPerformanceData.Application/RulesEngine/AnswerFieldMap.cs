@@ -2,11 +2,8 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
 /// Maps the producer side's vocabulary (form <c>QuestionId</c>s on the message,
-/// docx <c>WhatToChange</c> reason strings) onto the engine's canonical names.
-///
-/// At time of writing the Web producer is a stub (<c>HomeController.SendRequest</c>
-/// enqueues a placeholder string) — these are the IDs the producer will target
-/// when it is built out. Updating either side requires touching only this file.
+/// <c>WhatToChange</c> contract strings) onto the engine's canonical names.
+/// Updating either side requires touching only this file.
 /// </summary>
 /// <remarks>
 /// This indirection is deliberate — it is an anti-corruption boundary so the rules
@@ -68,34 +65,42 @@ public static class AnswerFieldMap
         };
 
     /// <summary>
-    /// Docx outcome label (as it appears on a <c>WhatToChange</c> form answer)
-    /// → canonical outcome key used by <see cref="OutcomeRules.Key"/> in the rules JSON.
-    /// Lookup is case-insensitive and tolerant of trailing/leading whitespace.
+    /// <c>RequestDocument.WhatToChange</c> contract string → canonical outcome key used
+    /// by <see cref="OutcomeRules.Key"/> in the rules JSON. The contract string is the
+    /// <c>WhatToChange</c> enum name, suffixed with <c>" - {option value}"</c> when the
+    /// flow config flags a question with <c>useAsRequestType</c> (the Remove flows'
+    /// <c>reason</c> radio). Option *values* are used — not display labels — so UI copy
+    /// changes cannot break routing; <c>QuestionFlowOutcomeKeyAlignmentTests</c> pins
+    /// the flow configs to this map in CI. Lookup is case-insensitive and tolerant of
+    /// trailing/leading whitespace.
+    ///
+    /// Outcomes with no journey flow yet (<c>CompletedKs4Elsewhere</c>,
+    /// <c>AssessmentsDeferred</c>, <c>PupilAddedAfterSummerTerm</c>,
+    /// <c>PupilNotOnJuneList</c>, <c>NotAtEndOf16To18Study</c>, <c>Other</c>) have no
+    /// entry here; add one when the KS2/Post16 flows are authored
+    /// (see <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>).
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> WhatToChangeToOutcomeKey =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["Inclusion"]                                                                       = "Inclusion",
-            ["Admitted following permanent exclusion"]                                          = "AdmittedFollowingPermanentExclusion",
-            ["Admitted from abroad with English not first language"]                            = "AdmittedFromAbroadEal",
-            ["Completed KS4 studies this academic year in year 11 at another school or college"]= "CompletedKs4Elsewhere",
-            ["Merge pupils"]                                                                    = "MergePupils",
-            ["Social care involvement - including police/prison"]                               = "SocialCareInvolvement",
-            ["Social care involvement including police/prison"]                                 = "SocialCareInvolvement",
-            ["Terminal/Critical illness"]                                                       = "TerminalCriticalIllness",
-            ["Year group change"]                                                               = "YearGroupChange",
-            ["Deceased"]                                                                        = "Deceased",
-            ["Elective home education"]                                                         = "ElectiveHomeEducation",
-            ["Moved school/Dual registration"]                                                  = "MovedSchoolDualRegistration",
-            ["Not on roll"]                                                                     = "NotOnRoll",
-            ["Permanently excluded from current school"]                                        = "PermanentlyExcludedFromCurrentSchool",
-            ["Permanently left England"]                                                        = "PermanentlyLeftEngland",
-            ["Pupil missing in Education"]                                                      = "PupilMissingInEducation",
-            ["One or more end-of-key stage assessments deferred by a year"]                     = "AssessmentsDeferred",
-            ["Pupil added to school roll after start of summer term"]                           = "PupilAddedAfterSummerTerm",
-            ["Pupil not on June list"]                                                          = "PupilNotOnJuneList",
-            ["Not at end of 16 to 18 study"]                                                    = "NotAtEndOf16To18Study",
-            ["Other"]                                                                           = "Other",
+            ["Merge"]                                  = "MergePupils",
+            ["Include"]                                = "Inclusion",
+
+            // Remove flow reason option values. Note the near-miss pair:
+            // "permanent-exclusion" = admitted *following* a permanent exclusion
+            // elsewhere; "permanently-excluded" = excluded *from the current school*.
+            ["Remove - permanent-exclusion"]           = "AdmittedFollowingPermanentExclusion",
+            ["Remove - english-not-first-language"]    = "AdmittedFromAbroadEal",
+            ["Remove - child-missing-education"]       = "PupilMissingInEducation",
+            ["Remove - pupil-died"]                    = "Deceased",
+            ["Remove - dual-registered-moved"]         = "MovedSchoolDualRegistration",
+            ["Remove - elective-home-education"]       = "ElectiveHomeEducation",
+            ["Remove - not-on-roll"]                   = "NotOnRoll",
+            ["Remove - permanently-excluded"]          = "PermanentlyExcludedFromCurrentSchool",
+            ["Remove - permanently-left-england"]      = "PermanentlyLeftEngland",
+            ["Remove - social-care-involvement"]       = "SocialCareInvolvement",
+            ["Remove - life-limiting-illness"]         = "TerminalCriticalIllness",
+            ["Remove - year-group-change"]             = "YearGroupChange",
         };
 
     /// <summary>

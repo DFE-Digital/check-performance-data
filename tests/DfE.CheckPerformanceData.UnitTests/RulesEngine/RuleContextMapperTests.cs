@@ -10,15 +10,18 @@ public sealed class RuleContextMapperTests
     // --- OutcomeKey ---
 
     [Theory]
-    [InlineData("Deceased",                                                   "Deceased")]
-    [InlineData("Elective home education",                                    "ElectiveHomeEducation")]
-    [InlineData("  Elective home education  ",                                "ElectiveHomeEducation")]
-    [InlineData("elective home education",                                    "ElectiveHomeEducation")] // case-insensitive
-    [InlineData("Permanently left England",                                   "PermanentlyLeftEngland")]
-    [InlineData("Social care involvement - including police/prison",          "SocialCareInvolvement")]
-    [InlineData("Social care involvement including police/prison",            "SocialCareInvolvement")] // dash-less variant
-    [InlineData("Pupil missing in Education",                                 "PupilMissingInEducation")]
-    [InlineData("Not at end of 16 to 18 study",                               "NotAtEndOf16To18Study")]
+    [InlineData("Merge",                                    "MergePupils")]
+    [InlineData("Include",                                  "Inclusion")]
+    [InlineData("Remove - pupil-died",                      "Deceased")]
+    [InlineData("Remove - elective-home-education",         "ElectiveHomeEducation")]
+    [InlineData("  Remove - elective-home-education  ",     "ElectiveHomeEducation")] // whitespace-tolerant
+    [InlineData("remove - ELECTIVE-HOME-EDUCATION",         "ElectiveHomeEducation")] // case-insensitive
+    [InlineData("Remove - permanently-left-england",        "PermanentlyLeftEngland")]
+    [InlineData("Remove - social-care-involvement",         "SocialCareInvolvement")]
+    [InlineData("Remove - child-missing-education",         "PupilMissingInEducation")]
+    [InlineData("Remove - life-limiting-illness",           "TerminalCriticalIllness")]
+    [InlineData("Remove - permanent-exclusion",             "AdmittedFollowingPermanentExclusion")]
+    [InlineData("Remove - permanently-excluded",            "PermanentlyExcludedFromCurrentSchool")]
     public void Maps_KnownWhatToChange_ToOutcomeKey(string whatToChange, string expected)
     {
         var msg = NewMessage(whatToChange);
@@ -59,7 +62,7 @@ public sealed class RuleContextMapperTests
     [InlineData("",          "")]      // unrecognised → empty
     public void Maps_CheckingWindowType_ToCanonicalKeyStage(string raw, string expected)
     {
-        var msg = NewMessage("Deceased", checkingWindowType: raw);
+        var msg = NewMessage("Remove - pupil-died", checkingWindowType: raw);
 
         var ctx = _sut.Map(msg);
 
@@ -71,7 +74,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Maps_StringAnswer_ToFieldValueStr()
     {
-        var msg = NewMessage("Inclusion", answers: new[]
+        var msg = NewMessage("Include", answers: new[]
         {
             Answer("inclusion-status-flag", "402")
         });
@@ -84,7 +87,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Maps_BoolAnswer_ToFieldValueBool()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
         {
             Answer("terminal-illness", "true"),
             Answer("critical-illness-12m", "yes"),
@@ -103,7 +106,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Maps_DateAnswer_ToFieldValueDate()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
             Answer("date-of-removal-from-roll", "2025-02-15")
         });
@@ -116,7 +119,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Maps_IsoDateTimeAnswer_TruncatesToDate()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
             Answer("date-of-removal-from-roll", "2025-02-15T13:45:00Z")
         });
@@ -129,7 +132,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Throws_OnMalformedDate()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
             Answer("date-of-removal-from-roll", "not-a-date")
         });
@@ -141,7 +144,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Throws_OnMalformedBool()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
         {
             Answer("terminal-illness", "maybe")
         });
@@ -153,7 +156,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void EmptyAnswerValue_BecomesUnknown()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
         {
             Answer("terminal-illness", "")
         });
@@ -166,7 +169,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void MissingAnswer_BecomesUnknown()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: Array.Empty<AnswerRecord>());
+        var msg = NewMessage("Remove - life-limiting-illness", answers: Array.Empty<AnswerRecord>());
 
         var ctx = _sut.Map(msg);
 
@@ -176,7 +179,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void UnmappedQuestionId_IsSilentlyIgnored()
     {
-        var msg = NewMessage("Inclusion", answers: new[]
+        var msg = NewMessage("Include", answers: new[]
         {
             Answer("some-extra-question", "value"),
             Answer("inclusion-status-flag", "402"),
@@ -191,7 +194,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void PupilAge_IsRead_FromPupilObject_WhenPositive()
     {
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 17);
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 17);
 
         var ctx = _sut.Map(msg);
 
@@ -202,7 +205,7 @@ public sealed class RuleContextMapperTests
     public void PupilAge_IsUnknown_WhenZero()
     {
         // 0 is the default for int — treat it as "not supplied" to keep Scrutiny defaults safe.
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 0);
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 0);
 
         var ctx = _sut.Map(msg);
 
@@ -212,7 +215,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void PupilAgeAnswer_OverridesPupilObject_WhenBothPresent()
     {
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 17, answers: new[]
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 17, answers: new[]
         {
             Answer("pupil-age", "18")
         });
@@ -225,12 +228,12 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void EnvelopeFields_AreAlwaysPopulated()
     {
-        var msg = NewMessage("Deceased", checkingWindowType: "KS4");
+        var msg = NewMessage("Remove - pupil-died", checkingWindowType: "KS4");
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new FieldValue.Str("KS4"),     ctx.GetField("keyStage"));
-        Assert.Equal(new FieldValue.Str("Deceased"), ctx.GetField("requestType"));
+        Assert.Equal(new FieldValue.Str("KS4"),                 ctx.GetField("keyStage"));
+        Assert.Equal(new FieldValue.Str("Remove - pupil-died"), ctx.GetField("requestType"));
     }
 
     [Fact]

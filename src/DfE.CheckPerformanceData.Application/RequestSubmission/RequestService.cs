@@ -32,7 +32,7 @@ public sealed class RequestService(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
-            WhatToChange = journey.SelectedWhatToChange.Value,
+            WhatToChange = BuildWhatToChangeValue(journey, config),
             Pupil = journey.SelectedPupil,
             MatchedPupil = journey.MatchedPupil,
             CheckingWindow = journey.CheckingWindow,
@@ -83,6 +83,16 @@ public sealed class RequestService(
         return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
     }
 
+    // The rules-engine contract: like BuildRequestType but using the stable option
+    // *value* rather than the display label, so UI copy changes cannot break the
+    // engine's WhatToChangeToOutcomeKey routing.
+    private string BuildWhatToChangeValue(RequestState journey, QuestionFlowConfig config)
+    {
+        var prefix = journey.SelectedWhatToChange!.Value.ToString();
+        var detail = flowService.ResolveRequestTypeValue(config, journey);
+        return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
+    }
+
     private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status, QuestionFlowConfig? config) =>
         new()
         {
@@ -128,7 +138,7 @@ public sealed class RequestService(
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowType = context.CheckingWindow.CheckingWindowType.ToString(),
-            WhatToChange = context.WhatToChange.ToString(),
+            WhatToChange = context.WhatToChange,
             School = new SchoolDetails
             {
                 Urn = currentUserService.OrganisationUrn,

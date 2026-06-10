@@ -261,6 +261,28 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task ConfirmRequestAsync_WhatToChange_IncludesReasonValue_WhenFlowResolvesOne()
+    {
+        var (journey, config) = MakeSubmission();
+        _flowService.ResolveRequestTypeValue(config, Arg.Any<RequestState>()).Returns("pupil-died");
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("Remove - pupil-died", doc.WhatToChange);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_WhatToChange_IsBarePrefix_WhenFlowResolvesNoValue()
+    {
+        var (journey, config) = MakeSubmission();
+        _flowService.ResolveRequestTypeValue(config, Arg.Any<RequestState>()).Returns(string.Empty);
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("Remove", doc.WhatToChange);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_SavesDocumentToBlobStorage()
     {
         var (journey, config) = MakeSubmission();

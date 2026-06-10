@@ -215,7 +215,7 @@ public sealed class RulesEngineEndToEndTests
         Submitted = new DateTime(2026, 5, 14, 10, 0, 0, DateTimeKind.Unspecified),
         SubmittedById = Guid.NewGuid(),
         SubmittedByName = "Alice",
-        Status = RequestStatus.Submitted,
+        Status = RequestStatus.SubmittedUnCommitted,
         ReferenceNumber = reference,
         RequestType = "change",
     };

@@ -5,9 +5,11 @@ using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -32,6 +34,9 @@ public static class DependencyManager
         {
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
+
+        services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
+        services.AddSingleton<INotifyClient, GovukNotifyClient>();
 
         return services;
     }

@@ -5,6 +5,11 @@ namespace DfE.CheckPerformanceData.Application.Settings;
 public static class SettingKeys
 {
     public const string WikiPageLength = "Wiki:PageLength";
+
+    public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
+    public const string DlqAlertThreshold = "Dlq:AlertThreshold";
+    public const string DlqAlertRecipients = "Dlq:AlertRecipients";
+    public const string DlqRetentionDays = "Dlq:RetentionDays";
 }
 
 // A setting the application understands: its key, an editor-facing description, and the
@@ -19,7 +24,19 @@ public static class SettingDefinitions
     [
         new(SettingKeys.WikiPageLength,
             "Number of rows shown per page on paged lists, such as the deleted pages list.",
-            "20")
+            "20"),
+        new(SettingKeys.DlqFullPayloadEnabled,
+            "Whether operators may view the full original payload of a dead-lettered message. Off by default.",
+            "false"),
+        new(SettingKeys.DlqAlertThreshold,
+            "Dead-letter queue depth at which an email alert is raised to the configured recipients.",
+            "10"),
+        new(SettingKeys.DlqAlertRecipients,
+            "Comma-separated email addresses notified when the dead-letter queue crosses the alert threshold.",
+            ""),
+        new(SettingKeys.DlqRetentionDays,
+            "Number of days a dead-lettered message is retained before it is purged. The admin-action audit trail is kept independently.",
+            "90")
     ];
 
     public static SettingDefinition? Find(string key) =>

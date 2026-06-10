@@ -59,6 +59,24 @@ public sealed class ZendeskConsumer : ConsumerBase
         _logger = NullLogger<ZendeskConsumer>.Instance;
     }
 
+    // Test constructor for ticket-composition assertions: also wires the singleton
+    // ticket-field service and settings so the built ticket's custom and pupil
+    // fields can be exercised directly. Internal so DI never sees it.
+    internal ZendeskConsumer(
+        IQueueService queueService,
+        IZendeskService zendeskService,
+        IPortalDbContext dbContext,
+        IZendeskTicketFieldService ticketFieldService,
+        SchoolCheckingExerciseSettings checkingExerciseSettings)
+        : base(queueService, Options.Create(new QueueOptions()), NullLogger<ZendeskConsumer>.Instance)
+    {
+        _zendeskService = zendeskService;
+        _dbContext = dbContext;
+        _ticketFieldService = ticketFieldService;
+        _checkingExerciseSettings = checkingExerciseSettings;
+        _logger = NullLogger<ZendeskConsumer>.Instance;
+    }
+
     // Hosting constructor: scoped collaborators (Zendesk service, attachment
     // service, DbContext, queue) are resolved per message from a fresh scope; the
     // ticket-field service, blob client and settings are singletons.
@@ -185,7 +203,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         return new Decision(status, outcomeKey, matchedRuleId, Array.Empty<string>());
     }
 
-    private CreateTicketRequestDto BuildTicket(RequestDocument message, Decision decision)
+    internal CreateTicketRequestDto BuildTicket(RequestDocument message, Decision decision)
     {
         var subject = decision.Status switch
         {

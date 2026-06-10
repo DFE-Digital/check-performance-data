@@ -1,11 +1,14 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Persistence.Repositories;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 using DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
+using DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
 using Microsoft.EntityFrameworkCore;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -13,6 +16,10 @@ builder.Configuration.AddUserSecrets<Program>();
 
 builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
 builder.Services.AddScoped<IQueueService, PostgresQueueService>();
+builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
+
+builder.Services.AddScoped<ISettingRepository, SettingRepository>();
+builder.Services.AddScoped<ISettingService, SettingService>();
 
 builder.Services.AddSingleton<ICurrentUserService, WorkerCurrentUserService>();
 builder.Services.AddDbContext<PortalDbContext>(options =>
@@ -33,6 +40,10 @@ builder.Services.AddRulesProvider(builder.Configuration);
 
 builder.Services.AddHostedService<RulesConsumer>();
 builder.Services.AddHostedService<ZendeskConsumer>();
+builder.Services.AddHostedService(sp =>
+    new DlqRetentionJob(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<DlqRetentionJob>>()));
 
 var host = builder.Build();
 host.Run();

@@ -1,6 +1,12 @@
+using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
+using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
+using Microsoft.Extensions.Logging.Abstractions;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Queue;
 
@@ -92,5 +98,152 @@ public sealed class DlqRetentionTests
 
         Assert.NotNull(first);
         Assert.Null(second);
+    }
+
+    // --- The retention job purges only dead letters older than the TTL ---
+
+    [Fact]
+    public async Task RetentionJob_PurgesOnlyDeadLettersOlderThanRetention()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        var oldId = Guid.NewGuid();
+        var freshId = Guid.NewGuid();
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.DeadLetters.Add(NewDeadLetter(oldId, DateTime.UtcNow.AddDays(-120)));
+            seed.DeadLetters.Add(NewDeadLetter(freshId, DateTime.UtcNow.AddDays(-1)));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var notifyClient = Substitute.For<INotifyClient>();
+        var settings = SettingsReturning(retentionDays: 90, threshold: 1000, recipients: "");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
+
+        var remaining = await adminService.GetDlqMessagesAsync();
+        var survivor = Assert.Single(remaining);
+        Assert.Equal(freshId, survivor.Id);
+    }
+
+    // --- The admin-action audit trail survives a purged dead-letter message ---
+
+    [Fact]
+    public async Task RetentionJob_PurgesDeadLetter_ButAuditEntrySurvives()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        var deadId = Guid.NewGuid();
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.DeadLetters.Add(NewDeadLetter(deadId, DateTime.UtcNow.AddDays(-120)));
+            seed.AuditEntries.Add(new DfE.CheckPerformance.Persistence.Entities.AuditEntry
+            {
+                EntityType = nameof(DeadLetterEntity),
+                EntityId = deadId.ToString(),
+                Action = "Delete",
+                Timestamp = DateTime.UtcNow
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var settings = SettingsReturning(retentionDays: 90, threshold: 1000, recipients: "");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyClient>(), CancellationToken.None);
+
+        Assert.Empty(await adminService.GetDlqMessagesAsync());
+
+        // The message row is gone, but the admin-action audit trail referencing it remains.
+        await using var verify = _fixture.CreateContext();
+        var audit = verify.AuditEntries
+            .Where(a => a.EntityId == deadId.ToString() && a.Action == "Delete")
+            .ToList();
+        Assert.NotEmpty(audit);
+    }
+
+    // --- The job emails an alert once per recipient when DLQ depth exceeds the threshold ---
+
+    [Fact]
+    public async Task RetentionJob_SendsAlert_WhenDlqDepthExceedsThreshold()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var notifyClient = Substitute.For<INotifyClient>();
+        var settings = SettingsReturning(retentionDays: 90, threshold: 1, recipients: "ops@example.com, duty@example.com");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
+
+        await notifyClient.Received(1).SendEmailAsync(
+            "ops@example.com",
+            Arg.Is<IReadOnlyDictionary<string, object>>(p => p.ContainsKey("dlq_depth") && (int)p["dlq_depth"] == 2),
+            Arg.Any<CancellationToken>());
+        await notifyClient.Received(1).SendEmailAsync(
+            "duty@example.com",
+            Arg.Any<IReadOnlyDictionary<string, object>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RetentionJob_DoesNotAlert_WhenDlqDepthWithinThreshold()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var notifyClient = Substitute.For<INotifyClient>();
+        var settings = SettingsReturning(retentionDays: 90, threshold: 10, recipients: "ops@example.com");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
+
+        await notifyClient.DidNotReceive().SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyDictionary<string, object>>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static DeadLetterEntity NewDeadLetter(Guid id, DateTime deadLetteredAtUtc) => new()
+    {
+        Id = id,
+        QueueName = QueueOptions.RulesEngineQueue,
+        Payload = "{}",
+        Reason = "test",
+        PayloadHash = "hash",
+        Attempts = 1,
+        EnqueuedAtUtc = deadLetteredAtUtc,
+        DeadLetteredAtUtc = deadLetteredAtUtc
+    };
+
+    private static ISettingService SettingsReturning(int retentionDays, int threshold, string recipients)
+    {
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.DlqRetentionDays).Returns(retentionDays);
+        settings.GetIntAsync(SettingKeys.DlqAlertThreshold).Returns(threshold);
+        settings.GetValueAsync(SettingKeys.DlqAlertRecipients).Returns(recipients);
+        return settings;
     }
 }

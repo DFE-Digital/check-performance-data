@@ -1,5 +1,4 @@
 using Azure.Storage.Blobs;
-using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
@@ -151,12 +150,6 @@ try
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
-    builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
-        new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
-        {
-            MessageEncoding = QueueMessageEncoding.Base64
-        }));
-    
     builder.Services.AddAntiforgery(options =>
     {
         options.HeaderName = "X-XSRF-TOKEN";

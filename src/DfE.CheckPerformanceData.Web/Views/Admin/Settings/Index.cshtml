@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.Settings
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminSettingsViewModel
 @{
     ViewData["Title"] = "System settings";
@@ -55,13 +56,31 @@
                     <form action="/admin/settings/save" method="post" class="admin-setting-form">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="key" value="@setting.Key" />
-                        <div class="govuk-form-group govuk-!-margin-bottom-0">
-                            <label class="govuk-label govuk-visually-hidden" for="@inputId">
-                                Value for @setting.Key
-                            </label>
-                            <input class="govuk-input govuk-input--width-10" id="@inputId"
-                                   name="value" type="text" value="@setting.Value" />
-                        </div>
+                        @if (setting.Kind == SettingKind.Bool)
+                        {
+                            var isChecked = string.Equals(setting.Value, "true", StringComparison.OrdinalIgnoreCase);
+                            <div class="govuk-form-group govuk-!-margin-bottom-0">
+                                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                    <div class="govuk-checkboxes__item">
+                                        <input class="govuk-checkboxes__input" id="@inputId" name="boolValue"
+                                               type="checkbox" value="true" @(isChecked ? "checked" : "") />
+                                        <label class="govuk-label govuk-checkboxes__label" for="@inputId">
+                                            Enabled
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="govuk-form-group govuk-!-margin-bottom-0">
+                                <label class="govuk-label govuk-visually-hidden" for="@inputId">
+                                    Value for @setting.Key
+                                </label>
+                                <input class="govuk-input govuk-input--width-10" id="@inputId"
+                                       name="value" type="text" value="@setting.Value" />
+                            </div>
+                        }
                         <button type="submit" class="govuk-button govuk-!-margin-bottom-0"
                                 data-module="govuk-button" data-prevent-double-click="true">
                             Save

@@ -30,4 +30,26 @@ public sealed class SettingDefinitionsTests
     {
         Assert.Null(SettingDefinitions.Find("Dlq:NotARealKey"));
     }
+
+    [Fact]
+    public void FullPayloadEnabled_IsBoolKind()
+    {
+        var definition = SettingDefinitions.Find(SettingKeys.DlqFullPayloadEnabled);
+
+        Assert.NotNull(definition);
+        Assert.Equal(SettingKind.Bool, definition!.Kind);
+    }
+
+    [Theory]
+    [InlineData("Dlq:AlertThreshold", SettingKind.Int)]
+    [InlineData("Dlq:RetentionDays", SettingKind.Int)]
+    [InlineData("Wiki:PageLength", SettingKind.Int)]
+    [InlineData("Dlq:AlertRecipients", SettingKind.String)]
+    public void NonBoolSettings_HaveExpectedKind(string key, SettingKind expected)
+    {
+        var definition = SettingDefinitions.Find(key);
+
+        Assert.NotNull(definition);
+        Assert.Equal(expected, definition!.Kind);
+    }
 }

@@ -12,10 +12,24 @@ public static class SettingKeys
     public const string DlqRetentionDays = "Dlq:RetentionDays";
 }
 
-// A setting the application understands: its key, an editor-facing description, and the
-// value used when nothing is stored. Defaults live in code so a fresh environment behaves
-// correctly before anyone visits the settings page.
-public sealed record SettingDefinition(string Key, string Description, string DefaultValue);
+// The data type of a setting's value, used by the settings editor to choose how to render
+// the field (text input for String/Int, checkbox for Bool) and how to interpret the post.
+public enum SettingKind
+{
+    String,
+    Int,
+    Bool
+}
+
+// A setting the application understands: its key, an editor-facing description, the value
+// used when nothing is stored, and its value kind. Defaults live in code so a fresh
+// environment behaves correctly before anyone visits the settings page. Kind defaults to
+// String so existing call sites stay valid.
+public sealed record SettingDefinition(
+    string Key,
+    string Description,
+    string DefaultValue,
+    SettingKind Kind = SettingKind.String);
 
 // The single source of truth for which settings exist and their defaults.
 public static class SettingDefinitions
@@ -24,19 +38,24 @@ public static class SettingDefinitions
     [
         new(SettingKeys.WikiPageLength,
             "Number of rows shown per page on paged lists, such as the deleted pages list.",
-            "20"),
+            "20",
+            SettingKind.Int),
         new(SettingKeys.DlqFullPayloadEnabled,
             "Whether operators may view the full original payload of a dead-lettered message. Off by default.",
-            "false"),
+            "false",
+            SettingKind.Bool),
         new(SettingKeys.DlqAlertThreshold,
             "Dead-letter queue depth at which an email alert is raised to the configured recipients.",
-            "10"),
+            "10",
+            SettingKind.Int),
         new(SettingKeys.DlqAlertRecipients,
             "Comma-separated email addresses notified when the dead-letter queue crosses the alert threshold.",
-            ""),
+            "",
+            SettingKind.String),
         new(SettingKeys.DlqRetentionDays,
             "Number of days a dead-lettered message is retained before it is purged. The admin-action audit trail is kept independently.",
-            "90")
+            "90",
+            SettingKind.Int)
     ];
 
     public static SettingDefinition? Find(string key) =>
@@ -50,4 +69,5 @@ public sealed record SettingViewItem(
     string Description,
     string Value,
     string DefaultValue,
-    bool IsDefault);
+    bool IsDefault,
+    SettingKind Kind = SettingKind.String);

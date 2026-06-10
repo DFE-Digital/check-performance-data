@@ -23,11 +23,18 @@ public sealed class AdminSettingsController(ISettingService settings) : Controll
 
     [HttpPost("admin/settings/save")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Save(string key, string? value)
+    public async Task<IActionResult> Save(string key, string? value, string? boolValue = null)
     {
         try
         {
-            await settings.SaveAsync(key, value);
+            // Boolean settings render as a checkbox, which only posts a value when ticked.
+            // An absent boolValue therefore means unticked, which must persist "false".
+            var definition = SettingDefinitions.Find(key);
+            var effectiveValue = definition?.Kind == SettingKind.Bool
+                ? (string.Equals(boolValue, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false")
+                : value;
+
+            await settings.SaveAsync(key, effectiveValue);
             TempData["SettingsResult"] = $"Saved {key}.";
         }
         catch (InvalidOperationException)

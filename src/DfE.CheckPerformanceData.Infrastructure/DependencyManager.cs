@@ -5,12 +5,10 @@ using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
-using DfE.CheckPerformanceData.Infrastructure.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -29,7 +27,6 @@ public static class DependencyManager
 {
     public static IServiceCollection AddInfrastructureDependencies(this IServiceCollection services, IConfiguration config)
     {
-        services.AddScoped<IRequestDecisionHandler, RequestDecisionHandler>();
         var conn = config.GetConnectionString("AzureStorage");
         if (!string.IsNullOrEmpty(conn))
         {

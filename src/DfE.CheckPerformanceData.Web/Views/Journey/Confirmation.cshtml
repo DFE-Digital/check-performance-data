@@ -17,8 +17,12 @@
 <p class="govuk-body">We have sent you an email to confirm that you have successfully submitted a request.</p>
 
 <govuk-notification-banner>
-    You still have until <strong>@Model.WindowCloseLabel</strong> to update this request or <a class="govuk-link" asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">submit others</a>.
+    You still have until <strong>@Model.WindowCloseLabel</strong> to request any further amendments if you need to.
 </govuk-notification-banner>
+
+<p class="govuk-body">
+    <a class="govuk-link" asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId">Request another amendment</a> or <a class="govuk-link" asp-action="Index" asp-controller="AmendmentRequests" asp-route-windowId="@Model.WindowId">edit an existing request</a> 
+</p>
 
 @await Component.InvokeAsync("EditableTitle", new {
     key = "journey_confirmation_next_steps_title",

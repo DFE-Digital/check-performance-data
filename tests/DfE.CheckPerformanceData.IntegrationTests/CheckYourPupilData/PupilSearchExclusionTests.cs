@@ -72,7 +72,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         Upn = upn,
     };
 
-    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, string upn, RequestStatus status = RequestStatus.Submitted) => new()
+    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, string upn, RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = windowId,
@@ -149,7 +149,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task ExcludesWhenChangeRequestIsDraft()
+    public async Task ExcludesWhenChangeRequestIsInProgress()
     {
         await ResetAsync();
         var windowId = Guid.NewGuid();
@@ -158,7 +158,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await using var ctx = fixture.CreateContext();
         ctx.CheckingWindows.Add(NewWindow(windowId));
         ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Brown", upn));
-        ctx.ChangeRequests.Add(NewChangeRequest(windowId, TestUrnLong, upn, status: RequestStatus.Draft));
+        ctx.ChangeRequests.Add(NewChangeRequest(windowId, TestUrnLong, upn, status: RequestStatus.InProgress));
         await ctx.SaveChangesAsync();
 
         var repo = CreateRepo();
@@ -199,6 +199,24 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
 
         var repo = CreateRepo();
         var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Wilson", PupilFilter.Included);
+
+        Assert.Single(results);
+    }
+
+    [Fact]
+    public async Task FilterNonIncluded_ReturnsOnlyNonIncludedPupils()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+
+        await using var ctx = fixture.CreateContext();
+        ctx.CheckingWindows.Add(NewWindow(windowId));
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000011", pincl: 401));  // included
+        ctx.Pupils.Add(NewPupil(windowId, TestUrn, "Wilson", "A100000000012", pincl: 999));  // non-included
+        await ctx.SaveChangesAsync();
+
+        var repo = CreateRepo();
+        var results = await repo.SearchPupilsAsync(windowId, TestUrn, "Wilson", PupilFilter.NonIncluded);
 
         Assert.Single(results);
     }

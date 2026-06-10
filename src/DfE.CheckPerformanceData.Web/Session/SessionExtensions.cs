@@ -20,6 +20,9 @@ public static class SessionExtensions
         session.SetString(Key(windowId), JsonSerializer.Serialize(state));
     }
 
+    public static void SetRequestState(this ISession session, Guid windowId, RequestState state) =>
+        session.SetString(Key(windowId), JsonSerializer.Serialize(state));
+
     public static void ClearRequestState(this ISession session, Guid windowId) =>
         session.Remove(Key(windowId));
 }

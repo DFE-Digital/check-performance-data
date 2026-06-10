@@ -50,6 +50,10 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.CrmId)
             .HasMaxLength(100);
 
+        builder.Property(x => x.DecisionStatus)
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
         builder.Property(x => x.DecisionOutcomeKey)
             .HasMaxLength(100);
 

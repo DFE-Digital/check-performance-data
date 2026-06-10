@@ -175,13 +175,14 @@ public sealed class ZendeskConsumer : ConsumerBase
     private static Decision DeriveDecision(RequestDocument message, ChangeRequest? changeRequest)
     {
         // The decision the rules consumer reached is persisted on the change request.
-        // The decision status itself is not stored, so per the "scrutiny on doubt"
-        // policy the relocated ticket defaults to Scrutiny.
+        // A genuinely missing status falls back to Scrutiny so a fault never silently
+        // produces an auto-approval or auto-rejection ticket.
+        var status = changeRequest?.DecisionStatus ?? DecisionStatus.Scrutiny;
         var outcomeKey = string.IsNullOrEmpty(changeRequest?.DecisionOutcomeKey)
             ? message.WhatToChange
             : changeRequest.DecisionOutcomeKey;
         var matchedRuleId = changeRequest?.MatchedRuleId ?? string.Empty;
-        return new Decision(DecisionStatus.Scrutiny, outcomeKey, matchedRuleId, Array.Empty<string>());
+        return new Decision(status, outcomeKey, matchedRuleId, Array.Empty<string>());
     }
 
     private CreateTicketRequestDto BuildTicket(RequestDocument message, Decision decision)

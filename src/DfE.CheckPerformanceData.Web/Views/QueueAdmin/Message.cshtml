@@ -1,0 +1,59 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DlqMessageViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dead-letter message";
+}
+
+<a class="govuk-back-link" href="/admin/queues/dlq">Back to dead-letter queue</a>
+
+<h1 class="govuk-heading-xl">Dead-letter message</h1>
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Message ID</dt>
+        <dd class="govuk-summary-list__value">@Model.Id</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Queue</dt>
+        <dd class="govuk-summary-list__value">@Model.QueueName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Attempts</dt>
+        <dd class="govuk-summary-list__value">@Model.Attempts</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Reason</dt>
+        <dd class="govuk-summary-list__value">@Model.Reason</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Dead-lettered</dt>
+        <dd class="govuk-summary-list__value">@Model.DeadLetteredAtUtc.ToString("u")</dd>
+    </div>
+</dl>
+
+<h2 class="govuk-heading-l">Payload</h2>
+@if (Model.IsRedacted)
+{
+    <div class="govuk-inset-text">
+        Pupil identifiers are hidden. The full payload can be enabled by an administrator
+        in service settings; viewing it is recorded in the audit log.
+    </div>
+}
+else
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            This is the full payload including pupil identifiers. This view has been recorded.
+        </strong>
+    </div>
+}
+
+<pre class="govuk-body app-code-block"><code>@Model.Payload</code></pre>
+
+<form action="/admin/queues/dlq/redrive" method="post" class="govuk-button-group">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="ids" value="@Model.Id" />
+    <button type="submit" class="govuk-button" data-module="govuk-button">Redrive</button>
+</form>

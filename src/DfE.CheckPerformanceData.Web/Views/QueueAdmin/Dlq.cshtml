@@ -1,0 +1,60 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DlqListViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dead-letter queue";
+
+    static string Truncate(string value, int max) =>
+        string.IsNullOrEmpty(value) || value.Length <= max ? value : value[..max] + "…";
+}
+
+<h1 class="govuk-heading-xl">Dead-letter queue</h1>
+<p class="govuk-body-l">
+    Messages that failed processing after the maximum number of attempts. Open a message
+    to inspect its payload.
+</p>
+
+@if (TempData["QueueAdminResult"] is string result)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="dlq-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="dlq-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@result</p>
+        </div>
+    </div>
+}
+
+<table class="govuk-table">
+    <caption class="govuk-table__caption govuk-table__caption--m">Dead-lettered messages</caption>
+    <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Message</th>
+            <th scope="col" class="govuk-table__header">Queue</th>
+            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
+            <th scope="col" class="govuk-table__header">Reason</th>
+            <th scope="col" class="govuk-table__header">Dead-lettered</th>
+        </tr>
+    </thead>
+    <tbody class="govuk-table__body">
+        @if (Model.Messages.Count == 0)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell" colspan="5">The dead-letter queue is empty.</td>
+            </tr>
+        }
+        @foreach (var message in Model.Messages)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">
+                    <a class="govuk-link" href="/admin/queues/dlq/@message.Id">@message.Id</a>
+                </td>
+                <td class="govuk-table__cell">@message.QueueName</td>
+                <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
+                <td class="govuk-table__cell">@Truncate(message.Reason, 120)</td>
+                <td class="govuk-table__cell">@message.DeadLetteredAtUtc.ToString("u")</td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -341,14 +341,14 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task SaveDraft_WithoutPageId_CallsServiceAndRedirectsToCheckYourData()
+    public async Task SaveDraft_WithoutPageId_CallsServiceAndRedirectsToAmendmentRequests()
     {
         SetupSession(ValidSession());
 
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         await _requestService.Received(1).SaveDraftAsync(WindowId, Arg.Any<RequestState>(), Arg.Any<RequestStatus>());
-        AssertRedirectToCheckYourData(result);
+        AssertRedirectToAmendmentRequests(result);
     }
 
     [Fact]
@@ -391,13 +391,26 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task SaveDraft_AlwaysRedirectsToCheckYourData()
+    public async Task SaveDraft_AlwaysRedirectsToAmendmentRequests()
     {
         SetupSession(ValidSession());
 
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
-        AssertRedirectToCheckYourData(result);
+        AssertRedirectToAmendmentRequests(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_ClearsSessionAfterSaving()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.SaveDraft(WindowId, pageId: null);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Null(remaining.SelectedWhatToChange);
+        Assert.Null(remaining.CheckingWindow);
+        Assert.Null(remaining.ReferenceNumber);
     }
 
     [Fact]
@@ -553,6 +566,13 @@ public class JourneyControllerTests
     {
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+    }
+
+    private static void AssertRedirectToAmendmentRequests(IActionResult result)
+    {
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
         Assert.Equal("Index", redirect.ActionName);
     }
 

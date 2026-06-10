@@ -1,4 +1,5 @@
-﻿using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+﻿using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
@@ -31,6 +32,7 @@ public static class DependencyManager
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+        services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
 
         services.AddSingleton<IRulesEngine, RulesEngine.RulesEngine>();
         services.AddSingleton<IRuleContextMapper, RuleContextMapper>();

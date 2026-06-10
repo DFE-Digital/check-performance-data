@@ -389,6 +389,39 @@ public class RequestServiceTests
         Assert.Equal(["blob", "db"], callOrder);
     }
 
+    // ── ResumeDraftAsync ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ResumeDraftAsync_ReturnsStateFromBlobClient()
+    {
+        var expected = new RequestState { ReferenceNumber = "REF001" };
+        _draftBlobClient.GetDraftAsync(WindowId, "REF001").Returns(expected);
+
+        var result = await _sut.ResumeDraftAsync(WindowId, "REF001");
+
+        Assert.Same(expected, result);
+    }
+
+    [Fact]
+    public async Task ResumeDraftAsync_WhenDraftNotFound_ReturnsNull()
+    {
+        _draftBlobClient.GetDraftAsync(WindowId, "MISSING").Returns((RequestState?)null);
+
+        var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ResumeDraftAsync_PassesWindowIdAndReferenceNumberToBlobClient()
+    {
+        _draftBlobClient.GetDraftAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
+
+        await _sut.ResumeDraftAsync(WindowId, "REF001");
+
+        await _draftBlobClient.Received(1).GetDraftAsync(WindowId, "REF001");
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private async Task<RequestDocument> CaptureDocument(RequestState journey, QuestionFlowConfig config)

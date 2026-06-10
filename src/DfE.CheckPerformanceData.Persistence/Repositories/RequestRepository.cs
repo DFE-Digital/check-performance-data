@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -53,4 +54,22 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(
+        Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && (r.Status == RequestStatus.InProgress || r.Status == RequestStatus.ReadyToSubmit))
+            .OrderBy(r => r.PupilSurname)
+            .ThenBy(r => r.PupilFirstname)
+            .Select(r => new AmendmentRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                Status = r.Status,
+                ReferenceNumber = r.ReferenceNumber
+            })
+            .ToListAsync();
 }

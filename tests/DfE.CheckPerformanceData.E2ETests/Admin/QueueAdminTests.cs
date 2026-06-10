@@ -34,14 +34,23 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Admin sees the queue admin landing + DLQ view renders (D-06) ---
+    // --- Admin sees the System administration tile + the queue/DLQ views render (D-06) ---
 
     [Fact]
-    public async Task QueueAdmin_AsAdmin_RendersQueuesAndDlqView()
+    public async Task QueueAdmin_AsAdmin_RendersTileQueuesAndDlqView()
     {
         try
         {
             await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+
+            using var adminRequest = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"{_fixture.BaseUrl}/admin");
+            var adminResponse = await TestHttpClients.SendAsync(adminRequest);
+            Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+            var adminBody = await adminResponse.Content.ReadAsStringAsync();
+            Assert.Contains("System administration", adminBody);
+            Assert.Contains("/admin/queues", adminBody);
 
             using var queuesRequest = new HttpRequestMessage(
                 HttpMethod.Get,
@@ -88,5 +97,116 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
         {
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
         }
+    }
+
+    // --- An admin redrive flow completes: confirm form submits, redirects, message gone ---
+
+    [Fact]
+    public async Task QueueAdmin_AsAdmin_RedriveFlow_RemovesMessageFromDlq()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+
+            var id = await SeedHelpers.SeedDeadLetterAsync(_fixture.SeedClient);
+            Assert.True(await DlqRowVisibleAsync(id), "Seeded dead letter should be visible before redrive.");
+
+            var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/admin/queues/dlq");
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_fixture.BaseUrl}/admin/queues/dlq/{id}/redrive")
+            {
+                Content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("__RequestVerificationToken", token)
+                })
+            };
+            request.Headers.Add("Cookie", $"{TestHttpClients.ImpersonationCookieHeader}; {cookie}");
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("/admin/queues/dlq", response.Headers.Location?.ToString() ?? string.Empty);
+
+            // The redriven message is no longer dead-lettered.
+            Assert.False(await DlqRowVisibleAsync(id), "Redriven message should no longer appear in the DLQ.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
+
+    // --- An admin purge flow completes: confirm form submits, redirects, message gone ---
+
+    [Fact]
+    public async Task QueueAdmin_AsAdmin_PurgeFlow_RemovesMessageFromDlq()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+
+            var id = await SeedHelpers.SeedDeadLetterAsync(_fixture.SeedClient);
+            Assert.True(await DlqRowVisibleAsync(id), "Seeded dead letter should be visible before purge.");
+
+            var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/admin/queues/dlq");
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_fixture.BaseUrl}/admin/queues/dlq/{id}/purge")
+            {
+                Content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("__RequestVerificationToken", token)
+                })
+            };
+            request.Headers.Add("Cookie", $"{TestHttpClients.ImpersonationCookieHeader}; {cookie}");
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Contains("/admin/queues/dlq", response.Headers.Location?.ToString() ?? string.Empty);
+
+            Assert.False(await DlqRowVisibleAsync(id), "Purged message should no longer appear in the DLQ.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
+
+    // --- A purge POST without an antiforgery token is rejected (CSRF guard) ---
+
+    [Fact]
+    public async Task QueueAdmin_Purge_MissingAntiforgery_Returns_400()
+    {
+        try
+        {
+            await AuthHelpers.ImpersonateAsAdminAsync(_fixture);
+
+            var id = await SeedHelpers.SeedDeadLetterAsync(_fixture.SeedClient);
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"{_fixture.BaseUrl}/admin/queues/dlq/{id}/purge");
+
+            var response = await TestHttpClients.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
+
+    private async Task<bool> DlqRowVisibleAsync(Guid id)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/queues/dlq");
+        var response = await TestHttpClients.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync();
+        return body.Contains(id.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 }

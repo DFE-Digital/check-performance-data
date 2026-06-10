@@ -37,23 +37,26 @@ public sealed class QueueAdminService : IQueueAdminService
     }
 
     public Task<IReadOnlyList<QueueDepth>> GetQueueDepthsAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.GetQueueDepthsAsync(cancellationToken);
 
-    public Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+    public async Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default)
+    {
+        var messages = await _queueService.GetDlqMessagesAsync(cancellationToken);
+        return messages.Count;
+    }
 
     public Task<IReadOnlyList<DlqMessage>> GetDlqMessagesAsync(CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.GetDlqMessagesAsync(cancellationToken);
 
     public Task<DlqMessage?> GetDlqMessageAsync(Guid id, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.GetDlqMessageAsync(id, cancellationToken);
 
     public Task RedriveAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.RedriveAsync(messageIds, cancellationToken);
 
     public Task PurgeAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.PurgeAsync(messageIds, cancellationToken);
 
     public Task<int> PurgeExpiredAsync(TimeSpan retention, CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        _queueService.PurgeExpiredAsync(retention, cancellationToken);
 }

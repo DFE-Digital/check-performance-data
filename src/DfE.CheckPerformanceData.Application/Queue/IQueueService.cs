@@ -9,4 +9,16 @@ public interface IQueueService
     Task AckAsync(Guid messageId, CancellationToken cancellationToken = default);
 
     Task DeadLetterAsync(Guid messageId, string reason, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<QueueDepth>> GetQueueDepthsAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DlqMessage>> GetDlqMessagesAsync(CancellationToken cancellationToken = default);
+
+    Task<DlqMessage?> GetDlqMessageAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task RedriveAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default);
+
+    Task PurgeAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default);
+
+    Task<int> PurgeExpiredAsync(TimeSpan retention, CancellationToken cancellationToken = default);
 }

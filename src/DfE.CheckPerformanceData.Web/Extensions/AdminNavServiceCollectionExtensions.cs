@@ -21,6 +21,7 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, CmsSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, VisualRegressionNavEntry>();
+        services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();

@@ -1,0 +1,55 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@using DfE.CheckPerformanceData.Web.Views.Admin.Rules
+@model BranchEditViewModel
+@{
+    ViewData["Title"] = Model.Form.IsNew ? "Add branch" : $"Edit branch {Model.Form.BranchId}";
+}
+
+<a href="/admin/rules/outcomes/@Model.Form.OutcomeKey" class="govuk-back-link">Back to @Model.Form.OutcomeLabel</a>
+
+@* Toast region: JS shows a transient "Saved" notification here after an async save. *@
+<div id="rules-toast-region" class="rules-toast-region" aria-live="polite"></div>
+
+@* Concurrency / validation banners. Rendered server-side for the no-JS path; the AJAX
+   save path swaps this container's contents with the same _BranchEditMessages fragment. *@
+<div id="rules-edit-messages">
+    @await Html.PartialAsync("~/Views/Admin/Rules/_BranchEditMessages.cshtml", Model)
+</div>
+
+<span class="govuk-caption-xl">@Model.Form.OutcomeLabel</span>
+<h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
+
+<form method="post" action="/admin/rules/branch/save" data-rules-editor-form>
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="OutcomeKey" value="@Model.Form.OutcomeKey" />
+    <input type="hidden" name="OutcomeLabel" value="@Model.Form.OutcomeLabel" />
+    <input type="hidden" name="BranchId" value="@Model.Form.BranchId" />
+    <input type="hidden" name="IsNew" value="@Model.Form.IsNew.ToString().ToLowerInvariant()" />
+    <input type="hidden" id="LoadETag" name="LoadETag" value="@Model.Form.LoadETag" />
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Status">Decision</label>
+        <select class="govuk-select" id="Status" name="Status">
+            @foreach (var status in Model.Statuses)
+            {
+                <option value="@status" selected="@(status == Model.Form.Status)">@status</option>
+            }
+        </select>
+    </div>
+
+    <h2 class="govuk-heading-l">Condition</h2>
+    @* JS replaces this container's innerHTML with the _BranchConditionEditor fragment
+       returned by each async transform. *@
+    <div id="rules-condition-editor">
+        @await Html.PartialAsync("~/Views/Admin/Rules/_BranchConditionEditor.cshtml", Model)
+    </div>
+
+    <div class="govuk-button-group govuk-!-margin-top-4">
+        <button class="govuk-button" data-module="govuk-button" name="Action" value="save" type="submit">Save branch</button>
+        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Form.OutcomeKey">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script src="~/js/admin-rules.js" asp-append-version="true"></script>
+}

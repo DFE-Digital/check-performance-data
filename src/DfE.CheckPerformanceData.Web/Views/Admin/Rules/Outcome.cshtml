@@ -1,0 +1,100 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model OutcomeDetailViewModel
+@{
+    ViewData["Title"] = Model.Label;
+
+    string TagClass(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "govuk-tag--green",
+        DecisionStatus.AutoRejected => "govuk-tag--red",
+        _ => "govuk-tag--yellow"
+    };
+
+    string TagText(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "Auto approved",
+        DecisionStatus.AutoRejected => "Auto rejected",
+        _ => "Scrutiny"
+    };
+}
+
+<a href="/admin/rules/outcomes" class="govuk-back-link">Back to outcomes</a>
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@success</p>
+        </div>
+    </div>
+}
+
+<span class="govuk-caption-xl">Decision outcome</span>
+<h1 class="govuk-heading-xl">@Model.Label</h1>
+<p class="govuk-body-s govuk-hint">Key: <code>@Model.Key</code></p>
+
+<p class="govuk-body">
+    Branches are evaluated top to bottom. The first branch whose condition is true decides the outcome.
+</p>
+
+<a class="govuk-button" data-module="govuk-button" href="/admin/rules/outcomes/@Model.Key/branches/add">Add branch</a>
+
+@if (OutcomeDeletionPolicy.IsFormBound(Model.Key))
+{
+    <div class="govuk-inset-text">
+        This outcome can't be deleted because the request form still routes to it. Remove it from the form
+        mapping in code (<code>AnswerFieldMap</code>) before it can be deleted.
+    </div>
+}
+else
+{
+    <p class="govuk-body"><a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/delete">Delete this outcome</a></p>
+}
+
+@foreach (var branch in Model.Branches)
+{
+    <div class="govuk-summary-card">
+        <div class="govuk-summary-card__title-wrapper">
+            <h2 class="govuk-summary-card__title">@branch.Id</h2>
+            <ul class="govuk-summary-card__actions">
+                <li class="govuk-summary-card__action">
+                    <strong class="govuk-tag @TagClass(branch.Status)">@TagText(branch.Status)</strong>
+                </li>
+                @if (!branch.IsOtherwise)
+                {
+                    <li class="govuk-summary-card__action">
+                        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/edit">Edit</a>
+                    </li>
+                    <li class="govuk-summary-card__action">
+                        <form method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move" style="display:inline">
+                            @Html.AntiForgeryToken()
+                            <button class="govuk-link govuk-button--text" name="direction" value="up" type="submit"
+                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Up</button>
+                        </form>
+                    </li>
+                    <li class="govuk-summary-card__action">
+                        <form method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move" style="display:inline">
+                            @Html.AntiForgeryToken()
+                            <button class="govuk-link govuk-button--text" name="direction" value="down" type="submit"
+                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Down</button>
+                        </form>
+                    </li>
+                    <li class="govuk-summary-card__action">
+                        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/remove">Remove</a>
+                    </li>
+                }
+            </ul>
+        </div>
+        <div class="govuk-summary-card__content">
+            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">When</h3>
+            <ul class="govuk-list govuk-list--bullet">
+                @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNode.cshtml", branch.Condition)
+            </ul>
+        </div>
+    </div>
+}

@@ -1,0 +1,29 @@
+@using DfE.CheckPerformanceData.Web.Views.Admin.Rules
+@model EditorNodeContext
+@*
+    Serializes a node and its whole sub-tree to HIDDEN inputs only — no editor UI. Used inside a
+    COLLAPSED group: the group shows a read-only summary, but its descendants must still round-trip
+    their values (a form only posts the inputs it renders), or the children would vanish on the next
+    transform/save. Each node is emitted once at its flat-list index, matching the names the full
+    editor uses, so model binding is identical.
+*@
+@{
+    var node = Model.Node;
+    var i = Model.Index;
+}
+<input type="hidden" name="Nodes[@i].Id" value="@node.Id" />
+<input type="hidden" name="Nodes[@i].ParentId" value="@(node.ParentId?.ToString() ?? "")" />
+<input type="hidden" name="Nodes[@i].Kind" value="@node.Kind" />
+<input type="hidden" name="Nodes[@i].Field" value="@node.Field" />
+<input type="hidden" name="Nodes[@i].Operator" value="@node.Operator" />
+<input type="hidden" name="Nodes[@i].Op" value="@node.Op" />
+<input type="hidden" name="Nodes[@i].Value" value="@node.Value" />
+<input type="hidden" name="Nodes[@i].Collapsed" value="@node.Collapsed.ToString().ToLowerInvariant()" />
+@for (var v = 0; v < node.Values.Count; v++)
+{
+    <input type="hidden" name="Nodes[@i].Values[@v]" value="@node.Values[v]" />
+}
+@foreach (var child in Model.ChildrenOf(node.Id))
+{
+    @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNodeFields.cshtml", Model.Recurse(child))
+}

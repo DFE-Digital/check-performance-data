@@ -1,0 +1,46 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model HistoryViewModel
+@{
+    var typeName = Model.ConfigType.ToString();
+    var heading = Model.ConfigType == DfE.CheckPerformanceData.Application.RulesConfig.RulesConfigType.Rules
+        ? "Decision rules"
+        : "Country languages";
+    ViewData["Title"] = $"{heading} — version history";
+}
+
+<a href="/admin/rules" class="govuk-back-link">Back to rules configuration</a>
+
+<span class="govuk-caption-xl">Version history</span>
+<h1 class="govuk-heading-xl">@heading</h1>
+
+@if (Model.Versions.Count == 0)
+{
+    <p class="govuk-body">No versions have been saved yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Version history</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Version</th>
+                <th scope="col" class="govuk-table__header">Saved</th>
+                <th scope="col" class="govuk-table__header">By</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var v in Model.Versions)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@v.VersionNumber</td>
+                    <td class="govuk-table__cell">@v.CreatedAt.ToString("d MMM yyyy HH:mm") UTC</td>
+                    <td class="govuk-table__cell">@(v.CreatedBy ?? "Unknown")</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/rules/history/@typeName/@v.Id">View JSON</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

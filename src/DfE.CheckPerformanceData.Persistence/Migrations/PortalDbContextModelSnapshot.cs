@@ -497,6 +497,40 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("queue_messages", (string)null);
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.RulesConfigVersion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ConfigType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfigType", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("RulesConfigVersions");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Setting", b =>
                 {
                     b.Property<string>("Key")

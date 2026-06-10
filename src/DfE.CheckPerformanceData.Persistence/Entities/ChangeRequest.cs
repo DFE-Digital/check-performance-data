@@ -13,8 +13,12 @@ public class ChangeRequest
     public required DateTime Submitted { get; init; }
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
-    public required RequestStatus Status { get; init; }
+    public required RequestStatus Status { get; set; }
     public required string ReferenceNumber { get; init; }
     public required string RequestType { get; init; }
-    public string? CrmId { get; init; }
+    public string? CrmId { get; set; }
+    public string? DecisionOutcomeKey { get; set; }
+    public string? MatchedRuleId { get; set; }
+    public string? RulesVersion { get; set; }
+    public DateTime? DecidedAtUtc { get; set; }
 }

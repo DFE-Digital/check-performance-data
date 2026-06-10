@@ -50,6 +50,15 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.CrmId)
             .HasMaxLength(100);
 
+        builder.Property(x => x.DecisionOutcomeKey)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.MatchedRuleId)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.RulesVersion)
+            .HasMaxLength(100);
+
         builder.Property(x => x.RequestType)
             .IsRequired()
             .HasMaxLength(100);

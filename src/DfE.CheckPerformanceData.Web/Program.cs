@@ -126,6 +126,8 @@ try
 
     builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
     builder.Services.AddScoped<IQueueService, PostgresQueueService>();
+    builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
+    builder.Services.AddSingleton<PayloadRedactor>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));

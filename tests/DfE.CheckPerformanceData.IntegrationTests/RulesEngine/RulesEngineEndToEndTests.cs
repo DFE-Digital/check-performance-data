@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -63,38 +64,42 @@ public sealed class RulesEngineEndToEndTests
     {
         // WhatToChange carries the producer's contract string: the WhatToChange enum
         // name, plus " - {reason option value}" where the flow has a useAsRequestType
-        // question (see AnswerFieldMap.WhatToChangeToOutcomeKey).
+        // question. Question ids and answer values mirror the authored flow configs
+        // (see AnswerFieldMap and Web/Data/QuestionFlows).
         yield return new("Inclusion-AutoApproved", "Include", "KS4",
-            Answers: [("inclusion-status-flag", "402")],
-            DecisionStatus.AutoApproved, "INC-ACC");
+            Answers: [],
+            DecisionStatus.AutoApproved, "INC-ACC",
+            PupilPincl: 402); // inclusionFlag comes from the pupil record, not an answer
 
         yield return new("AdmittedFollowingPermanentExclusion-PreCutoff", "Remove - permanent-exclusion", "KS4",
-            Answers: [("date-of-permanent-exclusion", "2022-01-01")],
+            Answers: [("date-pupil-excluded", "2022-01-01")],
             DecisionStatus.AutoRejected, "AFE-PRE2023");
 
         yield return new("AdmittedFromAbroadEal-FirstLanguageEnglish", "Remove - english-not-first-language", "KS4",
-            Answers: [("first-language", "ENG")],
+            Answers: [("first-language", "english")],
             DecisionStatus.AutoRejected, "EAL-REJ-ENG");
 
         yield return new("MergePupils-Default", "Merge", "KS4",
             Answers: [],
             DecisionStatus.Scrutiny, "MRG-DEF");
 
-        yield return new("SocialCareInvolvement-Ks4AllFlagsFalse", "Remove - social-care-involvement", "KS4",
+        // The journey collects one social-care reason radio, so the rules' "all three
+        // flags false" branch can never fire from journey data; the sat-exams
+        // disjunct is the reachable auto-reject path.
+        yield return new("SocialCareInvolvement-Ks4SatExams", "Remove - social-care-involvement", "KS4",
             Answers:
             [
-                ("social-care-involvement", "no"),
-                ("recent-police-involvement", "no"),
-                ("detained-in-prison", "no"),
+                ("social-care-reason", "police-involvement"),
+                ("sat-exams", "yes"),
             ],
             DecisionStatus.AutoRejected, "SCI-KS4-REJ");
 
         yield return new("TerminalCriticalIllness-TerminalIsScrutiny", "Remove - life-limiting-illness", "KS4",
-            Answers: [("terminal-illness", "yes")],
+            Answers: [("life-limiting-illness-health-issue", "life-limiting")],
             DecisionStatus.Scrutiny, "TCI-TERM-SCR");
 
         yield return new("YearGroupChange-Lower", "Remove - year-group-change", "KS4",
-            Answers: [("year-group-change", "Lower")],
+            Answers: [("higher-lower", "lower")],
             DecisionStatus.AutoApproved, "YGC-LOWER");
 
         yield return new("Deceased-AutoApproved", "Remove - pupil-died", "KS4",
@@ -102,7 +107,7 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.AutoApproved, "DEC-1");
 
         yield return new("ElectiveHomeEducation-Ks4PostCutoff", "Remove - elective-home-education", "KS4",
-            Answers: [("date-of-removal-from-roll", "2025-02-01")],
+            Answers: [("date-removed-from-roll", "2025-02-01")],
             DecisionStatus.AutoRejected, "EHE-KS4");
 
         yield return new("MovedSchoolDualRegistration-Default", "Remove - dual-registered-moved", "KS4",
@@ -114,20 +119,18 @@ public sealed class RulesEngineEndToEndTests
             DecisionStatus.AutoApproved, "NOR-NONPOST16");
 
         yield return new("PermanentlyExcludedFromCurrentSchool-Ks4PostCutoff", "Remove - permanently-excluded", "KS4",
-            Answers: [("date-of-permanent-exclusion", "2025-02-01")],
+            Answers: [("date-permanently-excluded", "2025-02-01")],
             DecisionStatus.AutoRejected, "PEX-KS4");
 
         yield return new("PermanentlyLeftEngland-Ks4PostCutoff", "Remove - permanently-left-england", "KS4",
-            Answers: [("date-of-removal-from-roll", "2025-06-01")],
+            Answers: [("date-removed-from-roll", "2025-06-01")],
             DecisionStatus.AutoRejected, "PLE-KS4");
 
-        yield return new("PupilMissingInEducation-WhereaboutsUnknown", "Remove - child-missing-education", "KS4",
-            Answers:
-            [
-                ("whereabouts-known", "no"),
-                ("located-reasonable-efforts", "no"),
-            ],
-            DecisionStatus.AutoRejected, "PMIE-REJ");
+        // The authored flow asks why-removed + date, not the whereabouts questions
+        // the PMIE-REJ rule reads, so journey submissions always land in Scrutiny.
+        yield return new("PupilMissingInEducation-DefaultsToScrutiny", "Remove - child-missing-education", "KS4",
+            Answers: [("why-removed", "no-agreed-leave-or-reason")],
+            DecisionStatus.Scrutiny, "PMIE-DEF");
 
         // Per the "always Scrutiny on doubt" policy: a reason the AnswerFieldMap
         // cannot route must surface to a human, not be dropped.
@@ -193,11 +196,16 @@ public sealed class RulesEngineEndToEndTests
         var rulesProvider = Substitute.For<IRulesProvider>();
         rulesProvider.Current.Returns(Snapshot);
 
+        // The worker resolves the (scoped) handler per message via the scope factory.
+        var services = new ServiceCollection();
+        services.AddScoped(_ => handler);
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
         return new WorkerHost.RulesEngineWorker(
             NullLogger<WorkerHost.RulesEngineWorker>.Instance,
             queueServiceClient,
             options,
-            handler,
+            scopeFactory,
             rulesProvider,
             new RulesEngineImpl(),
             new RuleContextMapper());
@@ -256,14 +264,18 @@ public sealed class RulesEngineEndToEndTests
         (string QuestionId, string Value)[] Answers,
         DecisionStatus ExpectedStatus,
         string ExpectedRuleId,
-        int PupilAge = 12)
+        int PupilAge = 12,
+        int PupilPincl = 0)
     {
         public string MessageJson
         {
             get
             {
+                // The producer writes the engine-facing value to RawValue and the
+                // display label to Value; the mapper must prefer RawValue, so the
+                // scenarios put a deliberately useless label in Value.
                 var answersJson = string.Join(",\n      ", Answers.Select(a =>
-                    $"{{ \"QuestionId\": \"{a.QuestionId}\", \"QuestionTitle\": \"{a.QuestionId}\", \"Type\": \"text\", \"Value\": \"{a.Value}\" }}"));
+                    $"{{ \"QuestionId\": \"{a.QuestionId}\", \"QuestionTitle\": \"{a.QuestionId}\", \"Type\": \"text\", \"Value\": \"display label\", \"RawValue\": \"{a.Value}\" }}"));
 
                 return $$"""
                     {
@@ -272,7 +284,7 @@ public sealed class RulesEngineEndToEndTests
                       "WhatToChange": "{{WhatToChange}}",
                       "School": { "Urn": "123456", "Name": "Test School" },
                       "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
-                      "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{PupilAge}}, "Upn": "UPN1" },
+                      "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{PupilAge}}, "Upn": "UPN1", "Pincl": {{PupilPincl}} },
                       "Answers": [
                           {{answersJson}}
                       ],

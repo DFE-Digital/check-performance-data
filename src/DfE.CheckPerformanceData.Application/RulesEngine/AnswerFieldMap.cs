@@ -1,68 +1,125 @@
 namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
-/// Maps the producer side's vocabulary (form <c>QuestionId</c>s on the message,
-/// <c>WhatToChange</c> contract strings) onto the engine's canonical names.
-/// Updating either side requires touching only this file.
+/// Maps the producer side's vocabulary (journey question ids and option values on
+/// the message, <c>WhatToChange</c> contract strings) onto the engine's canonical
+/// names. Updating either side requires touching only this file.
+/// <c>QuestionFlowOutcomeKeyAlignmentTests</c> pins the Web flow configs to these
+/// maps in CI.
 /// </summary>
 /// <remarks>
 /// This indirection is deliberate — it is an anti-corruption boundary so the rules
-/// (Application) layer never depends on Web journey-authoring ids. It cannot be
-/// removed by simply renaming the Journey question ids to canonical names, because
-/// the relationship is not 1:1: the same concept resolves to a different canonical
-/// field by key stage (e.g. <c>sat-exams</c> → <c>hasSatExamsAsYear11</c> for KS4
-/// but <c>hasSatExamsAsYear6</c> for KS2), and journey-only questions
-/// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out (see below).
+/// (Application) layer never depends on Web journey-authoring ids. The relationship
+/// is not 1:1: <c>sat-exams</c> resolves by key stage (<see cref="SatExamsFieldFor"/>),
+/// single-choice radios fan out to several booleans (<see cref="RadioFanOut"/>),
+/// some answers carry journey vocabulary the rules don't use
+/// (<see cref="TranslatedQuestions"/>), and journey-only questions
+/// (<c>reason</c>, <c>evidence</c>, …) are intentionally projected out.
 /// Question ids are also the contract for serialized in-flight draft state, so a
 /// rename would be a breaking change with no migration path.
+///
+/// Fields with no producer source yet — no journey question collects them — stay
+/// <c>Unknown</c> so their rules defer to Scrutiny: <c>isAddBack</c>,
+/// <c>illnessHasSevereProfoundEffect</c>, <c>whereaboutsKnown</c>,
+/// <c>locatedAfterReasonableEfforts</c>.
 /// </remarks>
 public static class AnswerFieldMap
 {
     /// <summary>
     /// <c>Answer.QuestionId</c> on the queue message → canonical field name in
-    /// <see cref="FieldCatalogue"/>. An entry's presence here is what makes the
-    /// mapper consider an answer at all; unmapped answers are silently ignored.
+    /// <see cref="FieldCatalogue"/>, for answers whose value is copied as-is and
+    /// parsed by the field's type. An entry's presence here (or in
+    /// <see cref="RadioFanOut"/>/<see cref="TranslatedQuestions"/>/<see cref="SatExamsQuestionId"/>)
+    /// is what makes the mapper consider an answer at all; unmapped answers are
+    /// silently ignored.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> QuestionToField =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["inclusion-status-flag"]            = "inclusionFlag",
+            // EAL (Remove - english-not-first-language)
+            ["country-originally-from"]                = "countryOfOrigin",
+            ["date-pupil-started"]                     = "schoolAdmissionDate",
+            ["date-pupil-started-school-in-england"]   = "firstSchoolAdmissionDate",
+            ["date-pupil-arrived-in-england"]          = "dateOfArrivalInEngland",
 
-            ["first-language"]                   = "firstLanguage",
-            ["country-of-origin"]                = "countryOfOrigin",
-            ["is-add-back"]                      = "isAddBack",
-            ["school-admission-date"]            = "schoolAdmissionDate",
-            ["first-school-admission-date"]      = "firstSchoolAdmissionDate",
-            ["date-of-arrival-in-england"]       = "dateOfArrivalInEngland",
+            // Exclusion / removal dates. Two different journey questions feed
+            // dateOfPermanentExclusion: date-pupil-excluded on the "admitted following
+            // permanent exclusion" branch, date-permanently-excluded on the
+            // "permanently excluded from current school" branch.
+            ["date-pupil-excluded"]                    = "dateOfPermanentExclusion",
+            ["date-permanently-excluded"]              = "dateOfPermanentExclusion",
+            ["date-removed-from-roll"]                 = "dateOfRemoval",
 
-            ["date-of-permanent-exclusion"]      = "dateOfPermanentExclusion",
-            ["date-of-removal-from-roll"]        = "dateOfRemoval",
-            ["date-added-to-roll"]               = "dateAddedToRoll",
-
-            ["year-group-change"]                = "yearGroupChange",
-            ["removal-reason-at-school"]         = "removalReasonAtSchool",
-
-            ["social-care-involvement"]          = "hadSocialCareInvolvement",
-            ["recent-police-involvement"]        = "hadRecentPoliceInvolvement",
-            ["detained-in-prison"]               = "hasBeenDetainedInPrison",
-
-            ["sat-exams-y11"]                    = "hasSatExamsAsYear11",
-            ["sat-exams-y6"]                     = "hasSatExamsAsYear6",
-
-            ["terminal-illness"]                 = "hasTerminalIllness",
-            ["critical-illness-12m"]             = "hasCriticalIllness12mPlus",
-            ["recent-life-changing-diagnosis"]   = "hasRecentLifeChangingDiagnosis",
-            ["recent-life-changing-injury"]      = "hasRecentLifeChangingInjury",
-            ["under-investigation-12m"]          = "underInvestigation12mPlus",
-            ["severe-profound-effect"]           = "illnessHasSevereProfoundEffect",
-
-            ["whereabouts-known"]                = "whereaboutsKnown",
-            ["located-reasonable-efforts"]       = "locatedAfterReasonableEfforts",
-
-            ["continuing-ks2-studies"]           = "isContinuingKS2Studies",
-
-            ["pupil-age"]                        = "pupilAge",
+            // Provisional ids for flows not yet authored (KS2 / Post16) — revisit
+            // when those configs exist; the alignment test allowlists them.
+            ["date-added-to-roll"]                     = "dateAddedToRoll",
+            ["removal-reason-at-school"]               = "removalReasonAtSchool",
+            ["continuing-ks2-studies"]                 = "isContinuingKS2Studies",
+            ["pupil-age"]                              = "pupilAge",
         };
+
+    /// <summary>
+    /// Single-choice radio questions the rules model as independent booleans:
+    /// the selected option's field becomes <c>true</c>, every other listed field
+    /// <c>false</c>. An empty answer leaves all fields <c>Unknown</c>.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, IReadOnlyList<(string Field, string TriggerValue)>> RadioFanOut =
+        new Dictionary<string, IReadOnlyList<(string, string)>>(StringComparer.Ordinal)
+        {
+            ["social-care-reason"] =
+            [
+                ("hadSocialCareInvolvement",     "social-care-situation"),
+                ("hadRecentPoliceInvolvement",   "police-involvement"),
+                ("hasBeenDetainedInPrison",      "detained-in-prison"),
+            ],
+            ["life-limiting-illness-health-issue"] =
+            [
+                ("hasTerminalIllness",             "life-limiting"),
+                ("hasCriticalIllness12mPlus",      "twelve-months-critically-ill"),
+                ("hasRecentLifeChangingDiagnosis", "life-changing-illness"),
+                ("hasRecentLifeChangingInjury",    "life-changing-injury"),
+                ("underInvestigation12mPlus",      "investigated"),
+            ],
+        };
+
+    /// <summary>
+    /// Questions whose journey option values translate into a different canonical
+    /// vocabulary. Unlisted raw values resolve to <see cref="FieldValue.Unknown"/>
+    /// (fail safe → Scrutiny); "believed" answers become
+    /// <see cref="FieldValue.Uncertain"/> so <c>isKnownAndCertain</c> rules see them.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, (string Field, IReadOnlyDictionary<string, FieldValue> Values)> TranslatedQuestions =
+        new Dictionary<string, (string, IReadOnlyDictionary<string, FieldValue>)>(StringComparer.Ordinal)
+        {
+            ["first-language"] = ("firstLanguage", new Dictionary<string, FieldValue>(StringComparer.Ordinal)
+            {
+                ["english"]          = new FieldValue.Str("ENG"),
+                ["believed-english"] = new FieldValue.Uncertain(new FieldValue.Str("ENG")),
+                ["other"]            = new FieldValue.Str("OTH"),
+                ["believed-other"]   = new FieldValue.Uncertain(new FieldValue.Str("OTH")),
+                // chose-not-to-say / not-known fall through to Unknown.
+            }),
+            ["higher-lower"] = ("yearGroupChange", new Dictionary<string, FieldValue>(StringComparer.Ordinal)
+            {
+                ["higher"] = new FieldValue.Str("Higher"),
+                ["lower"]  = new FieldValue.Str("Lower"),
+            }),
+        };
+
+    /// <summary>
+    /// The journey asks one <c>sat-exams</c> yes/no question; the rules distinguish
+    /// the year-11 and year-6 variants by key stage.
+    /// </summary>
+    public const string SatExamsQuestionId = "sat-exams";
+
+    /// <summary>Canonical field for <see cref="SatExamsQuestionId"/>, or null when the
+    /// key stage has no sat-exams concept (the answer is then ignored).</summary>
+    public static string? SatExamsFieldFor(string keyStage) => keyStage switch
+    {
+        "KS4" => "hasSatExamsAsYear11",
+        "KS2" => "hasSatExamsAsYear6",
+        _ => null,
+    };
 
     /// <summary>
     /// <c>RequestDocument.WhatToChange</c> contract string → canonical outcome key used

@@ -3,6 +3,7 @@ using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -23,15 +24,21 @@ public sealed class RulesEngineWorkerResilienceTests
         VisibilityTimeout = TimeSpan.FromSeconds(30)
     };
 
-    private static WorkerService CreateWorker(QueueServiceClient serviceClient, RulesEngineOptions options) =>
-        new(
+    private static WorkerService CreateWorker(QueueServiceClient serviceClient, RulesEngineOptions options)
+    {
+        var services = new ServiceCollection();
+        services.AddScoped(_ => Substitute.For<IRequestDecisionHandler>());
+        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
+        return new WorkerService(
             Substitute.For<ILogger<WorkerService>>(),
             serviceClient,
             Options.Create(options),
-            Substitute.For<IRequestDecisionHandler>(),
+            scopeFactory,
             Substitute.For<IRulesProvider>(),
             Substitute.For<IRulesEngine>(),
             Substitute.For<IRuleContextMapper>());
+    }
 
     [Fact]
     public async Task ExecuteAsync_WhenQueueCreationFailsTransiently_RecoversWithoutTearingDownTheHost()

@@ -4,7 +4,6 @@ using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddUserSecrets<Program>();
 
 builder.Services.Configure<RulesEngineOptions>(builder.Configuration.GetSection("RulesEngineOptions"));
 
@@ -15,7 +14,9 @@ builder.Services.AddSingleton(sp => new QueueServiceClient(builder.Configuration
 
 builder.Services.AddZendeskApiClient(builder.Configuration);
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
-builder.Services.AddApplicationDependencies();
+// Deliberately not AddApplicationDependencies(): the full Application set needs
+// Persistence repositories and Web-registered clients this host doesn't have.
+builder.Services.AddRulesEngineDependencies();
 builder.Services.AddRulesProvider(builder.Configuration);
 
 builder.Services.AddHostedService<RulesEngineWorker>();

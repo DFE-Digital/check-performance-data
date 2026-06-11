@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public sealed class RequestService(
     IQuestionFlowService flowService,
-    IRequestBlobClient requestBlobClient,
     IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
-    ICurrentUserService currentUserService) : IRequestService
+    ICurrentUserService currentUserService,
+    IRequestQueueClient requestQueueClient) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -41,7 +41,7 @@ public sealed class RequestService(
         };
 
         var document = BuildRequestDocument(context, config);
-        await requestBlobClient.SaveRequestAsync(windowId, document);
+        await requestQueueClient.EnqueueRequestAsync(document);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
     }
 
@@ -153,7 +153,8 @@ public sealed class RequestService(
                 DateOfBirth = pupil.DateOfBirth,
                 Sex = pupil.Sex,
                 Age = pupil.Age,
-                Upn = pupil.Upn
+                Upn = pupil.Upn,
+                Pincl = pupil.Pincl
             },
             MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
             {
@@ -164,7 +165,8 @@ public sealed class RequestService(
                 DateOfBirth = mp.DateOfBirth,
                 Sex = mp.Sex,
                 Age = mp.Age,
-                Upn = mp.Upn
+                Upn = mp.Upn,
+                Pincl = mp.Pincl
             } : null,
             Answers = answers
         };
@@ -200,12 +202,21 @@ public sealed class RequestService(
             _ => answer?.TextValue
         };
 
+        var rawValue = question.Type switch
+        {
+            QuestionType.Date when answer?.DateValue is { } d =>
+                $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}",
+            QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
+            _ => answer?.TextValue
+        };
+
         return new AnswerRecord
         {
             QuestionId = question.Id,
             QuestionTitle = title,
             Type = question.Type.ToString(),
-            Value = value
+            Value = value,
+            RawValue = rawValue
         };
     }
 }

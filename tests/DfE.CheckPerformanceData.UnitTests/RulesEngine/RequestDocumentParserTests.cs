@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
@@ -10,6 +11,46 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 /// </summary>
 public sealed class RequestDocumentParserTests
 {
+    [Fact]
+    public void Parse_RoundTripsDocument_SerializedWithDefaultOptions()
+    {
+        // RequestService enqueues with bare JsonSerializer.Serialize(document) —
+        // pin that the worker-side parser reads that exact wire format back.
+        var doc = new RequestDocument
+        {
+            ReferenceNumber = "REF-RT",
+            SubmittedAt = new DateTime(2026, 6, 10, 9, 0, 0, DateTimeKind.Utc),
+            SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Alice" },
+            CheckingWindowId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+            CheckingWindowType = "KS4June",
+            WhatToChange = "Remove - pupil-died",
+            School = new SchoolDetails { Urn = "123456", Name = "Test School" },
+            Pupil = new PupilDetails
+            {
+                Id = "p1", CypmdId = "c1", Firstname = "Bob", Surname = "Smith",
+                DateOfBirth = "01/01/2010", Sex = "M", Age = 15, Upn = "UPN1", Pincl = 402
+            },
+            Answers =
+            [
+                new AnswerRecord
+                {
+                    QuestionId = "date-removed-from-roll", QuestionTitle = "When?",
+                    Type = "Date", Value = "15/02/2025", RawValue = "2025-02-15"
+                }
+            ]
+        };
+
+        var parsed = RequestDocumentParser.Parse(JsonSerializer.Serialize(doc));
+
+        Assert.NotNull(parsed);
+        Assert.Equal("Remove - pupil-died", parsed!.WhatToChange);
+        Assert.Equal("REF-RT", parsed.ReferenceNumber);
+        Assert.Equal(402, parsed.Pupil.Pincl);
+        Assert.Single(parsed.Answers);
+        Assert.Equal("2025-02-15", parsed.Answers[0].RawValue);
+        Assert.Equal("15/02/2025", parsed.Answers[0].Value);
+    }
+
     [Fact]
     public void Parse_ValidMessage_ReturnsDocument()
     {

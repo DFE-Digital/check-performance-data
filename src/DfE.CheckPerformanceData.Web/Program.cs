@@ -75,6 +75,7 @@ try
         .AddGovUkFrontend()
         .AddPersistenceDependencies(configuration, seedData)
         .AddApplicationDependencies()
+        .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries();
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between

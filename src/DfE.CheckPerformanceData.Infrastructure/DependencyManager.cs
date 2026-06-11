@@ -5,6 +5,8 @@ using System.Text;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Infrastructure.Notify;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -21,6 +23,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Notify.Client;
 using Refit;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
@@ -216,6 +219,24 @@ public static class DependencyManager
             .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
             .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
             .ValidateOnStart();
+
+        return services;
+    }
+
+    public static IServiceCollection AddNotifyService(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddOptions<NotifySettings>()
+            .Bind(config.GetSection(NotifySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<NotificationClient>(sp =>
+        {
+            var notifySettings = sp.GetRequiredService<IOptions<NotifySettings>>().Value;
+            return new NotificationClient(notifySettings.ApiKey);
+        });
+
+        services.AddScoped<INotifyService, NotifyService>();
 
         return services;
     }

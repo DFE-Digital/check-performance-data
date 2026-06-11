@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
@@ -9,7 +11,9 @@ public sealed class RequestService(
     IRequestBlobClient requestBlobClient,
     IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
-    ICurrentUserService currentUserService) : IRequestService
+    ICurrentUserService currentUserService,
+    INotifyService notifyService,
+    IOptions<NotifySettings> notifySettings) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -43,6 +47,13 @@ public sealed class RequestService(
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
+
+        // Send submission notification email via GOV.UK Notify
+        await notifyService.SendSubmissionNotificationAsync(
+            currentUserService.Email,
+            journey.ReferenceNumber ?? string.Empty,
+            notifySettings.Value.DeadlineText,
+            notifySettings.Value.SubmitOthersUrl);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

@@ -2,8 +2,10 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -17,6 +19,9 @@ public class RequestServiceTests
     private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
+    private readonly NotifySettings _notifySettings = new();
+    private readonly IOptions<NotifySettings> _notifyOptions;
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -25,7 +30,8 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser);
+        _notifyOptions = Options.Create(_notifySettings);
+        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser, _notifyService, _notifyOptions);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────

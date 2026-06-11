@@ -32,6 +32,7 @@ else
                 <th scope="col" class="govuk-table__header">Priority</th>
                 <th scope="col" class="govuk-table__header">Status</th>
                 <th scope="col" class="govuk-table__header">Created (UTC)</th>
+                <th scope="col" class="govuk-table__header">Preview</th>
                 <th scope="col" class="govuk-table__header">Payload</th>
             </tr>
         </thead>
@@ -44,6 +45,9 @@ else
                     <td class="govuk-table__cell">@ticket.Priority</td>
                     <td class="govuk-table__cell">@ticket.Status</td>
                     <td class="govuk-table__cell">@ticket.CreatedAtUtc.ToString("u")</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/dev/zendesk/preview/@ticket.Id">View as ticket</a>
+                    </td>
                     <td class="govuk-table__cell">
                         <details class="govuk-details govuk-!-margin-bottom-0">
                             <summary class="govuk-details__summary">

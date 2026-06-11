@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Web.Models.Dev;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class DevPipelineController(IConfiguration configuration, IPortalDbContext dbContext, IQueueService queueService) : Controller
 {
     private bool IsAllowed => configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
+
+    // The Zendesk-styled preview additionally requires the fake Zendesk path to be active, so a
+    // captured outbox row is only ever rendered while no real Zendesk push is happening.
+    private bool IsFakeZendesk => configuration.GetValue<bool>(SettingKeys.ZendeskUseFake);
 
     // A stable dev checking window the synthetic requests hang off; upserted on demand so
     // the ChangeRequest foreign key is always satisfied without manual seeding.
@@ -83,6 +88,26 @@ public sealed class DevPipelineController(IConfiguration configuration, IPortalD
             .ToListAsync(cancellationToken);
 
         return View("Outbox", rows);
+    }
+
+    // Renders one captured outbox row as a faithful Zendesk-styled simulation (subject,
+    // requester, priority/status badges, body, custom fields, tags, attachments) rather than
+    // raw JSON — a "what we'll send" artefact until real Zendesk is wired. Gated on
+    // Dev:ToolsEnabled AND Zendesk:UseFake so it is only reachable when the pipeline is faking
+    // Zendesk; it reaches no real Zendesk instance.
+    [HttpGet("dev/zendesk/preview/{id:guid}")]
+    public async Task<IActionResult> ZendeskPreview(Guid id, CancellationToken cancellationToken)
+    {
+        if (!IsAllowed || !IsFakeZendesk)
+            return NotFound();
+
+        var ticket = await dbContext.DevZendeskTickets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+        if (ticket is null)
+            return NotFound();
+
+        return View("~/Views/Dev/ZendeskTicketPreview.cshtml", ZendeskTicketPreviewViewModel.FromTicket(ticket));
     }
 
     private async Task EnsureCheckingWindowAsync(CancellationToken cancellationToken)

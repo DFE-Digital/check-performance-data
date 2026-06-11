@@ -125,6 +125,26 @@
                     Start demo trickle
                 </button>
             </div>
+
+            @* The failure-and-recovery demo. The inject composes the existing seed path (one
+               synthetic failing message); recovery is the existing audited redrive on the
+               dead-letter queue page. No new failure machinery. *@
+            <div class="govuk-button-group govuk-!-margin-top-2">
+                <button type="button" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
+                        data-module="govuk-button" data-confirm-modal-trigger="inject-failure-modal">
+                    Inject a failing message
+                </button>
+            </div>
+            <govuk-confirm-modal id="inject-failure-modal"
+                                 title="Inject a failing message?"
+                                 warning-text="This is a demonstration tool, available on development and test only."
+                                 body="This adds one synthetic failing message to demonstrate failure and recovery. It uses no pupil data and is available on dev and test only."
+                                 confirm-label="Yes, inject"
+                                 destructive="true"
+                                 form-action="/dev/queues/inject-failure"
+                                 form-method="post">
+                @Html.AntiForgeryToken()
+            </govuk-confirm-modal>
         </div>
     }
 </section>

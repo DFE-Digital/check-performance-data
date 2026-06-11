@@ -159,7 +159,7 @@ try
 
     builder.Services.AddSingleton<QueueClient>(sp =>
     {
-        var queueName = builder.Configuration["RulesEngineQueue"]
+        var queueName = builder.Configuration["RulesEngineOptions:QueueName"]
             ?? throw new InvalidOperationException(
                 "RulesEngineQueue is not configured; set it to the RulesEngineWorker's queue name (e.g. \"change-requests\").");
         return sp.GetRequiredService<QueueServiceClient>().GetQueueClient(queueName);

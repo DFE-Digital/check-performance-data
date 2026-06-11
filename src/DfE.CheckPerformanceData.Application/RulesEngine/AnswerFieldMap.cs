@@ -122,7 +122,7 @@ public static class AnswerFieldMap
     };
 
     /// <summary>
-    /// <c>RequestDocument.WhatToChange</c> contract string → canonical outcome key used
+    /// <c>RequestDocument.RequestTypeCode</c> contract string → canonical outcome key used
     /// by <see cref="OutcomeRules.Key"/> in the rules JSON. The contract string is the
     /// <c>WhatToChange</c> enum name, suffixed with <c>" - {option value}"</c> when the
     /// flow config flags a question with <c>useAsRequestType</c> (the Remove flows'

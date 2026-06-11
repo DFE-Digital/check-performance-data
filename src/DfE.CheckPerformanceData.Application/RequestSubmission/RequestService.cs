@@ -138,7 +138,7 @@ public sealed class RequestService(
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowType = context.CheckingWindow.CheckingWindowType.ToString(),
-            WhatToChange = context.WhatToChange,
+            RequestTypeCode = context.WhatToChange,
             School = new SchoolDetails
             {
                 Urn = currentUserService.OrganisationUrn,

@@ -23,7 +23,7 @@ public sealed class RequestDocumentParserTests
             SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Alice" },
             CheckingWindowId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
             CheckingWindowType = "KS4June",
-            WhatToChange = "Remove - pupil-died",
+            RequestTypeCode = "Remove - pupil-died",
             School = new SchoolDetails { Urn = "123456", Name = "Test School" },
             Pupil = new PupilDetails
             {
@@ -43,7 +43,7 @@ public sealed class RequestDocumentParserTests
         var parsed = RequestDocumentParser.Parse(JsonSerializer.Serialize(doc));
 
         Assert.NotNull(parsed);
-        Assert.Equal("Remove - pupil-died", parsed!.WhatToChange);
+        Assert.Equal("Remove - pupil-died", parsed!.RequestTypeCode);
         Assert.Equal("REF-RT", parsed.ReferenceNumber);
         Assert.Equal(402, parsed.Pupil.Pincl);
         Assert.Single(parsed.Answers);
@@ -58,7 +58,7 @@ public sealed class RequestDocumentParserTests
             {
               "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
               "CheckingWindowType": "KS4",
-              "WhatToChange": "Deceased",
+              "RequestTypeCode": "Deceased",
               "ReferenceNumber": "REF-001",
               "SubmittedAt": "2026-05-14T10:00:00Z",
               "School": { "Urn": "123456", "Name": "Test School" },
@@ -73,7 +73,7 @@ public sealed class RequestDocumentParserTests
         var parsed = RequestDocumentParser.Parse(json);
 
         Assert.NotNull(parsed);
-        Assert.Equal("Deceased", parsed!.WhatToChange);
+        Assert.Equal("Deceased", parsed!.RequestTypeCode);
         Assert.Equal("KS4", parsed.CheckingWindowType);
         Assert.Equal("REF-001", parsed.ReferenceNumber);
         Assert.Single(parsed.Answers);
@@ -87,7 +87,7 @@ public sealed class RequestDocumentParserTests
         const string json = """
             {
               "checkingwindowtype": "KS2",
-              "whattochange": "Elective home education",
+              "requesttypecode": "Elective home education",
               "referencenumber": "REF-2",
               "school": { "urn": "9", "name": "S" },
               "submittedby": { "userid": "u", "displayname": "x" },
@@ -99,7 +99,7 @@ public sealed class RequestDocumentParserTests
         var parsed = RequestDocumentParser.Parse(json);
 
         Assert.NotNull(parsed);
-        Assert.Equal("Elective home education", parsed!.WhatToChange);
+        Assert.Equal("Elective home education", parsed!.RequestTypeCode);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public sealed class RequestDocumentParserTests
     {
         // Pupil is required; omitting it must not yield a half-built document.
         const string json = """
-            { "CheckingWindowType": "KS4", "WhatToChange": "Deceased", "ReferenceNumber": "R", "Answers": [] }
+            { "CheckingWindowType": "KS4", "RequestTypeCode": "Deceased", "ReferenceNumber": "R", "Answers": [] }
             """;
 
         Assert.Null(RequestDocumentParser.Parse(json));

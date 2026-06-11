@@ -8,7 +8,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <see cref="RequestDocument"/> into a typed <see cref="RuleContext"/>:
 ///
 /// <list type="bullet">
-///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.WhatToChange"/> via
+///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.RequestTypeCode"/> via
 ///         <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/>.</item>
 ///   <item><c>KeyStage</c> from <see cref="RequestDocument.CheckingWindowType"/> via
 ///         <see cref="AnswerFieldMap.NormaliseKeyStage"/>.</item>
@@ -29,13 +29,13 @@ public sealed class RuleContextMapper : IRuleContextMapper
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var outcomeKey = ResolveOutcomeKey(message.WhatToChange);
+        var outcomeKey = ResolveOutcomeKey(message.RequestTypeCode);
         var keyStage = AnswerFieldMap.NormaliseKeyStage(message.CheckingWindowType);
 
         var fields = new Dictionary<string, FieldValue>(StringComparer.Ordinal)
         {
             ["keyStage"]    = string.IsNullOrEmpty(keyStage) ? FieldValue.Unknown.Instance : new FieldValue.Str(keyStage),
-            ["requestType"] = string.IsNullOrWhiteSpace(message.WhatToChange) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.WhatToChange),
+            ["requestType"] = string.IsNullOrWhiteSpace(message.RequestTypeCode) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.RequestTypeCode),
         };
 
         // Pupil-record fields. Age and Pincl are primitive ints; treat 0 / negative as

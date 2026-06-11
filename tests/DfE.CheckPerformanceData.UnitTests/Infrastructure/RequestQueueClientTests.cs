@@ -45,7 +45,7 @@ public sealed class RequestQueueClientTests
         Assert.NotNull(body);
         var parsed = RequestDocumentParser.Parse(body!);
         Assert.NotNull(parsed);
-        Assert.Equal("Remove - pupil-died", parsed!.WhatToChange);
+        Assert.Equal("Remove - pupil-died", parsed!.RequestTypeCode);
         Assert.Equal(402, parsed.Pupil.Pincl);
     }
 
@@ -56,7 +56,7 @@ public sealed class RequestQueueClientTests
         SubmittedBy = new UserDetails { UserId = "u", DisplayName = "A" },
         CheckingWindowId = Guid.NewGuid(),
         CheckingWindowType = "KS4June",
-        WhatToChange = "Remove - pupil-died",
+        RequestTypeCode = "Remove - pupil-died",
         School = new SchoolDetails { Urn = "1", Name = "S" },
         Pupil = new PupilDetails
         {

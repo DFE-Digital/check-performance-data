@@ -95,7 +95,7 @@ public sealed class RulesEngineWorkerCompositionTests
         {
           "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
           "CheckingWindowType": "KS4",
-          "WhatToChange": "Remove - pupil-died",
+          "RequestTypeCode": "Remove - pupil-died",
           "School": { "Urn": "1", "Name": "S" },
           "SubmittedBy": { "UserId": "u", "DisplayName": "A" },
           "Pupil": { "Id": "p", "CypmdId": "c", "Firstname": "B", "Surname": "S", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 15, "Upn": "U" },

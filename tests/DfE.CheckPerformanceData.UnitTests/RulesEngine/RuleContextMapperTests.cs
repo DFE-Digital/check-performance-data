@@ -22,7 +22,7 @@ public sealed class RuleContextMapperTests
     [InlineData("Remove - life-limiting-illness",           "TerminalCriticalIllness")]
     [InlineData("Remove - permanent-exclusion",             "AdmittedFollowingPermanentExclusion")]
     [InlineData("Remove - permanently-excluded",            "PermanentlyExcludedFromCurrentSchool")]
-    public void Maps_KnownWhatToChange_ToOutcomeKey(string whatToChange, string expected)
+    public void Maps_KnownRequestTypeCode_ToOutcomeKey(string whatToChange, string expected)
     {
         var msg = NewMessage(whatToChange);
 
@@ -32,7 +32,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void Maps_UnknownWhatToChange_ToUnknownSentinel()
+    public void Maps_UnknownRequestTypeCode_ToUnknownSentinel()
     {
         var msg = NewMessage("nonsense reason");
 
@@ -42,7 +42,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void Maps_NullWhatToChange_ToUnknownSentinel()
+    public void Maps_NullRequestTypeCode_ToUnknownSentinel()
     {
         var msg = NewMessage(whatToChange: null!);
 
@@ -415,7 +415,7 @@ public sealed class RuleContextMapperTests
         new()
         {
             ReferenceNumber    = "REF",
-            WhatToChange       = whatToChange,
+            RequestTypeCode    = whatToChange,
             CheckingWindowType = checkingWindowType,
             CheckingWindowId   = Guid.NewGuid(),
             SubmittedAt        = DateTime.UtcNow,

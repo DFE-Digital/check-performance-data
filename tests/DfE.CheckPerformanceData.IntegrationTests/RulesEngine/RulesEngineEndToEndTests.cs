@@ -62,10 +62,10 @@ public sealed class RulesEngineEndToEndTests
 
     private static IEnumerable<OutcomeScenario> BuildScenarios()
     {
-        // WhatToChange carries the producer's contract string: the WhatToChange enum
-        // name, plus " - {reason option value}" where the flow has a useAsRequestType
-        // question. Question ids and answer values mirror the authored flow configs
-        // (see AnswerFieldMap and Web/Data/QuestionFlows).
+        // RequestTypeCode carries the producer's contract string: the WhatToChange
+        // enum name, plus " - {reason option value}" where the flow has a
+        // useAsRequestType question. Question ids and answer values mirror the
+        // authored flow configs (see AnswerFieldMap and Web/Data/QuestionFlows).
         yield return new("Inclusion-AutoApproved", "Include", "KS4",
             Answers: [],
             DecisionStatus.AutoApproved, "INC-ACC",
@@ -259,7 +259,7 @@ public sealed class RulesEngineEndToEndTests
 
     public sealed record OutcomeScenario(
         string Name,
-        string WhatToChange,
+        string RequestTypeCode,
         string CheckingWindowType,
         (string QuestionId, string Value)[] Answers,
         DecisionStatus ExpectedStatus,
@@ -281,7 +281,7 @@ public sealed class RulesEngineEndToEndTests
                     {
                       "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
                       "CheckingWindowType": "{{CheckingWindowType}}",
-                      "WhatToChange": "{{WhatToChange}}",
+                      "RequestTypeCode": "{{RequestTypeCode}}",
                       "School": { "Urn": "123456", "Name": "Test School" },
                       "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
                       "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{PupilAge}}, "Upn": "UPN1", "Pincl": {{PupilPincl}} },

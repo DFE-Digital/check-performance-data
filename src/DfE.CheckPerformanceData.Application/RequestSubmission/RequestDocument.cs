@@ -7,7 +7,14 @@ public class RequestDocument
     public required UserDetails SubmittedBy { get; init; }
     public Guid CheckingWindowId { get; init; }
     public required string CheckingWindowType { get; init; }
-    public required string WhatToChange { get; init; }
+    /// <summary>
+    /// Stable machine code for the requested change: the <c>WhatToChange</c> enum
+    /// name, suffixed with <c>" - {reason option value}"</c> when the flow has a
+    /// <c>useAsRequestType</c> question (e.g. <c>"Remove - pupil-died"</c>). The
+    /// rules engine routes on this via <c>AnswerFieldMap.WhatToChangeToOutcomeKey</c>;
+    /// the display-label twin is <c>ChangeRequest.RequestType</c>.
+    /// </summary>
+    public required string RequestTypeCode { get; init; }
     public required SchoolDetails School { get; init; }
     public required PupilDetails Pupil { get; init; }
     public PupilDetails? MatchedPupil { get; init; }

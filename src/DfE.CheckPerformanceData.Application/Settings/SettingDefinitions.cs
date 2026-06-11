@@ -10,6 +10,9 @@ public static class SettingKeys
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
     public const string DlqAlertRecipients = "Dlq:AlertRecipients";
     public const string DlqRetentionDays = "Dlq:RetentionDays";
+
+    public const string MetricsRetentionDays = "Metrics:RetentionDays";
+    public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
 }
 
 // The data type of a setting's value, used by the settings editor to choose how to render
@@ -55,6 +58,14 @@ public static class SettingDefinitions
         new(SettingKeys.DlqRetentionDays,
             "Number of days a dead-lettered message is retained before it is purged. The admin-action audit trail is kept independently.",
             "90",
+            SettingKind.Int),
+        new(SettingKeys.MetricsRetentionDays,
+            "Number of days a queue metrics event row is retained before it is purged.",
+            "30",
+            SettingKind.Int),
+        new(SettingKeys.MetricsRetentionIntervalMinutes,
+            "How often, in minutes, the metrics retention job runs to purge expired event rows.",
+            "60",
             SettingKind.Int)
     ];
 

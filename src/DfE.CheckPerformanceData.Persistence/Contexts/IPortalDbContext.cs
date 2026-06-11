@@ -23,7 +23,8 @@ public interface IPortalDbContext
     DbSet<QueueMessageEntity> QueueMessages { get; }
     DbSet<DeadLetterEntity> DeadLetters { get; }
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
-    
+    DbSet<QueueMetricEvent> QueueMetricEvents { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);
 }

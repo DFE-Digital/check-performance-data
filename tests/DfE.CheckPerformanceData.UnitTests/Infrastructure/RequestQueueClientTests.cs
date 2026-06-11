@@ -51,6 +51,7 @@ public sealed class RequestQueueClientTests
 
     private static RequestDocument Document() => new()
     {
+        ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = "REF-1",
         SubmittedAt = DateTime.UtcNow,
         SubmittedBy = new UserDetails { UserId = "u", DisplayName = "A" },

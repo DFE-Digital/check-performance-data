@@ -20,6 +20,7 @@
         <ProjectReference Include="..\DfE.CheckPerformanceData.Application\DfE.CheckPerformanceData.Application.csproj" />
         <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
         <ProjectReference Include="..\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
+        <ProjectReference Include="..\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
     </ItemGroup>
 
     <ItemGroup>

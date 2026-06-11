@@ -196,9 +196,15 @@ public sealed class RulesEngineEndToEndTests
         var rulesProvider = Substitute.For<IRulesProvider>();
         rulesProvider.Current.Returns(Snapshot);
 
-        // The worker resolves the (scoped) handler per message via the scope factory.
+        // The worker resolves the (scoped) handler and outcome repository per
+        // message via the scope factory. The outcome write is covered by
+        // DecisionOutcomeRepositoryTests; here a stub keeps the pipeline DB-free.
+        var outcomes = Substitute.For<IDecisionOutcomeRepository>();
+        outcomes.RecordOutcomeAsync(Arg.Any<Guid>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         var services = new ServiceCollection();
         services.AddScoped(_ => handler);
+        services.AddScoped(_ => outcomes);
         var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         return new WorkerHost.RulesEngineWorker(
@@ -279,6 +285,7 @@ public sealed class RulesEngineEndToEndTests
 
                 return $$"""
                     {
+                      "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
                       "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
                       "CheckingWindowType": "{{CheckingWindowType}}",
                       "RequestTypeCode": "{{RequestTypeCode}}",

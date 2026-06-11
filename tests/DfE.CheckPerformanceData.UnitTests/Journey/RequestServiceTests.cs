@@ -131,19 +131,33 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SavesRepositoryAfterEnqueue()
+    public async Task ConfirmRequestAsync_UpsertsChangeRequestBeforeEnqueue()
     {
+        // The document must carry the ChangeRequest row's Id, so the row has to
+        // exist before the document is enqueued.
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
         var callOrder = new List<string>();
         _requestQueue.EnqueueRequestAsync(Arg.Any<RequestDocument>())
             .Returns(_ => { callOrder.Add("enqueue"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
-            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+            .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        Assert.Equal(["enqueue", "db"], callOrder);
+        Assert.Equal(["db", "enqueue"], callOrder);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_DocumentCarriesChangeRequestIdReturnedByUpsert()
+    {
+        var changeRequestId = Guid.Parse("99999999-8888-7777-6666-555555555555");
+        _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(changeRequestId);
+        var (journey, config) = MakeSubmission();
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal(changeRequestId, doc.ChangeRequestId);
     }
 
     [Fact]
@@ -482,7 +496,7 @@ public class RequestServiceTests
         _draftBlobClient.SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
             .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
-            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+            .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 

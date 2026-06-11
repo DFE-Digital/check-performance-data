@@ -151,9 +151,22 @@ public sealed class RulesEngineWorker : BackgroundService
             "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
             decision.Status, decision.OutcomeKey, decision.MatchedRuleId, snapshot.Version, parsed.ReferenceNumber);
 
-        // The handler (and its Zendesk dependencies) are scoped, and a hosted
-        // service is a singleton — resolve per message rather than capturing.
+        // The handler (and its Zendesk dependencies) and the outcome repository
+        // are scoped, and a hosted service is a singleton — resolve per message
+        // rather than capturing.
         await using var scope = _scopeFactory.CreateAsyncScope();
+
+        // Record the outcome before ticketing so the decision is on the row even
+        // if Zendesk is down; the idempotent update makes retries harmless.
+        var outcomeRepository = scope.ServiceProvider.GetRequiredService<IDecisionOutcomeRepository>();
+        var rowUpdated = await outcomeRepository.RecordOutcomeAsync(parsed.ChangeRequestId, decision, stoppingToken);
+        if (!rowUpdated)
+        {
+            _logger.LogWarning(
+                "No ChangeRequests row matched Id={ChangeRequestId} for Reference={Reference}; outcome not recorded.",
+                parsed.ChangeRequestId, parsed.ReferenceNumber);
+        }
+
         var handler = scope.ServiceProvider.GetRequiredService<IRequestDecisionHandler>();
         await handler.HandleAsync(parsed, decision, stoppingToken);
     }

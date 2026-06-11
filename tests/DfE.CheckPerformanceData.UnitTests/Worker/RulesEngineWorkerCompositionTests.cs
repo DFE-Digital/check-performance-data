@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public sealed class RulesEngineWorkerCompositionTests
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:AzureStorage"] = "UseDevelopmentStorage=true",
+            ["ConnectionStrings:Postgres"] = "Host=localhost;Database=cypd;Username=postgres;Password=postgres",
             ["ZendeskSettings:Subdomain"] = "test",
             ["ZendeskSettings:Domain"] = "zendesk",
             ["ZendeskSettings:Email"] = "t@example.com",
@@ -47,6 +49,9 @@ public sealed class RulesEngineWorkerCompositionTests
         services.AddSingleton(_ => new QueueServiceClient(config.GetConnectionString("AzureStorage")));
         services.AddZendeskApiClient(config);
         services.AddInfrastructureDependencies(config);
+        services.AddSingleton<DfE.CheckPerformanceData.Application.CurrentUser.ICurrentUserService,
+            DfE.CheckPerformanceData.RulesEngineWorker.WorkerCurrentUserService>();
+        services.AddPersistenceDependencies(config);
         services.AddRulesEngineDependencies();
         services.AddRulesProvider(config);
         services.AddSingleton<Microsoft.Extensions.Hosting.IHostedService, WorkerService>();
@@ -56,34 +61,21 @@ public sealed class RulesEngineWorkerCompositionTests
             ValidateOnBuild = true,
             ValidateScopes = true
         });
+
+        // ProcessMessageBodyAsync resolves these per message; ValidateOnBuild
+        // does not cover runtime GetRequiredService, so resolve them explicitly.
+        using var scope = provider.CreateScope();
+        scope.ServiceProvider.GetRequiredService<IRequestDecisionHandler>();
+        scope.ServiceProvider.GetRequiredService<IDecisionOutcomeRepository>();
     }
 
     [Fact]
     public async Task ProcessMessageBody_ResolvesHandlerFromScope_AndInvokesIt()
     {
         var handler = Substitute.For<IRequestDecisionHandler>();
-        var rulesProvider = Substitute.For<IRulesProvider>();
-        rulesProvider.Current.Returns(new RulesSnapshot(
-            new RuleSet("v1", DateTimeOffset.UtcNow, []), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy));
-        var engine = Substitute.For<IRulesEngine>();
-        engine.Evaluate(Arg.Any<RuleSet>(), Arg.Any<RuleContext>(), Arg.Any<Lookups>())
-            .Returns(new Decision(DecisionStatus.Scrutiny, "k", "r", []));
+        var outcomes = Substitute.For<IDecisionOutcomeRepository>();
 
-        var scopedServices = new ServiceCollection();
-        scopedServices.AddScoped<IRequestDecisionHandler>(_ => handler);
-        using var provider = scopedServices.BuildServiceProvider();
-
-        var queueServiceClient = Substitute.For<QueueServiceClient>();
-        queueServiceClient.GetQueueClient(Arg.Any<string>()).Returns(Substitute.For<QueueClient>());
-
-        var worker = new WorkerService(
-            Substitute.For<ILogger<WorkerService>>(),
-            queueServiceClient,
-            Options.Create(new RulesEngineOptions { QueueName = "q", MaxDequeueCount = 1 }),
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            rulesProvider,
-            engine,
-            new RuleContextMapper());
+        var worker = CreateWorker(handler, outcomes, new Decision(DecisionStatus.Scrutiny, "k", "r", []));
 
         await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
 
@@ -91,8 +83,76 @@ public sealed class RulesEngineWorkerCompositionTests
             Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task ProcessMessageBody_RecordsOutcomeOnChangeRequest_BeforeInvokingHandler()
+    {
+        var decision = new Decision(DecisionStatus.AutoApproved, "PupilDied", "rule-1", []);
+        var callOrder = new List<string>();
+        var handler = Substitute.For<IRequestDecisionHandler>();
+        handler.HandleAsync(Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { callOrder.Add("handler"); return Task.CompletedTask; });
+        var outcomes = Substitute.For<IDecisionOutcomeRepository>();
+        outcomes.RecordOutcomeAsync(Arg.Any<Guid>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>())
+            .Returns(_ => { callOrder.Add("outcome"); return true; });
+
+        var worker = CreateWorker(handler, outcomes, decision);
+
+        await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
+
+        // The decision must be on the row even if Zendesk is down, so the DB
+        // write comes first; ChangeRequestId comes from the parsed document.
+        Assert.Equal(["outcome", "handler"], callOrder);
+        await outcomes.Received(1).RecordOutcomeAsync(
+            Guid.Parse("11111111-2222-3333-4444-555555555555"), decision, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessageBody_WhenNoChangeRequestRowMatches_StillInvokesHandler()
+    {
+        var handler = Substitute.For<IRequestDecisionHandler>();
+        var outcomes = Substitute.For<IDecisionOutcomeRepository>();
+        outcomes.RecordOutcomeAsync(Arg.Any<Guid>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>())
+            .Returns(false);
+
+        var worker = CreateWorker(handler, outcomes, new Decision(DecisionStatus.Scrutiny, "k", "r", []));
+
+        await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
+
+        await handler.Received(1).HandleAsync(
+            Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>());
+    }
+
+    private static WorkerService CreateWorker(
+        IRequestDecisionHandler handler, IDecisionOutcomeRepository outcomes, Decision decision)
+    {
+        var rulesProvider = Substitute.For<IRulesProvider>();
+        rulesProvider.Current.Returns(new RulesSnapshot(
+            new RuleSet("v1", DateTimeOffset.UtcNow, []), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy));
+        var engine = Substitute.For<IRulesEngine>();
+        engine.Evaluate(Arg.Any<RuleSet>(), Arg.Any<RuleContext>(), Arg.Any<Lookups>())
+            .Returns(decision);
+
+        var scopedServices = new ServiceCollection();
+        scopedServices.AddScoped<IRequestDecisionHandler>(_ => handler);
+        scopedServices.AddScoped<IDecisionOutcomeRepository>(_ => outcomes);
+        var provider = scopedServices.BuildServiceProvider();
+
+        var queueServiceClient = Substitute.For<QueueServiceClient>();
+        queueServiceClient.GetQueueClient(Arg.Any<string>()).Returns(Substitute.For<QueueClient>());
+
+        return new WorkerService(
+            Substitute.For<ILogger<WorkerService>>(),
+            queueServiceClient,
+            Options.Create(new RulesEngineOptions { QueueName = "q", MaxDequeueCount = 1 }),
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            rulesProvider,
+            engine,
+            new RuleContextMapper());
+    }
+
     private const string MinimalMessageJson = """
         {
+          "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
           "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
           "CheckingWindowType": "KS4",
           "RequestTypeCode": "Remove - pupil-died",

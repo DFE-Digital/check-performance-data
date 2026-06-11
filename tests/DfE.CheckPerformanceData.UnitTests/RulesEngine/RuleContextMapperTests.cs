@@ -414,6 +414,7 @@ public sealed class RuleContextMapperTests
         int pupilPincl = 0) =>
         new()
         {
+            ChangeRequestId    = Guid.NewGuid(),
             ReferenceNumber    = "REF",
             RequestTypeCode    = whatToChange,
             CheckingWindowType = checkingWindowType,

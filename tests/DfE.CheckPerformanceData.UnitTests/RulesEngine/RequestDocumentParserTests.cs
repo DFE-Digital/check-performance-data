@@ -18,6 +18,7 @@ public sealed class RequestDocumentParserTests
         // pin that the worker-side parser reads that exact wire format back.
         var doc = new RequestDocument
         {
+            ChangeRequestId = Guid.Parse("99999999-8888-7777-6666-555555555555"),
             ReferenceNumber = "REF-RT",
             SubmittedAt = new DateTime(2026, 6, 10, 9, 0, 0, DateTimeKind.Utc),
             SubmittedBy = new UserDetails { UserId = "u1", DisplayName = "Alice" },
@@ -56,6 +57,7 @@ public sealed class RequestDocumentParserTests
     {
         const string json = """
             {
+              "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
               "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
               "CheckingWindowType": "KS4",
               "RequestTypeCode": "Deceased",
@@ -86,6 +88,7 @@ public sealed class RequestDocumentParserTests
         // The producer serialises PascalCase; this confirms case-insensitive parsing.
         const string json = """
             {
+              "changerequestid": "11111111-2222-3333-4444-555555555555",
               "checkingwindowtype": "KS2",
               "requesttypecode": "Elective home education",
               "referencenumber": "REF-2",
@@ -100,6 +103,51 @@ public sealed class RequestDocumentParserTests
 
         Assert.NotNull(parsed);
         Assert.Equal("Elective home education", parsed!.RequestTypeCode);
+    }
+
+    [Fact]
+    public void Parse_ChangeRequestId_RoundTrips()
+    {
+        // The worker updates ChangeRequests by this Id, so it must survive the wire.
+        const string json = """
+            {
+              "ChangeRequestId": "99999999-8888-7777-6666-555555555555",
+              "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              "CheckingWindowType": "KS4",
+              "RequestTypeCode": "Deceased",
+              "ReferenceNumber": "REF-001",
+              "School": { "Urn": "123456", "Name": "Test School" },
+              "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
+              "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 15, "Upn": "UPN1" },
+              "Answers": []
+            }
+            """;
+
+        var parsed = RequestDocumentParser.Parse(json);
+
+        Assert.NotNull(parsed);
+        Assert.Equal(Guid.Parse("99999999-8888-7777-6666-555555555555"), parsed!.ChangeRequestId);
+    }
+
+    [Fact]
+    public void Parse_MissingChangeRequestId_ReturnsNull()
+    {
+        // Pre-release contract: ChangeRequestId is required; a document without it
+        // is unparseable and goes through poison-message handling.
+        const string json = """
+            {
+              "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+              "CheckingWindowType": "KS4",
+              "RequestTypeCode": "Deceased",
+              "ReferenceNumber": "REF-001",
+              "School": { "Urn": "123456", "Name": "Test School" },
+              "SubmittedBy": { "UserId": "u1", "DisplayName": "Alice" },
+              "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 15, "Upn": "UPN1" },
+              "Answers": []
+            }
+            """;
+
+        Assert.Null(RequestDocumentParser.Parse(json));
     }
 
     [Fact]

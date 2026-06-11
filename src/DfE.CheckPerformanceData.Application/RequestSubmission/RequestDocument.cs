@@ -2,6 +2,12 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public class RequestDocument
 {
+    /// <summary>
+    /// Primary key of the <c>ChangeRequests</c> row this document was built from.
+    /// The rules engine worker writes its decision back to that row by this Id.
+    /// </summary>
+    public required Guid ChangeRequestId { get; init; }
+
     public required string ReferenceNumber { get; init; }
     public DateTime SubmittedAt { get; init; }
     public required UserDetails SubmittedBy { get; init; }

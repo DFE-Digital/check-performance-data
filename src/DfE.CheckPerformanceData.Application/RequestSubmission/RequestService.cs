@@ -40,9 +40,12 @@ public sealed class RequestService(
             History = journey.QuestionHistory
         };
 
-        var document = BuildRequestDocument(context, config);
+        // Upsert first: the document carries the ChangeRequest row's Id so the
+        // rules engine worker can write its decision back to that row.
+        var changeRequestId = await requestRepository.UpsertAsync(
+            BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
+        var document = BuildRequestDocument(context, config, changeRequestId);
         await requestQueueClient.EnqueueRequestAsync(document);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
@@ -109,7 +112,7 @@ public sealed class RequestService(
             RequestType = BuildRequestType(journey, config)
         };
 
-    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
+    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)
     {
         var pupil = context.Pupil;
         var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
@@ -129,6 +132,7 @@ public sealed class RequestService(
 
         return new RequestDocument
         {
+            ChangeRequestId = changeRequestId,
             ReferenceNumber = context.ReferenceNumber,
             SubmittedAt = DateTime.UtcNow,
             SubmittedBy = new UserDetails

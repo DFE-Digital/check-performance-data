@@ -239,6 +239,7 @@ public sealed class RequestDecisionHandlerTests
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) => new()
     {
+        ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
         CheckingWindowType = "KS4",

@@ -14,6 +14,12 @@
         <p class="govuk-body">Decision: <strong>@Model.Decision</strong></p>
     }
 
+    <p class="govuk-body">
+        <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(Model.ReferenceNumber)">
+            Track this request<span class="govuk-visually-hidden"> @Model.ReferenceNumber</span>
+        </a>
+    </p>
+
     @if (Model.Stages.Count == 0)
     {
         <p class="govuk-body">No recorded stages for this request yet.</p>

@@ -29,6 +29,18 @@
         <dt class="govuk-summary-list__key">Dead-lettered</dt>
         <dd class="govuk-summary-list__value">@Model.DeadLetteredAtUtc.ToString("u")</dd>
     </div>
+    @if (!string.IsNullOrEmpty(Model.ReferenceNumber))
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Reference</dt>
+            <dd class="govuk-summary-list__value">@Model.ReferenceNumber</dd>
+            <dd class="govuk-summary-list__actions">
+                <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(Model.ReferenceNumber)">
+                    Track this request<span class="govuk-visually-hidden"> @Model.ReferenceNumber</span>
+                </a>
+            </dd>
+        </div>
+    }
 </dl>
 
 <h2 class="govuk-heading-l">Payload</h2>

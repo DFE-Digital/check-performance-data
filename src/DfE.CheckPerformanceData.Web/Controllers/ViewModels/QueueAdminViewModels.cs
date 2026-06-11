@@ -40,6 +40,11 @@ public sealed class QueueMessageViewModel
     public bool IsRedacted { get; init; }
     public bool FullPayloadAvailable { get; init; }
 
+    // The request reference extracted from the payload (null when unparseable), used to link
+    // the message to its journey timeline. References are the redaction-safe key the
+    // observability surfaces already display — never a pupil identifier.
+    public string? ReferenceNumber { get; init; }
+
     public override string ToString() => Payload;
 }
 
@@ -58,6 +63,10 @@ public sealed class DlqMessageViewModel
     public required string Payload { get; init; }
     public bool IsRedacted { get; init; }
     public bool FullPayloadAvailable { get; init; }
+
+    // The request reference extracted from the payload (null when unparseable), used to link
+    // the message to its journey timeline.
+    public string? ReferenceNumber { get; init; }
 
     // The model is rendered to a string in the controller test to assert no raw
     // pupil identifiers leak; surfacing the payload here keeps that contract honest.

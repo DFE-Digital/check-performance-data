@@ -143,6 +143,9 @@ public sealed class QueueAdminController : Controller
             Payload = payload,
             IsRedacted = redacted,
             FullPayloadAvailable = fullPayloadEnabled,
+            // Extracted from the raw payload regardless of redaction: the reference is the
+            // redaction-safe journey key, not a pupil identifier.
+            ReferenceNumber = QueuePayloadReference.TryExtract(message.Payload),
         });
     }
 
@@ -189,6 +192,7 @@ public sealed class QueueAdminController : Controller
             Payload = payload,
             IsRedacted = redacted,
             FullPayloadAvailable = fullPayloadEnabled,
+            ReferenceNumber = QueuePayloadReference.TryExtract(message.Payload),
         });
     }
 

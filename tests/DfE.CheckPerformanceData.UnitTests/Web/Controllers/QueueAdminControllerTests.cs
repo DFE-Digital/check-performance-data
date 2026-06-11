@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -73,6 +74,76 @@ public sealed class QueueAdminControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var rendered = view.Model?.ToString() ?? string.Empty;
         Assert.DoesNotContain("X999", rendered);
+    }
+
+    // --- The detail views carry the request reference so they can link to its journey ---
+
+    [Fact]
+    public async Task Message_CarriesTheReferenceNumber_ForTheJourneyLink()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var id = Guid.NewGuid();
+        adminService.GetDlqMessageAsync(id, Arg.Any<CancellationToken>())
+            .Returns(new DlqMessage(
+                id,
+                QueueOptions.ZendeskQueue,
+                Attempts: 3,
+                Reason: "boom",
+                Payload: "{\"ReferenceNumber\":\"KS4-9001\",\"Pupil\":{\"Upn\":\"X999\"}}",
+                DeadLetteredAtUtc: DateTime.UtcNow));
+
+        var controller = new QueueAdminController(adminService);
+
+        var result = await controller.Message(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DlqMessageViewModel>(view.Model);
+        Assert.Equal("KS4-9001", model.ReferenceNumber);
+    }
+
+    [Fact]
+    public async Task WorkingMessage_CarriesTheReferenceNumber_ForTheJourneyLink()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var id = Guid.NewGuid();
+        adminService.GetMessageDetailAsync(QueueOptions.RulesEngineQueue, id, Arg.Any<CancellationToken>())
+            .Returns(new QueueMessageDetail(
+                id,
+                QueueOptions.RulesEngineQueue,
+                EnqueuedAtUtc: DateTime.UtcNow,
+                Attempts: 0,
+                Payload: "{\"ReferenceNumber\":\"KS4-9002\"}"));
+
+        var controller = new QueueAdminController(adminService);
+
+        var result = await controller.WorkingMessage(QueueOptions.RulesEngineQueue, id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<QueueMessageViewModel>(view.Model);
+        Assert.Equal("KS4-9002", model.ReferenceNumber);
+    }
+
+    [Fact]
+    public async Task Message_UnparseablePayload_LeavesTheReferenceNull()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var id = Guid.NewGuid();
+        adminService.GetDlqMessageAsync(id, Arg.Any<CancellationToken>())
+            .Returns(new DlqMessage(
+                id,
+                QueueOptions.ZendeskQueue,
+                Attempts: 1,
+                Reason: "boom",
+                Payload: "not json",
+                DeadLetteredAtUtc: DateTime.UtcNow));
+
+        var controller = new QueueAdminController(adminService);
+
+        var result = await controller.Message(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DlqMessageViewModel>(view.Model);
+        Assert.Null(model.ReferenceNumber);
     }
 
     // --- Redrive writes an audit entry (D-04) ---

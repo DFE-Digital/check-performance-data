@@ -7,11 +7,11 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 // shipping its paired accessible data table.
 public sealed class ObservabilityViewRenderTests
 {
-	private static string ReadView(string name)
+	private static string ReadView(string name, string folder = "Observability")
 	{
 		var thisFile = ThisFilePath();
 		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
-		var view = Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", "Observability", name);
+		var view = Path.Combine(repoRoot, "src", "DfE.CheckPerformanceData.Web", "Views", folder, name);
 		return File.ReadAllText(view);
 	}
 
@@ -88,6 +88,26 @@ public sealed class ObservabilityViewRenderTests
 	{
 		var view = ReadView("Index.cshtml");
 		Assert.Contains("_DecisionMixOverTimeChart", view);
+	}
+
+	// --- Admin surfaces showing a reference link it to the journey timeline ---
+
+	[Theory]
+	[InlineData("WorkingMessage.cshtml")]
+	[InlineData("Message.cshtml")]
+	[InlineData("Dlq.cshtml")]
+	public void QueueAdminViews_LinkAReferenceToItsJourney(string viewName)
+	{
+		var view = ReadView(viewName, "QueueAdmin");
+		Assert.Contains("/admin/observability/journey/", view);
+		Assert.Contains("Track this request", view);
+	}
+
+	[Fact]
+	public void InspectPanel_LinksToTheFullJourneyTimeline()
+	{
+		var view = ReadView("Inspect.cshtml");
+		Assert.Contains("/admin/observability/journey/", view);
 	}
 
 	// --- Deploy markers render through ONE shared partial on both time-axis charts ---

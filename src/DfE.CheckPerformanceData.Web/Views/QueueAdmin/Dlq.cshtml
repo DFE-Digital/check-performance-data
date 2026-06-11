@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.Queue
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DlqListViewModel
 @{
     Layout = "_AdminLayout";
@@ -49,6 +50,7 @@ else
                     </th>
                     <th scope="col" class="govuk-table__header">Message</th>
                     <th scope="col" class="govuk-table__header">Queue</th>
+                    <th scope="col" class="govuk-table__header">Reference</th>
                     <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
                     <th scope="col" class="govuk-table__header">Reason</th>
                     <th scope="col" class="govuk-table__header">Dead-lettered</th>
@@ -77,6 +79,23 @@ else
                             <a class="govuk-link" href="/admin/queues/dlq/@message.Id">@message.Id</a>
                         </td>
                         <td class="govuk-table__cell">@message.QueueName</td>
+                        <td class="govuk-table__cell">
+                            @{
+                                var reference = QueuePayloadReference.TryExtract(message.Payload);
+                            }
+                            @if (reference is null)
+                            {
+                                <span aria-hidden="true">—</span>
+                            }
+                            else
+                            {
+                                @reference
+                                <br />
+                                <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(reference)">
+                                    Track this request<span class="govuk-visually-hidden"> @reference</span>
+                                </a>
+                            }
+                        </td>
                         <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
                         <td class="govuk-table__cell">@Truncate(message.Reason, 120)</td>
                         <td class="govuk-table__cell">@message.DeadLetteredAtUtc.ToString("u")</td>

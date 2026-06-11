@@ -225,17 +225,18 @@ try
     {
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
+        
+        var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
+        await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
     }
 
     if (app.Environment.IsDevelopment())
     {
         using var scope = app.Services.CreateScope();
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
-        var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
         try
         {
             await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
-            await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         }
         catch (Azure.RequestFailedException ex) when (app.Environment.IsDevelopment())
         {

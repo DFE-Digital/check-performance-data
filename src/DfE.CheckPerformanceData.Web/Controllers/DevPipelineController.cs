@@ -46,7 +46,7 @@ public sealed class DevPipelineController(IHostEnvironment env, IPortalDbContext
             PupilUpn = "UPN1",
             PupilFirstname = "Bob",
             PupilSurname = "Smith",
-            Submitted = DateTime.UtcNow,
+            Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Dev Harness",
             Status = RequestStatus.SubmittedUnCommitted,

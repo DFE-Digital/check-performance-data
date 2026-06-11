@@ -2,18 +2,27 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Dev-only endpoint that seeds a single dead-lettered message so the queue admin surface
 // has something to act on during manual testing and E2E runs. Returns 404 in Production —
-// belt-and-braces alongside the environment guard — and never reaches a real queue there.
+// a real environment guard alongside the Dev:ToolsEnabled flag, so a production deploy that
+// leaves the flag on still never exposes the surface — and never reaches a real queue there.
 // [AllowAnonymous] mirrors the dev impersonation controller: callers reach it before they
 // hold any auth cookie, and it only manipulates the local dev database.
 [AllowAnonymous]
-public sealed class DevQueueSeedController(IConfiguration configuration, IQueueService queueService) : Controller
+public sealed class DevQueueSeedController(
+    IConfiguration configuration,
+    IQueueService queueService,
+    IHostEnvironment? hostEnvironment = null) : Controller
 {
-    private bool IsAllowed => configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
+    // The surface is gated on the config flag AND a hard production guard: even if a
+    // production deploy leaves Dev:ToolsEnabled true, IsProduction short-circuits to 404.
+    private bool IsAllowed =>
+        configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
+        && hostEnvironment?.IsProduction() != true;
 
     [HttpGet("dev/queues/seed-dlq")]
     [HttpPost("dev/queues/seed-dlq")]

@@ -142,11 +142,11 @@ try
         return clients;
     });
     // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
-    if (builder.Environment.IsDevelopment())
+    //if (builder.Environment.IsDevelopment())
         builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
-    else
-        builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
-            new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
+    // else
+    //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
+    //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();

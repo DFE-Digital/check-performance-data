@@ -13,18 +13,15 @@ public sealed class RulesEngineWorkerProgramTests
     }
 
     [Fact]
-    public void Program_RegistersDevZendeskFakeOnlyInDevelopment()
+    public void Program_GatesDevZendeskFakeOnConfigFlagNotEnvironmentName()
     {
         var src = File.ReadAllText(ResolveProgramPath());
 
-        // The dev outbox fake must replace the real Zendesk service only outside Production,
-        // so the real client is always used in deployed environments.
-        Assert.Contains("DevOutboxZendeskService", src);
-        Assert.Contains("IsDevelopment()", src);
-
-        var fakeIndex = src.IndexOf("DevOutboxZendeskService", StringComparison.Ordinal);
-        var guardIndex = src.LastIndexOf("IsDevelopment()", fakeIndex, StringComparison.Ordinal);
-        Assert.True(guardIndex >= 0, "DevOutboxZendeskService registration must sit behind an IsDevelopment() guard.");
+        // The dev outbox fake is selected through the Zendesk:UseFake config flag, not the
+        // environment name, so the test site (which runs as Development) can be flipped to the
+        // real Zendesk client by config alone.
+        Assert.Contains("ConfigureFakeZendesk", src);
+        Assert.DoesNotContain("IsDevelopment()", src);
     }
 
     private static string ResolveProgramPath([CallerFilePath] string testFile = "")

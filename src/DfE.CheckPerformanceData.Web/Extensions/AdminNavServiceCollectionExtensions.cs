@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Extensions;
 
@@ -13,6 +15,11 @@ public static class AdminNavServiceCollectionExtensions
 {
     public static IServiceCollection AddAdminNavEntries(this IServiceCollection services)
     {
+        // DebugMenuNavEntry resolves its Enabled state from configuration. Provide an empty
+        // fallback so a bare service collection (e.g. in registry tests) can still resolve the
+        // entries; the host's own IConfiguration registration wins when present.
+        services.TryAddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+
         services.AddSingleton<IAdminNavEntry, CmsAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, VersionRetentionNavEntry>();
@@ -26,6 +33,7 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
+        services.AddSingleton<IAdminNavEntry, DebugMenuNavEntry>();
         return services;
     }
 }

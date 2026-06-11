@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(13, entries.Count);
+		Assert.Equal(14, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
@@ -34,6 +34,7 @@ public sealed class AdminNavRegistryTests
 		Assert.DoesNotContain("CMS settings", titles);
 		Assert.Contains("Storage administration", titles);
 		Assert.Contains("Blob storage browser", titles);
+		Assert.Contains("Debug", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---
@@ -60,7 +61,7 @@ public sealed class AdminNavRegistryTests
 			.ToArray();
 
 		Assert.Equal(new[] { 10, 20, 30, 40 }, cmsOrders);
-		Assert.Equal(new[] { 10, 20, 25, 30, 40 }, systemOrders);
+		Assert.Equal(new[] { 10, 20, 25, 30, 40, 90 }, systemOrders);
 	}
 
 	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---

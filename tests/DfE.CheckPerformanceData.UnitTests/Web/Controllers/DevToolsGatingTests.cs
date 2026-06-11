@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -55,15 +56,26 @@ public sealed class DevToolsGatingTests
     }
 
     [Fact]
-    public async Task DevPipeline_Outbox_ToolsEnabled_DoesNotReturnNotFoundOnGate()
+    public async Task DevQueueSeed_ToolsEnabled_PassesGateAndReachesQueue()
     {
-        var sut = CreatePipeline(Config(toolsEnabled: true));
+        // With the flag on the gate is passed, so the action proceeds to enqueue the seed
+        // message rather than short-circuiting to NotFound.
+        _queueService
+            .DequeueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(new QueueMessage
+            {
+                Id = Guid.NewGuid(),
+                QueueName = QueueOptions.RulesEngineQueue,
+                Payload = "{}",
+            });
 
-        var result = await sut.Outbox(CancellationToken.None);
+        var sut = CreateSeed(Config(toolsEnabled: true));
 
-        // With the flag on, the gate is passed: the action does not 404 on the gate.
-        // (It returns the Outbox view rather than NotFound.)
+        var result = await sut.SeedDeadLetter(CancellationToken.None);
+
         Assert.IsNotType<NotFoundResult>(result);
+        await _queueService.Received().EnqueueAsync(
+            Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -86,5 +98,23 @@ public sealed class DevToolsGatingTests
         var result = await sut.SeedDeadLetter(CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public void DebugMenuNavEntry_ToolsEnabled_IsVisible()
+    {
+        var entry = new DebugMenuNavEntry(Config(toolsEnabled: true));
+
+        Assert.True(entry.Enabled);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public void DebugMenuNavEntry_ToolsDisabledOrAbsent_IsHidden(bool? toolsEnabled)
+    {
+        var entry = new DebugMenuNavEntry(Config(toolsEnabled));
+
+        Assert.False(entry.Enabled);
     }
 }

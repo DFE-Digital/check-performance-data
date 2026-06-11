@@ -19,4 +19,5 @@ public static class AdminNavKeys
     public const string DeadLetterQueue = "dead-letter-queue";
     public const string StorageAdmin = "storage-admin";
     public const string StorageBrowser = "storage-browser";
+    public const string DebugMenu = "debug-menu";
 }

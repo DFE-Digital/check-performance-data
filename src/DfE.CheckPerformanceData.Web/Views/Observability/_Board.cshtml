@@ -1,10 +1,16 @@
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     // The five pipeline stages, left to right. Each stage carries a token so its state is
     // conveyed by position + colour + shape + text — never colour alone — so a reduced-motion or
     // paused render stays fully legible. Depth-bearing stages map to the two working queues.
     var rulesDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "rules-engine")?.Depth ?? 0;
     var zendeskDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "zendesk")?.Depth ?? 0;
+
+    // The dev-only board controls (slow-mo / single-step / demo trickle) render only when the
+    // Dev:ToolsEnabled flag is on (dev + test). In production the board shows live motion with no
+    // controls. The replay scrubber below is NOT gated — it is always-on in every environment.
+    var devToolsEnabled = Configuration.GetValue<bool>("Dev:ToolsEnabled");
 
     var stages = new[]
     {
@@ -18,7 +24,8 @@
 
 <section class="obs-board" aria-label="Live workflow board" data-obs-board
          data-stream-url="/admin/observability/stream"
-         data-inspect-url="/admin/observability/inspect">
+         data-inspect-url="/admin/observability/inspect"
+         data-replay-url="/admin/observability/replay">
 
     @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
        animates tokens between these nodes from the live feed; with JS off or motion reduced the
@@ -71,4 +78,53 @@
         The live view is temporarily unavailable. The pipeline is unaffected; this page will
         reconnect automatically.
     </p>
+
+    @* Always-on replay scrubber: re-animates a historical window from the recorded events through
+       the same engine. Present in every environment for any admin viewer — NOT gated on
+       Dev:ToolsEnabled. Keyboard-operable; the position is announced via aria-valuetext and the
+       live region. *@
+    <div class="obs-board__replay" role="group" aria-label="Replay recorded traffic">
+        <h3 class="govuk-heading-s">Replay recent traffic</h3>
+        <div class="obs-board__replay-controls">
+            <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                    data-module="govuk-button" data-obs-replay-play aria-pressed="false">
+                Play
+            </button>
+            <label class="govuk-label govuk-visually-hidden" for="obs-replay-scrubber">
+                Replay position
+            </label>
+            <input type="range" id="obs-replay-scrubber" class="obs-board__scrubber"
+                   min="0" max="0" value="0" step="1"
+                   data-obs-scrubber aria-valuetext="No recorded events in this window" />
+        </div>
+        <p class="govuk-body-s" data-obs-replay-status aria-live="polite">
+            No recorded events in this window
+        </p>
+    </div>
+
+    @if (devToolsEnabled)
+    {
+        @* Dev/test-only board controls. Slow-mo scales the engine clock, single-step advances it
+           by hand, and demo trickle auto-injects synthetic tokens so the board stays alive during
+           a demo. Absent in production (the board still shows live motion there). *@
+        <div class="obs-board__dev-controls" role="group" aria-label="Demo controls (development and test only)">
+            <h3 class="govuk-heading-s">Demo controls</h3>
+            <div class="govuk-checkboxes govuk-checkboxes--small">
+                <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="obs-slowmo" type="checkbox" data-obs-slowmo />
+                    <label class="govuk-label govuk-checkboxes__label" for="obs-slowmo">Slow motion</label>
+                </div>
+            </div>
+            <div class="govuk-button-group govuk-!-margin-top-2">
+                <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                        data-module="govuk-button" data-obs-step>
+                    Single step
+                </button>
+                <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                        data-module="govuk-button" data-obs-demo aria-pressed="false">
+                    Start demo trickle
+                </button>
+            </div>
+        </div>
+    }
 </section>

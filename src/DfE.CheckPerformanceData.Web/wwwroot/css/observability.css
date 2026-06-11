@@ -162,6 +162,33 @@
     margin-top: 16px;
 }
 
+/* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range
+   input + play/pause; both control groups are keyboard-operable. */
+.obs-board__replay,
+.obs-board__dev-controls {
+    background: #f3f2f1;
+    border: 1px solid #b1b4b6;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.obs-board__replay-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.obs-board__scrubber {
+    flex: 1 1 auto;
+    min-width: 200px;
+    height: 24px;
+}
+
+.obs-board__scrubber:focus {
+    outline: 3px solid #fd0;
+    outline-offset: 2px;
+}
+
 .obs-inspect__payload {
     background: #f3f2f1;
     padding: 16px;

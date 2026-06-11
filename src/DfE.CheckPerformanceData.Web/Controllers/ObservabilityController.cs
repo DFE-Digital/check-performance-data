@@ -219,6 +219,34 @@ public sealed class ObservabilityController : Controller
         });
     }
 
+    // The always-on board replay window. Returns the recorded stage transitions across the
+    // requested window so the board can re-animate real historical traffic through the same
+    // engine on a scrubber clock. This is role-gated cypmd_admin ONLY — it carries no
+    // Dev:ToolsEnabled gate, because replay is a locked always-on surface present in every
+    // environment. The payload is aggregate transition events (queue/stage/reference/decision)
+    // with no pupil data, mirroring the snapshot schema.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/replay")]
+    public async Task<IActionResult> Replay(
+        DateTime? from,
+        DateTime? to,
+        CancellationToken cancellationToken = default)
+    {
+        var toUtc = to ?? DateTime.UtcNow;
+        var fromUtc = from ?? toUtc - DefaultWindow;
+
+        try
+        {
+            var events = await _query.GetReplayWindowAsync(fromUtc, toUtc, cancellationToken);
+            return Json(events);
+        }
+        catch (ArgumentException ex)
+        {
+            // An over-wide range is a client error, mirroring the throughput guard.
+            return BadRequest(ex.Message);
+        }
+    }
+
     private async Task<bool> IsFullPayloadEnabledAsync()
     {
         if (_settings is null)

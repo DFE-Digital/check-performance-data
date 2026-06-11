@@ -34,6 +34,15 @@ public interface IMetricsQueryService
         string referenceNumber,
         CancellationToken cancellationToken = default);
 
+    // The recorded stage transitions across [from, to), ordered chronologically, for the
+    // always-on board replay. The same recorded events the board animates live are replayed
+    // through the one animation engine on a scrubber clock. The range is bounded against an
+    // abusive aggregation request, as for throughput.
+    Task<IReadOnlyList<JourneyEvent>> GetReplayWindowAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     // Rules-config deploy markers whose CreatedAt falls inside [from, to].
     Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,

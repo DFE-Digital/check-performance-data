@@ -146,10 +146,11 @@
                 window.requestAnimationFrame(function () {
                     placeToken(token, stageKeyFor(t));
                 });
-                // Tokens are ephemeral animation marks; clear them once they have arrived.
+                // Tokens are ephemeral animation marks; clear them once they have arrived. The
+                // lifetime is scaled by the slow-mo clock so a demo can linger on each move.
                 window.setTimeout(function () {
                     if (token.parentNode) { token.parentNode.removeChild(token); }
-                }, reduce ? 0 : 1200);
+                }, reduce ? 0 : 1200 * moveSpeed);
             });
         }
 
@@ -164,7 +165,53 @@
             if (reconnectNotice) { reconnectNotice.hidden = false; }
         }
 
-        return { onSnapshot: onSnapshot, onError: onError };
+        // The clock seam. slow-mo scales it, single-step advances it by hand, demo-mode trickles
+        // synthetic tokens through it, and replay drives it from a scrubber — all over this one
+        // renderer, no re-architecture. moveSpeed scales how long a token lingers; demoTimer is
+        // the auto-trickle interval handle.
+        var moveSpeed = 1;
+        var demoTimer = null;
+
+        function setSlowMo(factor) {
+            // A factor > 1 slows motion down (tokens linger longer) for a demo; 1 is normal.
+            moveSpeed = (factor && factor > 0) ? factor : 1;
+        }
+
+        // Single-step: advance one synthetic token through the pipeline by hand, so a presenter
+        // can walk an audience stage by stage. Reuses the same token renderer.
+        function singleStep() {
+            onSnapshot({
+                recentTransitions: [{ referenceNumber: 'STEP-' + Date.now(), stage: 'submit' }],
+                depths: [],
+            });
+        }
+
+        // Demo-mode auto-trickle: inject one synthetic token on an interval so the board stays
+        // alive during a demo even with no real traffic. Returns whether it is now running.
+        function toggleDemoMode() {
+            if (demoTimer) {
+                window.clearInterval(demoTimer);
+                demoTimer = null;
+                return false;
+            }
+            demoTimer = window.setInterval(function () {
+                var stages = ['submit', 'rules-engine', 'zendesk-queue', 'ticket'];
+                var stage = stages[Math.floor(Math.random() * stages.length)];
+                onSnapshot({
+                    recentTransitions: [{ referenceNumber: 'DEMO-' + Date.now(), stage: stage }],
+                    depths: [],
+                });
+            }, 1500);
+            return true;
+        }
+
+        return {
+            onSnapshot: onSnapshot,
+            onError: onError,
+            setSlowMo: setSlowMo,
+            singleStep: singleStep,
+            toggleDemoMode: toggleDemoMode,
+        };
     }
 
     // The live feed: an EventSource over the role-gated SSE stream. EventSource reconnects on its
@@ -182,12 +229,132 @@
         };
     }
 
+    // The recorded/replay feed. It fetches the recorded events for a window from the always-on
+    // replay endpoint, then plays them into the same renderer on a scrubber-controlled clock —
+    // the engine never knows the difference between live and recorded. Exposes load(from, to),
+    // seek(index) and the count so a scrubber UI can drive it. Same subscribe shape as the live
+    // feed so it plugs into start(...) identically.
+    function recordedFeed(replayUrl) {
+        var events = [];
+        var sink = null;
+        return {
+            subscribe: function (onSnapshot) {
+                sink = onSnapshot;
+            },
+            load: function (fromIso, toIso) {
+                var url = replayUrl + '?from=' + encodeURIComponent(fromIso) + '&to=' + encodeURIComponent(toIso);
+                return fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : []; })
+                    .then(function (data) { events = data || []; return events.length; })
+                    .catch(function () { events = []; return 0; });
+            },
+            count: function () { return events.length; },
+            // Play the recorded events up to and including the scrubber position so dragging the
+            // scrubber re-animates the window; each step feeds one recorded transition.
+            seek: function (index) {
+                if (!sink) { return; }
+                var e = events[index];
+                if (!e) { return; }
+                sink({ recentTransitions: [e], depths: [] });
+            },
+        };
+    }
+
     // The single entry point. Given a board root and a feed, wire the feed to the renderer. The
-    // recorded-replay feed (later) is any object with the same subscribe(onSnapshot, onError) shape.
+    // recorded-replay feed is any object with the same subscribe(onSnapshot, onError) shape.
     function start(root, feed) {
         var engine = BoardEngine(root);
         feed.subscribe(engine.onSnapshot, engine.onError);
         return engine;
+    }
+
+    // Wire the always-on replay scrubber (present in every environment) and the dev-only control
+    // group (slow-mo / single-step / demo-mode), which the server-side Razor conditional only
+    // renders when Dev:ToolsEnabled. Each control is keyboard-operable; the scrubber announces
+    // its position via aria-valuetext and a live region.
+    function wireControls(root, engine) {
+        // --- Always-on replay scrubber ---
+        var replayUrl = root.getAttribute('data-replay-url') || '/admin/observability/replay';
+        var scrubber = root.querySelector('[data-obs-scrubber]');
+        var playBtn = root.querySelector('[data-obs-replay-play]');
+        var status = root.querySelector('[data-obs-replay-status]');
+        if (scrubber) {
+            var feed = recordedFeed(replayUrl);
+            feed.subscribe(engine.onSnapshot);
+            var playing = false;
+            var playTimer = null;
+
+            function announce(index, total) {
+                var text = total > 0
+                    ? ('Event ' + (index + 1) + ' of ' + total)
+                    : 'No recorded events in this window';
+                scrubber.setAttribute('aria-valuetext', text);
+                if (status) { status.textContent = text; }
+            }
+
+            function loadWindow() {
+                var to = new Date();
+                var from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+                return feed.load(from.toISOString(), to.toISOString()).then(function (count) {
+                    scrubber.max = count > 0 ? (count - 1) : 0;
+                    scrubber.value = 0;
+                    announce(0, count);
+                });
+            }
+
+            scrubber.addEventListener('input', function () {
+                var idx = parseInt(scrubber.value, 10) || 0;
+                feed.seek(idx);
+                announce(idx, feed.count());
+            });
+
+            if (playBtn) {
+                playBtn.addEventListener('click', function () {
+                    playing = !playing;
+                    playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+                    playBtn.textContent = playing ? 'Pause' : 'Play';
+                    if (playing) {
+                        playTimer = window.setInterval(function () {
+                            var idx = parseInt(scrubber.value, 10) || 0;
+                            if (idx >= feed.count() - 1) {
+                                playing = false;
+                                playBtn.setAttribute('aria-pressed', 'false');
+                                playBtn.textContent = 'Play';
+                                window.clearInterval(playTimer);
+                                return;
+                            }
+                            scrubber.value = idx + 1;
+                            feed.seek(idx + 1);
+                            announce(idx + 1, feed.count());
+                        }, 800);
+                    } else if (playTimer) {
+                        window.clearInterval(playTimer);
+                    }
+                });
+            }
+
+            loadWindow();
+        }
+
+        // --- Dev-only controls (only in the DOM when Dev:ToolsEnabled rendered them) ---
+        var slowMo = root.querySelector('[data-obs-slowmo]');
+        if (slowMo) {
+            slowMo.addEventListener('change', function () {
+                engine.setSlowMo(slowMo.checked ? 4 : 1);
+            });
+        }
+        var step = root.querySelector('[data-obs-step]');
+        if (step) {
+            step.addEventListener('click', function () { engine.singleStep(); });
+        }
+        var demo = root.querySelector('[data-obs-demo]');
+        if (demo) {
+            demo.addEventListener('click', function () {
+                var on = engine.toggleDemoMode();
+                demo.setAttribute('aria-pressed', on ? 'true' : 'false');
+                demo.textContent = on ? 'Stop demo trickle' : 'Start demo trickle';
+            });
+        }
     }
 
     function init() {
@@ -195,7 +362,10 @@
         if (!root) { return; }
         var streamUrl = root.getAttribute('data-stream-url') || '/admin/observability/stream';
         if (!('EventSource' in window)) { return; }
-        start(root, liveFeed(streamUrl));
+        var engine = start(root, liveFeed(streamUrl));
+        // The replay scrubber (always-on) and the dev-only controls share the live engine, so
+        // slow-mo / single-step / demo / replay are all clock+feed manipulations over one renderer.
+        wireControls(root, engine);
     }
 
     if (document.readyState === 'loading') {
@@ -204,6 +374,7 @@
         init();
     }
 
-    // Expose the engine factory for the recorded-replay feed to reuse the same renderer.
-    window.ObservabilityBoard = { start: start, liveFeed: liveFeed };
+    // Expose the engine factory and both feeds so tests and the recorded-replay scrubber reuse
+    // the same renderer.
+    window.ObservabilityBoard = { start: start, liveFeed: liveFeed, recordedFeed: recordedFeed };
 })();

@@ -161,6 +161,38 @@ ORDER BY recorded_at_utc;";
         return results;
     }
 
+    public async Task<IReadOnlyList<JourneyEvent>> GetReplayWindowAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        GuardRange(fromUtc, toUtc);
+
+        const string sql = @"
+SELECT stage, reference_number, queue_name, decision_status, latency_ms, recorded_at_utc
+FROM queue_metrics_events
+WHERE recorded_at_utc >= @from AND recorded_at_utc < @to
+ORDER BY recorded_at_utc, id;";
+
+        var results = new List<JourneyEvent>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            results.Add(new JourneyEvent(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.GetDouble(4),
+                DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc)));
+        });
+
+        return results;
+    }
+
     public async Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,
         DateTime toUtc,

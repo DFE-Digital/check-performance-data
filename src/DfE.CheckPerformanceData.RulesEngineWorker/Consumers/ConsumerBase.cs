@@ -6,11 +6,16 @@ using Microsoft.Extensions.Options;
 namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
 
 /// <summary>
-/// The per-message facts a consumer contributes to a metric row: which stage it represents
-/// and the request reference it concerns. The queue, message id, dwell latency and timing
-/// (post-ack vs dead-letter) are owned by the base loop.
+/// The per-message facts a consumer contributes to a metric row: which stage it represents,
+/// the request reference it concerns and — where the consumer knows them — the decision the
+/// rules engine reached and the rules version that produced it. The queue, message id, dwell
+/// latency and timing (post-ack vs dead-letter) are owned by the base loop.
 /// </summary>
-public readonly record struct MetricDescription(string Stage, string ReferenceNumber);
+public readonly record struct MetricDescription(
+    string Stage,
+    string ReferenceNumber,
+    string? DecisionStatus = null,
+    string? RulesVersion = null);
 
 /// <summary>
 /// Shared dequeue loop for the queue consumers: claim a message, process it,
@@ -73,8 +78,8 @@ public abstract class ConsumerBase : BackgroundService
                 Stage: stage,
                 ReferenceNumber: description.Value.ReferenceNumber,
                 MessageId: message.Id,
-                DecisionStatus: null,
-                RulesVersion: null,
+                DecisionStatus: description.Value.DecisionStatus,
+                RulesVersion: description.Value.RulesVersion,
                 LatencyMs: latencyMs,
                 RecordedAtUtc: DateTime.UtcNow),
                 cancellationToken);

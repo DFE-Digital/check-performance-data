@@ -79,12 +79,32 @@ public sealed class RulesConsumer : ConsumerBase
 
     protected override string QueueName => QueueOptions.RulesEngineQueue;
 
+    // The decision and rules version are only known once ProcessAsync has evaluated the message,
+    // but the metric is recorded by the base loop afterwards via DescribeMetric. The base loop
+    // processes one message at a time per consumer instance and records immediately after
+    // processing, so stashing the most recent outcome here and attaching it when the reference
+    // matches lets the decision flow through to the metric row without reparsing or re-evaluating.
+    private (string Reference, string DecisionStatus, string? RulesVersion)? _lastOutcome;
+
     protected override MetricDescription? DescribeMetric(string payload, bool deadLettered)
     {
         var parsed = RequestDocumentParser.Parse(payload);
-        return parsed is null
-            ? null
-            : new MetricDescription(MetricStages.RulesEvaluated, parsed.ReferenceNumber);
+        if (parsed is null)
+        {
+            return null;
+        }
+
+        // A dead-letter never produced a decision; the rules-evaluated path attaches the outcome
+        // captured during ProcessAsync, but only when it belongs to this same reference.
+        var outcome = !deadLettered && _lastOutcome is { } o && o.Reference == parsed.ReferenceNumber
+            ? o
+            : default;
+
+        return new MetricDescription(
+            MetricStages.RulesEvaluated,
+            parsed.ReferenceNumber,
+            DecisionStatus: outcome.DecisionStatus,
+            RulesVersion: outcome.RulesVersion);
     }
 
     protected override Task ProcessMessageBodyAsync(
@@ -128,6 +148,10 @@ public sealed class RulesConsumer : ConsumerBase
         _logger.LogInformation(
             "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
             decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber);
+
+        // Capture the outcome so the post-ack metric record (DescribeMetric) can attach the
+        // decision status and rules version for this reference.
+        _lastOutcome = (parsed.ReferenceNumber, decision.Status.ToString(), rulesVersion);
 
         await dbContext.ExecuteInTransactionAsync(async () =>
         {

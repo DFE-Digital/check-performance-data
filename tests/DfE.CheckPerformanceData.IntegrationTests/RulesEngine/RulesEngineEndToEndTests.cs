@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.RulesEngine.Json;
@@ -6,6 +7,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Persistence.Observability;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using RulesEngineImpl = DfE.CheckPerformanceData.Application.RulesEngine.RulesEngine;
@@ -89,6 +91,74 @@ public sealed class RulesEngineEndToEndTests
         Assert.Equal(scenario.ExpectedStatus, persisted.DecisionStatus);
         Assert.Equal(scenario.ExpectedOutcomeKey, persisted.DecisionOutcomeKey);
         Assert.Equal(scenario.ExpectedRuleId, persisted.MatchedRuleId);
+    }
+
+    // --- A processed message records a metric row carrying the decision status ---
+
+    [Fact]
+    public async Task Pipeline_RecordsMetric_WithDecisionStatusPopulated()
+    {
+        // A scenario with a known, non-Scrutiny decision so we can assert the exact status.
+        var scenario = new OutcomeScenario(
+            "Metric-Inclusion-AutoApproved", "Inclusion", "KS4",
+            Answers: [("inclusion-status-flag", "402")],
+            DecisionStatus.AutoApproved, "INC-ACC");
+        var reference = scenario.ReferenceNumber;
+
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            if (!await seedContext.CheckingWindows.AnyAsync(w => w.Id == WindowId))
+            {
+                seedContext.CheckingWindows.Add(NewCheckingWindow());
+                await seedContext.SaveChangesAsync();
+            }
+
+            seedContext.ChangeRequests.RemoveRange(
+                seedContext.ChangeRequests.Where(r => r.ReferenceNumber == reference));
+            await seedContext.QueueMetricEvents
+                .Where(e => e.ReferenceNumber == reference)
+                .ExecuteDeleteAsync();
+            await seedContext.SaveChangesAsync();
+            seedContext.ChangeRequests.Add(NewChangeRequest(reference));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using (var context = _fixture.CreateContext())
+        {
+            var queueService = new PostgresQueueService(context);
+            var rulesProvider = Substitute.For<IRulesProvider>();
+            rulesProvider.Current.Returns(Snapshot);
+            var sink = new DbMetricsSink(context);
+
+            var sut = new RulesConsumer(
+                queueService,
+                rulesProvider,
+                new RulesEngineImpl(),
+                new RuleContextMapper(),
+                context,
+                sink);
+
+            await sut.ProcessMessageBodyAsync(scenario.MessageJson, CancellationToken.None);
+
+            // The hosting loop records the metric after a successful ack, mirrored here.
+            var message = new QueueMessage
+            {
+                Id = Guid.NewGuid(),
+                QueueName = QueueOptions.RulesEngineQueue,
+                Payload = scenario.MessageJson,
+                Attempts = 1,
+                EnqueuedAt = DateTime.UtcNow.AddSeconds(-2),
+            };
+            await sut.RecordMetricSafelyAsync(message, deadLettered: false, CancellationToken.None);
+        }
+
+        await using var verify = _fixture.CreateContext();
+        var metric = await verify.QueueMetricEvents
+            .AsNoTracking()
+            .SingleAsync(e => e.ReferenceNumber == reference);
+
+        Assert.Equal(MetricStages.RulesEvaluated, metric.Stage);
+        Assert.Equal(DecisionStatus.AutoApproved.ToString(), metric.DecisionStatus);
     }
 
     // --- scenarios ---------------------------------------------------------

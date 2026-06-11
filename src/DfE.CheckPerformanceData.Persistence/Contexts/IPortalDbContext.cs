@@ -22,6 +22,7 @@ public interface IPortalDbContext
     DbSet<Country> Countries { get; }
     DbSet<QueueMessageEntity> QueueMessages { get; }
     DbSet<DeadLetterEntity> DeadLetters { get; }
+    DbSet<DevZendeskTicket> DevZendeskTickets { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

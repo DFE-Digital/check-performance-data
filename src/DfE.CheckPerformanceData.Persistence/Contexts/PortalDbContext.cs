@@ -26,6 +26,7 @@ public sealed class PortalDbContext(
     public DbSet<Setting> Settings => Set<Setting>();
     public DbSet<QueueMessageEntity> QueueMessages => Set<QueueMessageEntity>();
     public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
+    public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,6 +42,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new SettingConfiguration());
         modelBuilder.ApplyConfiguration(new QueueMessageConfiguration());
         modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
+        modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

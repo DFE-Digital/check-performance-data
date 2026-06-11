@@ -221,18 +221,14 @@ try
         app.UseHsts();
     }
 
-    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
+    if (seedData)
     {
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
         
         var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
-    }
-
-    if (app.Environment.IsDevelopment())
-    {
-        using var scope = app.Services.CreateScope();
+    
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
         try
         {

@@ -32,6 +32,7 @@ public sealed class ObservabilityControllerTests
     [InlineData(nameof(ObservabilityController.Throughput))]
     [InlineData(nameof(ObservabilityController.Journey))]
     [InlineData(nameof(ObservabilityController.Stream))]
+    [InlineData(nameof(ObservabilityController.Inspect))]
     public void Action_HasAuthorizeAttribute_WithAdminRole(string actionName)
     {
         var method = typeof(ObservabilityController).GetMethod(actionName);
@@ -106,5 +107,55 @@ public sealed class ObservabilityControllerTests
         var result = await controller.Throughput("Minute", null, null);
 
         Assert.IsNotType<BadRequestObjectResult>(result);
+    }
+
+    // --- Inspect redacts the payload by default (no full payload without the audited setting) ---
+
+    [Fact]
+    public async Task Inspect_RedactsPayloadByDefault()
+    {
+        const string reference = "REF-1042";
+        var rawPayload = """{"Pupil":{"Upn":"X123456789012","Surname":"Smith"}}""";
+
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetJourneyAsync(reference, Arg.Any<CancellationToken>())
+            .Returns(new[]
+            {
+                new JourneyEvent("RulesEvaluated", reference, "rules-engine", "AutoApproved", 1200, DateTime.UtcNow),
+            });
+
+        var queueAdmin = Substitute.For<IQueueAdminService>();
+        queueAdmin.GetMessageDetailAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(new QueueMessageDetail(Guid.NewGuid(), "rules-engine", DateTime.UtcNow, 1, rawPayload));
+
+        // No setting service => full payload is never enabled => the payload must be redacted.
+        var controller = BuildController(query, queueAdmin, settings: null);
+
+        var result = await controller.Inspect(reference);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<InspectViewModel>(view.Model);
+        Assert.True(model.IsRedacted);
+        Assert.DoesNotContain("X123456789012", model.Payload);
+        Assert.Equal("AutoApproved", model.Decision);
+        Assert.NotEmpty(model.Stages);
+    }
+
+    // --- Inspect for an unknown reference returns the panel with no decision and no payload ---
+
+    [Fact]
+    public async Task Inspect_UnknownReference_ReturnsEmptyPanel()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetJourneyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<JourneyEvent>());
+
+        var controller = BuildController(query);
+
+        var result = await controller.Inspect("REF-does-not-exist");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<InspectViewModel>(view.Model);
+        Assert.Empty(model.Stages);
     }
 }

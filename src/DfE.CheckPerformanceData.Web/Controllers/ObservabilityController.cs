@@ -131,8 +131,8 @@ public sealed class ObservabilityController : Controller
             return BadRequest($"Unsupported granularity '{granularity}'.");
         }
 
-        var toUtc = to ?? DateTime.UtcNow;
-        var fromUtc = from ?? toUtc - DefaultWindow;
+        var toUtc = AsUtc(to ?? DateTime.UtcNow);
+        var fromUtc = from is null ? toUtc - DefaultWindow : AsUtc(from.Value);
 
         try
         {
@@ -232,8 +232,8 @@ public sealed class ObservabilityController : Controller
         DateTime? to,
         CancellationToken cancellationToken = default)
     {
-        var toUtc = to ?? DateTime.UtcNow;
-        var fromUtc = from ?? toUtc - DefaultWindow;
+        var toUtc = AsUtc(to ?? DateTime.UtcNow);
+        var fromUtc = from is null ? toUtc - DefaultWindow : AsUtc(from.Value);
 
         try
         {
@@ -246,6 +246,18 @@ public sealed class ObservabilityController : Controller
             return BadRequest(ex.Message);
         }
     }
+
+    // Model-bound DateTime values arrive with Kind=Unspecified for an offset-less query string
+    // (e.g. ?from=2026-06-01T10:00). The query service binds them to a timestamptz parameter,
+    // which throws InvalidCastException for a non-UTC Kind — an exception the ArgumentException
+    // guards do not catch, so the request 500s. Treat an unspecified Kind as UTC; convert any
+    // local-Kind value to UTC. A value already tagged Utc is returned unchanged.
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        _ => value.ToUniversalTime(),
+    };
 
     private async Task<bool> IsFullPayloadEnabledAsync()
     {

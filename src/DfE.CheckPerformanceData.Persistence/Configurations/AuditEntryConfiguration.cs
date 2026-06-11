@@ -23,7 +23,7 @@ internal sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEn
 
         builder.Property(a => a.Action)
             .IsRequired()
-            .HasMaxLength(10);
+            .HasMaxLength(50);
 
         builder.HasIndex(a => a.EntityType);
         builder.HasIndex(a => a.Timestamp);

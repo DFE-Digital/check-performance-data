@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Persistence.Entities;
@@ -17,4 +18,10 @@ public class ChangeRequest
     public required string ReferenceNumber { get; init; }
     public required string RequestType { get; init; }
     public string? CrmId { get; init; }
+
+    // Written by the rules engine worker once it has decided on the request;
+    // all three stay null until then.
+    public DecisionStatus? Outcome { get; init; }
+    public string? OutcomeKey { get; init; }
+    public string? MatchedRuleId { get; init; }
 }

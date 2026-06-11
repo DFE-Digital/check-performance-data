@@ -107,6 +107,28 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
         return string.Empty;
     }
 
+    public string ResolveRequestTypeValue(QuestionFlowConfig config, RequestState journey)
+    {
+        // Raw answer value of the first answered UseAsRequestType question in the
+        // visited branch. Deliberately no fallback to unflagged questions: this feeds
+        // the rules engine's WhatToChange contract, so flows without a flagged
+        // question must always produce the bare WhatToChange prefix.
+        foreach (var pageId in journey.QuestionHistory)
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) continue;
+
+            foreach (var question in page.Questions)
+            {
+                if (!question.UseAsRequestType) continue;
+                if (!journey.QuestionAnswers.TryGetValue(question.Id, out var answer)) continue;
+                return answer.TextValue ?? string.Empty;
+            }
+        }
+
+        return string.Empty;
+    }
+
     private static string ResolveAnswerLabel(Question question, QuestionAnswer answer)
     {
         if (question.Type == QuestionType.Radio && answer.TextValue is not null)

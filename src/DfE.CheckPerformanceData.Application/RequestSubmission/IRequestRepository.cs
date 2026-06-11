@@ -5,6 +5,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 public interface IRequestRepository
 {
     Task<bool> HasConflictingRequestAsync(Guid windowId, string pupilUpn, long organisationUrn, string currentReferenceNumber);
-    Task UpsertAsync(ChangeRequestData data);
+    /// <returns>The Id of the inserted or updated <c>ChangeRequests</c> row.</returns>
+    Task<Guid> UpsertAsync(ChangeRequestData data);
     Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(Guid windowId, long organisationUrn);
 }

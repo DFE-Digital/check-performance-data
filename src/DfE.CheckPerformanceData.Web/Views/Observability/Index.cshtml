@@ -1,0 +1,42 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Pipeline dashboard";
+}
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+
+<h1 class="govuk-heading-xl">Pipeline dashboard</h1>
+
+@* Reading order (UI-SPEC hierarchy): health strip (top, at-a-glance answer) → status sentence
+   → big-number tiles → the animated board (Plan 05 fills this placeholder, given the most
+   canvas) → charts (detail on demand). *@
+
+@await Html.PartialAsync("_HealthStrip", Model)
+
+<p class="govuk-body-l">@Model.StatusSentence</p>
+
+@await Html.PartialAsync("_Tiles", Model)
+
+<section class="obs-board" aria-label="Live workflow board">
+    <p class="govuk-body">
+        The live workflow board appears here, showing requests moving through the pipeline.
+    </p>
+</section>
+
+<h2 class="govuk-heading-l">Charts</h2>
+
+<div class="obs-chart-group">
+    @await Html.PartialAsync("_Chart", Model)
+</div>
+
+@if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)
+{
+    <h2 class="govuk-heading-m">Nothing has flowed through yet</h2>
+    <p class="govuk-body">
+        No messages have been processed in this time range. Charts and counts will appear here as
+        requests move through the pipeline.
+    </p>
+}
+
+<p class="govuk-body-s govuk-hint">Refreshed at @Model.RefreshedAtUtc.ToString("u").</p>

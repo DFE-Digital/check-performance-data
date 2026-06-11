@@ -140,9 +140,9 @@ public sealed class ObservabilityStreamTests
                 });
 
                 var authBuilder = services
-                    .AddAuthentication(TestAuthHandler.Scheme)
-                    .AddScheme<TestAuthOptions, TestAuthHandler>(TestAuthHandler.Scheme, _ => { });
-                services.Configure<TestAuthOptions>(TestAuthHandler.Scheme, o => o.Authenticated = authenticated);
+                    .AddAuthentication(TestAuthHandler.SchemeName)
+                    .AddScheme<TestAuthOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+                services.Configure<TestAuthOptions>(TestAuthHandler.SchemeName, o => o.Authenticated = authenticated);
                 services.AddAuthorization();
 
                 services.AddControllers().AddApplicationPart(typeof(ObservabilityController).Assembly);
@@ -168,7 +168,7 @@ public sealed class ObservabilityStreamTests
     // otherwise reports NoResult so [Authorize] returns 401.
     private sealed class TestAuthHandler : AuthenticationHandler<TestAuthOptions>
     {
-        public const string Scheme = "Test";
+        public const string SchemeName = "Test";
 
         public TestAuthHandler(
             IOptionsMonitor<TestAuthOptions> options,
@@ -188,9 +188,9 @@ public sealed class ObservabilityStreamTests
                 new Claim(ClaimTypes.Name, "admin"),
                 new Claim(ClaimTypes.Role, "cypmd_admin"),
             };
-            var identity = new ClaimsIdentity(claims, Scheme);
+            var identity = new ClaimsIdentity(claims, SchemeName);
             var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, Scheme);
+            var ticket = new AuthenticationTicket(principal, SchemeName);
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
     }

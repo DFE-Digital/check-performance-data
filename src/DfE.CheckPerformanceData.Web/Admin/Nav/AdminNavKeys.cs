@@ -17,6 +17,7 @@ public static class AdminNavKeys
     public const string RulesConfig = "rules-config";
     public const string RulesEngine = "rules-engine";
     public const string DeadLetterQueue = "dead-letter-queue";
+    public const string Observability = "observability";
     public const string StorageAdmin = "storage-admin";
     public const string StorageBrowser = "storage-browser";
     public const string DebugMenu = "debug-menu";

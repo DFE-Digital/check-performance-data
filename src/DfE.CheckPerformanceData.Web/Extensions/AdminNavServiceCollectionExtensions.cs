@@ -31,6 +31,7 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
+        services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
         services.AddSingleton<IAdminNavEntry, DebugMenuNavEntry>();

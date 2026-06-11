@@ -1,0 +1,99 @@
+/* Observability dashboard styles. GDS palette only — no new colour, font or spacing tokens.
+   Raw px is used only inside the bespoke chart/board/strip constructs (GDS has no component for
+   these); spacing around them stays on the GDS scale via govuk-!-* classes in the markup. */
+
+/* --- Health strip --------------------------------------------------------- */
+
+.obs-health-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.obs-light {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f3f2f1;
+    border-left: 5px solid #b1b4b6;
+}
+
+.obs-light__glyph {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
+.obs-light--flowing { border-left-color: #00703c; }
+.obs-light--backingup { border-left-color: #f47738; }
+.obs-light--needsattention { border-left-color: #d4351c; }
+
+/* --- Big-number tiles ----------------------------------------------------- */
+
+.obs-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.obs-tile {
+    flex: 1 1 200px;
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-bottom: 4px solid #1d70b8;
+    padding: 16px;
+}
+
+.obs-tile__value {
+    margin-bottom: 4px;
+}
+
+.obs-tile__label {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* --- Board placeholder (Plan 05 fills this) ------------------------------- */
+
+.obs-board {
+    min-height: 320px;
+    background: #f3f2f1;
+    border: 1px solid #b1b4b6;
+    padding: 24px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* --- Charts --------------------------------------------------------------- */
+
+.obs-chart-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+.obs-chart {
+    width: 100%;
+    height: auto;
+    background: #ffffff;
+}
+
+.obs-chart-panel {
+    border: 1px solid #f3f2f1;
+    padding: 16px;
+}
+
+/* --- Journey timeline ----------------------------------------------------- */
+
+.obs-why-slot {
+    background: #f3f2f1;
+    border-left: 5px solid #b1b4b6;
+    padding: 16px;
+    margin-top: 24px;
+}

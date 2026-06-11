@@ -2,29 +2,34 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The dev pipeline trigger and outbox viewer are development-only: in Production they must
-// 404 and never touch the database or the queue.
+// The dev pipeline trigger and outbox viewer are gated on the Dev:ToolsEnabled config flag:
+// when it is off (the default) they must 404 and never touch the database or the queue.
 public sealed class DevPipelineControllerTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
 
-    private DevPipelineController CreateSut(string environmentName)
+    private DevPipelineController CreateSut(bool toolsEnabled)
     {
-        var env = Substitute.For<IHostEnvironment>();
-        env.EnvironmentName.Returns(environmentName);
-        return new DevPipelineController(env, _dbContext, _queueService);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Dev:ToolsEnabled"] = toolsEnabled ? "true" : "false",
+            })
+            .Build();
+
+        return new DevPipelineController(configuration, _dbContext, _queueService);
     }
 
     [Fact]
-    public async Task SubmitRequest_InProduction_ReturnsNotFound()
+    public async Task SubmitRequest_ToolsDisabled_ReturnsNotFound()
     {
-        var sut = CreateSut("Production");
+        var sut = CreateSut(toolsEnabled: false);
 
         var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
 
@@ -34,9 +39,9 @@ public sealed class DevPipelineControllerTests
     }
 
     [Fact]
-    public async Task Outbox_InProduction_ReturnsNotFound()
+    public async Task Outbox_ToolsDisabled_ReturnsNotFound()
     {
-        var sut = CreateSut("Production");
+        var sut = CreateSut(toolsEnabled: false);
 
         var result = await sut.Outbox(CancellationToken.None);
 

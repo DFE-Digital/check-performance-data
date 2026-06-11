@@ -13,6 +13,9 @@ public static class SettingKeys
 
     public const string MetricsRetentionDays = "Metrics:RetentionDays";
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
+
+    public const string DevToolsEnabled = "Dev:ToolsEnabled";
+    public const string ZendeskUseFake = "Zendesk:UseFake";
 }
 
 // The data type of a setting's value, used by the settings editor to choose how to render

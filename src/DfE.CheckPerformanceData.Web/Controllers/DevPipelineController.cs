@@ -1,12 +1,12 @@
 using System.Globalization;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -18,9 +18,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // [AllowAnonymous] mirrors the dev impersonation/queue-seed controllers: callers reach it
 // before they hold any auth cookie, and it only manipulates the local dev database.
 [AllowAnonymous]
-public sealed class DevPipelineController(IHostEnvironment env, IPortalDbContext dbContext, IQueueService queueService) : Controller
+public sealed class DevPipelineController(IConfiguration configuration, IPortalDbContext dbContext, IQueueService queueService) : Controller
 {
-    private bool IsAllowed => !env.IsProduction();
+    private bool IsAllowed => configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
 
     // A stable dev checking window the synthetic requests hang off; upserted on demand so
     // the ChangeRequest foreign key is always satisfied without manual seeding.

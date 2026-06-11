@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -11,9 +11,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // [AllowAnonymous] mirrors the dev impersonation controller: callers reach it before they
 // hold any auth cookie, and it only manipulates the local dev database.
 [AllowAnonymous]
-public sealed class DevQueueSeedController(IHostEnvironment env, IQueueService queueService) : Controller
+public sealed class DevQueueSeedController(IConfiguration configuration, IQueueService queueService) : Controller
 {
-    private bool IsAllowed => !env.IsProduction();
+    private bool IsAllowed => configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
 
     [HttpGet("dev/queues/seed-dlq")]
     [HttpPost("dev/queues/seed-dlq")]

@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.Observability;
+using DfE.CheckPerformanceData.Persistence.Observability;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.RulesConfig;
+using Microsoft.EntityFrameworkCore;
 using MetricEntity = DfE.CheckPerformance.Persistence.Entities.QueueMetricEvent;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Observability;

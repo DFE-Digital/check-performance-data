@@ -46,6 +46,8 @@ public static class DependencyManager
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
+        services.AddScoped<Application.Observability.IMetricsQueryService,
+            Observability.MetricsQueryService>();
 
         return services;
     }

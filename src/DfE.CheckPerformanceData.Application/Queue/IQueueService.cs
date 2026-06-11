@@ -2,7 +2,9 @@ namespace DfE.CheckPerformanceData.Application.Queue;
 
 public interface IQueueService
 {
-    Task EnqueueAsync<T>(string queueName, T message, CancellationToken cancellationToken = default);
+    // Returns the id of the enqueued row so a caller can address that specific message later
+    // (e.g. dead-letter it) without dequeuing, which would claim the oldest visible message.
+    Task<Guid> EnqueueAsync<T>(string queueName, T message, CancellationToken cancellationToken = default);
 
     Task<QueueMessage?> DequeueAsync(string queueName, CancellationToken cancellationToken = default);
 

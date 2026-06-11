@@ -33,8 +33,6 @@ public sealed class DevQueueSeedController(
 
         var (id, reference) = await SeedFailedMessageAsync(
             $"e2e-dlq-{Guid.NewGuid():N}", "Seeded for admin testing.", cancellationToken);
-        if (id is null)
-            return StatusCode(500, "Could not dequeue the seeded message.");
 
         return Json(new { id, reference });
     }
@@ -59,8 +57,6 @@ public sealed class DevQueueSeedController(
             reference,
             "Synthetic failing message injected for the failure-and-recovery demonstration.",
             cancellationToken);
-        if (id is null)
-            return StatusCode(500, "Could not dequeue the injected message.");
 
         return Json(new
         {
@@ -71,22 +67,20 @@ public sealed class DevQueueSeedController(
         });
     }
 
-    // Shared seed: enqueue a synthetic message, dequeue it, and dead-letter it. Both the admin
+    // Shared seed: enqueue a synthetic message and dead-letter it by its own id. Both the admin
     // seed and the failure-recovery demo run through this one path so there is a single failure
-    // mechanism.
-    private async Task<(Guid? Id, string Reference)> SeedFailedMessageAsync(
+    // mechanism. Dead-lettering by id matters: dequeuing here would claim the OLDEST visible
+    // message on the queue, so with the worker running or real messages pending it would
+    // dead-letter a legitimate message instead of the synthetic one.
+    private async Task<(Guid Id, string Reference)> SeedFailedMessageAsync(
         string reference, string reason, CancellationToken cancellationToken)
     {
-        await queueService.EnqueueAsync(
+        var id = await queueService.EnqueueAsync(
             QueueOptions.RulesEngineQueue,
             new { Reference = reference },
             cancellationToken);
 
-        var taken = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue, cancellationToken);
-        if (taken is null)
-            return (null, reference);
-
-        await queueService.DeadLetterAsync(taken.Id, reason, cancellationToken);
-        return (taken.Id, reference);
+        await queueService.DeadLetterAsync(id, reason, cancellationToken);
+        return (id, reference);
     }
 }

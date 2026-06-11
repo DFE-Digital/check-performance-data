@@ -60,15 +60,6 @@ public sealed class DevToolsGatingTests
     {
         // With the flag on the gate is passed, so the action proceeds to enqueue the seed
         // message rather than short-circuiting to NotFound.
-        _queueService
-            .DequeueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(new QueueMessage
-            {
-                Id = Guid.NewGuid(),
-                QueueName = QueueOptions.RulesEngineQueue,
-                Payload = "{}",
-            });
-
         var sut = CreateSeed(Config(toolsEnabled: true));
 
         var result = await sut.SeedDeadLetter(CancellationToken.None);

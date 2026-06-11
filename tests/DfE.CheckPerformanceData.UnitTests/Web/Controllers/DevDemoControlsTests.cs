@@ -69,18 +69,13 @@ public sealed class DevDemoControlsTests
     [Fact]
     public async Task InjectFailureDemo_ToolsEnabled_ComposesExistingSeedDeadLetterPath()
     {
-        // The existing SeedDeadLetter path enqueues, dequeues and dead-letters the synthetic
-        // message. The inject demo must reach that same path — enqueue then dead-letter — rather
-        // than introduce a new failure-injection mechanism.
-        var taken = new QueueMessage
-        {
-            Id = Guid.NewGuid(),
-            QueueName = QueueOptions.RulesEngineQueue,
-            Payload = "{}",
-        };
+        // The existing SeedDeadLetter path enqueues the synthetic message and dead-letters it by
+        // its own id. The inject demo must reach that same path — enqueue then dead-letter —
+        // rather than introduce a new failure-injection mechanism.
+        var seededId = Guid.NewGuid();
         _queueService
-            .DequeueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(taken);
+            .EnqueueAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(seededId);
 
         var sut = CreateSeed(Config(toolsEnabled: true));
 
@@ -90,7 +85,43 @@ public sealed class DevDemoControlsTests
         await _queueService.Received().EnqueueAsync(
             Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
         await _queueService.Received().DeadLetterAsync(
-            taken.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
+            seededId, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    // --- The seed dead-letters the message it seeded, never an arbitrary dequeued one ---
+
+    [Fact]
+    public async Task SeedDeadLetter_DeadLettersTheSeededMessageById_AndNeverDequeues()
+    {
+        var seededId = Guid.NewGuid();
+        _queueService
+            .EnqueueAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>())
+            .Returns(seededId);
+
+        // The oldest visible message on the queue is a REAL pending one. If the seed path
+        // dequeued, it would claim — and then dead-letter — this legitimate message instead of
+        // the synthetic one it just enqueued.
+        var realMessage = new QueueMessage
+        {
+            Id = Guid.NewGuid(),
+            QueueName = QueueOptions.RulesEngineQueue,
+            Payload = """{"Reference":"REAL-1"}""",
+        };
+        _queueService
+            .DequeueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(realMessage);
+
+        var sut = CreateSeed(Config(toolsEnabled: true));
+
+        var result = await sut.SeedDeadLetter(CancellationToken.None);
+
+        Assert.IsNotType<NotFoundResult>(result);
+        await _queueService.DidNotReceive().DequeueAsync(
+            Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _queueService.Received(1).DeadLetterAsync(
+            seededId, Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _queueService.DidNotReceive().DeadLetterAsync(
+            realMessage.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     // --- The Zendesk-styled preview is dev-gated AND respects Zendesk:UseFake ---

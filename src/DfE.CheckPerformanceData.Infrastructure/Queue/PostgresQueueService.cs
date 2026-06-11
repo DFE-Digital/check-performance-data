@@ -34,7 +34,7 @@ public sealed class PostgresQueueService : IQueueService
     {
     }
 
-    public async Task EnqueueAsync<T>(string queueName, T message, CancellationToken cancellationToken = default)
+    public async Task<Guid> EnqueueAsync<T>(string queueName, T message, CancellationToken cancellationToken = default)
     {
         var payload = message as string ?? JsonSerializer.Serialize(message);
         var now = DateTime.UtcNow;
@@ -58,6 +58,8 @@ public sealed class PostgresQueueService : IQueueService
         // Subsequent dequeue/delete operate on the row via raw SQL, so a tracked copy would
         // only go stale. Stop tracking it once it is durably written.
         Detach(entity);
+
+        return entity.Id;
     }
 
     public async Task<QueueMessage?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)

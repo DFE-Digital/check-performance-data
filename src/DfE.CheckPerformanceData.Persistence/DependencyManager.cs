@@ -48,6 +48,8 @@ public static class DependencyManager
             Repositories.RulesConfigVersionRepository>();
         services.AddScoped<Application.Observability.IMetricsQueryService,
             Observability.MetricsQueryService>();
+        services.AddScoped<Application.Observability.IMetricsSink,
+            Observability.DbMetricsSink>();
         services.AddScoped<Application.Observability.IShareTokenService,
             Observability.ShareTokenService>();
 

@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -25,7 +26,8 @@ public sealed class DevPipelineController(
     IConfiguration configuration,
     IPortalDbContext dbContext,
     IQueueService queueService,
-    IHostEnvironment? hostEnvironment = null) : Controller
+    IHostEnvironment? hostEnvironment = null,
+    SubmittedMetricRecorder? submittedMetrics = null) : Controller
 {
     // The surface is gated on the config flag AND a hard production guard: even if a
     // production deploy leaves Dev:ToolsEnabled true, IsProduction short-circuits to 404.
@@ -73,7 +75,12 @@ public sealed class DevPipelineController(
         // The queue stores a string payload verbatim (it only JSON-serialises non-strings),
         // so the pre-built RequestDocument JSON reaches the consumer exactly as shaped here.
         var messageBody = BuildMessageJson(reference, preset);
-        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, messageBody, cancellationToken);
+        var messageId = await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, messageBody, cancellationToken);
+
+        // The journey timeline's first step. Failure-safe inside the recorder: a metrics
+        // hiccup never breaks the submission that just enqueued the message.
+        if (submittedMetrics is not null)
+            await submittedMetrics.RecordAsync(QueueOptions.RulesEngineQueue, reference, messageId, cancellationToken);
 
         return Json(new
         {

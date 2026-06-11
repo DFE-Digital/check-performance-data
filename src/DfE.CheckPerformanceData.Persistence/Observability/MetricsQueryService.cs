@@ -43,13 +43,17 @@ public sealed class MetricsQueryService : IMetricsQueryService
         GuardRange(fromUtc, toUtc);
 
         var bucketExpr = spec.BucketExpression("recorded_at_utc");
+        var spineStartExpr = spec.BucketExpression("@from");
 
         // generate_series builds one row per bucket across the range; the LEFT JOIN onto the
-        // grouped counts gap-fills the empties to zero. The bucket expression is identical on
-        // both sides so the join keys line up exactly.
+        // grouped counts gap-fills the empties to zero. The counted side buckets recorded_at_utc
+        // to a calendar-aligned key, so the spine must start on the SAME aligned boundary — we
+        // apply the identical bucket expression to @from. Otherwise an unaligned @from (every
+        // production caller passes now - 24h) yields a spine whose keys never equal the aligned
+        // counts, and every bucket gap-fills to zero.
         var sql = $@"
 SELECT b.bucket AS bucket, COALESCE(e.cnt, 0) AS cnt
-FROM generate_series(@from, @to - @step, @step) AS b(bucket)
+FROM generate_series({spineStartExpr}, @to - @step, @step) AS b(bucket)
 LEFT JOIN (
     SELECT {bucketExpr} AS bucket, COUNT(*) AS cnt
     FROM queue_metrics_events

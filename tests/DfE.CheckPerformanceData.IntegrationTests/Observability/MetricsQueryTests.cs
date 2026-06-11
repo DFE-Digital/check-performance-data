@@ -56,6 +56,37 @@ public sealed class MetricsQueryTests
         Assert.Equal(anchor.AddMinutes(1), buckets[1].BucketStartUtc);
     }
 
+    // --- An unaligned (mid-bucket) from still joins the calendar-aligned counts ---
+
+    [Fact]
+    public async Task GetThroughput_UnalignedFrom_StillCountsPopulatedBuckets()
+    {
+        await ResetMetricsAsync();
+
+        // The hour the events live in.
+        var hour = new DateTime(2026, 1, 1, 13, 0, 0, DateTimeKind.Utc);
+
+        // Two events inside that hour.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "U-1", hour.AddMinutes(10)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "U-2", hour.AddMinutes(40)));
+
+        var service = CreateService();
+
+        // Production passes a sub-bucket-precision 'from' (e.g. now - 24h). Emulate that with a
+        // 'from' deliberately 17 seconds past the hour boundary. The counted side buckets to the
+        // calendar hour, so an unaligned spine would never join and the count would be zero.
+        var from = hour.AddSeconds(17);
+        var to = from.AddHours(1);
+
+        var buckets = await service.GetThroughputAsync(
+            RulesEngineQueue, ThroughputGranularity.Hour, from, to);
+
+        // The two events fall in the hour bucket the unaligned window overlaps; the total across
+        // the returned buckets must be 2, not 0.
+        Assert.Equal(2, buckets.Sum(b => b.Count));
+    }
+
     // --- A different queue's events are excluded from the per-queue throughput ---
 
     [Fact]

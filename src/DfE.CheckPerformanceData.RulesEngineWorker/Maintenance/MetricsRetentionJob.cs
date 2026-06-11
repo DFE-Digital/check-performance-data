@@ -13,9 +13,14 @@ namespace DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
 /// </summary>
 public sealed class MetricsRetentionJob : BackgroundService
 {
+    // Used only when the settings-driven interval cannot be read (e.g. before the settings store
+    // is reachable). The live cadence comes from SettingKeys.MetricsRetentionIntervalMinutes,
+    // re-read each tick so an operator change takes effect without a redeploy.
+    private static readonly TimeSpan DefaultInterval = TimeSpan.FromHours(1);
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<MetricsRetentionJob> _logger;
-    private readonly TimeSpan _interval;
+    private readonly TimeSpan? _intervalOverride;
 
     public MetricsRetentionJob(
         IServiceScopeFactory scopeFactory,
@@ -24,19 +29,26 @@ public sealed class MetricsRetentionJob : BackgroundService
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
-        _interval = interval ?? TimeSpan.FromHours(1);
+        _intervalOverride = interval;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(_interval);
-
         while (!stoppingToken.IsCancellationRequested)
         {
+            var interval = _intervalOverride ?? DefaultInterval;
+
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
                 await RunOnceAsync(scope.ServiceProvider, stoppingToken);
+
+                // Re-read the cadence each tick (unless a fixed test override is supplied) so the
+                // admin-editable MetricsRetentionIntervalMinutes setting actually drives the loop.
+                if (_intervalOverride is null)
+                {
+                    interval = await ResolveIntervalAsync(scope.ServiceProvider);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -49,16 +61,20 @@ public sealed class MetricsRetentionJob : BackgroundService
 
             try
             {
-                if (!await timer.WaitForNextTickAsync(stoppingToken))
-                {
-                    break;
-                }
+                await Task.Delay(interval, stoppingToken);
             }
             catch (OperationCanceledException)
             {
                 break;
             }
         }
+    }
+
+    private static async Task<TimeSpan> ResolveIntervalAsync(IServiceProvider services)
+    {
+        var settings = services.GetRequiredService<ISettingService>();
+        var minutes = await settings.GetIntAsync(SettingKeys.MetricsRetentionIntervalMinutes);
+        return minutes > 0 ? TimeSpan.FromMinutes(minutes) : DefaultInterval;
     }
 
     public Task RunOnceAsync(IServiceProvider services, CancellationToken cancellationToken) =>

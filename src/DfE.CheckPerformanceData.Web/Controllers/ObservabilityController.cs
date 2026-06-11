@@ -91,6 +91,8 @@ public sealed class ObservabilityController : Controller
         var throughput = await _query.GetThroughputAsync(
             QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
         var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
+        var decisionMixOverTime = await _query.GetDecisionMixOverTimeAsync(
+            bucketSize, from, now, cancellationToken);
         var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
         var markers = await _query.GetDeployMarkersAsync(from, now, cancellationToken);
 
@@ -125,6 +127,7 @@ public sealed class ObservabilityController : Controller
                 .ToList(),
             Throughput = throughput,
             DecisionMix = decisionMix,
+            DecisionMixOverTime = decisionMixOverTime,
             Dwell = dwell,
             DeployMarkers = markers,
             SelectedRange = rangeOption.Value,

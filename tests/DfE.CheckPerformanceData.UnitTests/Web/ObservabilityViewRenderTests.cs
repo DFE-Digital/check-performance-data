@@ -66,4 +66,46 @@ public sealed class ObservabilityViewRenderTests
 		var view = ReadView("Index.cshtml");
 		Assert.Contains("_DwellChart", view);
 	}
+
+	// --- The decision-mix-over-time chart: one line per status, paired table, deploy markers ---
+
+	[Fact]
+	public void DecisionMixOverTimeChart_RendersSeriesWithAPairedDataTable()
+	{
+		var view = ReadView("_DecisionMixOverTimeChart.cshtml");
+		Assert.Contains("Model.DecisionMixOverTime", view);
+		Assert.Contains("role=\"img\"", view);
+		Assert.Contains("aria-label", view);
+		Assert.Contains("govuk-table", view);
+		// Series legend in text — never colour alone.
+		Assert.Contains("obs-legend", view);
+		// Empty state copy, never a broken axis box.
+		Assert.Contains("No data for this range", view);
+	}
+
+	[Fact]
+	public void Index_IncludesTheDecisionMixOverTimeChart()
+	{
+		var view = ReadView("Index.cshtml");
+		Assert.Contains("_DecisionMixOverTimeChart", view);
+	}
+
+	// --- Deploy markers render through ONE shared partial on both time-axis charts ---
+
+	[Fact]
+	public void DeployMarkers_AreASharedPartial_UsedByBothTimeCharts()
+	{
+		var markers = ReadView("_DeployMarkers.cshtml");
+		Assert.Contains("stroke-dasharray", markers);
+		Assert.Contains("marker.Label", markers);
+
+		var throughput = ReadView("_Chart.cshtml");
+		Assert.Contains("_DeployMarkers", throughput);
+		// The inline marker loop is gone from the throughput chart — no duplicated rendering.
+		Assert.DoesNotContain("stroke-dasharray", throughput);
+
+		var overTime = ReadView("_DecisionMixOverTimeChart.cshtml");
+		Assert.Contains("_DeployMarkers", overTime);
+		Assert.DoesNotContain("stroke-dasharray", overTime);
+	}
 }

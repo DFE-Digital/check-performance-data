@@ -44,6 +44,9 @@ public sealed class ObservabilityControllerTests
             .Returns(Array.Empty<StageDwell>());
         query.GetDeployMarkersAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<DeployMarker>());
+        query.GetDecisionMixOverTimeAsync(Arg.Any<ThroughputGranularity>(),
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<DecisionMixBucket>());
         return query;
     }
 
@@ -197,6 +200,30 @@ public sealed class ObservabilityControllerTests
             Arg.Any<DateTime>(),
             Arg.Any<DateTime>(),
             Arg.Any<CancellationToken>());
+    }
+
+    // --- The decision-mix-over-time series is queried with the selected bucket size ---
+
+    [Fact]
+    public async Task Index_PopulatesDecisionMixOverTime_WithTheSelectedGranularity()
+    {
+        var series = new[]
+        {
+            new DecisionMixBucket(DateTime.UtcNow, "AutoApproved", 3),
+            new DecisionMixBucket(DateTime.UtcNow, "AutoRejected", 1),
+        };
+        var query = BuildQuery();
+        query.GetDecisionMixOverTimeAsync(ThroughputGranularity.FiveMinute,
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(series);
+
+        var controller = BuildController(query);
+
+        var result = await controller.Index(range: "6h", granularity: "FiveMinute");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DashboardViewModel>(view.Model);
+        Assert.Equal(series, model.DecisionMixOverTime);
     }
 
     // --- The orphaned throughput JSON endpoint is gone: the dashboard form replaced it ---

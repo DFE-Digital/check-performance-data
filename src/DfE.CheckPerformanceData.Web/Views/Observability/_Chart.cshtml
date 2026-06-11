@@ -1,4 +1,5 @@
 @using DfE.CheckPerformanceData.Application.Observability
+@using DfE.CheckPerformanceData.Web.Models.Observability
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
 @{
     // The chart is bespoke inline SVG (GDS has no chart component); the <details> data table that
@@ -33,15 +34,6 @@
     DateTime? minTime = buckets.Count > 0 ? buckets.Min(b => b.BucketStartUtc) : null;
     DateTime? maxTime = buckets.Count > 0 ? buckets.Max(b => b.BucketStartUtc) : null;
 
-    string MarkerX(DateTime at)
-    {
-        if (minTime is null || maxTime is null || maxTime.Value <= minTime.Value)
-            return padLeft.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var frac = (at - minTime.Value).TotalSeconds / (maxTime.Value - minTime.Value).TotalSeconds;
-        frac = Math.Clamp(frac, 0, 1);
-        return (padLeft + plotW * frac).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-    }
-
     var windowText = Model.RangeLabel.ToLowerInvariant();
 
     var ariaLabel = buckets.Count == 0
@@ -73,13 +65,8 @@
             <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
 
-            @foreach (var marker in markers)
-            {
-                var mx = MarkerX(marker.CreatedAtUtc);
-                <line x1="@mx" y1="@padTop" x2="@mx" y2="@(padTop + plotH)"
-                      stroke="#505a5f" stroke-width="1" stroke-dasharray="4 2" aria-hidden="true" />
-                @Html.Raw($"<text x='{mx}' y='{padTop + 12}' class='govuk-body-s' font-size='12' fill='#505a5f' text-anchor='middle'>{System.Net.WebUtility.HtmlEncode(marker.Label)}</text>")
-            }
+            @await Html.PartialAsync("_DeployMarkers",
+                new ChartMarkersViewModel(markers, minTime, maxTime, padLeft, padTop, plotW, plotH))
 
             <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@points" aria-hidden="true" />
 

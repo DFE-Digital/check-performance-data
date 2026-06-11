@@ -1,0 +1,162 @@
+@using DfE.CheckPerformanceData.Web.Models.Observability
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    // Decision mix over time: one line per decision status across the selected window,
+    // alongside the totals chart. Series are distinguished by colour AND a per-series point
+    // shape plus a text legend — never colour alone. The <details> data table that follows
+    // pivots the identical cells (one row per bucket, one column per status) and is the
+    // accessible source of truth. Deploy markers render through the shared partial on the
+    // same time scale as the throughput chart.
+    var cells = Model.DecisionMixOverTime;
+    var windowText = Model.RangeLabel.ToLowerInvariant();
+
+    const int width = 600;
+    const int height = 200;
+    const int padLeft = 40;
+    const int padBottom = 24;
+    const int padTop = 8;
+    const int padRight = 8;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var bucketStarts = cells.Select(c => c.BucketStartUtc).Distinct().OrderBy(b => b).ToList();
+    var statuses = cells.Select(c => c.DecisionStatus).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
+
+    var maxCount = cells.Count == 0 ? 0 : cells.Max(c => c.Count);
+    var safeMax = maxCount == 0 ? 1 : maxCount;
+
+    string X(int index) => bucketStarts.Count <= 1
+        ? (padLeft + plotW / 2).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (bucketStarts.Count - 1))).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    string Y(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeMax)).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    var counts = cells.ToDictionary(c => (c.BucketStartUtc, c.DecisionStatus), c => c.Count);
+    int CountAt(DateTime bucket, string status) => counts.GetValueOrDefault((bucket, status));
+
+    // The same status colours as the totals chart; each series also carries its own point
+    // shape so the lines stay tellable apart without colour.
+    var colours = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["AutoApproved"] = "#00703c",
+        ["AutoRejected"] = "#d4351c",
+        ["RequiresScrutiny"] = "#f47738",
+    };
+    string ColourOf(string status) => colours.GetValueOrDefault(status, "#505a5f");
+
+    DateTime? minTime = bucketStarts.Count > 0 ? bucketStarts[0] : null;
+    DateTime? maxTime = bucketStarts.Count > 0 ? bucketStarts[^1] : null;
+
+    var totals = statuses.ToDictionary(
+        s => s,
+        s => bucketStarts.Sum(b => CountAt(b, s)),
+        StringComparer.OrdinalIgnoreCase);
+    var summary = cells.Count == 0
+        ? "Decision mix over time: no data for this range."
+        : $"Decision mix {Model.GranularityLabel} over the {windowText}: " +
+          string.Join(", ", statuses.Select(s => $"{s} {totals[s]}")) + ".";
+}
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Decision mix over time (@windowText, @Model.GranularityLabel)</h3>
+
+    @if (cells.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@summary" focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try a wider time range or check back once messages are flowing.
+        </p>
+    }
+    else
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@summary" focusable="false">
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @await Html.PartialAsync("_DeployMarkers",
+                new ChartMarkersViewModel(Model.DeployMarkers, minTime, maxTime, padLeft, padTop, plotW, plotH))
+
+            @for (var s = 0; s < statuses.Count; s++)
+            {
+                var status = statuses[s];
+                var colour = ColourOf(status);
+                var points = string.Join(" ", bucketStarts.Select((b, i) => $"{X(i)},{Y(CountAt(b, status))}"));
+                <polyline fill="none" stroke="@colour" stroke-width="2" points="@points" aria-hidden="true" />
+
+                @* A per-series point shape distinguishes the lines by shape, not colour alone:
+                   circles, squares, then diamonds as the series index rises. *@
+                for (var i = 0; i < bucketStarts.Count; i++)
+                {
+                    var px = X(i);
+                    var py = Y(CountAt(bucketStarts[i], status));
+                    switch (s % 3)
+                    {
+                        case 0:
+                            <circle cx="@px" cy="@py" r="3" fill="@colour" aria-hidden="true" />
+                            break;
+                        case 1:
+                            <rect x="@px" y="@py" width="5" height="5" transform="translate(-2.5,-2.5)"
+                                  fill="@colour" aria-hidden="true" />
+                            break;
+                        default:
+                            <rect x="@px" y="@py" width="5" height="5" transform="translate(-2.5,-2.5) rotate(45, 2.5, 2.5)"
+                                  fill="@colour" aria-hidden="true" />
+                            break;
+                    }
+                }
+            }
+        </svg>
+
+        <ul class="obs-legend govuk-body-s" aria-hidden="true">
+            @foreach (var status in statuses)
+            {
+                <li class="obs-legend__item">
+                    <span class="obs-legend__swatch" style="background-color: @ColourOf(status)"></span>
+                    @status
+                </li>
+            }
+        </ul>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View decision mix over time data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Decisions per bucket</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Time (UTC)</th>
+                            @foreach (var status in statuses)
+                            {
+                                <th scope="col" class="govuk-table__header govuk-table__header--numeric">@status</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var bucket in bucketStarts)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@bucket.ToString("u")</td>
+                                @foreach (var status in statuses)
+                                {
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@CountAt(bucket, status)</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>

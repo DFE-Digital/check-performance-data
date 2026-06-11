@@ -18,6 +18,7 @@ public sealed class DashboardViewModel
 
     public IReadOnlyList<ThroughputBucket> Throughput { get; init; } = Array.Empty<ThroughputBucket>();
     public IReadOnlyList<DecisionMixEntry> DecisionMix { get; init; } = Array.Empty<DecisionMixEntry>();
+    public IReadOnlyList<DecisionMixBucket> DecisionMixOverTime { get; init; } = Array.Empty<DecisionMixBucket>();
     public IReadOnlyList<StageDwell> Dwell { get; init; } = Array.Empty<StageDwell>();
     public IReadOnlyList<DeployMarker> DeployMarkers { get; init; } = Array.Empty<DeployMarker>();
 
@@ -36,6 +37,18 @@ public sealed class DashboardViewModel
 
 // One queue's resolved health light for the strip: the display name plus the evaluated state.
 public sealed record QueueHealth(string QueueName, string DisplayName, HealthState State);
+
+// The geometry a time-axis chart hands the shared deploy-marker partial so the dashed
+// rules-version verticals land on that chart's own plot area and time scale. One partial,
+// many charts — the marker rendering is never duplicated per chart.
+public sealed record ChartMarkersViewModel(
+    IReadOnlyList<DeployMarker> Markers,
+    DateTime? MinTime,
+    DateTime? MaxTime,
+    int PadLeft,
+    int PadTop,
+    int PlotWidth,
+    int PlotHeight);
 
 // The model the journey timeline partial binds to: the ordered stage events for one reference
 // plus the reference itself. The "why was this decided?" slot is rendered empty by the view; no

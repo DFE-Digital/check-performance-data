@@ -9,8 +9,16 @@
 <h1 class="govuk-heading-xl">Pipeline dashboard</h1>
 
 @* Reading order: health strip (top, at-a-glance answer) → status sentence → big-number tiles →
-   the animated board (placeholder here, given the most canvas; the motion engine is wired in
-   later) → charts (detail on demand). *@
+   the animated board (the focal point, given the most canvas) → charts (detail on demand). *@
+
+<div class="obs-export govuk-button-group" data-obs-export>
+    <button type="button" class="govuk-button govuk-button--secondary" data-export-png data-module="govuk-button">
+        Export this view
+    </button>
+    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button">
+        Print or save as PDF
+    </button>
+</div>
 
 @await Html.PartialAsync("_HealthStrip", Model)
 
@@ -38,3 +46,4 @@
 <p class="govuk-body-s govuk-hint">Refreshed at @Model.RefreshedAtUtc.ToString("u").</p>
 
 <script src="~/js/observability-board.js" asp-append-version="true"></script>
+<script src="~/js/observability-export.js" asp-append-version="true"></script>

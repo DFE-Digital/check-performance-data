@@ -206,3 +206,27 @@
     padding: 16px;
     margin-top: 24px;
 }
+
+/* --- Export view ---------------------------------------------------------- */
+
+.obs-export {
+    margin-bottom: 24px;
+}
+
+/* Print / save-as-PDF: hide the admin chrome and the export controls so only the dashboard
+   content prints. This is the client-side PDF path behind the "Print or save as PDF" CTA. */
+@media print {
+    .admin-chrome,
+    .admin-rail,
+    .govuk-footer,
+    .obs-export,
+    [data-obs-reconnect] {
+        display: none !important;
+    }
+
+    .admin-main {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+}

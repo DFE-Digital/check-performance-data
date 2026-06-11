@@ -119,11 +119,42 @@
             });
         }
 
+        // The snapshot stream returns the latest transitions regardless of novelty, so the engine
+        // tracks the newest RecordedAtUtc it has rendered and only animates/announces transitions
+        // newer than it. Without the watermark every heartbeat would re-spawn tokens for events
+        // that may be hours old and rewrite the aria-live list, making screen readers re-announce
+        // all of them every tick. Synthetic transitions (single-step, demo trickle, replay) carry
+        // no watermark obligation: they pass forceAnimate so deliberate re-presentation still runs.
+        var lastSeenUtc = null;
+        var listRendered = false;
+
+        function timestampOf(transition) {
+            var raw = transition.recordedAtUtc || transition.RecordedAtUtc;
+            if (!raw) { return null; }
+            var ms = Date.parse(raw);
+            return isNaN(ms) ? null : ms;
+        }
+
         // Render the most recent transitions into the accessible live region, and animate a token
-        // for each one to its stage so the visual and textual views stay in step.
-        function updateTransitions(transitions) {
+        // for each NEW one to its stage so the visual and textual views stay in step. When nothing
+        // is new, the live region is left untouched so nothing is re-announced.
+        function updateTransitions(transitions, forceAnimate) {
             var list = transitions || [];
-            if (transitionsList) {
+            var fresh = list;
+            if (!forceAnimate) {
+                fresh = list.filter(function (t) {
+                    var ts = timestampOf(t);
+                    return ts === null || lastSeenUtc === null || ts > lastSeenUtc;
+                });
+                list.forEach(function (t) {
+                    var ts = timestampOf(t);
+                    if (ts !== null && (lastSeenUtc === null || ts > lastSeenUtc)) { lastSeenUtc = ts; }
+                });
+            }
+
+            // Only touch the live region when there is something new to say (or on first render,
+            // so the empty state appears once). An unchanged list stays silent for screen readers.
+            if (transitionsList && (fresh.length > 0 || !listRendered)) {
                 transitionsList.innerHTML = '';
                 if (list.length === 0) {
                     var empty = document.createElement('li');
@@ -137,9 +168,11 @@
                         transitionsList.appendChild(li);
                     });
                 }
+                listRendered = true;
             }
-            // Animate a single token per transition to its stage; reduced-motion snaps it there.
-            list.forEach(function (t) {
+
+            // Animate a single token per NEW transition to its stage; reduced-motion snaps it there.
+            fresh.forEach(function (t) {
                 var token = makeToken(t);
                 placeToken(token, 'submit');
                 // Move on the next frame so the transition has a from-state to ease from.
@@ -158,7 +191,9 @@
             if (reconnectNotice) { reconnectNotice.hidden = true; }
             if (!snapshot) { return; }
             updateCounts(snapshot.depths || snapshot.Depths);
-            updateTransitions(snapshot.recentTransitions || snapshot.RecentTransitions);
+            updateTransitions(
+                snapshot.recentTransitions || snapshot.RecentTransitions,
+                !!snapshot.forceAnimate);
         }
 
         function onError() {
@@ -183,6 +218,7 @@
             onSnapshot({
                 recentTransitions: [{ referenceNumber: 'STEP-' + Date.now(), stage: 'submit' }],
                 depths: [],
+                forceAnimate: true,
             });
         }
 
@@ -200,6 +236,7 @@
                 onSnapshot({
                     recentTransitions: [{ referenceNumber: 'DEMO-' + Date.now(), stage: stage }],
                     depths: [],
+                    forceAnimate: true,
                 });
             }, 1500);
             return true;
@@ -250,12 +287,14 @@
             },
             count: function () { return events.length; },
             // Play the recorded events up to and including the scrubber position so dragging the
-            // scrubber re-animates the window; each step feeds one recorded transition.
+            // scrubber re-animates the window; each step feeds one recorded transition. Replay is
+            // deliberate re-presentation of old events, so it bypasses the live-feed novelty
+            // watermark via forceAnimate.
             seek: function (index) {
                 if (!sink) { return; }
                 var e = events[index];
                 if (!e) { return; }
-                sink({ recentTransitions: [e], depths: [] });
+                sink({ recentTransitions: [e], depths: [], forceAnimate: true });
             },
         };
     }

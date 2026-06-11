@@ -1,0 +1,117 @@
+@using DfE.CheckPerformanceData.Application.Observability
+@model DfE.CheckPerformanceData.Web.Models.Observability.ShareAdminViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Share links";
+}
+
+<h1 class="govuk-heading-xl">Share links</h1>
+
+<p class="govuk-body">
+    Generate an opaque, revocable link to the read-only pipeline overview or the wallboard. Links
+    show aggregated figures only and contain no pupil information. Anyone with a link can view it
+    without signing in, so revoke a link once it is no longer needed.
+</p>
+
+@if (TempData["ShareAdminResult"] is string adminResult)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="share-admin-result" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="share-admin-result">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@adminResult</p>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.NewToken))
+{
+    var surfacePath = string.Equals(Model.NewTokenSurface, nameof(ShareSurface.Wallboard), StringComparison.Ordinal)
+        ? "wallboard"
+        : "share";
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="new-token" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="new-token">Link created</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">
+                Copy this link now — it is shown once and cannot be retrieved again.
+            </p>
+            <p class="govuk-body">
+                <code>/@surfacePath/@Model.NewToken</code>
+            </p>
+        </div>
+    </div>
+}
+
+<form method="post" action="/admin/share/generate" class="govuk-!-margin-bottom-8">
+    @Html.AntiForgeryToken()
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="label">Label</label>
+        <input class="govuk-input govuk-input--width-20" id="label" name="label" type="text" />
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="surface">Surface</label>
+        <select class="govuk-select" id="surface" name="surface">
+            <option value="@nameof(ShareSurface.Share)">Share link</option>
+            <option value="@nameof(ShareSurface.Wallboard)">Wallboard</option>
+        </select>
+    </div>
+    <button type="submit" class="govuk-button" data-module="govuk-button">Generate link</button>
+</form>
+
+<h2 class="govuk-heading-l">Issued links</h2>
+
+@if (Model.Tokens.Count == 0)
+{
+    <p class="govuk-body">No links have been issued.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Label</th>
+                <th scope="col" class="govuk-table__header">Surface</th>
+                <th scope="col" class="govuk-table__header">Created</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var token in Model.Tokens)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@token.Label</td>
+                    <td class="govuk-table__cell">@token.Surface</td>
+                    <td class="govuk-table__cell">@token.CreatedAtUtc.ToString("u")</td>
+                    <td class="govuk-table__cell">
+                        @if (token.RevokedAtUtc is null)
+                        {
+                            <strong class="govuk-tag govuk-tag--green">Live</strong>
+                        }
+                        else
+                        {
+                            <strong class="govuk-tag govuk-tag--grey">Revoked</strong>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (token.RevokedAtUtc is null)
+                        {
+                            <form method="post" action="/admin/share/@token.Id/revoke">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
+                                        data-module="govuk-button">
+                                    Revoke
+                                </button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

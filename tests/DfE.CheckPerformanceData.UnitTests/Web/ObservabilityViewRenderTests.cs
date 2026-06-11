@@ -42,4 +42,28 @@ public sealed class ObservabilityViewRenderTests
 		Assert.DoesNotContain("(last 24 hours)", view);
 		Assert.DoesNotContain("over the last 24 hours", view);
 	}
+
+	// --- The per-stage dwell chart renders the queried Dwell series with its paired table ---
+
+	[Fact]
+	public void DwellChart_RendersBarsWithAPairedDataTable()
+	{
+		var view = ReadView("_DwellChart.cshtml");
+		// Accessible-chart contract: role="img" + aria-label SVG, decorative marks hidden,
+		// and a govuk-table carrying the identical numbers as the source of truth.
+		Assert.Contains("Model.Dwell", view);
+		Assert.Contains("role=\"img\"", view);
+		Assert.Contains("aria-label", view);
+		Assert.Contains("govuk-table", view);
+		Assert.Contains("Average wait", view);
+		// Empty state copy, never a broken axis box.
+		Assert.Contains("No data for this range", view);
+	}
+
+	[Fact]
+	public void Index_IncludesTheDwellChart()
+	{
+		var view = ReadView("Index.cshtml");
+		Assert.Contains("_DwellChart", view);
+	}
 }

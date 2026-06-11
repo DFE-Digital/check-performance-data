@@ -60,6 +60,7 @@
 
 <div class="obs-chart-group">
     @await Html.PartialAsync("_Chart", Model)
+    @await Html.PartialAsync("_DwellChart", Model)
 </div>
 
 @if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)

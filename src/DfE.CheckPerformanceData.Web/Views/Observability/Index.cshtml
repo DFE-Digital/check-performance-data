@@ -18,11 +18,7 @@
 
 @await Html.PartialAsync("_Tiles", Model)
 
-<section class="obs-board" aria-label="Live workflow board">
-    <p class="govuk-body">
-        The live workflow board appears here, showing requests moving through the pipeline.
-    </p>
-</section>
+@await Html.PartialAsync("_Board", Model)
 
 <h2 class="govuk-heading-l">Charts</h2>
 
@@ -40,3 +36,5 @@
 }
 
 <p class="govuk-body-s govuk-hint">Refreshed at @Model.RefreshedAtUtc.ToString("u").</p>
+
+<script src="~/js/observability-board.js" asp-append-version="true"></script>

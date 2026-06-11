@@ -1,0 +1,74 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    // The five pipeline stages, left to right. Each stage carries a token so its state is
+    // conveyed by position + colour + shape + text — never colour alone — so a reduced-motion or
+    // paused render stays fully legible. Depth-bearing stages map to the two working queues.
+    var rulesDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "rules-engine")?.Depth ?? 0;
+    var zendeskDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "zendesk")?.Depth ?? 0;
+
+    var stages = new[]
+    {
+        new { Key = "submit", Label = "Submit", Count = (int?)null },
+        new { Key = "rules-queue", Label = "Rules-queue", Count = (int?)rulesDepth },
+        new { Key = "rules-engine", Label = "Rules engine", Count = (int?)null },
+        new { Key = "zendesk-queue", Label = "Zendesk-queue", Count = (int?)zendeskDepth },
+        new { Key = "ticket", Label = "Ticket", Count = (int?)null },
+    };
+}
+
+<section class="obs-board" aria-label="Live workflow board" data-obs-board
+         data-stream-url="/admin/observability/stream"
+         data-inspect-url="/admin/observability/inspect">
+
+    @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
+       animates tokens between these nodes from the live feed; with JS off or motion reduced the
+       skeleton and the textual parallel below convey the same information. *@
+    <ol class="obs-board__lanes" role="list">
+        @for (var i = 0; i < stages.Length; i++)
+        {
+            var stage = stages[i];
+            <li class="obs-board__lane" data-stage="@stage.Key">
+                <span class="obs-board__node" aria-hidden="true"></span>
+                <span class="obs-board__label">@stage.Label</span>
+                @if (stage.Count.HasValue)
+                {
+                    <span class="obs-board__count" data-stage-count="@stage.Key">@stage.Count waiting</span>
+                }
+                @if (i < stages.Length - 1)
+                {
+                    <span class="obs-board__connector" aria-hidden="true">→</span>
+                }
+            </li>
+        }
+    </ol>
+
+    @* Accessible textual parallel: the same information the animation conveys, for non-visual
+       users and for the reduced-motion/paused state. Counts per stage and a live region for the
+       most recent transitions the SSE feed reports. *@
+    <div class="obs-board__parallel">
+        <h3 class="govuk-heading-s">Pipeline state</h3>
+        <dl class="govuk-summary-list govuk-summary-list--no-border">
+            @foreach (var stage in stages)
+            {
+                <div class="govuk-summary-list__row">
+                    <dt class="govuk-summary-list__key">@stage.Label</dt>
+                    <dd class="govuk-summary-list__value" data-stage-parallel="@stage.Key">
+                        @(stage.Count.HasValue ? $"{stage.Count} waiting" : "—")
+                    </dd>
+                </div>
+            }
+        </dl>
+
+        <h3 class="govuk-heading-s">Recent transitions</h3>
+        <ul class="govuk-list govuk-list--bullet" data-obs-transitions aria-live="polite" aria-atomic="false">
+            <li class="obs-board__transitions-empty">No transitions yet.</li>
+        </ul>
+    </div>
+
+    @* The reconnect notice the engine reveals on a dropped stream; EventSource reconnects on its
+       own, so the copy reassures rather than asks the user to act. *@
+    <p class="obs-board__reconnect govuk-body" data-obs-reconnect hidden>
+        The live view is temporarily unavailable. The pipeline is unaffected; this page will
+        reconnect automatically.
+    </p>
+</section>

@@ -1,0 +1,60 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.InspectViewModel
+@{
+    Layout = null;
+}
+
+@* Rendered into the board's click-to-inspect panel. No layout chrome: the board fetches this
+   fragment and drops it into the inspect region. Payloads are redacted by default. *@
+<div class="obs-inspect">
+    <h3 class="govuk-heading-m">Request @Model.ReferenceNumber</h3>
+
+    @if (!string.IsNullOrEmpty(Model.Decision))
+    {
+        <p class="govuk-body">Decision: <strong>@Model.Decision</strong></p>
+    }
+
+    @if (Model.Stages.Count == 0)
+    {
+        <p class="govuk-body">No recorded stages for this request yet.</p>
+    }
+    else
+    {
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--s">Pipeline stages</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Stage</th>
+                    <th scope="col" class="govuk-table__header">Queue</th>
+                    <th scope="col" class="govuk-table__header">Decision</th>
+                    <th scope="col" class="govuk-table__header">Recorded</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var stage in Model.Stages)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@stage.Stage</td>
+                        <td class="govuk-table__cell">@stage.QueueName</td>
+                        <td class="govuk-table__cell">@(stage.DecisionStatus ?? "—")</td>
+                        <td class="govuk-table__cell">@stage.RecordedAtUtc.ToString("u")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (Model.PayloadAvailable)
+    {
+        @if (Model.IsRedacted)
+        {
+            <p class="govuk-body-s govuk-hint">Pupil identifiers are hidden in this payload.</p>
+        }
+        <pre class="obs-inspect__payload">@Model.Payload</pre>
+    }
+    else
+    {
+        <p class="govuk-body-s govuk-hint">
+            The message has already moved through the pipeline, so its payload is no longer available.
+        </p>
+    }
+</div>

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Models.Observability;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -109,12 +110,16 @@ public sealed class ObservabilityControllerTests
         Assert.IsNotType<BadRequestObjectResult>(result);
     }
 
-    // --- Inspect redacts the payload by default (no full payload without the audited setting) ---
+    // --- Inspect redacts a live message's payload by default (no full payload without the setting) ---
 
     [Fact]
-    public async Task Inspect_RedactsPayloadByDefault()
+    public async Task Inspect_RedactsLivePayloadByDefault()
     {
-        const string reference = "REF-1042";
+        // A live pending message is reached by its queue-row id; the board token carries that id
+        // while the row is still present. The journey (decision + per-stage status) is keyed by the
+        // same value here so the panel shows both.
+        var messageId = Guid.NewGuid();
+        var reference = messageId.ToString();
         var rawPayload = """{"Pupil":{"Upn":"X123456789012","Surname":"Smith"}}""";
 
         var query = Substitute.For<IMetricsQueryService>();
@@ -125,8 +130,8 @@ public sealed class ObservabilityControllerTests
             });
 
         var queueAdmin = Substitute.For<IQueueAdminService>();
-        queueAdmin.GetMessageDetailAsync(Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(new QueueMessageDetail(Guid.NewGuid(), "rules-engine", DateTime.UtcNow, 1, rawPayload));
+        queueAdmin.GetMessageDetailAsync(Arg.Any<string>(), messageId, Arg.Any<CancellationToken>())
+            .Returns(new QueueMessageDetail(messageId, "rules-engine", DateTime.UtcNow, 1, rawPayload));
 
         // No setting service => full payload is never enabled => the payload must be redacted.
         var controller = BuildController(query, queueAdmin, settings: null);
@@ -135,6 +140,7 @@ public sealed class ObservabilityControllerTests
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<InspectViewModel>(view.Model);
+        Assert.True(model.PayloadAvailable);
         Assert.True(model.IsRedacted);
         Assert.DoesNotContain("X123456789012", model.Payload);
         Assert.Equal("AutoApproved", model.Decision);

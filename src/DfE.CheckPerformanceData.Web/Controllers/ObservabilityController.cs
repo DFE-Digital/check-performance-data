@@ -21,19 +21,22 @@ public sealed class ObservabilityController : Controller
     private readonly IHealthEvaluator _health;
     private readonly StatusSentenceBuilder _sentence;
     private readonly ISettingService? _settings;
+    private readonly PayloadRedactor _redactor;
 
     public ObservabilityController(
         IMetricsQueryService query,
         IQueueAdminService queueAdmin,
         IHealthEvaluator health,
         StatusSentenceBuilder sentence,
-        ISettingService? settings = null)
+        ISettingService? settings = null,
+        PayloadRedactor? redactor = null)
     {
         _query = query;
         _queueAdmin = queueAdmin;
         _health = health;
         _sentence = sentence;
         _settings = settings;
+        _redactor = redactor ?? new PayloadRedactor();
     }
 
     // The default dashboard time window and the queues whose health is shown on the strip.
@@ -155,6 +158,74 @@ public sealed class ObservabilityController : Controller
             ReferenceNumber = reference,
             Events = events,
         });
+    }
+
+    // The click-to-inspect panel behind a board token. The journey (decision + per-stage queue
+    // status) is the always-available view; the message payload is only reachable while the
+    // message is still pending on a working queue (ack deletes the row), and is redacted by
+    // default — the full payload is shown only when the audited full-payload setting is on,
+    // mirroring the working-message detail discipline so this surface never leaks pupil data.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/inspect/{reference}")]
+    public async Task<IActionResult> Inspect(string reference, CancellationToken cancellationToken = default)
+    {
+        var stages = await _query.GetJourneyAsync(reference, cancellationToken);
+
+        // The decision is whatever the most recent recorded stage carried; null if none decided yet.
+        var decision = stages
+            .Where(e => !string.IsNullOrEmpty(e.DecisionStatus))
+            .Select(e => e.DecisionStatus)
+            .LastOrDefault();
+
+        var payload = string.Empty;
+        var redacted = false;
+        var payloadAvailable = false;
+
+        // A live payload is only reachable while the message is still pending on a working queue.
+        // The board token carries the queue-row id when the row is still present; if it parses we
+        // look the detail up and redaction-gate it, otherwise only the journey is shown.
+        if (Guid.TryParse(reference, out var messageId))
+        {
+            foreach (var queueName in Queues.Keys)
+            {
+                var message = await _queueAdmin.GetMessageDetailAsync(queueName, messageId, cancellationToken);
+                if (message is null)
+                    continue;
+
+                payloadAvailable = true;
+                if (await IsFullPayloadEnabledAsync())
+                {
+                    payload = message.Payload;
+                    redacted = false;
+                }
+                else
+                {
+                    payload = _redactor.Redact(message.Payload);
+                    redacted = true;
+                }
+
+                break;
+            }
+        }
+
+        return View(new InspectViewModel
+        {
+            ReferenceNumber = reference,
+            Decision = decision,
+            Stages = stages,
+            Payload = payload,
+            IsRedacted = redacted,
+            PayloadAvailable = payloadAvailable,
+        });
+    }
+
+    private async Task<bool> IsFullPayloadEnabledAsync()
+    {
+        if (_settings is null)
+            return false;
+
+        var value = await _settings.GetValueAsync(SettingKeys.DlqFullPayloadEnabled);
+        return bool.TryParse(value, out var enabled) && enabled;
     }
 
     [Authorize(Roles = WikiConstants.AdminRole)]

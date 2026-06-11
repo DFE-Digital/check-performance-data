@@ -1,9 +1,9 @@
 namespace DfE.CheckPerformanceData.Application.Observability;
 
 // Builds the plain-English status sentence that narrates the health strip. The leading clause
-// is the exact UI-SPEC copy for the current health band; the dynamic figures (how many
-// requests were processed today and how long a typical request takes end-to-end) are appended
-// so a stakeholder reads one human sentence rather than a dashboard of numbers.
+// is the fixed copy for the current health band; the dynamic figures (how many requests were
+// processed today and how long a typical request takes end-to-end) are appended so a
+// stakeholder reads one human sentence rather than a dashboard of numbers.
 public sealed class StatusSentenceBuilder
 {
     private const string GreenLead = "All systems healthy.";

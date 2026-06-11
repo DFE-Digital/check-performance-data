@@ -8,9 +8,9 @@
 
 <h1 class="govuk-heading-xl">Pipeline dashboard</h1>
 
-@* Reading order (UI-SPEC hierarchy): health strip (top, at-a-glance answer) → status sentence
-   → big-number tiles → the animated board (Plan 05 fills this placeholder, given the most
-   canvas) → charts (detail on demand). *@
+@* Reading order: health strip (top, at-a-glance answer) → status sentence → big-number tiles →
+   the animated board (placeholder here, given the most canvas; the motion engine is wired in
+   later) → charts (detail on demand). *@
 
 @await Html.PartialAsync("_HealthStrip", Model)
 

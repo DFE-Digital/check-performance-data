@@ -29,7 +29,8 @@ public sealed record QueueHealth(string QueueName, string DisplayName, HealthSta
 
 // The model the journey timeline partial binds to: the ordered stage events for one reference
 // plus the reference itself. The "why was this decided?" slot is rendered empty by the view; no
-// decision-detail data is carried here (Phase 3.12 owns that).
+// decision-detail data is carried here — rule-level decision explainability is owned elsewhere
+// and intentionally not persisted by this surface.
 public sealed class JourneyViewModel
 {
     public required string ReferenceNumber { get; init; }

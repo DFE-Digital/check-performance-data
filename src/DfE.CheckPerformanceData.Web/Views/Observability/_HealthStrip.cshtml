@@ -1,2 +1,59 @@
+@using DfE.CheckPerformanceData.Application.Observability
+@using Microsoft.AspNetCore.Html
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
-<div class="obs-health-strip" role="group" aria-label="Queue health"></div>
+@{
+    // The non-colour cue for each state: a filled circle (flowing), a half/striped circle
+    // (backing up) and a hollow ring (needs attention). Conveying state by shape AND text
+    // alongside colour satisfies WCAG 1.4.1 — colour alone never decides the state.
+    Func<HealthState, string> modifier = state => state.Level switch
+    {
+        HealthLevel.Flowing => "obs-light--flowing",
+        HealthLevel.BackingUp => "obs-light--backingup",
+        HealthLevel.NeedsAttention => "obs-light--needsattention",
+        _ => "obs-light--flowing",
+    };
+}
+
+@functions {
+    // Renders the state's shape as an inline SVG glyph. The shape is the non-colour cue; the
+    // visible text label carries the meaning for screen readers, so the glyph is decorative.
+    static IHtmlContent Glyph(HealthState state)
+    {
+        var fill = state.Colour;
+        var svg = state.ShapeToken switch
+        {
+            "circle" =>
+                $"<circle cx='10' cy='10' r='8' fill='{fill}' />",
+            "half-circle" =>
+                $"<circle cx='10' cy='10' r='8' fill='none' stroke='{fill}' stroke-width='2' />" +
+                $"<path d='M10 2 A8 8 0 0 1 10 18 Z' fill='{fill}' />",
+            "ring" =>
+                $"<circle cx='10' cy='10' r='7' fill='none' stroke='{fill}' stroke-width='3' />",
+            _ => $"<circle cx='10' cy='10' r='8' fill='{fill}' />",
+        };
+        return new HtmlString(
+            $"<svg class='obs-light__glyph' viewBox='0 0 20 20' aria-hidden='true' focusable='false'>{svg}</svg>");
+    }
+}
+
+<div class="obs-health-strip" role="group" aria-label="Queue health">
+    @{
+        var overall = Model.OverallHealth;
+    }
+    <div class="obs-light @modifier(overall)">
+        @Glyph(overall)
+        <span class="govuk-body-s govuk-!-margin-bottom-0">
+            <strong>Overall:</strong> @overall.Label
+        </span>
+    </div>
+
+    @foreach (var queue in Model.QueueHealth)
+    {
+        <div class="obs-light @modifier(queue.State)">
+            @Glyph(queue.State)
+            <span class="govuk-body-s govuk-!-margin-bottom-0">
+                @queue.DisplayName: @queue.State.Label
+            </span>
+        </div>
+    }
+</div>

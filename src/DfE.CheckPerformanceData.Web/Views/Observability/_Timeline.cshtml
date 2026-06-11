@@ -1,2 +1,54 @@
 @model DfE.CheckPerformanceData.Web.Models.Observability.JourneyViewModel
-<div class="obs-timeline"></div>
+@{
+    static string DescribeWait(double latencyMs)
+    {
+        if (latencyMs <= 0)
+            return "—";
+        var span = TimeSpan.FromMilliseconds(latencyMs);
+        if (span.TotalSeconds < 90)
+            return $"{Math.Round(span.TotalSeconds)} seconds";
+        if (span.TotalMinutes < 90)
+            return $"{Math.Round(span.TotalMinutes)} minutes";
+        return $"{Math.Round(span.TotalHours, 1)} hours";
+    }
+}
+
+@if (Model.Events.Count == 0)
+{
+    <p class="govuk-body">
+        No journey has been recorded for this request yet. Steps will appear here as the request
+        moves through the pipeline.
+    </p>
+}
+else
+{
+    <ol class="govuk-list obs-timeline">
+        @foreach (var step in Model.Events)
+        {
+            <li>
+                <h2 class="govuk-heading-s govuk-!-margin-bottom-1">@step.Stage</h2>
+                <p class="govuk-body-s govuk-!-margin-bottom-1">
+                    @step.RecordedAtUtc.ToString("u") · queue: @step.QueueName
+                    @if (!string.IsNullOrEmpty(step.DecisionStatus))
+                    {
+                        <text> · decision: @step.DecisionStatus</text>
+                    }
+                </p>
+                <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-3">
+                    Waited @DescribeWait(step.LatencyMs) at this stage.
+                </p>
+            </li>
+        }
+    </ol>
+}
+
+@* The designed-but-empty explainability slot. Phase 3.12 fills it once decision logging is
+   switched on; this phase deliberately persists no decision detail. The copy never implies a
+   bug. *@
+<div class="obs-why-slot">
+    <h2 class="govuk-heading-s govuk-!-margin-bottom-1">Why was this decided?</h2>
+    <p class="govuk-body-s govuk-!-margin-bottom-0">
+        Decision detail is not yet available. The reasons behind this decision will appear here
+        once decision logging is switched on.
+    </p>
+</div>

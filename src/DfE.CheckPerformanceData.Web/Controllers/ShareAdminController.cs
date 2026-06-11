@@ -44,6 +44,15 @@ public sealed class ShareAdminController : Controller
         CancellationToken cancellationToken = default)
     {
         var safeLabel = string.IsNullOrWhiteSpace(label) ? "Untitled" : label.Trim();
+        // The label column is varchar(200); cap rather than let an over-long value 500 the post.
+        if (safeLabel.Length > 200)
+            safeLabel = safeLabel[..200];
+
+        // An out-of-range surface would otherwise silently bind to default(ShareSurface) (= Share);
+        // reject it so a malformed form is a 400, not a token minted on the wrong surface.
+        if (!Enum.IsDefined(surface))
+            return BadRequest("Unknown share surface.");
+
         var createdBy = _currentUser?.UserId ?? "admin";
 
         var plaintext = await _tokens.GenerateAsync(safeLabel, surface, createdBy, cancellationToken);

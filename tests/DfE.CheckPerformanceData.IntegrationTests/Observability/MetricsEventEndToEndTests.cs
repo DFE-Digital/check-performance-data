@@ -84,6 +84,38 @@ public sealed class MetricsEventEndToEndTests
         Assert.Null(row.DecisionStatus);
     }
 
+    // --- Metric inserts are telemetry, not audited data mutations: no AuditEntry row is written ---
+
+    [Fact]
+    public async Task Record_WritesNoAuditEntryRow()
+    {
+        // Every processed message writes a metric row; auditing each one would double write
+        // volume on the hottest path and retain reference numbers in audit_entries forever,
+        // beyond the metrics retention purge.
+        await ResetMetricsAsync();
+
+        await using var context = _fixture.CreateContext();
+        var sink = new DbMetricsSink(context);
+
+        await sink.RecordAsync(new QueueMetricEventDto(
+            QueueName: QueueOptions.RulesEngineQueue,
+            Stage: MetricStages.RulesEvaluated,
+            ReferenceNumber: "REF-E2E-AUDIT",
+            MessageId: Guid.NewGuid(),
+            DecisionStatus: "AutoApproved",
+            RulesVersion: "v1",
+            LatencyMs: 42,
+            RecordedAtUtc: DateTime.UtcNow),
+            CancellationToken.None);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Single(verify.QueueMetricEvents.Where(e => e.ReferenceNumber == "REF-E2E-AUDIT").ToList());
+        Assert.Empty(verify.AuditEntries
+            .Where(a => a.EntityType == nameof(DfE.CheckPerformance.Persistence.Entities.QueueMetricEvent)
+                && a.NewValues != null && a.NewValues.Contains("REF-E2E-AUDIT"))
+            .ToList());
+    }
+
     private async Task ResetMetricsAsync()
     {
         await using var context = _fixture.CreateContext();

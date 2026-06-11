@@ -81,6 +81,10 @@ public sealed class PortalDbContext(
         foreach (var entry in ChangeTracker.Entries().ToList())
         {
             if (entry.Entity is AuditEntry) continue;
+            // Metric events are high-volume telemetry, not user data mutations: every processed
+            // message writes one, so auditing them would double write volume on the hottest path
+            // and retain reference numbers in audit_entries beyond the metrics retention purge.
+            if (entry.Entity is QueueMetricEvent) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

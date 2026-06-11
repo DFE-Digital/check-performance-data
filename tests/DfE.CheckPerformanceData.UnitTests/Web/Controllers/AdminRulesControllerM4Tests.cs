@@ -15,7 +15,7 @@ public sealed class AdminRulesControllerM4Tests
     {
         new OutcomeRules("Inclusion", "Inclusion", new[]
         {
-            new RuleBranch("INC-1", DecisionStatus.Scrutiny, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+            new RuleBranch("INC-1", DecisionStatus.Scrutiny, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
             new RuleBranch("INC-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
         }),
         new OutcomeRules("AdminAdded", "Admin added", new[]

@@ -11,7 +11,7 @@ public sealed class PredicateFormTests
 
     private static Predicate Sample() => new Predicate.AllOf(new Predicate[]
     {
-        new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")),
+        new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")),
         new Predicate.AnyOf(new Predicate[]
         {
             new Predicate.FieldCompare("pupilAge", CompareOp.Gte, new FieldValue.Num(16)),
@@ -37,7 +37,7 @@ public sealed class PredicateFormTests
     {
         var flat = PredicateForm.Flatten(new Predicate.AllOf(new Predicate[]
         {
-            new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))
+            new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))
         }));
 
         Assert.Equal(2, flat.Count);
@@ -74,8 +74,8 @@ public sealed class PredicateFormTests
     {
         var group = new Predicate.AnyOf(new Predicate[]
         {
-            new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")),
-            new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2")),
+            new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")),
+            new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2")),
         });
 
         var viaEditing = PredicateForm.FlattenForEditing(group);
@@ -93,7 +93,7 @@ public sealed class PredicateFormTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = rootKind },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
         };
 
         var rebuilt = PredicateForm.RebuildPredicate(nodes);
@@ -118,8 +118,8 @@ public sealed class PredicateFormTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
-            new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
+            new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
         };
 
         var rebuilt = PredicateForm.RebuildPredicate(nodes);
@@ -136,7 +136,7 @@ public sealed class PredicateFormTests
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf },
             new() { Id = 2, ParentId = 1, Kind = PredicateKind.AllOf },
-            new() { Id = 3, ParentId = 2, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 3, ParentId = 2, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
         };
 
         var rebuilt = PredicateForm.RebuildPredicate(nodes);
@@ -154,10 +154,10 @@ public sealed class PredicateFormTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
             new() { Id = 3, ParentId = 1, Kind = PredicateKind.AnyOf },
-            new() { Id = 4, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
-            new() { Id = 5, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS1" },
+            new() { Id = 4, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
+            new() { Id = 5, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS1" },
         };
 
         var subtree = PredicateForm.RebuildFromNode(nodes, nodeId: 3);

@@ -10,7 +10,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <remarks>
 /// This indirection is deliberate — it is an anti-corruption boundary so the rules
 /// (Application) layer never depends on Web journey-authoring ids. The relationship
-/// is not 1:1: <c>sat-exams</c> resolves by key stage (<see cref="SatExamsFieldFor"/>),
+/// is not 1:1: <c>sat-exams</c> resolves by checking window type (<see cref="SatExamsFieldFor"/>),
 /// single-choice radios fan out to several booleans (<see cref="RadioFanOut"/>),
 /// some answers carry journey vocabulary the rules don't use
 /// (<see cref="TranslatedQuestions"/>), and journey-only questions
@@ -108,15 +108,15 @@ public static class AnswerFieldMap
 
     /// <summary>
     /// The journey asks one <c>sat-exams</c> yes/no question; the rules distinguish
-    /// the year-11 and year-6 variants by key stage.
+    /// the year-11 and year-6 variants by checking window type.
     /// </summary>
     public const string SatExamsQuestionId = "sat-exams";
 
     /// <summary>Canonical field for <see cref="SatExamsQuestionId"/>, or null when the
-    /// key stage has no sat-exams concept (the answer is then ignored).</summary>
-    public static string? SatExamsFieldFor(string keyStage) => keyStage switch
+    /// checking window type has no sat-exams concept (the answer is then ignored).</summary>
+    public static string? SatExamsFieldFor(string checkingWindowType) => checkingWindowType switch
     {
-        "KS4" => "hasSatExamsAsYear11",
+        "KS4June" or "KS4Autumn" => "hasSatExamsAsYear11",
         "KS2" => "hasSatExamsAsYear6",
         _ => null,
     };
@@ -161,15 +161,20 @@ public static class AnswerFieldMap
         };
 
     /// <summary>
-    /// Normalises <c>CheckingWindowType</c> values onto <c>KS2</c> / <c>KS4</c> / <c>Post16</c>.
-    /// The docx phrasing <c>"16 to 18"</c> maps to <c>Post16</c>.
+    /// Normalises <c>CheckingWindowType</c> values onto the canonical
+    /// <c>KS2</c> / <c>KS4June</c> / <c>KS4Autumn</c> / <c>Post16</c>, case-insensitively.
+    /// The legacy docx phrasings <c>"16 to 18"</c> / <c>"16-18"</c> map to <c>Post16</c>.
+    /// Unrecognised values (including a bare <c>"KS4"</c>, ambiguous between June and
+    /// Autumn) pass through trimmed: they match no rule predicate, so evaluation falls
+    /// to the outcome's <c>otherwise</c> branch — Scrutiny, the fail-safe.
     /// </summary>
-    public static string NormaliseKeyStage(string? raw)
+    public static string NormaliseCheckingWindowType(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
         var trimmed = raw.Trim();
         if (trimmed.Equals("KS2", StringComparison.OrdinalIgnoreCase)) return "KS2";
-        if (trimmed.Equals("KS4", StringComparison.OrdinalIgnoreCase)) return "KS4";
+        if (trimmed.Equals("KS4June", StringComparison.OrdinalIgnoreCase)) return "KS4June";
+        if (trimmed.Equals("KS4Autumn", StringComparison.OrdinalIgnoreCase)) return "KS4Autumn";
         if (trimmed.Equals("Post16", StringComparison.OrdinalIgnoreCase)) return "Post16";
         if (trimmed.Equals("16 to 18", StringComparison.OrdinalIgnoreCase)) return "Post16";
         if (trimmed.Equals("16-18", StringComparison.OrdinalIgnoreCase)) return "Post16";

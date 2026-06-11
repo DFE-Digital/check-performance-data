@@ -9,9 +9,10 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// Canonical outcome key (e.g. <c>ElectiveHomeEducation</c>), derived from
 /// the request's <c>WhatToChange</c> reason. <c>_unknown</c> if no mapping exists.
 /// </param>
-/// <param name="KeyStage">
-/// Canonical key stage label: <c>KS2</c> / <c>KS4</c> / <c>Post16</c>. The docx's
-/// <c>"16 to 18"</c> phrasing is normalised to <c>Post16</c>.
+/// <param name="CheckingWindowType">
+/// Canonical checking window type: <c>KS2</c> / <c>KS4June</c> / <c>KS4Autumn</c> /
+/// <c>Post16</c>. The docx's <c>"16 to 18"</c> phrasing is normalised to <c>Post16</c>;
+/// unrecognised values pass through and match no predicate (Scrutiny via <c>otherwise</c>).
 /// </param>
 /// <param name="Fields">
 /// Map of canonical field name → <see cref="FieldValue"/>. Names referenced by
@@ -20,7 +21,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// </param>
 public sealed record RuleContext(
     string OutcomeKey,
-    string KeyStage,
+    string CheckingWindowType,
     IReadOnlyDictionary<string, FieldValue> Fields)
 {
     public FieldValue GetField(string name) =>

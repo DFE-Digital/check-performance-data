@@ -59,7 +59,7 @@ public sealed class RequestDocumentParserTests
             {
               "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
               "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-              "CheckingWindowType": "KS4",
+              "CheckingWindowType": "KS4June",
               "RequestTypeCode": "Deceased",
               "ReferenceNumber": "REF-001",
               "SubmittedAt": "2026-05-14T10:00:00Z",
@@ -76,7 +76,7 @@ public sealed class RequestDocumentParserTests
 
         Assert.NotNull(parsed);
         Assert.Equal("Deceased", parsed!.RequestTypeCode);
-        Assert.Equal("KS4", parsed.CheckingWindowType);
+        Assert.Equal("KS4June", parsed.CheckingWindowType);
         Assert.Equal("REF-001", parsed.ReferenceNumber);
         Assert.Single(parsed.Answers);
         Assert.Equal("Lower", parsed.Answers[0].Value);
@@ -113,7 +113,7 @@ public sealed class RequestDocumentParserTests
             {
               "ChangeRequestId": "99999999-8888-7777-6666-555555555555",
               "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-              "CheckingWindowType": "KS4",
+              "CheckingWindowType": "KS4June",
               "RequestTypeCode": "Deceased",
               "ReferenceNumber": "REF-001",
               "School": { "Urn": "123456", "Name": "Test School" },
@@ -137,7 +137,7 @@ public sealed class RequestDocumentParserTests
         const string json = """
             {
               "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-              "CheckingWindowType": "KS4",
+              "CheckingWindowType": "KS4June",
               "RequestTypeCode": "Deceased",
               "ReferenceNumber": "REF-001",
               "School": { "Urn": "123456", "Name": "Test School" },
@@ -161,7 +161,7 @@ public sealed class RequestDocumentParserTests
     {
         // Pupil is required; omitting it must not yield a half-built document.
         const string json = """
-            { "CheckingWindowType": "KS4", "RequestTypeCode": "Deceased", "ReferenceNumber": "R", "Answers": [] }
+            { "CheckingWindowType": "KS4June", "RequestTypeCode": "Deceased", "ReferenceNumber": "R", "Answers": [] }
             """;
 
         Assert.Null(RequestDocumentParser.Parse(json));

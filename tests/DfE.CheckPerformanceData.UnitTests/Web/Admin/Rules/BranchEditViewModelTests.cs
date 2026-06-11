@@ -19,7 +19,7 @@ public sealed class BranchEditViewModelTests
 
         Assert.Same(form, vm.Form);
         Assert.Contains("boom", vm.Errors);
-        Assert.Contains("keyStage", vm.AllFields);
+        Assert.Contains("checkingWindowType", vm.AllFields);
         Assert.Contains(DecisionStatus.Scrutiny, vm.Statuses);
     }
 }

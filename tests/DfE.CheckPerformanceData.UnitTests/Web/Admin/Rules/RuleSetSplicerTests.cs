@@ -10,9 +10,9 @@ public sealed class RuleSetSplicerTests
         new OutcomeRules("EAL", "EAL", new[]
         {
             new RuleBranch("EAL-1", DecisionStatus.AutoApproved,
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
             new RuleBranch("EAL-2", DecisionStatus.Scrutiny,
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2"))),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
             new RuleBranch("EAL-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
         })
     });
@@ -21,7 +21,7 @@ public sealed class RuleSetSplicerTests
     public void ReplaceBranch_Swaps_Matching_Id_Keeps_Position()
     {
         var updated = new RuleBranch("EAL-1", DecisionStatus.AutoRejected,
-            new Predicate.IsKnownAndCertain("keyStage"));
+            new Predicate.IsKnownAndCertain("checkingWindowType"));
 
         var result = RuleSetSplicer.ReplaceBranch(Sample(), "EAL", "EAL-1", updated);
 
@@ -34,7 +34,7 @@ public sealed class RuleSetSplicerTests
     public void InsertBranch_Adds_Before_Otherwise()
     {
         var added = new RuleBranch("EAL-3", DecisionStatus.Scrutiny,
-            new Predicate.IsKnownAndCertain("keyStage"));
+            new Predicate.IsKnownAndCertain("checkingWindowType"));
 
         var result = RuleSetSplicer.InsertBranch(Sample(), "EAL", added);
 

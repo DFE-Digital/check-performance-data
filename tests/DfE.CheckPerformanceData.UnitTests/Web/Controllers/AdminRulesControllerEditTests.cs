@@ -15,7 +15,7 @@ public sealed class AdminRulesControllerEditTests
     {
         new OutcomeRules("EAL", "EAL", new[]
         {
-            new RuleBranch("EAL-1", DecisionStatus.Scrutiny, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+            new RuleBranch("EAL-1", DecisionStatus.Scrutiny, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
             new RuleBranch("EAL-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
         })
     });
@@ -54,7 +54,7 @@ public sealed class AdminRulesControllerEditTests
         Nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
         }
     };
 
@@ -128,7 +128,7 @@ public sealed class AdminRulesControllerEditTests
             Nodes = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf }, // user switched AllOf -> AnyOf via the bound select
-                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
             }
         };
 
@@ -156,8 +156,8 @@ public sealed class AdminRulesControllerEditTests
             Nodes = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.AnyOf },
-                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
-                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
             }
         };
 
@@ -307,7 +307,7 @@ public sealed class AdminRulesControllerEditTests
         {
             new OutcomeRules("EAL", "EAL", new[]
             {
-                new RuleBranch("EAL-1", DecisionStatus.Scrutiny, new Predicate.IsKnownAndCertain("keyStage")),
+                new RuleBranch("EAL-1", DecisionStatus.Scrutiny, new Predicate.IsKnownAndCertain("checkingWindowType")),
                 new RuleBranch("EAL-2", DecisionStatus.Scrutiny, new Predicate.IsKnownAndCertain("pupilAge")),
                 new RuleBranch("EAL-OTHER", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
             })
@@ -414,8 +414,8 @@ public sealed class AdminRulesControllerEditTests
             Nodes = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
-                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
             }
         };
 
@@ -444,8 +444,8 @@ public sealed class AdminRulesControllerEditTests
             Nodes = new List<PredicateNodeForm>
             {
                 new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf, Collapsed = true }, // collapsed group
-                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
-                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+                new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
+                new() { Id = 3, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
             }
         };
 

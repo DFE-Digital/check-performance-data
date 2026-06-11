@@ -84,7 +84,7 @@ public sealed class RulesConfigServiceTests
     private static RuleSet InvalidRules() => new("v1", DateTimeOffset.UnixEpoch, new[]
     {
         new OutcomeRules("Bad", "Bad",
-            new[] { new RuleBranch("B1", DecisionStatus.AutoApproved, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))) })
+            new[] { new RuleBranch("B1", DecisionStatus.AutoApproved, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))) })
     });
 
     private static RulesConfigService NewService(FakeStore store, FakeRepo repo) =>

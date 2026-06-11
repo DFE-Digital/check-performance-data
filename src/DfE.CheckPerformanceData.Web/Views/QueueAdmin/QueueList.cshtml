@@ -1,0 +1,43 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.QueueListViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = Model.DisplayName;
+}
+
+<a class="govuk-back-link" href="/admin/queues">Back to queues</a>
+
+<h1 class="govuk-heading-xl">@Model.DisplayName</h1>
+<p class="govuk-body-l">
+    All messages currently waiting on this queue, oldest first. Open a message to inspect it.
+</p>
+
+@if (Model.Messages.Count == 0)
+{
+    <p class="govuk-body">This queue is empty. No messages are currently waiting.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m">Waiting messages</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Message</th>
+                <th scope="col" class="govuk-table__header">Enqueued</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var message in Model.Messages)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/queues/list/@Model.QueueName/@message.Id">Inspect message</a>
+                        <span class="govuk-visually-hidden">@message.Id</span>
+                    </td>
+                    <td class="govuk-table__cell">@message.EnqueuedAtUtc.ToString("u")</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

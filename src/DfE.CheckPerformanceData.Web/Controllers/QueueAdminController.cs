@@ -35,18 +35,114 @@ public sealed class QueueAdminController : Controller
         _currentUserService = currentUserService;
     }
 
+    private const int TopMessageCount = 5;
+
+    // The working queues that can be listed in full, plus their display names. This is also the
+    // server-side allow-list for the per-queue view-all action: a queue name not in here is
+    // rejected before any read, so the route parameter can never reach a query for an arbitrary
+    // table value.
+    private static readonly IReadOnlyDictionary<string, string> WorkingQueues =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [QueueOptions.RulesEngineQueue] = "Rules engine queue",
+            [QueueOptions.ZendeskQueue] = "Zendesk queue",
+        };
+
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
     {
-        var queues = await _queueAdminService.GetQueueDepthsAsync(cancellationToken);
+        var depths = await _queueAdminService.GetQueueDepthsAsync(cancellationToken);
         var dlqCount = await _queueAdminService.GetDlqCountAsync(cancellationToken);
+
+        var panels = new List<QueuePanelViewModel>();
+
+        // One panel per working queue, in a stable display order, each carrying its top-5.
+        foreach (var (queueName, displayName) in WorkingQueues)
+        {
+            var depth = depths.FirstOrDefault(d => d.QueueName == queueName);
+            var top = await _queueAdminService.GetTopMessagesAsync(queueName, TopMessageCount, cancellationToken);
+
+            panels.Add(new QueuePanelViewModel
+            {
+                QueueName = queueName,
+                DisplayName = displayName,
+                Count = depth?.Depth ?? 0,
+                OldestMessageAge = depth?.OldestMessageAge,
+                TopMessages = top,
+            });
+        }
+
+        // The dead-letter queue is rendered through the same panel; its actions point at the
+        // existing dead-letter surface rather than the working-queue view-all.
+        panels.Add(new QueuePanelViewModel
+        {
+            QueueName = "dead-letter",
+            DisplayName = "Dead-letter queue",
+            Count = dlqCount,
+            IsDeadLetter = true,
+        });
 
         return View(new QueueIndexViewModel
         {
-            Queues = queues,
-            DeadLetterCount = dlqCount,
+            Panels = panels,
             RefreshedAtUtc = DateTime.UtcNow,
+        });
+    }
+
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/queues/list/{queueName}")]
+    public async Task<IActionResult> QueueList(string queueName, CancellationToken cancellationToken = default)
+    {
+        if (!WorkingQueues.TryGetValue(queueName, out var displayName))
+            return NotFound();
+
+        var messages = await _queueAdminService.GetQueueMessagesAsync(queueName, cancellationToken);
+
+        return View(new QueueListViewModel
+        {
+            QueueName = queueName,
+            DisplayName = displayName,
+            Messages = messages,
+        });
+    }
+
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/queues/list/{queueName}/{id:guid}")]
+    public async Task<IActionResult> WorkingMessage(string queueName, Guid id, CancellationToken cancellationToken = default)
+    {
+        if (!WorkingQueues.TryGetValue(queueName, out _))
+            return NotFound();
+
+        var message = await _queueAdminService.GetMessageDetailAsync(queueName, id, cancellationToken);
+        if (message is null)
+            return NotFound();
+
+        var fullPayloadEnabled = await IsFullPayloadEnabledAsync();
+
+        string payload;
+        bool redacted;
+        if (fullPayloadEnabled)
+        {
+            payload = message.Payload;
+            redacted = false;
+            await WriteFullPayloadViewAuditAsync(message.Id, cancellationToken);
+        }
+        else
+        {
+            payload = _redactor.Redact(message.Payload);
+            redacted = true;
+        }
+
+        return View(new QueueMessageViewModel
+        {
+            Id = message.Id,
+            QueueName = message.QueueName,
+            Attempts = message.Attempts,
+            EnqueuedAtUtc = message.EnqueuedAtUtc,
+            Payload = payload,
+            IsRedacted = redacted,
+            FullPayloadAvailable = fullPayloadEnabled,
         });
     }
 

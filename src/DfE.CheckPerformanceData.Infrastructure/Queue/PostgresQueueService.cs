@@ -194,6 +194,47 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
             .ToList();
     }
 
+    public async Task<IReadOnlyList<QueueMessageSummary>> GetTopMessagesAsync(string queueName, int count, CancellationToken cancellationToken = default)
+    {
+        // Oldest-first so the top-N shows the messages that have waited longest — the ones an
+        // operator most wants to see. A sane upper bound keeps a hostile count value from
+        // pulling the whole queue into memory.
+        var take = Math.Clamp(count, 0, 100);
+        if (take == 0)
+        {
+            return Array.Empty<QueueMessageSummary>();
+        }
+
+        var rows = await _dbContext.QueueMessages
+            .Where(m => m.QueueName == queueName)
+            .OrderBy(m => m.EnqueuedAtUtc)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(MapSummary).ToList();
+    }
+
+    public async Task<IReadOnlyList<QueueMessageSummary>> GetQueueMessagesAsync(string queueName, CancellationToken cancellationToken = default)
+    {
+        var rows = await _dbContext.QueueMessages
+            .Where(m => m.QueueName == queueName)
+            .OrderBy(m => m.EnqueuedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return rows.Select(MapSummary).ToList();
+    }
+
+    public async Task<QueueMessageDetail?> GetMessageDetailAsync(string queueName, Guid id, CancellationToken cancellationToken = default)
+    {
+        var row = await _dbContext.QueueMessages
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == id && m.QueueName == queueName, cancellationToken);
+
+        return row is null
+            ? null
+            : new QueueMessageDetail(row.Id, row.QueueName, row.EnqueuedAtUtc, row.Attempts, row.Payload);
+    }
+
     public async Task<IReadOnlyList<DlqMessage>> GetDlqMessagesAsync(CancellationToken cancellationToken = default)
     {
         var rows = await _dbContext.DeadLetters
@@ -309,6 +350,12 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
             context.Entry(entity).State = EntityState.Detached;
         }
     }
+
+    private static QueueMessageSummary MapSummary(QueueMessageEntity m) => new(
+        m.Id,
+        m.QueueName,
+        m.EnqueuedAtUtc,
+        m.Attempts);
 
     private static DlqMessage Map(DeadLetterEntity d) => new(
         d.Id,

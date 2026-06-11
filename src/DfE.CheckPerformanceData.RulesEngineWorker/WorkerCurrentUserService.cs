@@ -14,5 +14,6 @@ public sealed class WorkerCurrentUserService : ICurrentUserService
     public string OrganisationId => string.Empty;
     public string OrganisationName => string.Empty;
     public string OrganisationUrn => string.Empty;
+    public string OrganisationLaestab => string.Empty;
     public string OrganisationTypeId => string.Empty;
 }

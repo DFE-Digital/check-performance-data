@@ -2,29 +2,30 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : ICheckYourPupilDataRepository
+public sealed class CheckYourPupilDataRepository(
+    IPortalDbContext dbContext,
+    IPupilDataBlobClient pupilDataBlobClient,
+    IMemoryCache cache) : ICheckYourPupilDataRepository
 {
     private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
+    private static readonly TimeSpan CacheSlidingExpiry = TimeSpan.FromMinutes(30);
 
-    public Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetIncludedPupilsAsync(Guid windowId, string urn, string? search, int page, int pageSize)
-        => GetPageAsync(windowId, urn, included: true, search, page, pageSize);
+    public Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize)
+        => GetPageAsync(windowId, laestab, included: true, search, page, pageSize);
 
-    public Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetNonIncludedPupilsAsync(Guid windowId, string urn, string? search, int page, int pageSize)
-        => GetPageAsync(windowId, urn, included: false, search, page, pageSize);
+    public Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetNonIncludedPupilsAsync(Guid windowId, string laestab, string? search, int page, int pageSize)
+        => GetPageAsync(windowId, laestab, included: false, search, page, pageSize);
 
-    public Task<IReadOnlyList<PupilCsvDto>> GetAllIncludedPupilsAsync(Guid windowId, string urn)
-        => GetAllAsync(windowId, urn, included: true);
+    public Task<IReadOnlyList<PupilCsvDto>> GetAllIncludedPupilsAsync(Guid windowId, string laestab)
+        => GetAllAsync(windowId, laestab, included: true);
 
-    public Task<IReadOnlyList<PupilCsvDto>> GetAllNonIncludedPupilsAsync(Guid windowId, string urn)
-        => GetAllAsync(windowId, urn, included: false);
-
-    public Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string urn, string query, PupilFilter filter, Guid? excludeId = null)
-        => SearchAsync(windowId, urn, query, filter, excludeId);
+    public Task<IReadOnlyList<PupilCsvDto>> GetAllNonIncludedPupilsAsync(Guid windowId, string laestab)
+        => GetAllAsync(windowId, laestab, included: false);
 
     public async Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId)
         => await dbContext.CheckingWindows
@@ -33,37 +34,33 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
             .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate })
             .SingleAsync();
 
-    public async Task<PupilDto> GetPupilAsync(Guid windowId, string urn, Guid pupilId)
-        => await dbContext.Pupils
-            .AsNoTracking()
-            .Where(p => p.CheckingWindowId == windowId && p.Urn == urn && p.Id == pupilId)
-            .Select(ToPupilDto)
-            .SingleAsync();
-
-    private IQueryable<Pupil> BaseQuery(Guid windowId, string urn, bool included)
-        => dbContext.Pupils
-            .AsNoTracking()
-            .Where(p => p.CheckingWindowId == windowId && p.Urn == urn &&
-                        (included ? IncludedPinclCodes.Contains(p.Pincl) : !IncludedPinclCodes.Contains(p.Pincl)));
-
-    private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string urn, bool included, string? search, int page, int pageSize)
+    public async Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId)
     {
-        var query = BaseQuery(windowId, urn, included);
-
-        if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(p => EF.Functions.ILike(p.Firstname, $"%{search}%") ||
-                                     EF.Functions.ILike(p.Surname, $"%{search}%"));
-
-        query = query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname);
-
-        var totalCount = await query.CountAsync();
-        var items = await query.Skip(page * pageSize).Take(pageSize).Select(ToPupilDto).ToListAsync();
-
-        return (items, totalCount);
+        var pupils = await GetSchoolPupilsAsync(windowId, laestab);
+        return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    private async Task<IReadOnlyList<PupilCsvDto>> GetAllAsync(Guid windowId, string urn, bool included)
-        => await BaseQuery(windowId, urn, included)
+    private static bool IsIncluded(PupilRecord p) => IncludedPinclCodes.Contains(p.Pincl);
+
+    private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string laestab, bool included, string? search, int page, int pageSize)
+    {
+        var query = (await GetSchoolPupilsAsync(windowId, laestab))
+            .Where(p => IsIncluded(p) == included);
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(p => p.Firstname.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                                     p.Surname.Contains(search, StringComparison.OrdinalIgnoreCase));
+
+        var ordered = query.OrderBy(p => p.Surname).ThenBy(p => p.Firstname).ToList();
+
+        var items = ordered.Skip(page * pageSize).Take(pageSize).Select(ToPupilDto).ToList();
+
+        return (items, ordered.Count);
+    }
+
+    private async Task<IReadOnlyList<PupilCsvDto>> GetAllAsync(Guid windowId, string laestab, bool included)
+        => (await GetSchoolPupilsAsync(windowId, laestab))
+            .Where(p => IsIncluded(p) == included)
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Select(p => new PupilCsvDto
             {
@@ -84,48 +81,62 @@ public sealed class CheckYourPupilDataRepository(IPortalDbContext dbContext) : I
                 ActualYearGroup = p.ActualYearGroup,
                 NewMobile = p.NewMobile
             })
-            .ToListAsync();
+            .ToList();
 
-    private async Task<IReadOnlyList<PupilSuggestionDto>> SearchAsync(Guid windowId, string urn, string query, PupilFilter filter, Guid? excludeId)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null)
     {
         var urnLong = long.Parse(urn);
-        var existingUpns = dbContext.ChangeRequests
-            .AsNoTracking()
-            .Where(r => r.WindowId == windowId && r.OrganisationUrn == urnLong)
-            .Select(r => r.PupilUpn);
+        var excludedUpns = (await dbContext.ChangeRequests
+                .AsNoTracking()
+                .Where(r => r.WindowId == windowId && r.OrganisationUrn == urnLong && r.PupilUpn != null)
+                .Select(r => r.PupilUpn!)
+                .ToListAsync())
+            .ToHashSet(StringComparer.Ordinal);
 
-        var baseQuery = filter == PupilFilter.All
-            ? dbContext.Pupils.AsNoTracking().Where(p => p.CheckingWindowId == windowId && p.Urn == urn)
-            : BaseQuery(windowId, urn, included: filter == PupilFilter.Included);
-
-        var filtered = baseQuery
-            .Where(p => (p.Upn.StartsWith(query) ||
-                         p.Cypmd_Id.StartsWith(query) ||
-                         EF.Functions.ILike(p.Surname, $"%{query}%") ||
-                         EF.Functions.ILike(p.Firstname, $"%{query}%")) &&
-                        !existingUpns.Contains(p.Upn));
+        var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
+            .Where(p => filter switch
+            {
+                PupilFilter.All => true,
+                PupilFilter.Included => IsIncluded(p),
+                _ => !IsIncluded(p)
+            })
+            .Where(p => p.Upn.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
+                        p.Cypmd_Id.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
+                        p.Surname.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Where(p => !excludedUpns.Contains(p.Upn));
 
         if (excludeId.HasValue)
-            filtered = filtered.Where(p => p.Id != excludeId.Value);
+            pupils = pupils.Where(p => p.Id != excludeId.Value);
 
-        return await filtered
+        return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
             .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {p.DateOfBirth}"))
-            .ToListAsync();
+            .ToList();
     }
 
-    private static System.Linq.Expressions.Expression<Func<Pupil, PupilDto>> ToPupilDto =>
-        p => new PupilDto
-        {
-            Id = p.Id,
-            Surname = p.Surname,
-            Firstname = p.Firstname,
-            Sex = p.Sex,
-            DateOfBirth = p.DateOfBirth,
-            Age = p.Age,
-            Cypmd_Id = p.Cypmd_Id,
-            Upn = p.Upn,
-            Pincl = p.Pincl
-        };
+    private async Task<IReadOnlyList<PupilRecord>> GetSchoolPupilsAsync(Guid windowId, string laestab)
+    {
+        var key = $"pupils:{windowId}:{laestab}";
+        if (cache.TryGetValue(key, out IReadOnlyList<PupilRecord>? cached) && cached is not null)
+            return cached;
+
+        var pupils = await pupilDataBlobClient.GetPupilsAsync(windowId, laestab) ?? [];
+        cache.Set(key, pupils, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
+        return pupils;
+    }
+
+    private static PupilDto ToPupilDto(PupilRecord p) => new()
+    {
+        Id = p.Id,
+        Surname = p.Surname,
+        Firstname = p.Firstname,
+        Sex = p.Sex,
+        DateOfBirth = p.DateOfBirth,
+        Age = p.Age,
+        Cypmd_Id = p.Cypmd_Id,
+        Upn = p.Upn,
+        Pincl = p.Pincl
+    };
 }

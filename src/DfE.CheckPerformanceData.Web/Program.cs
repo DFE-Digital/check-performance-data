@@ -13,7 +13,9 @@ using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
@@ -147,6 +149,7 @@ try
             new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
+    builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions
@@ -228,13 +231,15 @@ try
     {
         using var scope = app.Services.CreateScope();
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
+        var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
         try
         {
             await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
+            await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
         }
         catch (Azure.RequestFailedException ex) when (app.Environment.IsDevelopment())
         {
-            app.Logger.LogWarning(ex, "Question-flow seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows seeded locally.", ex.Status, ex.ErrorCode);
+            app.Logger.LogWarning(ex, "Blob seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows/pupils seeded locally.", ex.Status, ex.ErrorCode);
         }
     }
 

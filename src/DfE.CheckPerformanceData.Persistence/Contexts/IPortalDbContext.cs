@@ -13,7 +13,6 @@ public interface IPortalDbContext
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
     DbSet<WikiPage> WikiPages { get; }
     DbSet<WikiPageVersion> WikiPageVersions { get; }
-    DbSet<Pupil> Pupils { get; }
     DbSet<Setting> Settings { get; }
     DbSet<Country> Countries { get; }
     

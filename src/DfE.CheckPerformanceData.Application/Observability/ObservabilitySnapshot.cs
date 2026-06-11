@@ -32,3 +32,19 @@ public sealed record ObservabilitySnapshot(
     DateTime CapturedAtUtc);
 
 public sealed record QueueDepthSnapshot(string QueueName, int Depth, TimeSpan? OldestMessageAge);
+
+// The aggregate-only projection behind the anonymised share link and the wallboard. It carries
+// ONLY counts, rates, decision-mix totals, throughput buckets, per-stage dwell, the processed
+// total, a typical end-to-end duration and the overall health band — no reference number, no
+// payload, no journey, nothing per-pupil. The share view model is built from this so the share
+// surfaces leak nothing by construction. Note: HealthState carries the OverallHealth band only,
+// itself derived from queue depths/ages/DLQ rate — never any pupil field.
+public sealed record AggregateShareSnapshot(
+    IReadOnlyList<QueueDepthSnapshot> Depths,
+    IReadOnlyList<DecisionMixEntry> DecisionMix,
+    IReadOnlyList<ThroughputBucket> Throughput,
+    IReadOnlyList<StageDwell> Dwell,
+    int ProcessedToday,
+    TimeSpan TypicalEndToEnd,
+    HealthState OverallHealth,
+    DateTime CapturedAtUtc);

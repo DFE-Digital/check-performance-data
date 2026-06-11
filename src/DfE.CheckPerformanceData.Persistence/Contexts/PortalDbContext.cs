@@ -28,6 +28,7 @@ public sealed class PortalDbContext(
     public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
     public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
     public DbSet<QueueMetricEvent> QueueMetricEvents => Set<QueueMetricEvent>();
+    public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +46,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
         modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
         modelBuilder.ApplyConfiguration(new QueueMetricEventConfiguration());
+        modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

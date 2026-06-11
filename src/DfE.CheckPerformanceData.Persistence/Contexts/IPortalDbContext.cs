@@ -24,6 +24,7 @@ public interface IPortalDbContext
     DbSet<DeadLetterEntity> DeadLetters { get; }
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
     DbSet<QueueMetricEvent> QueueMetricEvents { get; }
+    DbSet<ShareToken> ShareTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

@@ -51,4 +51,11 @@ public interface IMetricsQueryService
 
     // The current live snapshot for the board / dashboard stream.
     Task<ObservabilitySnapshot> GetCurrentSnapshotAsync(CancellationToken cancellationToken = default);
+
+    // The aggregate-only projection for the anonymised share link and wallboard. Selects ONLY
+    // aggregate columns (counts, decision-mix totals, throughput buckets, dwell) — never a
+    // reference number, payload or any pupil-bearing column — so the share surfaces carry no pupil
+    // data by construction. The overall health band is left to the caller to compute from the
+    // returned depths so this read stays a pure aggregate query.
+    Task<AggregateShareSnapshot> GetAggregateShareAsync(CancellationToken cancellationToken = default);
 }

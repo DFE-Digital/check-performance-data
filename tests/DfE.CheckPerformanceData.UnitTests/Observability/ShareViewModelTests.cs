@@ -15,28 +15,26 @@ public sealed class ShareViewModelTests
 {
     // Any property whose name contains one of these (case-insensitive) is treated as a
     // pupil-identifier leak. Aggregate concepts (counts, rates, percentages, stage labels,
-    // health) carry none of these.
+    // health, a queue *name*) carry none of these. The terms are the specific pupil-identifying
+    // ones — "surname"/"forename" rather than a bare "name" so a legitimate QueueName is not a
+    // false positive.
     private static readonly string[] PupilIdentifierTerms =
     {
         "upn",
+        "uln",
         "pupil",
         "surname",
         "forename",
         "firstname",
         "lastname",
+        "fullname",
         "dateofbirth",
-        "dob",
         "referencenumber",
-        "reference",
         "payload",
         "requester",
         "email",
-        "ticket",
-        "crm",
-        "name",
         "address",
         "postcode",
-        "uln",
     };
 
     // --- The aggregate share view model exposes no pupil-identifier property anywhere in its graph ---

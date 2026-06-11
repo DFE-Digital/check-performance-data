@@ -255,6 +255,71 @@ ORDER BY recorded_at_utc, id;";
         return new ObservabilitySnapshot(depthSnapshots, recent, decisionMix, now);
     }
 
+    // The default health bands the share/wallboard overall light uses. The authenticated dashboard
+    // can override these from the Health:* settings; the anonymised aggregate surface uses the code
+    // defaults so it stays a self-contained pure aggregate read with no settings dependency.
+    private static readonly HealthThresholds DefaultThresholds =
+        new(DepthAmber: 25, DepthRed: 100, OldestAgeAmberSeconds: 120, OldestAgeRedSeconds: 600, DlqRateRed: 5);
+
+    public async Task<AggregateShareSnapshot> GetAggregateShareAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var from = now - TimeSpan.FromHours(24);
+
+        // Aggregate-only reads: queue depths/ages, the dead-letter count, decision-mix totals,
+        // hourly throughput and per-stage dwell. NONE of these select a reference number, payload
+        // or any pupil-bearing column, so the share surfaces carry no pupil data by construction.
+        var depths = await _dbContext.QueueMessages
+            .GroupBy(m => m.QueueName)
+            .Select(g => new
+            {
+                QueueName = g.Key,
+                Depth = g.Count(),
+                Oldest = g.Min(m => (DateTime?)m.EnqueuedAtUtc),
+            })
+            .ToListAsync(cancellationToken);
+
+        var depthSnapshots = depths
+            .Select(d => new QueueDepthSnapshot(
+                d.QueueName,
+                d.Depth,
+                d.Oldest is null ? null : now - d.Oldest.Value))
+            .ToList();
+
+        var dlqCount = await _dbContext.DeadLetters.CountAsync(cancellationToken);
+
+        var decisionMix = await GetDecisionMixAsync(from, now, cancellationToken);
+        var throughput = await GetThroughputAsync(
+            Application.Queue.QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, from, now, cancellationToken);
+        var dwell = await GetDwellByStageAsync(from, now, cancellationToken);
+
+        var processedToday = throughput.Sum(b => b.Count);
+        var typicalEndToEnd = dwell.Count == 0
+            ? TimeSpan.Zero
+            : TimeSpan.FromMilliseconds(dwell.Sum(d => d.AverageLatencyMs));
+
+        // The overall light is the worst of the per-queue bands (plus the DLQ count), so the
+        // at-a-glance answer never looks healthier than its unhappiest queue.
+        var evaluator = new HealthEvaluator();
+        var overall = depthSnapshots.Count == 0
+            ? evaluator.Evaluate(new HealthInputs(0, null, dlqCount), DefaultThresholds)
+            : depthSnapshots
+                .Select(d => evaluator.Evaluate(
+                    new HealthInputs(d.Depth, d.OldestMessageAge, dlqCount), DefaultThresholds))
+                .OrderByDescending(s => (int)s.Level)
+                .First();
+
+        return new AggregateShareSnapshot(
+            depthSnapshots,
+            decisionMix,
+            throughput,
+            dwell,
+            processedToday,
+            typicalEndToEnd,
+            overall,
+            now);
+    }
+
     private static void GuardRange(DateTime fromUtc, DateTime toUtc)
     {
         if (toUtc <= fromUtc)

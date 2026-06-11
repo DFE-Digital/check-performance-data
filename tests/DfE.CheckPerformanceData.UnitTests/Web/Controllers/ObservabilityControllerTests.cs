@@ -26,11 +26,31 @@ public sealed class ObservabilityControllerTests
         return new ObservabilityController(query, queueAdmin, new HealthEvaluator(), new StatusSentenceBuilder(), settings);
     }
 
+    private static IMetricsQueryService BuildQuery()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetCurrentSnapshotAsync(Arg.Any<CancellationToken>())
+            .Returns(new ObservabilitySnapshot(
+                Array.Empty<QueueDepthSnapshot>(),
+                Array.Empty<JourneyEvent>(),
+                Array.Empty<DecisionMixEntry>(),
+                DateTime.UtcNow));
+        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<ThroughputBucket>());
+        query.GetDecisionMixAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<DecisionMixEntry>());
+        query.GetDwellByStageAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<StageDwell>());
+        query.GetDeployMarkersAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<DeployMarker>());
+        return query;
+    }
+
     // --- Every action carries [Authorize(Roles = cypmd_admin)] ---
 
     [Theory]
     [InlineData(nameof(ObservabilityController.Index))]
-    [InlineData(nameof(ObservabilityController.Throughput))]
     [InlineData(nameof(ObservabilityController.Journey))]
     [InlineData(nameof(ObservabilityController.Stream))]
     [InlineData(nameof(ObservabilityController.Inspect))]
@@ -49,22 +69,7 @@ public sealed class ObservabilityControllerTests
     [Fact]
     public async Task Index_ReturnsDashboardViewModel()
     {
-        var query = Substitute.For<IMetricsQueryService>();
-        query.GetCurrentSnapshotAsync(Arg.Any<CancellationToken>())
-            .Returns(new ObservabilitySnapshot(
-                Array.Empty<QueueDepthSnapshot>(),
-                Array.Empty<JourneyEvent>(),
-                Array.Empty<DecisionMixEntry>(),
-                DateTime.UtcNow));
-        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
-                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<ThroughputBucket>());
-        query.GetDecisionMixAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<DecisionMixEntry>());
-        query.GetDwellByStageAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<StageDwell>());
-        query.GetDeployMarkersAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
-            .Returns(Array.Empty<DeployMarker>());
+        var query = BuildQuery();
 
         var queueAdmin = Substitute.For<IQueueAdminService>();
         queueAdmin.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<QueueDepth>());
@@ -81,33 +86,125 @@ public sealed class ObservabilityControllerTests
         Assert.NotNull(view.Model);
     }
 
-    // --- The throughput action rejects a granularity outside the allow-list ---
+    // --- With no selection the dashboard renders the 24-hour window in hourly buckets ---
 
     [Fact]
-    public async Task Throughput_RejectsUnknownGranularity()
+    public async Task Index_Defaults_ToHourlyBucketsOverTheLast24Hours()
     {
-        var controller = BuildController();
+        var query = BuildQuery();
+        var controller = BuildController(query);
 
-        var result = await controller.Throughput("not-a-granularity", null, null);
+        var result = await controller.Index();
 
-        Assert.IsType<BadRequestObjectResult>(result);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DashboardViewModel>(view.Model);
+        Assert.Equal("24h", model.SelectedRange);
+        Assert.Equal(ThroughputGranularity.Hour, model.SelectedGranularity);
+        await query.Received(1).GetThroughputAsync(
+            QueueOptions.ZendeskQueue,
+            ThroughputGranularity.Hour,
+            Arg.Any<DateTime>(),
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
     }
 
-    // --- A valid granularity reaches the query service ---
+    // --- A recognised range with a paired granularity drives the chart queries ---
 
     [Fact]
-    public async Task Throughput_AcceptsKnownGranularity()
+    public async Task Index_HonoursARecognisedRangeAndPairedGranularity()
     {
-        var query = Substitute.For<IMetricsQueryService>();
-        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
-                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+        var fromTimes = new List<DateTime>();
+        var toTimes = new List<DateTime>();
+        var query = BuildQuery();
+        query.GetThroughputAsync(
+                Arg.Any<string>(),
+                ThroughputGranularity.FiveMinute,
+                Arg.Do<DateTime>(fromTimes.Add),
+                Arg.Do<DateTime>(toTimes.Add),
+                Arg.Any<CancellationToken>())
             .Returns(Array.Empty<ThroughputBucket>());
 
         var controller = BuildController(query);
 
-        var result = await controller.Throughput("Minute", null, null);
+        var result = await controller.Index(range: "1h", granularity: "FiveMinute");
 
-        Assert.IsNotType<BadRequestObjectResult>(result);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DashboardViewModel>(view.Model);
+        Assert.Equal("1h", model.SelectedRange);
+        Assert.Equal(ThroughputGranularity.FiveMinute, model.SelectedGranularity);
+        var window = Assert.Single(toTimes) - Assert.Single(fromTimes);
+        Assert.Equal(TimeSpan.FromHours(1), window);
+    }
+
+    // --- An unknown range falls back to the default window rather than erroring ---
+
+    [Fact]
+    public async Task Index_UnknownRange_FallsBackToTheDefault()
+    {
+        var controller = BuildController(BuildQuery());
+
+        var result = await controller.Index(range: "fortnight");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DashboardViewModel>(view.Model);
+        Assert.Equal("24h", model.SelectedRange);
+        Assert.Equal(ThroughputGranularity.Hour, model.SelectedGranularity);
+    }
+
+    // --- A granularity that makes no sense for the range snaps to the range's default ---
+
+    [Fact]
+    public async Task Index_UnpairedGranularity_SnapsToTheRangeDefault()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query);
+
+        var result = await controller.Index(range: "1h", granularity: "Day");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<DashboardViewModel>(view.Model);
+        Assert.Equal("1h", model.SelectedRange);
+        Assert.Equal(ThroughputGranularity.Minute, model.SelectedGranularity);
+        await query.DidNotReceive().GetThroughputAsync(
+            Arg.Any<string>(),
+            ThroughputGranularity.Day,
+            Arg.Any<DateTime>(),
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    // --- The headline tiles and sentence stay on the last 24 hours whatever the charts show ---
+
+    [Fact]
+    public async Task Index_NonDefaultWindow_KeepsHeadlineFiguresOnTheLast24Hours()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query);
+
+        await controller.Index(range: "1h");
+
+        // The charts use the selected window; the "processed today" headline still needs the
+        // 24-hour figures, so a second hourly 24-hour read happens alongside.
+        await query.Received(1).GetThroughputAsync(
+            QueueOptions.ZendeskQueue,
+            ThroughputGranularity.Minute,
+            Arg.Any<DateTime>(),
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+        await query.Received(1).GetThroughputAsync(
+            QueueOptions.ZendeskQueue,
+            ThroughputGranularity.Hour,
+            Arg.Any<DateTime>(),
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+    }
+
+    // --- The orphaned throughput JSON endpoint is gone: the dashboard form replaced it ---
+
+    [Fact]
+    public void ThroughputJsonEndpoint_IsRemoved()
+    {
+        Assert.Null(typeof(ObservabilityController).GetMethod("Throughput"));
     }
 
     // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---

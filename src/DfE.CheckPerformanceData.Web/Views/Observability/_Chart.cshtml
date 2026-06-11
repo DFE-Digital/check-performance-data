@@ -42,13 +42,15 @@
         return (padLeft + plotW * frac).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    var windowText = Model.RangeLabel.ToLowerInvariant();
+
     var ariaLabel = buckets.Count == 0
-        ? "Throughput per hour: no data for this range."
-        : $"Throughput per hour over the last 24 hours: peak {maxCount}, currently {buckets[^1].Count}.";
+        ? $"Throughput {Model.GranularityLabel}: no data for this range."
+        : $"Throughput {Model.GranularityLabel} over the {windowText}: peak {maxCount}, currently {buckets[^1].Count}.";
 }
 
 <div class="obs-chart-panel">
-    <h3 class="govuk-heading-m">Throughput (last 24 hours)</h3>
+    <h3 class="govuk-heading-m">Throughput (@windowText, @Model.GranularityLabel)</h3>
 
     @if (buckets.Count == 0)
     {
@@ -118,7 +120,7 @@
 </div>
 
 <div class="obs-chart-panel">
-    <h3 class="govuk-heading-m">Decision mix (last 24 hours)</h3>
+    <h3 class="govuk-heading-m">Decision mix (@windowText)</h3>
 
     @if (Model.DecisionMix.Count == 0)
     {

@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Models.Observability
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
 @{
     Layout = "_AdminLayout";
@@ -29,6 +30,33 @@
 @await Html.PartialAsync("_Board", Model)
 
 <h2 class="govuk-heading-l">Charts</h2>
+
+@* Plain GET form, no JS required: the granularity options are the pairings allowed for the
+   currently rendered window, and the server snaps a stale pairing (range changed, granularity
+   not resubmitted sensibly) to the new window's default rather than erroring. *@
+<form method="get" action="/admin/observability" class="obs-range-form">
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="range">Time range</label>
+        <select class="govuk-select" id="range" name="range">
+            @foreach (var option in DashboardRanges.All)
+            {
+                <option value="@option.Value" selected="@(option.Value == Model.SelectedRange)">@option.Label</option>
+            }
+        </select>
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="granularity">Granularity</label>
+        <select class="govuk-select" id="granularity" name="granularity">
+            @foreach (var granularity in Model.GranularityOptions)
+            {
+                <option value="@granularity" selected="@(granularity == Model.SelectedGranularity)">@DashboardRanges.Describe(granularity)</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+        Update charts
+    </button>
+</form>
 
 <div class="obs-chart-group">
     @await Html.PartialAsync("_Chart", Model)

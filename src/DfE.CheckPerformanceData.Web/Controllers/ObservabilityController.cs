@@ -12,8 +12,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // sentence, big-number tiles and accessible SVG charts, plus the per-message journey timeline
 // and the live SSE snapshot stream that refreshes the board. Every action is role-gated
 // cypmd_admin — the stream included, so there is never an unauthenticated firehose. The
-// throughput action validates its granularity against the server-side allow-list before any
-// aggregation runs.
+// dashboard's window/granularity selection resolves against the DashboardRanges allow-list
+// before any aggregation runs.
 public sealed class ObservabilityController : Controller
 {
     private readonly IMetricsQueryService _query;
@@ -53,10 +53,19 @@ public sealed class ObservabilityController : Controller
 
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(
+        string? range = null,
+        string? granularity = null,
+        CancellationToken cancellationToken = default)
     {
+        // Both selections resolve against the server-side allow-list before any query runs;
+        // anything unrecognised snaps to the default window rather than erroring, because the
+        // form is a GET and a stale or hand-edited query string must still render a dashboard.
+        var rangeOption = DashboardRanges.Resolve(range);
+        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
+
         var now = DateTime.UtcNow;
-        var from = now - DefaultWindow;
+        var from = now - rangeOption.Window;
 
         var thresholds = await ResolveThresholdsAsync();
 
@@ -80,15 +89,27 @@ public sealed class ObservabilityController : Controller
             ?? _health.Evaluate(new HealthInputs(0, null, dlqCount), thresholds);
 
         var throughput = await _query.GetThroughputAsync(
-            QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, from, now, cancellationToken);
+            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
         var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
         var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
         var markers = await _query.GetDeployMarkersAsync(from, now, cancellationToken);
 
-        var processedToday = throughput.Sum(b => b.Count);
-        var typicalEndToEnd = dwell.Count == 0
+        // The headline tiles and the status sentence always describe the last 24 hours,
+        // whatever window the charts are showing; the chart series double as the headline
+        // source only when the selected window IS the default. The processed total is
+        // granularity-independent (it is a sum over the window), so only the window matters.
+        var headlineThroughput = rangeOption.Window == DefaultWindow
+            ? throughput
+            : await _query.GetThroughputAsync(
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
+        var headlineDwell = rangeOption.Window == DefaultWindow
+            ? dwell
+            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+
+        var processedToday = headlineThroughput.Sum(b => b.Count);
+        var typicalEndToEnd = headlineDwell.Count == 0
             ? TimeSpan.Zero
-            : TimeSpan.FromMilliseconds(dwell.Sum(d => d.AverageLatencyMs));
+            : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
 
         var sentence = _sentence.Build(overall.Level, processedToday, typicalEndToEnd);
 
@@ -106,42 +127,15 @@ public sealed class ObservabilityController : Controller
             DecisionMix = decisionMix,
             Dwell = dwell,
             DeployMarkers = markers,
+            SelectedRange = rangeOption.Value,
+            SelectedGranularity = bucketSize,
+            RangeLabel = rangeOption.Label,
+            GranularityLabel = DashboardRanges.Describe(bucketSize),
+            GranularityOptions = rangeOption.AllowedGranularities,
             RefreshedAtUtc = now,
         };
 
         return View(model);
-    }
-
-    [Authorize(Roles = WikiConstants.AdminRole)]
-    [HttpGet("admin/observability/throughput")]
-    public async Task<IActionResult> Throughput(
-        string granularity,
-        DateTime? from,
-        DateTime? to,
-        CancellationToken cancellationToken = default)
-    {
-        // The granularity must be one of the allow-list values; anything else is rejected before
-        // any aggregation runs, so a hostile string never reaches the date_trunc mapping.
-        if (!Enum.TryParse<ThroughputGranularity>(granularity, ignoreCase: true, out var parsed) ||
-            !Enum.IsDefined(parsed))
-        {
-            return BadRequest($"Unsupported granularity '{granularity}'.");
-        }
-
-        var toUtc = AsUtc(to ?? DateTime.UtcNow);
-        var fromUtc = from is null ? toUtc - DefaultWindow : AsUtc(from.Value);
-
-        try
-        {
-            var buckets = await _query.GetThroughputAsync(
-                QueueOptions.ZendeskQueue, parsed, fromUtc, toUtc, cancellationToken);
-            return Json(buckets);
-        }
-        catch (ArgumentException ex)
-        {
-            // An over-wide range or an unknown granularity that slipped through is a client error.
-            return BadRequest(ex.Message);
-        }
     }
 
     [Authorize(Roles = WikiConstants.AdminRole)]

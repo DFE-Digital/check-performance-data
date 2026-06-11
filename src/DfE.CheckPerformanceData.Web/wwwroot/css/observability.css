@@ -200,6 +200,19 @@
 
 /* --- Charts --------------------------------------------------------------- */
 
+.obs-range-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.obs-range-form .govuk-form-group,
+.obs-range-form .govuk-button {
+    margin-bottom: 0;
+}
+
 .obs-chart-group {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

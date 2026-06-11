@@ -21,6 +21,16 @@ public sealed class DashboardViewModel
     public IReadOnlyList<StageDwell> Dwell { get; init; } = Array.Empty<StageDwell>();
     public IReadOnlyList<DeployMarker> DeployMarkers { get; init; } = Array.Empty<DeployMarker>();
 
+    // The resolved window/bucket selection the chart series were queried with, plus the
+    // pairings the form may offer for the selected window. The headline tiles and status
+    // sentence above the charts always describe the last 24 hours regardless of these.
+    public string SelectedRange { get; init; } = DashboardRanges.DefaultValue;
+    public ThroughputGranularity SelectedGranularity { get; init; } = ThroughputGranularity.Hour;
+    public string RangeLabel { get; init; } = "Last 24 hours";
+    public string GranularityLabel { get; init; } = "per hour";
+    public IReadOnlyList<ThroughputGranularity> GranularityOptions { get; init; } =
+        Array.Empty<ThroughputGranularity>();
+
     public DateTime RefreshedAtUtc { get; init; }
 }
 

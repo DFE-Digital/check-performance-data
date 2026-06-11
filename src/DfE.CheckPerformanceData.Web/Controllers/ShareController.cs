@@ -28,11 +28,19 @@ public sealed class ShareController : Controller
         _query = query;
     }
 
+    // The URL carries a live bearer token, so the response must never be cached by the browser or
+    // a shared proxy (otherwise a revoked token's page could keep rendering from cache), and the
+    // referrer must not leak the tokened URL to any link target.
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     [HttpGet("share/{token}")]
     public async Task<IActionResult> Index(string token, CancellationToken cancellationToken = default)
     {
         if (!await _tokens.ValidateAsync(token, ShareSurface.Share, cancellationToken))
             return NotFound();
+
+        // Defence-in-depth for the token-in-URL design: never leak the tokened URL as a referrer.
+        if (HttpContext is not null)
+            Response.Headers["Referrer-Policy"] = "no-referrer";
 
         var snapshot = await _query.GetAggregateShareAsync(cancellationToken);
         return View(AggregateShareViewModel.From(snapshot));

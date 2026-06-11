@@ -4,7 +4,8 @@
 }
 
 @* Rendered into the board's click-to-inspect panel. No layout chrome: the board fetches this
-   fragment and drops it into the inspect region. Payloads are redacted by default. *@
+   fragment and drops it into the inspect region. Journey-only: no payload is shown here —
+   payload viewing stays on the queue admin surfaces with their redaction and audit discipline. *@
 <div class="obs-inspect">
     <h3 class="govuk-heading-m">Request @Model.ReferenceNumber</h3>
 
@@ -41,20 +42,5 @@
                 }
             </tbody>
         </table>
-    }
-
-    @if (Model.PayloadAvailable)
-    {
-        @if (Model.IsRedacted)
-        {
-            <p class="govuk-body-s govuk-hint">Pupil identifiers are hidden in this payload.</p>
-        }
-        <pre class="obs-inspect__payload">@Model.Payload</pre>
-    }
-    else
-    {
-        <p class="govuk-body-s govuk-hint">
-            The message has already moved through the pipeline, so its payload is no longer available.
-        </p>
     }
 </div>

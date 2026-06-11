@@ -189,14 +189,6 @@
     outline-offset: 2px;
 }
 
-.obs-inspect__payload {
-    background: #f3f2f1;
-    padding: 16px;
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
 /* Token motion is enhancement only: wrap every transition behind no-preference so a
    prefers-reduced-motion user gets an instant snap (position + colour + shape + text), mirroring
    the existing reduced-motion gate used elsewhere in the site. */

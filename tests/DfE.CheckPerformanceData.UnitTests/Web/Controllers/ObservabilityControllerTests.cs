@@ -110,17 +110,15 @@ public sealed class ObservabilityControllerTests
         Assert.IsNotType<BadRequestObjectResult>(result);
     }
 
-    // --- Inspect redacts a live message's payload by default (no full payload without the setting) ---
+    // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---
 
     [Fact]
-    public async Task Inspect_RedactsLivePayloadByDefault()
+    public async Task Inspect_ReturnsJourneyOnlyPanel_NeverReadsAQueueRowPayload()
     {
-        // A live pending message is reached by its queue-row id; the board token carries that id
-        // while the row is still present. The journey (decision + per-stage status) is keyed by the
-        // same value here so the panel shows both.
-        var messageId = Guid.NewGuid();
-        var reference = messageId.ToString();
-        var rawPayload = """{"Pupil":{"Upn":"X123456789012","Surname":"Smith"}}""";
+        // Even a Guid-shaped reference must not trigger a queue-row payload lookup: the board
+        // keys tokens by reference number, and metrics are only recorded after ack/dead-letter,
+        // when the row is already gone. The panel is the journey only.
+        var reference = Guid.NewGuid().ToString();
 
         var query = Substitute.For<IMetricsQueryService>();
         query.GetJourneyAsync(reference, Arg.Any<CancellationToken>())
@@ -130,21 +128,17 @@ public sealed class ObservabilityControllerTests
             });
 
         var queueAdmin = Substitute.For<IQueueAdminService>();
-        queueAdmin.GetMessageDetailAsync(Arg.Any<string>(), messageId, Arg.Any<CancellationToken>())
-            .Returns(new QueueMessageDetail(messageId, "rules-engine", DateTime.UtcNow, 1, rawPayload));
 
-        // No setting service => full payload is never enabled => the payload must be redacted.
         var controller = BuildController(query, queueAdmin, settings: null);
 
         var result = await controller.Inspect(reference);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<InspectViewModel>(view.Model);
-        Assert.True(model.PayloadAvailable);
-        Assert.True(model.IsRedacted);
-        Assert.DoesNotContain("X123456789012", model.Payload);
         Assert.Equal("AutoApproved", model.Decision);
         Assert.NotEmpty(model.Stages);
+        await queueAdmin.DidNotReceive().GetMessageDetailAsync(
+            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     // --- Inspect for an unknown reference returns the panel with no decision and no payload ---

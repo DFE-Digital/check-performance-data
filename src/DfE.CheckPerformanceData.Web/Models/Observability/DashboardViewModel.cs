@@ -38,16 +38,13 @@ public sealed class JourneyViewModel
 }
 
 // The click-to-inspect panel for one message on the board: its reference, the decision it
-// reached, the per-stage queue status drawn from the recorded events, and a payload that is
-// redacted by default. The full payload is only shown when the audited full-payload setting is
-// on, mirroring the working-message detail discipline; if the message has already left the
-// queues (ack deletes the row) no payload is available and only the journey is shown.
+// reached and the per-stage queue status drawn from the recorded events. Journey-only by
+// design: metrics are recorded after ack/dead-letter, so the queue row (and its payload) is
+// gone by the time a token is on the board. Payload viewing stays on the queue admin surfaces,
+// which carry the redaction and audit discipline.
 public sealed class InspectViewModel
 {
     public required string ReferenceNumber { get; init; }
     public string? Decision { get; init; }
     public required IReadOnlyList<JourneyEvent> Stages { get; init; }
-    public string Payload { get; init; } = string.Empty;
-    public bool IsRedacted { get; init; }
-    public bool PayloadAvailable { get; init; }
 }

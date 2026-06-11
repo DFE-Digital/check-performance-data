@@ -21,22 +21,19 @@ public sealed class ObservabilityController : Controller
     private readonly IHealthEvaluator _health;
     private readonly StatusSentenceBuilder _sentence;
     private readonly ISettingService? _settings;
-    private readonly PayloadRedactor _redactor;
 
     public ObservabilityController(
         IMetricsQueryService query,
         IQueueAdminService queueAdmin,
         IHealthEvaluator health,
         StatusSentenceBuilder sentence,
-        ISettingService? settings = null,
-        PayloadRedactor? redactor = null)
+        ISettingService? settings = null)
     {
         _query = query;
         _queueAdmin = queueAdmin;
         _health = health;
         _sentence = sentence;
         _settings = settings;
-        _redactor = redactor ?? new PayloadRedactor();
     }
 
     // The default dashboard time window and the queues whose health is shown on the strip.
@@ -160,11 +157,11 @@ public sealed class ObservabilityController : Controller
         });
     }
 
-    // The click-to-inspect panel behind a board token. The journey (decision + per-stage queue
-    // status) is the always-available view; the message payload is only reachable while the
-    // message is still pending on a working queue (ack deletes the row), and is redacted by
-    // default — the full payload is shown only when the audited full-payload setting is on,
-    // mirroring the working-message detail discipline so this surface never leaks pupil data.
+    // The click-to-inspect panel behind a board token: the journey only — the decision the
+    // message reached plus its per-stage queue status. No payload is shown here: the board keys
+    // tokens by reference number, and metrics are only recorded after ack/dead-letter, by which
+    // point the queue row (and its payload) is gone. Payload viewing stays on the queue admin
+    // surfaces, which carry the redaction and audit discipline.
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/inspect/{reference}")]
     public async Task<IActionResult> Inspect(string reference, CancellationToken cancellationToken = default)
@@ -177,45 +174,11 @@ public sealed class ObservabilityController : Controller
             .Select(e => e.DecisionStatus)
             .LastOrDefault();
 
-        var payload = string.Empty;
-        var redacted = false;
-        var payloadAvailable = false;
-
-        // A live payload is only reachable while the message is still pending on a working queue.
-        // The board token carries the queue-row id when the row is still present; if it parses we
-        // look the detail up and redaction-gate it, otherwise only the journey is shown.
-        if (Guid.TryParse(reference, out var messageId))
-        {
-            foreach (var queueName in Queues.Keys)
-            {
-                var message = await _queueAdmin.GetMessageDetailAsync(queueName, messageId, cancellationToken);
-                if (message is null)
-                    continue;
-
-                payloadAvailable = true;
-                if (await IsFullPayloadEnabledAsync())
-                {
-                    payload = message.Payload;
-                    redacted = false;
-                }
-                else
-                {
-                    payload = _redactor.Redact(message.Payload);
-                    redacted = true;
-                }
-
-                break;
-            }
-        }
-
         return View(new InspectViewModel
         {
             ReferenceNumber = reference,
             Decision = decision,
             Stages = stages,
-            Payload = payload,
-            IsRedacted = redacted,
-            PayloadAvailable = payloadAvailable,
         });
     }
 
@@ -258,15 +221,6 @@ public sealed class ObservabilityController : Controller
         DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
         _ => value.ToUniversalTime(),
     };
-
-    private async Task<bool> IsFullPayloadEnabledAsync()
-    {
-        if (_settings is null)
-            return false;
-
-        var value = await _settings.GetValueAsync(SettingKeys.DlqFullPayloadEnabled);
-        return bool.TryParse(value, out var enabled) && enabled;
-    }
 
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/stream")]

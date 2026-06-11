@@ -4,7 +4,6 @@ using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.RulesEngineWorker;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddUserSecrets<Program>();
 
 builder.Services.Configure<RulesEngineOptions>(builder.Configuration.GetSection("RulesEngineOptions"));
 

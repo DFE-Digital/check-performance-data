@@ -137,6 +137,56 @@ ORDER BY decision_status;";
         return results;
     }
 
+    public async Task<IReadOnlyList<DecisionMixBucket>> GetDecisionMixOverTimeAsync(
+        ThroughputGranularity granularity,
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var spec = BucketSpec.For(granularity); // throws ArgumentException for an unknown value
+        GuardRange(fromUtc, toUtc);
+
+        var bucketExpr = spec.BucketExpression("recorded_at_utc");
+        var spineStartExpr = spec.BucketExpression("@from");
+
+        // The spine cross-joins the statuses actually present in the window so every status
+        // series shares one unbroken, gap-filled time axis; a window with no decided events
+        // therefore returns no rows at all (empty chart state, not a spine of zeros). The
+        // spine start applies the same bucket expression as the counted side so an unaligned
+        // @from still joins the calendar-aligned counts — the same discipline as throughput.
+        var sql = $@"
+SELECT b.bucket AS bucket, s.decision_status, COALESCE(e.cnt, 0) AS cnt
+FROM generate_series({spineStartExpr}, @to - @step, @step) AS b(bucket)
+CROSS JOIN (
+    SELECT DISTINCT decision_status
+    FROM queue_metrics_events
+    WHERE recorded_at_utc >= @from AND recorded_at_utc < @to AND decision_status IS NOT NULL
+) s
+LEFT JOIN (
+    SELECT {bucketExpr} AS bucket, decision_status, COUNT(*) AS cnt
+    FROM queue_metrics_events
+    WHERE recorded_at_utc >= @from AND recorded_at_utc < @to AND decision_status IS NOT NULL
+    GROUP BY 1, 2
+) e ON e.bucket = b.bucket AND e.decision_status = s.decision_status
+ORDER BY b.bucket, s.decision_status;";
+
+        var results = new List<DecisionMixBucket>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("step", NpgsqlDbType.Interval) { Value = spec.Interval });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var status = reader.GetString(1);
+            var count = Convert.ToInt32(reader.GetInt64(2));
+            results.Add(new DecisionMixBucket(bucket, status, count));
+        });
+
+        return results;
+    }
+
     public async Task<IReadOnlyList<JourneyEvent>> GetJourneyAsync(
         string referenceNumber,
         CancellationToken cancellationToken = default)

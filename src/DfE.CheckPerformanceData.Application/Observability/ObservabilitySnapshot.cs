@@ -10,6 +10,11 @@ public sealed record StageDwell(string Stage, double AverageLatencyMs);
 // Count of recorded events carrying a given decision status in a time window.
 public sealed record DecisionMixEntry(string DecisionStatus, int Count);
 
+// One cell of the decision-mix-over-time series: how many events carried a given decision
+// status within one time bucket. Buckets with no events for a status present in the window
+// are gap-filled to zero so a chart never shows a broken time axis.
+public sealed record DecisionMixBucket(DateTime BucketStartUtc, string DecisionStatus, int Count);
+
 // One stage event in a single message's journey through the pipeline.
 public sealed record JourneyEvent(
     string Stage,

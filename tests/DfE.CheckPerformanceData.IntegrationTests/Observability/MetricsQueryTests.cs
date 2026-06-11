@@ -180,6 +180,98 @@ public sealed class MetricsQueryTests
         Assert.Equal(1, mix.Single(m => m.DecisionStatus == "RequiresScrutiny").Count);
     }
 
+    // --- Decision-mix-over-time buckets counts per status and gap-fills empty cells to zero ---
+
+    [Fact]
+    public async Task GetDecisionMixOverTime_BucketsCountsPerStatus_AndGapFills()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 1, 10, 10, 0, 0, DateTimeKind.Utc);
+
+        // Minute 0: two approvals and a rejection. Minute 1: nothing. Minute 2: one approval
+        // and one scrutiny. An undecided event sits in minute 0 and must not be counted.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-1", anchor.AddSeconds(1), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-2", anchor.AddSeconds(2), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-3", anchor.AddSeconds(3), decision: "AutoRejected"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-4", anchor.AddSeconds(4)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-5", anchor.AddMinutes(2).AddSeconds(5), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "M-6", anchor.AddMinutes(2).AddSeconds(6), decision: "RequiresScrutiny"));
+
+        var service = CreateService();
+        var buckets = await service.GetDecisionMixOverTimeAsync(
+            ThroughputGranularity.Minute, anchor, anchor.AddMinutes(3));
+
+        // Three statuses present in the window x three one-minute buckets = nine cells.
+        Assert.Equal(9, buckets.Count);
+
+        int Count(DateTime bucket, string status) => buckets
+            .Single(b => b.BucketStartUtc == bucket && b.DecisionStatus == status).Count;
+
+        Assert.Equal(2, Count(anchor, "AutoApproved"));
+        Assert.Equal(1, Count(anchor, "AutoRejected"));
+        Assert.Equal(0, Count(anchor, "RequiresScrutiny"));
+        Assert.Equal(0, Count(anchor.AddMinutes(1), "AutoApproved")); // gap-filled
+        Assert.Equal(1, Count(anchor.AddMinutes(2), "AutoApproved"));
+        Assert.Equal(1, Count(anchor.AddMinutes(2), "RequiresScrutiny"));
+    }
+
+    // --- An unaligned (mid-bucket) from still joins the calendar-aligned decision counts ---
+
+    [Fact]
+    public async Task GetDecisionMixOverTime_UnalignedFrom_StillCountsPopulatedBuckets()
+    {
+        await ResetMetricsAsync();
+        var hour = new DateTime(2026, 1, 11, 13, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "MU-1", hour.AddMinutes(10), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "MU-2", hour.AddMinutes(40), decision: "AutoRejected"));
+
+        var service = CreateService();
+
+        // Production passes a sub-bucket-precision 'from' (now - window). Emulate with a 'from'
+        // 17 seconds past the hour: the counted side buckets to the calendar hour, so an
+        // unaligned spine would never join and every cell would gap-fill to zero.
+        var from = hour.AddSeconds(17);
+        var buckets = await service.GetDecisionMixOverTimeAsync(
+            ThroughputGranularity.Hour, from, from.AddHours(1));
+
+        Assert.Equal(2, buckets.Sum(b => b.Count));
+    }
+
+    // --- A window with no decided events returns an empty series, not a spine of zeros ---
+
+    [Fact]
+    public async Task GetDecisionMixOverTime_NoDecisions_ReturnsEmpty()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 1, 12, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "MN-1", anchor.AddSeconds(1)));
+
+        var service = CreateService();
+        var buckets = await service.GetDecisionMixOverTimeAsync(
+            ThroughputGranularity.Minute, anchor, anchor.AddMinutes(2));
+
+        Assert.Empty(buckets);
+    }
+
+    // --- The decision series carries the same abusive-aggregation range guard ---
+
+    [Fact]
+    public async Task GetDecisionMixOverTime_RejectsOverWideRange()
+    {
+        await ResetMetricsAsync();
+        var from = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var service = CreateService();
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            service.GetDecisionMixOverTimeAsync(ThroughputGranularity.Second, from, to));
+    }
+
     // --- Dwell-by-stage returns the average latency for each stage ---
 
     [Fact]

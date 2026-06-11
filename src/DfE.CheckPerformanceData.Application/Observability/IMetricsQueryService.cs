@@ -29,6 +29,16 @@ public interface IMetricsQueryService
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    // Per-bucket counts per decision status across [from, to), gap-filled to zero for every
+    // status present in the window, so the over-time chart's series share one unbroken time
+    // axis. An empty result means no decided events in the window. Throws ArgumentException
+    // for an unknown granularity or an over-wide range, as for throughput.
+    Task<IReadOnlyList<DecisionMixBucket>> GetDecisionMixOverTimeAsync(
+        ThroughputGranularity granularity,
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     // The ordered stage events for one reference number (the journey timeline source).
     Task<IReadOnlyList<JourneyEvent>> GetJourneyAsync(
         string referenceNumber,

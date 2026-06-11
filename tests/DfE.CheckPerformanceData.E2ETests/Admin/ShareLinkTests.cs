@@ -106,6 +106,14 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
             Assert.DoesNotContain("Purge", body);
             Assert.DoesNotContain("Upn", body);
             Assert.DoesNotContain("Surname", body);
+
+            // The anonymised page must not render any admin chrome: no admin nav rail (which would
+            // leak the admin URL topology), no Google Tag Manager (which would exfiltrate the
+            // token-in-URL to a third party), and no dev sign-in/impersonation affordances.
+            Assert.DoesNotContain("admin-rail", body);
+            Assert.DoesNotContain("googletagmanager", body);
+            Assert.DoesNotContain("/dev/impersonate", body);
+            Assert.DoesNotContain("Administration", body);
         }
         finally
         {

@@ -26,7 +26,7 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
         }
         
         var now = timeProvider.GetLocalNow();
-        var windows = await landingPageRepository.GetOpenWindowsAsync(now.DateTime, organisation.Urn, cancellationToken);
+        var windows = await landingPageRepository.GetOpenWindowsAsync(now.DateTime, organisation.Laestab, cancellationToken);
 
         var result = new LandingPageResult
         {

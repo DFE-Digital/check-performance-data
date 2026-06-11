@@ -1,27 +1,48 @@
-using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Persistence.Entities;
-using Microsoft.EntityFrameworkCore;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Persistence.Seeding;
 
-namespace DfE.CheckPerformanceData.Persistence.Seeding;
+namespace DfE.CheckPerformanceData.Web.Seeding;
 
-public static class SeedPupils
+// Dev-only: writes per-school pupil JSON into blob storage (container {windowId},
+// blob data/{laestab}_pupils.json) so local development has pupil data now that it no
+// longer lives in the database. Mirrors the data the former DB SeedPupils produced.
+public static class SeedPupilData
 {
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, string urn, string laestab, bool addIncluded, bool addNonIncluded, Guid[] checkingWindowIds)
-    {
-        foreach (var checkingWindowId in checkingWindowIds)
-        {
-            if (addIncluded)
-                await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0,
-                    surnameOffset: 0, checkingWindowId, laestab, urn));
-            
-            if (addNonIncluded)
-                await dbContext.Pupils.AddRangeAsync(GeneratePupils(count: 15, includedPincl: false,
-                    firstnameOffset: 10, surnameOffset: 5, checkingWindowId, laestab, urn));
-        }
+    private sealed record School(string Urn, string Laestab, bool AddIncluded, bool AddNonIncluded);
 
-        await dbContext.SaveChangesAsync();
+    private static readonly School[] Schools =
+    [
+        new("136774", "933/4290", AddIncluded: true,  AddNonIncluded: true),   // Minehead Middle School
+        // Westfield Academy ("137203", "933/4201") deliberately has no pupil data.
+        new("101243", "301/4023", AddIncluded: false, AddNonIncluded: true),   // Eastbrook School
+        new("116234", "850/2729", AddIncluded: true,  AddNonIncluded: false),  // Alderwood School
+        new("142313", "860/4070", AddIncluded: true,  AddNonIncluded: true),   // Kingsmead School
+    ];
+
+    private static readonly Guid[] WindowIds =
+    [
+        DevDataSeeder.KeyStage4JuneCheckingWindowId,
+        DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId
+    ];
+
+    public static async Task ExecuteSeedAsync(IPupilDataBlobClient client)
+    {
+        foreach (var windowId in WindowIds)
+        foreach (var school in Schools)
+        {
+            var pupils = new List<PupilRecord>();
+
+            if (school.AddIncluded)
+                pupils.AddRange(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, windowId, school));
+
+            if (school.AddNonIncluded)
+                pupils.AddRange(GeneratePupils(count: 15, includedPincl: false, firstnameOffset: 10, surnameOffset: 5, windowId, school));
+
+            if (pupils.Count > 0)
+                await client.UploadPupilsAsync(windowId, school.Laestab, pupils);
+        }
     }
-    
+
     private static readonly string[] Firstnames =
     [
         "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona", "George", "Hannah", "Ian", "Julia",
@@ -34,11 +55,8 @@ public static class SeedPupils
         "Johnson", "Lewis", "Walker", "Robinson", "Wood", "Thompson", "White", "Watson", "Jackson", "Harris"
     ];
 
-    private static readonly string[] FirstLanguages =
-    [
-        "ENG", "ENB", "OTH", "OTB", "REF", "NOT"
-    ];
-    
+    private static readonly string[] FirstLanguages = ["ENG", "ENB", "OTH", "OTB", "REF", "NOT"];
+
     private static readonly string[] Sexes = ["M", "F"];
 
     private static readonly string[] YearGroups = ["10", "11"];
@@ -56,8 +74,8 @@ public static class SeedPupils
     private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
-    private static IEnumerable<Pupil> GeneratePupils(int count, bool includedPincl, int firstnameOffset, int surnameOffset, 
-        Guid checkingWindowId, string laestab, string urn) =>
+    private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int firstnameOffset,
+        int surnameOffset, Guid checkingWindowId, School school) =>
         Enumerable.Range(0, count).Select(i =>
         {
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
@@ -66,11 +84,11 @@ public static class SeedPupils
             if (dob.AddYears(age) > today) age--;
             var pinclCodes = includedPincl ? IncludedPinclCodes : NonIncludedPinclCodes;
 
-            return new Pupil
+            return new PupilRecord
             {
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
-                Laestab = laestab,
+                Laestab = school.Laestab,
                 Firstname = Firstnames[(i + firstnameOffset) % Firstnames.Length],
                 Surname = Surnames[(i + surnameOffset) % Surnames.Length],
                 Sex = Sexes[i % 2],
@@ -83,7 +101,7 @@ public static class SeedPupils
                 Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
                 EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc),
-                Urn = urn,
+                Urn = school.Urn,
                 Cypmd_Id = $"{(i + firstnameOffset + 1):D6}",
                 MatchRef = 10000 + i + firstnameOffset,
                 Upn = $"A8604070{(i + firstnameOffset + 1):D4}B"

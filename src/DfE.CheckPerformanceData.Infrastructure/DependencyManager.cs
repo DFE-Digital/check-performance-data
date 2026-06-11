@@ -3,8 +3,10 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -35,6 +37,11 @@ public static class DependencyManager
         {
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
+
+        // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
+        // the Web host) because the Persistence repositories that consume it are pulled in
+        // by every host that calls AddPersistenceDependencies — including the worker.
+        services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
         return services;
     }

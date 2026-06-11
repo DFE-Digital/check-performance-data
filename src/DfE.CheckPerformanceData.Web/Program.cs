@@ -151,6 +151,11 @@ try
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
+    // TEMPORARY: toggles request submission between the rules-engine queue and blob storage.
+    builder.Services.AddSingleton(
+        builder.Configuration.GetSection(RequestSubmissionOptions.SectionName).Get<RequestSubmissionOptions>()
+        ?? new RequestSubmissionOptions());
+
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions
         {

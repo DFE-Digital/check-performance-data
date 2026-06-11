@@ -1,6 +1,7 @@
 using System.Net;
 using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
+using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
@@ -107,6 +108,76 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
         finally
         {
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
+        }
+    }
+}
+
+// The board's behavioural contract asserted in a real browser: once the live engine has bound to
+// the rendered skeleton, the recent-transitions live region is present and animated tokens are
+// keyboard-focusable. Assertions are DOM/JS-level, not pixel.
+[Collection("E2E")]
+[Trait("Category", "W0")]
+public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
+{
+    [Fact]
+    public async Task Dashboard_BoardBinds_LiveRegionPresent_AndTokensAreFocusable()
+    {
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            if (!string.IsNullOrEmpty(adminCookie))
+            {
+                var equalsIndex = adminCookie.IndexOf('=');
+                if (equalsIndex > 0)
+                {
+                    await Context.AddCookiesAsync([new Microsoft.Playwright.Cookie
+                    {
+                        Name = adminCookie[..equalsIndex],
+                        Value = adminCookie[(equalsIndex + 1)..],
+                        Url = Fixture.BaseUrl
+                    }]);
+                }
+            }
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/observability");
+            await Page.WaitForLoadStateAsync(LoadState.Load);
+
+            // The board root and the recent-transitions live region are bound in the DOM.
+            Assert.Equal(1, await Page.Locator("[data-obs-board]").CountAsync());
+            var liveRegion = Page.Locator("[data-obs-transitions]");
+            Assert.Equal(1, await liveRegion.CountAsync());
+            Assert.Equal("polite", await liveRegion.GetAttributeAsync("aria-live"));
+
+            // Drive a snapshot through the engine directly (the live SSE feed depends on traffic
+            // that may not exist in the test environment); the engine must render a focusable,
+            // labelled token and update the live region — the board's behavioural contract.
+            await Page.EvaluateAsync(@"() => {
+                const root = document.querySelector('[data-obs-board]');
+                const engine = window.ObservabilityBoard.start(root, { subscribe: () => {} });
+                engine.onSnapshot({
+                    depths: [{ queueName: 'rules-engine', depth: 2 }],
+                    recentTransitions: [
+                        { referenceNumber: 'REF-1042', stage: 'RulesEvaluated', decisionStatus: 'AutoApproved' }
+                    ]
+                });
+            }");
+
+            // The live region now lists the transition.
+            await Assertions.Expect(liveRegion).ToContainTextAsync("REF-1042");
+
+            // A token was rendered, is keyboard-focusable (tabindex), and carries an accessible name.
+            var token = Page.Locator(".obs-board__token").First;
+            Assert.Equal("0", await token.GetAttributeAsync("tabindex"));
+            var name = await token.GetAttributeAsync("aria-label");
+            Assert.Contains("REF-1042", name);
+
+            await token.FocusAsync();
+            var isFocused = await token.EvaluateAsync<bool>("el => el === document.activeElement");
+            Assert.True(isFocused, "Board token should be keyboard-focusable.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
         }
     }
 }

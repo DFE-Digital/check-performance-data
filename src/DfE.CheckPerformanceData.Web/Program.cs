@@ -1,3 +1,4 @@
+using AngleSharp;
 using Azure.Storage.Blobs;
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
@@ -13,6 +14,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
@@ -147,11 +149,21 @@ try
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
-        new QueueClientOptions(QueueClientOptions.ServiceVersion.V2025_11_05)
+        new QueueClientOptions
         {
             MessageEncoding = QueueMessageEncoding.Base64
         }));
-    
+
+    builder.Services.AddSingleton<QueueClient>(sp =>
+    {
+        var queueName = builder.Configuration["RulesEngineQueue"]
+            ?? throw new InvalidOperationException(
+                "RulesEngineQueue is not configured; set it to the RulesEngineWorker's queue name (e.g. \"change-requests\").");
+        return sp.GetRequiredService<QueueServiceClient>().GetQueueClient(queueName);
+    });
+    builder.Services.AddScoped<IRequestQueueClient, RequestQueueClient>();
+
+
     builder.Services.AddAntiforgery(options =>
     {
         options.HeaderName = "X-XSRF-TOKEN";

@@ -279,6 +279,90 @@ public class QuestionFlowServiceTests
         Assert.Equal(string.Empty, _sut.ResolveRequestType(_config, journey));
     }
 
+    // ── ResolveRequestTypeValue ─────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenUseAsRequestTypeQuestion_ReturnsItsRawValue()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        UseAsRequestType = true,
+                        Options = [new QuestionOption { Value = "social-care-involvement", Label = "Social care involvement" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "social-care-involvement" } });
+
+        Assert.Equal("social-care-involvement", _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenNoUseAsRequestTypeQuestion_ReturnsEmpty_NoFallback()
+    {
+        // Unlike ResolveRequestType (display), the contract value must not fall back to
+        // the first answered question — flows without a flagged question are bare-prefix.
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        Options = [new QuestionOption { Value = "other", Label = "Other reason" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "other" } });
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenFlaggedQuestionUnanswered_ReturnsEmpty()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "p1",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "p1",
+                    Questions = [
+                        new Question { Id = "q-flag", Type = QuestionType.Radio, Title = "Flagged",
+                            UseAsRequestType = true,
+                            Options = [new QuestionOption { Value = "x", Label = "X" }] },
+                        new Question { Id = "q-other", Type = QuestionType.Radio, Title = "Other",
+                            Options = [new QuestionOption { Value = "y", Label = "Y" }] }
+                    ]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["p1"],
+            answers: new() { ["q-other"] = new() { TextValue = "y" } });
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenNoAnswers_ReturnsEmptyString()
+    {
+        var journey = MakeJourney(history: ["reason"]);
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(_config, journey));
+    }
+
     // ── GetConfigAsync ──────────────────────────────────────────────────────
 
     [Fact]

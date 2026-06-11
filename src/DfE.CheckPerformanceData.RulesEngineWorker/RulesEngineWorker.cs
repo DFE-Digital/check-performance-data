@@ -13,7 +13,7 @@ public sealed class RulesEngineWorker : BackgroundService
     private readonly ILogger<RulesEngineWorker> _logger;
     private readonly QueueClient _queueClient;
     private readonly RulesEngineOptions _options;
-    private readonly IRequestDecisionHandler _handler;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IRulesProvider _rulesProvider;
     private readonly IRulesEngine _rulesEngine;
     private readonly IRuleContextMapper _contextMapper;
@@ -22,7 +22,7 @@ public sealed class RulesEngineWorker : BackgroundService
         ILogger<RulesEngineWorker> logger,
         QueueServiceClient queueServiceClient,
         IOptions<RulesEngineOptions> options,
-        IRequestDecisionHandler handler,
+        IServiceScopeFactory scopeFactory,
         IRulesProvider rulesProvider,
         IRulesEngine rulesEngine,
         IRuleContextMapper contextMapper)
@@ -33,7 +33,7 @@ public sealed class RulesEngineWorker : BackgroundService
         _options = options.Value;
         _logger = logger;
         _queueClient = queueServiceClient.GetQueueClient(_options.QueueName);
-        _handler = handler;
+        _scopeFactory = scopeFactory;
         _rulesProvider = rulesProvider;
         _rulesEngine = rulesEngine;
         _contextMapper = contextMapper;
@@ -151,7 +151,24 @@ public sealed class RulesEngineWorker : BackgroundService
             "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
             decision.Status, decision.OutcomeKey, decision.MatchedRuleId, snapshot.Version, parsed.ReferenceNumber);
 
-        await _handler.HandleAsync(parsed, decision, stoppingToken);
+        // The handler (and its Zendesk dependencies) and the outcome repository
+        // are scoped, and a hosted service is a singleton — resolve per message
+        // rather than capturing.
+        await using var scope = _scopeFactory.CreateAsyncScope();
+
+        // Record the outcome before ticketing so the decision is on the row even
+        // if Zendesk is down; the idempotent update makes retries harmless.
+        var outcomeRepository = scope.ServiceProvider.GetRequiredService<IDecisionOutcomeRepository>();
+        var rowUpdated = await outcomeRepository.RecordOutcomeAsync(parsed.ChangeRequestId, decision, stoppingToken);
+        if (!rowUpdated)
+        {
+            _logger.LogWarning(
+                "No ChangeRequests row matched Id={ChangeRequestId} for Reference={Reference}; outcome not recorded.",
+                parsed.ChangeRequestId, parsed.ReferenceNumber);
+        }
+
+        var handler = scope.ServiceProvider.GetRequiredService<IRequestDecisionHandler>();
+        await handler.HandleAsync(parsed, decision, stoppingToken);
     }
 }
 

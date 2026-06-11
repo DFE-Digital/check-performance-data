@@ -239,10 +239,11 @@ public sealed class RequestDecisionHandlerTests
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) => new()
     {
+        ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
         CheckingWindowType = "KS4",
-        WhatToChange = whatToChange,
+        RequestTypeCode = whatToChange,
         SubmittedAt = DateTime.UtcNow,
         SubmittedBy = new UserDetails { UserId = "u", DisplayName = "x" },
         School = new SchoolDetails { Urn = "1", Name = "Test School" },

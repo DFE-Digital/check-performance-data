@@ -328,6 +328,34 @@ public class JourneyControllerTests
         Assert.Null(remaining.MatchedPupilLabel);
     }
 
+    // ── PagePost — Autocomplete code capture ─────────────────────────────────
+
+    [Fact]
+    public async Task PagePost_AutocompleteQuestion_CapturesCodeValueAlongsideDisplayName()
+    {
+        var page = new JourneyPage
+        {
+            Id = "country-page",
+            Questions = [new Question { Id = "country-originally-from", Type = QuestionType.Autocomplete, Title = "Country" }]
+        };
+        _flowService.GetPage(Config, "country-page").Returns(page);
+        _flowService.GetNextPageId(Config, "country-page", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        SetupSession(ValidSession(history: ["country-page"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_country_originally_from"] = "France",
+            ["q_country_originally_from_code"] = "FR"
+        });
+
+        await _sut.PagePost(WindowId, "country-page", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["country-originally-from"];
+        Assert.Equal("France", saved.TextValue);
+        Assert.Equal("FR", saved.CodeValue);
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]

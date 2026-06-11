@@ -70,6 +70,21 @@ public sealed class DevPipelineController(IHostEnvironment env, IPortalDbContext
         });
     }
 
+    [HttpGet("dev/zendesk/outbox")]
+    public async Task<IActionResult> Outbox(CancellationToken cancellationToken)
+    {
+        if (!IsAllowed)
+            return NotFound();
+
+        var rows = await dbContext.DevZendeskTickets
+            .AsNoTracking()
+            .OrderByDescending(t => t.CreatedAtUtc)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        return View("Outbox", rows);
+    }
+
     private async Task EnsureCheckingWindowAsync(CancellationToken cancellationToken)
     {
         if (await dbContext.CheckingWindows.AnyAsync(w => w.Id == DevWindowId, cancellationToken))

@@ -1,0 +1,61 @@
+@model List<DfE.CheckPerformanceData.Persistence.Entities.DevZendeskTicket>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dev Zendesk outbox";
+}
+
+<h1 class="govuk-heading-xl">Dev Zendesk outbox</h1>
+<p class="govuk-body-l">
+    Tickets the rules-engine pipeline would have sent to Zendesk, captured locally by the
+    development fake. Nothing here reaches a real Zendesk instance.
+</p>
+
+<p class="govuk-body">
+    Trigger a request with
+    <a class="govuk-link" href="/dev/queues/submit-request">/dev/queues/submit-request</a>
+    (add <code>?outcome=approved</code>, <code>?outcome=rejected</code> or
+    <code>?outcome=scrutiny</code>), then reload this page to see the captured ticket.
+</p>
+
+@if (Model.Count == 0)
+{
+    <p class="govuk-body">No tickets have been captured yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m">Captured tickets (most recent first)</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Reference</th>
+                <th scope="col" class="govuk-table__header">Subject</th>
+                <th scope="col" class="govuk-table__header">Priority</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Created (UTC)</th>
+                <th scope="col" class="govuk-table__header">Payload</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var ticket in Model)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@ticket.ReferenceNumber</td>
+                    <td class="govuk-table__cell">@ticket.Subject</td>
+                    <td class="govuk-table__cell">@ticket.Priority</td>
+                    <td class="govuk-table__cell">@ticket.Status</td>
+                    <td class="govuk-table__cell">@ticket.CreatedAtUtc.ToString("u")</td>
+                    <td class="govuk-table__cell">
+                        <details class="govuk-details govuk-!-margin-bottom-0">
+                            <summary class="govuk-details__summary">
+                                <span class="govuk-details__summary-text">View payload</span>
+                            </summary>
+                            <div class="govuk-details__text">
+                                <pre class="govuk-body" style="white-space: pre-wrap; word-break: break-word;">@ticket.RawJson</pre>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

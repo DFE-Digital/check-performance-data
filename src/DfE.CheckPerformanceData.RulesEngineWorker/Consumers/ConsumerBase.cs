@@ -1,8 +1,16 @@
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
+
+/// <summary>
+/// The per-message facts a consumer contributes to a metric row: which stage it represents
+/// and the request reference it concerns. The queue, message id, dwell latency and timing
+/// (post-ack vs dead-letter) are owned by the base loop.
+/// </summary>
+public readonly record struct MetricDescription(string Stage, string ReferenceNumber);
 
 /// <summary>
 /// Shared dequeue loop for the queue consumers: claim a message, process it,
@@ -21,6 +29,63 @@ public abstract class ConsumerBase : BackgroundService
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly QueueOptions _options;
     private readonly ILogger _logger;
+    private IMetricsSink? _metricsSink;
+
+    /// <summary>
+    /// Supplies the metrics sink used by the directly-injected (unit-test) path. The hosting
+    /// path resolves the sink per message from the scope instead.
+    /// </summary>
+    protected void UseMetricsSink(IMetricsSink? metricsSink) => _metricsSink = metricsSink;
+
+    /// <summary>
+    /// The per-message stage and reference this consumer contributes to a metric row.
+    /// Returning <c>null</c> suppresses the metric for that message. Implementations must not
+    /// throw — a parse failure should return <c>null</c>, not propagate.
+    /// </summary>
+    protected abstract MetricDescription? DescribeMetric(string payload, bool deadLettered);
+
+    /// <summary>
+    /// Records a metric for a processed message. Observability is not correctness: any sink
+    /// failure is logged and swallowed so it can never roll back or abort message processing.
+    /// The caller invokes this only after a successful ack or a dead-letter, outside any
+    /// dequeue transaction.
+    /// </summary>
+    public async Task RecordMetricSafelyAsync(QueueMessage message, bool deadLettered, CancellationToken cancellationToken)
+    {
+        if (_metricsSink is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var description = DescribeMetric(message.Payload, deadLettered);
+            if (description is null)
+            {
+                return;
+            }
+
+            var stage = deadLettered ? MetricStages.DeadLettered : description.Value.Stage;
+            var latencyMs = Math.Max(0, (DateTime.UtcNow - message.EnqueuedAt).TotalMilliseconds);
+
+            await _metricsSink.RecordAsync(new QueueMetricEvent(
+                QueueName: message.QueueName,
+                Stage: stage,
+                ReferenceNumber: description.Value.ReferenceNumber,
+                MessageId: message.Id,
+                DecisionStatus: null,
+                RulesVersion: null,
+                LatencyMs: latencyMs,
+                RecordedAtUtc: DateTime.UtcNow),
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Metrics sink failed recording {Queue}/{MessageId}; continuing.",
+                message.QueueName, message.Id);
+        }
+    }
 
     protected ConsumerBase(IQueueService queueService, IOptions<QueueOptions> options, ILogger logger)
     {
@@ -93,10 +158,21 @@ public abstract class ConsumerBase : BackgroundService
             return;
         }
 
+        // In the hosting path the sink is scoped, so rebind it per message; the unit-test
+        // path keeps the directly-injected instance (or none).
+        if (services is not null)
+        {
+            _metricsSink = services.GetService<IMetricsSink>();
+        }
+
         try
         {
             await ProcessMessageBodyAsync(message.Payload, services, stoppingToken);
             await queueService.AckAsync(message.Id, stoppingToken);
+
+            // Recorded after ack, outside any dequeue transaction: a sink failure must never
+            // roll back the message that was just processed.
+            await RecordMetricSafelyAsync(message, deadLettered: false, stoppingToken);
         }
         catch (Exception ex)
         {
@@ -107,6 +183,7 @@ public abstract class ConsumerBase : BackgroundService
             if (message.Attempts >= _options.MaxAttempts)
             {
                 await queueService.DeadLetterAsync(message.Id, ex.Message, stoppingToken);
+                await RecordMetricSafelyAsync(message, deadLettered: true, stoppingToken);
             }
         }
     }

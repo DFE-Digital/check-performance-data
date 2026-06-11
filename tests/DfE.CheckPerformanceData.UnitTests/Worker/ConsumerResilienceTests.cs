@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -109,6 +110,8 @@ public sealed class ConsumerResilienceTests
         }
 
         protected override string QueueName => "test-queue";
+
+        protected override MetricDescription? DescribeMetric(string payload, bool deadLettered) => null;
 
         public override Task ProcessMessageBodyAsync(string messageBody, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("boom");

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -98,6 +99,14 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     protected override string QueueName => QueueOptions.ZendeskQueue;
+
+    protected override MetricDescription? DescribeMetric(string payload, bool deadLettered)
+    {
+        var parsed = RequestDocumentParser.Parse(payload);
+        return parsed is null
+            ? null
+            : new MetricDescription(MetricStages.TicketCreated, parsed.ReferenceNumber);
+    }
 
     protected override Task ProcessMessageBodyAsync(
         string messageBody, IServiceProvider? services, CancellationToken cancellationToken)

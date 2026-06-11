@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -35,6 +36,19 @@ public sealed class RulesConsumer : ConsumerBase
         IRulesEngine rulesEngine,
         IRuleContextMapper contextMapper,
         IPortalDbContext dbContext)
+        : this(queueService, rulesProvider, rulesEngine, contextMapper, dbContext, metricsSink: null)
+    {
+    }
+
+    // Test constructor variant that also wires the metrics sink so the post-ack record can
+    // be exercised directly. Internal so DI never sees it.
+    internal RulesConsumer(
+        IQueueService queueService,
+        IRulesProvider rulesProvider,
+        IRulesEngine rulesEngine,
+        IRuleContextMapper contextMapper,
+        IPortalDbContext dbContext,
+        IMetricsSink? metricsSink)
         : base(queueService, Options.Create(new QueueOptions()), NullLogger<RulesConsumer>.Instance)
     {
         _queueService = queueService;
@@ -43,6 +57,7 @@ public sealed class RulesConsumer : ConsumerBase
         _rulesEngine = rulesEngine;
         _contextMapper = contextMapper;
         _logger = NullLogger<RulesConsumer>.Instance;
+        UseMetricsSink(metricsSink);
     }
 
     // Hosting constructor: scoped collaborators (queue + DbContext) are resolved
@@ -63,6 +78,14 @@ public sealed class RulesConsumer : ConsumerBase
     }
 
     protected override string QueueName => QueueOptions.RulesEngineQueue;
+
+    protected override MetricDescription? DescribeMetric(string payload, bool deadLettered)
+    {
+        var parsed = RequestDocumentParser.Parse(payload);
+        return parsed is null
+            ? null
+            : new MetricDescription(MetricStages.RulesEvaluated, parsed.ReferenceNumber);
+    }
 
     protected override Task ProcessMessageBodyAsync(
         string messageBody, IServiceProvider? services, CancellationToken cancellationToken)

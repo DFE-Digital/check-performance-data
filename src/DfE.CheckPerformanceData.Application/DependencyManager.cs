@@ -34,6 +34,9 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
 
+        services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
+        services.AddSingleton<Observability.StatusSentenceBuilder>();
+
         services.AddSingleton<IRulesEngine, RulesEngine.RulesEngine>();
         services.AddSingleton<IRuleContextMapper, RuleContextMapper>();
         services.AddSingleton<RuleSetValidator>();

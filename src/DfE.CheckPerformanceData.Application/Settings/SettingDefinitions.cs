@@ -14,6 +14,12 @@ public static class SettingKeys
     public const string MetricsRetentionDays = "Metrics:RetentionDays";
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
 
+    public const string HealthDepthAmber = "Health:DepthAmber";
+    public const string HealthDepthRed = "Health:DepthRed";
+    public const string HealthOldestAgeAmberSeconds = "Health:OldestAgeAmberSeconds";
+    public const string HealthOldestAgeRedSeconds = "Health:OldestAgeRedSeconds";
+    public const string HealthDlqRateRed = "Health:DlqRateRed";
+
     public const string DevToolsEnabled = "Dev:ToolsEnabled";
     public const string ZendeskUseFake = "Zendesk:UseFake";
 }
@@ -69,6 +75,26 @@ public static class SettingDefinitions
         new(SettingKeys.MetricsRetentionIntervalMinutes,
             "How often, in minutes, the metrics retention job runs to purge expired event rows.",
             "60",
+            SettingKind.Int),
+        new(SettingKeys.HealthDepthAmber,
+            "Queue depth at which the health strip turns amber (backing up).",
+            "25",
+            SettingKind.Int),
+        new(SettingKeys.HealthDepthRed,
+            "Queue depth at which the health strip turns red (needs attention).",
+            "100",
+            SettingKind.Int),
+        new(SettingKeys.HealthOldestAgeAmberSeconds,
+            "Age in seconds of the oldest waiting message at which the health strip turns amber.",
+            "120",
+            SettingKind.Int),
+        new(SettingKeys.HealthOldestAgeRedSeconds,
+            "Age in seconds of the oldest waiting message at which the health strip turns red (a stall).",
+            "600",
+            SettingKind.Int),
+        new(SettingKeys.HealthDlqRateRed,
+            "Dead-letter queue count at which the health strip turns red (the dead-letter queue is rising).",
+            "5",
             SettingKind.Int)
     ];
 

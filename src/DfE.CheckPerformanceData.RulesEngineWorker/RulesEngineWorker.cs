@@ -27,10 +27,7 @@ public sealed class RulesEngineWorker : BackgroundService
         IRulesEngine rulesEngine,
         IRuleContextMapper contextMapper)
     {
-        if (options?.Value == null)
-            throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngineOptions' section in appsettings.json or via environment variables.");
-
-        _options = options.Value;
+        _options = options.Value ?? throw new ArgumentException("RulesEngineOptions are required. Configure the 'RulesEngineOptions' section in appsettings.json or via environment variables.");
         _logger = logger;
         _queueClient = queueServiceClient.GetQueueClient(_options.QueueName);
         _handler = handler;

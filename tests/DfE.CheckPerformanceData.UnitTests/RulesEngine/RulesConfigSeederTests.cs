@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.RulesConfig;
+using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -10,13 +11,15 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.RulesEngine;
 /// <summary>
 /// Behavioural tests for <see cref="RulesConfigSeeder"/> — the worker's startup self-seeder
 /// that uploads the image-bundled rules-config JSON to storage when the blobs are absent,
-/// and upgrades the stored <c>rules.json</c> when the bundled seed's version is strictly newer.
+/// upgrades the stored <c>rules.json</c> when the bundled seed's version is strictly newer,
+/// and restores the seed over a stored config that fails validation against the current
+/// catalogue regardless of version.
 /// </summary>
 public sealed class RulesConfigSeederTests : IDisposable
 {
     private const string RulesBlobName = "rules.json";
     private const string LookupsBlobName = "country-languages.json";
-    private const string RulesContent = """{ "version": "2026.06.11-01", "outcomes": [] }""";
+    private static readonly string RulesContent = RulesJsonWithVersion("2026.06.11-01");
     private const string LookupsContent = """{ "FR": ["French"] }""";
 
     private readonly string _seedDir;
@@ -44,8 +47,28 @@ public sealed class RulesConfigSeederTests : IDisposable
         _store.ReadAsync(type, Arg.Any<CancellationToken>())
             .Throws(new RulesConfigNotFoundException("absent"));
 
+    // A minimal rule set that passes RuleSetValidator (one outcome, terminal otherwise branch) —
+    // required wherever the seeder's stored-config validity gate must NOT fire.
     private static string RulesJsonWithVersion(string version) =>
-        $$"""{ "version": "{{version}}", "outcomes": [] }""";
+        $$"""
+        { "version": "{{version}}", "updatedAt": "2026-06-11T12:00:00Z", "outcomes": [
+          { "key": "Inclusion", "label": "Inclusion", "rules": [
+            { "id": "INC-DEF", "status": "Scrutiny", "when": "otherwise" }
+          ] }
+        ] }
+        """;
+
+    // Parses fine but references a field the current catalogue no longer declares — the shape a
+    // stored config takes after a schema migration ships (e.g. keyStage → checkingWindowType).
+    private static string SupersededSchemaRulesJson(string version) =>
+        $$"""
+        { "version": "{{version}}", "updatedAt": "2026-06-11T12:00:00Z", "outcomes": [
+          { "key": "Inclusion", "label": "Inclusion", "rules": [
+            { "id": "INC-KS4", "status": "AutoApproved", "when": { "field": "keyStage", "eq": "KS4" } },
+            { "id": "INC-DEF", "status": "Scrutiny", "when": "otherwise" }
+          ] }
+        ] }
+        """;
 
     private RulesConfigSeeder NewSeeder(bool seedOnStartup = true)
     {
@@ -56,7 +79,7 @@ public sealed class RulesConfigSeederTests : IDisposable
             SeedDirectory = _seedDir,
             SeedOnStartup = seedOnStartup
         });
-        return new RulesConfigSeeder(_store, options, NullLogger<RulesConfigSeeder>.Instance);
+        return new RulesConfigSeeder(_store, new RuleSetValidator(), options, NullLogger<RulesConfigSeeder>.Instance);
     }
 
     // --- create-when-missing (unchanged semantics) ---
@@ -178,6 +201,36 @@ public sealed class RulesConfigSeederTests : IDisposable
         // numerically: ordinal string comparison would rank "-99" above "-134502".
         WriteSeedFile(RulesBlobName, RulesJsonWithVersion("2026.06.11-99"));
         SetStored(RulesConfigType.Rules, RulesJsonWithVersion("2026.06.11-134502"));
+        SetStored(RulesConfigType.Lookups, LookupsContent);
+
+        await NewSeeder().StartAsync(CancellationToken.None);
+
+        await _store.DidNotReceive().WriteAsync(
+            Arg.Any<RulesConfigType>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    // --- invalid-stored override: version precedence yields to catalogue validity ---
+
+    [Fact]
+    public async Task StartAsync_RestoresSeed_WhenStoredVersionNewerButInvalidUnderCatalogue()
+    {
+        // A config saved under a superseded schema outranks the seed by version (admin/E2E saves
+        // stamp HHmmss) but can only cold-fallback — the seeder must restore the bundled seed.
+        WriteSeedFile(RulesBlobName, RulesContent);
+        SetStored(RulesConfigType.Rules, SupersededSchemaRulesJson("2026.06.12-100812"), etag: "etag-9");
+        SetStored(RulesConfigType.Lookups, LookupsContent);
+
+        await NewSeeder().StartAsync(CancellationToken.None);
+
+        await _store.Received(1).WriteAsync(RulesConfigType.Rules, RulesContent, "etag-9", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartAsync_DoesNotRestoreSeed_WhenStoredInvalidButBundledSeedAlsoInvalid()
+    {
+        // Replacing one invalid config with another gains nothing; leave the stored blob alone.
+        WriteSeedFile(RulesBlobName, SupersededSchemaRulesJson("2026.06.11-01"));
+        SetStored(RulesConfigType.Rules, SupersededSchemaRulesJson("2026.06.12-100812"));
         SetStored(RulesConfigType.Lookups, LookupsContent);
 
         await NewSeeder().StartAsync(CancellationToken.None);

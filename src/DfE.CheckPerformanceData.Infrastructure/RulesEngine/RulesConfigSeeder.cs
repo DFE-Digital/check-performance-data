@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.RulesConfig;
+using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Application.RulesEngine.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -31,6 +33,13 @@ namespace DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 /// strings, since the two suffix formats differ in width. The overwrite is If-Match guarded by
 /// the ETag just read, so a concurrent admin save wins the race.
 ///
+/// Version precedence has one override: a stored blob that no longer parses or validates
+/// against the current <see cref="FieldCatalogue"/> is dead weight whatever its version — the
+/// provider can only cold-fallback and the admin editor cannot save against it — so the seeder
+/// restores the bundled seed (itself validated first) even when the stored version is newer.
+/// This self-heals environments whose config was saved under a superseded rule schema, e.g. a
+/// renamed catalogue field stamped by an admin/E2E save made before the schema change shipped.
+///
 /// Best-effort: any storage error is logged and swallowed so a transient blip never blocks
 /// worker startup — the provider's cold-fallback already covers a missing rule set. Registered
 /// before <see cref="BlobRulesProvider"/> so its first synchronous load sees freshly-seeded
@@ -39,15 +48,18 @@ namespace DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 public sealed class RulesConfigSeeder : IHostedService
 {
     private readonly IRulesConfigStore _store;
+    private readonly RuleSetValidator _validator;
     private readonly BlobRulesProviderOptions _options;
     private readonly ILogger<RulesConfigSeeder> _logger;
 
     public RulesConfigSeeder(
         IRulesConfigStore store,
+        RuleSetValidator validator,
         IOptions<BlobRulesProviderOptions> options,
         ILogger<RulesConfigSeeder> logger)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -135,9 +147,34 @@ public sealed class RulesConfigSeeder : IHostedService
         // a parseable version, so it is not an admin artefact — restore the known-good seed.
         if (storedVersion is not null && bundled.Value.CompareTo(storedVersion.Value) <= 0)
         {
-            _logger.LogInformation(
-                "Rules config '{Blob}' is at version {StoredVersion} (bundled seed is {BundledVersion}); no upgrade needed.",
+            if (IsValidRuleSet(stored.Content))
+            {
+                _logger.LogInformation(
+                    "Rules config '{Blob}' is at version {StoredVersion} (bundled seed is {BundledVersion}); no upgrade needed.",
+                    blobName, storedRaw, bundledRaw);
+                return;
+            }
+
+            // The stored blob outranks the seed by version but fails validation against the
+            // current rule catalogue (e.g. saved before a field rename shipped). Version
+            // precedence is moot for a config the provider can only cold-fallback on, so
+            // restore the bundled seed — unless the seed is itself invalid, in which case
+            // overwriting gains nothing.
+            if (!IsValidRuleSet(seedContent))
+            {
+                _logger.LogWarning(
+                    "Rules config '{Blob}' at stored version {StoredVersion} fails validation against the " +
+                    "current rule catalogue, but the bundled seed ({BundledVersion}) is also invalid; " +
+                    "leaving the stored blob untouched.", blobName, storedRaw, bundledRaw);
+                return;
+            }
+
+            _logger.LogWarning(
+                "Rules config '{Blob}' at stored version {StoredVersion} fails validation against the " +
+                "current rule catalogue; restoring bundled seed {BundledVersion} despite its older version.",
                 blobName, storedRaw, bundledRaw);
+            await WriteSeedAsync(RulesConfigType.Rules, blobName, seedPath, seedContent, expectedETag: stored.ETag, ct)
+                .ConfigureAwait(false);
             return;
         }
 
@@ -231,6 +268,24 @@ public sealed class RulesConfigSeeder : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to seed rules config '{Blob}'; the worker will run on cold-fallback.", blobName);
+        }
+    }
+
+    /// <summary>
+    /// True when the JSON parses as a <see cref="RuleSet"/> and passes <see cref="RuleSetValidator"/>
+    /// — the same pipeline <see cref="BlobRulesProvider"/> uses, so "invalid" here means exactly
+    /// "the provider would cold-fallback on it".
+    /// </summary>
+    private bool IsValidRuleSet(string json)
+    {
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<RuleSet>(json, RulesJson.Options);
+            return parsed is not null && _validator.Validate(parsed).IsValid;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 

@@ -72,6 +72,7 @@ public sealed class RulesConfigServiceTests
         public string OrganisationId => "org";
         public string OrganisationName => "Org";
         public string OrganisationUrn => "1";
+        public string OrganisationLaestab => "1";
         public string OrganisationTypeId => "1";
     }
 

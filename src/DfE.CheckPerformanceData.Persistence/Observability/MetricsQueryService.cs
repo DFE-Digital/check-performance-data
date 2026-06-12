@@ -44,22 +44,25 @@ public sealed class MetricsQueryService : IMetricsQueryService
 
         var bucketExpr = spec.BucketExpression("recorded_at_utc");
         var spineStartExpr = spec.BucketExpression("@from");
+        var spineEndExpr = spec.BucketExpression("@to");
 
         // generate_series builds one row per bucket across the range; the LEFT JOIN onto the
         // grouped counts gap-fills the empties to zero. The counted side buckets recorded_at_utc
-        // to a calendar-aligned key, so the spine must start on the SAME aligned boundary — we
-        // apply the identical bucket expression to @from. Otherwise an unaligned @from (every
-        // production caller passes now - 24h) yields a spine whose keys never equal the aligned
-        // counts, and every bucket gap-fills to zero.
+        // to a calendar-aligned key, so BOTH spine bounds apply the identical bucket expression:
+        // an unaligned @from (every production caller passes now - 24h) would otherwise yield a
+        // spine whose keys never equal the aligned counts, and ending a full step before @to
+        // would drop the in-progress bucket — events recorded moments ago would read as zero
+        // until the bucket rolled over.
         var sql = $@"
 SELECT b.bucket AS bucket, COALESCE(e.cnt, 0) AS cnt
-FROM generate_series({spineStartExpr}, @to - @step, @step) AS b(bucket)
+FROM generate_series({spineStartExpr}, {spineEndExpr}, @step) AS b(bucket)
 LEFT JOIN (
     SELECT {bucketExpr} AS bucket, COUNT(*) AS cnt
     FROM queue_metrics_events
     WHERE recorded_at_utc >= @from AND recorded_at_utc < @to AND queue_name = @queue
     GROUP BY 1
 ) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
 ORDER BY b.bucket;";
 
         var results = new List<ThroughputBucket>();
@@ -148,15 +151,17 @@ ORDER BY decision_status;";
 
         var bucketExpr = spec.BucketExpression("recorded_at_utc");
         var spineStartExpr = spec.BucketExpression("@from");
+        var spineEndExpr = spec.BucketExpression("@to");
 
         // The spine cross-joins the statuses actually present in the window so every status
         // series shares one unbroken, gap-filled time axis; a window with no decided events
-        // therefore returns no rows at all (empty chart state, not a spine of zeros). The
-        // spine start applies the same bucket expression as the counted side so an unaligned
-        // @from still joins the calendar-aligned counts — the same discipline as throughput.
+        // therefore returns no rows at all (empty chart state, not a spine of zeros). Both
+        // spine bounds apply the same bucket expression as the counted side so an unaligned
+        // @from still joins the calendar-aligned counts and the in-progress bucket containing
+        // @to is included — the same discipline as throughput.
         var sql = $@"
 SELECT b.bucket AS bucket, s.decision_status, COALESCE(e.cnt, 0) AS cnt
-FROM generate_series({spineStartExpr}, @to - @step, @step) AS b(bucket)
+FROM generate_series({spineStartExpr}, {spineEndExpr}, @step) AS b(bucket)
 CROSS JOIN (
     SELECT DISTINCT decision_status
     FROM queue_metrics_events
@@ -168,6 +173,7 @@ LEFT JOIN (
     WHERE recorded_at_utc >= @from AND recorded_at_utc < @to AND decision_status IS NOT NULL
     GROUP BY 1, 2
 ) e ON e.bucket = b.bucket AND e.decision_status = s.decision_status
+WHERE b.bucket < @to
 ORDER BY b.bucket, s.decision_status;";
 
         var results = new List<DecisionMixBucket>();

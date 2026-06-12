@@ -87,6 +87,31 @@ public sealed class MetricsQueryTests
         Assert.Equal(2, buckets.Sum(b => b.Count));
     }
 
+    // --- Events that just happened land in the bucket containing 'to' and must be counted ---
+
+    [Fact]
+    public async Task GetThroughput_IncludesTheBucketContainingTo()
+    {
+        await ResetMetricsAsync();
+
+        // The dashboard queries (now - 24h, now): events recorded moments ago sit in the
+        // same calendar bucket as 'to'. A spine that stops a full step before 'to' drops
+        // that in-progress bucket, so fresh traffic reads as zero until the hour rolls over.
+        var to = new DateTime(2026, 1, 2, 9, 3, 57, DateTimeKind.Utc);
+        var from = to.AddHours(-24);
+
+        await SeedMetricsAsync(
+            Metric(ZendeskQueue, "TicketCreated", "L-1", to.AddSeconds(-30)),
+            Metric(ZendeskQueue, "TicketCreated", "L-2", to.AddSeconds(-20)),
+            Metric(ZendeskQueue, "TicketCreated", "L-3", to.AddMinutes(-90)));
+
+        var service = CreateService();
+        var buckets = await service.GetThroughputAsync(
+            ZendeskQueue, ThroughputGranularity.Hour, from, to);
+
+        Assert.Equal(3, buckets.Sum(b => b.Count));
+    }
+
     // --- A different queue's events are excluded from the per-queue throughput ---
 
     [Fact]
@@ -236,6 +261,29 @@ public sealed class MetricsQueryTests
         var from = hour.AddSeconds(17);
         var buckets = await service.GetDecisionMixOverTimeAsync(
             ThroughputGranularity.Hour, from, from.AddHours(1));
+
+        Assert.Equal(2, buckets.Sum(b => b.Count));
+    }
+
+    // --- Decisions made moments ago land in the bucket containing 'to' and must be counted ---
+
+    [Fact]
+    public async Task GetDecisionMixOverTime_IncludesTheBucketContainingTo()
+    {
+        await ResetMetricsAsync();
+
+        // Same shape as the dashboard call: (now - 24h, now), decisions recorded seconds
+        // before 'to'. The in-progress bucket must appear in the series.
+        var to = new DateTime(2026, 1, 11, 9, 3, 57, DateTimeKind.Utc);
+        var from = to.AddHours(-24);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "ML-1", to.AddSeconds(-30), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "RulesEvaluated", "ML-2", to.AddSeconds(-20), decision: "AutoRejected"));
+
+        var service = CreateService();
+        var buckets = await service.GetDecisionMixOverTimeAsync(
+            ThroughputGranularity.Hour, from, to);
 
         Assert.Equal(2, buckets.Sum(b => b.Count));
     }

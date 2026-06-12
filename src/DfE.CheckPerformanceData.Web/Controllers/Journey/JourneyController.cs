@@ -474,30 +474,8 @@ public sealed class JourneyController(
         return IsEvidencePageValid(page, journey, pupilName) ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
     }
 
-    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
-    {
-        foreach (var question in page.Questions)
-        {
-            if (question.Type == QuestionType.FileUpload)
-            {
-                journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
-                if (!question.Optional && (existing?.FileValues ?? []).Count == 0)
-                    return false;
-            }
-            else
-            {
-                journey.QuestionAnswers.TryGetValue(question.Id, out var answer);
-                answer ??= new QuestionAnswer();
-                if (!question.Optional || journeyService.IsAnswered(question, answer))
-                {
-                    if (journeyService.ValidateAnswer(question, answer,
-                            JourneyTemplate.Resolve(question.Title, pupilName), null) is not null)
-                        return false;
-                }
-            }
-        }
-        return journeyService.ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName) is null;
-    }
+    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName) =>
+        journeyService.ValidateEvidencePage(page, journey, pupilName) is null;
 
     // ── Confirmation ───────────────────────────────────────────────────────
 

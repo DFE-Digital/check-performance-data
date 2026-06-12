@@ -19,12 +19,20 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// rename would be a breaking change with no migration path.
 ///
 /// Fields with no producer source yet — no journey question collects them — stay
-/// <c>Unknown</c> so their rules defer to Scrutiny: <c>isAddBack</c>,
+/// <c>Unknown</c> so their rules defer to Scrutiny:
 /// <c>illnessHasSevereProfoundEffect</c>, <c>whereaboutsKnown</c>,
 /// <c>locatedAfterReasonableEfforts</c>.
 /// </remarks>
 public static class AnswerFieldMap
 {
+    /// <summary>
+    /// Pupil inclusion status code meaning the pupil was added back to the
+    /// school's results. <c>isAddBack</c> is calculated from the pupil record:
+    /// <c>true</c> when <c>Pincl</c> equals this code, <c>false</c> for any other
+    /// supplied code, <c>Unknown</c> when <c>Pincl</c> is not supplied.
+    /// </summary>
+    public const int AddBackPincl = 403;
+
     /// <summary>
     /// <c>Answer.QuestionId</c> on the queue message → canonical field name in
     /// <see cref="FieldCatalogue"/>, for answers whose value is copied as-is and

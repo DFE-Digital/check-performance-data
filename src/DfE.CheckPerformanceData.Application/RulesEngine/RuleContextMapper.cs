@@ -12,7 +12,8 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 ///         <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/>.</item>
 ///   <item><c>CheckingWindowType</c> from <see cref="RequestDocument.CheckingWindowType"/> via
 ///         <see cref="AnswerFieldMap.NormaliseCheckingWindowType"/>.</item>
-///   <item><c>pupilAge</c> / <c>inclusionFlag</c> from the pupil record on the message.</item>
+///   <item><c>pupilAge</c> / <c>inclusionFlag</c> / <c>isAddBack</c> from the pupil
+///         record on the message.</item>
 ///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via the <see cref="AnswerFieldMap"/>
 ///         maps (plain copy, radio fan-out, vocabulary translation, window-type-resolved
 ///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
@@ -45,7 +46,10 @@ public sealed class RuleContextMapper : IRuleContextMapper
             if (pupil.Age > 0)
                 fields["pupilAge"] = new FieldValue.Num(pupil.Age);
             if (pupil.Pincl > 0)
+            {
                 fields["inclusionFlag"] = new FieldValue.Str(pupil.Pincl.ToString(CultureInfo.InvariantCulture));
+                fields["isAddBack"]     = new FieldValue.Bool(pupil.Pincl == AnswerFieldMap.AddBackPincl);
+            }
         }
 
         if (message.Answers is not null)

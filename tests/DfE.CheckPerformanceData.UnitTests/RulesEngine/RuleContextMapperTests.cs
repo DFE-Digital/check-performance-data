@@ -182,6 +182,44 @@ public sealed class RuleContextMapperTests
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("inclusionFlag"));
     }
 
+    // --- Field projection: isAddBack calculated from the pupil record ---
+
+    [Fact]
+    public void IsAddBack_IsTrue_WhenPinclIsAddBackCode()
+    {
+        var msg = NewMessage("Include", pupilPincl: 403);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true), ctx.GetField("isAddBack"));
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(402)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    public void IsAddBack_IsFalse_ForAnyOtherSuppliedPincl(int pincl)
+    {
+        var msg = NewMessage("Include", pupilPincl: pincl);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("isAddBack"));
+    }
+
+    [Fact]
+    public void IsAddBack_IsUnknown_WhenPinclNotSupplied()
+    {
+        // Fail-safe: no inclusion data means the add-back rules defer to Scrutiny.
+        var msg = NewMessage("Include", pupilPincl: 0);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("isAddBack"));
+    }
+
     // --- Field projection: translated radio vocabularies ---
 
     [Theory]

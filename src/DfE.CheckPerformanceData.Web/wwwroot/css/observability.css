@@ -162,6 +162,13 @@
     margin-top: 16px;
 }
 
+/* dfefrontend.css sets `p { display: block }`, and any author rule outranks the UA
+   stylesheet's `[hidden] { display: none }` — restore the attribute's meaning so the
+   engine can actually hide the notice once the stream connects. */
+.obs-board__reconnect[hidden] {
+    display: none;
+}
+
 /* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range
    input + play/pause; both control groups are keyboard-operable. */
 .obs-board__replay,

@@ -128,4 +128,21 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("_DeployMarkers", overTime);
 		Assert.DoesNotContain("stroke-dasharray", overTime);
 	}
+
+	// --- The hidden attribute must actually hide the reconnect notice ---
+
+	[Fact]
+	public void ObservabilityCss_RestoresTheHiddenAttributeOnTheReconnectNotice()
+	{
+		// dfefrontend.css declares `p { display: block }`, and any author rule outranks the
+		// UA stylesheet's `[hidden] { display: none }` — so a hidden paragraph stays visible.
+		// The board engine toggles the reconnect notice via the hidden attribute, so the
+		// stylesheet must restore its meaning explicitly.
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var css = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "observability.css"));
+
+		Assert.Contains(".obs-board__reconnect[hidden]", css);
+	}
 }

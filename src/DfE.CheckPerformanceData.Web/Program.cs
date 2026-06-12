@@ -13,7 +13,9 @@ using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
@@ -148,13 +150,19 @@ try
         DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
         DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
     // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
-    if (builder.Environment.IsDevelopment())
+    //if (builder.Environment.IsDevelopment())
         builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
-    else
-        builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
-            new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
+    // else
+    //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
+    //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
+    builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+
+    // TEMPORARY: toggles request submission between the rules-engine queue and blob storage.
+    builder.Services.AddSingleton(
+        builder.Configuration.GetSection(RequestSubmissionOptions.SectionName).Get<RequestSubmissionOptions>()
+        ?? new RequestSubmissionOptions());
 
     builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
         new QueueClientOptions
@@ -164,7 +172,7 @@ try
 
     builder.Services.AddSingleton<QueueClient>(sp =>
     {
-        var queueName = builder.Configuration["RulesEngineQueue"]
+        var queueName = builder.Configuration["RulesEngineOptions:QueueName"]
             ?? throw new InvalidOperationException(
                 "RulesEngineQueue is not configured; set it to the RulesEngineWorker's queue name (e.g. \"change-requests\").");
         return sp.GetRequiredService<QueueServiceClient>().GetQueueClient(queueName);
@@ -226,15 +234,14 @@ try
         app.UseHsts();
     }
 
-    if (app.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true")
+    if (seedData)
     {
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
-    }
-
-    if (app.Environment.IsDevelopment())
-    {
-        using var scope = app.Services.CreateScope();
+        
+        var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
+        await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
+    
         var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
         try
         {
@@ -242,7 +249,7 @@ try
         }
         catch (Azure.RequestFailedException ex) when (app.Environment.IsDevelopment())
         {
-            app.Logger.LogWarning(ex, "Question-flow seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows seeded locally.", ex.Status, ex.ErrorCode);
+            app.Logger.LogWarning(ex, "Blob seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows/pupils seeded locally.", ex.Status, ex.ErrorCode);
         }
     }
 

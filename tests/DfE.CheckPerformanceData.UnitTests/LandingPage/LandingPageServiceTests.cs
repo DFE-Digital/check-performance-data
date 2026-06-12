@@ -64,7 +64,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(keyStage: KeyStages.KS2, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -81,7 +81,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS2 2026", keyStage: KeyStages.KS2, hasPupilData: false);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -99,7 +99,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS4 2026", keyStage: KeyStages.KS4, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -117,7 +117,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(title: "KS4 2026", keyStage: KeyStages.KS4, hasPupilData: false);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -135,7 +135,7 @@ public class LandingPageServiceTests
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
 
         var window = MakeWindow(keyStage: KeyStages.KS2, hasPupilData: true);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([window]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);
@@ -151,7 +151,7 @@ public class LandingPageServiceTests
         var org = MakeOrganisation(lowAge: 3, highAge: 16, name: "Test School", laestab: "1234567",
             urn: "123456", address: "1 School Lane");
         _dfESignInApiClient.GetOrganisationAsync("user-1", "org-1").Returns(org);
-        _repository.GetOpenWindowsAsync(Now.DateTime, org.Urn, Arg.Any<CancellationToken>())
+        _repository.GetOpenWindowsAsync(Now.DateTime, org.Laestab, Arg.Any<CancellationToken>())
             .Returns([]);
 
         var result = await _sut.GetLandingPageDataAsync(CancellationToken.None);

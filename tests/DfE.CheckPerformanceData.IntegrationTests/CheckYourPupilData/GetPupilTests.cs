@@ -1,54 +1,25 @@
-using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
-using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.CheckYourPupilData;
 
 [Collection(nameof(PostgresCollection))]
 public sealed class GetPupilTests(PostgresFixture fixture)
 {
-    private const string TestUrn = "123456";
-    private const string OtherUrn = "999999";
+    private const string TestLaestab = "860/4070";
     private const int IncludedPincl = 401;
 
-    private CheckYourPupilDataRepository CreateRepo()
-    {
-        var ctx = fixture.CreateContext();
-        return new CheckYourPupilDataRepository(ctx);
-    }
+    private CheckYourPupilDataRepository CreateRepo(IPupilDataBlobClient blobClient)
+        => new(fixture.CreateContext(), blobClient, new MemoryCache(new MemoryCacheOptions()));
 
-    private async Task ResetAsync()
-    {
-        await using var conn = new Npgsql.NpgsqlConnection(fixture.ConnectionString);
-        await conn.OpenAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            TRUNCATE ""ChangeRequests"" CASCADE;
-            TRUNCATE ""Pupils"" CASCADE;
-            TRUNCATE ""CheckingWindows"" RESTART IDENTITY CASCADE;
-        ";
-        await cmd.ExecuteNonQueryAsync();
-    }
-
-    private static DateTime Unspecified(DateTime dt) => DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
-
-    private static CheckingWindow NewWindow(Guid id) => new()
+    private static PupilRecord NewPupil(Guid windowId, Guid id) => new()
     {
         Id = id,
-        Title = "Test Window",
-        StartDate = Unspecified(DateTime.UtcNow.AddDays(-7)),
-        EndDate = Unspecified(DateTime.UtcNow.AddDays(7)),
-        KeyStage = KeyStages.KS4,
-        CheckingWindowType = CheckingWindowType.KS4June,
-    };
-
-    private static Pupil NewPupil(Guid windowId, string urn, Guid? id = null) => new()
-    {
-        Id = id ?? Guid.NewGuid(),
         CheckingWindowId = windowId,
-        Urn = urn,
-        Laestab = "1234567",
+        Urn = "142313",
+        Laestab = TestLaestab,
         Surname = "Smith",
         Firstname = "Jane",
         Sex = "F",
@@ -67,37 +38,40 @@ public sealed class GetPupilTests(PostgresFixture fixture)
     };
 
     [Fact]
-    public async Task GetPupilAsync_WhenUrnMatches_ReturnsPupil()
+    public async Task GetPupilAsync_WhenPupilPresent_ReturnsPupil()
     {
-        await ResetAsync();
         var windowId = Guid.NewGuid();
         var pupilId = Guid.NewGuid();
 
-        await using var ctx = fixture.CreateContext();
-        ctx.CheckingWindows.Add(NewWindow(windowId));
-        ctx.Pupils.Add(NewPupil(windowId, TestUrn, pupilId));
-        await ctx.SaveChangesAsync();
+        var blobClient = new FakePupilDataBlobClient();
+        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, pupilId)]);
 
-        var repo = CreateRepo();
-        var result = await repo.GetPupilAsync(windowId, TestUrn, pupilId);
+        var repo = CreateRepo(blobClient);
+        var result = await repo.GetPupilAsync(windowId, TestLaestab, pupilId);
 
         Assert.Equal(pupilId, result.Id);
     }
 
     [Fact]
-    public async Task GetPupilAsync_WhenUrnDoesNotMatch_Throws()
+    public async Task GetPupilAsync_WhenPupilNotInFile_Throws()
     {
-        await ResetAsync();
         var windowId = Guid.NewGuid();
-        var pupilId = Guid.NewGuid();
 
-        await using var ctx = fixture.CreateContext();
-        ctx.CheckingWindows.Add(NewWindow(windowId));
-        ctx.Pupils.Add(NewPupil(windowId, TestUrn, pupilId));
-        await ctx.SaveChangesAsync();
+        var blobClient = new FakePupilDataBlobClient();
+        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, Guid.NewGuid())]);
 
-        var repo = CreateRepo();
+        var repo = CreateRepo(blobClient);
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => repo.GetPupilAsync(windowId, OtherUrn, pupilId));
+            () => repo.GetPupilAsync(windowId, TestLaestab, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetPupilAsync_WhenSchoolHasNoFile_Throws()
+    {
+        var windowId = Guid.NewGuid();
+
+        var repo = CreateRepo(new FakePupilDataBlobClient());
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => repo.GetPupilAsync(windowId, TestLaestab, Guid.NewGuid()));
     }
 }

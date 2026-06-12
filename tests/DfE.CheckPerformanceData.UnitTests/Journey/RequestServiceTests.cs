@@ -17,6 +17,8 @@ public class RequestServiceTests
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IRequestQueueClient _requestQueue = Substitute.For<IRequestQueueClient>();
+    private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
+    private readonly RequestSubmissionOptions _submissionOptions = new();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -25,7 +27,8 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser, _requestQueue);
+        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
+            _requestQueue, _requestBlobClient, _submissionOptions);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -383,6 +386,20 @@ public class RequestServiceTests
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
         await _requestQueue.Received(1).EnqueueRequestAsync(Arg.Any<RequestDocument>());
+        await _requestBlobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_WhenWriteToBlobEnabled_SavesToBlobAndDoesNotEnqueue()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+        _submissionOptions.WriteToBlobInsteadOfQueue = true;
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _requestBlobClient.Received(1).SaveRequestAsync(WindowId, Arg.Any<RequestDocument>());
+        await _requestQueue.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────

@@ -1,21 +1,35 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
-public sealed class LandingPageRepository(PortalDbContext dbContext) : ILandingPageRepository
+public sealed class LandingPageRepository(
+    IPortalDbContext dbContext,
+    IPupilDataBlobClient pupilDataBlobClient) : ILandingPageRepository
 {
-    public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string urn,
+    public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string laestab,
         CancellationToken cancellationToken)
     {
-        var windowsWithData = await GetWindowIdsWithPupilDataAsync(urn, cancellationToken);
-
-        return await dbContext.CheckingWindows
+        var windows = await dbContext.CheckingWindows
             .AsNoTracking()
             .Where(w => w.StartDate <= now && w.EndDate >= now)
-            .Select(w => new CheckingWindowDto
+            .Select(w => new
+            {
+                w.StartDate,
+                w.EndDate,
+                w.KeyStage,
+                w.CheckingWindowType,
+                w.Title,
+                w.Id
+            })
+            .ToListAsync(cancellationToken);
+
+        var result = new List<CheckingWindowDto>(windows.Count);
+        foreach (var w in windows)
+        {
+            result.Add(new CheckingWindowDto
             {
                 StartDate = w.StartDate,
                 EndDate = w.EndDate,
@@ -23,17 +37,10 @@ public sealed class LandingPageRepository(PortalDbContext dbContext) : ILandingP
                 CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
                 Id = w.Id,
-                HasPupilData = windowsWithData.Contains(w.Id)
-            })
-            .ToListAsync(cancellationToken);
-    }
+                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(w.Id, laestab)
+            });
+        }
 
-    private async Task<HashSet<Guid>> GetWindowIdsWithPupilDataAsync(string urn, CancellationToken cancellationToken)
-        => (await dbContext.Pupils
-            .AsNoTracking()
-            .Where(p => p.Urn == urn)
-            .Select(p => p.CheckingWindowId)
-            .Distinct()
-            .ToListAsync(cancellationToken))
-            .ToHashSet();
+        return result;
+    }
 }

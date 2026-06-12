@@ -9,7 +9,9 @@ public sealed class RequestService(
     IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
-    IRequestQueueClient requestQueueClient) : IRequestService
+    IRequestQueueClient requestQueueClient,
+    IRequestBlobClient requestBlobClient,
+    RequestSubmissionOptions submissionOptions) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -45,7 +47,14 @@ public sealed class RequestService(
         var changeRequestId = await requestRepository.UpsertAsync(
             BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
         var document = BuildRequestDocument(context, config, changeRequestId);
-        await requestQueueClient.EnqueueRequestAsync(document);
+
+        // TEMPORARY: the rules-engine queue path is paused. When the switch is on the
+        // document is written to blob storage instead of being enqueued. See
+        // RequestSubmissionOptions.
+        if (submissionOptions.WriteToBlobInsteadOfQueue)
+            await requestBlobClient.SaveRequestAsync(windowId, document);
+        else
+            await requestQueueClient.EnqueueRequestAsync(document);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

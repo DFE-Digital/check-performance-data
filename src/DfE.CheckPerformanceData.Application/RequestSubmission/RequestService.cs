@@ -56,8 +56,7 @@ public sealed class RequestService(
         // var approvers = await dfESignInApiClient.GetApproversAsync();//GetOrganisationApproversAsync(currentUserService.OrganisationId);
         // if (approvers?.Users != null)
         //     foreach (var approver in approvers.Users) recipients.Add(approver.Email);
-        var upn = 1924145493;
-        var urn = 990083;
+
         var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
         if (orgUsers?.Users != null)
             foreach (var user in orgUsers.Users)

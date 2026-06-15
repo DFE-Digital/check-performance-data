@@ -12,8 +12,8 @@ public sealed record DebugMenuNavEntry(IConfiguration Configuration) : IAdminNav
     public string Key => AdminNavKeys.DebugMenu;
     public string? ParentKey => AdminNavKeys.SystemAdmin;
     public string Title => "Debug";
-    public string Description => "Development-only pipeline tools and the Zendesk outbox.";
-    public string Url => "/dev/zendesk/outbox";
+    public string Description => "The HAT test console: drive the pipeline and tick off acceptance checks.";
+    public string Url => "/dev/hat";
     public bool Enabled => Configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
     public int Order => 90;
 }

@@ -77,12 +77,24 @@ public sealed class DlqRetentionJob : BackgroundService
         CancellationToken cancellationToken)
     {
         var retentionDays = await settings.GetIntAsync(SettingKeys.DlqRetentionDays);
-        var purged = await queueAdmin.PurgeExpiredAsync(TimeSpan.FromDays(retentionDays), cancellationToken);
-        if (purged > 0)
+        if (retentionDays <= 0)
         {
-            _logger.LogInformation(
-                "Purged {PurgedCount} dead-letter messages older than {RetentionDays} days.",
-                purged, retentionDays);
+            // A zero or negative retention computes a cutoff of "now" (or the future) and would
+            // delete the entire dead-letter queue. Refuse it and skip the purge rather than
+            // silently wipe the DLQ on the next tick; the depth signals and alert below still run.
+            _logger.LogWarning(
+                "Dead-letter retention is configured to {RetentionDays} days; skipping the purge to avoid wiping the dead-letter queue. Set Dlq:RetentionDays to a positive value.",
+                retentionDays);
+        }
+        else
+        {
+            var purged = await queueAdmin.PurgeExpiredAsync(TimeSpan.FromDays(retentionDays), cancellationToken);
+            if (purged > 0)
+            {
+                _logger.LogInformation(
+                    "Purged {PurgedCount} dead-letter messages older than {RetentionDays} days.",
+                    purged, retentionDays);
+            }
         }
 
         var depths = await queueAdmin.GetQueueDepthsAsync(cancellationToken);

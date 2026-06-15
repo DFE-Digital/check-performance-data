@@ -306,6 +306,34 @@ public sealed class DlqRetentionTests
         Assert.NotEmpty(audit);
     }
 
+    // --- A zero/negative retention must NOT purge the whole DLQ ---
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task RetentionJob_WithNonPositiveRetention_DoesNotPurgeAnything(int retentionDays)
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            // A row dead-lettered well in the past: a retention of 0 days would compute a cutoff
+            // of "now" and delete it (and every other row). The clamp must stop that.
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow.AddDays(-120)));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var settings = SettingsReturning(retentionDays: retentionDays, threshold: 1000, recipients: "");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyClient>(), CancellationToken.None);
+
+        // Nothing was purged — a mis-set retention must never silently wipe the dead-letter queue.
+        Assert.NotEmpty(await adminService.GetDlqMessagesAsync());
+    }
+
     // --- The job emails an alert once per recipient when DLQ depth exceeds the threshold ---
 
     [Fact]

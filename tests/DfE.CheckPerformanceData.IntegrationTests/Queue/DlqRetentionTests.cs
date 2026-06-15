@@ -366,6 +366,41 @@ public sealed class DlqRetentionTests
             Arg.Any<CancellationToken>());
     }
 
+    // --- One failing recipient send must not drop the alert to the others ---
+
+    [Fact]
+    public async Task RetentionJob_OneRecipientSendFails_StillAlertsTheOthers()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
+            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var adminService = new QueueAdminService(new PostgresQueueService(context));
+        var notifyClient = Substitute.For<INotifyClient>();
+        // The first recipient's send throws (e.g. a bad address); the rest must still be alerted.
+        notifyClient.SendEmailAsync(
+                "bad@example.com",
+                Arg.Any<IReadOnlyDictionary<string, object>>(),
+                Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("bad address"));
+
+        var settings = SettingsReturning(retentionDays: 90, threshold: 1, recipients: "bad@example.com, good@example.com");
+
+        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
+        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
+
+        await notifyClient.Received(1).SendEmailAsync(
+            "good@example.com",
+            Arg.Any<IReadOnlyDictionary<string, object>>(),
+            Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task RetentionJob_DoesNotAlert_WhenDlqDepthWithinThreshold()
     {

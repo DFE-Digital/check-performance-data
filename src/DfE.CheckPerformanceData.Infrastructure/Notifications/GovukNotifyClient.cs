@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.Infrastructure.Notifications;
 // warning instead of throwing, so the worker keeps running until Notify is provisioned.
 public sealed class GovukNotifyClient : INotifyClient
 {
-    private readonly INotificationClient? _client;
+    private readonly IAsyncNotificationClient? _client;
     private readonly string? _templateId;
     private readonly ILogger<GovukNotifyClient> _logger;
 
@@ -26,14 +26,14 @@ public sealed class GovukNotifyClient : INotifyClient
 
     // Direct-collaborator constructor so the underlying client and template can be supplied
     // explicitly; a null client means no API key was configured and sends degrade to a warning.
-    public GovukNotifyClient(INotificationClient? notificationClient, string? templateId, ILogger<GovukNotifyClient> logger)
+    public GovukNotifyClient(IAsyncNotificationClient? notificationClient, string? templateId, ILogger<GovukNotifyClient> logger)
     {
         _client = notificationClient;
         _templateId = templateId;
         _logger = logger;
     }
 
-    public Task SendEmailAsync(
+    public async Task SendEmailAsync(
         string recipient,
         IReadOnlyDictionary<string, object> personalisation,
         CancellationToken cancellationToken = default)
@@ -42,14 +42,19 @@ public sealed class GovukNotifyClient : INotifyClient
         {
             _logger.LogWarning(
                 "GOV.UK Notify is not configured; skipping email to a configured recipient. Configure the Notify API key and template to enable alerting.");
-            return Task.CompletedTask;
+            return;
         }
+
+        // Honour cancellation before issuing the network call so a worker shutdown mid-alert
+        // does not start a send it cannot observe.
+        cancellationToken.ThrowIfCancellationRequested();
 
         var notifyPersonalisation = personalisation.ToDictionary(
             kvp => kvp.Key,
             kvp => (dynamic)kvp.Value);
 
-        _client.SendEmail(recipient, _templateId, notifyPersonalisation);
-        return Task.CompletedTask;
+        // The async Notify API returns a Task we actually await, so the send no longer blocks the
+        // worker loop the way the synchronous SendEmail did.
+        await _client.SendEmailAsync(recipient, _templateId, notifyPersonalisation);
     }
 }

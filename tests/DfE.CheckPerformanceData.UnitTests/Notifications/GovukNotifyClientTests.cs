@@ -14,8 +14,8 @@ public sealed class GovukNotifyClientTests
     [Fact]
     public async Task SendEmailAsync_WithConfiguredClient_SendsViaNotificationClient()
     {
-        var notify = Substitute.For<INotificationClient>();
-        notify.SendEmail(
+        var notify = Substitute.For<IAsyncNotificationClient>();
+        notify.SendEmailAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<Dictionary<string, dynamic>>(),
@@ -30,9 +30,35 @@ public sealed class GovukNotifyClientTests
             "ops@example.com",
             new Dictionary<string, dynamic> { ["dlq_depth"] = 11 });
 
-        notify.Received(1).SendEmail(
+        await notify.Received(1).SendEmailAsync(
             "ops@example.com",
             TemplateId,
+            Arg.Any<Dictionary<string, dynamic>>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>());
+    }
+
+    // --- A cancelled token is honoured: no send is issued ---
+
+    [Fact]
+    public async Task SendEmailAsync_WhenCancelled_DoesNotSend()
+    {
+        var notify = Substitute.For<IAsyncNotificationClient>();
+        var sut = new GovukNotifyClient(notify, TemplateId, NullLogger<GovukNotifyClient>.Instance);
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await sut.SendEmailAsync(
+                "ops@example.com",
+                new Dictionary<string, dynamic> { ["dlq_depth"] = 11 },
+                cts.Token));
+
+        await notify.DidNotReceive().SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
             Arg.Any<Dictionary<string, dynamic>>(),
             Arg.Any<string>(),
             Arg.Any<string>(),

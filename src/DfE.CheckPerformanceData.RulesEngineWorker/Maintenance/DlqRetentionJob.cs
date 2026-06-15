@@ -140,7 +140,17 @@ public sealed class DlqRetentionJob : BackgroundService
 
         foreach (var recipient in recipients)
         {
-            await notifyClient.SendEmailAsync(recipient, personalisation, cancellationToken);
+            try
+            {
+                await notifyClient.SendEmailAsync(recipient, personalisation, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // One bad address (or a transient send failure) must not drop the alert to the
+                // remaining recipients. Log and carry on to the next.
+                _logger.LogError(ex,
+                    "Failed to send the dead-letter alert to a recipient; continuing with the rest.");
+            }
         }
     }
 }

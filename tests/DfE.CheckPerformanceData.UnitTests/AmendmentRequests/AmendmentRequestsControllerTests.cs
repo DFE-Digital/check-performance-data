@@ -21,6 +21,7 @@ public class AmendmentRequestsControllerTests
 
     private readonly IAmendmentRequestsService _service = Substitute.For<IAmendmentRequestsService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
+    private readonly IEditAdviceService _adviceService = Substitute.For<IEditAdviceService>();
     private readonly FakeSession _session = new();
     private readonly AmendmentRequestsController _sut;
 
@@ -29,7 +30,7 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService)
+        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -113,7 +114,7 @@ public class AmendmentRequestsControllerTests
         Assert.Equal(WindowId, vm.WindowId);
     }
 
-    // ── Edit ─────────────────────────────────────────────────────────────────
+    // ── Edit (advice screen) ───────────────────────────────────────────────────
 
     [Fact]
     public async Task Edit_WhenDraftNotFound_RedirectsToIndex()
@@ -128,22 +129,22 @@ public class AmendmentRequestsControllerTests
     }
 
     [Fact]
-    public async Task Edit_WhenDraftFound_RedirectsToJourneySummary()
+    public async Task Edit_WhenAdviceNull_RedirectsToIndex()
     {
         _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns((AmendmentAdvice?)null);
 
         var result = await _sut.Edit(WindowId, "REF001");
 
         var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("Summary", redirect.ActionName);
-        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
     }
 
     [Fact]
     public async Task Edit_WhenDraftFound_WritesJourneyToSession()
     {
-        var journey = SampleJourney();
-        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(journey);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
 
         await _sut.Edit(WindowId, "REF001");
 
@@ -153,13 +154,58 @@ public class AmendmentRequestsControllerTests
     }
 
     [Fact]
-    public async Task Edit_PassesWindowIdAndReferenceNumberToService()
+    public async Task Edit_WhenAdviceBuilt_ReturnsAdviceView()
     {
-        _requestService.ResumeDraftAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
 
-        await _sut.Edit(WindowId, "REF001");
+        var result = await _sut.Edit(WindowId, "REF001");
 
-        await _requestService.Received(1).ResumeDraftAsync(WindowId, "REF001");
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EditAdvice", view.ViewName);
+        var vm = Assert.IsType<EditAdviceViewModel>(view.Model);
+        Assert.Equal("REF001", vm.ReferenceNumber);
+        Assert.Equal("This request is to remove a pupil. If this is not correct, go back and delete the request.", vm.AdviceText);
+    }
+
+    // ── Continue ───────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Continue_WhenTargetIsPage_RedirectsToJourneyPage()
+    {
+        _session.SetRequestState(WindowId, SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>())
+            .Returns(SampleAdvice(new ContinueToPage("reason")));
+
+        var result = await _sut.Continue(WindowId, "REF001");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal("reason", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task Continue_WhenTargetIsSummary_RedirectsToJourneySummary()
+    {
+        _session.SetRequestState(WindowId, SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>())
+            .Returns(SampleAdvice(new ContinueToSummary()));
+
+        var result = await _sut.Continue(WindowId, "REF001");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Summary", redirect.ActionName);
+        Assert.Equal("Journey", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Continue_WhenSessionNotReady_RedirectsToIndex()
+    {
+        var result = await _sut.Continue(WindowId, "REF001");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -183,6 +229,15 @@ public class AmendmentRequestsControllerTests
             StartDate = DateTime.UtcNow.AddDays(-10),
             EndDate = DateTime.UtcNow.AddDays(10)
         }
+    };
+
+    private static AmendmentAdvice SampleAdvice(AmendmentContinueTarget? target = null) => new()
+    {
+        RequestType = WhatToChange.Remove,
+        PupilName = "Jane Smith",
+        AdviceText = "This request is to remove a pupil. If this is not correct, go back and delete the request.",
+        EvidenceMessages = [],
+        ContinueTarget = target ?? new ContinueToSummary()
     };
 
     private sealed class FakeSession : ISession

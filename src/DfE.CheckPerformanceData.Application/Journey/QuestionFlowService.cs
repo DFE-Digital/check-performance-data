@@ -37,6 +37,20 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
         return page.NextPageId;
     }
 
+    public JourneyPage? GetReachableEvidencePage(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers)
+    {
+        var pageId = config.FirstPageId;
+        var visited = new HashSet<string>();
+        while (pageId is not null && visited.Add(pageId))
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) return null;
+            if (page.Type == PageType.EvidenceUpload) return page;
+            pageId = GetNextPageId(config, pageId, answers);
+        }
+        return null;
+    }
+
     public JourneyNavigation? GetNavigationGuard(QuestionFlowConfig config, RequestState journey, string pageId)
     {
         if (journey.QuestionHistory.Contains(pageId)) return null;

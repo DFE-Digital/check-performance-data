@@ -79,9 +79,9 @@ public sealed class EditAdviceService(
 
     private static string AdviceText(WhatToChange type) => type switch
     {
-        WhatToChange.Remove => "This request is a pupil 'Removal', if this is wrong, go back and delete the request.",
-        WhatToChange.Merge => "This request is for a pupil 'Merge', if this is wrong, go back and delete the request.",
-        WhatToChange.Include => "This request is for a pupil 'Include', if this is wrong, go back and delete the request.",
-        _ => "This request is wrong, go back and delete the request."
+        WhatToChange.Remove => "This request is to remove a pupil. If this is not correct, go back and delete the request.",
+        WhatToChange.Merge => "This request is to merge pupil records. If this is not correct, go back and delete the request.",
+        WhatToChange.Include => "This request is to include a pupil. If this is not correct, go back and delete the request.",
+        _ => "If this is not correct, go back and delete the request."
     };
 }

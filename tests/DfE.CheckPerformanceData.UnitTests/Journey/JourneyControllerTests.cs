@@ -505,6 +505,45 @@ public class JourneyControllerTests
         Assert.Equal(RequestStatus.InProgress, capturedStatus);
     }
 
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WhenReadyToSubmit_AppendsPageToHistory()
+    {
+        // Mirrors "Save and continue": a completed (ReadyToSubmit) evidence page must be
+        // recorded in history so that resuming the request lands on the Summary rather than
+        // being bounced back to the evidence page by the Summary navigation guard.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "file.pdf", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 1024 }] }
+        };
+        SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(["select-pupil", "select-match-pupil", "evidence-page"], capturedJourney!.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WhenInProgress_DoesNotAppendPageToHistory()
+    {
+        // An InProgress (invalid) evidence page must NOT be added to history so the request
+        // resumes on the evidence page rather than skipping past it to the Summary.
+        SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+            .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(["select-pupil", "select-match-pupil"], capturedJourney!.QuestionHistory);
+    }
+
     // ── DownloadEvidence ─────────────────────────────────────────────────────
 
     [Fact]

@@ -91,9 +91,9 @@ public class EditAdviceServiceTests
     }
 
     [Theory]
-    [InlineData(WhatToChange.Remove, "This request is a pupil 'Removal', if this is wrong, go back and delete the request.")]
-    [InlineData(WhatToChange.Merge, "This request is for a pupil 'Merge', if this is wrong, go back and delete the request.")]
-    [InlineData(WhatToChange.Include, "This request is for a pupil 'Include', if this is wrong, go back and delete the request.")]
+    [InlineData(WhatToChange.Remove, "This request is to remove a pupil. If this is not correct, go back and delete the request.")]
+    [InlineData(WhatToChange.Merge, "This request is to merge pupil records. If this is not correct, go back and delete the request.")]
+    [InlineData(WhatToChange.Include, "This request is to include a pupil. If this is not correct, go back and delete the request.")]
     public async Task Build_SetsAdviceTextForType(WhatToChange type, string expected)
     {
         StubStatus(RequestStatus.InProgress);

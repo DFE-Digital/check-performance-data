@@ -461,6 +461,17 @@ public sealed class JourneyController(
         }
 
         var status = DetermineStatus(pageId, page, journey);
+
+        // A ReadyToSubmit page has been completed, so record it in history exactly like
+        // "Save and continue" does. Otherwise the Summary navigation guard recomputes the
+        // next expected page from the last visited page and bounces the resumed request
+        // back onto this page (e.g. an all-optional evidence page saved straight to draft).
+        if (status == RequestStatus.ReadyToSubmit && pageId is not null && !journey.QuestionHistory.Contains(pageId))
+        {
+            journey.QuestionHistory.Add(pageId);
+            HttpContext.Session.SaveRequestState(windowId, s => s.QuestionHistory = journey.QuestionHistory);
+        }
+
         await requestService.SaveDraftAsync(windowId, journey, status);
         HttpContext.Session.ClearRequestState(windowId);
         return RedirectToAction("Index", "AmendmentRequests", new { windowId });

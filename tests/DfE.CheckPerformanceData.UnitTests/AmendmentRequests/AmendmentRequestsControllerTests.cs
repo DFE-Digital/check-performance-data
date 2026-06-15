@@ -165,7 +165,7 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("EditAdvice", view.ViewName);
         var vm = Assert.IsType<EditAdviceViewModel>(view.Model);
         Assert.Equal("REF001", vm.ReferenceNumber);
-        Assert.Equal("This request is a pupil 'Removal', if this is wrong, go back and delete the request.", vm.AdviceText);
+        Assert.Equal("This request is to remove a pupil. If this is not correct, go back and delete the request.", vm.AdviceText);
     }
 
     // ── Continue ───────────────────────────────────────────────────────────────
@@ -235,7 +235,7 @@ public class AmendmentRequestsControllerTests
     {
         RequestType = WhatToChange.Remove,
         PupilName = "Jane Smith",
-        AdviceText = "This request is a pupil 'Removal', if this is wrong, go back and delete the request.",
+        AdviceText = "This request is to remove a pupil. If this is not correct, go back and delete the request.",
         EvidenceMessages = [],
         ContinueTarget = target ?? new ContinueToSummary()
     };

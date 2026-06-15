@@ -129,6 +129,7 @@ try
     builder.Services.AddScoped<IQueueService, PostgresQueueService>();
     builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
     builder.Services.AddSingleton<PayloadRedactor>();
 
     builder.Services.AddSingleton(_ =>

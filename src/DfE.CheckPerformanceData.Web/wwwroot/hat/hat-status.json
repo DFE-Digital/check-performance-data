@@ -1,0 +1,77 @@
+{
+  "generatedAtUtc": "2026-06-15T14:24:16Z",
+  "items": [
+    {
+      "id": "3.10-1",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    {
+      "id": "3.10-2",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    {
+      "id": "3.10-3",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    {
+      "id": "3.10-5",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    {
+      "id": "3.10-6",
+      "passed": 25,
+      "failed": 0,
+      "total": 25
+    },
+    {
+      "id": "3.10-8",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    },
+    {
+      "id": "3.10-10",
+      "passed": 4,
+      "failed": 0,
+      "total": 4
+    },
+    {
+      "id": "3.10-12",
+      "passed": 13,
+      "failed": 0,
+      "total": 13
+    },
+    {
+      "id": "3.10-17",
+      "passed": 2,
+      "failed": 0,
+      "total": 2
+    },
+    {
+      "id": "3.13-7",
+      "passed": 3,
+      "failed": 0,
+      "total": 3
+    },
+    {
+      "id": "3.10-pii",
+      "passed": 28,
+      "failed": 0,
+      "total": 28
+    },
+    {
+      "id": "3.10-audit",
+      "passed": 1,
+      "failed": 0,
+      "total": 1
+    }
+  ]
+}

@@ -239,6 +239,15 @@ public sealed class QueueAdminController : Controller
         if (validated.Length == 0)
             return RedirectToAction(nameof(Dlq));
 
+        // Purge is irreversible, so its forensic record must name the actor. If an audited
+        // context is wired but the acting user is unknown, refuse rather than record an
+        // anonymous purge of data-bearing rows.
+        if (!HasKnownActorForAudit())
+        {
+            SetResult("Could not purge: the acting user could not be determined.");
+            return RedirectToAction(nameof(Dlq));
+        }
+
         try
         {
             // The audit and the purge commit together. The audit is still written first within
@@ -273,6 +282,12 @@ public sealed class QueueAdminController : Controller
 
     private static string Count(int n, string noun) =>
         n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+
+    // A destructive action may proceed only when its audit can name the actor. With no audited
+    // context there is nothing to audit (bare construction), so it is allowed; with an audited
+    // context the acting user id must be present.
+    private bool HasKnownActorForAudit() =>
+        _dbContext is null || !string.IsNullOrWhiteSpace(_currentUserService?.UserId);
 
     // Runs a destructive queue action and its forensic audit as one unit. When an audited
     // context is available the audit write and the mutation share a single transaction, so they

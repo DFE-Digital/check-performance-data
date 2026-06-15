@@ -281,6 +281,46 @@ public sealed class QueueAdminControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // --- A destructive purge with no known actor fails loudly rather than auditing anonymously ---
+
+    [Fact]
+    public async Task Purge_WithNoActingUser_DoesNotPurge_AndDoesNotAuditAnonymously()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var (dbContext, auditEntries) = SubstituteDbContext();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns(string.Empty); // actor unknown
+
+        var controller = new QueueAdminController(
+            adminService, dbContext: dbContext, currentUserService: currentUser);
+
+        await controller.Purge(new[] { Guid.NewGuid() });
+
+        // The forensic control for an irreversible operation must name the actor: with no acting
+        // user the purge is refused and no anonymous audit row is written.
+        await adminService.DidNotReceive().PurgeAsync(
+            Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+        auditEntries.DidNotReceive().Add(Arg.Any<AuditEntry>());
+    }
+
+    [Fact]
+    public async Task PurgeMessage_WithNoActingUser_DoesNotPurge()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var (dbContext, auditEntries) = SubstituteDbContext();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns((string)null!);
+
+        var controller = new QueueAdminController(
+            adminService, dbContext: dbContext, currentUserService: currentUser);
+
+        await controller.PurgeMessage(Guid.NewGuid());
+
+        await adminService.DidNotReceive().PurgeAsync(
+            Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>());
+        auditEntries.DidNotReceive().Add(Arg.Any<AuditEntry>());
+    }
+
     // --- The single-id redrive action requeues exactly that message and audits it ---
 
     [Fact]
@@ -306,7 +346,10 @@ public sealed class QueueAdminControllerTests
     {
         var adminService = Substitute.For<IQueueAdminService>();
         var (dbContext, auditEntries) = SubstituteDbContext();
-        var controller = new QueueAdminController(adminService, dbContext: dbContext);
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns("admin-1");
+        var controller = new QueueAdminController(
+            adminService, dbContext: dbContext, currentUserService: currentUser);
         var id = Guid.NewGuid();
 
         await controller.PurgeMessage(id);

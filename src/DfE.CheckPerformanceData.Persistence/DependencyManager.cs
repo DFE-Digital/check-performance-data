@@ -49,6 +49,8 @@ public static class DependencyManager
         services.AddScoped<IRequestRepository, RequestRepository>();
         services.AddScoped<Application.RequestDecision.IDecisionOutcomeRepository, DecisionOutcomeRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
+        services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
+            Repositories.RulesConfigVersionRepository>();
 
         return services;
     }

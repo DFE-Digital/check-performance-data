@@ -1,0 +1,24 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model RollbackConfirmViewModel
+@{
+    ViewData["Title"] = $"Roll back to version {Model.VersionNumber}";
+}
+
+<a href="/admin/rules/history/@Model.ConfigType/@Model.VersionId" class="govuk-back-link">Back to version @Model.VersionNumber</a>
+
+<h1 class="govuk-heading-xl">Roll back to version @Model.VersionNumber?</h1>
+
+<p class="govuk-body">
+    This restores the @Model.ConfigType config as it was in version @Model.VersionNumber
+    (saved @Model.CreatedAt.ToString("d MMM yyyy HH:mm") UTC@(string.IsNullOrEmpty(Model.CreatedBy) ? "" : $" by {Model.CreatedBy}")).
+    It does not erase history — it writes a new version with this content, so you can roll forward again afterwards.
+    The rules service refreshes within about 5 minutes.
+</p>
+
+<form method="post" action="/admin/rules/history/@Model.ConfigType/@Model.VersionId/rollback">
+    @Html.AntiForgeryToken()
+    <div class="govuk-button-group">
+        <button class="govuk-button govuk-button--warning" data-module="govuk-button" type="submit">Roll back</button>
+        <a class="govuk-link" href="/admin/rules/history/@Model.ConfigType/@Model.VersionId">Cancel</a>
+    </div>
+</form>

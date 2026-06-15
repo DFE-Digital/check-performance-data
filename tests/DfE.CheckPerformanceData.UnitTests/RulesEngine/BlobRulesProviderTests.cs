@@ -59,7 +59,7 @@ public sealed class BlobRulesProviderTests
           "outcomes": [
             { "key": "Deceased", "label": "Deceased",
               "rules": [ { "id": "DEC-1", "status": "AutoApproved",
-                           "when": { "field": "keyStage", "eq": "KS2" } } ] }
+                           "when": { "field": "checkingWindowType", "eq": "KS2" } } ] }
           ]
         }
         """;

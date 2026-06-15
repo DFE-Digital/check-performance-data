@@ -159,10 +159,10 @@ public sealed class SeedRulesValidationTests
         {
             var ctx = new RuleContext(
                 OutcomeKey: outcome.Key,
-                KeyStage: "KS4",
+                CheckingWindowType: "KS4June",
                 Fields: new Dictionary<string, FieldValue>
                 {
-                    ["keyStage"]    = new FieldValue.Str("KS4"),
+                    ["checkingWindowType"] = new FieldValue.Str("KS4June"),
                     ["requestType"] = new FieldValue.Str(outcome.Key),
                 });
 

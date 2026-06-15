@@ -23,10 +23,10 @@ public sealed class RulesEngineEvaluatorTests
     public void FieldEq_Matches_WhenValuesAreEqual()
     {
         var rules = OneOutcome("X",
-            Branch("R1", DecisionStatus.AutoApproved, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+            Branch("R1", DecisionStatus.AutoApproved, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4");
+        var ctx = Ctx("X", "KS4June");
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -42,7 +42,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.FieldEq("inclusionFlag", new FieldValue.Str("402"))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4"); // inclusionFlag not provided
+        var ctx = Ctx("X", "KS4June"); // inclusionFlag not provided
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -58,7 +58,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.FieldNeq("inclusionFlag", new FieldValue.Str("999"))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4");
+        var ctx = Ctx("X", "KS4June");
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -76,7 +76,7 @@ public sealed class RulesEngineEvaluatorTests
                 })),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4", ("inclusionFlag", new FieldValue.Str("404")));
+        var ctx = Ctx("X", "KS4June", ("inclusionFlag", new FieldValue.Str("404")));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -111,7 +111,7 @@ public sealed class RulesEngineEvaluatorTests
                 new Predicate.Not(new Predicate.FieldEq("hasTerminalIllness", new FieldValue.Bool(true)))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4", ("hasTerminalIllness", new FieldValue.Bool(false)));
+        var ctx = Ctx("X", "KS4June", ("hasTerminalIllness", new FieldValue.Bool(false)));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -128,7 +128,7 @@ public sealed class RulesEngineEvaluatorTests
                 new Predicate.Not(new Predicate.FieldEq("hasTerminalIllness", new FieldValue.Bool(true)))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4"); // hasTerminalIllness not provided
+        var ctx = Ctx("X", "KS4June"); // hasTerminalIllness not provided
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -142,7 +142,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.IsKnownAndCertain("dateOfArrivalInEngland")),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4",
+        var ctx = Ctx("X", "KS4June",
             ("dateOfArrivalInEngland", new FieldValue.Date(new DateOnly(2024, 9, 1))));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
@@ -157,7 +157,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.IsKnownAndCertain("dateOfArrivalInEngland")),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4",
+        var ctx = Ctx("X", "KS4June",
             ("dateOfArrivalInEngland", new FieldValue.Uncertain(new FieldValue.Date(new DateOnly(2024, 9, 1)))));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
@@ -179,7 +179,7 @@ public sealed class RulesEngineEvaluatorTests
             ["FR"] = new[] { "French" },
         });
 
-        var ctx = Ctx("X", "KS4", ("countryOfOrigin", new FieldValue.Str("AU")));
+        var ctx = Ctx("X", "KS4June", ("countryOfOrigin", new FieldValue.Str("AU")));
 
         var d = _sut.Evaluate(rules, ctx, lookups);
 
@@ -192,12 +192,12 @@ public sealed class RulesEngineEvaluatorTests
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoRejected, new Predicate.AllOf(new Predicate[]
             {
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2")), // false (we send KS4)
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2")), // false (we send KS4)
                 new Predicate.FieldEq("inclusionFlag", new FieldValue.Str("402")) // not evaluated
             })),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4"); // KS2 mismatch; inclusionFlag unknown
+        var ctx = Ctx("X", "KS4June"); // KS2 mismatch; inclusionFlag unknown
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -210,12 +210,12 @@ public sealed class RulesEngineEvaluatorTests
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.AnyOf(new Predicate[]
             {
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")), // true
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")), // true
                 new Predicate.FieldEq("missingField", new FieldValue.Str("x"))  // unknown - not reached
             })),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4");
+        var ctx = Ctx("X", "KS4June");
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -236,7 +236,7 @@ public sealed class RulesEngineEvaluatorTests
     public void Inclusion_OutcomeDispatchesOnFlag(string flag, DecisionStatus expected)
     {
         var rules = InclusionOutcome();
-        var ctx = Ctx("Inclusion", "KS4", ("inclusionFlag", new FieldValue.Str(flag)));
+        var ctx = Ctx("Inclusion", "KS4June", ("inclusionFlag", new FieldValue.Str(flag)));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -244,27 +244,27 @@ public sealed class RulesEngineEvaluatorTests
     }
 
     [Theory]
-    [InlineData("KS4", "2025-02-01", DecisionStatus.AutoRejected)] // KS4 + after threshold
-    [InlineData("KS4", "2025-01-16", DecisionStatus.Scrutiny)]     // KS4 + equal threshold (not strictly greater)
+    [InlineData("KS4June", "2025-02-01", DecisionStatus.AutoRejected)] // KS4 + after threshold
+    [InlineData("KS4June", "2025-01-16", DecisionStatus.Scrutiny)]     // KS4 + equal threshold (not strictly greater)
     [InlineData("KS2", "2025-05-13", DecisionStatus.AutoRejected)] // KS2 + after threshold
     [InlineData("KS2", "2025-05-12", DecisionStatus.Scrutiny)]
     [InlineData("Post16", "2025-08-01", DecisionStatus.Scrutiny)]  // outside KS2/KS4 windows
-    public void ElectiveHomeEducation_DispatchesByKeyStageAndDate(string keyStage, string removalDate, DecisionStatus expected)
+    public void ElectiveHomeEducation_DispatchesByCheckingWindowTypeAndDate(string checkingWindowType, string removalDate, DecisionStatus expected)
     {
         var rules = OneOutcome("ElectiveHomeEducation",
             Branch("EHE-KS4", DecisionStatus.AutoRejected, new Predicate.AllOf(new Predicate[]
             {
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")),
                 new Predicate.FieldCompare("dateOfRemoval", CompareOp.Gt, new FieldValue.Date(new DateOnly(2025, 1, 16))),
             })),
             Branch("EHE-KS2", DecisionStatus.AutoRejected, new Predicate.AllOf(new Predicate[]
             {
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2")),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2")),
                 new Predicate.FieldCompare("dateOfRemoval", CompareOp.Gt, new FieldValue.Date(new DateOnly(2025, 5, 12))),
             })),
             Branch("EHE-DEF", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("ElectiveHomeEducation", keyStage,
+        var ctx = Ctx("ElectiveHomeEducation", checkingWindowType,
             ("dateOfRemoval", new FieldValue.Date(DateOnly.Parse(removalDate))));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
@@ -280,7 +280,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("TCI-TERM", DecisionStatus.Scrutiny, new Predicate.FieldEq("hasTerminalIllness", new FieldValue.Bool(true))),
             Branch("TCI-DEF",  DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("TerminalCriticalIllness", "KS4", ("hasTerminalIllness", new FieldValue.Bool(true)));
+        var ctx = Ctx("TerminalCriticalIllness", "KS4June", ("hasTerminalIllness", new FieldValue.Bool(true)));
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -356,15 +356,15 @@ public sealed class RulesEngineEvaluatorTests
     {
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoApproved,
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4");
+        var ctx = Ctx("X", "KS4June");
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
         Assert.Single(d.Trace);
-        Assert.Contains("keyStage == \"KS4\" → true", d.Trace[0]);
+        Assert.Contains("checkingWindowType == \"KS4June\" → true", d.Trace[0]);
     }
 
     [Fact]
@@ -372,7 +372,7 @@ public sealed class RulesEngineEvaluatorTests
     {
         // Build an AllOf with 80 leaves to exceed the 50-line trace cap.
         var leaves = Enumerable.Range(0, 80)
-            .Select(_ => (Predicate)new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2")))
+            .Select(_ => (Predicate)new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2")))
             .ToList();
 
         // KS4 input fails every leaf (no short-circuit because... actually AllOf SHORT-CIRCUITS on first false).
@@ -381,7 +381,7 @@ public sealed class RulesEngineEvaluatorTests
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.AnyOf(leaves)),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4"); // all 80 leaves evaluate false (no short-circuit)
+        var ctx = Ctx("X", "KS4June"); // all 80 leaves evaluate false (no short-circuit)
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -402,15 +402,15 @@ public sealed class RulesEngineEvaluatorTests
         var leaves = new List<Predicate>();
         for (var i = 0; i < 60; i++)
         {
-            leaves.Add(new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2"))); // fails (KS4 input)
+            leaves.Add(new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))); // fails (KS4 input)
         }
-        leaves.Add(new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))); // succeeds
+        leaves.Add(new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))); // succeeds
 
         var rules = OneOutcome("X",
             Branch("R1", DecisionStatus.AutoApproved, new Predicate.AnyOf(leaves)),
             Branch("OW", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance));
 
-        var ctx = Ctx("X", "KS4");
+        var ctx = Ctx("X", "KS4June");
 
         var d = _sut.Evaluate(rules, ctx, Lookups.Empty);
 
@@ -429,15 +429,15 @@ public sealed class RulesEngineEvaluatorTests
     private static RuleBranch Branch(string id, DecisionStatus status, Predicate when) =>
         new(id, status, when);
 
-    private static RuleContext Ctx(string outcomeKey, string keyStage, params (string, FieldValue)[] extraFields)
+    private static RuleContext Ctx(string outcomeKey, string checkingWindowType, params (string, FieldValue)[] extraFields)
     {
         var fields = new Dictionary<string, FieldValue>
         {
-            ["keyStage"]    = new FieldValue.Str(keyStage),
+            ["checkingWindowType"]    = new FieldValue.Str(checkingWindowType),
             ["requestType"] = new FieldValue.Str(outcomeKey),
         };
         foreach (var (k, v) in extraFields) fields[k] = v;
-        return new RuleContext(outcomeKey, keyStage, fields);
+        return new RuleContext(outcomeKey, checkingWindowType, fields);
     }
 
     private static RuleSet InclusionOutcome() =>

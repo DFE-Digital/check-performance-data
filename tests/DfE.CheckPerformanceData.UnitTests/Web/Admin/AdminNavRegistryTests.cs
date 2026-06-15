@@ -6,9 +6,9 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 public sealed class AdminNavRegistryTests
 {
-	// --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
+    // --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
 
-	[Fact]
+    [Fact]
 	public void AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
@@ -23,7 +23,7 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Visual regression dashboard", titles);
-		Assert.Contains("Rules engine", titles);
+		Assert.Contains("Rules engine configuration", titles);
 		Assert.Contains("CMS administration", titles);
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Deleted pages", titles);
@@ -57,7 +57,7 @@ public sealed class AdminNavRegistryTests
 			.ToArray();
 
 		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
-		Assert.Equal(new[] { 10, 20 }, systemOrders);
+		Assert.Equal(new[] { 10, 30 }, systemOrders);
 	}
 
 	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---
@@ -107,6 +107,25 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal("cms-admin", entry.ParentKey);
 		Assert.Equal("/admin/settings", entry.Url);
 		Assert.Equal("GET", entry.HttpMethod);
+		Assert.True(entry.Enabled);
+	}
+
+	// --- RulesConfig_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminRules ---
+
+	[Fact]
+	public void RulesConfig_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminRules()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries();
+
+		using var provider = services.BuildServiceProvider();
+		var entry = provider.GetServices<IAdminNavEntry>()
+			.Single(e => e.Key == "rules-config");
+
+		Assert.Equal("system-admin", entry.ParentKey);
+		Assert.Equal("/admin/rules", entry.Url);
+		Assert.Equal("GET", entry.HttpMethod);
+		Assert.Equal(30, entry.Order);
 		Assert.True(entry.Enabled);
 	}
 }

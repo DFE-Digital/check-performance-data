@@ -40,11 +40,11 @@ public sealed class PredicateJsonConverterTests
     [Fact]
     public void Reads_FieldEqWithStringLiteral()
     {
-        var json = """{ "field": "keyStage", "eq": "KS4" }""";
+        var json = """{ "field": "checkingWindowType", "eq": "KS4June" }""";
         var p = JsonSerializer.Deserialize<Predicate>(json, Opts);
         var eq = Assert.IsType<Predicate.FieldEq>(p);
-        Assert.Equal("keyStage", eq.Field);
-        Assert.Equal(new FieldValue.Str("KS4"), eq.Value);
+        Assert.Equal("checkingWindowType", eq.Field);
+        Assert.Equal(new FieldValue.Str("KS4June"), eq.Value);
     }
 
     [Fact]
@@ -59,10 +59,10 @@ public sealed class PredicateJsonConverterTests
     [Fact]
     public void Reads_FieldNeq()
     {
-        var json = """{ "field": "keyStage", "neq": "KS4" }""";
+        var json = """{ "field": "checkingWindowType", "neq": "KS4June" }""";
         var p = JsonSerializer.Deserialize<Predicate>(json, Opts);
         var neq = Assert.IsType<Predicate.FieldNeq>(p);
-        Assert.Equal("keyStage", neq.Field);
+        Assert.Equal("checkingWindowType", neq.Field);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class PredicateJsonConverterTests
     [Fact]
     public void Rejects_FieldShapeWithoutOperator()
     {
-        var json = """{ "field": "keyStage" }""";
+        var json = """{ "field": "checkingWindowType" }""";
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Predicate>(json, Opts));
     }
 
@@ -110,7 +110,7 @@ public sealed class PredicateJsonConverterTests
         var json = """
             {
               "all": [
-                { "field": "keyStage",      "eq": "KS4" },
+                { "field": "checkingWindowType",      "eq": "KS4June" },
                 { "field": "dateOfRemoval", "gt": "2025-01-16" }
               ]
             }
@@ -128,7 +128,7 @@ public sealed class PredicateJsonConverterTests
         var json = """
             {
               "any": [
-                { "all": [ { "field": "keyStage", "eq": "KS4" } ] },
+                { "all": [ { "field": "checkingWindowType", "eq": "KS4June" } ] },
                 { "field": "isAddBack", "eq": true }
               ]
             }
@@ -198,7 +198,7 @@ public sealed class PredicateJsonConverterTests
     public void RoundTrips_AllOfTree()
     {
         var json = """
-            {"all":[{"field":"keyStage","eq":"KS4"},{"field":"dateOfRemoval","gt":"2025-01-16"}]}
+            {"all":[{"field":"checkingWindowType","eq":"KS4June"},{"field":"dateOfRemoval","gt":"2025-01-16"}]}
             """.Trim();
         var p = JsonSerializer.Deserialize<Predicate>(json, Opts)!;
         var roundTrip = JsonSerializer.Serialize(p, Opts);

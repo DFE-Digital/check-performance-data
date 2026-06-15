@@ -1,0 +1,238 @@
+@using DfE.CheckPerformanceData.Web.Models.Dev
+@using DfE.CheckPerformanceData.Web.Models.Observability
+@using DfE.CheckPerformanceData.Application.Observability
+@model HatConsoleViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Debug · HAT test console";
+
+    string PhaseLabel(HatPhase phase) => phase == HatPhase.Phase310 ? "3.10" : "3.13";
+
+    // A minimal dashboard view model so the live board partial renders its skeleton and connects
+    // its SSE stream here, without this page owning any aggregate dashboard query. The board only
+    // reads Depths; the live feed fills in the motion once the stream is up.
+    var flowing = new HealthState(HealthLevel.Flowing, "#00703c", "Flowing", "circle");
+    var boardModel = new DashboardViewModel
+    {
+        QueueHealth = Array.Empty<QueueHealth>(),
+        OverallHealth = flowing,
+        StatusSentence = string.Empty,
+    };
+}
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+
+<h1 class="govuk-heading-xl">Debug · HAT test console</h1>
+
+<p class="govuk-body">
+    Drive synthetic traffic through the pipeline, watch the board react, and tick off every
+    human-checkable acceptance item. Pass / fail / skip and notes are kept in your browser only —
+    nothing is stored server-side. The automated-only items show their mapped tests below.
+</p>
+
+@* ── Action panel ─────────────────────────────────────────────────────────── *@
+<section class="govuk-!-margin-bottom-6" aria-labelledby="hat-actions-heading">
+    <h2 class="govuk-heading-l" id="hat-actions-heading">Actions</h2>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="hat-batch">Batch size</label>
+        <span class="govuk-hint">How many requests each "drive" button fires (1–20).</span>
+        <input class="govuk-input govuk-input--width-3" id="hat-batch" name="count"
+               type="number" min="1" max="20" value="1" data-hat-batch inputmode="numeric" />
+    </div>
+
+    <h3 class="govuk-heading-s">Drive traffic</h3>
+    <div class="govuk-button-group">
+        <form method="post" action="/dev/hat/drive?outcome=approved" class="hat-inline-form" data-hat-drive-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="count" value="1" data-hat-batch-mirror />
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive approved</button>
+        </form>
+        <form method="post" action="/dev/hat/drive?outcome=rejected" class="hat-inline-form" data-hat-drive-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="count" value="1" data-hat-batch-mirror />
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive rejected</button>
+        </form>
+        <form method="post" action="/dev/hat/drive?outcome=scrutiny" class="hat-inline-form" data-hat-drive-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="count" value="1" data-hat-batch-mirror />
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive scrutiny</button>
+        </form>
+    </div>
+
+    <h3 class="govuk-heading-s">Inject failure</h3>
+    <div class="govuk-button-group">
+        <form method="post" action="/dev/hat/inject-failure" class="hat-inline-form">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button">Inject failing message</button>
+        </form>
+        <form method="post" action="/dev/hat/seed-dlq" class="hat-inline-form">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Seed DLQ</button>
+        </form>
+    </div>
+
+    <h3 class="govuk-heading-s">Gating flags</h3>
+    <dl class="govuk-summary-list govuk-summary-list--no-border">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Dev:ToolsEnabled</dt>
+            <dd class="govuk-summary-list__value">@(Model.DevToolsEnabled ? "on" : "off")</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Zendesk:UseFake</dt>
+            <dd class="govuk-summary-list__value">@(Model.FakeZendesk ? "on (no real Zendesk push)" : "off")</dd>
+        </div>
+    </dl>
+
+    <div class="govuk-button-group">
+        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-hat-clear>Clear my HAT results</button>
+        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-hat-export>Export results</button>
+    </div>
+</section>
+
+@* ── Live workflow board (embedded 3.13 partial) ───────────────────────────── *@
+<section class="govuk-!-margin-bottom-6" aria-labelledby="hat-board-heading">
+    <h2 class="govuk-heading-l" id="hat-board-heading">Live workflow board</h2>
+    @await Html.PartialAsync("~/Views/Observability/_Board.cshtml", boardModel)
+</section>
+
+@* ── Guided HAT runner ─────────────────────────────────────────────────────── *@
+<section class="govuk-!-margin-bottom-6" aria-labelledby="hat-runner-heading">
+    <h2 class="govuk-heading-l" id="hat-runner-heading">Guided HAT runner</h2>
+
+    <div class="govuk-!-margin-bottom-3" data-hat-progress aria-live="polite">
+        <p class="govuk-body">Progress: <span data-hat-progress-text>0 / @Model.Interactive.Count</span></p>
+    </div>
+
+    <fieldset class="govuk-fieldset govuk-!-margin-bottom-4">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Filter by phase</legend>
+        <div class="govuk-radios govuk-radios--inline govuk-radios--small" data-hat-filter>
+            <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="hat-filter-all" type="radio" name="hat-filter" value="all" checked />
+                <label class="govuk-label govuk-radios__label" for="hat-filter-all">All</label>
+            </div>
+            <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="hat-filter-310" type="radio" name="hat-filter" value="3.10" />
+                <label class="govuk-label govuk-radios__label" for="hat-filter-310">3.10</label>
+            </div>
+            <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="hat-filter-313" type="radio" name="hat-filter" value="3.13" />
+                <label class="govuk-label govuk-radios__label" for="hat-filter-313">3.13</label>
+            </div>
+        </div>
+    </fieldset>
+
+    @for (var i = 0; i < Model.Interactive.Count; i++)
+    {
+        var item = Model.Interactive[i];
+        var number = i + 1;
+        <div class="hat-item" data-hat-item="@item.Id" data-hat-phase="@PhaseLabel(item.Phase)">
+            <h3 class="govuk-heading-s">@number. @item.Title <span class="govuk-tag govuk-tag--grey">@PhaseLabel(item.Phase) · @item.Id</span></h3>
+            <p class="govuk-body"><strong>Expect:</strong> @item.Expected</p>
+
+            @if (item.Actions.Count > 0)
+            {
+                <div class="govuk-button-group">
+                    @foreach (var action in item.Actions)
+                    {
+                        if (action.Method == HatActionMethod.Post)
+                        {
+                            <form method="post" action="@action.Url" class="hat-inline-form">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">@action.Label</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="@action.Url" data-module="govuk-button">@action.Label</a>
+                        }
+                    }
+                </div>
+            }
+
+            <fieldset class="govuk-fieldset">
+                <legend class="govuk-fieldset__legend govuk-visually-hidden">Verdict for @item.Title</legend>
+                <div class="govuk-radios govuk-radios--inline govuk-radios--small" data-hat-verdict="@item.Id">
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="verdict-@item.Id-pass" type="radio" name="verdict-@item.Id" value="pass" />
+                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-pass">Pass</label>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="verdict-@item.Id-fail" type="radio" name="verdict-@item.Id" value="fail" />
+                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-fail">Fail</label>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="verdict-@item.Id-skip" type="radio" name="verdict-@item.Id" value="skip" />
+                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-skip">Skip</label>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="notes-@item.Id">Notes</label>
+                <textarea class="govuk-textarea govuk-!-margin-bottom-2" id="notes-@item.Id" rows="2"
+                          data-hat-notes="@item.Id"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(item.SurfaceLink))
+            {
+                <p class="govuk-body"><a class="govuk-link" href="@item.SurfaceLink">Open surface ↗</a></p>
+            }
+        </div>
+    }
+</section>
+
+@* ── Automated coverage panel ──────────────────────────────────────────────── *@
+<section class="govuk-!-margin-bottom-6" aria-labelledby="hat-coverage-heading">
+    <h2 class="govuk-heading-l" id="hat-coverage-heading">Automated coverage</h2>
+    <p class="govuk-body">
+        These items are proven by automated tests, not by hand. Status is read from
+        <code>hat-status.json</code> if a test run has written one; otherwise copy the
+        <code>dotnet test</code> command to refresh it.
+    </p>
+
+    <table class="govuk-table" data-hat-coverage data-coverage-url="/hat/hat-coverage.json" data-status-url="/hat/hat-status.json">
+        <caption class="govuk-table__caption govuk-table__caption--m govuk-visually-hidden">Automated coverage status</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Item</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Proven by</th>
+                <th scope="col" class="govuk-table__header">Run to refresh</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body" data-hat-coverage-body>
+            @* Server-rendered fallback rows: the ids and their test filters render without JS;
+               the script enriches each with ✓/✗ + counts + last-run when a status file exists. *@
+            @foreach (var id in Model.AutomatedCoverageIds)
+            {
+                <tr class="govuk-table__row" data-hat-coverage-id="@id">
+                    <th scope="row" class="govuk-table__header">@id</th>
+                    <td class="govuk-table__cell" data-coverage-status>Run to refresh</td>
+                    <td class="govuk-table__cell" data-coverage-filter></td>
+                    <td class="govuk-table__cell">
+                        <code data-coverage-command>dotnet test</code>
+                        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-left-2"
+                                data-module="govuk-button" data-coverage-copy>Copy</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
+@* ── Surface launcher ──────────────────────────────────────────────────────── *@
+<section class="govuk-!-margin-bottom-6" aria-labelledby="hat-launcher-heading">
+    <h2 class="govuk-heading-l" id="hat-launcher-heading">Surface launcher</h2>
+    <ul class="govuk-list">
+        <li><a class="govuk-link" href="/admin/observability">Dashboard</a></li>
+        <li><a class="govuk-link" href="/admin/queues">Queues</a></li>
+        <li><a class="govuk-link" href="/admin/queues/dlq">Dead-letter queue</a></li>
+        <li><a class="govuk-link" href="/dev/hat/last-journey">Journey for last driven reference</a></li>
+        <li><a class="govuk-link" href="/admin/share">Share &amp; wallboard</a></li>
+        <li><a class="govuk-link" href="/dev/zendesk/outbox">Zendesk outbox &amp; ticket preview</a></li>
+    </ul>
+</section>
+
+<script src="~/js/observability-board.js" asp-append-version="true"></script>
+<script src="~/js/hat-console.js" asp-append-version="true"></script>

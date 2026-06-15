@@ -1,0 +1,94 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model RulesLandingViewModel
+@{
+    ViewData["Title"] = "Rules engine configuration";
+
+    void RenderCard(string title, string file, RulesConfigCardViewModel card,
+        string detailUrl, string detailLabel, string historyType, string itemNoun)
+    {
+        <div class="govuk-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">@title</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                <p class="govuk-body-s govuk-hint"><code>@file</code></p>
+                @if (card.IsEmpty)
+                {
+                    <p class="govuk-body">Not yet configured. No file has been published.</p>
+                }
+                else
+                {
+                    <dl class="govuk-summary-list govuk-summary-list--no-border rules-config-card__summary">
+                        @if (!string.IsNullOrEmpty(card.Version))
+                        {
+                            <div class="govuk-summary-list__row">
+                                <dt class="govuk-summary-list__key">Version</dt>
+                                <dd class="govuk-summary-list__value">@card.Version</dd>
+                            </div>
+                        }
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">@itemNoun</dt>
+                            <dd class="govuk-summary-list__value">@card.ItemCount</dd>
+                        </div>
+                        @if (card.LatestVersionNumber is int v)
+                        {
+                            <div class="govuk-summary-list__row">
+                                <dt class="govuk-summary-list__key">Last saved</dt>
+                                <dd class="govuk-summary-list__value">
+                                    Version @v@(card.LastSavedBy is null ? "" : $" by {card.LastSavedBy}")
+                                    @(card.LastSavedAt is null ? "" : $" on {card.LastSavedAt:d MMM yyyy HH:mm} UTC")
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+                    <p class="govuk-body">
+                        <a class="govuk-link" href="@detailUrl">@detailLabel</a>
+                    </p>
+                }
+                @if (card.CanUpload)
+                {
+                    <a class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                       href="/admin/rules/upload/@historyType">Upload @file</a>
+                }
+                @if (card.HasHistory)
+                {
+                    <p class="govuk-body">
+                        <a class="govuk-link" href="/admin/rules/history/@historyType">Version history</a>
+                    </p>
+                }
+            </div>
+        </div>
+    }
+}
+
+@if (TempData["SuccessMessage"] is string success)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@success</p>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">Rules engine configuration</h1>
+<p class="govuk-body-l">
+    View the decision rules and country-language lookups used by the rules engine.
+</p>
+
+<div class="govuk-inset-text">
+    Changes you publish here become the live configuration. The rules engine worker
+    reloads it about every 5 minutes.
+</div>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+        @{ RenderCard("Decision rules", "rules.json", Model.Rules, "/admin/rules/outcomes", "View outcomes", "Rules", "Outcomes"); }
+    </div>
+    <div class="govuk-grid-column-one-half">
+        @{ RenderCard("Country languages", "country-languages.json", Model.Lookups, "/admin/rules/lookups", "View languages", "Lookups", "Countries"); }
+    </div>
+</div>

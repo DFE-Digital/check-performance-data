@@ -10,11 +10,12 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <list type="bullet">
 ///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.RequestTypeCode"/> via
 ///         <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/>.</item>
-///   <item><c>KeyStage</c> from <see cref="RequestDocument.CheckingWindowType"/> via
-///         <see cref="AnswerFieldMap.NormaliseKeyStage"/>.</item>
-///   <item><c>pupilAge</c> / <c>inclusionFlag</c> from the pupil record on the message.</item>
+///   <item><c>CheckingWindowType</c> from <see cref="RequestDocument.CheckingWindowType"/> via
+///         <see cref="AnswerFieldMap.NormaliseCheckingWindowType"/>.</item>
+///   <item><c>pupilAge</c> / <c>inclusionFlag</c> / <c>isAddBack</c> from the pupil
+///         record on the message.</item>
 ///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via the <see cref="AnswerFieldMap"/>
-///         maps (plain copy, radio fan-out, vocabulary translation, key-stage-resolved
+///         maps (plain copy, radio fan-out, vocabulary translation, window-type-resolved
 ///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
 ///         The engine-facing <c>RawValue</c> is preferred over the display <c>Value</c>.</item>
 /// </list>
@@ -30,12 +31,12 @@ public sealed class RuleContextMapper : IRuleContextMapper
         ArgumentNullException.ThrowIfNull(message);
 
         var outcomeKey = ResolveOutcomeKey(message.RequestTypeCode);
-        var keyStage = AnswerFieldMap.NormaliseKeyStage(message.CheckingWindowType);
+        var checkingWindowType = AnswerFieldMap.NormaliseCheckingWindowType(message.CheckingWindowType);
 
         var fields = new Dictionary<string, FieldValue>(StringComparer.Ordinal)
         {
-            ["keyStage"]    = string.IsNullOrEmpty(keyStage) ? FieldValue.Unknown.Instance : new FieldValue.Str(keyStage),
-            ["requestType"] = string.IsNullOrWhiteSpace(message.RequestTypeCode) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.RequestTypeCode),
+            ["checkingWindowType"] = string.IsNullOrEmpty(checkingWindowType) ? FieldValue.Unknown.Instance : new FieldValue.Str(checkingWindowType),
+            ["requestType"]        = string.IsNullOrWhiteSpace(message.RequestTypeCode) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.RequestTypeCode),
         };
 
         // Pupil-record fields. Age and Pincl are primitive ints; treat 0 / negative as
@@ -45,7 +46,10 @@ public sealed class RuleContextMapper : IRuleContextMapper
             if (pupil.Age > 0)
                 fields["pupilAge"] = new FieldValue.Num(pupil.Age);
             if (pupil.Pincl > 0)
+            {
                 fields["inclusionFlag"] = new FieldValue.Str(pupil.Pincl.ToString(CultureInfo.InvariantCulture));
+                fields["isAddBack"]     = new FieldValue.Bool(pupil.Pincl == AnswerFieldMap.AddBackPincl);
+            }
         }
 
         if (message.Answers is not null)
@@ -54,14 +58,14 @@ public sealed class RuleContextMapper : IRuleContextMapper
             {
                 if (answer is null) continue;
                 if (string.IsNullOrEmpty(answer.QuestionId)) continue;
-                MapAnswer(answer, keyStage, fields);
+                MapAnswer(answer, checkingWindowType, fields);
             }
         }
 
-        return new RuleContext(outcomeKey, keyStage, fields);
+        return new RuleContext(outcomeKey, checkingWindowType, fields);
     }
 
-    private static void MapAnswer(AnswerRecord answer, string keyStage, Dictionary<string, FieldValue> fields)
+    private static void MapAnswer(AnswerRecord answer, string checkingWindowType, Dictionary<string, FieldValue> fields)
     {
         var raw = (answer.RawValue ?? answer.Value)?.Trim();
 
@@ -77,10 +81,10 @@ public sealed class RuleContextMapper : IRuleContextMapper
             return;
         }
 
-        // One journey question, two canonical fields — resolved by key stage.
+        // One journey question, two canonical fields — resolved by checking window type.
         if (answer.QuestionId == AnswerFieldMap.SatExamsQuestionId)
         {
-            var satField = AnswerFieldMap.SatExamsFieldFor(keyStage);
+            var satField = AnswerFieldMap.SatExamsFieldFor(checkingWindowType);
             if (satField is null) return;
             fields[satField] = string.IsNullOrEmpty(raw)
                 ? FieldValue.Unknown.Instance

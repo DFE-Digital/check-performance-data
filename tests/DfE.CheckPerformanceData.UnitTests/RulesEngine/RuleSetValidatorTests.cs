@@ -45,7 +45,7 @@ public sealed class RuleSetValidatorTests
         var rules = MakeRuleSet(new[]
         {
             Outcome("Deceased",
-                Branch("D1", DecisionStatus.AutoApproved, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2"))))
+                Branch("D1", DecisionStatus.AutoApproved, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))))
         });
 
         var result = _sut.Validate(rules);
@@ -61,7 +61,7 @@ public sealed class RuleSetValidatorTests
         {
             Outcome("Deceased",
                 Branch("D1", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance),
-                Branch("D2", DecisionStatus.AutoApproved, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2"))),
+                Branch("D2", DecisionStatus.AutoApproved, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))),
                 Branch("D3", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
         });
 
@@ -77,7 +77,7 @@ public sealed class RuleSetValidatorTests
         var rules = MakeRuleSet(new[]
         {
             Outcome("EHE",
-                Branch("DUP", DecisionStatus.AutoRejected, new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))),
+                Branch("DUP", DecisionStatus.AutoRejected, new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))),
                 Branch("DUP", DecisionStatus.Scrutiny, Predicate.Otherwise.Instance))
         });
 

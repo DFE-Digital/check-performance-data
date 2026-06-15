@@ -1,0 +1,19 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@using DfE.CheckPerformanceData.Web.Views.Admin.Rules
+@model BranchEditViewModel
+@*
+    The predicate condition tree for the branch editor. Rendered server-side inside
+    #rules-condition-editor for the no-JS path, and returned as a fragment by
+    TransformBranch on every AJAX structural edit (the JS replaces the container's
+    innerHTML with this). Single source of truth for the editor markup.
+*@
+@{
+    var root = Model.Form.Nodes.FirstOrDefault(n => n.ParentId is null);
+}
+@if (root is not null)
+{
+    @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateEditorNode.cshtml", new EditorNodeContext
+    {
+        Nodes = Model.Form.Nodes, AllFields = Model.AllFields, Node = root
+    })
+}

@@ -1,0 +1,62 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model LookupRowEditViewModel
+@{
+    ViewData["Title"] = Model.Form.IsNew ? "Add country" : $"Edit {Model.Form.Code}";
+    var saveAction = Model.Form.IsNew ? "/admin/rules/lookups/save" : $"/admin/rules/lookups/{Model.Form.Code}/save";
+}
+
+<a href="/admin/rules/lookups" class="govuk-back-link">Back to country languages</a>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var error in Model.Errors) { <li>@error</li> }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
+
+<form method="post" action="@saveAction">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="IsNew" value="@Model.Form.IsNew.ToString().ToLowerInvariant()" />
+    <input type="hidden" name="LoadETag" value="@Model.Form.LoadETag" />
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Code">Country code</label>
+        @if (Model.Form.IsNew)
+        {
+            <input class="govuk-input govuk-input--width-5" id="Code" name="Code" value="@Model.Form.Code" />
+        }
+        else
+        {
+            <input type="hidden" name="Code" value="@Model.Form.Code" />
+            <p class="govuk-body"><code>@Model.Form.Code</code></p>
+        }
+    </div>
+
+    <fieldset class="govuk-fieldset">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Official languages</legend>
+        @for (var i = 0; i < Model.Form.Languages.Count; i++)
+        {
+            <div style="display:flex; gap:6px; margin-bottom:4px;">
+                <input class="govuk-input govuk-input--width-20" name="Languages[@i]" value="@Model.Form.Languages[i]" />
+                <button class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
+                        name="Action" value="removeLanguage:@i" formaction="/admin/rules/lookups/row/transform" type="submit">Remove</button>
+            </div>
+        }
+        <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                name="Action" value="addLanguage" formaction="/admin/rules/lookups/row/transform" type="submit">Add language</button>
+    </fieldset>
+
+    <div class="govuk-button-group govuk-!-margin-top-4">
+        <button class="govuk-button" data-module="govuk-button" name="Action" value="save" type="submit">Save</button>
+        <a class="govuk-link" href="/admin/rules/lookups">Cancel</a>
+    </div>
+</form>

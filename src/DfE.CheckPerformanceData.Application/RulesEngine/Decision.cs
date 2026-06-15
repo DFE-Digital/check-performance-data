@@ -33,7 +33,7 @@ public sealed record Decision(
     /// </summary>
     public static Decision UnmatchedOutcome(string outcomeKey) =>
         new(DecisionStatus.Scrutiny, outcomeKey, "_unmatched_outcome",
-            new[] { $"No outcome configured for key '{outcomeKey}'" });
+            [$"No outcome configured for key '{outcomeKey}'"]);
 
     /// <summary>
     /// Reached only if validation is bypassed and an outcome has no terminal
@@ -46,5 +46,5 @@ public sealed record Decision(
     /// Fallback constructed by the worker when the mapper or engine itself throws.
     /// </summary>
     public static Decision SyntheticScrutiny(string syntheticRuleId, string detail) =>
-        new(DecisionStatus.Scrutiny, "_unknown", syntheticRuleId, new[] { detail });
+        new(DecisionStatus.Scrutiny, "_unknown", syntheticRuleId, [detail]);
 }

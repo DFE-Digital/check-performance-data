@@ -52,6 +52,8 @@ public static class DependencyManager
         services.AddSingleton<IRulesEngine, RulesEngine.RulesEngine>();
         services.AddSingleton<IRuleContextMapper, RuleContextMapper>();
         services.AddSingleton<RuleSetValidator>();
+        services.AddSingleton<RulesConfig.LookupsValidator>();
+        services.AddScoped<RulesConfig.IRulesConfigService, RulesConfig.RulesConfigService>();
 
         return services;
     }

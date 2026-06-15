@@ -17,7 +17,7 @@ public static class FieldCatalogue
         new Dictionary<string, FieldType>(StringComparer.Ordinal)
         {
             // Derived from message envelope
-            ["keyStage"]                          = FieldType.String,
+            ["checkingWindowType"]                = FieldType.String,
             ["requestType"]                       = FieldType.String,
 
             // Inclusion outcome

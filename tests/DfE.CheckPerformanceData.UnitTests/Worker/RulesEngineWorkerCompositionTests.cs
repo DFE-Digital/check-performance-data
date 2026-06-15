@@ -154,7 +154,7 @@ public sealed class RulesEngineWorkerCompositionTests
         {
           "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
           "CheckingWindowId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-          "CheckingWindowType": "KS4",
+          "CheckingWindowType": "KS4June",
           "RequestTypeCode": "Remove - pupil-died",
           "School": { "Urn": "1", "Name": "S" },
           "SubmittedBy": { "UserId": "u", "DisplayName": "A" },

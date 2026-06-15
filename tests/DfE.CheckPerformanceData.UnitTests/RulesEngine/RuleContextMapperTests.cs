@@ -51,22 +51,25 @@ public sealed class RuleContextMapperTests
         Assert.Equal(AnswerFieldMap.UnknownOutcomeKey, ctx.OutcomeKey);
     }
 
-    // --- KeyStage normalisation ---
+    // --- CheckingWindowType normalisation ---
 
     [Theory]
-    [InlineData("KS2",       "KS2")]
-    [InlineData("ks4",       "KS4")]   // case-insensitive
-    [InlineData("Post16",    "Post16")]
-    [InlineData("16 to 18",  "Post16")] // docx phrasing
-    [InlineData("16-18",     "Post16")]
-    [InlineData("",          "")]      // unrecognised → empty
-    public void Maps_CheckingWindowType_ToCanonicalKeyStage(string raw, string expected)
+    [InlineData("KS2",        "KS2")]
+    [InlineData("ks4june",    "KS4June")]   // case-insensitive
+    [InlineData("KS4Autumn",  "KS4Autumn")]
+    [InlineData("ks4autumn",  "KS4Autumn")]
+    [InlineData("Post16",     "Post16")]
+    [InlineData("16 to 18",   "Post16")] // legacy docx phrasing
+    [InlineData("16-18",      "Post16")]
+    [InlineData("KS4",        "KS4")]    // ambiguous June/Autumn → pass-through: matches no rule, falls to otherwise (Scrutiny)
+    [InlineData("",           "")]       // missing → empty
+    public void Maps_CheckingWindowType_ToCanonicalValue(string raw, string expected)
     {
         var msg = NewMessage("Remove - pupil-died", checkingWindowType: raw);
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(expected, ctx.KeyStage);
+        Assert.Equal(expected, ctx.CheckingWindowType);
     }
 
     // --- Field projection: plain mapped questions ---
@@ -179,6 +182,44 @@ public sealed class RuleContextMapperTests
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("inclusionFlag"));
     }
 
+    // --- Field projection: isAddBack calculated from the pupil record ---
+
+    [Fact]
+    public void IsAddBack_IsTrue_WhenPinclIsAddBackCode()
+    {
+        var msg = NewMessage("Include", pupilPincl: 403);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true), ctx.GetField("isAddBack"));
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(402)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    public void IsAddBack_IsFalse_ForAnyOtherSuppliedPincl(int pincl)
+    {
+        var msg = NewMessage("Include", pupilPincl: pincl);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("isAddBack"));
+    }
+
+    [Fact]
+    public void IsAddBack_IsUnknown_WhenPinclNotSupplied()
+    {
+        // Fail-safe: no inclusion data means the add-back rules defer to Scrutiny.
+        var msg = NewMessage("Include", pupilPincl: 0);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("isAddBack"));
+    }
+
     // --- Field projection: translated radio vocabularies ---
 
     [Theory]
@@ -283,16 +324,18 @@ public sealed class RuleContextMapperTests
         Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasBeenDetainedInPrison"));
     }
 
-    // --- Field projection: sat-exams resolves by key stage ---
+    // --- Field projection: sat-exams resolves by checking window type ---
 
     [Theory]
-    [InlineData("KS4", "yes", "hasSatExamsAsYear11", true)]
-    [InlineData("KS4", "no",  "hasSatExamsAsYear11", false)]
-    [InlineData("KS2", "yes", "hasSatExamsAsYear6",  true)]
-    [InlineData("KS2", "no",  "hasSatExamsAsYear6",  false)]
-    public void SatExams_MapsToKeyStageSpecificField(string keyStage, string raw, string field, bool expected)
+    [InlineData("KS4June",   "yes", "hasSatExamsAsYear11", true)]
+    [InlineData("KS4June",   "no",  "hasSatExamsAsYear11", false)]
+    [InlineData("KS4Autumn", "yes", "hasSatExamsAsYear11", true)]
+    [InlineData("KS4Autumn", "no",  "hasSatExamsAsYear11", false)]
+    [InlineData("KS2",       "yes", "hasSatExamsAsYear6",  true)]
+    [InlineData("KS2",       "no",  "hasSatExamsAsYear6",  false)]
+    public void SatExams_MapsToWindowTypeSpecificField(string checkingWindowType, string raw, string field, bool expected)
     {
-        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: keyStage, answers: new[]
+        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: checkingWindowType, answers: new[]
         {
             Answer("sat-exams", raw)
         });
@@ -303,7 +346,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void SatExams_OnUnrecognisedKeyStage_IsIgnored()
+    public void SatExams_OnUnrecognisedWindowType_IsIgnored()
     {
         var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: "Post16", answers: new[]
         {
@@ -321,7 +364,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Throws_OnMalformedBool()
     {
-        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: "KS4", answers: new[]
+        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: "KS4June", answers: new[]
         {
             Answer("sat-exams", "maybe")
         });
@@ -390,11 +433,11 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void EnvelopeFields_AreAlwaysPopulated()
     {
-        var msg = NewMessage("Remove - pupil-died", checkingWindowType: "KS4");
+        var msg = NewMessage("Remove - pupil-died", checkingWindowType: "KS4June");
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new FieldValue.Str("KS4"),                 ctx.GetField("keyStage"));
+        Assert.Equal(new FieldValue.Str("KS4June"),             ctx.GetField("checkingWindowType"));
         Assert.Equal(new FieldValue.Str("Remove - pupil-died"), ctx.GetField("requestType"));
     }
 
@@ -408,7 +451,7 @@ public sealed class RuleContextMapperTests
 
     private static RequestDocument NewMessage(
         string whatToChange,
-        string checkingWindowType = "KS4",
+        string checkingWindowType = "KS4June",
         IEnumerable<AnswerRecord>? answers = null,
         int pupilAge = 0,
         int pupilPincl = 0) =>

@@ -27,4 +27,18 @@ public sealed class BlobRulesProviderOptions
     /// so the health check can degrade readiness.
     /// </summary>
     public int StalenessWarningSeconds { get; set; } = 1800;
+
+    /// <summary>
+    /// When true (default), the worker uploads the image-bundled seed JSON for any rules-config
+    /// blob that does not yet exist on startup (see <see cref="RulesConfigSeeder"/>). Existing
+    /// blobs are never overwritten. Set false to opt a deployment out of self-seeding.
+    /// </summary>
+    public bool SeedOnStartup { get; set; } = true;
+
+    /// <summary>
+    /// Directory holding the bundled seed JSON. The file names must match
+    /// <see cref="RulesBlobName"/> / <see cref="LookupsBlobName"/>. Defaults to the
+    /// <c>seed</c> folder next to the worker binary when null/empty.
+    /// </summary>
+    public string? SeedDirectory { get; set; }
 }

@@ -1,0 +1,194 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model DfE.CheckPerformanceData.Web.Views.Admin.Rules.EditorNodeContext
+@{
+    var node = Model.Node;
+    var i = Model.Index;
+    var isComposite = node.Kind is PredicateKind.AllOf or PredicateKind.AnyOf or PredicateKind.Not;
+    var children = Model.ChildrenOf(node.Id);
+    var ops = node.Field is null ? Array.Empty<OperatorOption>() : LeafEditorOptions.OperatorTokensFor(node.Field);
+    var valueEditor = LeafEditorOptions.ValueEditor(node.Field, node.Operator);
+    var combinatorLabel = node.Kind switch
+    {
+        PredicateKind.AllOf => "All of these",
+        PredicateKind.AnyOf => "Any of these",
+        PredicateKind.Not => "Not (one condition)",
+        _ => "Match"
+    };
+    // Alternate the group's left bar colour by nesting depth so nested groups read distinctly.
+    var groupShade = Model.Depth % 2 == 0 ? "rules-group--shade-a" : "rules-group--shade-b";
+}
+
+<input type="hidden" name="Nodes[@i].Id" value="@node.Id" />
+<input type="hidden" name="Nodes[@i].ParentId" value="@(node.ParentId?.ToString() ?? "")" />
+<input type="hidden" name="Nodes[@i].Op" value="@node.Op" />
+<input type="hidden" name="Nodes[@i].Collapsed" value="@node.Collapsed.ToString().ToLowerInvariant()" />
+
+@if (isComposite && node.Collapsed)
+{
+    <div class="govuk-inset-text govuk-!-margin-top-2 rules-group rules-group--collapsed @groupShade">
+        @* Combinator select isn't shown while collapsed, so carry the Kind as a hidden input. *@
+        <input type="hidden" name="Nodes[@i].Kind" value="@node.Kind" />
+
+        <div class="rules-group__header">
+            <span class="govuk-tag govuk-tag--grey rules-group__combinator">@combinatorLabel</span>
+            <button class="rules-group__toggle" aria-label="Expand" title="Expand"
+                    formaction="/admin/rules/branch/transform" name="Action" value="expand:@node.Id" type="submit">
+                <svg class="rules-group__toggle-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+            </button>
+        </div>
+
+        <ul class="govuk-list govuk-list--bullet rules-group__summary">
+            @foreach (var line in Model.SummaryChildren())
+            {
+                @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNode.cshtml", line)
+            }
+        </ul>
+
+        @* Keep the whole sub-tree's values in the form while the editor UI is hidden. *@
+        @foreach (var child in children)
+        {
+            @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNodeFields.cshtml", Model.Recurse(child))
+        }
+    </div>
+}
+else if (isComposite)
+{
+    <div class="govuk-inset-text govuk-!-margin-top-2 rules-group @groupShade">
+        <div class="rules-group__header">
+            <div class="govuk-form-group govuk-!-margin-bottom-0 rules-group__match">
+                <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="Nodes_@(i)__Combinator">Match</label>
+                <select class="govuk-select" id="Nodes_@(i)__Combinator" name="Nodes[@i].Kind">
+                    <option value="@PredicateKind.AllOf" selected="@(node.Kind == PredicateKind.AllOf)">All of these</option>
+                    <option value="@PredicateKind.AnyOf" selected="@(node.Kind == PredicateKind.AnyOf)">Any of these</option>
+                    <option value="@PredicateKind.Not" selected="@(node.Kind == PredicateKind.Not)">Not (one condition)</option>
+                </select>
+            </div>
+            @if (children.Count > 0)
+            {
+                <button class="rules-group__toggle" aria-label="Collapse" title="Collapse"
+                        formaction="/admin/rules/branch/transform" name="Action" value="collapse:@node.Id" type="submit">
+                    <svg class="rules-group__toggle-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M3 8h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </button>
+            }
+        </div>
+
+        @foreach (var child in children)
+        {
+            @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateEditorNode.cshtml", Model.Recurse(child))
+        }
+
+        <div class="govuk-button-group govuk-!-margin-top-2">
+            <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                    formaction="/admin/rules/branch/transform" name="Action" value="addCondition:@node.Id" type="submit">Add condition</button>
+            <button class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                    formaction="/admin/rules/branch/transform" name="Action" value="addGroup:@node.Id" type="submit">Add group</button>
+            @if (node.ParentId is not null)
+            {
+                <button class="govuk-button govuk-button--warning" data-module="govuk-button"
+                        formaction="/admin/rules/branch/transform" name="Action" value="ungroup:@node.Id" type="submit">Ungroup</button>
+                <button class="govuk-button govuk-button--warning" data-module="govuk-button"
+                        formaction="/admin/rules/branch/transform" name="Action" value="remove:@node.Id" type="submit">Remove group</button>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="rules-condition">
+        <div class="rules-condition__controls">
+            <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__field">
+                <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Field">Field</label>
+                <select class="govuk-select" id="Nodes_@(i)__Field" name="Nodes[@i].Field" data-rules-field>
+                    @foreach (var f in Model.AllFields)
+                    {
+                        <option value="@f" selected="@(f == node.Field)">@f</option>
+                    }
+                </select>
+                @* No-JS fallback: applies the field change server-side. Hidden when JS is enabled;
+                   admin-rules.js clicks it automatically when the field above changes. *@
+                <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-top-2 rules-condition__apply"
+                        data-module="govuk-button"
+                        formaction="/admin/rules/branch/transform" name="Action" value="setField:@node.Id" type="submit">Update field</button>
+            </div>
+
+            <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__operator">
+                <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Operator">Operator</label>
+                <select class="govuk-select" id="Nodes_@(i)__Operator" name="Nodes[@i].Operator">
+                    @foreach (var op in ops)
+                    {
+                        <option value="@op.Token" selected="@(op.Token == node.Operator)">@op.Label</option>
+                    }
+                </select>
+            </div>
+
+            @switch (valueEditor)
+            {
+                case ValueEditorKind.None:
+                    break;
+                case ValueEditorKind.BoolSelect:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
+                        <select class="govuk-select" id="Nodes_@(i)__Value" name="Nodes[@i].Value">
+                            <option value="true" selected="@(node.Value == "true")">true</option>
+                            <option value="false" selected="@(node.Value == "false")">false</option>
+                        </select>
+                    </div>
+                    break;
+                case ValueEditorKind.Number:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
+                        <input class="govuk-input govuk-input--width-10" type="number" step="any"
+                               id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value" />
+                    </div>
+                    break;
+                case ValueEditorKind.Date:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
+                        <input class="govuk-input govuk-input--width-10" type="date"
+                               id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value" />
+                    </div>
+                    break;
+                case ValueEditorKind.Language:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Language</label>
+                        <input class="govuk-input" id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value" />
+                    </div>
+                    break;
+                case ValueEditorKind.List:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s">Values</label>
+                        @for (var v = 0; v < node.Values.Count; v++)
+                        {
+                            <div class="rules-condition__value-row">
+                                <input class="govuk-input govuk-input--width-10" name="Nodes[@i].Values[@v]" value="@node.Values[v]" />
+                                <button class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
+                                        formaction="/admin/rules/branch/transform" name="Action" value="removeValue:@node.Id:@v" type="submit">Remove</button>
+                            </div>
+                        }
+                        <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                                formaction="/admin/rules/branch/transform" name="Action" value="addValue:@node.Id" type="submit">Add value</button>
+                    </div>
+                    break;
+                default:
+                    <div class="govuk-form-group govuk-!-margin-bottom-0 rules-condition__value">
+                        <label class="govuk-label govuk-label--s" for="Nodes_@(i)__Value">Value</label>
+                        <input class="govuk-input" id="Nodes_@(i)__Value" name="Nodes[@i].Value" value="@node.Value" />
+                    </div>
+                    break;
+            }
+        </div>
+
+        <button class="rules-condition__remove" aria-label="Remove condition" title="Remove condition"
+                formaction="/admin/rules/branch/transform" name="Action" value="remove:@node.Id" type="submit">
+            <svg class="rules-condition__remove-icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="11" fill="#d4351c" />
+                <path d="M8 8l8 8M16 8l-8 8" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+            </svg>
+        </button>
+    </div>
+}

@@ -237,6 +237,50 @@ public sealed class QueueAdminControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // --- Purge runs the forensic audit and the deletion in a single transaction (atomic) ---
+
+    [Fact]
+    public async Task Purge_RunsAuditAndDeletion_InOneTransaction()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var (dbContext, auditEntries) = SubstituteDbContext();
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns("admin-789");
+
+        var controller = new QueueAdminController(
+            adminService, dbContext: dbContext, currentUserService: currentUser);
+        var id = Guid.NewGuid();
+
+        await controller.Purge(new[] { id });
+
+        // The audit write and the purge must share one transaction so they commit or roll back
+        // together — neither a purge without its audit nor an audit without its purge.
+        await dbContext.Received(1).ExecuteInTransactionAsync(
+            Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
+        // Both the audit add and the purge happened inside that transaction's work.
+        auditEntries.Received().Add(Arg.Is<AuditEntry>(a => a.Action == "Purge"));
+        await adminService.Received().PurgeAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(id)),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Redrive_RunsAuditAndRequeue_InOneTransaction()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        var (dbContext, _) = SubstituteDbContext();
+        var controller = new QueueAdminController(adminService, dbContext: dbContext);
+        var id = Guid.NewGuid();
+
+        await controller.Redrive(new[] { id });
+
+        await dbContext.Received(1).ExecuteInTransactionAsync(
+            Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
+        await adminService.Received().RedriveAsync(
+            Arg.Is<IReadOnlyCollection<Guid>>(ids => ids.Contains(id)),
+            Arg.Any<CancellationToken>());
+    }
+
     // --- The single-id redrive action requeues exactly that message and audits it ---
 
     [Fact]
@@ -327,6 +371,10 @@ public sealed class QueueAdminControllerTests
         var audits = Substitute.For<Microsoft.EntityFrameworkCore.DbSet<AuditEntry>>();
         dbContext.AuditEntries.Returns(audits);
         dbContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+        // The transaction wrapper runs the supplied work inline so the audit write and the
+        // queue mutation it encloses actually execute under test.
+        dbContext.ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>())
+            .Returns(call => ((Func<Task>)call[0]).Invoke());
         return (dbContext, audits);
     }
 }

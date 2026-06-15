@@ -40,4 +40,39 @@ public sealed class AuditEntryActionLengthTests
         Assert.NotNull(saved);
         Assert.Equal("ViewFullPayload", saved!.Action);
     }
+
+    // The forensic audit must be INSERT-only at the database, so a role that can purge cannot
+    // also rewrite or erase the trail of that purge. A BEFORE UPDATE OR DELETE trigger raises,
+    // so both an UPDATE and a DELETE against AuditEntries fail even via raw SQL.
+    [Fact]
+    public async Task AuditEntries_AreImmutable_UpdateAndDeleteRaise()
+    {
+        await using var context = _fixture.CreateContext();
+
+        var entry = new AuditEntry
+        {
+            EntityType = "DlqMessage",
+            EntityId = Guid.NewGuid().ToString(),
+            Action = "Purge",
+            Timestamp = DateTime.UtcNow,
+        };
+        context.AuditEntries.Add(entry);
+        await context.SaveChangesAsync();
+
+        var updateEx = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await context.Database.ExecuteSqlRawAsync(
+                "UPDATE \"AuditEntries\" SET \"Action\" = 'Tampered' WHERE \"Id\" = {0};", entry.Id));
+        Assert.Contains("immutable", (updateEx.InnerException ?? updateEx).Message, StringComparison.OrdinalIgnoreCase);
+
+        var deleteEx = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            await context.Database.ExecuteSqlRawAsync(
+                "DELETE FROM \"AuditEntries\" WHERE \"Id\" = {0};", entry.Id));
+        Assert.Contains("immutable", (deleteEx.InnerException ?? deleteEx).Message, StringComparison.OrdinalIgnoreCase);
+
+        // The row is untouched.
+        await using var verify = _fixture.CreateContext();
+        var saved = await verify.AuditEntries.FirstOrDefaultAsync(a => a.Id == entry.Id);
+        Assert.NotNull(saved);
+        Assert.Equal("Purge", saved!.Action);
+    }
 }

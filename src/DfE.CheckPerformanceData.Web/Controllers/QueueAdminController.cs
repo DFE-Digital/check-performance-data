@@ -205,11 +205,15 @@ public sealed class QueueAdminController : Controller
         if (validated.Length == 0)
             return RedirectToAction(nameof(Dlq));
 
-        await WriteActionAuditAsync("Redrive", validated, cancellationToken);
-
         try
         {
-            await _queueAdminService.RedriveAsync(validated, cancellationToken);
+            // Audit and requeue commit together: the forensic record of the redrive and the
+            // mutation it describes never diverge under a failure or crash.
+            await RunAuditedActionAsync(
+                "Redrive",
+                validated,
+                () => _queueAdminService.RedriveAsync(validated, cancellationToken),
+                cancellationToken);
             SetResult($"Requeued {Count(validated.Length, "message")}.");
         }
         catch (InvalidOperationException ex)
@@ -235,13 +239,16 @@ public sealed class QueueAdminController : Controller
         if (validated.Length == 0)
             return RedirectToAction(nameof(Dlq));
 
-        // Capture the audit before the rows are deleted so the forensic trail survives the
-        // purge independently of the message it describes.
-        await WriteActionAuditAsync("Purge", validated, cancellationToken);
-
         try
         {
-            await _queueAdminService.PurgeAsync(validated, cancellationToken);
+            // The audit and the purge commit together. The audit is still written first within
+            // the transaction so it survives the deletion, and the shared transaction makes the
+            // pair atomic — a purge can never land without its forensic record, nor vice versa.
+            await RunAuditedActionAsync(
+                "Purge",
+                validated,
+                () => _queueAdminService.PurgeAsync(validated, cancellationToken),
+                cancellationToken);
             SetResult($"Purged {Count(validated.Length, "message")}. The audit record is retained.");
         }
         catch (InvalidOperationException ex)
@@ -266,6 +273,31 @@ public sealed class QueueAdminController : Controller
 
     private static string Count(int n, string noun) =>
         n == 1 ? $"1 {noun}" : $"{n} {noun}s";
+
+    // Runs a destructive queue action and its forensic audit as one unit. When an audited
+    // context is available the audit write and the mutation share a single transaction, so they
+    // commit or roll back together and the trail can never diverge from the deletion it records.
+    // The audit is written first within the transaction so it still survives the purged rows.
+    private async Task RunAuditedActionAsync(
+        string action,
+        IReadOnlyCollection<Guid> ids,
+        Func<Task> mutate,
+        CancellationToken cancellationToken)
+    {
+        if (_dbContext is null)
+        {
+            // Bare construction (no audited context): run the mutation directly. There is no
+            // forensic context to enrol, so there is nothing to make atomic.
+            await mutate();
+            return;
+        }
+
+        await _dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            await WriteActionAuditAsync(action, ids, cancellationToken);
+            await mutate();
+        }, cancellationToken);
+    }
 
     // Records an immutable forensic entry (who/when/what) for the destructive admin action.
     // Written through the audited context so it carries the acting user and is retained

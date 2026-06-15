@@ -109,11 +109,12 @@ public sealed class WikiRepositoryHardDeleteTests(PostgresFixture fixture)
         ctx.WikiPages.AddRange(childA, childB);
         await ctx.SaveChangesAsync();
 
-        // Clear audit history from the seeding inserts so the assertion is unambiguous.
+        // Clear audit history from the seeding inserts so the assertion is unambiguous. The
+        // audit table is now INSERT-only at the database (a BEFORE DELETE trigger raises), so
+        // the test resets it with TRUNCATE, which is not a row-level delete and bypasses it.
         await using (var clean = _fixture.CreateContext())
         {
-            clean.AuditEntries.RemoveRange(clean.AuditEntries);
-            await clean.SaveChangesAsync();
+            await clean.Database.ExecuteSqlRawAsync(@"TRUNCATE ""AuditEntries"";");
         }
 
         var rootId = parent.Id;

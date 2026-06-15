@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -15,7 +16,8 @@ public sealed class JourneyController(
     IFileStorageService fileStorageService,
     IRequestService requestService,
     ICheckYourPupilDataService pupilDataService,
-    JourneyViewModelBuilder viewModelBuilder) : Controller
+    JourneyViewModelBuilder viewModelBuilder,
+    IAnalyticsService analytics) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -407,11 +409,25 @@ public sealed class JourneyController(
         }
         catch (DuplicateRequestException)
         {
+            await analytics.TrackSafeAsync(new RequestSubmissionFailedEvent
+            {
+                FailureReason = "duplicate_request",
+                WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+                CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            });
+
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
         }
+
+        await analytics.TrackSafeAsync(new RequestSubmittedEvent
+        {
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            ReferenceNumber = journey.ReferenceNumber ?? "",
+        });
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
@@ -462,6 +478,15 @@ public sealed class JourneyController(
 
         var status = DetermineStatus(pageId, page, journey);
         await requestService.SaveDraftAsync(windowId, journey, status);
+
+        await analytics.TrackSafeAsync(new DraftSavedEvent
+        {
+            Status = status.ToString(),
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            ReferenceNumber = journey.ReferenceNumber ?? "",
+        });
+
         HttpContext.Session.ClearRequestState(windowId);
         return RedirectToAction("Index", "AmendmentRequests", new { windowId });
     }

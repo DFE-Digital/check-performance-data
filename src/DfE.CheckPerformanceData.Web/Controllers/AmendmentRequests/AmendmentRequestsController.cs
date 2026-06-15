@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
 public sealed class AmendmentRequestsController(
     IAmendmentRequestsService service,
-    IRequestService requestService) : Controller
+    IRequestService requestService,
+    IAnalyticsService analytics) : Controller
 {
     [Route("/{windowId}/AmendmentRequests")]
     public async Task<IActionResult> Index(Guid windowId)
@@ -36,6 +38,14 @@ public sealed class AmendmentRequestsController(
             return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
 
         HttpContext.Session.SetRequestState(windowId, journey);
+
+        await analytics.TrackSafeAsync(new DraftResumedEvent
+        {
+            ReferenceNumber = referenceNumber,
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+        });
+
         return RedirectToAction("Summary", "Journey", new { windowId });
     }
 }

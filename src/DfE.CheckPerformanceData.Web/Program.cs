@@ -21,6 +21,8 @@ using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using DfE.CheckPerformanceData.Web.Analytics;
+using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
 using GovUk.Frontend.AspNetCore;
@@ -220,6 +222,15 @@ try
             .AddAspNetCoreIntegration(options =>
                 options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
         builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
+        // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
+        // is sent as its own row, auto-enriched with request + organisation context.
+        builder.Services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
+    }
+    else
+    {
+        // No-op so controllers can always inject IAnalyticsService; dev/review/local
+        // boot without GCP.
+        builder.Services.AddSingleton<IAnalyticsService, NullAnalyticsService>();
     }
 
     var app = builder.Build();

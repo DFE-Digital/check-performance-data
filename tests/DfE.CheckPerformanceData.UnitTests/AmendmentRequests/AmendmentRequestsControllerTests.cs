@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -21,6 +22,7 @@ public class AmendmentRequestsControllerTests
 
     private readonly IAmendmentRequestsService _service = Substitute.For<IAmendmentRequestsService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly AmendmentRequestsController _sut;
 
@@ -29,7 +31,7 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService)
+        _sut = new AmendmentRequestsController(_service, _requestService, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -160,6 +162,31 @@ public class AmendmentRequestsControllerTests
         await _sut.Edit(WindowId, "REF001");
 
         await _requestService.Received(1).ResumeDraftAsync(WindowId, "REF001");
+    }
+
+    [Fact]
+    public async Task Edit_WhenDraftFound_EmitsDraftResumedEvent()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+
+        await _sut.Edit(WindowId, "REF001");
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<DraftResumedEvent>(e =>
+                e.ReferenceNumber == "REF001" &&
+                e.WhatToChange == "Remove" &&
+                e.CheckingWindowType == "KS4June"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Edit_WhenDraftNotFound_DoesNotEmit()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns((RequestState?)null);
+
+        await _sut.Edit(WindowId, "REF001");
+
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

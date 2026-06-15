@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
@@ -28,6 +29,7 @@ public class JourneyControllerTests
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
@@ -83,7 +85,7 @@ public class JourneyControllerTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, _viewModelBuilder)
+            _requestService, _pupilDataService, _viewModelBuilder, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -328,6 +330,36 @@ public class JourneyControllerTests
         Assert.Null(remaining.MatchedPupilLabel);
     }
 
+    [Fact]
+    public async Task SummaryConfirm_AfterSuccess_EmitsRequestSubmittedEvent()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmittedEvent>(e =>
+                e.WhatToChange == "Remove" &&
+                e.CheckingWindowType == "KS4June" &&
+                e.ReferenceNumber == "CYPMD_KS4June_ABC1234"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenDuplicate_EmitsRequestSubmissionFailedEvent()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns<Task>(_ => throw new DuplicateRequestException());
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmissionFailedEvent>(e =>
+                e.FailureReason == "duplicate_request" && e.WhatToChange == "Remove"),
+            Arg.Any<CancellationToken>());
+    }
+
     // ── PagePost — Autocomplete code capture ─────────────────────────────────
 
     [Fact]
@@ -366,6 +398,21 @@ public class JourneyControllerTests
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_AfterSaving_EmitsDraftSavedEvent()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.SaveDraft(WindowId, pageId: null);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<DraftSavedEvent>(e =>
+                e.Status == "ReadyToSubmit" &&
+                e.WhatToChange == "Remove" &&
+                e.ReferenceNumber == "CYPMD_KS4June_ABC1234"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

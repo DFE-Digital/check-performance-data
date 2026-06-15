@@ -81,11 +81,20 @@ public sealed class BlobRulesProvider : IRulesProvider, IHostedService, IAsyncDi
 
     public async ValueTask DisposeAsync()
     {
-        _stopCts?.Cancel();
-        _stopCts?.Dispose();
-        if (_backgroundTask is not null)
+        // Idempotent: the provider is registered both as a singleton and as an
+        // IHostedService factory returning the same instance, so the container
+        // disposes it twice on shutdown.
+        var cts = Interlocked.Exchange(ref _stopCts, null);
+        if (cts is not null)
         {
-            try { await _backgroundTask.ConfigureAwait(false); }
+            cts.Cancel();
+            cts.Dispose();
+        }
+
+        var task = Interlocked.Exchange(ref _backgroundTask, null);
+        if (task is not null)
+        {
+            try { await task.ConfigureAwait(false); }
             catch { /* swallow on dispose */ }
         }
     }
@@ -168,13 +177,20 @@ public sealed class BlobRulesProvider : IRulesProvider, IHostedService, IAsyncDi
             {
                 try
                 {
-                    var raw = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(
+                    // Underscore-prefixed keys are comments by convention (the seed
+                    // file ships a "_comment" string entry), so deserialise loosely
+                    // and keep only the real code → languages entries.
+                    var raw = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
                         lookupsContent, RulesJson.Options);
                     parsedLookups = raw is null
                         ? Lookups.Empty
-                        : new Lookups(raw.ToDictionary(
-                            kvp => kvp.Key,
-                            kvp => (IReadOnlyList<string>)kvp.Value.ToArray()));
+                        : new Lookups(raw
+                            .Where(kvp => !kvp.Key.StartsWith('_') && kvp.Value.ValueKind == JsonValueKind.Array)
+                            .ToDictionary(
+                                kvp => kvp.Key,
+                                kvp => (IReadOnlyList<string>)kvp.Value.EnumerateArray()
+                                    .Select(e => e.GetString() ?? string.Empty)
+                                    .ToArray()));
                 }
                 catch (JsonException jx)
                 {

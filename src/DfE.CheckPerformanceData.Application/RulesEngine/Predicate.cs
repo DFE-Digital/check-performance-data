@@ -2,7 +2,7 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 
 /// <summary>
 /// Discriminated-union of every shape allowed inside a rule's <c>when</c> clause.
-/// Deserialised from JSON by <c>PredicateJsonConverter</c>; the shape on disk
+/// Deserialized from JSON by <c>PredicateJsonConverter</c>; the shape on disk
 /// mirrors the docx vocabulary one-for-one (all / any / not / field+op / otherwise).
 /// </summary>
 public abstract record Predicate

@@ -552,6 +552,11 @@ public sealed class JourneyController(
                     Year = int.TryParse(Request.Form[$"{fieldName}_year"], out var y) ? y : 0
                 }
             },
+            QuestionType.Autocomplete => new QuestionAnswer
+            {
+                TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim(),
+                CodeValue = Request.Form[$"{fieldName}_code"].FirstOrDefault()?.Trim() is { Length: > 0 } code ? code : null
+            },
             _ => new QuestionAnswer { TextValue = Request.Form[fieldName].FirstOrDefault()?.Trim() }
         };
     }

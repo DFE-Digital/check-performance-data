@@ -3,11 +3,13 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
 using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
@@ -19,6 +21,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -38,6 +41,11 @@ public static class DependencyManager
         {
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
+
+        // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
+        // the Web host) because the Persistence repositories that consume it are pulled in
+        // by every host that calls AddPersistenceDependencies — including the worker.
+        services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
         return services;
     }
@@ -63,6 +71,14 @@ public static class DependencyManager
         });
 
         services.AddSingleton(TimeProvider.System);
+
+        // Self-seed the rules-config blobs from the image-bundled JSON when absent. Registered as a
+        // hosted service *before* the provider below so it runs first and the provider's initial
+        // synchronous load sees freshly-seeded rules (reporting Healthy instead of cold-fallback on a
+        // fresh environment). Idempotent: existing blobs are never overwritten.
+        services.TryAddSingleton<IRulesConfigStore, BlobRulesConfigStore>();
+        services.AddHostedService<RulesConfigSeeder>();
+
         services.AddSingleton<BlobRulesProvider>();
         services.AddSingleton<IRulesProvider>(sp => sp.GetRequiredService<BlobRulesProvider>());
         services.AddHostedService(sp => sp.GetRequiredService<BlobRulesProvider>());

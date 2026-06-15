@@ -68,19 +68,50 @@ public sealed class SeedRulesValidationTests
         }
     }
 
+    /// <summary>
+    /// Outcomes defined in the docx (and seeded in rules.json) whose journey flows
+    /// have not been authored yet, so no WhatToChange contract string can reach them.
+    /// Remove an entry from this list when its flow config gains a reason option —
+    /// the alignment test (<see cref="QuestionFlowOutcomeKeyAlignmentTests"/>) then
+    /// enforces the map entry from the flow side.
+    /// </summary>
+    private static readonly string[] PendingJourneyOutcomeKeys =
+    [
+        "CompletedKs4Elsewhere",
+        "AssessmentsDeferred",
+        "PupilAddedAfterSummerTerm",
+        "PupilNotOnJuneList",
+        "NotAtEndOf16To18Study",
+        "Other",
+    ];
+
     [Fact]
     public void SeedRulesJson_EveryOutcomeMapsToARecognisedWhatToChange()
     {
         // Sanity check: every outcome in the seed has a reverse-route in the
-        // AnswerFieldMap (so an incoming WhatToChange could actually resolve to it).
+        // AnswerFieldMap (so an incoming WhatToChange could actually resolve to it),
+        // except outcomes explicitly parked until their journey flow exists.
         var json = File.ReadAllText(Path.Combine(SeedDir, "rules.json"));
         var parsed = JsonSerializer.Deserialize<RuleSet>(json, RulesJson.Options)!;
 
         var routableKeys = AnswerFieldMap.WhatToChangeToOutcomeKey.Values.ToHashSet();
 
-        foreach (var outcome in parsed.Outcomes)
+        foreach (var outcome in parsed.Outcomes.Where(o => !PendingJourneyOutcomeKeys.Contains(o.Key)))
         {
             Assert.Contains(outcome.Key, routableKeys);
+        }
+    }
+
+    [Fact]
+    public void PendingJourneyOutcomeKeys_AreNotAlsoRoutable()
+    {
+        // If a flow starts routing to one of these, it must be removed from the
+        // pending list so the previous test guards it again.
+        var routableKeys = AnswerFieldMap.WhatToChangeToOutcomeKey.Values.ToHashSet();
+
+        foreach (var pending in PendingJourneyOutcomeKeys)
+        {
+            Assert.DoesNotContain(pending, routableKeys);
         }
     }
 
@@ -128,10 +159,10 @@ public sealed class SeedRulesValidationTests
         {
             var ctx = new RuleContext(
                 OutcomeKey: outcome.Key,
-                KeyStage: "KS4",
+                CheckingWindowType: "KS4June",
                 Fields: new Dictionary<string, FieldValue>
                 {
-                    ["keyStage"]    = new FieldValue.Str("KS4"),
+                    ["checkingWindowType"] = new FieldValue.Str("KS4June"),
                     ["requestType"] = new FieldValue.Str(outcome.Key),
                 });
 

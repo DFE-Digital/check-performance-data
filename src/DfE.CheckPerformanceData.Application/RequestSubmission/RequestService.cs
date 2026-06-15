@@ -9,13 +9,15 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public sealed class RequestService(
     IQuestionFlowService flowService,
-    IRequestBlobClient requestBlobClient,
     IDraftBlobClient draftBlobClient,
     IRequestRepository requestRepository,
-    ICurrentUserService currentUserService,
     INotifyService notifyService,
     IOptions<NotifySettings> notifySettings,
     IDfESignInApiClient dfESignInApiClient) : IRequestService
+    ICurrentUserService currentUserService,
+    IRequestQueueClient requestQueueClient,
+    IRequestBlobClient requestBlobClient,
+    RequestSubmissionOptions submissionOptions) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -38,7 +40,7 @@ public sealed class RequestService(
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber ?? string.Empty,
-            WhatToChange = journey.SelectedWhatToChange.Value,
+            WhatToChange = BuildWhatToChangeValue(journey, config),
             Pupil = journey.SelectedPupil,
             MatchedPupil = journey.MatchedPupil,
             CheckingWindow = journey.CheckingWindow,
@@ -46,6 +48,19 @@ public sealed class RequestService(
             History = journey.QuestionHistory
         };
 
+        // Upsert first: the document carries the ChangeRequest row's Id so the
+        // rules engine worker can write its decision back to that row.
+        var changeRequestId = await requestRepository.UpsertAsync(
+            BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
+        var document = BuildRequestDocument(context, config, changeRequestId);
+
+        // TEMPORARY: the rules-engine queue path is paused. When the switch is on the
+        // document is written to blob storage instead of being enqueued. See
+        // RequestSubmissionOptions.
+        if (submissionOptions.WriteToBlobInsteadOfQueue)
+            await requestBlobClient.SaveRequestAsync(windowId, document);
+        else
+            await requestQueueClient.EnqueueRequestAsync(document);
         var document = BuildRequestDocument(context, config);
         await requestBlobClient.SaveRequestAsync(windowId, document);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
@@ -110,6 +125,16 @@ public sealed class RequestService(
         return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
     }
 
+    // The rules-engine contract: like BuildRequestType but using the stable option
+    // *value* rather than the display label, so UI copy changes cannot break the
+    // engine's WhatToChangeToOutcomeKey routing.
+    private string BuildWhatToChangeValue(RequestState journey, QuestionFlowConfig config)
+    {
+        var prefix = journey.SelectedWhatToChange!.Value.ToString();
+        var detail = flowService.ResolveRequestTypeValue(config, journey);
+        return string.IsNullOrEmpty(detail) ? prefix : $"{prefix} - {detail}";
+    }
+
     private ChangeRequestData BuildChangeRequestData(Guid windowId, RequestState journey, RequestStatus status, QuestionFlowConfig? config) =>
         new()
         {
@@ -126,7 +151,7 @@ public sealed class RequestService(
             RequestType = BuildRequestType(journey, config)
         };
 
-    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config)
+    private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)
     {
         var pupil = context.Pupil;
         var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
@@ -146,6 +171,7 @@ public sealed class RequestService(
 
         return new RequestDocument
         {
+            ChangeRequestId = changeRequestId,
             ReferenceNumber = context.ReferenceNumber,
             SubmittedAt = DateTime.UtcNow,
             SubmittedBy = new UserDetails
@@ -155,7 +181,7 @@ public sealed class RequestService(
             },
             CheckingWindowId = context.WindowId,
             CheckingWindowType = context.CheckingWindow.CheckingWindowType.ToString(),
-            WhatToChange = context.WhatToChange.ToString(),
+            RequestTypeCode = context.WhatToChange,
             School = new SchoolDetails
             {
                 Urn = currentUserService.OrganisationUrn,
@@ -170,7 +196,8 @@ public sealed class RequestService(
                 DateOfBirth = pupil.DateOfBirth,
                 Sex = pupil.Sex,
                 Age = pupil.Age,
-                Upn = pupil.Upn
+                Upn = pupil.Upn,
+                Pincl = pupil.Pincl
             },
             MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
             {
@@ -181,7 +208,8 @@ public sealed class RequestService(
                 DateOfBirth = mp.DateOfBirth,
                 Sex = mp.Sex,
                 Age = mp.Age,
-                Upn = mp.Upn
+                Upn = mp.Upn,
+                Pincl = mp.Pincl
             } : null,
             Answers = answers
         };
@@ -217,12 +245,21 @@ public sealed class RequestService(
             _ => answer?.TextValue
         };
 
+        var rawValue = question.Type switch
+        {
+            QuestionType.Date when answer?.DateValue is { } d =>
+                $"{d.Year:D4}-{d.Month:D2}-{d.Day:D2}",
+            QuestionType.Autocomplete => answer?.CodeValue ?? answer?.TextValue,
+            _ => answer?.TextValue
+        };
+
         return new AnswerRecord
         {
             QuestionId = question.Id,
             QuestionTitle = title,
             Type = question.Type.ToString(),
-            Value = value
+            Value = value,
+            RawValue = rawValue
         };
     }
 }

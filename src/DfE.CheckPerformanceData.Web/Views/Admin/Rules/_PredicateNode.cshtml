@@ -1,0 +1,19 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model PredicateNode
+
+@if (Model.IsLeaf)
+{
+    <li>@Model.Text</li>
+}
+else
+{
+    <li>
+        @Model.Text
+        <ul class="govuk-list govuk-list--bullet govuk-!-margin-bottom-0">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("~/Views/Admin/Rules/_PredicateNode.cshtml", child)
+            }
+        </ul>
+    </li>
+}

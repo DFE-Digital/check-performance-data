@@ -64,7 +64,7 @@ public sealed class RequestDecisionHandlerTests
         var sut = NewSut();
         var msg = NewMessage("Elective home education");
         var decision = new Decision(DecisionStatus.AutoRejected, "ElectiveHomeEducation", "EHE-KS4",
-            new[] { "keyStage == \"KS4\" → true", "dateOfRemoval > 2025-01-16 → true" });
+            new[] { "checkingWindowType == \"KS4June\" → true", "dateOfRemoval > 2025-01-16 → true" });
 
         await sut.HandleAsync(msg, decision, CancellationToken.None);
 
@@ -239,10 +239,11 @@ public sealed class RequestDecisionHandlerTests
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) => new()
     {
+        ChangeRequestId = Guid.NewGuid(),
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
-        CheckingWindowType = "KS4",
-        WhatToChange = whatToChange,
+        CheckingWindowType = "KS4June",
+        RequestTypeCode = whatToChange,
         SubmittedAt = DateTime.UtcNow,
         SubmittedBy = new UserDetails { UserId = "u", DisplayName = "x" },
         School = new SchoolDetails { Urn = "1", Name = "Test School" },

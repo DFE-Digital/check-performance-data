@@ -51,6 +51,16 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(x => x.Outcome)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(x => x.OutcomeKey)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.MatchedRuleId)
+            .HasMaxLength(100);
+
         builder.HasOne<CheckingWindow>()
             .WithMany()
             .HasForeignKey(x => x.WindowId)

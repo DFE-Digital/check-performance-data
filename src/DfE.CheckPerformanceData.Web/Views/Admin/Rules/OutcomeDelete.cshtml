@@ -1,0 +1,44 @@
+@using DfE.CheckPerformanceData.Web.Admin.Rules
+@model DeleteOutcomeViewModel
+@{
+    ViewData["Title"] = $"Delete outcome {Model.Key}";
+}
+
+<a href="/admin/rules/outcomes/@Model.Key" class="govuk-back-link">Back to @Model.Label</a>
+
+@if (Model.Errors.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var error in Model.Errors) { <li>@error</li> }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">Delete outcome @Model.Key?</h1>
+
+<div class="govuk-warning-text">
+    <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+    <strong class="govuk-warning-text__text">
+        <span class="govuk-warning-text__assistive">Warning</span>
+        This permanently removes the outcome and its @Model.BranchCount branch(es) from the rules. A new version is
+        recorded and the change can be rolled back from version history.
+    </strong>
+</div>
+
+<form method="post" action="/admin/rules/outcomes/@Model.Key/delete">
+    @Html.AntiForgeryToken()
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="confirmKey">Type the outcome key <code>@Model.Key</code> to confirm</label>
+        <input class="govuk-input govuk-input--width-20" id="confirmKey" name="confirmKey" value="" autocomplete="off" />
+    </div>
+    <div class="govuk-button-group">
+        <button class="govuk-button govuk-button--warning" data-module="govuk-button" type="submit">Delete outcome</button>
+        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key">Cancel</a>
+    </div>
+</form>

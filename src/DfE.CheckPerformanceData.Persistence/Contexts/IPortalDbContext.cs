@@ -11,9 +11,9 @@ public interface IPortalDbContext
     DbSet<CheckingWindow> CheckingWindows { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
+    DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<WikiPage> WikiPages { get; }
     DbSet<WikiPageVersion> WikiPageVersions { get; }
-    DbSet<Pupil> Pupils { get; }
     DbSet<Setting> Settings { get; }
     DbSet<Country> Countries { get; }
     

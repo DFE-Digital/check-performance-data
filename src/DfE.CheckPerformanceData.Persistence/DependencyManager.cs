@@ -36,6 +36,10 @@ public static class DependencyManager
         if(isDevelopmentEnvironment)
             services.AddScoped<DevDataSeeder>();
 
+        // CheckYourPupilDataRepository caches per-school pupil JSON. AddMemoryCache is
+        // idempotent, so hosts that already register it (Web) are unaffected.
+        services.AddMemoryCache();
+
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
         services.AddScoped<IWikiRepository, WikiRepository>();
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
@@ -43,7 +47,10 @@ public static class DependencyManager
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
+        services.AddScoped<Application.RequestDecision.IDecisionOutcomeRepository, DecisionOutcomeRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
+        services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
+            Repositories.RulesConfigVersionRepository>();
 
         return services;
     }

@@ -11,5 +11,6 @@ public sealed class FakeCurrentUserService : ICurrentUserService
     public string Ukprn => "10003384";
     public string OrganisationName => "Test School";
     public string OrganisationUrn => "142313";
+    public string OrganisationLaestab => "860/4070";
     public string OrganisationTypeId => "11";
 }

@@ -59,7 +59,7 @@ public sealed class BlobRulesProviderTests
           "outcomes": [
             { "key": "Deceased", "label": "Deceased",
               "rules": [ { "id": "DEC-1", "status": "AutoApproved",
-                           "when": { "field": "keyStage", "eq": "KS2" } } ] }
+                           "when": { "field": "checkingWindowType", "eq": "KS2" } } ] }
           ]
         }
         """;
@@ -90,6 +90,27 @@ public sealed class BlobRulesProviderTests
         Assert.Equal("v1.0", sut.Current.Version);
         Assert.Single(sut.Current.Rules.Outcomes);
         Assert.True(sut.Current.Lookups.CountryHasOfficialLanguage("AU", "English"));
+    }
+
+    [Fact]
+    public async Task RefreshAsync_LookupsWithUnderscoreCommentKeys_ParsesAndSkipsThem()
+    {
+        // The seed country-languages.json carries a "_comment" string entry by
+        // convention; the provider must skip underscore-prefixed keys, not reject
+        // the whole document.
+        var (sut, reader, _) = Build();
+        reader.FetchAsync(RulesBlobName, null, Arg.Any<CancellationToken>())
+              .Returns(RulesBlobFetch.Success(ValidRulesJson, "etag-rules-1"));
+        reader.FetchAsync(LookupsBlobName, null, Arg.Any<CancellationToken>())
+              .Returns(RulesBlobFetch.Success(
+                  """{ "_comment": "ISO code -> official languages", "AU": ["English"] }""",
+                  "etag-lookups-1"));
+
+        await sut.RefreshAsync(CancellationToken.None);
+
+        Assert.Equal(RulesHealth.Healthy, sut.Current.Health);
+        Assert.True(sut.Current.Lookups.CountryHasOfficialLanguage("AU", "English"));
+        Assert.False(sut.Current.Lookups.CountryHasOfficialLanguage("_comment", "English"));
     }
 
     [Fact]
@@ -294,6 +315,20 @@ public sealed class BlobRulesProviderTests
 
         Assert.Equal(RulesHealth.Healthy, sut.Current.Health);
         Assert.Equal("v2.0", sut.Current.Version);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_CalledTwice_DoesNotThrow()
+    {
+        // The provider is registered both as a singleton and as an IHostedService
+        // factory returning the same instance, so the container disposes it twice
+        // on shutdown — DisposeAsync must be idempotent.
+        var (sut, _, _) = Build();
+        await sut.StartAsync(CancellationToken.None);
+        await sut.StopAsync(CancellationToken.None);
+
+        await sut.DisposeAsync();
+        await sut.DisposeAsync();
     }
 
     // --- helpers ---

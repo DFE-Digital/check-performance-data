@@ -115,8 +115,20 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("MatchedRuleId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<long>("OrganisationUrn")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OutcomeKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PupilFirstname")
                         .HasMaxLength(100)
@@ -307,81 +319,38 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("Countries");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Pupil", b =>
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.RulesConfigVersion", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActualYearGroup")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Age")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Cypmd_Id")
+                    b.Property<string>("ConfigType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("DateOfBirth")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("EntryDate")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Ethnicity")
-                        .IsRequired()
+                    b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
-                    b.Property<string>("FirstLanguage")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Firstname")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Laestab")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("MatchRef")
+                    b.Property<int>("VersionNumber")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("NewMobile")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("Pincl")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SenF")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Sex")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Surname")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Upn")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Urn")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Pupils");
+                    b.HasIndex("ConfigType", "VersionNumber")
+                        .IsUnique();
+
+                    b.ToTable("RulesConfigVersions");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.Setting", b =>

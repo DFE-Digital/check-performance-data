@@ -8,13 +8,16 @@ namespace DfE.CheckPerformanceData.Application.RulesEngine;
 /// <see cref="RequestDocument"/> into a typed <see cref="RuleContext"/>:
 ///
 /// <list type="bullet">
-///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.WhatToChange"/> via
+///   <item><c>OutcomeKey</c> from <see cref="RequestDocument.RequestTypeCode"/> via
 ///         <see cref="AnswerFieldMap.WhatToChangeToOutcomeKey"/>.</item>
-///   <item><c>KeyStage</c> from <see cref="RequestDocument.CheckingWindowType"/> via
-///         <see cref="AnswerFieldMap.NormaliseKeyStage"/>.</item>
-///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via
-///         <see cref="AnswerFieldMap.QuestionToField"/>, parsed against the
-///         <see cref="FieldCatalogue"/>'s expected types.</item>
+///   <item><c>CheckingWindowType</c> from <see cref="RequestDocument.CheckingWindowType"/> via
+///         <see cref="AnswerFieldMap.NormaliseCheckingWindowType"/>.</item>
+///   <item><c>pupilAge</c> / <c>inclusionFlag</c> / <c>isAddBack</c> from the pupil
+///         record on the message.</item>
+///   <item><c>Fields</c> from <c>AnswerRecord[]</c> via the <see cref="AnswerFieldMap"/>
+///         maps (plain copy, radio fan-out, vocabulary translation, window-type-resolved
+///         sat-exams), parsed against the <see cref="FieldCatalogue"/>'s expected types.
+///         The engine-facing <c>RawValue</c> is preferred over the display <c>Value</c>.</item>
 /// </list>
 ///
 /// Throws <see cref="RuleContextMappingException"/> when an answer's value is
@@ -27,20 +30,26 @@ public sealed class RuleContextMapper : IRuleContextMapper
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        var outcomeKey = ResolveOutcomeKey(message.WhatToChange);
-        var keyStage = AnswerFieldMap.NormaliseKeyStage(message.CheckingWindowType);
+        var outcomeKey = ResolveOutcomeKey(message.RequestTypeCode);
+        var checkingWindowType = AnswerFieldMap.NormaliseCheckingWindowType(message.CheckingWindowType);
 
         var fields = new Dictionary<string, FieldValue>(StringComparer.Ordinal)
         {
-            ["keyStage"]    = string.IsNullOrEmpty(keyStage) ? FieldValue.Unknown.Instance : new FieldValue.Str(keyStage),
-            ["requestType"] = string.IsNullOrWhiteSpace(message.WhatToChange) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.WhatToChange),
+            ["checkingWindowType"] = string.IsNullOrEmpty(checkingWindowType) ? FieldValue.Unknown.Instance : new FieldValue.Str(checkingWindowType),
+            ["requestType"]        = string.IsNullOrWhiteSpace(message.RequestTypeCode) ? FieldValue.Unknown.Instance : new FieldValue.Str(message.RequestTypeCode),
         };
 
-        // Pupil.Age is a primitive int; treat 0 / negative as "not supplied" so the
-        // engine defers to Scrutiny rather than reading a default value as 0.
-        if (message.Pupil is { Age: > 0 } pupil)
+        // Pupil-record fields. Age and Pincl are primitive ints; treat 0 / negative as
+        // "not supplied" so the engine defers to Scrutiny rather than reading 0.
+        if (message.Pupil is { } pupil)
         {
-            fields["pupilAge"] = new FieldValue.Num(pupil.Age);
+            if (pupil.Age > 0)
+                fields["pupilAge"] = new FieldValue.Num(pupil.Age);
+            if (pupil.Pincl > 0)
+            {
+                fields["inclusionFlag"] = new FieldValue.Str(pupil.Pincl.ToString(CultureInfo.InvariantCulture));
+                fields["isAddBack"]     = new FieldValue.Bool(pupil.Pincl == AnswerFieldMap.AddBackPincl);
+            }
         }
 
         if (message.Answers is not null)
@@ -49,25 +58,61 @@ public sealed class RuleContextMapper : IRuleContextMapper
             {
                 if (answer is null) continue;
                 if (string.IsNullOrEmpty(answer.QuestionId)) continue;
-                if (!AnswerFieldMap.QuestionToField.TryGetValue(answer.QuestionId, out var fieldName)) continue;
-                if (!FieldCatalogue.TryGetType(fieldName, out var expectedType))
-                {
-                    // Catalogue and map are out of sync — defensive only; the validator
-                    // and the AnswerFieldMap tests should catch this in CI.
-                    continue;
-                }
-
-                if (string.IsNullOrEmpty(answer.Value))
-                {
-                    fields[fieldName] = FieldValue.Unknown.Instance;
-                    continue;
-                }
-
-                fields[fieldName] = ParseValue(fieldName, expectedType, answer.Value);
+                MapAnswer(answer, checkingWindowType, fields);
             }
         }
 
-        return new RuleContext(outcomeKey, keyStage, fields);
+        return new RuleContext(outcomeKey, checkingWindowType, fields);
+    }
+
+    private static void MapAnswer(AnswerRecord answer, string checkingWindowType, Dictionary<string, FieldValue> fields)
+    {
+        var raw = (answer.RawValue ?? answer.Value)?.Trim();
+
+        // Single-choice radio modelled as independent booleans by the rules.
+        if (AnswerFieldMap.RadioFanOut.TryGetValue(answer.QuestionId, out var fanOut))
+        {
+            foreach (var (field, trigger) in fanOut)
+            {
+                fields[field] = string.IsNullOrEmpty(raw)
+                    ? FieldValue.Unknown.Instance
+                    : new FieldValue.Bool(string.Equals(raw, trigger, StringComparison.Ordinal));
+            }
+            return;
+        }
+
+        // One journey question, two canonical fields — resolved by checking window type.
+        if (answer.QuestionId == AnswerFieldMap.SatExamsQuestionId)
+        {
+            var satField = AnswerFieldMap.SatExamsFieldFor(checkingWindowType);
+            if (satField is null) return;
+            fields[satField] = string.IsNullOrEmpty(raw)
+                ? FieldValue.Unknown.Instance
+                : ParseValue(satField, FieldType.Bool, raw);
+            return;
+        }
+
+        // Journey vocabulary → canonical vocabulary (unlisted values fail safe to Unknown).
+        if (AnswerFieldMap.TranslatedQuestions.TryGetValue(answer.QuestionId, out var translated))
+        {
+            fields[translated.Field] = !string.IsNullOrEmpty(raw) && translated.Values.TryGetValue(raw, out var value)
+                ? value
+                : FieldValue.Unknown.Instance;
+            return;
+        }
+
+        // Plain copy, parsed by the catalogue's expected type.
+        if (!AnswerFieldMap.QuestionToField.TryGetValue(answer.QuestionId, out var fieldName)) return;
+        if (!FieldCatalogue.TryGetType(fieldName, out var expectedType))
+        {
+            // Catalogue and map are out of sync — defensive only; the validator
+            // and the AnswerFieldMap tests should catch this in CI.
+            return;
+        }
+
+        fields[fieldName] = string.IsNullOrEmpty(raw)
+            ? FieldValue.Unknown.Instance
+            : ParseValue(fieldName, expectedType, raw);
     }
 
     private static string ResolveOutcomeKey(string? whatToChange)

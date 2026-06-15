@@ -20,6 +20,9 @@ using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
+using DfE.CheckPerformanceData.Web.Analytics;
+using Dfe.Analytics;
+using Dfe.Analytics.AspNetCore;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -205,6 +208,20 @@ try
 
     builder.Services.AddHealthChecks();
 
+    // DfE Analytics: stream a web_request event to BigQuery per request when configured.
+    // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
+    // review and local boot without GCP. The matching middleware is added below under
+    // the same flag. The RequestFilter keeps health-probe noise out of the dataset.
+    var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
+    if (analyticsEnabled)
+    {
+        builder.Services
+            .AddDfeAnalytics()
+            .AddAspNetCoreIntegration(options =>
+                options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
+        builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
+    }
+
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
@@ -277,6 +294,11 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // After auth so the event captures the signed-in user's id + organisation claims;
+    // the RequestFilter configured above excludes health probes from the dataset.
+    if (analyticsEnabled)
+        app.UseDfeAnalytics();
 
     // Sits after auth so the diagnostic comment sees the final principal claims;
     // before controllers so it can wrap their response body. The middleware itself

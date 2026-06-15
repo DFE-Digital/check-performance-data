@@ -23,13 +23,6 @@ public sealed class PayloadRedactor
         "Age",
     };
 
-    // Object property names whose entire subtree of sensitive keys must be masked.
-    private static readonly HashSet<string> PupilContainers = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Pupil",
-        "MatchedPupil",
-    };
-
     public string Redact(string? payload)
     {
         if (string.IsNullOrWhiteSpace(payload))
@@ -69,10 +62,33 @@ public sealed class PayloadRedactor
         }
     }
 
+    // Sensitive leaf keys on a SubmittedBy object. DisplayName is a name; UserId is a stable
+    // identifier — both re-identify and must be masked.
+    private static readonly HashSet<string> SubmittedBySensitiveKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "DisplayName",
+        "UserId",
+    };
+
+    // Sensitive leaf keys on an uploaded-evidence file. Filenames routinely embed a pupil's
+    // name (e.g. "Jane Doe birth certificate.pdf"), so both the original and stored names are
+    // masked.
+    private static readonly HashSet<string> FileSensitiveKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "OriginalFileName",
+        "StoredFileName",
+    };
+
     private static void MaskSubmittedBy(JsonNode? node)
     {
-        if (node is JsonObject submittedBy && submittedBy.ContainsKey("DisplayName"))
-            submittedBy["DisplayName"] = Mask;
+        if (node is not JsonObject submittedBy)
+            return;
+
+        foreach (var key in submittedBy.Select(p => p.Key).ToList())
+        {
+            if (SubmittedBySensitiveKeys.Contains(key))
+                submittedBy[key] = Mask;
+        }
     }
 
     private static void MaskAnswers(JsonNode? node)
@@ -82,12 +98,31 @@ public sealed class PayloadRedactor
 
         foreach (var answer in answers)
         {
-            if (answer is JsonObject obj && obj.ContainsKey("Value") && obj["Value"] is not null)
+            if (answer is not JsonObject obj)
+                continue;
+
+            if (obj.ContainsKey("Value") && obj["Value"] is not null)
                 obj["Value"] = Mask;
+
+            MaskFiles(obj["Files"]);
         }
     }
 
-    // Container-name aware helper kept for callers that hold the field-set; the public
-    // Redact entrypoint already targets the known container/leaf keys.
-    public static bool IsPupilContainer(string propertyName) => PupilContainers.Contains(propertyName);
+    private static void MaskFiles(JsonNode? node)
+    {
+        if (node is not JsonArray files)
+            return;
+
+        foreach (var file in files)
+        {
+            if (file is not JsonObject obj)
+                continue;
+
+            foreach (var key in obj.Select(p => p.Key).ToList())
+            {
+                if (FileSensitiveKeys.Contains(key))
+                    obj[key] = Mask;
+            }
+        }
+    }
 }

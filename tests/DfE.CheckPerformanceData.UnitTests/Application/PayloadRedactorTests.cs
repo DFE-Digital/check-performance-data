@@ -39,6 +39,19 @@ public sealed class PayloadRedactorTests
               "QuestionTitle": "New surname",
               "Type": "text",
               "Value": "SensitiveSurnameValue"
+            },
+            {
+              "QuestionId": "q2",
+              "QuestionTitle": "Evidence",
+              "Type": "file",
+              "Files": [
+                {
+                  "OriginalFileName": "Jane Doe birth certificate.pdf",
+                  "StoredFileName": "stored-7f3a-pupilname.pdf",
+                  "PageCount": 1,
+                  "FileSizeBytes": 1234
+                }
+              ]
             }
           ]
         }
@@ -88,6 +101,26 @@ public sealed class PayloadRedactorTests
         var result = Redact(FullPayload);
 
         Assert.DoesNotContain("SensitiveSurnameValue", result);
+    }
+
+    [Fact]
+    public void Redact_Masks_SubmittedByUserId()
+    {
+        var result = Redact(FullPayload);
+
+        // A stable user identifier must not survive redaction.
+        Assert.DoesNotContain("user-1", result);
+    }
+
+    [Theory]
+    [InlineData("Jane Doe birth certificate.pdf")]   // Answers[].Files[].OriginalFileName
+    [InlineData("stored-7f3a-pupilname.pdf")]         // Answers[].Files[].StoredFileName
+    public void Redact_Masks_EvidenceFilenames(string sensitiveValue)
+    {
+        var result = Redact(FullPayload);
+
+        // Uploaded evidence filenames routinely embed a pupil's name; they must be masked.
+        Assert.DoesNotContain(sensitiveValue, result);
     }
 
     [Theory]

@@ -102,11 +102,62 @@ public sealed class ConsumerResilienceTests
         await queueService.Received().DeadLetterAsync(poisonMessage.Id, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task DeadLetterReason_DoesNotCarry_RawExceptionMessage()
+    {
+        var queueService = Substitute.For<IQueueService>();
+
+        var poisonMessage = new QueueMessage
+        {
+            Id = Guid.NewGuid(),
+            QueueName = "test-queue",
+            Payload = "poison",
+            Attempts = 5,
+        };
+
+        var dequeueCount = 0;
+        queueService.DequeueAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult<QueueMessage?>(
+                Interlocked.Increment(ref dequeueCount) == 1 ? poisonMessage : null));
+
+        string? capturedReason = null;
+        await queueService.DeadLetterAsync(poisonMessage.Id, Arg.Do<string>(r => capturedReason = r), Arg.Any<CancellationToken>());
+
+        var options = Options.Create(new QueueOptions { RetryDelay = TimeSpan.Zero, MaxAttempts = 5 });
+
+        // The thrown exception's message carries a pupil identifier (e.g. an unparseable
+        // pupil field surfaced into the message). That detail must never reach the DLQ reason,
+        // which is rendered unredacted on the dead-letter list view with no audit gate.
+        const string pupilBearingDetail = "UPN X999888777666 for pupil Jane Doe is invalid";
+        var consumer = new ThrowingConsumer(queueService, options, pupilBearingDetail);
+
+        using var cts = new CancellationTokenSource();
+        await consumer.StartAsync(cts.Token);
+
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (dequeueCount < 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        await cts.CancelAsync();
+        await consumer.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(capturedReason);
+        Assert.DoesNotContain("X999888777666", capturedReason);
+        Assert.DoesNotContain("Jane Doe", capturedReason);
+        // The exception type is still recorded so operators can triage the failure class.
+        Assert.Contains(nameof(InvalidOperationException), capturedReason);
+    }
+
     private sealed class ThrowingConsumer : ConsumerBase
     {
-        public ThrowingConsumer(IQueueService queueService, IOptions<QueueOptions> options)
+        private readonly string _exceptionMessage;
+
+        public ThrowingConsumer(IQueueService queueService, IOptions<QueueOptions> options, string exceptionMessage = "boom")
             : base(queueService, options, NullLogger<ThrowingConsumer>.Instance)
         {
+            _exceptionMessage = exceptionMessage;
         }
 
         protected override string QueueName => "test-queue";
@@ -114,6 +165,6 @@ public sealed class ConsumerResilienceTests
         protected override MetricDescription? DescribeMetric(string payload, bool deadLettered) => null;
 
         public override Task ProcessMessageBodyAsync(string messageBody, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("boom");
+            throw new InvalidOperationException(_exceptionMessage);
     }
 }

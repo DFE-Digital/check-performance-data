@@ -140,6 +140,11 @@ public abstract class ConsumerBase : BackgroundService
         }
     }
 
+    // A data-minimised dead-letter reason: the exception type and a fixed message, never the
+    // exception's own text (which can carry a pupil field). Triage detail lives in the logs.
+    private static string SanitiseReason(Exception ex) =>
+        $"{ex.GetType().Name}: processing failed after the maximum number of attempts.";
+
     private async Task PollAsync(CancellationToken stoppingToken)
     {
         if (_scopeFactory is not null)
@@ -187,7 +192,12 @@ public abstract class ConsumerBase : BackgroundService
 
             if (message.Attempts >= _options.MaxAttempts)
             {
-                await queueService.DeadLetterAsync(message.Id, ex.Message, stoppingToken);
+                // The DLQ reason is rendered unredacted on the dead-letter list view with no
+                // full-payload gate, so a raw ex.Message (which can carry a pupil field from a
+                // mapping/parse failure) must never reach it. Store the exception type plus a
+                // fixed message; the data-bearing detail stays in the logs above, behind the
+                // worker's access controls.
+                await queueService.DeadLetterAsync(message.Id, SanitiseReason(ex), stoppingToken);
                 await RecordMetricSafelyAsync(message, deadLettered: true, stoppingToken);
             }
         }

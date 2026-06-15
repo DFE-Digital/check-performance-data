@@ -62,11 +62,8 @@ public sealed class QueueAdminService : IQueueAdminService
     public Task<IReadOnlyList<QueueDepth>> GetQueueDepthsAsync(CancellationToken cancellationToken = default) =>
         _queueService.GetQueueDepthsAsync(cancellationToken);
 
-    public async Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default)
-    {
-        var messages = await _queueService.GetDlqMessagesAsync(cancellationToken);
-        return messages.Count;
-    }
+    public Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default) =>
+        _queueService.GetDlqCountAsync(cancellationToken);
 
     public Task<IReadOnlyList<DlqMessage>> GetDlqMessagesAsync(CancellationToken cancellationToken = default) =>
         _queueService.GetDlqMessagesAsync(cancellationToken);

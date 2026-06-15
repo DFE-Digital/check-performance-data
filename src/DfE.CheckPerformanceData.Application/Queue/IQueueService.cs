@@ -16,6 +16,10 @@ public interface IQueueService
 
     Task<IReadOnlyList<DlqMessage>> GetDlqMessagesAsync(CancellationToken cancellationToken = default);
 
+    // A SQL COUNT(*) over the dead-letter table. The DLQ badge renders on every admin page, so
+    // counting must not load every dead-letter row (and its payload) into the web process.
+    Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default);
+
     Task<DlqMessage?> GetDlqMessageAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<QueueMessageSummary>> GetTopMessagesAsync(string queueName, int count, CancellationToken cancellationToken = default);

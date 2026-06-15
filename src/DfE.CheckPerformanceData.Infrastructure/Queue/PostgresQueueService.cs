@@ -244,6 +244,9 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         return rows.Select(Map).ToList();
     }
 
+    public async Task<int> GetDlqCountAsync(CancellationToken cancellationToken = default) =>
+        await _dbContext.DeadLetters.CountAsync(cancellationToken);
+
     public async Task<DlqMessage?> GetDlqMessageAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var row = await _dbContext.DeadLetters

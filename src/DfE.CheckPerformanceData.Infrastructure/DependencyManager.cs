@@ -3,8 +3,11 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using Azure.Storage.Blobs;
+using Dfe.Analytics;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.RequestDecision;
@@ -44,6 +47,21 @@ public static class DependencyManager
         // the Web host) because the Persistence repositories that consume it are pulled in
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+
+        // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is
+        // configured (deployed envs wire it via Terraform), else a no-op so dev/review/
+        // tests boot without GCP. AddDfeAnalytics binds the DfeAnalytics:* section and
+        // registers IEventSender; its BigQueryClient is built lazily (WIF or cred JSON)
+        // and only dereferenced when an event is actually sent.
+        if (!string.IsNullOrEmpty(config.GetSection("DfeAnalytics")["DatasetId"]))
+        {
+            services.AddDfeAnalytics();
+            services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
+        }
+        else
+        {
+            services.TryAddSingleton<IAnalyticsService, NullAnalyticsService>();
+        }
 
         return services;
     }

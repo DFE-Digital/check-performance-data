@@ -1,6 +1,7 @@
 using System.Text;
 using Azure.Storage.Queues;
 using Azure.Storage.Queues.Models;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -162,6 +163,32 @@ public sealed class RulesEngineWorker : BackgroundService
             _logger.LogWarning(
                 "No ChangeRequests row matched Id={ChangeRequestId} for Reference={Reference}; outcome not recorded.",
                 parsed.ChangeRequestId, parsed.ReferenceNumber);
+        }
+
+        // Emit the decision-mix analytics event, resolved from the per-message scope
+        // alongside the other scoped services. Decision metadata only — no PII; a
+        // synthetic (fallback) decision is marked by a '_'-prefixed MatchedRuleId.
+        // Best-effort: a sink failure must never fail message processing (which would
+        // re-queue/poison the message) or skip the decision handler.
+        try
+        {
+            var analytics = scope.ServiceProvider.GetRequiredService<IAnalyticsService>();
+            await analytics.TrackAsync(new RequestDecisionEvent
+            {
+                DecisionStatus = decision.Status.ToString(),
+                OutcomeKey = decision.OutcomeKey,
+                MatchedRuleId = decision.MatchedRuleId,
+                RulesVersion = snapshot.Version,
+                RequestTypeCode = parsed.RequestTypeCode,
+                CheckingWindowType = parsed.CheckingWindowType,
+                IsSyntheticFallback = decision.MatchedRuleId.StartsWith('_'),
+            }, stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Failed to emit analytics decision event for Reference={Reference}; continuing.",
+                parsed.ReferenceNumber);
         }
 
         var handler = scope.ServiceProvider.GetRequiredService<IRequestDecisionHandler>();

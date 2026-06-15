@@ -1,5 +1,6 @@
 using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -67,6 +68,7 @@ public sealed class RulesEngineWorkerCompositionTests
         using var scope = provider.CreateScope();
         scope.ServiceProvider.GetRequiredService<IRequestDecisionHandler>();
         scope.ServiceProvider.GetRequiredService<IDecisionOutcomeRepository>();
+        scope.ServiceProvider.GetRequiredService<IAnalyticsService>();
     }
 
     [Fact]
@@ -76,6 +78,80 @@ public sealed class RulesEngineWorkerCompositionTests
         var outcomes = Substitute.For<IDecisionOutcomeRepository>();
 
         var worker = CreateWorker(handler, outcomes, new Decision(DecisionStatus.Scrutiny, "k", "r", []));
+
+        await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
+
+        await handler.Received(1).HandleAsync(
+            Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessageBody_EmitsRequestDecisionEvent_WithDecisionMetadata()
+    {
+        var analytics = Substitute.For<IAnalyticsService>();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "EAL-1", []);
+
+        var worker = CreateWorker(
+            Substitute.For<IRequestDecisionHandler>(),
+            Substitute.For<IDecisionOutcomeRepository>(),
+            decision,
+            analytics);
+
+        await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
+
+        // Non-PII decision metadata, sourced from the decision, the rules snapshot,
+        // and the parsed document. RequestTypeCode/CheckingWindowType come from
+        // MinimalMessageJson; RulesVersion from the stubbed snapshot.
+        await analytics.Received(1).TrackAsync(
+            Arg.Is<RequestDecisionEvent>(e =>
+                e.DecisionStatus == "AutoApproved" &&
+                e.OutcomeKey == "Deceased" &&
+                e.MatchedRuleId == "EAL-1" &&
+                e.RulesVersion == "v1" &&
+                e.RequestTypeCode == "Remove - pupil-died" &&
+                e.CheckingWindowType == "KS4June" &&
+                !e.IsSyntheticFallback),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessageBody_MarksDecisionEventSynthetic_WhenRuleIdIsFallback()
+    {
+        // Fallback decisions (mapper/engine error, unmatched outcome) carry a
+        // '_'-prefixed MatchedRuleId; the event flags them so the metric can separate
+        // genuine rule outcomes from error fallbacks.
+        var analytics = Substitute.For<IAnalyticsService>();
+        var fallback = new Decision(DecisionStatus.Scrutiny, "_unknown", "_engine_error", []);
+
+        var worker = CreateWorker(
+            Substitute.For<IRequestDecisionHandler>(),
+            Substitute.For<IDecisionOutcomeRepository>(),
+            fallback,
+            analytics);
+
+        await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
+
+        await analytics.Received(1).TrackAsync(
+            Arg.Is<RequestDecisionEvent>(e => e.IsSyntheticFallback && e.DecisionStatus == "Scrutiny"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessageBody_StillInvokesHandler_WhenAnalyticsThrows()
+    {
+        // Analytics is observability; a sink failure must not fail message processing
+        // (which would leave the message on the queue to be retried/poisoned) nor skip
+        // the decision handler.
+        var analytics = Substitute.For<IAnalyticsService>();
+        analytics.TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw new InvalidOperationException("analytics sink down"));
+        var handler = Substitute.For<IRequestDecisionHandler>();
+
+        var worker = CreateWorker(
+            handler,
+            Substitute.For<IDecisionOutcomeRepository>(),
+            new Decision(DecisionStatus.Scrutiny, "k", "r", []),
+            analytics);
 
         await worker.ProcessMessageBodyAsync(MinimalMessageJson, CancellationToken.None);
 
@@ -123,8 +199,11 @@ public sealed class RulesEngineWorkerCompositionTests
     }
 
     private static WorkerService CreateWorker(
-        IRequestDecisionHandler handler, IDecisionOutcomeRepository outcomes, Decision decision)
+        IRequestDecisionHandler handler, IDecisionOutcomeRepository outcomes, Decision decision,
+        IAnalyticsService? analytics = null)
     {
+        analytics ??= Substitute.For<IAnalyticsService>();
+
         var rulesProvider = Substitute.For<IRulesProvider>();
         rulesProvider.Current.Returns(new RulesSnapshot(
             new RuleSet("v1", DateTimeOffset.UtcNow, []), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy));
@@ -135,6 +214,7 @@ public sealed class RulesEngineWorkerCompositionTests
         var scopedServices = new ServiceCollection();
         scopedServices.AddScoped<IRequestDecisionHandler>(_ => handler);
         scopedServices.AddScoped<IDecisionOutcomeRepository>(_ => outcomes);
+        scopedServices.AddScoped<IAnalyticsService>(_ => analytics);
         var provider = scopedServices.BuildServiceProvider();
 
         var queueServiceClient = Substitute.For<QueueServiceClient>();

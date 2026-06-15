@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Azure.Storage.Queues;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -205,6 +206,7 @@ public sealed class RulesEngineEndToEndTests
         var services = new ServiceCollection();
         services.AddScoped(_ => handler);
         services.AddScoped(_ => outcomes);
+        services.AddScoped<IAnalyticsService>(_ => new NullAnalyticsService());
         var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
         return new WorkerHost.RulesEngineWorker(

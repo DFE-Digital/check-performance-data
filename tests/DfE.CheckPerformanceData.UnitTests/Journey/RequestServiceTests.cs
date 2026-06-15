@@ -38,9 +38,7 @@ public class RequestServiceTests
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
         _notifyOptions = Options.Create(_notifySettings);
-        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser, _notifyService, _notifyOptions, _dfESignInApiClient);
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
-            _requestQueue, _requestBlobClient, _submissionOptions);
+        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _notifyService, _notifyOptions, _dfESignInApiClient, _currentUser, _requestQueue, _requestBlobClient, _submissionOptions);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────

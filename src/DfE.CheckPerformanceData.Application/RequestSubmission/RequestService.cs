@@ -13,7 +13,7 @@ public sealed class RequestService(
     IRequestRepository requestRepository,
     INotifyService notifyService,
     IOptions<NotifySettings> notifySettings,
-    IDfESignInApiClient dfESignInApiClient) : IRequestService
+    IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
     IRequestQueueClient requestQueueClient,
     IRequestBlobClient requestBlobClient,
@@ -61,9 +61,6 @@ public sealed class RequestService(
             await requestBlobClient.SaveRequestAsync(windowId, document);
         else
             await requestQueueClient.EnqueueRequestAsync(document);
-        var document = BuildRequestDocument(context, config);
-        await requestBlobClient.SaveRequestAsync(windowId, document);
-        await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
 
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
 

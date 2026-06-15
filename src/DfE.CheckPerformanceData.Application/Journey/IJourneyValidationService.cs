@@ -10,4 +10,5 @@ public interface IJourneyValidationService
     string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null);
     string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles);
     string GenerateReference(CheckingWindowType? windowType);
+    EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName);
 }

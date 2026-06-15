@@ -20,7 +20,7 @@
       "label": "Admitted following permanent exclusion",
       "rules": [
         { "id": "AFE-PRE2023", "status": "AutoRejected",
-          "when": { "field": "dateOfPermanentExclusion", "lt": "2023-09-01" } },
+          "when": { "field": "dateOfPermanentExclusion", "lt": "2024-09-01" } },
         { "id": "AFE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },

@@ -12,12 +12,35 @@
     },
     {
       "id": "select-match-pupil",
+      "nextPageId": "evidence",
       "type": "PupilSearch",
       "title": "What is the CYPMD ID of the second duplicate record to be merged?",
       "subHeading": "Start typing ID to search records",
       "pupilFilter": "All",
       "pupilKey": "match",
       "validationFailure": "Enter the CYPMD ID for the second duplicate record to be merged. CYPMD ID for second duplicate record must be different to first record."
+    },
+    {
+      "id": "evidence",
+      "type": "EvidenceUpload",
+      "title": "Provide evidence for merging duplicate records for {pupilName}",
+      "questions": [
+        {
+          "id": "evidence",
+          "type": "FileUpload",
+          "title": "Upload files",
+          "hint": "Evidence must be in a PDF format",
+          "optional": true
+        },
+        {
+          "id": "how-evidence-supports",
+          "type": "TextArea",
+          "title": "If the records are not similar, please provide supporting explanation",
+          "summaryTitle": "How evidence supports merging duplicate records",
+          "characterLimit": 1000,
+          "optional": true
+        }
+      ]
     }
   ]
 }

@@ -81,4 +81,20 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 ReferenceNumber = r.ReferenceNumber
             })
             .ToListAsync();
+
+    public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(
+        Guid windowId, long organisationUrn, string referenceNumber) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && r.ReferenceNumber == referenceNumber)
+            .Select(r => new AmendmentRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                Status = r.Status,
+                ReferenceNumber = r.ReferenceNumber
+            })
+            .FirstOrDefaultAsync();
 }

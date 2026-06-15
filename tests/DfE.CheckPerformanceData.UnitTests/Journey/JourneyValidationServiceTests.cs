@@ -330,6 +330,99 @@ public class JourneyValidationServiceTests
         Assert.All(parts[2], c => Assert.True(char.IsLetterOrDigit(c)));
     }
 
+    // ── ValidateEvidencePage ────────────────────────────────────────────────
+
+    [Fact]
+    public void ValidateEvidencePage_WhenRequiredFileMissing_ReturnsMessage()
+    {
+        var page = new JourneyPage
+        {
+            Id = "evidence",
+            Type = PageType.EvidenceUpload,
+            Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
+        };
+        var journey = new RequestState();
+
+        var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith");
+
+        Assert.NotNull(result);
+        Assert.Contains("Upload at least one file before continuing", result!.Messages);
+    }
+
+    [Fact]
+    public void ValidateEvidencePage_WhenRequiredQuestionMissing_UsesConfiguredValidationFailure()
+    {
+        var page = new JourneyPage
+        {
+            Id = "evidence",
+            Type = PageType.EvidenceUpload,
+            Questions =
+            [
+                new Question
+                {
+                    Id = "how-evidence-supports",
+                    Type = QuestionType.TextArea,
+                    Title = "How does the evidence demonstrate why the pupil should be removed?",
+                    ValidationFailure = "Explain how the evidence supports removing {pupilName}"
+                }
+            ]
+        };
+        var journey = new RequestState();
+
+        var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith");
+
+        Assert.NotNull(result);
+        Assert.Contains("Explain how the evidence supports removing Jane Smith", result!.Messages);
+    }
+
+    [Fact]
+    public void ValidateEvidencePage_WhenFilePresent_ReturnsNull()
+    {
+        var page = new JourneyPage
+        {
+            Id = "evidence",
+            Type = PageType.EvidenceUpload,
+            Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
+        };
+        var journey = new RequestState();
+        journey.QuestionAnswers["evidence"] = new QuestionAnswer
+        {
+            FileValues = [new FileAnswer
+            {
+                StoredFileName = "abc",
+                OriginalFileName = "abc.pdf",
+                PageCount = 1,
+                FileSizeBytes = 100
+            }]
+        };
+
+        var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ValidateEvidencePage_WhenRequireAtLeastOneUnmet_ReturnsSummaryMessage()
+    {
+        var page = new JourneyPage
+        {
+            Id = "evidence",
+            Type = PageType.EvidenceUpload,
+            RequireAtLeastOne = true,
+            Questions =
+            [
+                new Question { Id = "file", Type = QuestionType.FileUpload, Title = "Upload", Optional = true },
+                new Question { Id = "explain", Type = QuestionType.TextArea, Title = "Explain", Optional = true }
+            ]
+        };
+        var journey = new RequestState();
+
+        var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith");
+
+        Assert.NotNull(result);
+        Assert.Contains("You must answer at least one of these questions", result!.Messages);
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private static Question MakeQuestion(QuestionType type, string id = "q1", int? characterLimit = null) =>

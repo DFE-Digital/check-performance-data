@@ -74,4 +74,38 @@ public sealed class JourneyValidationService(int maxEvidencePages = 0) : IJourne
         return $"CYPMD_{type}_{uniqueId}";
     }
 
+    public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName)
+    {
+        var messages = new List<string>();
+
+        foreach (var question in page.Questions)
+        {
+            if (question.Type == QuestionType.FileUpload)
+            {
+                journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
+                if (!question.Optional && (existing?.FileValues ?? []).Count == 0)
+                    messages.Add("Upload at least one file before continuing");
+            }
+            else
+            {
+                journey.QuestionAnswers.TryGetValue(question.Id, out var answer);
+                answer ??= new QuestionAnswer();
+                if (!question.Optional || IsAnswered(question, answer))
+                {
+                    // Mirror PagePost: surface the config's validationFailure (with {pupilName}
+                    // resolved) so the edit page shows the same message as the live journey.
+                    var resolvedValidationFailure = question.ValidationFailure is not null
+                        ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
+                    var error = ValidateAnswer(question, answer,
+                        JourneyTemplate.Resolve(question.Title, pupilName), resolvedValidationFailure);
+                    if (error is not null) messages.Add(error);
+                }
+            }
+        }
+
+        var atLeastOne = ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName);
+        if (atLeastOne is not null) messages.Add(atLeastOne.SummaryMessage);
+
+        return messages.Count == 0 ? null : new EvidenceValidationResult { Messages = messages };
+    }
 }

@@ -49,6 +49,35 @@ public sealed class DlqRetentionTests
         Assert.True(dead.Attempts >= 1);
     }
 
+    // --- A reason of multi-byte runes is truncated without splitting a surrogate pair ---
+
+    [Fact]
+    public async Task DeadLetterReason_TruncatedOnRuneBoundary_NeverSplitsASurrogatePair()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "RUNES" });
+        var taken = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+
+        // Each emoji is a surrogate pair (two UTF-16 code units). A char-count cut at an odd
+        // length would land mid-pair and leave a broken final character. 2000 emoji = 4000 code
+        // units, comfortably over the 1024 reason cap.
+        var reason = string.Concat(Enumerable.Repeat("\U0001F600", 2000));
+        await queueService.DeadLetterAsync(taken!.Id, reason);
+
+        var dead = Assert.Single(await new QueueAdminService(queueService).GetDlqMessagesAsync());
+
+        Assert.True(dead.Reason.Length <= 1024);
+        // The truncated reason must not end on a lone high surrogate (a split pair).
+        Assert.False(char.IsHighSurrogate(dead.Reason[^1]),
+            "the truncated reason must not end on a lone high surrogate");
+        // Whole runes only — a string with a split pair would contain the replacement char once
+        // re-encoded; ours round-trips cleanly.
+        Assert.DoesNotContain('�', dead.Reason);
+    }
+
     // --- Purge deletes only DLQ rows older than the retention TTL ---
 
     [Fact]
@@ -98,6 +127,50 @@ public sealed class DlqRetentionTests
 
         Assert.NotNull(first);
         Assert.Null(second);
+    }
+
+    // --- Redrive must not delete the dead letter when it cannot re-enqueue (no silent loss) ---
+
+    [Fact]
+    public async Task RedriveIdAlreadyOnSourceQueue_DoesNotDeleteTheDeadLetter()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        var adminService = new QueueAdminService(queueService);
+
+        // Dead-letter a message, then put a live message back on the source queue under the SAME
+        // id (simulating a recycled id or a prior in-flight redrive of the same id). Redrive
+        // cannot re-enqueue without colliding, so it must leave the dead letter in place rather
+        // than delete the only durable copy.
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "COLLIDE" });
+        var take = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+        await queueService.DeadLetterAsync(take!.Id, "needs redrive");
+
+        var dead = Assert.Single(await adminService.GetDlqMessagesAsync());
+
+        await using (var collide = _fixture.CreateContext())
+        {
+            collide.QueueMessages.Add(new QueueMessageEntity
+            {
+                Id = dead.Id,
+                QueueName = QueueOptions.RulesEngineQueue,
+                Payload = "{}",
+                Attempts = 0,
+                EnqueuedAtUtc = DateTime.UtcNow,
+                VisibleAfterUtc = DateTime.UtcNow,
+                Status = "pending"
+            });
+            await collide.SaveChangesAsync();
+        }
+
+        await adminService.RedriveAsync(new[] { dead.Id });
+
+        // The dead letter survives: a redrive that could not re-enqueue must never drop the
+        // message from both tables.
+        var stillDead = await adminService.GetDlqMessagesAsync();
+        Assert.Contains(stillDead, d => d.Id == dead.Id);
     }
 
     // --- A redrive through the service audits the dead-letter removal, retained independently ---

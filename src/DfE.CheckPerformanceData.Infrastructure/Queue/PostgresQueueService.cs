@@ -150,9 +150,7 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
             return;
         }
 
-        var truncatedReason = reason.Length > MaxReasonLength
-            ? reason[..MaxReasonLength]
-            : reason;
+        var truncatedReason = TruncateOnRuneBoundary(reason, MaxReasonLength);
 
         _dbContext.DeadLetters.Add(new DeadLetterEntity
         {
@@ -273,15 +271,28 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
 
         var now = DateTime.UtcNow;
         var requeued = new List<QueueMessageEntity>();
-        foreach (var dead in deadLetters)
-        {
-            // Re-enqueue with the dead letter's original id so replaying the same redrive
-            // twice cannot place a second copy on the source queue.
-            var alreadyQueued = await _dbContext.QueueMessages
-                .AnyAsync(m => m.Id == dead.Id, cancellationToken);
 
-            if (!alreadyQueued)
+        // The whole read-modify-write runs in one transaction so a concurrent redrive (or the
+        // reaper) cannot interleave between the existence check and the save and leave the
+        // tables inconsistent.
+        await _dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            foreach (var dead in deadLetters)
             {
+                // Re-enqueue with the dead letter's original id so replaying the same redrive
+                // twice cannot place a second copy on the source queue.
+                var alreadyQueued = await _dbContext.QueueMessages
+                    .AnyAsync(m => m.Id == dead.Id, cancellationToken);
+
+                // Only remove the dead letter once its re-enqueue has actually happened. If the
+                // id is already live on the source queue we cannot re-enqueue without colliding,
+                // so the dead letter is left in place — never deleted from both tables, which
+                // would lose the only durable copy of a failed request.
+                if (alreadyQueued)
+                {
+                    continue;
+                }
+
                 var entity = new QueueMessageEntity
                 {
                     Id = dead.Id,
@@ -294,12 +305,11 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
                 };
                 _dbContext.QueueMessages.Add(entity);
                 requeued.Add(entity);
+                _dbContext.DeadLetters.Remove(dead);
             }
 
-            _dbContext.DeadLetters.Remove(dead);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }, cancellationToken);
 
         foreach (var entity in requeued)
         {
@@ -366,6 +376,29 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         d.Reason,
         d.Payload,
         d.DeadLetteredAtUtc);
+
+    // Truncates to at most maxChars UTF-16 code units without ever splitting a surrogate pair,
+    // so the stored reason can never end in a broken character. Whole runes are kept up to the
+    // limit; a final surrogate pair that would overflow is dropped rather than halved.
+    private static string TruncateOnRuneBoundary(string value, int maxChars)
+    {
+        if (value.Length <= maxChars)
+        {
+            return value;
+        }
+
+        var taken = 0;
+        foreach (var rune in value.EnumerateRunes())
+        {
+            if (taken + rune.Utf16SequenceLength > maxChars)
+            {
+                break;
+            }
+            taken += rune.Utf16SequenceLength;
+        }
+
+        return value[..taken];
+    }
 
     private static string ComputeHash(string payload)
     {

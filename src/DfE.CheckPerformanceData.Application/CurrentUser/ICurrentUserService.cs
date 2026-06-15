@@ -6,6 +6,7 @@ public interface ICurrentUserService
     string DisplayName { get; }
     string Email { get; }
     string OrganisationId { get; }
+    string Ukprn { get; }
     string OrganisationName { get; }
     string OrganisationUrn { get; }
     string OrganisationTypeId { get; }

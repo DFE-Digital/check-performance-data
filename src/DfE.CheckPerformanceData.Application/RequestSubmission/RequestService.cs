@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -13,7 +14,8 @@ public sealed class RequestService(
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
     INotifyService notifyService,
-    IOptions<NotifySettings> notifySettings) : IRequestService
+    IOptions<NotifySettings> notifySettings,
+    IDfESignInApiClient dfESignInApiClient) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -48,12 +50,27 @@ public sealed class RequestService(
         await requestBlobClient.SaveRequestAsync(windowId, document);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
 
-        // Send submission notification email via GOV.UK Notify
-        await notifyService.SendSubmissionNotificationAsync(
-            currentUserService.Email,
-            journey.ReferenceNumber ?? string.Empty,
-            notifySettings.Value.DeadlineText,
-            notifySettings.Value.SubmitOthersUrl);
+        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
+
+        var userRoles = await dfESignInApiClient.GetUserRolesAsync(currentUserService.OrganisationId, currentUserService.UserId);
+        // var approvers = await dfESignInApiClient.GetApproversAsync();//GetOrganisationApproversAsync(currentUserService.OrganisationId);
+        // if (approvers?.Users != null)
+        //     foreach (var approver in approvers.Users) recipients.Add(approver.Email);
+        var upn = 1924145493;
+        var urn = 990083;
+        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
+        if (orgUsers?.Users != null)
+            foreach (var user in orgUsers.Users)
+                recipients.Add(user.Email);
+        
+        foreach (var email in recipients)
+        {
+            await notifyService.SendSubmissionNotificationAsync(
+                email,
+                refNum,
+                notifySettings.Value.DeadlineText,
+                notifySettings.Value.SubmitOthersUrl);
+        }
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

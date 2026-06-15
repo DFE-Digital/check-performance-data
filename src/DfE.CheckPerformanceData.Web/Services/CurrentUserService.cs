@@ -31,6 +31,10 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_id")?.Value
         ?? "";
 
+    public string Ukprn =>
+        httpContextAccessor.HttpContext?.User.FindFirst("ukprn")?.Value
+        ?? "";
+
     public string OrganisationName =>
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_name")?.Value
         ?? "";

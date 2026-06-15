@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
@@ -20,6 +21,7 @@ public class RequestServiceTests
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
+    private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
     private readonly NotifySettings _notifySettings = new();
     private readonly IOptions<NotifySettings> _notifyOptions;
     private readonly RequestService _sut;
@@ -28,10 +30,13 @@ public class RequestServiceTests
     {
         _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
+        _currentUser.Email.Returns("test@example.com");
+        _currentUser.OrganisationId.Returns("00000000-0000-0000-0000-000000000001");
         _currentUser.OrganisationUrn.Returns("100000");
+        _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
         _notifyOptions = Options.Create(_notifySettings);
-        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser, _notifyService, _notifyOptions);
+        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser, _notifyService, _notifyOptions, _dfESignInApiClient);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────

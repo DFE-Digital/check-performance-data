@@ -595,6 +595,116 @@ public class JourneyControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
+    // ── Evidence analytics ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UploadFile_WhenNoFile_EmitsFailedNoFile()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, fileUpload: null);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "no_file"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenTooLarge_EmitsFailedTooLarge()
+    {
+        SetupSession(ValidSession());
+        var file = new FormFile(new MemoryStream([1]), 0, 11L * 1024 * 1024, "fileUpload", "big.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "too_large"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenNotPdf_EmitsFailedNotAPdf()
+    {
+        SetupSession(ValidSession());
+        var bytes = new byte[] { 1, 2, 3 };
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "notpdf.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "not_a_pdf"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenValid_EmitsSuccessWithMetrics()
+    {
+        SetupSession(ValidSession());
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "evidence.pdf");
+        _fileStorageService.SaveAsync(WindowId, Arg.Any<byte[]>()).Returns("stored-guid");
+        // NSubstitute returns "" for string by default; null means "no upload error".
+        _journeyService.ValidateFileUpload(default!, default, default!).ReturnsForAnyArgs((string?)null);
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e =>
+                e.Outcome == "success" && e.PageCount == 1 && e.FileSizeBytes == bytes.Length),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemoveFile_AfterRemove_EmitsEvidenceFileRemoved()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues =
+                [
+                    new FileAnswer { StoredFileName = "keep", OriginalFileName = "a.pdf", PageCount = 1, FileSizeBytes = 10 },
+                    new FileAnswer { StoredFileName = "drop", OriginalFileName = "b.pdf", PageCount = 1, FileSizeBytes = 10 }
+                ]
+            }
+        };
+        SetupSession(ValidSession(answers: answers));
+
+        await _sut.RemoveFile(WindowId, "evidence-page", "evidence", fromSummary: false, storedFileName: "drop");
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceFileRemovedEvent>(e => e.FilesBefore == 2 && e.FilesAfter == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PagePost_EvidencePage_WhenValid_EmitsEvidenceContinue()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "f", OriginalFileName = "e.pdf", PageCount = 2, FileSizeBytes = 100 }]
+            }
+        };
+        SetupSession(ValidSession(history: ["evidence-page"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
+
+        await _sut.PagePost(WindowId, "evidence-page", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceContinueEvent>(e => e.FileCount == 1 && e.PageCount == 2 && e.EvidenceTextLength == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static byte[] MinimalPdf()
+    {
+        var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder();
+        builder.AddPage(UglyToad.PdfPig.Content.PageSize.A4);
+        return builder.Build();
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void SetupSession(RequestState state)

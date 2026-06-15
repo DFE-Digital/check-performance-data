@@ -227,6 +227,23 @@ public sealed class JourneyController(
                 atLeastOneError: atLeastOne?.SummaryMessage));
         }
 
+        if (page.Type == PageType.EvidenceUpload)
+        {
+            var files = page.Questions
+                .Where(q => q.Type == QuestionType.FileUpload)
+                .SelectMany(q => newAnswers.TryGetValue(q.Id, out var a) ? (a.FileValues ?? []) : [])
+                .ToList();
+            var textLength = page.Questions
+                .Where(q => q.Type == QuestionType.TextArea)
+                .Sum(q => newAnswers.TryGetValue(q.Id, out var a) ? (a.TextValue?.Length ?? 0) : 0);
+            await analytics.TrackSafeAsync(new EvidenceContinueEvent
+            {
+                FileCount = files.Count,
+                PageCount = files.Sum(f => f.PageCount),
+                EvidenceTextLength = textLength,
+            });
+        }
+
         if (fromSummary)
         {
             var oldNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
@@ -283,12 +300,14 @@ public sealed class JourneyController(
         if (fileUpload is null || fileUpload.Length == 0)
         {
             TempData["UploadError"] = "Select a file to upload";
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "no_file" });
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
         if (fileUpload.Length > MaxUploadBytes)
         {
             TempData["UploadError"] = $"'{fileUpload.FileName}' must be 10 MB or less";
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "too_large", FileSizeBytes = fileUpload.Length });
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
@@ -300,6 +319,7 @@ public sealed class JourneyController(
         if (pageCount is null)
         {
             TempData["UploadError"] = $"'{fileUpload.FileName}' could not be read as a PDF. Check the file and try again.";
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "not_a_pdf", FileSizeBytes = bytes.LongLength });
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
@@ -307,6 +327,7 @@ public sealed class JourneyController(
         if (uploadError is not null)
         {
             TempData["UploadError"] = uploadError;
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "page_limit_exceeded", PageCount = pageCount.Value, FileSizeBytes = bytes.LongLength });
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
@@ -321,6 +342,13 @@ public sealed class JourneyController(
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
+
+        await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent
+        {
+            Outcome = "success",
+            PageCount = pageCount.Value,
+            FileSizeBytes = bytes.LongLength,
+        });
 
         return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
     }
@@ -342,12 +370,19 @@ public sealed class JourneyController(
         if (currentFiles.All(f => f.StoredFileName != storedFileName))
             return BadRequest();
 
+        var filesBefore = currentFiles.Count;
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
         await fileStorageService.DeleteAsync(windowId, storedFileName);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
+
+        await analytics.TrackSafeAsync(new EvidenceFileRemovedEvent
+        {
+            FilesBefore = filesBefore,
+            FilesAfter = currentFiles.Count,
+        });
 
         return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
     }

@@ -9,12 +9,12 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The HAT console is a /dev/* surface: gated exactly like DevPipelineController and
+// The UAT console is a /dev/* surface: gated exactly like DevPipelineController and
 // DevQueueSeedController on Dev:ToolsEnabled AND a hard production guard. With the flag off, or in
 // production with the flag mistakenly on, every action 404s and never touches the queue. With the
 // flag on outside production the landing page renders and the action endpoints reach their reused
 // dev paths.
-public sealed class DevHatGatingTests
+public sealed class DevUatGatingTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
@@ -34,10 +34,10 @@ public sealed class DevHatGatingTests
         return env;
     }
 
-    private DevHatController CreateSut(bool? toolsEnabled, string environmentName = "Development")
+    private DevUatController CreateSut(bool? toolsEnabled, string environmentName = "Development")
     {
         var runner = new DevPipelineRunner(_dbContext, _queueService);
-        var sut = new DevHatController(Config(toolsEnabled), _queueService, runner, Env(environmentName));
+        var sut = new DevUatController(Config(toolsEnabled), _queueService, runner, Env(environmentName));
         // The Index view-render path is not exercised here; gating tests assert the result type
         // before any view executes, so a minimal TempData is enough for the redirect actions.
         sut.TempData = new TempDataDictionary(new Microsoft.AspNetCore.Http.DefaultHttpContext(),

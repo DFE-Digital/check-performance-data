@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
-# Runs the test suites mapped by hat-coverage.json and writes hat-status.json (item ->
-# passed/failed/total + a UTC stamp) parsed from the per-run .trx files. The HAT console reads the
+# Runs the test suites mapped by uat-coverage.json and writes uat-status.json (item ->
+# passed/failed/total + a UTC stamp) parsed from the per-run .trx files. The UAT console reads the
 # result to render each automated-coverage item as a live ✓/✗ with counts and a last-run time. The
 # browser never triggers tests; this is the explicit, out-of-band refresh step.
 #
-# Usage:  scripts/write-hat-status.sh
+# Usage:  scripts/write-uat-status.sh
 # Run from the repo root (the directory containing the .sln).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COVERAGE="$ROOT/src/DfE.CheckPerformanceData.Web/wwwroot/hat/hat-coverage.json"
-STATUS="$ROOT/src/DfE.CheckPerformanceData.Web/wwwroot/hat/hat-status.json"
+COVERAGE="$ROOT/src/DfE.CheckPerformanceData.Web/wwwroot/uat/uat-coverage.json"
+STATUS="$ROOT/src/DfE.CheckPerformanceData.Web/wwwroot/uat/uat-status.json"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
 if [[ ! -f "$COVERAGE" ]]; then
-  echo "hat-coverage.json not found at $COVERAGE" >&2
+  echo "uat-coverage.json not found at $COVERAGE" >&2
   exit 1
 fi
 

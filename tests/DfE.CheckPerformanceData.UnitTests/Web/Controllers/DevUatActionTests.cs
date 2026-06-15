@@ -10,16 +10,16 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The HAT console drive/failure actions add no new machinery: each one reuses an existing dev
+// The UAT console drive/failure actions add no new machinery: each one reuses an existing dev
 // path (the pipeline runner for drive, the seed/dead-letter path for failure) and redirects back
-// to /dev/hat so the watcher stays on the console. These tests pin that reuse-and-redirect
+// to /dev/uat so the watcher stays on the console. These tests pin that reuse-and-redirect
 // contract and the batch behaviour of "drive xN".
-public sealed class DevHatActionTests
+public sealed class DevUatActionTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
 
-    private DevHatController CreateSut()
+    private DevUatController CreateSut()
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Dev:ToolsEnabled"] = "true" })
@@ -27,7 +27,7 @@ public sealed class DevHatActionTests
         var env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName = "Development";
         var runner = new DevPipelineRunner(_dbContext, _queueService);
-        var sut = new DevHatController(config, _queueService, runner, env)
+        var sut = new DevUatController(config, _queueService, runner, env)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>()),
         };
@@ -42,7 +42,7 @@ public sealed class DevHatActionTests
         var result = await sut.Drive("approved", count: 1, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/hat", redirect.Url);
+        Assert.Equal("/dev/uat", redirect.Url);
         await _queueService.Received(1).EnqueueAsync(
             QueueOptions.RulesEngineQueue, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -89,7 +89,7 @@ public sealed class DevHatActionTests
         var result = await sut.InjectFailure(CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/hat", redirect.Url);
+        Assert.Equal("/dev/uat", redirect.Url);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -102,7 +102,7 @@ public sealed class DevHatActionTests
         var result = await sut.SeedDlq(CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/hat", redirect.Url);
+        Assert.Equal("/dev/uat", redirect.Url);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

@@ -7,24 +7,24 @@ using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// The Debug HAT test console: one dev/test-only page that lets a human exercise every
+// The Debug UAT test console: one dev/test-only page that lets a human exercise every
 // human-checkable item from the 03.10 / 03.13 acceptance inventory with one click, tick each
 // pass/fail, and see the automated-only items as live coverage status. It is gated exactly like
 // the other /dev/* surfaces (Dev:ToolsEnabled AND a hard production guard) and adds no new
 // pipeline machinery: the drive buttons reuse DevPipelineRunner and the failure buttons reuse the
 // existing seed/dead-letter path. Every POST redirects back to the console so the watcher stays
-// on the page and sees the board react. HAT verdicts are never stored server-side — they persist
+// on the page and sees the board react. UAT verdicts are never stored server-side — they persist
 // client-side in localStorage. [AllowAnonymous] mirrors the sibling dev controllers: the surface
 // is reached before any auth cookie and only manipulates the local dev database.
 [AllowAnonymous]
-public sealed class DevHatController : Controller
+public sealed class DevUatController : Controller
 {
     private readonly IConfiguration _configuration;
     private readonly IQueueService _queueService;
     private readonly DevPipelineRunner _runner;
     private readonly IHostEnvironment? _hostEnvironment;
 
-    public DevHatController(
+    public DevUatController(
         IConfiguration configuration,
         IQueueService queueService,
         DevPipelineRunner runner,
@@ -36,7 +36,7 @@ public sealed class DevHatController : Controller
         _hostEnvironment = hostEnvironment;
     }
 
-    private const string ConsoleUrl = "/dev/hat";
+    private const string ConsoleUrl = "/dev/uat";
 
     // The reference of the most recently driven request, remembered per-instance for the runner's
     // "open journey for last reference" shortcut. Static so it survives across requests within the
@@ -49,16 +49,16 @@ public sealed class DevHatController : Controller
         _configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
         && _hostEnvironment?.IsProduction() != true;
 
-    [HttpGet("dev/hat")]
+    [HttpGet("dev/uat")]
     public IActionResult Index()
     {
         if (!IsAllowed)
             return NotFound();
 
-        var model = new HatConsoleViewModel
+        var model = new UatConsoleViewModel
         {
-            Interactive = HatCatalog.Interactive,
-            AutomatedCoverageIds = HatCatalog.AutomatedCoverageIds,
+            Interactive = UatCatalog.Interactive,
+            AutomatedCoverageIds = UatCatalog.AutomatedCoverageIds,
             DevToolsEnabled = _configuration.GetValue<bool>(SettingKeys.DevToolsEnabled),
             FakeZendesk = _configuration.GetValue<bool>(SettingKeys.ZendeskUseFake),
             LastReference = _lastReference,
@@ -71,7 +71,7 @@ public sealed class DevHatController : Controller
     // Count defaults to one and is clamped to a sane upper bound so a stray query value cannot
     // flood the local queue. Remembers the last reference for the journey shortcut, then redirects
     // back to the console.
-    [HttpPost("dev/hat/drive")]
+    [HttpPost("dev/uat/drive")]
     public async Task<IActionResult> Drive(string? outcome, int count, CancellationToken cancellationToken)
     {
         if (!IsAllowed)
@@ -95,7 +95,7 @@ public sealed class DevHatController : Controller
     // The failure-and-recovery demo. Composes the existing seed/dead-letter path (one synthetic
     // failing message) rather than adding any new failure machinery, then redirects back so the
     // watcher sees it fail on the board and can redrive it from the DLQ.
-    [HttpPost("dev/hat/inject-failure")]
+    [HttpPost("dev/uat/inject-failure")]
     public async Task<IActionResult> InjectFailure(CancellationToken cancellationToken)
     {
         if (!IsAllowed)
@@ -109,21 +109,21 @@ public sealed class DevHatController : Controller
         return Redirect(ConsoleUrl);
     }
 
-    [HttpPost("dev/hat/seed-dlq")]
+    [HttpPost("dev/uat/seed-dlq")]
     public async Task<IActionResult> SeedDlq(CancellationToken cancellationToken)
     {
         if (!IsAllowed)
             return NotFound();
 
         await SeedFailedMessageAsync(
-            $"hat-dlq-{Guid.NewGuid():N}"[..16], "Seeded from the HAT console for admin testing.", cancellationToken);
+            $"uat-dlq-{Guid.NewGuid():N}"[..16], "Seeded from the UAT console for admin testing.", cancellationToken);
 
         return Redirect(ConsoleUrl);
     }
 
     // The "open journey for the last driven reference" shortcut: redirect to the always-on journey
     // timeline for the most recent drive, or back to the console if nothing has been driven yet.
-    [HttpGet("dev/hat/last-journey")]
+    [HttpGet("dev/uat/last-journey")]
     public IActionResult LastJourney()
     {
         if (!IsAllowed)

@@ -3,11 +3,11 @@ using DfE.CheckPerformanceData.Web.Models.Dev;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
-// The automated-coverage panel reads a committed hat-coverage.json manifest that maps each
-// automated HAT item to the test project and --filter that proves it. This pins the manifest to
+// The automated-coverage panel reads a committed uat-coverage.json manifest that maps each
+// automated UAT item to the test project and --filter that proves it. This pins the manifest to
 // the model: every automated id the catalogue advertises must resolve to a well-formed entry, so
 // the panel can never advertise an item it cannot map to a real test run.
-public sealed class HatCoverageManifestTests
+public sealed class UatCoverageManifestTests
 {
     private static readonly JsonSerializerOptions Options = new()
     {
@@ -19,7 +19,7 @@ public sealed class HatCoverageManifestTests
         var thisFile = ThisFilePath();
         var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
         var path = Path.Combine(
-            repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "hat", "hat-coverage.json");
+            repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "uat", "uat-coverage.json");
         var json = File.ReadAllText(path);
         return JsonSerializer.Deserialize<CoverageManifest>(json, Options)!;
     }
@@ -43,7 +43,7 @@ public sealed class HatCoverageManifestTests
         var manifest = ReadManifest();
         var ids = manifest.Items.Select(i => i.Id).ToHashSet();
 
-        foreach (var id in HatCatalog.AutomatedCoverageIds)
+        foreach (var id in UatCatalog.AutomatedCoverageIds)
             Assert.Contains(id, ids);
     }
 

@@ -2,15 +2,15 @@ using DfE.CheckPerformanceData.Web.Models.Dev;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 
-// Static Razor-source assertions for the HAT console view, mirroring ObservabilityViewRenderTests:
+// Static Razor-source assertions for the UAT console view, mirroring ObservabilityViewRenderTests:
 // read the .cshtml as text and assert on the markup contracts most likely to regress — the action
 // buttons, the model-driven runner loop, the verdict controls, the coverage panel wiring, the
 // surface launcher, the embedded board partial, and keyboard-operability (no onclick-only
 // controls). Item-level content (titles, expect text, ids) is model-driven, so the runner loop is
-// asserted here and the catalogue contents are pinned in HatCatalogTests.
-public sealed class HatConsoleViewRenderTests
+// asserted here and the catalogue contents are pinned in UatCatalogTests.
+public sealed class UatConsoleViewRenderTests
 {
-    private static string ReadView(string name, string folder = "DevHat")
+    private static string ReadView(string name, string folder = "DevUat")
     {
         var thisFile = ThisFilePath();
         var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
@@ -26,11 +26,11 @@ public sealed class HatConsoleViewRenderTests
     {
         var view = ReadView("Index.cshtml");
 
-        Assert.Contains("/dev/hat/drive?outcome=approved", view);
-        Assert.Contains("/dev/hat/drive?outcome=rejected", view);
-        Assert.Contains("/dev/hat/drive?outcome=scrutiny", view);
-        Assert.Contains("/dev/hat/inject-failure", view);
-        Assert.Contains("/dev/hat/seed-dlq", view);
+        Assert.Contains("/dev/uat/drive?outcome=approved", view);
+        Assert.Contains("/dev/uat/drive?outcome=rejected", view);
+        Assert.Contains("/dev/uat/drive?outcome=scrutiny", view);
+        Assert.Contains("/dev/uat/inject-failure", view);
+        Assert.Contains("/dev/uat/seed-dlq", view);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class HatConsoleViewRenderTests
         // The runner is generated from the model, one row per interactive item, carrying the id,
         // title and expect text — not a hand-maintained list.
         Assert.Contains("Model.Interactive", view);
-        Assert.Contains("data-hat-item=\"@item.Id\"", view);
+        Assert.Contains("data-uat-item=\"@item.Id\"", view);
         Assert.Contains("@item.Title", view);
         Assert.Contains("@item.Expected", view);
     }
@@ -52,11 +52,11 @@ public sealed class HatConsoleViewRenderTests
         var view = ReadView("Index.cshtml");
 
         // The verdict control is a real radio group keyed by item, persisted client-side.
-        Assert.Contains("data-hat-verdict", view);
+        Assert.Contains("data-uat-verdict", view);
         Assert.Contains("value=\"pass\"", view);
         Assert.Contains("value=\"fail\"", view);
         Assert.Contains("value=\"skip\"", view);
-        Assert.Contains("data-hat-notes", view);
+        Assert.Contains("data-uat-notes", view);
     }
 
     [Fact]
@@ -68,8 +68,8 @@ public sealed class HatConsoleViewRenderTests
         // from the served manifest + status files, with a copyable dotnet test command.
         Assert.Contains("Automated coverage", view);
         Assert.Contains("Model.AutomatedCoverageIds", view);
-        Assert.Contains("data-coverage-url=\"/hat/hat-coverage.json\"", view);
-        Assert.Contains("data-status-url=\"/hat/hat-status.json\"", view);
+        Assert.Contains("data-coverage-url=\"/uat/uat-coverage.json\"", view);
+        Assert.Contains("data-status-url=\"/uat/uat-status.json\"", view);
         Assert.Contains("dotnet test", view);
     }
 
@@ -96,7 +96,7 @@ public sealed class HatConsoleViewRenderTests
     public void Index_PullsInTheConsoleScriptAndStylesheet()
     {
         var view = ReadView("Index.cshtml");
-        Assert.Contains("hat-console.js", view);
+        Assert.Contains("uat-console.js", view);
         Assert.Contains("observability.css", view);
     }
 
@@ -112,8 +112,8 @@ public sealed class HatConsoleViewRenderTests
     public void Index_OffersPhaseFilterClearAndExportControls()
     {
         var view = ReadView("Index.cshtml");
-        Assert.Contains("data-hat-filter", view);
-        Assert.Contains("data-hat-clear", view);
-        Assert.Contains("data-hat-export", view);
+        Assert.Contains("data-uat-filter", view);
+        Assert.Contains("data-uat-clear", view);
+        Assert.Contains("data-uat-export", view);
     }
 }

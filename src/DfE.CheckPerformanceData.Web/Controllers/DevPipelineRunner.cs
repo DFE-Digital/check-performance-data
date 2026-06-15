@@ -8,11 +8,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// The shared synthetic-request driver behind the dev pipeline trigger AND the HAT console's
+// The shared synthetic-request driver behind the dev pipeline trigger AND the UAT console's
 // drive-traffic buttons. Both surfaces inject the same RequestDocument shape onto the rules-engine
 // queue through this one path, so there is a single source of truth for what a dev request looks
 // like and no copy-paste between the two controllers. Returns the reference it minted so a caller
-// can remember it (the HAT "open journey for last reference" shortcut).
+// can remember it (the UAT "open journey for last reference" shortcut).
 public sealed class DevPipelineRunner
 {
     private readonly IPortalDbContext _dbContext;

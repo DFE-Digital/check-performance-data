@@ -1,0 +1,76 @@
+{
+  "items": [
+    {
+      "id": "3.10-1",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~EnqueueInsideRolledBackTransaction_LeavesNoMessage",
+      "description": "Outbox transactionality: enqueue inside a rolled-back transaction leaves no message."
+    },
+    {
+      "id": "3.10-2",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~ConcurrentDequeues_NeverReturnTheSameMessage",
+      "description": "Dequeue safety: concurrent dequeues never return the same message."
+    },
+    {
+      "id": "3.10-3",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~CrashBeforeAck_MessageResurfacesAfterVisibilityTimeout_NoZombieLock",
+      "description": "Crash recovery: a message resurfaces after the visibility timeout with no zombie lock."
+    },
+    {
+      "id": "3.10-5",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~RetentionJob_PurgesOnlyDeadLettersOlderThanRetention",
+      "description": "DLQ retention purge: only dead letters older than the retention window are purged."
+    },
+    {
+      "id": "3.10-6",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~Queue",
+      "description": "No Azurite: the queue runs Postgres-only, the integration suite is green without Azure Storage."
+    },
+    {
+      "id": "3.10-8",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~Redelivery_DoesNotCreateDuplicateTicket|FullyQualifiedName~ConcurrentDeliveries_PersistAtMostOneCrmId_DurableConstraint",
+      "description": "Zendesk idempotency: redelivery and concurrent delivery never create a duplicate ticket."
+    },
+    {
+      "id": "3.10-10",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~AzureQueueCutoverGuardTests",
+      "description": "Hard cutover: an assembly guard fails the build if Azure queue types return."
+    },
+    {
+      "id": "3.10-12",
+      "project": "DfE.CheckPerformanceData.UnitTests",
+      "filter": "FullyQualifiedName~Health",
+      "description": "Worker health probe: /healthz/live and /healthz/ready behave per the health tests."
+    },
+    {
+      "id": "3.10-17",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~RetentionJob_SendsAlert_WhenDlqDepthExceedsThreshold|FullyQualifiedName~RetentionJob_DoesNotAlert_WhenDlqDepthWithinThreshold",
+      "description": "GOV.UK Notify alert: the retention job alerts when DLQ depth exceeds the threshold, and not otherwise."
+    },
+    {
+      "id": "3.13-7",
+      "project": "DfE.CheckPerformanceData.UnitTests",
+      "filter": "FullyQualifiedName~MetricsSink",
+      "description": "Metrics events-table sink: the IMetricsSink structural and behavioural tests pass."
+    },
+    {
+      "id": "3.10-pii",
+      "project": "DfE.CheckPerformanceData.UnitTests",
+      "filter": "FullyQualifiedName~PayloadRedactorTests|FullyQualifiedName~DeadLetterReason_DoesNotCarry_RawExceptionMessage",
+      "description": "PII redaction: payloads are redacted and dead-letter reasons carry no raw exception text."
+    },
+    {
+      "id": "3.10-audit",
+      "project": "DfE.CheckPerformanceData.IntegrationTests",
+      "filter": "FullyQualifiedName~AuditEntries_AreImmutable_UpdateAndDeleteRaise",
+      "description": "Audit immutability: audit entries reject update and delete, and writes are atomic."
+    }
+  ]
+}

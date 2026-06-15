@@ -41,12 +41,6 @@ public sealed class ZendeskConsumer : ConsumerBase
     private readonly SchoolCheckingExerciseSettings? _checkingExerciseSettings;
     private readonly ILogger _logger;
 
-    // Process-local record of references already ticketed this lifetime. The
-    // durable guard is ChangeRequest.CrmId (which survives a restart); this is a
-    // cheap first line that stops a same-process redelivery before any Zendesk call.
-    private readonly HashSet<string> _ticketed = new(StringComparer.Ordinal);
-    private readonly object _ticketedLock = new();
-
     // Test constructor: collaborators are injected directly. Internal so the DI
     // container only ever sees the public hosting constructor below.
     internal ZendeskConsumer(
@@ -126,25 +120,25 @@ public sealed class ZendeskConsumer : ConsumerBase
         var message = RequestDocumentParser.Parse(messageBody)
             ?? throw new InvalidOperationException("Failed to parse message.");
 
-        lock (_ticketedLock)
-        {
-            if (_ticketed.Contains(message.ReferenceNumber))
-            {
-                return;
-            }
-        }
-
         var changeRequest = await LoadChangeRequestAsync(message.ReferenceNumber, cancellationToken);
 
         // Check-before-create: a redelivery of a request whose ticket already exists
-        // (CrmId persisted from a prior delivery) is a no-op, so at-least-once
-        // delivery never double-creates a ticket — even across a worker restart.
+        // (CrmId persisted from a prior delivery) is a no-op, so at-least-once delivery never
+        // double-creates a ticket — even across a worker restart. The durable guarantee below
+        // does not depend on this read; it is the cheap path that avoids the claim round-trip.
         if (!string.IsNullOrEmpty(changeRequest?.CrmId))
         {
-            lock (_ticketedLock)
-            {
-                _ticketed.Add(message.ReferenceNumber);
-            }
+            return;
+        }
+
+        // Durably claim the "ticket created" transition before calling Zendesk. The claim flips
+        // the status out of RulesProcessed in a single atomic UPDATE, so of two concurrent
+        // deliveries that both saw CrmId == null only one flips a row — the loser gets zero rows
+        // affected and skips without ever calling Zendesk, so no duplicate ticket is created.
+        // A redelivery of this worker's own crashed attempt (status already Creating, CrmId
+        // still null) re-claims and retries rather than stranding the request.
+        if (!await TryClaimTicketCreationAsync(message.ReferenceNumber, cancellationToken))
+        {
             return;
         }
 
@@ -162,15 +156,12 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         var crmId = response.Ticket.Id.ToString(CultureInfo.InvariantCulture);
 
-        lock (_ticketedLock)
-        {
-            _ticketed.Add(message.ReferenceNumber);
-        }
-
+        // Record the ticket id only where it is still unset. The partial unique index on CrmId
+        // is the final durable backstop against ever recording two ticket ids for one request.
         await _dbContext.ExecuteInTransactionAsync(async () =>
         {
             await _dbContext.ChangeRequests
-                .Where(r => r.ReferenceNumber == message.ReferenceNumber)
+                .Where(r => r.ReferenceNumber == message.ReferenceNumber && r.CrmId == null)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.CrmId, crmId)
                     .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreated),
@@ -180,6 +171,30 @@ public sealed class ZendeskConsumer : ConsumerBase
         _logger.LogInformation(
             "Created Zendesk ticket {TicketId} for Reference={Reference} (Decision={Status}, Rule={Rule}).",
             response.Ticket.Id, message.ReferenceNumber, decision.Status, decision.MatchedRuleId);
+    }
+
+    // Atomically flips the request from RulesProcessed into the in-progress "creating" state.
+    // Returns true to the single delivery that wins the flip. The flip is exclusive: Postgres
+    // takes a row lock on the matching row, so of two concurrent deliveries the second re-checks
+    // its WHERE against the winner's committed row — which is no longer RulesProcessed — and
+    // matches zero rows. The loser therefore skips without ever calling Zendesk, so concurrent
+    // redelivery cannot create a duplicate ticket. CrmId == null keeps an already-ticketed
+    // request (whose status is ZendeskTicketCreated) from ever being re-claimed.
+    private async Task<bool> TryClaimTicketCreationAsync(string referenceNumber, CancellationToken cancellationToken)
+    {
+        var claimed = 0;
+        await _dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            claimed = await _dbContext.ChangeRequests
+                .Where(r => r.ReferenceNumber == referenceNumber
+                    && r.CrmId == null
+                    && r.Status == RequestStatus.RulesProcessed)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreating),
+                    cancellationToken);
+        }, cancellationToken);
+
+        return claimed == 1;
     }
 
     private async Task<ChangeRequest?> LoadChangeRequestAsync(string referenceNumber, CancellationToken cancellationToken)

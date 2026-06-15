@@ -8,5 +8,4 @@ public sealed class QueueOptions
     public TimeSpan VisibilityTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public int MaxAttempts { get; set; } = 5;
     public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(5);
-    public int ZendeskConcurrencyCap { get; set; } = 1;
 }

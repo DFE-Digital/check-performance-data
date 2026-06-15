@@ -6,5 +6,6 @@ public enum RequestStatus
     ReadyToSubmit,
     SubmittedUnCommitted,
     RulesProcessed,
+    ZendeskTicketCreating,
     ZendeskTicketCreated
 }

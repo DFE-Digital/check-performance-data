@@ -388,6 +388,23 @@ public class JourneyControllerTests
         Assert.Equal("FR", saved.CodeValue);
     }
 
+    [Fact]
+    public async Task PagePost_WhenInvalid_EmitsValidationErrorWithCodes()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter something");
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(false);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        await _sut.PagePost(WindowId, "page-2", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes.Contains("required") && e.WhatToChange == "Remove" && e.FromSummary == false),
+            Arg.Any<CancellationToken>());
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]

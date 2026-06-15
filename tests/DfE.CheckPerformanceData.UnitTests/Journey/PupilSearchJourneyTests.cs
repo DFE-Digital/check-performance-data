@@ -28,6 +28,7 @@ public class PupilSearchJourneyTests
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
@@ -115,7 +116,7 @@ public class PupilSearchJourneyTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, Substitute.For<IAnalyticsService>())
+            _requestService, _pupilDataService, viewModelBuilder, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -392,7 +393,32 @@ public class PupilSearchJourneyTests
         Assert.Equal("reason", redirect.RouteValues!["pageId"]);
     }
 
+    [Fact]
+    public async Task PupilSearchPost_WhenNoSelection_EmitsValidationError()
+    {
+        SetupSession(SessionWithoutPupil());
+
+        await _sut.PupilSearchPost(WindowId, "select-pupil", selectedPupilId: null, selectedPupilLabel: null);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e => e.ErrorCount == 1 && e.ErrorCodes.Contains("no_selection")),
+            Arg.Any<CancellationToken>());
+    }
+
     // ── PupilSearchPost — match pupil ────────────────────────────────────────
+
+    [Fact]
+    public async Task PupilSearchPost_WhenMatchKeyAndSameAsPrimaryPupil_EmitsValidationError()
+    {
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(MergeConfig);
+        SetupSession(SessionWithPupil(history: ["select-pupil"]));
+
+        await _sut.PupilSearchPost(WindowId, "select-match-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e => e.ErrorCodes.Contains("same_pupil")),
+            Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task PupilSearchPost_WhenMatchKeyAndSameAsPrimaryPupil_ReturnsViewWithError()

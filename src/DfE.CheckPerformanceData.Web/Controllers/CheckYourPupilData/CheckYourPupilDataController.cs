@@ -1,13 +1,15 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
-public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider, 
-    ICurrentUserService currentUserService) : Controller
+public sealed class CheckYourPupilDataController(ICheckYourPupilDataService checkYourPupilDataService, TimeProvider timeProvider,
+    ICurrentUserService currentUserService, IAnalyticsService analytics) : Controller
 {
     private const int PageSize = 10;
     private const int MaxSearchLength = 100;
@@ -95,6 +97,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (viewModel.SelectedNextStep is null)
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
+            await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection] });
             var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
             return View("Index", model);
         }
@@ -119,6 +122,12 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var (included, includedTotal) = await checkYourPupilDataService.GetIncludedPupilsAsync(windowId, includedSearch, includedPage, PageSize);
         var (nonIncluded, nonIncludedTotal) = await checkYourPupilDataService.GetNonIncludedPupilsAsync(windowId, nonIncludedSearch, nonIncludedPage, PageSize);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
+        // Fire only on a real search (a term was entered), per tab — never the term itself.
+        if (!string.IsNullOrEmpty(includedSearch))
+            await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = includedTotal, ActiveTab = "included" });
+        if (!string.IsNullOrEmpty(nonIncludedSearch))
+            await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = nonIncludedTotal, ActiveTab = "nonIncluded" });
 
         var now = timeProvider.GetLocalNow().DateTime;
         var journey = HttpContext.Session.GetRequestState(windowId);

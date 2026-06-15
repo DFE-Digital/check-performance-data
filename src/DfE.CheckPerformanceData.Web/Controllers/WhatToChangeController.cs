@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,6 +31,7 @@ public sealed class WhatToChangeController(
         if (vm.SelectedWhatToChange == null)
         {
             ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), "Select what pupil data you would like to change");
+            await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection] });
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null });
         }
 

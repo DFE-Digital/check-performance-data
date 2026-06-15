@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -94,6 +95,12 @@ public sealed class JourneyController(
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Enter the name of the pupil";
             ModelState.AddModelError("selectedPupilId", validationMessage);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = 1,
+                ErrorCodes = [ValidationErrorCoding.NoSelection],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
@@ -103,6 +110,12 @@ public sealed class JourneyController(
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Select a different pupil to the first record";
             ModelState.AddModelError("selectedPupilId", validationMessage);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = 1,
+                ErrorCodes = [ValidationErrorCoding.SamePupil],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
@@ -216,6 +229,24 @@ public sealed class JourneyController(
 
         if (!isValid)
         {
+            var codes = new List<string>();
+            foreach (var q in page.Questions)
+            {
+                if (!ModelState.TryGetValue(q.Id, out var entry) || entry.Errors.Count == 0) continue;
+                if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); continue; }
+                newAnswers.TryGetValue(q.Id, out var ans);
+                var answered = ans is not null && journeyService.IsAnswered(q, ans);
+                codes.Add(ValidationErrorCoding.ForQuestion(q, answered));
+            }
+            if (atLeastOne is not null) codes.Add(ValidationErrorCoding.AtLeastOne);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = ModelState.ErrorCount,
+                ErrorCodes = codes,
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                FromSummary = fromSummary,
+            });
+
             var displayAnswers = journey.QuestionAnswers
                 .Concat(newAnswers)
                 .GroupBy(kv => kv.Key)

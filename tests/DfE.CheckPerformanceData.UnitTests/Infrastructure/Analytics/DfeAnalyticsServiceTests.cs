@@ -18,6 +18,7 @@ public sealed class DfeAnalyticsServiceTests
             new("count", 3),
             new("secret", "abc", Hidden: true),
             new("absent", null),
+            new("codes", new[] { "x", "y" }),
         ];
     }
 
@@ -65,6 +66,16 @@ public sealed class DfeAnalyticsServiceTests
 
         Assert.Equal(["abc"], sent()!.HiddenData["secret"]);
         Assert.DoesNotContain("secret", sent()!.Data.Keys);
+    }
+
+    [Fact]
+    public async Task TrackAsync_maps_string_list_fields_as_multi_value_data()
+    {
+        var (sut, _, sent) = NewSut();
+
+        await sut.TrackAsync(new SampleEvent());
+
+        Assert.Equal(["x", "y"], sent()!.Data["codes"]);
     }
 
     [Fact]

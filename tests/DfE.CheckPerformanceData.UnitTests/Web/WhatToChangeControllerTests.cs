@@ -56,12 +56,23 @@ public sealed class WhatToChangeControllerTests
     }
 
     [Fact]
-    public async Task Confirm_WhenNoSelection_DoesNotEmit()
+    public async Task Confirm_WhenNoSelection_DoesNotEmitChangeTypeSelected()
     {
         await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
 
-        await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<ChangeTypeSelectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Confirm_WhenNoSelection_EmitsValidationError()
+    {
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e => e.ErrorCount == 1 && e.ErrorCodes.Contains("no_selection")),
+            Arg.Any<CancellationToken>());
     }
 
     private sealed class FakeSession : ISession

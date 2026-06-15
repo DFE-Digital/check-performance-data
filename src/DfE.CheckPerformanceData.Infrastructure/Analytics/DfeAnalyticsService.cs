@@ -24,6 +24,18 @@ public sealed class DfeAnalyticsService(IEventSender eventSender) : IAnalyticsSe
         {
             if (field.Value is null) continue;
 
+            // A string-list field becomes a multi-value DATA entry (BigQuery repeated field).
+            if (field.Value is IEnumerable<string> values)
+            {
+                var array = values.ToArray();
+                if (array.Length == 0) continue;
+                if (field.Hidden)
+                    @event.AddHiddenData(field.Name, array);
+                else
+                    @event.AddData(field.Name, array);
+                continue;
+            }
+
             var value = Stringify(field.Value);
             if (field.Hidden)
                 @event.AddHiddenData(field.Name, value);

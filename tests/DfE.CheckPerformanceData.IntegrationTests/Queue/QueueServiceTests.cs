@@ -97,4 +97,50 @@ public sealed class QueueServiceTests
         Assert.NotNull(resurfaced);
         Assert.Equal(firstTake!.Id, resurfaced!.Id);
     }
+
+    // --- A message that only times out (never fails) is not dead-lettered (WR-05) ---
+
+    [Fact]
+    public async Task MessageThatTimesOutManyTimesWithoutFailing_IsNotDeadLettered()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var enqueueContext = _fixture.CreateContext();
+        var enqueueSut = new PostgresQueueService(enqueueContext);
+        await enqueueSut.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "SLOW" });
+
+        // A zero visibility timeout makes every claim re-surface immediately, simulating a
+        // message whose processing repeatedly ran past the visibility window. Attempts climbs
+        // with each claim — MaxAttempts counts claims, not failures — but dead-lettering happens
+        // only when processing actually throws. Re-claiming the message many times without ever
+        // dead-lettering it must leave it on the queue, not in the DLQ.
+        var options = new QueueOptions { VisibilityTimeout = TimeSpan.Zero };
+
+        QueueMessage? claimed = null;
+        for (var i = 0; i < QueueOptions.RulesEngineQueue.Length + 10; i++)
+        {
+            await using var ctx = _fixture.CreateContext();
+            var sut = new PostgresQueueService(ctx, options);
+            claimed = await sut.DequeueAsync(QueueOptions.RulesEngineQueue);
+            Assert.NotNull(claimed);
+        }
+
+        // Attempts has climbed well past MaxAttempts purely from timed-out re-claims...
+        Assert.True(claimed!.Attempts > new QueueOptions().MaxAttempts);
+
+        // ...yet nothing is dead-lettered, because no processing failure ever occurred.
+        await using var verify = _fixture.CreateContext();
+        var dlq = await new QueueAdminService(new PostgresQueueService(verify)).GetDlqMessagesAsync();
+        Assert.Empty(dlq);
+
+        // The message is still claimable and can finally be acked on a successful processing.
+        await using var ackCtx = _fixture.CreateContext();
+        var ackSut = new PostgresQueueService(ackCtx, options);
+        var finalTake = await ackSut.DequeueAsync(QueueOptions.RulesEngineQueue);
+        Assert.NotNull(finalTake);
+        await ackSut.AckAsync(finalTake!.Id);
+
+        await using var afterAck = _fixture.CreateContext();
+        Assert.Null(await new PostgresQueueService(afterAck, options).DequeueAsync(QueueOptions.RulesEngineQueue));
+    }
 }

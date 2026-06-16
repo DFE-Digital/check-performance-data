@@ -74,4 +74,104 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains(".obs-board__token--failed", css);
         Assert.Contains("#d4351c", css);
     }
+
+    // --- A destination row of decision boxes sits with the dead-letter marker after the engine ---
+
+    [Fact]
+    public void Board_RendersDecisionDestinationBoxes_OnTheDeadLetterRow()
+    {
+        var board = Board();
+
+        // Three decision destinations, each keyed by its decisionStatus value, alongside the
+        // existing Dead-letter queue, all on one destination row beneath the lane. The keys are
+        // declared in the view's decisions array (rendered into each box's data-obs-decision).
+        Assert.Contains("\"AutoApproved\"", board);
+        Assert.Contains("\"AutoRejected\"", board);
+        Assert.Contains("\"Scrutiny\"", board);
+        Assert.Contains("Dead-letter queue", board);
+
+        // Each decision box reuses the DLQ-marker structure, keyed via data-obs-decision so the
+        // engine can anchor to it and toggle its active state as envelopes land.
+        Assert.Contains("data-obs-decision=\"@decision.Key\"", board);
+
+        // The four destinations share a single row container.
+        Assert.Contains("obs-board__destinations", board);
+    }
+
+    [Fact]
+    public void BoardJs_RoutesEnvelopesToTheirDecisionBox()
+    {
+        var js = BoardJs();
+
+        // A decisionAnchor sits alongside dlqAnchor, mapping a decisionStatus to its box centre, so a
+        // decided envelope routes into the matching destination box before continuing to the ticket.
+        Assert.Contains("decisionAnchor", js);
+        // Decision boxes light up as envelopes land, like the DLQ marker's active attribute.
+        Assert.Contains("data-obs-decision-active", js);
+    }
+
+    // --- Multiple envelopes at one box stack diagonally, with a >4 count overlay ---
+
+    [Fact]
+    public void BoardJs_StacksEnvelopesAndShowsACountOverlayWhenCrowded()
+    {
+        var js = BoardJs();
+
+        // Per-anchor occupancy is tracked so envelopes at the same box offset diagonally rather than
+        // overlapping exactly, and a numeric overlay replaces the pile beyond a threshold.
+        Assert.Contains("occupancy", js);
+        Assert.Contains("STACK_OFFSET", js);
+        Assert.Contains("STACK_MAX_VISIBLE", js);
+        Assert.Contains("obs-board__stack-count", js);
+    }
+
+    [Fact]
+    public void Css_StackCountOverlay_IsStyled()
+    {
+        var css = Css();
+
+        Assert.Contains(".obs-board__stack-count", css);
+    }
+
+    // --- An always-available Pause control + hover/focus message details ---
+
+    [Fact]
+    public void Board_CarriesAnAlwaysAvailablePauseControl()
+    {
+        var board = Board();
+
+        // Pause lives on the board itself (not the dev-only Demo panel), so it is reachable without
+        // the Demo panel. It carries the hook the engine binds and an accessible toggle state.
+        Assert.Contains("data-obs-pause", board);
+        Assert.Contains("aria-pressed", board);
+    }
+
+    [Fact]
+    public void BoardJs_PauseFreezesMotion_AndIsReachableFromTheBoard()
+    {
+        var js = BoardJs();
+
+        // The engine exposes a pause toggle that freezes envelope motion and the replay/trickle, and
+        // the board-level control is wired to it (resolved from the board root, not just the Demo panel).
+        Assert.Contains("togglePause", js);
+        Assert.Contains("data-obs-pause", js);
+    }
+
+    [Fact]
+    public void BoardJs_SurfacesMessageDetailsOnHoverOrFocus()
+    {
+        var js = BoardJs();
+
+        // Hover/focus reveals a positioned detail popover carrying the reference, stage, decision and
+        // latency/time the envelope's aria-label already encodes.
+        Assert.Contains("obs-board__token-detail", js);
+    }
+
+    [Fact]
+    public void Css_TokenDetailPopover_IsStyled()
+    {
+        var css = Css();
+
+        Assert.Contains(".obs-board__token-detail", css);
+    }
 }

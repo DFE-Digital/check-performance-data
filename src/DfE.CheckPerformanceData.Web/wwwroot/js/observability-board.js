@@ -3,16 +3,24 @@
 
     // Workflow board animation engine. One renderer, two feeds:
     //   - the live feed subscribes to the server-sent snapshot stream and pushes each snapshot in;
-    //   - a recorded feed (added later) replays a fetched events array on a clock.
-    // Both call the same single entry point (start) with a feed object exposing subscribe(onSnapshot),
-    // so slow-mo / single-step / replay become clock manipulations over this renderer rather than a
-    // re-architecture. All token motion is gated behind prefers-reduced-motion: under reduce the
-    // tokens snap (no transition) and state is conveyed by position + colour + shape + text.
+    //   - a recorded feed replays a fetched events array on a clock.
+    // Both call the same single entry point (start) with a feed object exposing subscribe(onSnapshot).
+    // A message is rendered as a small blue ENVELOPE that travels along the REAL pipeline path:
+    // it enters at Submit and walks box to box — Submit → Rules-queue → Rules-engine → Zendesk-queue
+    // → Ticket — pausing at each stage. Positions are measured from the rendered stage nodes
+    // (getBoundingClientRect), so the envelope is always anchored to the actual boxes, never a fixed
+    // corner. A failed/injected message diverts to the dead-letter marker instead of reaching Ticket.
+    // All motion is gated behind prefers-reduced-motion: under reduce the envelope snaps to its final
+    // resting stage (no traversal, no transition) and state is conveyed by position + colour + text.
 
     var STAGE_ORDER = ['submit', 'rules-queue', 'rules-engine', 'zendesk-queue', 'ticket'];
 
-    // Map a queue depth / age health-ish signal to the three-state node class. Kept deliberately
-    // simple: any waiting work backs the stage up; the health strip owns the authoritative red.
+    // Base dwell at each stage in ms (scaled by the slow-mo clock). Kept short so a live board feels
+    // lively; slow motion multiplies it for a demo.
+    var STAGE_DWELL_MS = 380;
+
+    // Map a queue depth to the three-state node class. Kept deliberately simple: any waiting work
+    // backs the stage up; the health strip owns the authoritative red.
     function stateForCount(count) {
         if (!count || count <= 0) { return 'flowing'; }
         if (count < 25) { return 'backingup'; }
@@ -32,21 +40,55 @@
         });
         var transitionsList = root.querySelector('[data-obs-transitions]');
         var reconnectNotice = root.querySelector('[data-obs-reconnect]');
+        var dlqMarker = root.querySelector('[data-obs-dlq]');
 
-        // Position a token at a stage lane. Under reduced motion we snap (no transition); otherwise
-        // the CSS transition (gated in observability.css behind no-preference) eases the transform.
-        function placeToken(token, stageKey) {
+        // Geometry: the centre of a stage's node relative to the board root, so an absolutely
+        // positioned envelope can be placed dead-centre on the box. Measured live each time so the
+        // animation survives layout changes (responsive reflow, nav collapse). Falls back to an
+        // even split of the board width if a node has not laid out yet.
+        function anchorFor(stageKey) {
             var lane = lanes[stageKey];
-            if (!lane) { return; }
-            var laneRect = lane.getBoundingClientRect();
             var rootRect = root.getBoundingClientRect();
-            var x = (laneRect.left - rootRect.left) + (laneRect.width / 2) - 10;
-            var y = (laneRect.top - rootRect.top);
-            if (reduce) {
-                token.style.transition = 'none';
+            if (lane) {
+                var node = lane.querySelector('.obs-board__node') || lane;
+                var r = node.getBoundingClientRect();
+                if (r.width > 0 || r.height > 0) {
+                    return {
+                        x: (r.left - rootRect.left) + (r.width / 2),
+                        y: (r.top - rootRect.top) + (r.height / 2)
+                    };
+                }
             }
-            token.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-            token.setAttribute('data-stage', stageKey);
+            var idx = STAGE_ORDER.indexOf(stageKey);
+            var slot = rootRect.width / STAGE_ORDER.length;
+            return { x: slot * (idx + 0.5), y: 40 };
+        }
+
+        function dlqAnchor() {
+            var rootRect = root.getBoundingClientRect();
+            if (dlqMarker) {
+                var node = dlqMarker.querySelector('.obs-board__dlq-node') || dlqMarker;
+                var r = node.getBoundingClientRect();
+                if (r.width > 0 || r.height > 0) {
+                    return {
+                        x: (r.left - rootRect.left) + (r.width / 2),
+                        y: (r.top - rootRect.top) + (r.height / 2)
+                    };
+                }
+            }
+            // Below the rules-engine box if the marker hasn't laid out.
+            var a = anchorFor('rules-engine');
+            return { x: a.x, y: a.y + 80 };
+        }
+
+        // Position an envelope at an anchor point (centre of a stage box, or the DLQ marker).
+        // Under reduced motion we strip the transition so it snaps; otherwise the CSS transition
+        // (gated behind no-preference) eases the transform.
+        function placeAt(token, anchor) {
+            if (reduce) { token.style.transition = 'none'; }
+            // -50% offset is baked into the element's own translate via CSS transform-origin; here
+            // we translate the top-left so the element centre lands on the anchor.
+            token.style.transform = 'translate(' + (anchor.x) + 'px, ' + (anchor.y) + 'px) translate(-50%, -50%)';
         }
 
         function accessibleName(transition) {
@@ -67,7 +109,18 @@
             return 'rules-queue';
         }
 
-        // Fetch and show the inspect panel for one token. Non-destructive; keyboard- and click-driven.
+        // Does this transition represent a failure that should divert to the dead-letter marker
+        // rather than completing to Ticket? Recognised from an explicit flag or a failed/dead-letter
+        // stage or decision.
+        function isFailure(transition) {
+            if (transition.failed === true || transition.Failed === true) { return true; }
+            var stage = (transition.stage || transition.Stage || '').toLowerCase();
+            var decision = (transition.decisionStatus || transition.DecisionStatus || '').toLowerCase();
+            return stage.indexOf('dead') >= 0 || stage.indexOf('fail') >= 0
+                || decision.indexOf('fail') >= 0;
+        }
+
+        // Fetch and show the inspect panel for one envelope. Non-destructive; keyboard- and click-driven.
         function inspect(reference) {
             fetch(inspectUrl + '/' + encodeURIComponent(reference), { credentials: 'same-origin' })
                 .then(function (r) { return r.ok ? r.text() : ''; })
@@ -83,12 +136,19 @@
                 .catch(function () { /* inspect is best-effort; a failed fetch leaves the board intact */ });
         }
 
+        // The envelope element: an inline SVG envelope in GDS blue, keyboard-focusable and labelled,
+        // positioned absolutely so it can be driven across the board by transform.
         function makeToken(transition) {
             var token = document.createElement('span');
             token.className = 'obs-board__token';
             token.setAttribute('tabindex', '0');
             token.setAttribute('role', 'button');
             token.setAttribute('aria-label', accessibleName(transition) + ' — inspect this message');
+            token.innerHTML =
+                '<svg viewBox="0 0 24 18" width="20" height="15" aria-hidden="true" focusable="false">' +
+                '<rect x="1" y="1" width="22" height="16" rx="2" fill="#1d70b8" stroke="#0b0c0c" stroke-width="1.5"/>' +
+                '<path d="M2 3 L12 11 L22 3" fill="none" stroke="#ffffff" stroke-width="1.5"/>' +
+                '</svg>';
             var reference = transition.referenceNumber || transition.ReferenceNumber || '';
             token.addEventListener('click', function () { inspect(reference); });
             token.addEventListener('keydown', function (e) {
@@ -99,6 +159,57 @@
             });
             root.appendChild(token);
             return token;
+        }
+
+        // Walk an envelope from Submit along the stage path to its destination, pausing at each box.
+        // A failed message stops at Rules-engine then diverts to the dead-letter marker; a normal one
+        // runs to Ticket (or wherever its reported stage is). Under reduced motion the envelope is
+        // placed once at the destination with no traversal, then removed.
+        function flyEnvelope(token, destKey, failed) {
+            if (reduce) {
+                placeAt(token, failed ? dlqAnchor() : anchorFor(destKey));
+                window.setTimeout(function () {
+                    if (token.parentNode) { token.parentNode.removeChild(token); }
+                }, 0);
+                return;
+            }
+
+            // Build the path of stage keys to walk. We always enter at submit; the destination is the
+            // reported stage. For a failure we walk as far as rules-engine then divert to the DLQ.
+            var destIdx = STAGE_ORDER.indexOf(destKey);
+            if (destIdx < 0) { destIdx = STAGE_ORDER.length - 1; }
+            var path = [];
+            var stopIdx = failed ? Math.min(STAGE_ORDER.indexOf('rules-engine'), destIdx) : destIdx;
+            for (var i = 0; i <= stopIdx; i++) { path.push(STAGE_ORDER[i]); }
+
+            var dwell = STAGE_DWELL_MS * moveSpeed;
+
+            // Place at submit immediately, then step along the path on the clock so the CSS transition
+            // eases each hop. requestAnimationFrame gives the first placement a from-state.
+            placeAt(token, anchorFor('submit'));
+            var hop = 0;
+            window.requestAnimationFrame(function () {
+                function next() {
+                    hop += 1;
+                    if (hop < path.length) {
+                        placeAt(token, anchorFor(path[hop]));
+                        window.setTimeout(next, dwell);
+                    } else if (failed) {
+                        // Divert to the dead-letter marker and reveal it.
+                        if (dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
+                        placeAt(token, dlqAnchor());
+                        window.setTimeout(function () {
+                            if (token.parentNode) { token.parentNode.removeChild(token); }
+                        }, dwell * 2);
+                    } else {
+                        // Arrived; let it rest a beat at its final box then clear it.
+                        window.setTimeout(function () {
+                            if (token.parentNode) { token.parentNode.removeChild(token); }
+                        }, dwell * 2);
+                    }
+                }
+                window.setTimeout(next, dwell);
+            });
         }
 
         // Update the per-stage counts (board + accessible parallel) from the snapshot depths.
@@ -121,10 +232,10 @@
 
         // The snapshot stream returns the latest transitions regardless of novelty, so the engine
         // tracks the newest RecordedAtUtc it has rendered and only animates/announces transitions
-        // newer than it. Without the watermark every heartbeat would re-spawn tokens for events
-        // that may be hours old and rewrite the aria-live list, making screen readers re-announce
-        // all of them every tick. Synthetic transitions (single-step, demo trickle, replay) carry
-        // no watermark obligation: they pass forceAnimate so deliberate re-presentation still runs.
+        // newer than it. Without the watermark every heartbeat would re-spawn envelopes for events
+        // that may be hours old and rewrite the aria-live list. Synthetic transitions (single-step,
+        // demo trickle, replay) carry no watermark obligation: they pass forceAnimate so deliberate
+        // re-presentation still runs.
         var lastSeenUtc = null;
         var listRendered = false;
 
@@ -135,9 +246,6 @@
             return isNaN(ms) ? null : ms;
         }
 
-        // Render the most recent transitions into the accessible live region, and animate a token
-        // for each NEW one to its stage so the visual and textual views stay in step. When nothing
-        // is new, the live region is left untouched so nothing is re-announced.
         function updateTransitions(transitions, forceAnimate) {
             var list = transitions || [];
             var fresh = list;
@@ -152,8 +260,7 @@
                 });
             }
 
-            // Only touch the live region when there is something new to say (or on first render,
-            // so the empty state appears once). An unchanged list stays silent for screen readers.
+            // Only touch the live region when there is something new to say (or on first render).
             if (transitionsList && (fresh.length > 0 || !listRendered)) {
                 transitionsList.innerHTML = '';
                 if (list.length === 0) {
@@ -171,19 +278,10 @@
                 listRendered = true;
             }
 
-            // Animate a single token per NEW transition to its stage; reduced-motion snaps it there.
+            // Fly one envelope per NEW transition along the stage path to its destination.
             fresh.forEach(function (t) {
                 var token = makeToken(t);
-                placeToken(token, 'submit');
-                // Move on the next frame so the transition has a from-state to ease from.
-                window.requestAnimationFrame(function () {
-                    placeToken(token, stageKeyFor(t));
-                });
-                // Tokens are ephemeral animation marks; clear them once they have arrived. The
-                // lifetime is scaled by the slow-mo clock so a demo can linger on each move.
-                window.setTimeout(function () {
-                    if (token.parentNode) { token.parentNode.removeChild(token); }
-                }, reduce ? 0 : 1200 * moveSpeed);
+                flyEnvelope(token, stageKeyFor(t), isFailure(t));
             });
         }
 
@@ -201,29 +299,38 @@
         }
 
         // The clock seam. slow-mo scales it, single-step advances it by hand, demo-mode trickles
-        // synthetic tokens through it, and replay drives it from a scrubber — all over this one
-        // renderer, no re-architecture. moveSpeed scales how long a token lingers; demoTimer is
-        // the auto-trickle interval handle.
+        // synthetic envelopes through it, and replay drives it from a scrubber — all over this one
+        // renderer. moveSpeed scales how long an envelope dwells at each box; demoTimer is the
+        // auto-trickle interval handle.
         var moveSpeed = 1;
         var demoTimer = null;
 
         function setSlowMo(factor) {
-            // A factor > 1 slows motion down (tokens linger longer) for a demo; 1 is normal.
             moveSpeed = (factor && factor > 0) ? factor : 1;
         }
 
-        // Single-step: advance one synthetic token through the pipeline by hand, so a presenter
-        // can walk an audience stage by stage. Reuses the same token renderer.
+        // Single-step: send one synthetic envelope all the way through the pipeline so a presenter
+        // can walk an audience Submit → Ticket. forceAnimate bypasses the novelty watermark.
         function singleStep() {
             onSnapshot({
-                recentTransitions: [{ referenceNumber: 'STEP-' + Date.now(), stage: 'submit' }],
+                recentTransitions: [{ referenceNumber: 'STEP-' + Date.now(), stage: 'ticket' }],
                 depths: [],
                 forceAnimate: true,
             });
         }
 
-        // Demo-mode auto-trickle: inject one synthetic token on an interval so the board stays
-        // alive during a demo even with no real traffic. Returns whether it is now running.
+        // Inject a failing envelope: it walks to Rules-engine then diverts to the dead-letter marker.
+        function injectFailure() {
+            onSnapshot({
+                recentTransitions: [{ referenceNumber: 'FAIL-' + Date.now(), stage: 'rules-engine', failed: true }],
+                depths: [],
+                forceAnimate: true,
+            });
+        }
+
+        // Demo-mode auto-trickle: inject one synthetic envelope (running the full path) on an
+        // interval so the board stays alive during a demo even with no real traffic. Returns whether
+        // it is now running.
         function toggleDemoMode() {
             if (demoTimer) {
                 window.clearInterval(demoTimer);
@@ -231,14 +338,12 @@
                 return false;
             }
             demoTimer = window.setInterval(function () {
-                var stages = ['submit', 'rules-engine', 'zendesk-queue', 'ticket'];
-                var stage = stages[Math.floor(Math.random() * stages.length)];
                 onSnapshot({
-                    recentTransitions: [{ referenceNumber: 'DEMO-' + Date.now(), stage: stage }],
+                    recentTransitions: [{ referenceNumber: 'DEMO-' + Date.now(), stage: 'ticket' }],
                     depths: [],
                     forceAnimate: true,
                 });
-            }, 1500);
+            }, Math.max(900, 1500 * moveSpeed));
             return true;
         }
 
@@ -247,6 +352,7 @@
             onError: onError,
             setSlowMo: setSlowMo,
             singleStep: singleStep,
+            injectFailure: injectFailure,
             toggleDemoMode: toggleDemoMode,
         };
     }
@@ -267,10 +373,9 @@
     }
 
     // The recorded/replay feed. It fetches the recorded events for a window from the always-on
-    // replay endpoint, then plays them into the same renderer on a scrubber-controlled clock —
-    // the engine never knows the difference between live and recorded. Exposes load(from, to),
-    // seek(index) and the count so a scrubber UI can drive it. Same subscribe shape as the live
-    // feed so it plugs into start(...) identically.
+    // replay endpoint, then plays them into the same renderer on a scrubber-controlled clock — the
+    // engine never knows the difference between live and recorded. Exposes load(from, to),
+    // seek(index) and the count so a scrubber UI can drive it.
     function recordedFeed(replayUrl) {
         var events = [];
         var sink = null;
@@ -286,10 +391,9 @@
                     .catch(function () { events = []; return 0; });
             },
             count: function () { return events.length; },
-            // Play the recorded events up to and including the scrubber position so dragging the
-            // scrubber re-animates the window; each step feeds one recorded transition. Replay is
-            // deliberate re-presentation of old events, so it bypasses the live-feed novelty
-            // watermark via forceAnimate.
+            // Animate the recorded event at the scrubber position through the board; each step flies
+            // one envelope along the stage path. Replay is deliberate re-presentation of old events,
+            // so it bypasses the live-feed novelty watermark via forceAnimate.
             seek: function (index) {
                 if (!sink) { return; }
                 var e = events[index];
@@ -299,18 +403,17 @@
         };
     }
 
-    // The single entry point. Given a board root and a feed, wire the feed to the renderer. The
-    // recorded-replay feed is any object with the same subscribe(onSnapshot, onError) shape.
+    // The single entry point. Given a board root and a feed, wire the feed to the renderer.
     function start(root, feed) {
         var engine = BoardEngine(root);
         feed.subscribe(engine.onSnapshot, engine.onError);
         return engine;
     }
 
-    // Wire the always-on replay scrubber (present in every environment) and the dev-only control
-    // group (slow-mo / single-step / demo-mode), which the server-side Razor conditional only
-    // renders when Dev:ToolsEnabled. Each control is keyboard-operable; the scrubber announces
-    // its position via aria-valuetext and a live region.
+    // Wire the always-on replay scrubber and the dev-only control group (slow-mo / single-step /
+    // demo-mode / inject-failure), which the server-side Razor conditional only renders when
+    // Dev:ToolsEnabled. Single step and demo trickle are checkboxes (like slow motion). Each control
+    // is keyboard-operable; the scrubber announces its position via aria-valuetext and a live region.
     function wireControls(root, engine) {
         // --- Always-on replay scrubber ---
         var replayUrl = root.getAttribute('data-replay-url') || '/admin/observability/replay';
@@ -343,7 +446,7 @@
 
             scrubber.addEventListener('input', function () {
                 var idx = parseInt(scrubber.value, 10) || 0;
-                feed.seek(idx);
+                feed.seek(idx); // animates an envelope through the stages for this recorded event
                 announce(idx, feed.count());
             });
 
@@ -382,19 +485,38 @@
                 engine.setSlowMo(slowMo.checked ? 4 : 1);
             });
         }
+
+        // Single step is now a checkbox: each time it is ticked it sends one envelope all the way
+        // through, then resets itself so it can be ticked again.
         var step = root.querySelector('[data-obs-step]');
         if (step) {
-            step.addEventListener('click', function () { engine.singleStep(); });
-        }
-        var demo = root.querySelector('[data-obs-demo]');
-        if (demo) {
-            demo.addEventListener('click', function () {
-                var on = engine.toggleDemoMode();
-                demo.setAttribute('aria-pressed', on ? 'true' : 'false');
-                demo.textContent = on ? 'Stop demo trickle' : 'Start demo trickle';
+            step.addEventListener('change', function () {
+                if (step.checked) {
+                    engine.singleStep();
+                    step.checked = false;
+                }
             });
         }
+
+        // Demo trickle is a checkbox: ticking it starts the auto-trickle, unticking it stops.
+        var demo = root.querySelector('[data-obs-demo]');
+        if (demo) {
+            demo.addEventListener('change', function () {
+                var on = engine.toggleDemoMode();
+                demo.checked = on;
+            });
+        }
+
+        // The inject-failure trigger also drives the board so the diversion is visible even before
+        // the server-side seed round-trips. The confirm-modal still posts to the seed endpoint; this
+        // gives immediate on-board feedback.
+        var inject = root.querySelector('[data-obs-inject]');
+        if (inject) {
+            inject.addEventListener('click', function () { engine.injectFailure(); });
+        }
     }
+
+    var sharedEngine = null;
 
     function init() {
         var root = document.querySelector('[data-obs-board]');
@@ -402,8 +524,7 @@
         var streamUrl = root.getAttribute('data-stream-url') || '/admin/observability/stream';
         if (!('EventSource' in window)) { return; }
         var engine = start(root, liveFeed(streamUrl));
-        // The replay scrubber (always-on) and the dev-only controls share the live engine, so
-        // slow-mo / single-step / demo / replay are all clock+feed manipulations over one renderer.
+        sharedEngine = engine;
         wireControls(root, engine);
     }
 
@@ -413,7 +534,13 @@
         init();
     }
 
-    // Expose the engine factory and both feeds so tests and the recorded-replay scrubber reuse
-    // the same renderer.
-    window.ObservabilityBoard = { start: start, liveFeed: liveFeed, recordedFeed: recordedFeed };
+    // Expose the engine factory and both feeds so tests and the recorded-replay scrubber reuse the
+    // same renderer. refresh() lets a host page (the Debug Pipeline AJAX drives) nudge the board to
+    // show immediate movement after a drive, without a full-page reload.
+    window.ObservabilityBoard = {
+        start: start,
+        liveFeed: liveFeed,
+        recordedFeed: recordedFeed,
+        refresh: function () { if (sharedEngine) { sharedEngine.singleStep(); } }
+    };
 })();

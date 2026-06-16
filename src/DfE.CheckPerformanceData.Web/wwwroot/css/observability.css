@@ -59,6 +59,7 @@
 /* --- Workflow board ------------------------------------------------------- */
 
 .obs-board {
+    position: relative;       /* anchor for the absolutely-positioned envelope token layer */
     min-height: 320px;
     background: #f3f2f1;
     border: 1px solid #b1b4b6;
@@ -134,21 +135,59 @@
     line-height: 1;
 }
 
-/* Tokens animate along the lanes; their motion rules are gated below so reduced-motion snaps. */
+/* Envelope tokens travel between the stage boxes, anchored to the real node geometry by the JS
+   (it sets transform: translate(x,y) translate(-50%,-50%) so the envelope centres on each box).
+   They sit in their own absolutely-positioned layer over the lanes; motion rules are gated below
+   so reduced-motion snaps with no traversal. */
 .obs-board__token {
     position: absolute;
     top: 0;
     left: 0;
     width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #1d70b8;
-    border: 2px solid #0b0c0c;
+    height: 15px;
+    line-height: 0;
+    z-index: 2;
+    pointer-events: auto;
+    filter: drop-shadow(0 1px 1px rgba(11, 12, 12, 0.4));
+}
+
+.obs-board__token svg {
+    display: block;
 }
 
 .obs-board__token:focus {
     outline: 3px solid #ffdd00;
-    outline-offset: 1px;
+    outline-offset: 2px;
+}
+
+/* The dead-letter parking marker: failed/injected envelopes divert here instead of reaching
+   Ticket, so a failure is visible. It sits below the lanes, under the rules-engine box. */
+.obs-board__dlq {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 120px;
+    margin: 8px auto 16px;
+}
+
+.obs-board__dlq-node {
+    width: 28px;
+    height: 28px;
+    background: #ffffff;
+    border: 3px dashed #d4351c;
+    border-radius: 2px;
+    margin-bottom: 8px;
+}
+
+.obs-board__dlq[data-obs-dlq-active="true"] .obs-board__dlq-node {
+    background: #d4351c;
+}
+
+.obs-board__dlq-label {
+    color: #d4351c;
+    font-weight: 700;
+    font-size: 16px;
 }
 
 .obs-board__parallel {
@@ -169,14 +208,23 @@
     display: none;
 }
 
+/* Controls sit at the TOP of the board area so they're immediately visible: replay and the
+   dev-only demo controls side by side, wrapping on narrow viewports. */
+.obs-board__controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
 /* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range
    input + play/pause; both control groups are keyboard-operable. */
 .obs-board__replay,
 .obs-board__dev-controls {
-    background: #f3f2f1;
+    flex: 1 1 320px;
+    background: #ffffff;
     border: 1px solid #b1b4b6;
     padding: 16px;
-    margin-top: 16px;
 }
 
 .obs-board__replay-controls {

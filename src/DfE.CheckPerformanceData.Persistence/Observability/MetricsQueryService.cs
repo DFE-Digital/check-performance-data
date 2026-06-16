@@ -323,6 +323,89 @@ LIMIT @limit OFFSET @offset;";
         return new TransactionsPage(rows, total, page, pageSize);
     }
 
+    public async Task<SubmissionsPage> GetSubmissionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        if (fromUtc is { } f && toUtc is { } t)
+            GuardRange(f, t);
+
+        var where = new List<string>();
+        if (fromUtc is not null) where.Add("recorded_at_utc >= @from");
+        if (toUtc is not null) where.Add("recorded_at_utc < @to");
+        var whereClause = where.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", where);
+
+        // The distinct references in the window. The COUNT and the page share the identical filter
+        // so the total matches the rows.
+        var countSql = $@"
+SELECT COUNT(*) FROM (
+    SELECT reference_number
+    FROM queue_metrics_events
+    {whereClause}
+    GROUP BY reference_number
+) refs;";
+
+        // One row per distinct reference: its first-seen time (MIN) and its most recent stage and
+        // decision (DISTINCT ON ... ORDER BY recorded_at DESC picks the latest event per reference).
+        // The grouping, ordering and LIMIT/OFFSET paging are all database-side — the full event
+        // history is never loaded to be grouped in memory. Ordered newest-submission first.
+        var pageSql = $@"
+WITH firsts AS (
+    SELECT reference_number, MIN(recorded_at_utc) AS submitted_at
+    FROM queue_metrics_events
+    {whereClause}
+    GROUP BY reference_number
+),
+latest AS (
+    SELECT DISTINCT ON (reference_number) reference_number, stage, decision_status
+    FROM queue_metrics_events
+    {whereClause}
+    ORDER BY reference_number, recorded_at_utc DESC, id DESC
+)
+SELECT f.reference_number, f.submitted_at, l.stage, l.decision_status
+FROM firsts f
+JOIN latest l ON l.reference_number = f.reference_number
+ORDER BY f.submitted_at DESC, f.reference_number
+LIMIT @limit OFFSET @offset;";
+
+        void BindWindow(NpgsqlCommand command)
+        {
+            if (fromUtc is { } from)
+                command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = from });
+            if (toUtc is { } to)
+                command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = to });
+        }
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, BindWindow, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        var rows = new List<SubmissionRow>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            BindWindow(command);
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            rows.Add(new SubmissionRow(
+                reader.GetString(0),
+                DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3)));
+        });
+
+        return new SubmissionsPage(rows, total, page, pageSize);
+    }
+
     public async Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,
         DateTime toUtc,

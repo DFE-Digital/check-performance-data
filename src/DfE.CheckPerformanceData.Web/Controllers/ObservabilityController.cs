@@ -225,6 +225,94 @@ public sealed class ObservabilityController : Controller
         });
     }
 
+    // The interactive-replay submissions picker: a paged, newest-first list of distinct references
+    // that entered the pipeline, each with a checkbox and a Play button. A date/time filter narrows
+    // the list; with no filter the picker opens on a recent window (the last DefaultWindow) so it
+    // shows the latest submissions rather than every reference ever recorded. Paged by the
+    // Wiki:PageLength setting (default 20), in SQL. Role-gated cypmd_admin.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/submissions")]
+    public async Task<IActionResult> Submissions(
+        int page = 1,
+        DateTime? from = null,
+        DateTime? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+
+        var pageSize = await ResolvePageSizeAsync();
+
+        // Default to a recent window so the picker opens on the latest submissions; an explicit
+        // from/to filter overrides it. The default has no upper bound (open 'to') so very recent
+        // events still appear.
+        var now = DateTime.UtcNow;
+        var fromUtc = from is not null ? AsUtc(from.Value)
+            : to is null ? now - DefaultWindow : (DateTime?)null;
+        var toUtc = to is null ? (DateTime?)null : AsUtc(to.Value);
+
+        var result = await _query.GetSubmissionsAsync(page, pageSize, fromUtc, toUtc, cancellationToken);
+
+        return View(new SubmissionsViewModel
+        {
+            Rows = result.Rows,
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalPages = TotalPages(result.TotalCount, result.PageSize),
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+        });
+    }
+
+    // The followed-replay walkthrough: builds a per-reference stage progression from each selected
+    // reference's real recorded events (reusing the journey read), so the page can show the same
+    // chosen items moving across the five pipeline stages and single-step them. The progression is
+    // the ordered, de-duplicated board-stage keys the reference actually visited. Role-gated
+    // cypmd_admin.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/replay/walkthrough")]
+    public async Task<IActionResult> Walkthrough(
+        [FromQuery(Name = "reference")] string[]? reference = null,
+        CancellationToken cancellationToken = default)
+    {
+        var references = (reference ?? Array.Empty<string>())
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var items = new List<WalkthroughItem>();
+        foreach (var refNumber in references)
+        {
+            var journey = await _query.GetJourneyAsync(refNumber, cancellationToken);
+            if (journey.Count == 0)
+                continue;
+
+            // Map each event to its board stage key, in recorded order, collapsing consecutive
+            // repeats so the cohort steps one node at a time along the path it really took.
+            var stageKeys = new List<string>();
+            foreach (var ev in journey.OrderBy(e => e.RecordedAtUtc))
+            {
+                var key = PipelineStages.KeyForStage(ev.Stage);
+                if (stageKeys.Count == 0 || stageKeys[^1] != key)
+                    stageKeys.Add(key);
+            }
+
+            var latestDecision = journey
+                .Where(e => !string.IsNullOrEmpty(e.DecisionStatus))
+                .Select(e => e.DecisionStatus)
+                .LastOrDefault();
+
+            items.Add(new WalkthroughItem
+            {
+                ReferenceNumber = refNumber,
+                StageKeys = stageKeys,
+                LatestDecision = latestDecision,
+            });
+        }
+
+        return View(new WalkthroughViewModel { Items = items });
+    }
+
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/journey/{reference}")]
     public async Task<IActionResult> Journey(string reference, CancellationToken cancellationToken = default)

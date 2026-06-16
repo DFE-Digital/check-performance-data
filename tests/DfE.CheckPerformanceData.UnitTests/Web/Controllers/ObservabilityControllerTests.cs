@@ -343,6 +343,94 @@ public sealed class ObservabilityControllerTests
         Assert.Equal(3, model.TotalPages); // ceil(41 / 20)
     }
 
+    // --- The submissions picker is admin-gated and paged by Wiki:PageLength ---
+
+    [Theory]
+    [InlineData(nameof(ObservabilityController.Submissions))]
+    [InlineData(nameof(ObservabilityController.Walkthrough))]
+    public void ReplaySurfaces_HaveAuthorizeAttribute_WithAdminRole(string actionName)
+    {
+        var method = typeof(ObservabilityController).GetMethod(actionName);
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal("cypmd_admin", authorize!.Roles);
+    }
+
+    [Fact]
+    public async Task Submissions_PagesByTheConfiguredPageLength_AndDefaultsToARecentWindow()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetSubmissionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Submissions();
+
+        var model = Assert.IsType<SubmissionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(20, model.PageSize);
+
+        // Default window: a recent window is applied (a non-null from), so the picker opens on the
+        // last 20 by recency rather than every reference ever seen.
+        await query.Received(1).GetSubmissionsAsync(
+            1, 20, Arg.Is<DateTime?>(d => d != null), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Submissions_DateFilterNarrowsTheWindow()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetSubmissionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+            .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+
+        await controller.Submissions(from: from, to: to);
+
+        await query.Received(1).GetSubmissionsAsync(
+            1, 20,
+            Arg.Is<DateTime?>(d => d == from),
+            Arg.Is<DateTime?>(d => d == to),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Walkthrough_BuildsAStageProgressionForEachSelectedReference()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetJourneyAsync("REF-1", Arg.Any<CancellationToken>())
+            .Returns(new[]
+            {
+                new JourneyEvent("Submitted", "REF-1", "rules-engine", null, 0, DateTime.UtcNow),
+                new JourneyEvent("RulesEvaluated", "REF-1", "rules-engine", "AutoApproved", 10, DateTime.UtcNow.AddSeconds(1)),
+                new JourneyEvent("TicketCreated", "REF-1", "zendesk", "AutoApproved", 20, DateTime.UtcNow.AddSeconds(2)),
+            });
+
+        var controller = BuildController(query);
+
+        var result = await controller.Walkthrough(new[] { "REF-1" });
+
+        var model = Assert.IsType<WalkthroughViewModel>(Assert.IsType<ViewResult>(result).Model);
+        var item = Assert.Single(model.Items);
+        Assert.Equal("REF-1", item.ReferenceNumber);
+
+        // The stage progression is the ordered stage keys the reference actually visited, mapped to
+        // the five board stages, so the cohort can be single-stepped across them.
+        Assert.Equal(new[] { "submit", "rules-engine", "ticket" }, item.StageKeys);
+    }
+
     // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---
 
     [Fact]

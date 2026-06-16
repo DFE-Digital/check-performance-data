@@ -477,6 +477,82 @@ public sealed class MetricsQueryTests
         Assert.DoesNotContain(page.Rows, r => r.ReferenceNumber == "OLD");
     }
 
+    // --- The submissions picker lists distinct references, newest-first, paged in SQL ---
+
+    [Fact]
+    public async Task GetSubmissions_GroupsByReference_NewestFirst_WithLatestStage()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        // REF-A: two events; first seen at +0, latest stage TicketCreated at +20 (with a decision).
+        // REF-B: one event at +30 (the most recent submission overall).
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "REF-A", anchor.AddSeconds(0)),
+            Metric(ZendeskQueue, "TicketCreated", "REF-A", anchor.AddSeconds(20), decision: "AutoApproved"),
+            Metric(RulesEngineQueue, "Submitted", "REF-B", anchor.AddSeconds(30)));
+
+        var service = CreateService();
+        var page = await service.GetSubmissionsAsync(page: 1, pageSize: 20);
+
+        Assert.Equal(2, page.TotalCount);
+
+        // REF-B is newest by first-seen, so it leads.
+        Assert.Equal("REF-B", page.Rows[0].ReferenceNumber);
+
+        var refA = page.Rows.Single(r => r.ReferenceNumber == "REF-A");
+        Assert.Equal(anchor.AddSeconds(0), refA.SubmittedAtUtc);     // first-seen
+        Assert.Equal("TicketCreated", refA.LatestStage);            // most recent stage
+        Assert.Equal("AutoApproved", refA.LatestDecision);
+    }
+
+    [Fact]
+    public async Task GetSubmissions_PagesDistinctReferences()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 2, 10, 0, 0, DateTimeKind.Utc);
+
+        // 25 distinct references, two events each — paging must be over distinct references, not rows.
+        var events = Enumerable.Range(0, 25)
+            .SelectMany(i => new[]
+            {
+                Metric(RulesEngineQueue, "Submitted", $"S-{i:00}", anchor.AddMinutes(i)),
+                Metric(ZendeskQueue, "TicketCreated", $"S-{i:00}", anchor.AddMinutes(i).AddSeconds(5)),
+            })
+            .ToArray();
+        await SeedMetricsAsync(events);
+
+        var service = CreateService();
+
+        var page1 = await service.GetSubmissionsAsync(page: 1, pageSize: 20);
+        Assert.Equal(25, page1.TotalCount);
+        Assert.Equal(20, page1.Rows.Count);
+
+        var page2 = await service.GetSubmissionsAsync(page: 2, pageSize: 20);
+        Assert.Equal(5, page2.Rows.Count);
+
+        var ids1 = page1.Rows.Select(r => r.ReferenceNumber).ToHashSet();
+        Assert.DoesNotContain(page2.Rows, r => ids1.Contains(r.ReferenceNumber));
+    }
+
+    [Fact]
+    public async Task GetSubmissions_WindowNarrowsTheList()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 3, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "OLD", anchor.AddMinutes(-180)),
+            Metric(RulesEngineQueue, "Submitted", "NEW", anchor.AddMinutes(5)));
+
+        var service = CreateService();
+        var page = await service.GetSubmissionsAsync(
+            page: 1, pageSize: 20, fromUtc: anchor, toUtc: anchor.AddMinutes(30));
+
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal("NEW", page.Rows.Single().ReferenceNumber);
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

@@ -339,3 +339,53 @@
         padding: 0;
     }
 }
+
+/* --- Interactive stage-replay walkthrough --------------------------------- */
+/* The five stage columns laid out left to right; each holds the cohort items currently at that
+   stage. The active-state border + tint mirrors the board's "this stage holds work" cue, so the
+   highlight is conveyed by border, background and the item chip — never colour alone. */
+.obs-walkthrough__stages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.obs-walkthrough__stage {
+    flex: 1 1 0;
+    min-width: 160px;
+    border: 2px solid #b1b4b6; /* govuk-colour mid-grey */
+    border-radius: 4px;
+    padding: 12px;
+    background: #f3f2f1; /* govuk light-grey */
+}
+
+.obs-walkthrough__stage--active {
+    border-color: #1d70b8; /* govuk-colour blue */
+    background: #d2e2f1;    /* tint of govuk blue */
+}
+
+.obs-walkthrough__stage-label {
+    margin-bottom: 8px;
+}
+
+.obs-walkthrough__items {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.obs-walkthrough__item {
+    display: block;
+    margin-bottom: 6px;
+    padding: 4px 8px;
+    background: #ffffff;
+    border-left: 4px solid #1d70b8;
+    font-weight: 700;
+}
+
+.obs-walkthrough__controls {
+    margin-bottom: 12px;
+}

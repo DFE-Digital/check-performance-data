@@ -64,6 +64,19 @@ public interface IMetricsQueryService
         DateTime? toUtc = null,
         CancellationToken cancellationToken = default);
 
+    // A newest-first page of distinct request references that entered the pipeline, each with its
+    // first-seen time and its most recent stage/decision — the picker for the interactive replay.
+    // The distinct grouping, ordering and paging all happen in SQL (a grouped query paged with
+    // LIMIT/OFFSET plus a COUNT of the distinct references); the full event history is never
+    // materialised. An optional [from, to) window narrows the list, bounded by the same
+    // abusive-aggregation guard as the chart reads.
+    Task<SubmissionsPage> GetSubmissionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default);
+
     // Rules-config deploy markers whose CreatedAt falls inside [from, to].
     Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,

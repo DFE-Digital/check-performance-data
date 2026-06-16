@@ -3,7 +3,7 @@
 @using DfE.CheckPerformanceData.Application.Observability
 @model UatConsoleViewModel
 @{
-    Layout = "_AdminLayout";
+    Layout = "_AdminWideLayout";
     ViewData["Title"] = "Debug · UAT test console";
 
     string PhaseLabel(UatPhase phase) => phase == UatPhase.Phase310 ? "3.10" : "3.13";

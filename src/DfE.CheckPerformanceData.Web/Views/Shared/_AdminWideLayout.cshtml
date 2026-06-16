@@ -1,0 +1,11 @@
+@{
+    // Full-width, collapsible-nav admin template. Opted into by the Pipeline dashboard and
+    // Debug pipeline pages only (set Layout = "_AdminWideLayout"). It reuses all of the
+    // _AdminLayout chrome (header, nav tree, footer) and simply flips the AdminWide flag,
+    // which makes _AdminLayout drop the GDS max-width container, run the admin grid
+    // edge-to-edge and surface the rail-collapse toggle + its script. Every other admin
+    // page keeps the standard centred layout.
+    Layout = "_AdminLayout";
+    ViewData["AdminWide"] = true;
+}
+@RenderBody()

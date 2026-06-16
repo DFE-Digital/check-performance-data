@@ -46,6 +46,11 @@
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
 
     var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
+
+    // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
+    // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and
+    // the content. Other admin pages keep the standard centred, fixed-width layout.
+    var adminWide = ViewData["AdminWide"] is true;
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -104,16 +109,35 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
-<div class="govuk-width-container">
-    <div class="admin-layout">
-        <aside class="admin-rail" aria-label="Administration sidebar">
+@if (adminWide)
+{
+    <div class="admin-layout admin-layout--wide" data-admin-nav-collapse-root>
+        <aside class="admin-rail" id="admin-rail" aria-label="Administration sidebar">
             @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
         </aside>
+        <button type="button" class="admin-nav-collapse" data-admin-nav-collapse
+                aria-expanded="true" aria-controls="admin-rail"
+                aria-label="Collapse navigation" title="Collapse navigation">
+            <span class="admin-nav-collapse__chevron" aria-hidden="true"></span>
+        </button>
         <main class="admin-main" id="main-content">
             @RenderBody()
         </main>
     </div>
-</div>
+}
+else
+{
+    <div class="govuk-width-container">
+        <div class="admin-layout">
+            <aside class="admin-rail" aria-label="Administration sidebar">
+                @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
+            </aside>
+            <main class="admin-main" id="main-content">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+}
 @Html.GovUkFrontendScriptImports()
 
 @section Footer {
@@ -139,5 +163,9 @@
 @section BodyEnd {
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
+    @if (adminWide)
+    {
+        <script src="~/js/admin-nav-collapse.js"></script>
+    }
     @RenderSection("Scripts", required: false)
 }

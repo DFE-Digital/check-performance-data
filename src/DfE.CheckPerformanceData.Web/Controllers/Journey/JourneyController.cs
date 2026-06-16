@@ -543,6 +543,17 @@ public sealed class JourneyController(
         }
 
         var status = DetermineStatus(pageId, page, journey);
+
+        // A ReadyToSubmit page has been completed, so record it in history exactly like
+        // "Save and continue" does. Otherwise the Summary navigation guard recomputes the
+        // next expected page from the last visited page and bounces the resumed request
+        // back onto this page (e.g. an all-optional evidence page saved straight to draft).
+        if (status == RequestStatus.ReadyToSubmit && pageId is not null && !journey.QuestionHistory.Contains(pageId))
+        {
+            journey.QuestionHistory.Add(pageId);
+            HttpContext.Session.SaveRequestState(windowId, s => s.QuestionHistory = journey.QuestionHistory);
+        }
+
         await requestService.SaveDraftAsync(windowId, journey, status);
 
         await analytics.TrackSafeAsync(new DraftSavedEvent
@@ -565,30 +576,8 @@ public sealed class JourneyController(
         return IsEvidencePageValid(page, journey, pupilName) ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
     }
 
-    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
-    {
-        foreach (var question in page.Questions)
-        {
-            if (question.Type == QuestionType.FileUpload)
-            {
-                journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
-                if (!question.Optional && (existing?.FileValues ?? []).Count == 0)
-                    return false;
-            }
-            else
-            {
-                journey.QuestionAnswers.TryGetValue(question.Id, out var answer);
-                answer ??= new QuestionAnswer();
-                if (!question.Optional || journeyService.IsAnswered(question, answer))
-                {
-                    if (journeyService.ValidateAnswer(question, answer,
-                            JourneyTemplate.Resolve(question.Title, pupilName), null) is not null)
-                        return false;
-                }
-            }
-        }
-        return journeyService.ValidateRequireAtLeastOne(page, journey.QuestionAnswers, pupilName) is null;
-    }
+    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName) =>
+        journeyService.ValidateEvidencePage(page, journey, pupilName) is null;
 
     // ── Confirmation ───────────────────────────────────────────────────────
 

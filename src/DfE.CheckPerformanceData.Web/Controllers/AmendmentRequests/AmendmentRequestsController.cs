@@ -9,6 +9,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 public sealed class AmendmentRequestsController(
     IAmendmentRequestsService service,
     IRequestService requestService,
+    IEditAdviceService adviceService,
     IAnalyticsService analytics) : Controller
 {
     [Route("/{windowId}/AmendmentRequests")]
@@ -46,6 +47,38 @@ public sealed class AmendmentRequestsController(
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
         });
 
-        return RedirectToAction("Summary", "Journey", new { windowId });
+        var advice = await adviceService.BuildAsync(windowId, referenceNumber, journey);
+        if (advice is null)
+            return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
+
+        return View("EditAdvice", new EditAdviceViewModel
+        {
+            WindowId = windowId,
+            ReferenceNumber = referenceNumber,
+            PupilName = advice.PupilName,
+            AdviceText = advice.AdviceText,
+            EvidenceMessages = advice.EvidenceMessages,
+            ReasonForRemoval = advice.ReasonForRemoval
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/{windowId}/AmendmentRequests/{referenceNumber}/continue")]
+    public async Task<IActionResult> Continue(Guid windowId, string referenceNumber)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null)
+            return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
+
+        var advice = await adviceService.BuildAsync(windowId, referenceNumber, journey);
+        if (advice is null)
+            return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
+
+        return advice.ContinueTarget switch
+        {
+            ContinueToPage page => RedirectToAction("Page", "Journey", new { windowId, pageId = page.PageId }),
+            _ => RedirectToAction("Summary", "Journey", new { windowId })
+        };
     }
 }

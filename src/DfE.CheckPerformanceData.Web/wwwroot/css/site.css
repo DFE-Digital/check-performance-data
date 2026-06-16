@@ -904,6 +904,23 @@ dialog.govuk-modal-dialogue__box::backdrop {
    These two pages bend the GDS max-width: the grid runs edge-to-edge so the wide boards
    and control panels get the full viewport. A chevron toggle between the rail and the
    content slides the rail away and lets the content fill the row. */
+/* The GDS page template wraps every page body in a centred, max-width
+   .govuk-width-container > .govuk-main-wrapper. For the two wide admin pages we break
+   out of it: :has() neutralises ONLY the container/wrapper that actually contains a wide
+   layout, so every other admin and public page keeps its standard GDS width. */
+.govuk-width-container:has(.admin-layout--wide) {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.govuk-main-wrapper:has(.admin-layout--wide) {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .admin-layout--wide {
   width: 100%;
   max-width: none;

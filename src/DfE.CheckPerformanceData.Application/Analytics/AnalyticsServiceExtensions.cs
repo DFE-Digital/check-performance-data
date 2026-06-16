@@ -10,8 +10,7 @@ public static class AnalyticsServiceExtensions
     /// break the caller (e.g. a user's submission). Use this from controllers and
     /// other user-facing paths. The underlying sender logs its own send failures.
     /// </summary>
-    public static async Task TrackSafeAsync(
-        this IAnalyticsService analytics, AnalyticsEvent analyticsEvent, CancellationToken cancellationToken = default)
+    public static async Task TrackSafeAsync(this IAnalyticsService analytics, AnalyticsEvent analyticsEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(analytics);
         try

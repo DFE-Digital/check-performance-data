@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class AccountController()
+public sealed class AccountController
     : Controller
 {
     public async Task<IActionResult> DfeSignOut()

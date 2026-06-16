@@ -10,7 +10,6 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
@@ -33,7 +32,6 @@ public class JourneyControllerTests
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
-    private readonly JourneyViewModelBuilder _viewModelBuilder;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -81,11 +79,11 @@ public class JourneyControllerTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _viewModelBuilder = new JourneyViewModelBuilder(
+        var viewModelBuilder = new JourneyViewModelBuilder(
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, _viewModelBuilder, _analytics)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -271,7 +269,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns<Task>(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException());
 
         var result = await _sut.SummaryConfirm(WindowId);
 
@@ -287,7 +285,7 @@ public class JourneyControllerTests
         var state = ValidSession(history: ["page-1"]);
         SetupSession(state);
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns<Task>(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException());
 
         await _sut.SummaryConfirm(WindowId);
 
@@ -350,7 +348,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns<Task>(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException());
 
         await _sut.SummaryConfirm(WindowId);
 
@@ -661,7 +659,7 @@ public class JourneyControllerTests
         var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "evidence.pdf");
         _fileStorageService.SaveAsync(WindowId, Arg.Any<byte[]>()).Returns("stored-guid");
         // NSubstitute returns "" for string by default; null means "no upload error".
-        _journeyService.ValidateFileUpload(default!, default, default!).ReturnsForAnyArgs((string?)null);
+        _journeyService.ValidateFileUpload(default!, 0, default!).ReturnsForAnyArgs((string?)null);
 
         await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
 
@@ -748,18 +746,18 @@ public class JourneyControllerTests
             },
             ReferenceNumber = "CYPMD_KS4June_ABC1234",
             QuestionHistory = history ?? [],
-            QuestionAnswers = answers ?? new()
-        };
-        state.SelectedPupil = new PupilDto
-        {
-            Id = Guid.NewGuid(),
-            Firstname = "Jane",
-            Surname = "Smith",
-            Sex = "F",
-            DateOfBirth = "01/01/2010",
-            Age = 16,
-            Cypmd_Id = "CYPMD123",
-            Upn = "123123"
+            QuestionAnswers = answers ?? new(),
+            SelectedPupil = new PupilDto
+            {
+                Id = Guid.NewGuid(),
+                Firstname = "Jane",
+                Surname = "Smith",
+                Sex = "F",
+                DateOfBirth = "01/01/2010",
+                Age = 16,
+                Cypmd_Id = "CYPMD123",
+                Upn = "123123"
+            }
         };
         return state;
     }

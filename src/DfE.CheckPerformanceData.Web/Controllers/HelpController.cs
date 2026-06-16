@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -145,7 +144,7 @@ public sealed class HelpController(
         var safePage = page < 1 ? 1 : page;
         var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
         var result = await wikiService.SearchAsync(q ?? string.Empty, safePage, pageSize);
-        var tree = await wikiService.GetNavigationTreeAsync() ?? [];
+        var tree = await wikiService.GetNavigationTreeAsync();
 
         var errors = result.InvalidReason switch
         {

@@ -143,4 +143,36 @@ public sealed class QueueServiceTests
         await using var afterAck = _fixture.CreateContext();
         Assert.Null(await new PostgresQueueService(afterAck, options).DequeueAsync(QueueOptions.RulesEngineQueue));
     }
+
+    // --- The per-queue view-all pages in SQL with a total count, oldest first ---
+
+    [Fact]
+    public async Task GetQueueMessagesPage_PagesInSql_WithTotalCount()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using (var seed = _fixture.CreateContext())
+        {
+            var sut = new PostgresQueueService(seed);
+            for (var i = 0; i < 23; i++)
+                await sut.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = $"PAGE-{i:00}" });
+        }
+
+        await using var context = _fixture.CreateContext();
+        var service = new PostgresQueueService(context);
+
+        var page1 = await service.GetQueueMessagesPageAsync(QueueOptions.RulesEngineQueue, page: 1, pageSize: 20);
+
+        Assert.Equal(23, page1.TotalCount);
+        Assert.Equal(20, page1.Messages.Count);
+
+        var page2 = await service.GetQueueMessagesPageAsync(QueueOptions.RulesEngineQueue, page: 2, pageSize: 20);
+
+        Assert.Equal(23, page2.TotalCount);
+        Assert.Equal(3, page2.Messages.Count);
+
+        // The two pages share no message — the SQL OFFSET genuinely moved the window.
+        var page1Ids = page1.Messages.Select(m => m.Id).ToHashSet();
+        Assert.DoesNotContain(page2.Messages, m => page1Ids.Contains(m.Id));
+    }
 }

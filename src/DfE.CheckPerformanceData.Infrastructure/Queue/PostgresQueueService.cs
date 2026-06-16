@@ -224,6 +224,29 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
         return rows.Select(MapSummary).ToList();
     }
 
+    public async Task<QueueMessagesPage> GetQueueMessagesPageAsync(string queueName, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        // Defensive clamps: the view resolves pageSize from Wiki:PageLength, but the query never
+        // trusts it — a page below 1 or a non-positive size would produce a negative Skip or an
+        // unbounded read.
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        var query = _dbContext.QueueMessages.Where(m => m.QueueName == queueName);
+
+        // The total depth comes from a COUNT, and only one page of rows is read (Skip/Take), so the
+        // whole queue is never loaded into memory to be paged in process.
+        var total = await query.CountAsync(cancellationToken);
+
+        var rows = await query
+            .OrderBy(m => m.EnqueuedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new QueueMessagesPage(rows.Select(MapSummary).ToList(), total, page, pageSize);
+    }
+
     public async Task<QueueMessageDetail?> GetMessageDetailAsync(string queueName, Guid id, CancellationToken cancellationToken = default)
     {
         var row = await _dbContext.QueueMessages

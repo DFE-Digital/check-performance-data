@@ -92,19 +92,44 @@ public sealed class QueueAdminController : Controller
 
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues/list/{queueName}")]
-    public async Task<IActionResult> QueueList(string queueName, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> QueueList(string queueName, int page = 1, CancellationToken cancellationToken = default)
     {
         if (!WorkingQueues.TryGetValue(queueName, out var displayName))
             return NotFound();
 
-        var messages = await _queueAdminService.GetQueueMessagesAsync(queueName, cancellationToken);
+        if (page < 1) page = 1;
+
+        // The view-all list is paged by the generic Wiki:PageLength setting (the same rows-per-page
+        // knob the deleted-pages list and search use) so a deep queue never renders an unbounded
+        // list. Paging is done in SQL (Skip/Take + COUNT) in the service.
+        var pageSize = await ResolvePageSizeAsync();
+
+        var result = await _queueAdminService.GetQueueMessagesPageAsync(queueName, page, pageSize, cancellationToken);
 
         return View(new QueueListViewModel
         {
             QueueName = queueName,
             DisplayName = displayName,
-            Messages = messages,
+            Messages = result.Messages,
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalPages = pageSize <= 0 ? 0 : (int)Math.Ceiling(result.TotalCount / (double)pageSize),
         });
+    }
+
+    // The rows-per-page for the paged admin lists, read from the generic Wiki:PageLength setting.
+    // Falls back to 20 when no settings service is wired (bare unit construction) or the stored
+    // value is non-positive.
+    private const int DefaultPageLength = 20;
+
+    private async Task<int> ResolvePageSizeAsync()
+    {
+        if (_settingService is null)
+            return DefaultPageLength;
+
+        var size = await _settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        return size > 0 ? size : DefaultPageLength;
     }
 
     [Authorize(Roles = WikiConstants.AdminRole)]

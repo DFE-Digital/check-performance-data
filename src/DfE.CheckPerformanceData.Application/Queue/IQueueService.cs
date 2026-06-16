@@ -26,6 +26,11 @@ public interface IQueueService
 
     Task<IReadOnlyList<QueueMessageSummary>> GetQueueMessagesAsync(string queueName, CancellationToken cancellationToken = default);
 
+    // A newest-... no: oldest-first page of waiting messages on a queue plus the total depth.
+    // Paged in SQL (Skip/Take + COUNT) so the per-queue view-all never loads every waiting message
+    // into the web process.
+    Task<QueueMessagesPage> GetQueueMessagesPageAsync(string queueName, int page, int pageSize, CancellationToken cancellationToken = default);
+
     Task<QueueMessageDetail?> GetMessageDetailAsync(string queueName, Guid id, CancellationToken cancellationToken = default);
 
     Task RedriveAsync(IReadOnlyCollection<Guid> messageIds, CancellationToken cancellationToken = default);

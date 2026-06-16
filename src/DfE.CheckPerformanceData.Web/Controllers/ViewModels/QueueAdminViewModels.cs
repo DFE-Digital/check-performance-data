@@ -28,6 +28,13 @@ public sealed class QueueListViewModel
     public required string QueueName { get; init; }
     public required string DisplayName { get; init; }
     public required IReadOnlyList<QueueMessageSummary> Messages { get; init; }
+
+    // Paging metadata: this is one page of the waiting messages, paged by the Wiki:PageLength
+    // setting and in SQL (Skip/Take + COUNT), so the view never renders an unbounded list.
+    public int TotalCount { get; init; }
+    public int Page { get; init; } = 1;
+    public int PageSize { get; init; }
+    public int TotalPages { get; init; }
 }
 
 public sealed class QueueMessageViewModel

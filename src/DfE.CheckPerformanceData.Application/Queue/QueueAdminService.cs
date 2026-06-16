@@ -11,6 +11,15 @@ public sealed record QueueMessageSummary(
     DateTime EnqueuedAtUtc,
     int Attempts);
 
+// A page of pending messages on a working queue plus the total depth, so the per-queue view-all
+// list can render a pager without loading every waiting message into the web process. Rows are
+// paged in SQL (Skip/Take) and the total comes from a COUNT.
+public sealed record QueueMessagesPage(
+    IReadOnlyList<QueueMessageSummary> Messages,
+    int TotalCount,
+    int Page,
+    int PageSize);
+
 // A single pending message including its raw payload, for the redaction-gated detail view.
 public sealed record QueueMessageDetail(
     Guid Id,
@@ -40,6 +49,8 @@ public interface IQueueAdminService
     Task<IReadOnlyList<QueueMessageSummary>> GetTopMessagesAsync(string queueName, int count, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<QueueMessageSummary>> GetQueueMessagesAsync(string queueName, CancellationToken cancellationToken = default);
+
+    Task<QueueMessagesPage> GetQueueMessagesPageAsync(string queueName, int page, int pageSize, CancellationToken cancellationToken = default);
 
     Task<QueueMessageDetail?> GetMessageDetailAsync(string queueName, Guid id, CancellationToken cancellationToken = default);
 
@@ -76,6 +87,9 @@ public sealed class QueueAdminService : IQueueAdminService
 
     public Task<IReadOnlyList<QueueMessageSummary>> GetQueueMessagesAsync(string queueName, CancellationToken cancellationToken = default) =>
         _queueService.GetQueueMessagesAsync(queueName, cancellationToken);
+
+    public Task<QueueMessagesPage> GetQueueMessagesPageAsync(string queueName, int page, int pageSize, CancellationToken cancellationToken = default) =>
+        _queueService.GetQueueMessagesPageAsync(queueName, page, pageSize, cancellationToken);
 
     public Task<QueueMessageDetail?> GetMessageDetailAsync(string queueName, Guid id, CancellationToken cancellationToken = default) =>
         _queueService.GetMessageDetailAsync(queueName, id, cancellationToken);

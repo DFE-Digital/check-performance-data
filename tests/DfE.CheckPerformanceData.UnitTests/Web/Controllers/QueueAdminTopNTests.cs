@@ -77,10 +77,10 @@ public sealed class QueueAdminTopNTests
             QueueOptions.RulesEngineQueue, 5, Arg.Any<CancellationToken>());
     }
 
-    // --- The per-queue view-all action returns the full message list for the named queue ---
+    // --- The per-queue view-all action returns a page of messages for the named queue ---
 
     [Fact]
-    public async Task QueueList_ReturnsFullListForNamedQueue()
+    public async Task QueueList_ReturnsPageForNamedQueue()
     {
         var adminService = Substitute.For<IQueueAdminService>();
         var messages = new[]
@@ -88,8 +88,8 @@ public sealed class QueueAdminTopNTests
             new QueueMessageSummary(Guid.NewGuid(), QueueOptions.ZendeskQueue, DateTime.UtcNow, 1),
             new QueueMessageSummary(Guid.NewGuid(), QueueOptions.ZendeskQueue, DateTime.UtcNow, 2),
         };
-        adminService.GetQueueMessagesAsync(QueueOptions.ZendeskQueue, Arg.Any<CancellationToken>())
-            .Returns(messages);
+        adminService.GetQueueMessagesPageAsync(QueueOptions.ZendeskQueue, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new QueueMessagesPage(messages, 2, 1, 20));
 
         var controller = new QueueAdminController(adminService);
 
@@ -99,6 +99,35 @@ public sealed class QueueAdminTopNTests
         var model = Assert.IsType<QueueListViewModel>(view.Model);
         Assert.Equal(QueueOptions.ZendeskQueue, model.QueueName);
         Assert.Equal(2, model.Messages.Count);
+    }
+
+    // --- The per-queue view-all pages by the Wiki:PageLength setting, not an unbounded list ---
+
+    [Fact]
+    public async Task QueueList_PagesByTheConfiguredPageLength()
+    {
+        var adminService = Substitute.For<IQueueAdminService>();
+        adminService.GetQueueMessagesPageAsync(QueueOptions.ZendeskQueue, Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(new QueueMessagesPage(Array.Empty<QueueMessageSummary>(), 55, 2, 15));
+
+        var settings = Substitute.For<DfE.CheckPerformanceData.Application.Settings.ISettingService>();
+        settings.GetIntAsync(DfE.CheckPerformanceData.Application.Settings.SettingKeys.WikiPageLength).Returns(15);
+
+        var controller = new QueueAdminController(adminService, settingService: settings);
+
+        var result = await controller.QueueList(QueueOptions.ZendeskQueue, page: 2);
+
+        var model = Assert.IsType<QueueListViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(15, model.PageSize);
+        Assert.Equal(55, model.TotalCount);
+        Assert.Equal(4, model.TotalPages); // ceil(55 / 15)
+
+        // The page size came from Wiki:PageLength and the page index was honoured — never an
+        // unbounded read.
+        await adminService.Received(1).GetQueueMessagesPageAsync(
+            QueueOptions.ZendeskQueue, 2, 15, Arg.Any<CancellationToken>());
+        await adminService.DidNotReceive().GetQueueMessagesAsync(
+            Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     // --- An unknown queue name is rejected (server-side allow-list) ---
@@ -112,8 +141,8 @@ public sealed class QueueAdminTopNTests
         var result = await controller.QueueList("not-a-real-queue");
 
         Assert.IsType<NotFoundResult>(result);
-        await adminService.DidNotReceive().GetQueueMessagesAsync(
-            Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await adminService.DidNotReceive().GetQueueMessagesPageAsync(
+            Arg.Any<string>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
     }
 
     // --- The view-all action is role-gated to cypmd_admin ---

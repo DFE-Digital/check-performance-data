@@ -86,7 +86,13 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
     {
         var body = await LoadDashboardAsAdminAsync();
 
-        Assert.Contains("Export this view", body);
+        // The export is now a server-side CSV download link (the old client-side chart-PNG path was
+        // removed), so the CTA points at the export.csv endpoint and is labelled accordingly.
+        Assert.Contains("/admin/observability/export.csv", body);
+        Assert.Contains("Export this view (CSV)", body);
+
+        // Both board scripts are still wired: the board engine, and the export helper that drives the
+        // print-to-PDF button (the CSV link itself needs no JavaScript).
         Assert.Contains("observability-board.js", body);
         Assert.Contains("observability-export.js", body);
     }
@@ -165,11 +171,20 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
             // The live region now lists the transition.
             await Assertions.Expect(liveRegion).ToContainTextAsync("REF-1042");
 
-            // A token was rendered, is keyboard-focusable (tabindex), and carries an accessible name.
+            // A token (the reworked board renders each message as an anchored SVG envelope, still
+            // class .obs-board__token) was rendered, is keyboard-focusable (tabindex), exposes a
+            // button role, and carries an accessible name naming the message and inviting inspection.
             var token = Page.Locator(".obs-board__token").First;
             Assert.Equal("0", await token.GetAttributeAsync("tabindex"));
+            Assert.Equal("button", await token.GetAttributeAsync("role"));
+
+            // The envelope is an inline SVG inside the token (not a round dot), so the message shape
+            // is conveyed by icon, not colour alone.
+            Assert.Equal(1, await token.Locator("svg").CountAsync());
+
             var name = await token.GetAttributeAsync("aria-label");
             Assert.Contains("REF-1042", name);
+            Assert.Contains("inspect", name, StringComparison.OrdinalIgnoreCase);
 
             await token.FocusAsync();
             var isFocused = await token.EvaluateAsync<bool>("el => el === document.activeElement");

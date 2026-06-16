@@ -7,6 +7,30 @@ public sealed class AmendmentRequestsViewModel
     public required Guid WindowId { get; init; }
     public required string DeadlineText { get; init; }
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
+    public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }
+}
+
+public sealed class SubmittedRequestRowViewModel
+{
+    public required string PupilName { get; init; }
+    public required string RequestType { get; init; }
+    public required string ReferenceNumber { get; init; }
+    public required RequestStatus Status { get; init; }
+    public required DateTime Submitted { get; init; }
+
+    public string TagClass => Status switch
+    {
+        RequestStatus.SubmittedWithdrawn => "govuk-tag--grey",
+        _ => "govuk-tag--green"
+    };
+
+    public string TagLabel => Status switch
+    {
+        RequestStatus.SubmittedWithdrawn => "Withdrawn",
+        _ => "Submitted"
+    };
+
+    public string SubmittedDateText => Submitted.ToString("d MMMM yyyy");
 }
 
 public sealed class AmendmentRequestRowViewModel

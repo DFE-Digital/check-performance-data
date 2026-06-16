@@ -66,7 +66,8 @@ public class AmendmentRequestsControllerTests
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             WindowEndDate = endDate,
-            Rows = []
+            Rows = [],
+            SubmittedRows = []
         });
 
         var result = await _sut.Index(WindowId);
@@ -90,7 +91,8 @@ public class AmendmentRequestsControllerTests
                     Status = RequestStatus.ReadyToSubmit,
                     ReferenceNumber = "REF001"
                 }
-            ]
+            ],
+            SubmittedRows = []
         });
 
         var result = await _sut.Index(WindowId);
@@ -101,6 +103,66 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("Remove - Permanently left England", vm.Rows[0].RequestType);
         Assert.Equal(RequestStatus.ReadyToSubmit, vm.Rows[0].Status);
         Assert.Equal("REF001", vm.Rows[0].ReferenceNumber);
+    }
+
+    [Fact]
+    public async Task Index_MapsSubmittedRowsToViewModel()
+    {
+        var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        {
+            WindowEndDate = DateTime.UtcNow,
+            Rows = [],
+            SubmittedRows =
+            [
+                new SubmittedRequestDto
+                {
+                    PupilName = "John Doe",
+                    RequestType = "Remove - Permanently left England",
+                    ReferenceNumber = "REF010",
+                    Status = RequestStatus.SubmittedUnCommitted,
+                    Submitted = submitted
+                }
+            ]
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.Single(vm.SubmittedRows);
+        Assert.Equal("John Doe", vm.SubmittedRows[0].PupilName);
+        Assert.Equal("REF010", vm.SubmittedRows[0].ReferenceNumber);
+        Assert.Equal(submitted, vm.SubmittedRows[0].Submitted);
+        Assert.Equal("govuk-tag--green", vm.SubmittedRows[0].TagClass);
+        Assert.Equal("Submitted", vm.SubmittedRows[0].TagLabel);
+        Assert.Equal("16 June 2026", vm.SubmittedRows[0].SubmittedDateText);
+    }
+
+    [Fact]
+    public async Task Index_WhenSubmittedRowWithdrawn_UsesGreyWithdrawnTag()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        {
+            WindowEndDate = DateTime.UtcNow,
+            Rows = [],
+            SubmittedRows =
+            [
+                new SubmittedRequestDto
+                {
+                    PupilName = "John Doe",
+                    RequestType = "Remove - Permanently left England",
+                    ReferenceNumber = "REF011",
+                    Status = RequestStatus.SubmittedWithdrawn,
+                    Submitted = DateTime.UtcNow
+                }
+            ]
+        });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.Equal("govuk-tag--grey", vm.SubmittedRows[0].TagClass);
+        Assert.Equal("Withdrawn", vm.SubmittedRows[0].TagLabel);
     }
 
     [Fact]
@@ -213,7 +275,8 @@ public class AmendmentRequestsControllerTests
     private static AmendmentRequestsResult EmptyResult() => new()
     {
         WindowEndDate = new DateTime(2026, 6, 26, 17, 0, 0),
-        Rows = []
+        Rows = [],
+        SubmittedRows = []
     };
 
     private static RequestState SampleJourney() => new()

@@ -25,6 +25,14 @@ public sealed class AmendmentRequestsController(
                 RequestType = r.RequestType,
                 Status = r.Status,
                 ReferenceNumber = r.ReferenceNumber
+            }).ToList(),
+            SubmittedRows = result.SubmittedRows.Select(r => new SubmittedRequestRowViewModel
+            {
+                PupilName = r.PupilName,
+                RequestType = r.RequestType,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
             }).ToList()
         });
     }

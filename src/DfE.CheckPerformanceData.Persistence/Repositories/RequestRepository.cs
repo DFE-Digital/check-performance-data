@@ -82,6 +82,25 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             })
             .ToListAsync();
 
+    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(
+        Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && (r.Status == RequestStatus.SubmittedUnCommitted
+                    || r.Status == RequestStatus.SubmittedWithdrawn))
+            .OrderByDescending(r => r.Submitted)
+            .Select(r => new SubmittedRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
+            })
+            .ToListAsync();
+
     public async Task<AmendmentRequestData?> GetAmendmentRequestAsync(
         Guid windowId, long organisationUrn, string referenceNumber) =>
         await db.ChangeRequests

@@ -4,5 +4,6 @@ public enum RequestStatus
 {
     InProgress,
     ReadyToSubmit,
-    SubmittedUnCommitted
+    SubmittedUnCommitted,
+    SubmittedWithdrawn
 }

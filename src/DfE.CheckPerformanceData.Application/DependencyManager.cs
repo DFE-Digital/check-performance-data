@@ -33,6 +33,7 @@ public static class DependencyManager
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
 
         services.AddRulesEngineDependencies();

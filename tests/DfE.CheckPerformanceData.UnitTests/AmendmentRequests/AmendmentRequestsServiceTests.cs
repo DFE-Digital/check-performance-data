@@ -20,6 +20,7 @@ public class AmendmentRequestsServiceTests
     public AmendmentRequestsServiceTests()
     {
         _currentUser.OrganisationUrn.Returns("100001");
+        _requestRepo.GetSubmittedRequestsAsync(Arg.Any<Guid>(), Arg.Any<long>()).Returns([]);
         _sut = new AmendmentRequestsService(_windowService, _requestRepo, _currentUser);
     }
 
@@ -106,6 +107,43 @@ public class AmendmentRequestsServiceTests
         await _requestRepo.Received(1).GetAmendmentRequestsAsync(WindowId, 100001L);
     }
 
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_MapsSubmittedRequestsToRows()
+    {
+        var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedRequestsAsync(WindowId, 100001L).Returns(
+        [
+            SubmittedData("Jane", "Smith", "Remove - Permanently left England", "REF010", submitted,
+                RequestStatus.SubmittedWithdrawn)
+        ]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.Single(result.SubmittedRows);
+        Assert.Equal("Jane Smith", result.SubmittedRows[0].PupilName);
+        Assert.Equal("Remove - Permanently left England", result.SubmittedRows[0].RequestType);
+        Assert.Equal("REF010", result.SubmittedRows[0].ReferenceNumber);
+        Assert.Equal(RequestStatus.SubmittedWithdrawn, result.SubmittedRows[0].Status);
+        Assert.Equal(submitted, result.SubmittedRows[0].Submitted);
+    }
+
+    [Fact]
+    public async Task GetAmendmentRequestsAsync_WhenSubmittedHasNoPupilDetails_UsesFallbackName()
+    {
+        _windowService.GetCheckingWindowAsync(WindowId).Returns(Window(DateTime.UtcNow));
+        _requestRepo.GetAmendmentRequestsAsync(WindowId, 100001L).Returns([]);
+        _requestRepo.GetSubmittedRequestsAsync(WindowId, 100001L).Returns(
+        [
+            SubmittedData(null, null, "Confirm Pupil Data Declaration", "REF011", DateTime.UtcNow)
+        ]);
+
+        var result = await _sut.GetAmendmentRequestsAsync(WindowId);
+
+        Assert.Equal("N/A", result.SubmittedRows[0].PupilName);
+    }
+
     private static CheckingWindowDto Window(DateTime endDate) => new()
     {
         Id = WindowId,
@@ -125,5 +163,18 @@ public class AmendmentRequestsServiceTests
         RequestType = requestType,
         Status = status,
         ReferenceNumber = referenceNumber
+    };
+
+    private static SubmittedRequestData SubmittedData(
+        string? firstname, string? surname, string requestType,
+        string referenceNumber, DateTime submitted,
+        RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
+    {
+        PupilFirstname = firstname,
+        PupilSurname = surname,
+        RequestType = requestType,
+        ReferenceNumber = referenceNumber,
+        Status = status,
+        Submitted = submitted
     };
 }

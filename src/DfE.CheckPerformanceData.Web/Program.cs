@@ -156,7 +156,7 @@ try
     //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
     //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
-    builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
+    builder.Services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
     // TEMPORARY: toggles request submission between the rules-engine queue and blob storage.

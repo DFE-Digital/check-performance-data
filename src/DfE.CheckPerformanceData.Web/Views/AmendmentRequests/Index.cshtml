@@ -51,3 +51,47 @@ else
 }
 
 <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
+
+<govuk-tabs>
+    <govuk-tabs-item id="requests" label="Requests">
+        @if (Model.SubmittedRows.Count == 0)
+        {
+            <div class="govuk-inset-text">
+                <p class="govuk-body">You have no submitted requests for this window.</p>
+            </div>
+        }
+        else
+        {
+            <table class="govuk-table">
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Pupil name</th>
+                        <th scope="col" class="govuk-table__header">Reference number</th>
+                        <th scope="col" class="govuk-table__header">Request type</th>
+                        <th scope="col" class="govuk-table__header">Status</th>
+                        <th scope="col" class="govuk-table__header">Date</th>
+                        <th scope="col" class="govuk-table__header">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var row in Model.SubmittedRows)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@row.PupilName</td>
+                            <td class="govuk-table__cell">@row.ReferenceNumber</td>
+                            <td class="govuk-table__cell">@row.RequestType</td>
+                            <td class="govuk-table__cell">
+                                <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
+                            </td>
+                            <td class="govuk-table__cell">@row.SubmittedDateText</td>
+                            <td class="govuk-table__cell">
+                                <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("View", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View</a>
+                                <a class="govuk-link" href="#">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </govuk-tabs-item>
+</govuk-tabs>

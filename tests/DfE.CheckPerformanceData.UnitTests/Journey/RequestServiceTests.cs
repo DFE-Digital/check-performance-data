@@ -13,7 +13,7 @@ public class RequestServiceTests
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
+    private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IRequestQueueClient _requestQueue = Substitute.For<IRequestQueueClient>();
@@ -27,7 +27,7 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
             _requestQueue, _requestBlobClient, _submissionOptions);
     }
 
@@ -402,6 +402,20 @@ public class RequestServiceTests
         await _requestQueue.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
     }
 
+    [Fact]
+    public async Task ConfirmRequestAsync_StampsSubmitterEmailAndTimestampThenPersistsJourney()
+    {
+        _currentUser.Email.Returns("submitter@education.gov.uk");
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        Assert.Equal("submitter@education.gov.uk", journey.SubmittedByEmail);
+        Assert.NotNull(journey.SubmittedAt);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
+    }
+
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
 
     [Fact]
@@ -437,7 +451,7 @@ public class RequestServiceTests
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
-        await _draftBlobClient.Received(1).SaveDraftAsync(WindowId, journey.ReferenceNumber!, journey);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
     }
 
     [Fact]
@@ -510,7 +524,7 @@ public class RequestServiceTests
     {
         var journey = ValidJourney();
         var callOrder = new List<string>();
-        _draftBlobClient.SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
+        _requestStateBlobClient.SaveAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
             .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
@@ -526,7 +540,7 @@ public class RequestServiceTests
     public async Task ResumeDraftAsync_ReturnsStateFromBlobClient()
     {
         var expected = new RequestState { ReferenceNumber = "REF001" };
-        _draftBlobClient.GetDraftAsync(WindowId, "REF001").Returns(expected);
+        _requestStateBlobClient.GetAsync(WindowId, "REF001").Returns(expected);
 
         var result = await _sut.ResumeDraftAsync(WindowId, "REF001");
 
@@ -536,7 +550,7 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_WhenDraftNotFound_ReturnsNull()
     {
-        _draftBlobClient.GetDraftAsync(WindowId, "MISSING").Returns((RequestState?)null);
+        _requestStateBlobClient.GetAsync(WindowId, "MISSING").Returns((RequestState?)null);
 
         var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
 
@@ -546,11 +560,11 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_PassesWindowIdAndReferenceNumberToBlobClient()
     {
-        _draftBlobClient.GetDraftAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
+        _requestStateBlobClient.GetAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
 
         await _sut.ResumeDraftAsync(WindowId, "REF001");
 
-        await _draftBlobClient.Received(1).GetDraftAsync(WindowId, "REF001");
+        await _requestStateBlobClient.Received(1).GetAsync(WindowId, "REF001");
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

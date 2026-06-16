@@ -63,6 +63,44 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/dev/uat", debug.Url);
     }
 
+    // --- Transactions_And_Replay_Sit_Under_PipelineDashboard ---
+
+    [Fact]
+    public void Transactions_And_Replay_Sit_Under_PipelineDashboard()
+    {
+        var transactions = Single(AdminNavKeys.Transactions);
+
+        Assert.Equal(AdminNavKeys.Observability, transactions.ParentKey);
+        Assert.Equal("Transactions", transactions.Title);
+        Assert.Equal("/admin/observability/transactions", transactions.Url);
+        Assert.True(transactions.Enabled);
+
+        var replay = Single(AdminNavKeys.ReplaySubmissions);
+
+        Assert.Equal(AdminNavKeys.Observability, replay.ParentKey);
+        Assert.Equal("Replay", replay.Title);
+        Assert.Equal("/admin/observability/submissions", replay.Url);
+        Assert.True(replay.Enabled);
+    }
+
+    // --- PipelineDashboard_Children_Order_Is_Debug_Transactions_Replay ---
+
+    [Fact]
+    public void PipelineDashboard_Children_Order_Is_Debug_Transactions_Replay()
+    {
+        var entries = ResolveEntries();
+
+        var dashboardChildren = entries
+            .Where(e => e.ParentKey == AdminNavKeys.Observability)
+            .OrderBy(e => e.Order)
+            .ToList();
+
+        Assert.Equal(3, dashboardChildren.Count);
+        Assert.Equal(AdminNavKeys.DebugMenu, dashboardChildren[0].Key);
+        Assert.Equal(AdminNavKeys.Transactions, dashboardChildren[1].Key);
+        Assert.Equal(AdminNavKeys.ReplaySubmissions, dashboardChildren[2].Key);
+    }
+
     // --- Queues_Is_RulesEngineGroup_Child ---
 
     [Fact]

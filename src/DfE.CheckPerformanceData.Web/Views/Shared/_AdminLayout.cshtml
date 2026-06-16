@@ -47,6 +47,14 @@
 
     var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
 
+    // Active-page tracking: resolve the nav entry the current request path belongs to, so the tree
+    // highlights it (aria-current=page) and force-expands its ancestor groups. The recursive node
+    // partial reads these two ViewData keys; without them the active key was always null and the
+    // nav never tracked location.
+    var adminCurrentPath = Context.Request.Path.Value ?? string.Empty;
+    ViewData["AdminCurrentPath"] = adminCurrentPath;
+    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(adminCurrentPath, AdminNavEntries);
+
     // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
     // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and
     // the content. Other admin pages keep the standard centred, fixed-width layout.

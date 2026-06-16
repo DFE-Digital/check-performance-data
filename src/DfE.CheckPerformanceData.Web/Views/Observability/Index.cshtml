@@ -12,11 +12,21 @@
 @* Reading order: health strip (top, at-a-glance answer) → status sentence → big-number tiles →
    the animated board (the focal point, given the most canvas) → charts (detail on demand). *@
 
+@{
+    var exportQs = $"?range={Uri.EscapeDataString(Model.SelectedRange)}&granularity={Model.SelectedGranularity}";
+}
 <div class="obs-export govuk-button-group" data-obs-export>
-    <button type="button" class="govuk-button govuk-button--secondary" data-export-png data-module="govuk-button">
-        Export this view
-    </button>
-    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button">
+    @* Export the DATA behind the charts as CSV (throughput, decision-mix, dwell, the headline
+       tiles), built server-side from the same series the dashboard renders so the numbers match.
+       A plain download link carrying the current range/granularity — no JS required. *@
+    <a class="govuk-button govuk-button--secondary" role="button" draggable="false"
+       data-module="govuk-button" data-export-csv
+       href="/admin/observability/export.csv@(exportQs)"
+       title="Download the data behind this dashboard (throughput, decisions, dwell and the headline figures) as a CSV file.">
+        Export this view (CSV)
+    </a>
+    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button"
+            title="Open the browser print dialog to print or save this dashboard as a PDF.">
         Print or save as PDF
     </button>
 </div>

@@ -141,6 +141,56 @@ public sealed class ObservabilityController : Controller
         return View(model);
     }
 
+    // The dashboard export: the data BEHIND the charts as CSV, never a chart image. It reads the
+    // same MetricsQueryService series the dashboard renders, at the same resolved range/granularity,
+    // so the file is accurate by construction. Role-gated cypmd_admin like every other action.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/export.csv")]
+    public async Task<IActionResult> Export(
+        string? range = null,
+        string? granularity = null,
+        CancellationToken cancellationToken = default)
+    {
+        var rangeOption = DashboardRanges.Resolve(range);
+        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
+
+        var now = DateTime.UtcNow;
+        var from = now - rangeOption.Window;
+
+        var throughput = await _query.GetThroughputAsync(
+            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
+        var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
+        var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
+
+        // The headline figures always describe the last 24 hours, mirroring the dashboard tiles.
+        var headlineThroughput = rangeOption.Window == DefaultWindow
+            ? throughput
+            : await _query.GetThroughputAsync(
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
+        var headlineDwell = rangeOption.Window == DefaultWindow
+            ? dwell
+            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+
+        var processedToday = headlineThroughput.Sum(b => b.Count);
+        var typicalEndToEnd = headlineDwell.Count == 0
+            ? TimeSpan.Zero
+            : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
+
+        var csv = MetricsCsvBuilder.Build(new MetricsCsvData
+        {
+            RangeLabel = rangeOption.Label,
+            GranularityLabel = DashboardRanges.Describe(bucketSize),
+            ProcessedToday = processedToday,
+            TypicalEndToEnd = typicalEndToEnd,
+            Throughput = throughput,
+            DecisionMix = decisionMix,
+            Dwell = dwell,
+        });
+
+        var fileName = $"pipeline-dashboard-{now:yyyyMMdd-HHmmss}.csv";
+        return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
+    }
+
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/journey/{reference}")]
     public async Task<IActionResult> Journey(string reference, CancellationToken cancellationToken = default)

@@ -234,6 +234,59 @@ public sealed class ObservabilityControllerTests
         Assert.Null(typeof(ObservabilityController).GetMethod("Throughput"));
     }
 
+    // --- Export returns the underlying data as CSV, not a chart image ---
+
+    [Fact]
+    public void Export_HasAuthorizeAttribute_WithAdminRole()
+    {
+        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Export));
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal("cypmd_admin", authorize!.Roles);
+    }
+
+    [Fact]
+    public async Task Export_ReturnsCsvFileWithAFilename()
+    {
+        var query = BuildQuery();
+        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new ThroughputBucket(new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc), 7) });
+        query.GetDecisionMixAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new DecisionMixEntry("AutoApproved", 7) });
+
+        var controller = BuildController(query);
+
+        var result = await controller.Export();
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("text/csv", file.ContentType);
+        Assert.EndsWith(".csv", file.FileDownloadName);
+
+        var csv = System.Text.Encoding.UTF8.GetString(file.FileContents);
+        Assert.Contains("Throughput", csv);
+        Assert.Contains("AutoApproved", csv);
+    }
+
+    [Fact]
+    public async Task Export_HonoursTheSelectedRangeAndGranularity()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query);
+
+        await controller.Export(range: "1h", granularity: "FiveMinute");
+
+        // The export reads the SAME series the charts use, at the selected granularity, so the
+        // numbers in the file match the numbers on screen.
+        await query.Received(1).GetThroughputAsync(
+            QueueOptions.ZendeskQueue,
+            ThroughputGranularity.FiveMinute,
+            Arg.Any<DateTime>(),
+            Arg.Any<DateTime>(),
+            Arg.Any<CancellationToken>());
+    }
+
     // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---
 
     [Fact]

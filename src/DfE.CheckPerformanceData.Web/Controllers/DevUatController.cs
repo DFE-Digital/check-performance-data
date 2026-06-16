@@ -38,6 +38,14 @@ public sealed class DevUatController : Controller
 
     private const string ConsoleUrl = "/dev/uat";
 
+    // Whether the request came from the console's fetch() layer (uat-console.js). When true the
+    // drive/inject/seed actions return a small JSON result so the page can refresh the board in
+    // place; when false (no-JS) they fall back to the form-post + redirect, preserving progressive
+    // enhancement.
+    private bool IsAjax =>
+        Request.Headers["X-Requested-With"] == "XMLHttpRequest"
+        || Request.Headers.Accept.Any(h => h is not null && h.Contains("application/json"));
+
     // The reference of the most recently driven request, remembered per-instance for the runner's
     // "open journey for last reference" shortcut. Static so it survives across requests within the
     // process; this is a single-user dev aid, never a production surface, so a shared field is fine.
@@ -89,6 +97,9 @@ public sealed class DevUatController : Controller
         if (lastReference is not null)
             _lastReference = lastReference;
 
+        if (IsAjax)
+            return Json(new { ok = true, reference = lastReference });
+
         return Redirect(ConsoleUrl);
     }
 
@@ -101,10 +112,14 @@ public sealed class DevUatController : Controller
         if (!IsAllowed)
             return NotFound();
 
+        var reference = $"demo-fail-{Guid.NewGuid():N}"[..20];
         await SeedFailedMessageAsync(
-            $"demo-fail-{Guid.NewGuid():N}"[..20],
+            reference,
             "Synthetic failing message injected for the failure-and-recovery demonstration.",
             cancellationToken);
+
+        if (IsAjax)
+            return Json(new { ok = true, reference });
 
         return Redirect(ConsoleUrl);
     }
@@ -115,8 +130,12 @@ public sealed class DevUatController : Controller
         if (!IsAllowed)
             return NotFound();
 
+        var reference = $"uat-dlq-{Guid.NewGuid():N}"[..16];
         await SeedFailedMessageAsync(
-            $"uat-dlq-{Guid.NewGuid():N}"[..16], "Seeded from the UAT console for admin testing.", cancellationToken);
+            reference, "Seeded from the UAT console for admin testing.", cancellationToken);
+
+        if (IsAjax)
+            return Json(new { ok = true, reference });
 
         return Redirect(ConsoleUrl);
     }

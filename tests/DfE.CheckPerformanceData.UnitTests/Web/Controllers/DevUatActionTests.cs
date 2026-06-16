@@ -19,7 +19,7 @@ public sealed class DevUatActionTests
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
 
-    private DevUatController CreateSut()
+    private DevUatController CreateSut(bool ajax = false)
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Dev:ToolsEnabled"] = "true" })
@@ -27,9 +27,13 @@ public sealed class DevUatActionTests
         var env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName = "Development";
         var runner = new DevPipelineRunner(_dbContext, _queueService);
+        var httpContext = new DefaultHttpContext();
+        if (ajax)
+            httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
         var sut = new DevUatController(config, _queueService, runner, env)
         {
-            TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>()),
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+            TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>()),
         };
         return sut;
     }
@@ -103,6 +107,53 @@ public sealed class DevUatActionTests
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/dev/uat", redirect.Url);
+        await _queueService.Received(1).DeadLetterAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    // The AJAX contract: an XMLHttpRequest drive returns JSON { ok, reference } so the page can
+    // update the board in place without a full-page reload, while the plain form post still
+    // redirects (the no-JS fallback covered above). The reference is the last driven reference.
+    [Fact]
+    public async Task Drive_AjaxRequest_ReturnsOkJsonWithReference()
+    {
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.Drive("approved", count: 1, CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);
+        var reference = json.Value!.GetType().GetProperty("reference")!.GetValue(json.Value);
+        Assert.Equal(true, ok);
+        Assert.False(string.IsNullOrEmpty(reference as string));
+        await _queueService.Received(1).EnqueueAsync(
+            QueueOptions.RulesEngineQueue, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task InjectFailure_AjaxRequest_ReturnsOkJson()
+    {
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.InjectFailure(CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);
+        Assert.Equal(true, ok);
+        await _queueService.Received(1).DeadLetterAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SeedDlq_AjaxRequest_ReturnsOkJson()
+    {
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.SeedDlq(CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);
+        Assert.Equal(true, ok);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

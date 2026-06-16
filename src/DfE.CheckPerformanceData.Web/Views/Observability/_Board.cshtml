@@ -1,5 +1,4 @@
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
-@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @{
     // The five pipeline stages, left to right. Each stage carries a token so its state is
     // conveyed by position + colour + shape + text — never colour alone — so a reduced-motion or
@@ -7,10 +6,10 @@
     var rulesDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "rules-engine")?.Depth ?? 0;
     var zendeskDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "zendesk")?.Depth ?? 0;
 
-    // The dev-only board controls (slow-mo / single-step / demo trickle) render only when the
-    // Dev:ToolsEnabled flag is on (dev + test). In production the board shows live motion with no
-    // controls. The replay scrubber below is NOT gated — it is always-on in every environment.
-    var devToolsEnabled = Configuration.GetValue<bool>("Dev:ToolsEnabled");
+    // The board is now pure board: the replay scrubber and the dev-only demo controls (slow-mo /
+    // single-step / demo trickle / inject) moved into the dashboard's collapsible Demo panel
+    // (_DemoPanel.cshtml). The board JS finds those control hooks at the document level, so they
+    // drive this same renderer from wherever they are rendered.
 
     var stages = new[]
     {
@@ -26,83 +25,6 @@
          data-stream-url="/admin/observability/stream"
          data-inspect-url="/admin/observability/inspect"
          data-replay-url="/admin/observability/replay">
-
-    @* Controls live at the TOP of the board area so they are immediately visible: the always-on
-       replay group and (dev/test only) the demo-control checkboxes side by side. Each control
-       drives the same renderer below — replay scrubs recorded events through it, slow motion /
-       single step / demo trickle manipulate its clock and feed. *@
-    <div class="obs-board__controls">
-        <div class="obs-board__replay" role="group" aria-label="Replay recorded traffic">
-            <h3 class="govuk-heading-s">Replay recent traffic</h3>
-            <div class="obs-board__replay-controls">
-                <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
-                        data-module="govuk-button" data-obs-replay-play aria-pressed="false"
-                        title="Play or pause the recorded traffic through the board.">
-                    Play
-                </button>
-                <label class="govuk-label govuk-visually-hidden" for="obs-replay-scrubber">
-                    Replay position
-                </label>
-                <input type="range" id="obs-replay-scrubber" class="obs-board__scrubber"
-                       min="0" max="0" value="0" step="1"
-                       data-obs-scrubber aria-valuetext="No recorded events in this window"
-                       title="Drag to scrub through recorded events; each step animates an envelope through the stages." />
-            </div>
-            <p class="govuk-body-s" data-obs-replay-status aria-live="polite">
-                No recorded events in this window
-            </p>
-        </div>
-
-        @if (devToolsEnabled)
-        {
-            @* Dev/test-only board controls — slow motion, single step and demo trickle are sibling
-               checkboxes grouped here at the top. Slow-mo scales the engine clock, single step
-               sends one envelope on demand each time it is ticked, and demo trickle auto-injects a
-               steady flow. Absent in production (the board still shows live motion there). *@
-            <div class="obs-board__dev-controls" role="group" aria-label="Demo controls (development and test only)">
-                <h3 class="govuk-heading-s">Demo controls</h3>
-                <div class="govuk-checkboxes govuk-checkboxes--small">
-                    <div class="govuk-checkboxes__item">
-                        <input class="govuk-checkboxes__input" id="obs-slowmo" type="checkbox" data-obs-slowmo
-                               title="Slow every envelope's motion right down so an audience can follow it." />
-                        <label class="govuk-label govuk-checkboxes__label" for="obs-slowmo">Slow motion</label>
-                    </div>
-                    <div class="govuk-checkboxes__item">
-                        <input class="govuk-checkboxes__input" id="obs-step" type="checkbox" data-obs-step
-                               title="Tick to send one envelope from Submit through to the Zendesk ticket, one step at a time." />
-                        <label class="govuk-label govuk-checkboxes__label" for="obs-step">Single step</label>
-                    </div>
-                    <div class="govuk-checkboxes__item">
-                        <input class="govuk-checkboxes__input" id="obs-demo" type="checkbox" data-obs-demo
-                               title="Trickle a steady flow of synthetic envelopes so the board stays alive during a demo." />
-                        <label class="govuk-label govuk-checkboxes__label" for="obs-demo">Demo trickle</label>
-                    </div>
-                </div>
-
-                @* The failure-and-recovery demo. The inject composes the existing seed path (one
-                   synthetic failing message); recovery is the existing audited redrive on the
-                   dead-letter queue page. No new failure machinery. *@
-                <div class="govuk-button-group govuk-!-margin-top-2">
-                    <button type="button" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
-                            data-module="govuk-button" data-confirm-modal-trigger="inject-failure-modal"
-                            data-obs-inject
-                            title="Add one synthetic failing message; watch it divert to the dead-letter marker.">
-                        Inject a failing message
-                    </button>
-                </div>
-                <govuk-confirm-modal id="inject-failure-modal"
-                                     title="Inject a failing message?"
-                                     warning-text="This is a demonstration tool, available on development and test only."
-                                     body="This adds one synthetic failing message to demonstrate failure and recovery. It uses no pupil data and is available on dev and test only."
-                                     confirm-label="Yes, inject"
-                                     destructive="true"
-                                     form-action="/dev/queues/inject-failure"
-                                     form-method="post">
-                    @Html.AntiForgeryToken()
-                </govuk-confirm-modal>
-            </div>
-        }
-    </div>
 
     @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
        animates envelope tokens between these nodes from the live feed; with JS off or motion

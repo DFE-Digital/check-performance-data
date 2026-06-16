@@ -234,6 +234,78 @@ public sealed class ObservabilityControllerTests
         Assert.Null(typeof(ObservabilityController).GetMethod("Throughput"));
     }
 
+    // --- The dashboard's dev-only Demo panel is gated Dev:ToolsEnabled AND not production ---
+    // The dashboard itself is always-on admin; only the demo controls (drive / inject / seed /
+    // replay / demo trickle) are dev/test-gated, so the flag rides on the view model.
+
+    private static ObservabilityController BuildGatedController(bool toolsEnabled, string environmentName)
+    {
+        var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Dev:ToolsEnabled"] = toolsEnabled ? "true" : "false",
+            })
+            .Build();
+        var env = Substitute.For<Microsoft.Extensions.Hosting.IHostEnvironment>();
+        env.EnvironmentName = environmentName;
+
+        var queueAdmin = Substitute.For<IQueueAdminService>();
+        queueAdmin.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<QueueDepth>());
+        queueAdmin.GetDlqCountAsync(Arg.Any<CancellationToken>()).Returns(0);
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(Arg.Any<string>()).Returns(10);
+
+        return new ObservabilityController(
+            BuildQuery(), queueAdmin, new HealthEvaluator(), new StatusSentenceBuilder(), settings, config, env);
+    }
+
+    [Fact]
+    public async Task Index_DevToolsEnabledNonProduction_SetsDemoToolsEnabled()
+    {
+        var controller = BuildGatedController(toolsEnabled: true, environmentName: "Development");
+
+        var result = await controller.Index();
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.DemoToolsEnabled);
+    }
+
+    [Fact]
+    public async Task Index_DevToolsEnabledInProduction_DoesNotSetDemoToolsEnabled()
+    {
+        var controller = BuildGatedController(toolsEnabled: true, environmentName: "Production");
+
+        var result = await controller.Index();
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.DemoToolsEnabled);
+    }
+
+    [Fact]
+    public async Task Index_DevToolsDisabled_DoesNotSetDemoToolsEnabled()
+    {
+        var controller = BuildGatedController(toolsEnabled: false, environmentName: "Development");
+
+        var result = await controller.Index();
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.DemoToolsEnabled);
+    }
+
+    [Fact]
+    public async Task Index_NoConfigOrEnvironment_DefaultsDemoToolsToOff()
+    {
+        // The bare unit construction (no config / env) must default the demo gate to off so the
+        // panel never renders unless explicitly enabled outside production.
+        var controller = BuildController(BuildQuery());
+
+        var result = await controller.Index();
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(model.DemoToolsEnabled);
+    }
+
     // --- Export returns the underlying data as CSV, not a chart image ---
 
     [Fact]

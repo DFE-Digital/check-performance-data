@@ -51,16 +51,18 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/admin/observability", dashboard.Url);
     }
 
-    // --- DebugPipelines_Is_PipelineDashboard_Child ---
+    // --- DebugPipelines_Nav_Entry_Is_Removed ---
+    // The standalone /dev/uat Debug Pipeline page was retired (its controls fold into the
+    // dashboard's Demo panel), so its nav entry must be gone.
 
     [Fact]
-    public void DebugPipelines_Is_PipelineDashboard_Child()
+    public void DebugPipelines_Nav_Entry_Is_Removed()
     {
-        var debug = Single(AdminNavKeys.DebugMenu);
+        var entries = ResolveEntries();
 
-        Assert.Equal(AdminNavKeys.Observability, debug.ParentKey);
-        Assert.Equal("Debug Pipelines", debug.Title);
-        Assert.Equal("/dev/uat", debug.Url);
+        Assert.DoesNotContain(entries, e => e.Key == "debug-menu");
+        Assert.DoesNotContain(entries, e => e.Url == "/dev/uat");
+        Assert.DoesNotContain(entries, e => e.Title.Contains("Debug Pipeline", StringComparison.OrdinalIgnoreCase));
     }
 
     // --- Transactions_And_Replay_Sit_Under_PipelineDashboard ---
@@ -83,10 +85,10 @@ public sealed class AdminNavHierarchyTests
         Assert.True(replay.Enabled);
     }
 
-    // --- PipelineDashboard_Children_Order_Is_Debug_Transactions_Replay ---
+    // --- PipelineDashboard_Children_Order_Is_Transactions_Replay ---
 
     [Fact]
-    public void PipelineDashboard_Children_Order_Is_Debug_Transactions_Replay()
+    public void PipelineDashboard_Children_Order_Is_Transactions_Replay()
     {
         var entries = ResolveEntries();
 
@@ -95,10 +97,10 @@ public sealed class AdminNavHierarchyTests
             .OrderBy(e => e.Order)
             .ToList();
 
-        Assert.Equal(3, dashboardChildren.Count);
-        Assert.Equal(AdminNavKeys.DebugMenu, dashboardChildren[0].Key);
-        Assert.Equal(AdminNavKeys.Transactions, dashboardChildren[1].Key);
-        Assert.Equal(AdminNavKeys.ReplaySubmissions, dashboardChildren[2].Key);
+        // Debug Pipelines was removed; the dashboard now parents just Transactions and Replay.
+        Assert.Equal(2, dashboardChildren.Count);
+        Assert.Equal(AdminNavKeys.Transactions, dashboardChildren[0].Key);
+        Assert.Equal(AdminNavKeys.ReplaySubmissions, dashboardChildren[1].Key);
     }
 
     // --- Queues_Is_RulesEngineGroup_Child ---

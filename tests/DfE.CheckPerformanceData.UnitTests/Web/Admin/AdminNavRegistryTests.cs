@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(19, entries.Count);
+		Assert.Equal(18, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
@@ -37,7 +37,7 @@ public sealed class AdminNavRegistryTests
 		Assert.DoesNotContain("CMS settings", titles);
 		Assert.Contains("Storage administration", titles);
 		Assert.Contains("Blob storage browser", titles);
-		Assert.Contains("Debug Pipelines", titles);
+		Assert.DoesNotContain("Debug Pipelines", titles);
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);
 		Assert.Contains("Replay", titles);

@@ -9,11 +9,12 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The UAT console is a /dev/* surface: gated exactly like DevPipelineController and
-// DevQueueSeedController on Dev:ToolsEnabled AND a hard production guard. With the flag off, or in
-// production with the flag mistakenly on, every action 404s and never touches the queue. With the
-// flag on outside production the landing page renders and the action endpoints reach their reused
-// dev paths.
+// The debug drive/inject/seed endpoints are /dev/* surfaces: gated exactly like
+// DevPipelineController and DevQueueSeedController on Dev:ToolsEnabled AND a hard production guard.
+// With the flag off, or in production with the flag mistakenly on, every action 404s and never
+// touches the queue. With the flag on outside production they reach their reused dev paths. (The
+// standalone /dev/uat GET console was retired; only these POST endpoints remain, called by the
+// dashboard's Demo panel.)
 public sealed class DevUatGatingTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
@@ -43,34 +44,6 @@ public sealed class DevUatGatingTests
         sut.TempData = new TempDataDictionary(new Microsoft.AspNetCore.Http.DefaultHttpContext(),
             Substitute.For<ITempDataProvider>());
         return sut;
-    }
-
-    [Fact]
-    public void Index_ToolsDisabled_ReturnsNotFound()
-    {
-        var sut = CreateSut(toolsEnabled: false);
-        Assert.IsType<NotFoundResult>(sut.Index());
-    }
-
-    [Fact]
-    public void Index_FlagAbsent_DefaultsToNotFound()
-    {
-        var sut = CreateSut(toolsEnabled: null);
-        Assert.IsType<NotFoundResult>(sut.Index());
-    }
-
-    [Fact]
-    public void Index_ToolsEnabledNonProduction_RendersTheConsole()
-    {
-        var sut = CreateSut(toolsEnabled: true);
-        Assert.IsType<ViewResult>(sut.Index());
-    }
-
-    [Fact]
-    public void Index_ToolsEnabledInProduction_ReturnsNotFound()
-    {
-        var sut = CreateSut(toolsEnabled: true, environmentName: "Production");
-        Assert.IsType<NotFoundResult>(sut.Index());
     }
 
     [Fact]

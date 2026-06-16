@@ -219,13 +219,19 @@
     display: none;
 }
 
-/* Controls sit at the TOP of the board area so they're immediately visible: replay and the
-   dev-only demo controls side by side, wrapping on narrow viewports. */
-.obs-board__controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
+/* The collapsible Demo panel that folds in the old Debug Pipeline controls. Hidden by default
+   behind a GDS <details> "Demo" toggle; when open it lays the replay group and the board demo
+   controls side by side (wrapping on narrow viewports), beneath the drive/inject/seed buttons. */
+.obs-demo-panel {
+    margin-bottom: 32px;
+}
+
+.obs-demo-panel__body .obs-board__replay,
+.obs-demo-panel__body .obs-board__dev-controls {
+    display: inline-block;
+    vertical-align: top;
+    margin-right: 16px;
+    margin-top: 16px;
 }
 
 /* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range

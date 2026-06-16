@@ -10,10 +10,11 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The UAT console drive/failure actions add no new machinery: each one reuses an existing dev
-// path (the pipeline runner for drive, the seed/dead-letter path for failure) and redirects back
-// to /dev/uat so the watcher stays on the console. These tests pin that reuse-and-redirect
-// contract and the batch behaviour of "drive xN".
+// The debug drive/failure actions add no new machinery: each one reuses an existing dev path (the
+// pipeline runner for drive, the seed/dead-letter path for failure). The standalone /dev/uat GET
+// console was retired and its controls folded into the dashboard's Demo panel, so the no-JS form
+// post now redirects to the dashboard; the AJAX path (the panel's normal mode) returns JSON. These
+// tests pin that reuse-and-redirect contract and the batch behaviour of "drive xN".
 public sealed class DevUatActionTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
@@ -46,7 +47,7 @@ public sealed class DevUatActionTests
         var result = await sut.Drive("approved", count: 1, CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/uat", redirect.Url);
+        Assert.Equal("/admin/observability", redirect.Url);
         await _queueService.Received(1).EnqueueAsync(
             QueueOptions.RulesEngineQueue, Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -93,7 +94,7 @@ public sealed class DevUatActionTests
         var result = await sut.InjectFailure(CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/uat", redirect.Url);
+        Assert.Equal("/admin/observability", redirect.Url);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -106,7 +107,7 @@ public sealed class DevUatActionTests
         var result = await sut.SeedDlq(CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal("/dev/uat", redirect.Url);
+        Assert.Equal("/admin/observability", redirect.Url);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

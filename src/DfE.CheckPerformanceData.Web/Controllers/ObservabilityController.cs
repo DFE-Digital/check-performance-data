@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Models.Observability;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -21,20 +22,35 @@ public sealed class ObservabilityController : Controller
     private readonly IHealthEvaluator _health;
     private readonly StatusSentenceBuilder _sentence;
     private readonly ISettingService? _settings;
+    private readonly IConfiguration? _configuration;
+    private readonly IHostEnvironment? _hostEnvironment;
 
     public ObservabilityController(
         IMetricsQueryService query,
         IQueueAdminService queueAdmin,
         IHealthEvaluator health,
         StatusSentenceBuilder sentence,
-        ISettingService? settings = null)
+        ISettingService? settings = null,
+        IConfiguration? configuration = null,
+        IHostEnvironment? hostEnvironment = null)
     {
         _query = query;
         _queueAdmin = queueAdmin;
         _health = health;
         _sentence = sentence;
         _settings = settings;
+        _configuration = configuration;
+        _hostEnvironment = hostEnvironment;
     }
+
+    // The dashboard is always-on admin; its collapsible Demo panel (drive / inject / seed / replay /
+    // demo-trickle, folded in from the retired /dev/uat page) is the only dev-gated part. Gate it on
+    // Dev:ToolsEnabled AND not-production, mirroring the /dev/* surfaces — even if a production
+    // deploy leaves the flag on, IsProduction short-circuits it off. Defaults to off when no config
+    // or environment is wired (bare unit construction).
+    private bool DemoToolsEnabled =>
+        _configuration?.GetValue<bool>(SettingKeys.DevToolsEnabled) == true
+        && _hostEnvironment?.IsProduction() != true;
 
     // The default dashboard time window and the queues whose health is shown on the strip.
     private static readonly TimeSpan DefaultWindow = TimeSpan.FromHours(24);
@@ -136,6 +152,7 @@ public sealed class ObservabilityController : Controller
             GranularityLabel = DashboardRanges.Describe(bucketSize),
             GranularityOptions = rangeOption.AllowedGranularities,
             RefreshedAtUtc = now,
+            DemoToolsEnabled = DemoToolsEnabled,
         };
 
         return View(model);

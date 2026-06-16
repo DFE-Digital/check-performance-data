@@ -1,21 +1,20 @@
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
-using DfE.CheckPerformanceData.Web.Models.Dev;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// The Debug UAT test console: one dev/test-only page that lets a human exercise every
-// human-checkable item from the 03.10 / 03.13 acceptance inventory with one click, tick each
-// pass/fail, and see the automated-only items as live coverage status. It is gated exactly like
-// the other /dev/* surfaces (Dev:ToolsEnabled AND a hard production guard) and adds no new
-// pipeline machinery: the drive buttons reuse DevPipelineRunner and the failure buttons reuse the
-// existing seed/dead-letter path. Every POST redirects back to the console so the watcher stays
-// on the page and sees the board react. UAT verdicts are never stored server-side — they persist
-// client-side in localStorage. [AllowAnonymous] mirrors the sibling dev controllers: the surface
-// is reached before any auth cookie and only manipulates the local dev database.
+// The debug pipeline drive/inject/seed endpoints: dev/test-only POST actions that let a human
+// drive synthetic traffic through the pipeline and rehearse failure/recovery. The standalone
+// /dev/uat GET console was retired and its controls folded into the Pipeline dashboard's
+// collapsible Demo panel, which posts to these endpoints over AJAX. They are gated exactly like
+// the other /dev/* surfaces (Dev:ToolsEnabled AND a hard production guard) and add no new pipeline
+// machinery: the drive buttons reuse DevPipelineRunner and the failure buttons reuse the existing
+// seed/dead-letter path. The AJAX path returns JSON so the board refreshes in place; the no-JS
+// fallback redirects to the dashboard. [AllowAnonymous] mirrors the sibling dev controllers: the
+// surface is reached before any auth cookie and only manipulates the local dev database.
 [AllowAnonymous]
 public sealed class DevUatController : Controller
 {
@@ -36,9 +35,12 @@ public sealed class DevUatController : Controller
         _hostEnvironment = hostEnvironment;
     }
 
-    private const string ConsoleUrl = "/dev/uat";
+    // Where a no-JS form post lands after a drive/inject/seed: the Pipeline dashboard, whose Demo
+    // panel now hosts these controls (the standalone console it used to return to is gone). The
+    // AJAX path returns JSON instead and never redirects.
+    private const string DashboardUrl = "/admin/observability";
 
-    // Whether the request came from the console's fetch() layer (uat-console.js). When true the
+    // Whether the request came from the Demo panel's fetch() layer (uat-console.js). When true the
     // drive/inject/seed actions return a small JSON result so the page can refresh the board in
     // place; when false (no-JS) they fall back to the form-post + redirect, preserving progressive
     // enhancement.
@@ -57,28 +59,10 @@ public sealed class DevUatController : Controller
         _configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
         && _hostEnvironment?.IsProduction() != true;
 
-    [HttpGet("dev/uat")]
-    public IActionResult Index()
-    {
-        if (!IsAllowed)
-            return NotFound();
-
-        var model = new UatConsoleViewModel
-        {
-            Interactive = UatCatalog.Interactive,
-            AutomatedCoverageIds = UatCatalog.AutomatedCoverageIds,
-            DevToolsEnabled = _configuration.GetValue<bool>(SettingKeys.DevToolsEnabled),
-            FakeZendesk = _configuration.GetValue<bool>(SettingKeys.ZendeskUseFake),
-            LastReference = _lastReference,
-        };
-
-        return View(model);
-    }
-
     // Drive a small batch of synthetic requests for the chosen preset through the shared runner.
     // Count defaults to one and is clamped to a sane upper bound so a stray query value cannot
     // flood the local queue. Remembers the last reference for the journey shortcut, then redirects
-    // back to the console.
+    // back to the dashboard (no-JS) or returns JSON (AJAX).
     [HttpPost("dev/uat/drive")]
     public async Task<IActionResult> Drive(string? outcome, int count, CancellationToken cancellationToken)
     {
@@ -100,7 +84,7 @@ public sealed class DevUatController : Controller
         if (IsAjax)
             return Json(new { ok = true, reference = lastReference });
 
-        return Redirect(ConsoleUrl);
+        return Redirect(DashboardUrl);
     }
 
     // The failure-and-recovery demo. Composes the existing seed/dead-letter path (one synthetic
@@ -121,7 +105,7 @@ public sealed class DevUatController : Controller
         if (IsAjax)
             return Json(new { ok = true, reference });
 
-        return Redirect(ConsoleUrl);
+        return Redirect(DashboardUrl);
     }
 
     [HttpPost("dev/uat/seed-dlq")]
@@ -137,7 +121,7 @@ public sealed class DevUatController : Controller
         if (IsAjax)
             return Json(new { ok = true, reference });
 
-        return Redirect(ConsoleUrl);
+        return Redirect(DashboardUrl);
     }
 
     // The "open journey for the last driven reference" shortcut: redirect to the always-on journey
@@ -149,7 +133,7 @@ public sealed class DevUatController : Controller
             return NotFound();
 
         if (string.IsNullOrEmpty(_lastReference))
-            return Redirect(ConsoleUrl);
+            return Redirect(DashboardUrl);
 
         return Redirect($"/admin/observability/journey/{_lastReference}");
     }

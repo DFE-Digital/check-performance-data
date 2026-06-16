@@ -33,6 +33,11 @@ public sealed class DashboardViewModel
         Array.Empty<ThroughputGranularity>();
 
     public DateTime RefreshedAtUtc { get; init; }
+
+    // Whether the dev/test-only Demo panel renders: drive / inject / seed / replay / demo-trickle
+    // controls folded in from the retired /dev/uat page. The dashboard itself is always-on admin;
+    // only this panel is gated, on Dev:ToolsEnabled AND not-production, resolved by the controller.
+    public bool DemoToolsEnabled { get; init; }
 }
 
 // One queue's resolved health light for the strip: the display name plus the evaluated state.

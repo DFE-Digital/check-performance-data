@@ -446,16 +446,23 @@
         return engine;
     }
 
-    // Wire the always-on replay scrubber and the dev-only control group (slow-mo / single-step /
-    // demo-mode / inject-failure), which the server-side Razor conditional only renders when
-    // Dev:ToolsEnabled. Single step and demo trickle are checkboxes (like slow motion). Each control
-    // is keyboard-operable; the scrubber announces its position via aria-valuetext and a live region.
+    // Wire the replay scrubber and the dev-only control group (slow-mo / single-step / demo-mode /
+    // inject-failure). These controls now live in the dashboard's collapsible Demo panel, OUTSIDE
+    // the board root, so they are looked up at the document level rather than under the board; the
+    // server-side Razor conditional only renders them when DemoToolsEnabled. Single step and demo
+    // trickle are checkboxes (like slow motion). Each control is keyboard-operable; the scrubber
+    // announces its position via aria-valuetext and a live region. The board root still carries the
+    // replay endpoint URL.
     function wireControls(root, engine) {
-        // --- Always-on replay scrubber ---
+        // Controls live in the Demo panel (a sibling of the board), so resolve them from the
+        // document. Falling back to the board root keeps any future in-board control working too.
+        var controls = document;
+
+        // --- Replay scrubber ---
         var replayUrl = root.getAttribute('data-replay-url') || '/admin/observability/replay';
-        var scrubber = root.querySelector('[data-obs-scrubber]');
-        var playBtn = root.querySelector('[data-obs-replay-play]');
-        var status = root.querySelector('[data-obs-replay-status]');
+        var scrubber = controls.querySelector('[data-obs-scrubber]');
+        var playBtn = controls.querySelector('[data-obs-replay-play]');
+        var status = controls.querySelector('[data-obs-replay-status]');
         if (scrubber) {
             var feed = recordedFeed(replayUrl);
             feed.subscribe(engine.onSnapshot);
@@ -514,8 +521,8 @@
             loadWindow();
         }
 
-        // --- Dev-only controls (only in the DOM when Dev:ToolsEnabled rendered them) ---
-        var slowMo = root.querySelector('[data-obs-slowmo]');
+        // --- Dev-only controls (only in the DOM when DemoToolsEnabled rendered them) ---
+        var slowMo = controls.querySelector('[data-obs-slowmo]');
         if (slowMo) {
             slowMo.addEventListener('change', function () {
                 engine.setSlowMo(slowMo.checked ? 4 : 1);
@@ -524,7 +531,7 @@
 
         // Single step is now a checkbox: each time it is ticked it sends one envelope all the way
         // through, then resets itself so it can be ticked again.
-        var step = root.querySelector('[data-obs-step]');
+        var step = controls.querySelector('[data-obs-step]');
         if (step) {
             step.addEventListener('change', function () {
                 if (step.checked) {
@@ -535,7 +542,7 @@
         }
 
         // Demo trickle is a checkbox: ticking it starts the auto-trickle, unticking it stops.
-        var demo = root.querySelector('[data-obs-demo]');
+        var demo = controls.querySelector('[data-obs-demo]');
         if (demo) {
             demo.addEventListener('change', function () {
                 var on = engine.toggleDemoMode();
@@ -546,7 +553,7 @@
         // The inject-failure trigger also drives the board so the diversion is visible even before
         // the server-side seed round-trips. The confirm-modal still posts to the seed endpoint; this
         // gives immediate on-board feedback.
-        var inject = root.querySelector('[data-obs-inject]');
+        var inject = controls.querySelector('[data-obs-inject]');
         if (inject) {
             inject.addEventListener('click', function () { engine.injectFailure(); });
         }

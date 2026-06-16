@@ -15,9 +15,9 @@ public static class AdminNavServiceCollectionExtensions
 {
     public static IServiceCollection AddAdminNavEntries(this IServiceCollection services)
     {
-        // DebugMenuNavEntry resolves its Enabled state from configuration. Provide an empty
-        // fallback so a bare service collection (e.g. in registry tests) can still resolve the
-        // entries; the host's own IConfiguration registration wins when present.
+        // Some entries may resolve state from configuration. Provide an empty fallback so a bare
+        // service collection (e.g. in registry tests) can still resolve the entries; the host's own
+        // IConfiguration registration wins when present.
         services.TryAddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
         services.AddSingleton<IAdminNavEntry, CmsAdminGroupNavEntry>();
@@ -36,7 +36,6 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
-        services.AddSingleton<IAdminNavEntry, DebugMenuNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
         return services;

@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -91,21 +90,4 @@ public sealed class DevToolsGatingTests
         Assert.IsType<NotFoundResult>(result);
     }
 
-    [Fact]
-    public void DebugMenuNavEntry_ToolsEnabled_IsVisible()
-    {
-        var entry = new DebugMenuNavEntry(Config(toolsEnabled: true));
-
-        Assert.True(entry.Enabled);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(null)]
-    public void DebugMenuNavEntry_ToolsDisabledOrAbsent_IsHidden(bool? toolsEnabled)
-    {
-        var entry = new DebugMenuNavEntry(Config(toolsEnabled));
-
-        Assert.False(entry.Enabled);
-    }
 }

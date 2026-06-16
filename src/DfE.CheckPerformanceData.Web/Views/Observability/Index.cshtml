@@ -39,6 +39,10 @@
 
 @await Html.PartialAsync("_Board", Model)
 
+@* The dev/test-only Demo panel: drive / inject / seed / replay / demo-trickle controls folded in
+   from the retired /dev/uat page, collapsed behind a "Demo" toggle and gated on DemoToolsEnabled. *@
+@await Html.PartialAsync("_DemoPanel", Model)
+
 <h2 class="govuk-heading-l">Charts</h2>
 
 @* Plain GET form, no JS required: the granularity options are the pairings allowed for the
@@ -87,3 +91,9 @@
 
 <script src="~/js/observability-board.js" asp-append-version="true"></script>
 <script src="~/js/observability-export.js" asp-append-version="true"></script>
+@if (Model.DemoToolsEnabled)
+{
+    @* The Demo panel's AJAX-drive wiring: upgrades the drive/inject/seed forms to fetch() so a
+       drive refreshes the board in place. Only loaded when the panel is rendered. *@
+    <script src="~/js/uat-console.js" asp-append-version="true"></script>
+}

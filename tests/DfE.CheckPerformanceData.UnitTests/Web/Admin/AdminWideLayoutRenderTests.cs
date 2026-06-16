@@ -1,7 +1,7 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 // Static Razor/CSS/JS-source assertions for the Wave B full-width collapsible-nav
-// template applied to the Pipeline dashboard and Debug pipeline pages only.
+// template applied to the Pipeline dashboard.
 public sealed class AdminWideLayoutRenderTests
 {
     private static string RepoRoot()
@@ -77,16 +77,6 @@ public sealed class AdminWideLayoutRenderTests
     public void Observability_Index_Uses_Wide_Layout()
     {
         var src = ReadView("Observability", "Index.cshtml");
-
-        Assert.Contains("_AdminWideLayout", src);
-    }
-
-    // --- DevUat_Index_Uses_Wide_Layout ---
-
-    [Fact]
-    public void DevUat_Index_Uses_Wide_Layout()
-    {
-        var src = ReadView("DevUat", "Index.cshtml");
 
         Assert.Contains("_AdminWideLayout", src);
     }

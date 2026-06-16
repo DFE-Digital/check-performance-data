@@ -155,6 +155,11 @@
         <ul class="govuk-list govuk-list--bullet" data-obs-transitions aria-live="polite" aria-atomic="false">
             <li class="obs-board__transitions-empty">No transitions yet.</li>
         </ul>
+        @* Only the latest few transitions are shown here; the full, paged history lives on the
+           transactions page. *@
+        <p class="govuk-body-s">
+            <a class="govuk-link" href="/admin/observability/transactions">View all transactions →</a>
+        </p>
     </div>
 
     @* The reconnect notice the engine reveals on a dropped stream; EventSource reconnects on its

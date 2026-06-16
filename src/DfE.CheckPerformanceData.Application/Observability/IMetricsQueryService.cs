@@ -53,6 +53,17 @@ public interface IMetricsQueryService
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    // A newest-first page of every recorded queue metric event (the full transactions list).
+    // Paged in SQL with LIMIT/OFFSET and a separate COUNT, so the whole table is never loaded
+    // into memory to be paged in process. An optional [from, to) window narrows the list; when
+    // supplied it is bounded by the same abusive-aggregation guard as the chart reads.
+    Task<TransactionsPage> GetTransactionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default);
+
     // Rules-config deploy markers whose CreatedAt falls inside [from, to].
     Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,

@@ -419,6 +419,64 @@ public sealed class MetricsQueryTests
             service.GetThroughputAsync(RulesEngineQueue, ThroughputGranularity.Second, from, to));
     }
 
+    // --- The full transactions list pages newest-first in SQL with a total count ---
+
+    [Fact]
+    public async Task GetTransactions_PagesNewestFirst_WithTotalCount()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 2, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        // 25 events, one per minute. Newest is anchor + 24 minutes.
+        var events = Enumerable.Range(0, 25)
+            .Select(i => Metric(RulesEngineQueue, "RulesEvaluated", $"T-{i:00}", anchor.AddMinutes(i)))
+            .ToArray();
+        await SeedMetricsAsync(events);
+
+        var service = CreateService();
+
+        var page1 = await service.GetTransactionsAsync(page: 1, pageSize: 20);
+
+        Assert.Equal(25, page1.TotalCount);
+        Assert.Equal(20, page1.Rows.Count);
+        // Newest first: the first row is the last-recorded event (minute 24).
+        Assert.Equal("T-24", page1.Rows[0].ReferenceNumber);
+        Assert.Equal(anchor.AddMinutes(24), page1.Rows[0].RecordedAtUtc);
+        // Strictly descending across the page.
+        for (var i = 1; i < page1.Rows.Count; i++)
+            Assert.True(page1.Rows[i].RecordedAtUtc <= page1.Rows[i - 1].RecordedAtUtc);
+
+        var page2 = await service.GetTransactionsAsync(page: 2, pageSize: 20);
+
+        // The remaining 5 rows, still newest-first within the page.
+        Assert.Equal(25, page2.TotalCount);
+        Assert.Equal(5, page2.Rows.Count);
+        Assert.Equal("T-04", page2.Rows[0].ReferenceNumber);
+        Assert.Equal("T-00", page2.Rows[4].ReferenceNumber);
+    }
+
+    // --- A from/to window narrows the transactions list ---
+
+    [Fact]
+    public async Task GetTransactions_WindowNarrowsTheList()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 2, 2, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "OLD", anchor.AddMinutes(-120)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "IN-1", anchor.AddMinutes(5)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "IN-2", anchor.AddMinutes(10)));
+
+        var service = CreateService();
+
+        var page = await service.GetTransactionsAsync(
+            page: 1, pageSize: 20, fromUtc: anchor, toUtc: anchor.AddMinutes(30));
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.DoesNotContain(page.Rows, r => r.ReferenceNumber == "OLD");
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

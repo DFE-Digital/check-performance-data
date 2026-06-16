@@ -15,6 +15,11 @@
 
     var STAGE_ORDER = ['submit', 'rules-queue', 'rules-engine', 'zendesk-queue', 'ticket'];
 
+    // The dashboard's "Recent transitions" panel is an at-a-glance summary, not the full log: it
+    // shows at most this many of the latest transitions and links to the paged transactions page
+    // for the complete history.
+    var MAX_RECENT_TRANSITIONS = 10;
+
     // Base dwell at each stage in ms (scaled by the slow-mo clock). Kept short so a live board feels
     // lively; slow motion multiplies it for a demo.
     var STAGE_DWELL_MS = 380;
@@ -269,7 +274,11 @@
                     empty.textContent = 'No transitions yet.';
                     transitionsList.appendChild(empty);
                 } else {
-                    list.forEach(function (t) {
+                    // The dashboard shows only the most recent handful; the full, paged history
+                    // lives on the transactions page (the "more" link beneath this list). Capping
+                    // here keeps the at-a-glance panel short without dropping any data — it is all
+                    // on the transactions page.
+                    list.slice(0, MAX_RECENT_TRANSITIONS).forEach(function (t) {
                         var li = document.createElement('li');
                         li.textContent = accessibleName(t);
                         transitionsList.appendChild(li);

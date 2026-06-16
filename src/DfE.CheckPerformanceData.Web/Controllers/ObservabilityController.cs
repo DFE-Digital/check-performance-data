@@ -191,6 +191,40 @@ public sealed class ObservabilityController : Controller
         return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
     }
 
+    // The full transactions list: a paged, newest-first table of every recorded queue metric event
+    // (timestamp, reference, stage, queue, decision, latency). The "Recent transitions" panel on
+    // the dashboard caps at ~10 and links here for the complete history. Paging is by the
+    // Wiki:PageLength setting and done in SQL (Skip/Take + COUNT) — the whole table is never loaded
+    // into memory. An optional from/to window narrows the list. Role-gated cypmd_admin.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/transactions")]
+    public async Task<IActionResult> Transactions(
+        int page = 1,
+        DateTime? from = null,
+        DateTime? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+
+        var pageSize = await ResolvePageSizeAsync();
+
+        var fromUtc = from is null ? (DateTime?)null : AsUtc(from.Value);
+        var toUtc = to is null ? (DateTime?)null : AsUtc(to.Value);
+
+        var result = await _query.GetTransactionsAsync(page, pageSize, fromUtc, toUtc, cancellationToken);
+
+        return View(new TransactionsViewModel
+        {
+            Rows = result.Rows,
+            TotalCount = result.TotalCount,
+            Page = result.Page,
+            PageSize = result.PageSize,
+            TotalPages = TotalPages(result.TotalCount, result.PageSize),
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+        });
+    }
+
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/journey/{reference}")]
     public async Task<IActionResult> Journey(string reference, CancellationToken cancellationToken = default)
@@ -305,6 +339,24 @@ public sealed class ObservabilityController : Controller
             seconds = MaxHeartbeatSeconds;
         return TimeSpan.FromSeconds(seconds);
     }
+
+    // The rows-per-page for the paged admin lists, read from the generic Wiki:PageLength setting
+    // (the same setting the deleted-pages list and search use) so all paged lists share one knob.
+    // Falls back to 20 when no settings service is wired (bare unit construction) or the stored
+    // value is non-positive.
+    private const int DefaultPageLength = 20;
+
+    private async Task<int> ResolvePageSizeAsync()
+    {
+        if (_settings is null)
+            return DefaultPageLength;
+
+        var size = await _settings.GetIntAsync(SettingKeys.WikiPageLength);
+        return size > 0 ? size : DefaultPageLength;
+    }
+
+    private static int TotalPages(int totalCount, int pageSize) =>
+        pageSize <= 0 ? 0 : (int)Math.Ceiling(totalCount / (double)pageSize);
 
     private async Task<HealthThresholds> ResolveThresholdsAsync()
     {

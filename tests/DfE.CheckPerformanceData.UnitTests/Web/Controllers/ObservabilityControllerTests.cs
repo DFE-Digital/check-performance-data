@@ -287,6 +287,62 @@ public sealed class ObservabilityControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // --- The full transactions page is paged by the Wiki:PageLength setting ---
+
+    [Fact]
+    public void Transactions_HasAuthorizeAttribute_WithAdminRole()
+    {
+        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Transactions));
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal("cypmd_admin", authorize!.Roles);
+    }
+
+    [Fact]
+    public async Task Transactions_PagesByTheConfiguredPageLength()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+            .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 15));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(15);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions(page: 2);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.IsType<TransactionsViewModel>(view.Model);
+
+        // The page size comes from Wiki:PageLength, not a hard-coded constant.
+        await query.Received(1).GetTransactionsAsync(
+            2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Transactions_ComputesTotalPagesFromTheCount()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+            .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 41, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions();
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(41, model.TotalCount);
+        Assert.Equal(20, model.PageSize);
+        Assert.Equal(3, model.TotalPages); // ceil(41 / 20)
+    }
+
     // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---
 
     [Fact]

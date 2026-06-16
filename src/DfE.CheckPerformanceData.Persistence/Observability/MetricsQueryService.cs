@@ -253,6 +253,76 @@ ORDER BY recorded_at_utc, id;";
         return results;
     }
 
+    public async Task<TransactionsPage> GetTransactionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Defensive clamps: a page below 1 or a non-positive size would produce a negative OFFSET
+        // or an unbounded read. The view resolves pageSize from Wiki:PageLength, but the query
+        // never trusts that — it floors page at 1 and the size at 1.
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        if (fromUtc is { } f && toUtc is { } t)
+            GuardRange(f, t);
+
+        // An optional [from, to) window. Both bounds are parameters; the predicate is only added
+        // when a bound is supplied, so an unfiltered list reads the whole (newest-first) table by
+        // page. The COUNT and the page share the identical WHERE so the total matches the rows.
+        var where = new List<string>();
+        if (fromUtc is not null) where.Add("recorded_at_utc >= @from");
+        if (toUtc is not null) where.Add("recorded_at_utc < @to");
+        var whereClause = where.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", where);
+
+        var countSql = $"SELECT COUNT(*) FROM queue_metrics_events {whereClause};";
+
+        // LIMIT/OFFSET paging in the database: only one page of rows ever crosses into memory,
+        // never the whole table. Ordered newest-first, with id as a stable tie-break so two events
+        // in the same instant page deterministically.
+        var pageSql = $@"
+SELECT recorded_at_utc, reference_number, stage, queue_name, decision_status, latency_ms
+FROM queue_metrics_events
+{whereClause}
+ORDER BY recorded_at_utc DESC, id DESC
+LIMIT @limit OFFSET @offset;";
+
+        void BindWindow(NpgsqlCommand command)
+        {
+            if (fromUtc is { } from)
+                command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = from });
+            if (toUtc is { } to)
+                command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = to });
+        }
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, BindWindow, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        var rows = new List<TransactionRow>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            BindWindow(command);
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            rows.Add(new TransactionRow(
+                DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.GetDouble(5)));
+        });
+
+        return new TransactionsPage(rows, total, page, pageSize);
+    }
+
     public async Task<IReadOnlyList<DeployMarker>> GetDeployMarkersAsync(
         DateTime fromUtc,
         DateTime toUtc,

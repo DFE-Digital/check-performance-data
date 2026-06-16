@@ -201,6 +201,110 @@
     font-size: 16px;
 }
 
+/* The decision-destination row: the three decision outcome boxes and the dead-letter queue laid
+   out on one row after the lane, so the post-engine split is visible. Each box reuses the DLQ
+   marker structure; the decision boxes carry their own (non-red) palette so they read as outcomes
+   rather than failures, with the dead-letter box keeping its red dashed treatment. */
+.obs-board__destinations {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin: 8px 0 16px;
+}
+
+.obs-board__destinations .obs-board__dlq {
+    margin: 0;
+}
+
+/* Decision boxes are GDS blue/green/grey outcomes, distinct from the red dead-letter marker.
+   The active state (engine sets data-obs-decision-active as envelopes land) fills the node so a
+   busy destination is conveyed by fill AND label, never colour alone. */
+.obs-board__decision .obs-board__dlq-node {
+    border-style: solid;
+    border-color: #1d70b8;
+}
+
+.obs-board__decision .obs-board__dlq-label {
+    color: #0b0c0c;
+}
+
+.obs-board__decision[data-obs-decision="AutoApproved"] .obs-board__dlq-node {
+    border-color: #00703c;
+}
+
+.obs-board__decision[data-obs-decision="AutoRejected"] .obs-board__dlq-node {
+    border-color: #d4351c;
+}
+
+.obs-board__decision[data-obs-decision="Scrutiny"] .obs-board__dlq-node {
+    border-color: #f47738;
+}
+
+.obs-board__decision[data-obs-decision-active="true"][data-obs-decision="AutoApproved"] .obs-board__dlq-node {
+    background: #00703c;
+}
+
+.obs-board__decision[data-obs-decision-active="true"][data-obs-decision="AutoRejected"] .obs-board__dlq-node {
+    background: #d4351c;
+}
+
+.obs-board__decision[data-obs-decision-active="true"][data-obs-decision="Scrutiny"] .obs-board__dlq-node {
+    background: #f47738;
+}
+
+/* The always-available board controls (Pause/Resume). Sits on the board itself, not the dev-only
+   Demo panel, so freezing motion is reachable without opening Demo. */
+.obs-board__toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
+.obs-board__toolbar [aria-pressed="true"] {
+    background: #0b0c0c;
+    box-shadow: 0 2px 0 #003078;
+}
+
+/* The numeric count overlay shown when more than STACK_MAX_VISIBLE envelopes pile at one box: a
+   small GDS-blue badge reading "+N" so the pile stays legible rather than rendering every envelope.
+   Positioned by the engine via transform like the tokens, in the same token layer. */
+.obs-board__stack-count {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 5px;
+    background: #1d70b8;
+    color: #ffffff;
+    border: 2px solid #0b0c0c;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}
+
+/* The hover/focus detail popover: surfaces the envelope's reference, current stage, decision and
+   latency/time (the same content as its aria-label) so a paused board can be read message by
+   message. Positioned by the engine over the token layer; only shown while hovered/focused. */
+.obs-board__token-detail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 4;
+    max-width: 240px;
+    padding: 8px 12px;
+    background: #0b0c0c;
+    color: #ffffff;
+    font-size: 14px;
+    line-height: 1.3;
+    pointer-events: none;
+}
+
 .obs-board__parallel {
     background: #ffffff;
     border: 1px solid #b1b4b6;

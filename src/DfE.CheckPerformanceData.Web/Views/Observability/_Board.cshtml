@@ -19,12 +19,34 @@
         new { Key = "zendesk-queue", Label = "Zendesk-queue", Count = (int?)zendeskDepth },
         new { Key = "ticket", Label = "Zendesk ticket", Count = (int?)null },
     };
+
+    // The destination row that sits below the lane after the Rules engine: the three decision
+    // outcomes a message can reach, plus the dead-letter queue for failed/injected messages. An
+    // envelope routes into the box matching its decisionStatus; the value is also the engine's key
+    // (data-obs-decision) so it can anchor to and activate the box as envelopes land.
+    var decisions = new[]
+    {
+        new { Key = "AutoApproved", Label = "Auto-approved" },
+        new { Key = "AutoRejected", Label = "Auto-rejected" },
+        new { Key = "Scrutiny", Label = "Scrutiny" },
+    };
 }
 
 <section class="obs-board" aria-label="Live workflow board" data-obs-board
          data-stream-url="/admin/observability/stream"
          data-inspect-url="/admin/observability/inspect"
          data-replay-url="/admin/observability/replay">
+
+    @* Always-available board controls. Pause/Resume freezes all envelope motion (and the
+       replay/trickle) until resumed — it just stops animation, so it is not dev-gated and lives on
+       the board itself, reachable without opening the dev-only Demo panel. *@
+    <div class="obs-board__toolbar">
+        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                data-module="govuk-button" data-obs-pause aria-pressed="false"
+                title="Freeze every envelope on the board so you can read it; press again to resume.">
+            Pause
+        </button>
+    </div>
 
     @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
        animates envelope tokens between these nodes from the live feed; with JS off or motion
@@ -49,11 +71,23 @@
         }
     </ol>
 
-    @* The dead-letter parking marker: failed/injected envelopes divert here rather than reaching
-       the Zendesk ticket, so a failure is visible on the board. Anchored under the Rules engine lane. *@
-    <div class="obs-board__dlq" data-obs-dlq aria-hidden="true">
-        <span class="obs-board__dlq-node"></span>
-        <span class="obs-board__dlq-label">Dead-letter queue</span>
+    @* The decision-destination row, sitting after the Rules engine: the three decision outcomes a
+       decided message routes into, plus the dead-letter queue a failed/injected message parks at.
+       Each box reuses the dead-letter marker's structure and lights up as envelopes land in it. A
+       decided (non-failed) envelope passes through its decision box and continues to the Zendesk
+       ticket; a failed one is terminal at the dead-letter queue. *@
+    <div class="obs-board__destinations" data-obs-destinations>
+        @foreach (var decision in decisions)
+        {
+            <div class="obs-board__dlq obs-board__decision" data-obs-decision="@decision.Key" aria-hidden="true">
+                <span class="obs-board__dlq-node"></span>
+                <span class="obs-board__dlq-label">@decision.Label</span>
+            </div>
+        }
+        <div class="obs-board__dlq" data-obs-dlq aria-hidden="true">
+            <span class="obs-board__dlq-node"></span>
+            <span class="obs-board__dlq-label">Dead-letter queue</span>
+        </div>
     </div>
 
     @* Accessible textual parallel: the same information the animation conveys, for non-visual

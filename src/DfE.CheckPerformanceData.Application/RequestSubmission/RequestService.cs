@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -17,7 +18,8 @@ public sealed class RequestService(
     ICurrentUserService currentUserService,
     IRequestQueueClient requestQueueClient,
     IRequestBlobClient requestBlobClient,
-    RequestSubmissionOptions submissionOptions) : IRequestService
+    RequestSubmissionOptions submissionOptions,
+    ILogger<RequestService> logger) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -62,18 +64,12 @@ public sealed class RequestService(
         else
             await requestQueueClient.EnqueueRequestAsync(document);
 
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
+        var recipients = await BuildNotificationRecipients(false);
 
-        var userRoles = await dfESignInApiClient.GetUserRolesAsync(currentUserService.OrganisationId, currentUserService.UserId);
-        // var approvers = await dfESignInApiClient.GetApproversAsync();//GetOrganisationApproversAsync(currentUserService.OrganisationId);
-        // if (approvers?.Users != null)
-        //     foreach (var approver in approvers.Users) recipients.Add(approver.Email);
+        logger.LogInformation(
+            "Sending Submission Notification emails for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
+            refNum, recipients.Count, string.Join(", ", recipients));
 
-        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
-        if (orgUsers?.Users != null)
-            foreach (var user in orgUsers.Users)
-                recipients.Add(user.Email);
-        
         foreach (var email in recipients)
         {
             await notifyService.SendSubmissionNotificationAsync(
@@ -97,6 +93,22 @@ public sealed class RequestService(
             Status = RequestStatus.SubmittedUnCommitted,
             RequestType = "Confirm Pupil Data Declaration"
         });
+
+
+
+        var recipients = await BuildNotificationRecipients(false);
+
+        logger.LogInformation(
+            "Sending Pupil Data Check Confirm email for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
+            referenceNumber, recipients.Count, string.Join(", ", recipients));
+        
+        foreach (var email in recipients)
+        {
+            await notifyService.SendPupilDataCheckConfirmAsync(
+                email,
+                referenceNumber,
+                notifySettings.Value.DeadlineText);
+        }
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
@@ -210,6 +222,26 @@ public sealed class RequestService(
             } : null,
             Answers = answers
         };
+    }
+
+    private async Task<HashSet<string>> BuildNotificationRecipients(bool includeApprovers)
+    {
+        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
+
+        if (includeApprovers)
+        {
+            // TODO - add this endpoint in and test when it is available for use.
+            // var approvers = await dfESignInApiClient.GetApproversAsync();//GetOrganisationApproversAsync(currentUserService.OrganisationId);
+            // if (approvers?.Users != null)
+            //     foreach (var approver in approvers.Users) recipients.Add(approver.Email);
+        }
+
+        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
+        if (orgUsers?.Users != null)
+            foreach (var user in orgUsers.Users)
+                recipients.Add(user.Email);
+
+        return recipients;
     }
 
     private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)

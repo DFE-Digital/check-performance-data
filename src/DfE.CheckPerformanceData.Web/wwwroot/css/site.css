@@ -904,6 +904,14 @@ dialog.govuk-modal-dialogue__box::backdrop {
   font-family: "GDS Transport", arial, sans-serif;
 }
 
+/* The top "Administration" heading sits visually above the group/sub-group labels:
+   bolder and larger than the bold parent labels (.tv-link-parent) beneath it. */
+.admin-nav-tree__heading {
+  font-size: 1.3125rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .admin-nav-group + .admin-nav-group {
   border-top: 1px solid #b1b4b6;
   padding-top: 20px;

@@ -45,22 +45,7 @@
 
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
 
-    var navAll = AdminNavEntries.ToList();
-    var adminNavGroups = navAll
-        .Where(e => e.ParentKey is null)
-        .OrderBy(e => e.Order)
-        .Select(g => new AdminNavGroupViewModel
-        {
-            Key = g.Key,
-            Title = g.Title,
-            Description = g.Description,
-            Children = navAll
-                .Where(e => e.ParentKey == g.Key)
-                .OrderBy(e => e.Order)
-                .ToList()
-        })
-        .ToList();
-    var adminNavTreeModel = new AdminLandingViewModel { Groups = adminNavGroups };
+    var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
 }
 <head>
     @await Html.PartialAsync("_GtmHead")

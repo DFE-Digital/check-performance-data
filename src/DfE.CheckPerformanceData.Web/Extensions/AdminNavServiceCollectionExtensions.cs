@@ -27,9 +27,11 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, DeletedPagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemSettingsNavEntry>();
-        services.AddSingleton<IAdminNavEntry, VisualRegressionNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
+        services.AddSingleton<IAdminNavEntry, RulesEngineGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
+        services.AddSingleton<IAdminNavEntry, RulesEngineQueueNavEntry>();
+        services.AddSingleton<IAdminNavEntry, ZendeskQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();

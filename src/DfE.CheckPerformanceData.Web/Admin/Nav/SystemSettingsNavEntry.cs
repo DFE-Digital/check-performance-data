@@ -11,5 +11,5 @@ public sealed record SystemSettingsNavEntry : IAdminNavEntry
     public string Description => "Configure service settings such as the number of rows shown per page and dead-letter queue options.";
     public string Url => "/admin/settings";
     public bool Enabled => true;
-    public int Order => 40;
+    public int Order => 20;
 }

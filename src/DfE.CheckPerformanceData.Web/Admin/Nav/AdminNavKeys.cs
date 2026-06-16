@@ -13,9 +13,12 @@ public static class AdminNavKeys
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
     public const string SystemSettings = "system-settings";
-    public const string VrDashboard = "vr-dashboard";
     public const string RulesConfig = "rules-config";
+
+    public const string RulesEngineGroup = "rules-engine-group";
     public const string RulesEngine = "rules-engine";
+    public const string RulesEngineQueue = "rules-engine-queue";
+    public const string ZendeskQueue = "zendesk-queue";
     public const string DeadLetterQueue = "dead-letter-queue";
     public const string Observability = "observability";
     public const string StorageAdmin = "storage-admin";

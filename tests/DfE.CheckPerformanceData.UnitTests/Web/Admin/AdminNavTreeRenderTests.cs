@@ -18,6 +18,9 @@ public sealed class AdminNavTreeRenderTests
 	private static string ReadAdminNavTree() =>
 		File.ReadAllText(Path.Combine(SharedViewsDir, "_AdminNavTree.cshtml"));
 
+	private static string ReadAdminNavNode() =>
+		File.ReadAllText(Path.Combine(SharedViewsDir, "_AdminNavNode.cshtml"));
+
 	private static string ReadAdminLayout() =>
 		File.ReadAllText(Path.Combine(SharedViewsDir, "_AdminLayout.cshtml"));
 
@@ -33,15 +36,52 @@ public sealed class AdminNavTreeRenderTests
 		Assert.True(File.Exists(viewPath), $"Expected partial at {viewPath}");
 	}
 
-	// --- AdminNavTree_Declares_AdminLandingViewModel_Model ---
+	// --- AdminNavTree_Declares_Recursive_Node_Forest_Model ---
 
 	[Fact]
-	public void AdminNavTree_Declares_AdminLandingViewModel_Model()
+	public void AdminNavTree_Declares_Recursive_Node_Forest_Model()
 	{
 		var src = ReadAdminNavTree();
 
+		// The tree now renders a forest of recursive nodes rather than a flat 2-level model.
 		Assert.Contains("@model", src);
-		Assert.Contains("AdminLandingViewModel", src);
+		Assert.Contains("AdminNavNodeViewModel", src);
+	}
+
+	// --- AdminNavNode_Recurses_Into_Itself_For_Deep_Nesting ---
+
+	[Fact]
+	public void AdminNavNode_Recurses_Into_Itself_For_Deep_Nesting()
+	{
+		var src = ReadAdminNavNode();
+
+		// The node partial must invoke itself so grandchildren / great-grandchildren render
+		// (Rules Engine -> Queues -> Rules Engine Queue, etc.).
+		Assert.Contains("_AdminNavNode", src);
+		Assert.Contains("tv-children", src);
+	}
+
+	// --- AdminNavTree_Administration_Heading_Has_Distinct_Class ---
+
+	[Fact]
+	public void AdminNavTree_Administration_Heading_Has_Distinct_Class()
+	{
+		var src = ReadAdminNavTree();
+
+		// The top "Administration" heading carries its own class so the CSS can size/weight it
+		// above the group/sub-group labels beneath it.
+		Assert.Contains("admin-nav-tree__heading", src);
+	}
+
+	// --- SiteCss_Defines_AdminNavTree_Heading_Larger_And_Bold ---
+
+	[Fact]
+	public void SiteCss_Defines_AdminNavTree_Heading_Larger_And_Bold()
+	{
+		var src = ReadSiteCss();
+
+		Assert.Contains(".admin-nav-tree__heading", src);
+		Assert.Contains("font-weight: 700", src);
 	}
 
 	// --- AdminNavTree_Renders_Nav_Wrapper_With_AriaLabel ---
@@ -81,10 +121,11 @@ public sealed class AdminNavTreeRenderTests
 	[Fact]
 	public void AdminNavTree_Disabled_Child_Renders_AriaDisabled_Span_Not_Anchor()
 	{
-		var src = ReadAdminNavTree();
-
 		// Disabled tiles render as <span aria-disabled="true"> with the muted class,
-		// not as anchors. Pinned by T-03.3-C1 mitigation.
+		// not as anchors. Pinned by T-03.3-C1 mitigation. The leaf markup now lives in
+		// the recursive node partial.
+		var src = ReadAdminNavNode();
+
 		Assert.Contains("aria-disabled=\"true\"", src);
 		Assert.Contains("admin-nav-list__title--muted", src);
 	}

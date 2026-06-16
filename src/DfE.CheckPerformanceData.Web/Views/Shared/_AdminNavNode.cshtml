@@ -1,0 +1,58 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model AdminNavNodePartialModel
+@{
+    var node = Model.Node;
+    var entry = node.Entry;
+    var activeKey = Model.ActiveKey;
+    var hasChildren = node.Children.Count > 0;
+    var isActive = entry.Key == activeKey;
+    var enabled = entry.Enabled && !string.IsNullOrEmpty(entry.Url);
+    // Expand a branch when nothing is active yet (first paint) or when it contains the
+    // active page. site.js re-collapses inactive branches once it binds.
+    var expandedInitial = activeKey == null || Model.SubtreeContainsActive;
+}
+
+<li class="tv-item @(Model.IsLast ? "tv-item-last" : "")">
+    <div class="tv-row">
+        @if (hasChildren)
+        {
+            <button class="tv-toggle" type="button" aria-expanded="@(expandedInitial ? "true" : "false")" aria-label="Toggle @entry.Title">
+                <span class="tv-icon tv-icon-minus"></span>
+            </button>
+        }
+        else
+        {
+            <span class="tv-connector"></span>
+        }
+
+        @if (hasChildren && enabled)
+        {
+            @* Branch node that is also navigable (e.g. Queues, Pipeline dashboard): a bold link. *@
+            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
+        }
+        else if (hasChildren)
+        {
+            @* Pure container (e.g. Rules Engine sub-group): a bold non-link label. *@
+            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")">@entry.Title</span>
+        }
+        else if (enabled)
+        {
+            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
+        }
+        else
+        {
+            <span class="tv-link admin-nav-list__title--muted" aria-disabled="true">@entry.Title</span>
+        }
+    </div>
+
+    @if (hasChildren)
+    {
+        <ul class="tv tv-children">
+            @foreach (var child in node.Children)
+            {
+                var isChildLast = child == node.Children.Last();
+                @await Html.PartialAsync("_AdminNavNode", new AdminNavNodePartialModel(child, isChildLast, activeKey))
+            }
+        </ul>
+    }
+</li>

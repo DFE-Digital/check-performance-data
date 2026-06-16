@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 public sealed record ObservabilityNavEntry : IAdminNavEntry
 {
     public string Key => AdminNavKeys.Observability;
-    public string? ParentKey => AdminNavKeys.SystemAdmin;
+    public string? ParentKey => AdminNavKeys.RulesEngineGroup;
     public string Title => "Pipeline dashboard";
     public string Description => "Live queue health, throughput and decision-mix for the processing pipeline.";
     public string Url => "/admin/observability";
     public bool Enabled => true;
-    public int Order => 23;
+    public int Order => 10;
 }

@@ -18,7 +18,7 @@
         new { Key = "rules-queue", Label = "Rules-queue", Count = (int?)rulesDepth },
         new { Key = "rules-engine", Label = "Rules engine", Count = (int?)null },
         new { Key = "zendesk-queue", Label = "Zendesk-queue", Count = (int?)zendeskDepth },
-        new { Key = "ticket", Label = "Ticket", Count = (int?)null },
+        new { Key = "ticket", Label = "Zendesk ticket", Count = (int?)null },
     };
 }
 
@@ -69,7 +69,7 @@
                     </div>
                     <div class="govuk-checkboxes__item">
                         <input class="govuk-checkboxes__input" id="obs-step" type="checkbox" data-obs-step
-                               title="Tick to send one envelope from Submit through to Ticket, one step at a time." />
+                               title="Tick to send one envelope from Submit through to the Zendesk ticket, one step at a time." />
                         <label class="govuk-label govuk-checkboxes__label" for="obs-step">Single step</label>
                     </div>
                     <div class="govuk-checkboxes__item">
@@ -128,7 +128,7 @@
     </ol>
 
     @* The dead-letter parking marker: failed/injected envelopes divert here rather than reaching
-       Ticket, so a failure is visible on the board. Anchored under the Rules engine lane. *@
+       the Zendesk ticket, so a failure is visible on the board. Anchored under the Rules engine lane. *@
     <div class="obs-board__dlq" data-obs-dlq aria-hidden="true">
         <span class="obs-board__dlq-node"></span>
         <span class="obs-board__dlq-label">Dead-letter queue</span>

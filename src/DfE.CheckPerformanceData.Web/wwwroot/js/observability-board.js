@@ -24,6 +24,25 @@
     // lively; slow motion multiplies it for a demo.
     var STAGE_DWELL_MS = 380;
 
+    // Per-stage dwell so envelopes DESYNC instead of marching in lockstep: each box holds an
+    // envelope for a duration roughly tracking that stage's typical work. The queue stages dwell
+    // longer (messages wait), the engine longest (it does the evaluation), Submit and the terminal
+    // Zendesk ticket are quick hand-offs. Any stage without an explicit entry falls back to the base.
+    var STAGE_DWELL_BY_KEY = {
+        'submit': 220,
+        'rules-queue': 460,
+        'rules-engine': 620,
+        'zendesk-queue': 400,
+        'ticket': 260,
+    };
+
+    // The dwell an envelope spends AT a given stage before hopping on, scaled by the slow-mo clock.
+    function dwellFor(stageKey, speed) {
+        var base = STAGE_DWELL_BY_KEY[stageKey];
+        if (!base) { base = STAGE_DWELL_MS; }
+        return base * (speed || 1);
+    }
+
     // Map a queue depth to the three-state node class. Kept deliberately simple: any waiting work
     // backs the stage up; the health strip owns the authoritative red.
     function stateForCount(count) {
@@ -141,17 +160,21 @@
                 .catch(function () { /* inspect is best-effort; a failed fetch leaves the board intact */ });
         }
 
-        // The envelope element: an inline SVG envelope in GDS blue, keyboard-focusable and labelled,
-        // positioned absolutely so it can be driven across the board by transform.
-        function makeToken(transition) {
+        // The envelope element: an inline SVG envelope, keyboard-focusable and labelled, positioned
+        // absolutely so it can be driven across the board by transform. A good message is GDS blue
+        // (#1d70b8); a failed/injected one is GDS red (#d4351c) and carries the --failed modifier so
+        // it is visually distinct as it diverts to the dead-letter marker — colour AND the modifier
+        // class, not colour alone.
+        function makeToken(transition, failed) {
             var token = document.createElement('span');
-            token.className = 'obs-board__token';
+            token.className = 'obs-board__token' + (failed ? ' obs-board__token--failed' : '');
             token.setAttribute('tabindex', '0');
             token.setAttribute('role', 'button');
             token.setAttribute('aria-label', accessibleName(transition) + ' — inspect this message');
+            var fill = failed ? '#d4351c' : '#1d70b8';
             token.innerHTML =
                 '<svg viewBox="0 0 24 18" width="20" height="15" aria-hidden="true" focusable="false">' +
-                '<rect x="1" y="1" width="22" height="16" rx="2" fill="#1d70b8" stroke="#0b0c0c" stroke-width="1.5"/>' +
+                '<rect x="1" y="1" width="22" height="16" rx="2" fill="' + fill + '" stroke="#0b0c0c" stroke-width="1.5"/>' +
                 '<path d="M2 3 L12 11 L22 3" fill="none" stroke="#ffffff" stroke-width="1.5"/>' +
                 '</svg>';
             var reference = transition.referenceNumber || transition.ReferenceNumber || '';
@@ -187,33 +210,36 @@
             var stopIdx = failed ? Math.min(STAGE_ORDER.indexOf('rules-engine'), destIdx) : destIdx;
             for (var i = 0; i <= stopIdx; i++) { path.push(STAGE_ORDER[i]); }
 
-            var dwell = STAGE_DWELL_MS * moveSpeed;
-
             // Place at submit immediately, then step along the path on the clock so the CSS transition
-            // eases each hop. requestAnimationFrame gives the first placement a from-state.
+            // eases each hop. The pause BEFORE each hop is the dwell of the stage the envelope is
+            // currently sitting at, so per-stage durations differ and envelopes desync rather than
+            // marching in lockstep. requestAnimationFrame gives the first placement a from-state.
             placeAt(token, anchorFor('submit'));
             var hop = 0;
             window.requestAnimationFrame(function () {
                 function next() {
+                    // The envelope is leaving path[hop]; the next pause is the dwell of the stage it
+                    // arrives at (or the one it diverts to). Read it fresh each hop.
                     hop += 1;
                     if (hop < path.length) {
                         placeAt(token, anchorFor(path[hop]));
-                        window.setTimeout(next, dwell);
+                        window.setTimeout(next, dwellFor(path[hop], moveSpeed));
                     } else if (failed) {
                         // Divert to the dead-letter marker and reveal it.
                         if (dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
                         placeAt(token, dlqAnchor());
                         window.setTimeout(function () {
                             if (token.parentNode) { token.parentNode.removeChild(token); }
-                        }, dwell * 2);
+                        }, dwellFor(path[path.length - 1], moveSpeed) * 2);
                     } else {
                         // Arrived; let it rest a beat at its final box then clear it.
                         window.setTimeout(function () {
                             if (token.parentNode) { token.parentNode.removeChild(token); }
-                        }, dwell * 2);
+                        }, dwellFor(destKey, moveSpeed) * 2);
                     }
                 }
-                window.setTimeout(next, dwell);
+                // The first pause is the dwell while the envelope sits at Submit.
+                window.setTimeout(next, dwellFor('submit', moveSpeed));
             });
         }
 
@@ -289,8 +315,9 @@
 
             // Fly one envelope per NEW transition along the stage path to its destination.
             fresh.forEach(function (t) {
-                var token = makeToken(t);
-                flyEnvelope(token, stageKeyFor(t), isFailure(t));
+                var failed = isFailure(t);
+                var token = makeToken(t, failed);
+                flyEnvelope(token, stageKeyFor(t), failed);
             });
         }
 

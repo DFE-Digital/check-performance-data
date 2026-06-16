@@ -160,6 +160,17 @@
     outline-offset: 2px;
 }
 
+/* A failed/injected envelope is GDS red, not the blue of a good message, so its divert to the
+   dead-letter marker is unmistakable. The SVG fill is also set red inline by the engine; this
+   stronger drop-shadow makes the red token stand out as it crosses the board. */
+.obs-board__token--failed {
+    filter: drop-shadow(0 1px 2px rgba(212, 53, 28, 0.6));
+}
+
+.obs-board__token--failed svg rect {
+    fill: #d4351c;
+}
+
 /* The dead-letter parking marker: failed/injected envelopes divert here instead of reaching
    Ticket, so a failure is visible. It sits below the lanes, under the rules-engine box. */
 .obs-board__dlq {

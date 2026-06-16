@@ -23,7 +23,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
         "Rules-queue",
         "Rules engine",
         "Zendesk-queue",
-        "Ticket",
+        "Zendesk ticket",
     };
 
     // --- A non-admin cannot reach the dashboard ---

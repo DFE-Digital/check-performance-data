@@ -4,9 +4,7 @@
 @model UatConsoleViewModel
 @{
     Layout = "_AdminWideLayout";
-    ViewData["Title"] = "Debug · UAT test console";
-
-    string PhaseLabel(UatPhase phase) => phase == UatPhase.Phase310 ? "3.10" : "3.13";
+    ViewData["Title"] = "Debug Pipeline";
 
     // A minimal dashboard view model so the live board partial renders its skeleton and connects
     // its SSE stream here, without this page owning any aggregate dashboard query. The board only
@@ -22,12 +20,13 @@
 
 <link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
 
-<h1 class="govuk-heading-xl">Debug · UAT test console</h1>
+<h1 class="govuk-heading-xl">Debug Pipeline</h1>
 
 <p class="govuk-body">
-    Drive synthetic traffic through the pipeline, watch the board react, and tick off every
-    human-checkable acceptance item. Pass / fail / skip and notes are kept in your browser only —
-    nothing is stored server-side. The automated-only items show their mapped tests below.
+    Drive synthetic traffic through the pipeline and watch the board react. Use the drive buttons to
+    send approved, rejected or scrutiny requests; inject a failing message or seed the dead-letter
+    queue to rehearse failure and recovery. Nothing here touches pupil data — it is a dev and test
+    tool only.
 </p>
 
 @* ── Action panel ─────────────────────────────────────────────────────────── *@
@@ -38,7 +37,8 @@
         <label class="govuk-label" for="uat-batch">Batch size</label>
         <span class="govuk-hint">How many requests each "drive" button fires (1–20).</span>
         <input class="govuk-input govuk-input--width-3" id="uat-batch" name="count"
-               type="number" min="1" max="20" value="1" data-uat-batch inputmode="numeric" />
+               type="number" min="1" max="20" value="1" data-uat-batch inputmode="numeric"
+               title="How many requests each drive button sends in one click." />
     </div>
 
     <h3 class="govuk-heading-s">Drive traffic</h3>
@@ -46,17 +46,20 @@
         <form method="post" action="/dev/uat/drive?outcome=approved" class="uat-inline-form" data-uat-drive-form>
             @Html.AntiForgeryToken()
             <input type="hidden" name="count" value="1" data-uat-batch-mirror />
-            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive approved</button>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                    data-uat-tip title="Send a request the rules engine will approve; watch it reach a Zendesk ticket.">Drive approved</button>
         </form>
         <form method="post" action="/dev/uat/drive?outcome=rejected" class="uat-inline-form" data-uat-drive-form>
             @Html.AntiForgeryToken()
             <input type="hidden" name="count" value="1" data-uat-batch-mirror />
-            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive rejected</button>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                    data-uat-tip title="Send a request the rules engine will reject; it still produces a ticket carrying the rejection.">Drive rejected</button>
         </form>
         <form method="post" action="/dev/uat/drive?outcome=scrutiny" class="uat-inline-form" data-uat-drive-form>
             @Html.AntiForgeryToken()
             <input type="hidden" name="count" value="1" data-uat-batch-mirror />
-            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Drive scrutiny</button>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                    data-uat-tip title="Send a request that falls to manual scrutiny; useful for exercising the scrutiny path.">Drive scrutiny</button>
         </form>
     </div>
 
@@ -64,11 +67,13 @@
     <div class="govuk-button-group">
         <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form">
             @Html.AntiForgeryToken()
-            <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button">Inject failing message</button>
+            <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
+                    data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Inject failing message</button>
         </form>
         <form method="post" action="/dev/uat/seed-dlq" class="uat-inline-form">
             @Html.AntiForgeryToken()
-            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Seed DLQ</button>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                    data-uat-tip title="Place a message straight onto the dead-letter queue so you can practise a redrive.">Seed DLQ</button>
         </form>
     </div>
 
@@ -84,102 +89,32 @@
         </div>
     </dl>
 
-    <div class="govuk-button-group">
-        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-uat-clear>Clear my UAT results</button>
-        <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-uat-export>Export results</button>
-    </div>
+    @* A live region the AJAX drives write the last reference into, in place of a full-page reload. *@
+    <p class="govuk-body" data-uat-last-reference aria-live="polite">
+        @if (!string.IsNullOrEmpty(Model.LastReference))
+        {
+            <text>Last driven reference: <strong>@Model.LastReference</strong></text>
+        }
+    </p>
 </section>
 
 @* ── Live workflow board (embedded 3.13 partial) ───────────────────────────── *@
 <section class="govuk-!-margin-bottom-6" aria-labelledby="uat-board-heading">
-    <h2 class="govuk-heading-l" id="uat-board-heading">Live workflow board</h2>
+    <h2 class="govuk-heading-l" id="uat-board-heading">Animated workflow board</h2>
+    <details class="govuk-details" data-module="govuk-details">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">How to read this board</span>
+        </summary>
+        <div class="govuk-details__text">
+            Each message is a small blue envelope that enters at <strong>Submit</strong> and travels
+            box to box — Submit → Rules queue → Rules engine → Zendesk queue → Ticket — pausing at
+            each stage. A failed or injected message diverts and parks at the dead-letter marker
+            instead of reaching Ticket. The stage boxes change colour and shape as work backs up.
+            Use the controls above the board to slow the motion down, step one envelope at a time,
+            trickle a steady demo flow, or replay recent recorded traffic.
+        </div>
+    </details>
     @await Html.PartialAsync("~/Views/Observability/_Board.cshtml", boardModel)
-</section>
-
-@* ── Guided UAT runner ─────────────────────────────────────────────────────── *@
-<section class="govuk-!-margin-bottom-6" aria-labelledby="uat-runner-heading">
-    <h2 class="govuk-heading-l" id="uat-runner-heading">Guided UAT runner</h2>
-
-    <div class="govuk-!-margin-bottom-3" data-uat-progress aria-live="polite">
-        <p class="govuk-body">Progress: <span data-uat-progress-text>0 / @Model.Interactive.Count</span></p>
-    </div>
-
-    <fieldset class="govuk-fieldset govuk-!-margin-bottom-4">
-        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Filter by phase</legend>
-        <div class="govuk-radios govuk-radios--inline govuk-radios--small" data-uat-filter>
-            <div class="govuk-radios__item">
-                <input class="govuk-radios__input" id="uat-filter-all" type="radio" name="uat-filter" value="all" checked />
-                <label class="govuk-label govuk-radios__label" for="uat-filter-all">All</label>
-            </div>
-            <div class="govuk-radios__item">
-                <input class="govuk-radios__input" id="uat-filter-310" type="radio" name="uat-filter" value="3.10" />
-                <label class="govuk-label govuk-radios__label" for="uat-filter-310">3.10</label>
-            </div>
-            <div class="govuk-radios__item">
-                <input class="govuk-radios__input" id="uat-filter-313" type="radio" name="uat-filter" value="3.13" />
-                <label class="govuk-label govuk-radios__label" for="uat-filter-313">3.13</label>
-            </div>
-        </div>
-    </fieldset>
-
-    @for (var i = 0; i < Model.Interactive.Count; i++)
-    {
-        var item = Model.Interactive[i];
-        var number = i + 1;
-        <div class="uat-item" data-uat-item="@item.Id" data-uat-phase="@PhaseLabel(item.Phase)">
-            <h3 class="govuk-heading-s">@number. @item.Title <span class="govuk-tag govuk-tag--grey">@PhaseLabel(item.Phase) · @item.Id</span></h3>
-            <p class="govuk-body"><strong>Expect:</strong> @item.Expected</p>
-
-            @if (item.Actions.Count > 0)
-            {
-                <div class="govuk-button-group">
-                    @foreach (var action in item.Actions)
-                    {
-                        if (action.Method == UatActionMethod.Post)
-                        {
-                            <form method="post" action="@action.Url" class="uat-inline-form">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">@action.Label</button>
-                            </form>
-                        }
-                        else
-                        {
-                            <a class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" href="@action.Url" data-module="govuk-button">@action.Label</a>
-                        }
-                    }
-                </div>
-            }
-
-            <fieldset class="govuk-fieldset">
-                <legend class="govuk-fieldset__legend govuk-visually-hidden">Verdict for @item.Title</legend>
-                <div class="govuk-radios govuk-radios--inline govuk-radios--small" data-uat-verdict="@item.Id">
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="verdict-@item.Id-pass" type="radio" name="verdict-@item.Id" value="pass" />
-                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-pass">Pass</label>
-                    </div>
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="verdict-@item.Id-fail" type="radio" name="verdict-@item.Id" value="fail" />
-                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-fail">Fail</label>
-                    </div>
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="verdict-@item.Id-skip" type="radio" name="verdict-@item.Id" value="skip" />
-                        <label class="govuk-label govuk-radios__label" for="verdict-@item.Id-skip">Skip</label>
-                    </div>
-                </div>
-            </fieldset>
-
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="notes-@item.Id">Notes</label>
-                <textarea class="govuk-textarea govuk-!-margin-bottom-2" id="notes-@item.Id" rows="2"
-                          data-uat-notes="@item.Id"></textarea>
-            </div>
-
-            @if (!string.IsNullOrEmpty(item.SurfaceLink))
-            {
-                <p class="govuk-body"><a class="govuk-link" href="@item.SurfaceLink">Open surface ↗</a></p>
-            }
-        </div>
-    }
 </section>
 
 @* ── Automated coverage panel ──────────────────────────────────────────────── *@
@@ -213,7 +148,8 @@
                     <td class="govuk-table__cell">
                         <code data-coverage-command>dotnet test</code>
                         <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0 govuk-!-margin-left-2"
-                                data-module="govuk-button" data-coverage-copy>Copy</button>
+                                data-module="govuk-button" data-coverage-copy
+                                data-uat-tip title="Copy the dotnet test command for this item to your clipboard.">Copy</button>
                     </td>
                 </tr>
             }

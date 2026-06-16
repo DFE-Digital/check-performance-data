@@ -1,3 +1,4 @@
+using System;
 using DfE.CheckPerformanceData.Web.Models.Dev;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -34,29 +35,42 @@ public sealed class UatConsoleViewRenderTests
     }
 
     [Fact]
-    public void Index_RendersTheModelDrivenRunnerLoop()
+    public void Index_HeadingIsDebugPipeline()
     {
         var view = ReadView("Index.cshtml");
 
-        // The runner is generated from the model, one row per interactive item, carrying the id,
-        // title and expect text — not a hand-maintained list.
-        Assert.Contains("Model.Interactive", view);
-        Assert.Contains("data-uat-item=\"@item.Id\"", view);
-        Assert.Contains("@item.Title", view);
-        Assert.Contains("@item.Expected", view);
+        // The page H1 and title become "Debug Pipeline" (the nav label stays "Debug Pipelines").
+        Assert.Contains(">Debug Pipeline</h1>", view);
+        Assert.Contains("ViewData[\"Title\"] = \"Debug Pipeline\"", view);
     }
 
     [Fact]
-    public void Index_EachRunnerRowHasAPassFailSkipControlAndNotes()
+    public void Index_GuidedRunnerMarkupIsGone()
     {
         var view = ReadView("Index.cshtml");
 
-        // The verdict control is a real radio group keyed by item, persisted client-side.
-        Assert.Contains("data-uat-verdict", view);
-        Assert.Contains("value=\"pass\"", view);
-        Assert.Contains("value=\"fail\"", view);
-        Assert.Contains("value=\"skip\"", view);
-        Assert.Contains("data-uat-notes", view);
+        // The 24-row guided pass/fail/skip checklist + its persistence wiring are removed. Assert
+        // the verdict radios, the runner loop, the per-item notes and the progress/filter UI are
+        // all absent so the runner can't silently creep back.
+        Assert.DoesNotContain("data-uat-verdict", view);
+        Assert.DoesNotContain("Model.Interactive", view);
+        Assert.DoesNotContain("data-uat-notes", view);
+        Assert.DoesNotContain("data-uat-progress", view);
+        Assert.DoesNotContain("data-uat-filter", view);
+        Assert.DoesNotContain("Guided UAT runner", view);
+        Assert.DoesNotContain("value=\"pass\"", view);
+        Assert.DoesNotContain("value=\"fail\"", view);
+        Assert.DoesNotContain("value=\"skip\"", view);
+    }
+
+    [Fact]
+    public void Index_NoLongerOffersClearOrExportPersistenceControls()
+    {
+        var view = ReadView("Index.cshtml");
+
+        // The localStorage result store goes with the runner: no clear/export controls remain.
+        Assert.DoesNotContain("data-uat-clear", view);
+        Assert.DoesNotContain("data-uat-export", view);
     }
 
     [Fact]
@@ -109,11 +123,36 @@ public sealed class UatConsoleViewRenderTests
     }
 
     [Fact]
-    public void Index_OffersPhaseFilterClearAndExportControls()
+    public void Index_KeepsTheCoveragePanelAndActionButtons()
     {
         var view = ReadView("Index.cshtml");
-        Assert.Contains("data-uat-filter", view);
-        Assert.Contains("data-uat-clear", view);
-        Assert.Contains("data-uat-export", view);
+
+        // The automated-coverage panel and the drive/inject/seed action buttons survive the
+        // guided-runner removal.
+        Assert.Contains("data-uat-coverage", view);
+        Assert.Contains("/dev/uat/drive?outcome=approved", view);
+        Assert.Contains("/dev/uat/inject-failure", view);
+        Assert.Contains("/dev/uat/seed-dlq", view);
+    }
+
+    [Fact]
+    public void Index_EveryActionButtonCarriesATooltipTitle()
+    {
+        var view = ReadView("Index.cshtml");
+
+        // Accessible hover help: each action button has a title attribute (the data-uat-tip hooks
+        // mark the buttons the page wires tooltips to). At least the three drive presets, inject,
+        // seed and the board explainer are covered.
+        Assert.Contains("title=", view);
+        Assert.Contains("data-uat-tip", view);
+    }
+
+    [Fact]
+    public void Index_ExplainsTheAnimatedWorkflowBoard()
+    {
+        var view = ReadView("Index.cshtml");
+
+        // A concise explainer on the board section: what it shows and how to read the envelopes.
+        Assert.Contains("envelope", view, StringComparison.OrdinalIgnoreCase);
     }
 }

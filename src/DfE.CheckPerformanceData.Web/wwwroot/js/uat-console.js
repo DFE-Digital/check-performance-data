@@ -1,144 +1,101 @@
-// UAT test console client behaviour. Pure progressive enhancement: the runner, its verdict radios
-// and notes work as plain form controls without JS; this script persists them per-browser in
-// localStorage (keyed by phase+item so a run survives refresh and redeploy), drives the progress
-// meter and phase filter, clears and exports results, mirrors the batch size onto each drive form,
-// and enriches the automated-coverage panel from the served uat-coverage.json / uat-status.json.
-// No server-side storage of results — this is a dev aid only.
+// Debug Pipeline console client behaviour. Pure progressive enhancement: the drive / inject / seed
+// buttons work as plain form posts without JS (the controller redirects back); with JS this script
+// upgrades them to fetch() so the board is not interrupted by a full-page reload, mirrors the batch
+// size onto each drive form, and enriches the automated-coverage panel from the served
+// uat-coverage.json / uat-status.json. No server-side or client-side storage of results — this is a
+// dev aid only.
 (function () {
   'use strict';
 
-  var STORAGE_KEY = 'cpd-uat-results-v1';
-
-  // --- Result store (localStorage) ------------------------------------------------------------
-
-  function loadResults() {
-    try {
-      return JSON.parse(window.localStorage.getItem(STORAGE_KEY)) || {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  function saveResults(results) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(results));
-    } catch (e) {
-      /* storage may be unavailable (private mode); the page still works, it just won't persist. */
-    }
-  }
-
-  function itemKey(el) {
-    var item = el.closest('[data-uat-item]');
-    if (!item) return null;
-    return item.getAttribute('data-uat-phase') + ':' + item.getAttribute('data-uat-item');
-  }
-
-  // --- Restore persisted verdicts + notes -----------------------------------------------------
-
-  function restore(results) {
-    document.querySelectorAll('[data-uat-item]').forEach(function (item) {
-      var key = item.getAttribute('data-uat-phase') + ':' + item.getAttribute('data-uat-item');
-      var saved = results[key];
-      if (!saved) return;
-      if (saved.verdict) {
-        var radio = item.querySelector('input[type="radio"][value="' + saved.verdict + '"]');
-        if (radio) radio.checked = true;
-      }
-      if (saved.notes) {
-        var notes = item.querySelector('[data-uat-notes]');
-        if (notes) notes.value = saved.notes;
-      }
-    });
-  }
-
-  function recordVerdict(results, el) {
-    var key = itemKey(el);
-    if (!key) return;
-    results[key] = results[key] || {};
-    results[key].verdict = el.value;
-    saveResults(results);
-  }
-
-  function recordNotes(results, el) {
-    var key = itemKey(el);
-    if (!key) return;
-    results[key] = results[key] || {};
-    results[key].notes = el.value;
-    saveResults(results);
-  }
-
-  // --- Progress meter -------------------------------------------------------------------------
-
-  function updateProgress() {
-    var total = document.querySelectorAll('[data-uat-item]').length;
-    var done = 0;
-    document.querySelectorAll('[data-uat-item]').forEach(function (item) {
-      if (item.querySelector('input[type="radio"]:checked')) done += 1;
-    });
-    var text = document.querySelector('[data-uat-progress-text]');
-    if (text) text.textContent = done + ' / ' + total;
-  }
-
-  // --- Phase filter ---------------------------------------------------------------------------
-
-  function applyFilter(value) {
-    document.querySelectorAll('[data-uat-item]').forEach(function (item) {
-      var phase = item.getAttribute('data-uat-phase');
-      item.hidden = !(value === 'all' || phase === value);
-    });
-  }
-
   // --- Batch size mirror ----------------------------------------------------------------------
 
-  function syncBatch() {
+  function batchSize() {
     var batch = document.querySelector('[data-uat-batch]');
-    if (!batch) return;
+    if (!batch) return 1;
     var n = parseInt(batch.value, 10);
     if (isNaN(n) || n < 1) n = 1;
     if (n > 20) n = 20;
+    return n;
+  }
+
+  function syncBatch() {
+    var n = batchSize();
     document.querySelectorAll('[data-uat-batch-mirror]').forEach(function (input) {
       input.value = n;
     });
   }
 
-  // --- Clear + export -------------------------------------------------------------------------
+  // --- AJAX drives ----------------------------------------------------------------------------
+  // Upgrade the drive/inject/seed forms to fetch() so a drive updates the board in place rather
+  // than reloading the page (the reload interrupts the live SSE view). The form's own action,
+  // method and antiforgery token are reused; on success we update the "last reference" line and
+  // nudge the board to re-read its feed. On any failure we fall back to a normal submit so the
+  // no-JS server path still runs.
 
-  function clearResults() {
-    if (!window.confirm('Clear all UAT results stored in this browser?')) return;
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch (e) { /* ignore */ }
-    document.querySelectorAll('[data-uat-item]').forEach(function (item) {
-      item.querySelectorAll('input[type="radio"]:checked').forEach(function (r) { r.checked = false; });
-      var notes = item.querySelector('[data-uat-notes]');
-      if (notes) notes.value = '';
-    });
-    updateProgress();
+  function antiForgeryToken(form) {
+    var input = form.querySelector('input[name="__RequestVerificationToken"]');
+    return input ? input.value : null;
   }
 
-  function exportResults() {
-    var out = { exportedAt: new Date().toISOString(), items: [] };
-    document.querySelectorAll('[data-uat-item]').forEach(function (item) {
-      var checked = item.querySelector('input[type="radio"]:checked');
-      var notes = item.querySelector('[data-uat-notes]');
-      var title = item.querySelector('h3');
-      out.items.push({
-        id: item.getAttribute('data-uat-item'),
-        phase: item.getAttribute('data-uat-phase'),
-        title: title ? title.textContent.trim() : '',
-        verdict: checked ? checked.value : null,
-        notes: notes ? notes.value : ''
+  function updateLastReference(reference) {
+    if (!reference) return;
+    var el = document.querySelector('[data-uat-last-reference]');
+    if (!el) return;
+    el.innerHTML = '';
+    el.appendChild(document.createTextNode('Last driven reference: '));
+    var strong = document.createElement('strong');
+    strong.textContent = reference;
+    el.appendChild(strong);
+  }
+
+  // Ask the board to re-animate: the live SSE feed pushes fresh snapshots on its own, but a manual
+  // refresh gives immediate feedback after a drive. The board exposes a global hook when present.
+  function refreshBoard() {
+    if (window.ObservabilityBoard && typeof window.ObservabilityBoard.refresh === 'function') {
+      window.ObservabilityBoard.refresh();
+    }
+  }
+
+  function submitDriveForm(form) {
+    var token = antiForgeryToken(form);
+    var body = new URLSearchParams();
+    // Carry every named field the no-JS post would (count etc.).
+    form.querySelectorAll('input[name]').forEach(function (input) {
+      body.append(input.name, input.value);
+    });
+    var headers = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
+    if (token) headers['RequestVerificationToken'] = token;
+
+    fetch(form.action, {
+      method: (form.method || 'post').toUpperCase(),
+      headers: headers,
+      body: body.toString().length ? body : null,
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data && data.ok) {
+          updateLastReference(data.reference);
+          refreshBoard();
+        } else {
+          form.submit(); // unexpected response — fall back to the full-page post
+        }
+      })
+      .catch(function () { form.submit(); });
+  }
+
+  function wireDrives() {
+    document.querySelectorAll('.uat-inline-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        // Only intercept our action forms; let anything else post normally.
+        if (!/\/dev\/uat\/(drive|inject-failure|seed-dlq)/.test(form.getAttribute('action') || '')) {
+          return;
+        }
+        e.preventDefault();
+        syncBatch();
+        submitDriveForm(form);
       });
     });
-    var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'uat-results-' + new Date().toISOString().slice(0, 10) + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   // --- Automated coverage panel ---------------------------------------------------------------
@@ -201,31 +158,16 @@
   // --- Wire up --------------------------------------------------------------------------------
 
   function init() {
-    var results = loadResults();
-    restore(results);
-    updateProgress();
     syncBatch();
     enrichCoverage();
+    wireDrives();
 
     document.addEventListener('change', function (e) {
-      if (e.target.matches('[data-uat-verdict] input[type="radio"]')) {
-        recordVerdict(results, e.target);
-        updateProgress();
-      } else if (e.target.matches('[data-uat-filter] input[type="radio"]')) {
-        applyFilter(e.target.value);
-      } else if (e.target.matches('[data-uat-batch]')) {
-        syncBatch();
-      }
-    });
-
-    document.addEventListener('input', function (e) {
-      if (e.target.matches('[data-uat-notes]')) recordNotes(results, e.target);
+      if (e.target.matches('[data-uat-batch]')) syncBatch();
     });
 
     document.addEventListener('click', function (e) {
-      if (e.target.matches('[data-uat-clear]')) clearResults();
-      else if (e.target.matches('[data-uat-export]')) exportResults();
-      else if (e.target.matches('[data-coverage-copy]')) copyCommand(e.target);
+      if (e.target.matches('[data-coverage-copy]')) copyCommand(e.target);
     });
   }
 

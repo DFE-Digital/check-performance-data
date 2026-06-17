@@ -94,8 +94,6 @@ public sealed class RequestService(
             RequestType = "Confirm Pupil Data Declaration"
         });
 
-
-
         var recipients = await BuildNotificationRecipients(false);
 
         logger.LogInformation(

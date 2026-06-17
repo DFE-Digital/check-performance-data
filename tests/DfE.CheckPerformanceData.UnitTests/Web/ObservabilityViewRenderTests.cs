@@ -183,6 +183,58 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Index_DemoPanel_ReplayHasASelectableWindowDefaultingToTheLastDay()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// A window select drives how far back the replay reaches; the 24-hour option is the default
+		// so "Event N of M" reflects a recent window rather than every event ever recorded.
+		Assert.Contains("data-obs-replay-window", panel);
+		Assert.Contains("Last 24 hours", panel);
+		Assert.Contains("value=\"1440\" selected", panel);
+	}
+
+	[Fact]
+	public void Index_DemoPanel_LaysReplayAndDemoControlsOnOneHorizontalRow()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// The replay box and the board demo controls share one row so the panel stays short.
+		Assert.Contains("obs-demo-panel__row", panel);
+	}
+
+	[Fact]
+	public void Transactions_HasAReferenceSearchBox()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// A GDS search input named 'reference', submitted by the existing GET form, drives the filter.
+		Assert.Contains("name=\"reference\"", view);
+		Assert.Contains("Search by reference", view);
+		// The active term is carried back so the box stays populated and the pager preserves it.
+		Assert.Contains("Model.Reference", view);
+	}
+
+	[Fact]
+	public void Transactions_DecisionColumnReadsTheResolvedDecision()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// The decision lives on the RulesEvaluated event; the table must surface the reference's
+		// resolved decision so non-RulesEvaluated rows are not blank.
+		Assert.Contains("row.ResolvedDecision", view);
+	}
+
+	[Fact]
+	public void Submissions_DecisionColumnReadsTheResolvedDecision()
+	{
+		var view = ReadView("Submissions.cshtml");
+
+		// The picker's decision column reads the resolved decision, not the latest stage's blank.
+		Assert.Contains("row.ResolvedDecision", view);
+	}
+
+	[Fact]
 	public void Board_NoLongerCarriesItsOwnReplayOrDemoControlBoxes()
 	{
 		// The board partial is now pure board: the controls live in the dashboard's Demo panel, so

@@ -330,28 +330,54 @@
     margin-bottom: 32px;
 }
 
-.obs-demo-panel__body .obs-board__replay,
-.obs-demo-panel__body .obs-board__dev-controls {
-    display: inline-block;
-    vertical-align: top;
-    margin-right: 16px;
+/* Replay box and board demo controls share one horizontal row so the Demo panel stays short;
+   they wrap onto separate lines only on narrow viewports. The replay box takes the remaining
+   width; the demo controls size to their content. */
+.obs-demo-panel__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 16px;
     margin-top: 16px;
+}
+
+.obs-demo-panel__row .obs-board__replay {
+    flex: 1 1 420px;
+}
+
+.obs-demo-panel__row .obs-board__dev-controls {
+    flex: 0 1 auto;
 }
 
 /* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range
    input + play/pause; both control groups are keyboard-operable. */
 .obs-board__replay,
 .obs-board__dev-controls {
-    flex: 1 1 320px;
     background: #ffffff;
     border: 1px solid #b1b4b6;
     padding: 16px;
 }
 
+/* The replay controls are a single horizontal line: span select, play/pause and the scrubber
+   inline, wrapping only when the box is too narrow. The scrubber takes the remaining width. */
 .obs-board__replay-controls {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+/* Lay the demo-control checkboxes out horizontally so the box is short and sits compactly beside
+   the replay box. */
+.obs-board__dev-controls-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.obs-board__dev-controls-list .govuk-checkboxes__item {
+    margin-bottom: 0;
 }
 
 .obs-board__scrubber {

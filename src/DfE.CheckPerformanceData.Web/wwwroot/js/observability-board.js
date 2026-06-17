@@ -760,6 +760,7 @@
         var scrubber = controls.querySelector('[data-obs-scrubber]');
         var playBtn = controls.querySelector('[data-obs-replay-play]');
         var status = controls.querySelector('[data-obs-replay-status]');
+        var windowSelect = controls.querySelector('[data-obs-replay-window]');
         if (scrubber) {
             var feed = recordedFeed(replayUrl);
             feed.subscribe(engine.onSnapshot);
@@ -774,14 +775,27 @@
                 if (status) { status.textContent = text; }
             }
 
+            // The replay window. The select drives how far back the replay reaches; it defaults to
+            // the last 24 hours so "Event N of M" reflects a recent window rather than every event
+            // ever recorded. A missing/blank select falls back to 24 hours.
+            function windowMs() {
+                var minutes = windowSelect ? parseInt(windowSelect.value, 10) : NaN;
+                return (isFinite(minutes) && minutes > 0 ? minutes : 24 * 60) * 60 * 1000;
+            }
+
             function loadWindow() {
                 var to = new Date();
-                var from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+                var from = new Date(to.getTime() - windowMs());
                 return feed.load(from.toISOString(), to.toISOString()).then(function (count) {
                     scrubber.max = count > 0 ? (count - 1) : 0;
                     scrubber.value = 0;
                     announce(0, count);
                 });
+            }
+
+            // Changing the window reloads the replay for the new span and resets the scrubber.
+            if (windowSelect) {
+                windowSelect.addEventListener('change', function () { loadWindow(); });
             }
 
             scrubber.addEventListener('input', function () {

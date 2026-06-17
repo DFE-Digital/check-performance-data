@@ -24,6 +24,8 @@ public class NotifySettings
     [Required]
     public string DeadlineText { get; set; } = null!;
 
+    public string? LinkBaseUrl { get; set; }
+
     public string? UtmSource { get; set; }
 
     public string? UtmMedium { get; set; }

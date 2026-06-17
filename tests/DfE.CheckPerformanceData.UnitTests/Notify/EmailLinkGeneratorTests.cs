@@ -123,20 +123,109 @@ public class EmailLinkGeneratorTests
         Assert.Contains("utm_medium=custom-medium", result);
     }
 
-    private EmailLinkGenerator CreateSut(string? returnUrl, NotifySettings settings, string? campaignName = null)
+    [Fact]
+    public void GenerateLink_UsesLinkBaseUrl_WhenConfigured()
+    {
+        var settings = new NotifySettings
+        {
+            LinkBaseUrl = "https://custom.base.gov.uk"
+        };
+        var sut = CreateSut(returnUrl: null, settings, returnPath: "/WhatToChange/Index?windowId=123");
+
+        var result = sut.GenerateLink("WhatToChange", "Index", new { windowId = "123" }, "");
+
+        Assert.Equal("https://custom.base.gov.uk/WhatToChange/Index?windowId=123", result);
+    }
+
+    [Fact]
+    public void GenerateLink_FallsBackToHttpContext_WhenLinkBaseUrlNotConfigured()
+    {
+        var settings = new NotifySettings { LinkBaseUrl = null };
+        var sut = CreateSut("https://example.gov.uk/WhatToChange/Index?windowId=123", settings);
+
+        var result = sut.GenerateLink("WhatToChange", "Index", new { windowId = "123" }, "");
+
+        Assert.Equal("https://example.gov.uk/WhatToChange/Index?windowId=123", result);
+    }
+
+    [Fact]
+    public void GenerateLink_HandlesLinkBaseUrlWithTrailingSlash()
+    {
+        var settings = new NotifySettings
+        {
+            LinkBaseUrl = "https://custom.base.gov.uk/"
+        };
+        var sut = CreateSut(returnUrl: null, settings, returnPath: "/WhatToChange/Index");
+
+        var result = sut.GenerateLink("WhatToChange", "Index", null, "");
+
+        Assert.Equal("https://custom.base.gov.uk/WhatToChange/Index", result);
+    }
+
+    [Fact]
+    public void GenerateLink_HandlesLinkBaseUrlWithoutTrailingSlash()
+    {
+        var settings = new NotifySettings
+        {
+            LinkBaseUrl = "https://custom.base.gov.uk"
+        };
+        var sut = CreateSut(returnUrl: null, settings, returnPath: "/WhatToChange/Index");
+
+        var result = sut.GenerateLink("WhatToChange", "Index", null, "");
+
+        Assert.Equal("https://custom.base.gov.uk/WhatToChange/Index", result);
+    }
+
+    [Fact]
+    public void GenerateLink_FallsBackWhenLinkBaseUrlIsMalformed()
+    {
+        var settings = new NotifySettings
+        {
+            LinkBaseUrl = "not-a-valid-uri"
+        };
+        var sut = CreateSut("https://example.gov.uk/WhatToChange/Index", settings);
+
+        var result = sut.GenerateLink("WhatToChange", "Index", null, "");
+
+        Assert.Equal("https://example.gov.uk/WhatToChange/Index", result);
+    }
+
+    [Fact]
+    public void GenerateLink_AppendsUtmAfterLinkBaseUrl()
+    {
+        var settings = new NotifySettings
+        {
+            LinkBaseUrl = "https://custom.base.gov.uk",
+            UtmSource = "notify",
+            UtmMedium = "email",
+            UtmCampaigns = new Dictionary<string, string> { ["test-campaign"] = "test" }
+        };
+        var sut = CreateSut(returnUrl: null, settings, returnPath: "/WhatToChange/Index", campaignName: "test-campaign");
+
+        var result = sut.GenerateLink("WhatToChange", "Index", null, "test-campaign");
+
+        Assert.StartsWith("https://custom.base.gov.uk/WhatToChange/Index", result);
+        Assert.Contains("utm_source=notify", result);
+        Assert.Contains("utm_medium=email", result);
+        Assert.Contains("utm_campaign=test", result);
+    }
+
+    private EmailLinkGenerator CreateSut(string? returnUrl, NotifySettings settings, string? campaignName = null, string? returnPath = null)
     {
         return new TestableEmailLinkGenerator(
             _httpContextAccessor,
             Options.Create(settings),
             _logger,
-            returnUrl);
+            returnUrl,
+            returnPath);
     }
 
     private sealed class TestableEmailLinkGenerator(
         IHttpContextAccessor httpContextAccessor,
         IOptions<NotifySettings> notifySettings,
         ILogger<EmailLinkGenerator> logger,
-        string? returnUrl)
+        string? returnUrl,
+        string? returnPath = null)
         : EmailLinkGenerator(
             Substitute.For<LinkGenerator>(),
             httpContextAccessor,
@@ -146,6 +235,11 @@ public class EmailLinkGeneratorTests
         protected override string? GetUriByActionCore(HttpContext httpContext, string action, string controller, object? routeValues)
         {
             return returnUrl;
+        }
+
+        protected override string? GetPathByActionCore(HttpContext httpContext, string action, string controller, object? routeValues)
+        {
+            return returnPath;
         }
     }
 }

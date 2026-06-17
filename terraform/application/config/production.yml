@@ -1,5 +1,6 @@
 ---
 ASPNETCORE_ENVIRONMENT: Production
+Notify__LinkBaseUrl: https://check-performance-data-development.prod.teacherservices.cloud/
 
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests

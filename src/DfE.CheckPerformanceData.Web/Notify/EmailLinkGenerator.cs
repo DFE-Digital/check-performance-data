@@ -18,8 +18,10 @@ public class EmailLinkGenerator(
         var httpContext = httpContextAccessor.HttpContext
             ?? throw new InvalidOperationException("HttpContext is not available.");
 
-        var url = GetUriByActionCore(httpContext, action, controller, routeValues)
-            ?? throw new InvalidOperationException(
+        var url = BuildLinkUrl(httpContext, action, controller, routeValues);
+
+        if (url is null)
+            throw new InvalidOperationException(
                 $"Route could not be resolved for controller '{controller}', action '{action}'.");
 
         url = StripExistingUtmParameters(url);
@@ -28,6 +30,26 @@ public class EmailLinkGenerator(
         logger.LogDebug("Generated link \"{Url}\" for campaign \"{CampaignName}\"", url, campaignName);
 
         return url;
+    }
+
+    private string? BuildLinkUrl(HttpContext httpContext, string action, string controller, object? routeValues)
+    {
+        var linkBaseUrl = notifySettings.Value.LinkBaseUrl;
+
+        if (!string.IsNullOrEmpty(linkBaseUrl))
+        {
+            if (Uri.TryCreate(linkBaseUrl, UriKind.Absolute, out var _))
+            {
+                var path = GetPathByActionCore(httpContext, action, controller, routeValues);
+                return path is not null ? $"{linkBaseUrl.TrimEnd('/')}{path}" : null;
+            }
+
+            logger.LogWarning(
+                "LinkBaseUrl \"{LinkBaseUrl}\" is not a valid absolute URI; falling back to HttpContext-based URL resolution",
+                linkBaseUrl);
+        }
+
+        return GetUriByActionCore(httpContext, action, controller, routeValues);
     }
 
     private static string StripExistingUtmParameters(string url)
@@ -70,5 +92,10 @@ public class EmailLinkGenerator(
     protected virtual string? GetUriByActionCore(HttpContext httpContext, string action, string controller, object? routeValues)
     {
         return linkGenerator.GetUriByAction(httpContext, action, controller, routeValues);
+    }
+
+    protected virtual string? GetPathByActionCore(HttpContext httpContext, string action, string controller, object? routeValues)
+    {
+        return linkGenerator.GetPathByAction(httpContext, action, controller, routeValues);
     }
 }

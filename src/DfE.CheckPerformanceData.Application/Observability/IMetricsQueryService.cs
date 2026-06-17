@@ -56,12 +56,17 @@ public interface IMetricsQueryService
     // A newest-first page of every recorded queue metric event (the full transactions list).
     // Paged in SQL with LIMIT/OFFSET and a separate COUNT, so the whole table is never loaded
     // into memory to be paged in process. An optional [from, to) window narrows the list; when
-    // supplied it is bounded by the same abusive-aggregation guard as the chart reads.
+    // supplied it is bounded by the same abusive-aggregation guard as the chart reads. An optional
+    // reference filters to one request (case-insensitive prefix on reference_number), in SQL,
+    // sharing the predicate between the COUNT and the page so pagination stays correct. Each row
+    // also carries its reference's ResolvedDecision (from that reference's RulesEvaluated event)
+    // so the decision column is populated even on the rows whose own stage carries no decision.
     Task<TransactionsPage> GetTransactionsAsync(
         int page,
         int pageSize,
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
+        string? reference = null,
         CancellationToken cancellationToken = default);
 
     // A newest-first page of distinct request references that entered the pipeline, each with its

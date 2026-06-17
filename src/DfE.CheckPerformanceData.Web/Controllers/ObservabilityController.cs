@@ -219,6 +219,7 @@ public sealed class ObservabilityController : Controller
         int page = 1,
         DateTime? from = null,
         DateTime? to = null,
+        string? reference = null,
         CancellationToken cancellationToken = default)
     {
         if (page < 1) page = 1;
@@ -228,7 +229,13 @@ public sealed class ObservabilityController : Controller
         var fromUtc = from is null ? (DateTime?)null : AsUtc(from.Value);
         var toUtc = to is null ? (DateTime?)null : AsUtc(to.Value);
 
-        var result = await _query.GetTransactionsAsync(page, pageSize, fromUtc, toUtc, cancellationToken);
+        // A blank search box is no filter; trim it so trailing whitespace from a paste does not
+        // produce an always-empty result. The filter is carried back onto the model so the search
+        // box stays populated and the pager links preserve it across pages.
+        var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        var result = await _query.GetTransactionsAsync(
+            page, pageSize, fromUtc, toUtc, referenceFilter, cancellationToken);
 
         return View(new TransactionsViewModel
         {
@@ -239,6 +246,7 @@ public sealed class ObservabilityController : Controller
             TotalPages = TotalPages(result.TotalCount, result.PageSize),
             FromUtc = fromUtc,
             ToUtc = toUtc,
+            Reference = referenceFilter,
         });
     }
 

@@ -553,6 +553,115 @@ public sealed class MetricsQueryTests
         Assert.Equal("NEW", page.Rows.Single().ReferenceNumber);
     }
 
+    // --- A submission's resolved decision comes from its RulesEvaluated event, not the latest stage ---
+
+    [Fact]
+    public async Task GetSubmissions_ResolvesDecisionFromRulesEvaluated_NotTheLatestStage()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 10, 10, 0, 0, DateTimeKind.Utc);
+
+        // The decision is carried on RulesEvaluated; the later TicketCreated stage has a null decision.
+        // A naive "latest event" read would show a blank decision. The resolved decision must be Scrutiny.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "DEC-1", anchor.AddSeconds(0)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "DEC-1", anchor.AddSeconds(10), decision: "Scrutiny"),
+            Metric(ZendeskQueue, "TicketCreated", "DEC-1", anchor.AddSeconds(20)));
+
+        var service = CreateService();
+        var page = await service.GetSubmissionsAsync(page: 1, pageSize: 20);
+
+        var row = page.Rows.Single(r => r.ReferenceNumber == "DEC-1");
+        Assert.Equal("Scrutiny", row.ResolvedDecision);
+    }
+
+    [Fact]
+    public async Task GetSubmissions_ResolvedDecisionIsNull_WhenNotYetDecided()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 11, 10, 0, 0, DateTimeKind.Utc);
+
+        // Submitted but not yet through the rules engine: no decision anywhere.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "PEND-1", anchor.AddSeconds(0)));
+
+        var service = CreateService();
+        var page = await service.GetSubmissionsAsync(page: 1, pageSize: 20);
+
+        var row = page.Rows.Single(r => r.ReferenceNumber == "PEND-1");
+        Assert.Null(row.ResolvedDecision);
+    }
+
+    // --- A transaction row carries its reference's resolved decision (from the RulesEvaluated event) ---
+
+    [Fact]
+    public async Task GetTransactions_ResolvedDecisionComesFromRulesEvaluated_ForEveryRowOfTheReference()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 12, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "TX-1", anchor.AddSeconds(0)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "TX-1", anchor.AddSeconds(10), decision: "AutoRejected"),
+            Metric(ZendeskQueue, "TicketCreated", "TX-1", anchor.AddSeconds(20)));
+
+        var service = CreateService();
+        var page = await service.GetTransactionsAsync(page: 1, pageSize: 20);
+
+        // Every row of TX-1 (including TicketCreated, whose own decision_status is null) reports the
+        // reference's resolved decision so the column is not mysteriously blank.
+        foreach (var row in page.Rows.Where(r => r.ReferenceNumber == "TX-1"))
+            Assert.Equal("AutoRejected", row.ResolvedDecision);
+    }
+
+    // --- The transactions list filters by reference (case-insensitive prefix), keeping pagination ---
+
+    [Fact]
+    public async Task GetTransactions_ReferenceFilter_ReturnsOnlyThatReference()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 13, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "RulesEvaluated", "AAA-111", anchor.AddSeconds(0), decision: "Scrutiny"),
+            Metric(ZendeskQueue, "TicketCreated", "AAA-111", anchor.AddSeconds(5)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "BBB-222", anchor.AddSeconds(10), decision: "AutoApproved"));
+
+        var service = CreateService();
+
+        // Case-insensitive: the lowercase query matches the uppercase reference.
+        var page = await service.GetTransactionsAsync(page: 1, pageSize: 20, reference: "aaa-111");
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.All(page.Rows, r => Assert.Equal("AAA-111", r.ReferenceNumber));
+        Assert.DoesNotContain(page.Rows, r => r.ReferenceNumber == "BBB-222");
+    }
+
+    [Fact]
+    public async Task GetTransactions_ReferenceFilter_KeepsPagination()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 14, 10, 0, 0, DateTimeKind.Utc);
+
+        // 25 events all for the same reference, plus noise for another reference.
+        var events = Enumerable.Range(0, 25)
+            .Select(i => Metric(RulesEngineQueue, "RulesEvaluated", "SAME-REF", anchor.AddMinutes(i), decision: "Scrutiny"))
+            .Append(Metric(RulesEngineQueue, "RulesEvaluated", "OTHER-REF", anchor.AddMinutes(100), decision: "AutoApproved"))
+            .ToArray();
+        await SeedMetricsAsync(events);
+
+        var service = CreateService();
+
+        var page1 = await service.GetTransactionsAsync(page: 1, pageSize: 20, reference: "SAME-REF");
+        Assert.Equal(25, page1.TotalCount);
+        Assert.Equal(20, page1.Rows.Count);
+        Assert.All(page1.Rows, r => Assert.Equal("SAME-REF", r.ReferenceNumber));
+
+        var page2 = await service.GetTransactionsAsync(page: 2, pageSize: 20, reference: "SAME-REF");
+        Assert.Equal(5, page2.Rows.Count);
+        Assert.All(page2.Rows, r => Assert.Equal("SAME-REF", r.ReferenceNumber));
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

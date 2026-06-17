@@ -258,6 +258,7 @@ ORDER BY recorded_at_utc, id;";
         int pageSize,
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
+        string? reference = null,
         CancellationToken cancellationToken = default)
     {
         // Defensive clamps: a page below 1 or a non-positive size would produce a negative OFFSET
@@ -269,36 +270,54 @@ ORDER BY recorded_at_utc, id;";
         if (fromUtc is { } f && toUtc is { } t)
             GuardRange(f, t);
 
-        // An optional [from, to) window. Both bounds are parameters; the predicate is only added
-        // when a bound is supplied, so an unfiltered list reads the whole (newest-first) table by
-        // page. The COUNT and the page share the identical WHERE so the total matches the rows.
+        // A blank/whitespace reference is no filter at all.
+        var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        // An optional [from, to) window plus an optional reference filter. Every value crosses as a
+        // parameter; the predicate is only added when a value is supplied, so an unfiltered list
+        // reads the whole (newest-first) table by page. The reference match is a case-insensitive
+        // prefix (ILIKE with an escaped literal + a trailing wildcard) so a tester can paste a
+        // reference and find all its transactions. The COUNT and the page share the identical WHERE
+        // so the total matches the rows and pagination stays correct.
         var where = new List<string>();
         if (fromUtc is not null) where.Add("recorded_at_utc >= @from");
         if (toUtc is not null) where.Add("recorded_at_utc < @to");
+        if (referenceFilter is not null) where.Add("reference_number ILIKE @ref || '%'");
         var whereClause = where.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", where);
 
         var countSql = $"SELECT COUNT(*) FROM queue_metrics_events {whereClause};";
 
         // LIMIT/OFFSET paging in the database: only one page of rows ever crosses into memory,
         // never the whole table. Ordered newest-first, with id as a stable tie-break so two events
-        // in the same instant page deterministically.
+        // in the same instant page deterministically. The LEFT JOIN onto resolved_decisions attaches
+        // each reference's RulesEvaluated decision (the only stage that carries one) to every one of
+        // its rows, so the decision column is populated even on rows whose own stage is null.
         var pageSql = $@"
-SELECT recorded_at_utc, reference_number, stage, queue_name, decision_status, latency_ms
-FROM queue_metrics_events
-{whereClause}
-ORDER BY recorded_at_utc DESC, id DESC
+SELECT e.recorded_at_utc, e.reference_number, e.stage, e.queue_name, e.decision_status, e.latency_ms,
+       rd.decision_status AS resolved_decision
+FROM queue_metrics_events e
+LEFT JOIN (
+    SELECT DISTINCT ON (reference_number) reference_number, decision_status
+    FROM queue_metrics_events
+    WHERE decision_status IS NOT NULL
+    ORDER BY reference_number, recorded_at_utc DESC, id DESC
+) rd ON rd.reference_number = e.reference_number
+{Requalify(whereClause)}
+ORDER BY e.recorded_at_utc DESC, e.id DESC
 LIMIT @limit OFFSET @offset;";
 
-        void BindWindow(NpgsqlCommand command)
+        void BindFilters(NpgsqlCommand command)
         {
             if (fromUtc is { } from)
                 command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = from });
             if (toUtc is { } to)
                 command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = to });
+            if (referenceFilter is not null)
+                command.Parameters.Add(new NpgsqlParameter("ref", NpgsqlDbType.Text) { Value = EscapeLike(referenceFilter) });
         }
 
         var total = 0;
-        await ReadAsync(countSql, cancellationToken, BindWindow, reader =>
+        await ReadAsync(countSql, cancellationToken, BindFilters, reader =>
         {
             total = Convert.ToInt32(reader.GetInt64(0));
         });
@@ -306,7 +325,7 @@ LIMIT @limit OFFSET @offset;";
         var rows = new List<TransactionRow>();
         await ReadAsync(pageSql, cancellationToken, command =>
         {
-            BindWindow(command);
+            BindFilters(command);
             command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
             command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
         }, reader =>
@@ -317,11 +336,27 @@ LIMIT @limit OFFSET @offset;";
                 reader.GetString(2),
                 reader.GetString(3),
                 reader.IsDBNull(4) ? null : reader.GetString(4),
-                reader.GetDouble(5)));
+                reader.GetDouble(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
         });
 
         return new TransactionsPage(rows, total, page, pageSize);
     }
+
+    // The page query aliases queue_metrics_events as e (for the resolved-decision join), so the
+    // shared WHERE — built unqualified for the COUNT — is requalified to the e alias here. The
+    // column names are a fixed internal set, never caller input, so this string rewrite carries no
+    // injection path.
+    private static string Requalify(string whereClause) => whereClause
+        .Replace("recorded_at_utc", "e.recorded_at_utc")
+        .Replace("reference_number", "e.reference_number");
+
+    // Escapes the LIKE metacharacters in a user-supplied reference so a pasted value containing
+    // % or _ matches literally rather than as a wildcard. The default ESCAPE character (\) is used.
+    private static string EscapeLike(string value) => value
+        .Replace("\\", "\\\\")
+        .Replace("%", "\\%")
+        .Replace("_", "\\_");
 
     public async Task<SubmissionsPage> GetSubmissionsAsync(
         int page,
@@ -351,10 +386,13 @@ SELECT COUNT(*) FROM (
     GROUP BY reference_number
 ) refs;";
 
-        // One row per distinct reference: its first-seen time (MIN) and its most recent stage and
-        // decision (DISTINCT ON ... ORDER BY recorded_at DESC picks the latest event per reference).
-        // The grouping, ordering and LIMIT/OFFSET paging are all database-side — the full event
-        // history is never loaded to be grouped in memory. Ordered newest-submission first.
+        // One row per distinct reference: its first-seen time (MIN), its most recent stage and
+        // decision (DISTINCT ON ... ORDER BY recorded_at DESC picks the latest event per reference),
+        // and its RESOLVED decision — the decision_status from the reference's decided event (the
+        // RulesEvaluated stage carries it; the latest stage often does not). The latest-event read
+        // alone leaves the decision blank for anything that has moved past RulesEvaluated, so the
+        // resolved column is what the picker shows. The grouping, ordering and LIMIT/OFFSET paging
+        // are all database-side — the full event history is never loaded to be grouped in memory.
         var pageSql = $@"
 WITH firsts AS (
     SELECT reference_number, MIN(recorded_at_utc) AS submitted_at
@@ -367,10 +405,17 @@ latest AS (
     FROM queue_metrics_events
     {whereClause}
     ORDER BY reference_number, recorded_at_utc DESC, id DESC
+),
+resolved AS (
+    SELECT DISTINCT ON (reference_number) reference_number, decision_status
+    FROM queue_metrics_events
+    WHERE decision_status IS NOT NULL
+    ORDER BY reference_number, recorded_at_utc DESC, id DESC
 )
-SELECT f.reference_number, f.submitted_at, l.stage, l.decision_status
+SELECT f.reference_number, f.submitted_at, l.stage, l.decision_status, r.decision_status AS resolved_decision
 FROM firsts f
 JOIN latest l ON l.reference_number = f.reference_number
+LEFT JOIN resolved r ON r.reference_number = f.reference_number
 ORDER BY f.submitted_at DESC, f.reference_number
 LIMIT @limit OFFSET @offset;";
 
@@ -400,7 +445,8 @@ LIMIT @limit OFFSET @offset;";
                 reader.GetString(0),
                 DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc),
                 reader.GetString(2),
-                reader.IsDBNull(3) ? null : reader.GetString(3)));
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4)));
         });
 
         return new SubmissionsPage(rows, total, page, pageSize);

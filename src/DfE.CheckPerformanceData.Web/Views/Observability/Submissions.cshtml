@@ -98,7 +98,9 @@ else
                         </td>
                         <td class="govuk-table__cell">@row.SubmittedAtUtc.ToString("u")</td>
                         <td class="govuk-table__cell">@row.LatestStage</td>
-                        <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.LatestDecision) ? "—" : row.LatestDecision)</td>
+                        @* The decision is carried on the RulesEvaluated event, not the latest stage, so
+                           read the resolved decision; "Pending" until the rules engine has decided. *@
+                        <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.ResolvedDecision) ? "Pending" : row.ResolvedDecision)</td>
                     </tr>
                 }
             </tbody>

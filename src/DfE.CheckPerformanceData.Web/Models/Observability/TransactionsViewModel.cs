@@ -15,4 +15,8 @@ public sealed class TransactionsViewModel
     public int TotalPages { get; init; }
     public DateTime? FromUtc { get; init; }
     public DateTime? ToUtc { get; init; }
+
+    // The active reference search term (case-insensitive prefix), carried back so the search box
+    // stays populated and the pager links preserve it across pages.
+    public string? Reference { get; init; }
 }

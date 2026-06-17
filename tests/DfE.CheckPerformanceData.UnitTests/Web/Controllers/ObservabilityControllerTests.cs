@@ -376,7 +376,7 @@ public sealed class ObservabilityControllerTests
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 15));
 
         var settings = Substitute.For<ISettingService>();
@@ -391,7 +391,7 @@ public sealed class ObservabilityControllerTests
 
         // The page size comes from Wiki:PageLength, not a hard-coded constant.
         await query.Received(1).GetTransactionsAsync(
-            2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>());
+            2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -399,7 +399,7 @@ public sealed class ObservabilityControllerTests
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 41, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
@@ -413,6 +413,47 @@ public sealed class ObservabilityControllerTests
         Assert.Equal(41, model.TotalCount);
         Assert.Equal(20, model.PageSize);
         Assert.Equal(3, model.TotalPages); // ceil(41 / 20)
+    }
+
+    [Fact]
+    public async Task Transactions_PassesTheReferenceFilterThrough_AndExposesItOnTheModel()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions(page: 1, reference: "REF-123");
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal("REF-123", model.Reference);
+
+        await query.Received(1).GetTransactionsAsync(
+            1, 20, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
+            Arg.Is<string?>(r => r == "REF-123"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Replay_HonoursTheRequestedFromAndToWindow()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetReplayWindowAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<JourneyEvent>());
+
+        var controller = BuildController(query);
+
+        var from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 1, 1, 6, 0, 0, DateTimeKind.Utc);
+
+        await controller.Replay(from: from, to: to);
+
+        await query.Received(1).GetReplayWindowAsync(
+            Arg.Is<DateTime>(d => d == from), Arg.Is<DateTime>(d => d == to), Arg.Any<CancellationToken>());
     }
 
     // --- The submissions picker is admin-gated and paged by Wiki:PageLength ---

@@ -216,6 +216,60 @@ public sealed class DlqRetentionTests
         Assert.NotNull(await queueService.DequeueAsync(QueueOptions.RulesEngineQueue));
     }
 
+    // --- A failure after the redrive rolls back BOTH the audit row and the requeue (atomic) ---
+
+    [Fact]
+    public async Task RedriveWithinAnAmbientTransaction_WhenWorkFailsAfterRedrive_RollsBackAuditAndRequeue()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        var adminService = new QueueAdminService(queueService);
+
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "ATOMIC-ROLLBACK" });
+        var take = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+        await queueService.DeadLetterAsync(take!.Id, "needs redrive");
+
+        var dead = Assert.Single(await adminService.GetDlqMessagesAsync());
+
+        // The audited redrive writes the audit row and requeues inside one ambient transaction. Because
+        // the inner RedriveAsync joins that transaction rather than opening its own, a failure after the
+        // requeue must roll the WHOLE thing back: no audit without the action, and no half-applied
+        // requeue. The probe exception type proves the failure is our own throw — not the provider
+        // rejecting a nested BeginTransaction, which a non-re-entrant join would raise first.
+        await Assert.ThrowsAsync<RedriveAtomicityProbe>(async () =>
+            await context.ExecuteInTransactionAsync(async () =>
+            {
+                context.AuditEntries.Add(new AuditEntry
+                {
+                    EntityType = "DlqMessage",
+                    EntityId = dead.Id.ToString(),
+                    Action = "Redrive",
+                    Timestamp = DateTime.UtcNow,
+                    UserId = "tester",
+                });
+                await context.SaveChangesAsync();
+
+                await adminService.RedriveAsync(new[] { dead.Id });
+
+                throw new RedriveAtomicityProbe();
+            }));
+
+        // Nothing committed. Verified from a fresh context so we read durable state, not the tracked
+        // (and now rolled-back) entities: the dead letter survives, the message was never requeued,
+        // and no audit row for the abandoned redrive was persisted.
+        await using var verify = _fixture.CreateContext();
+        var verifyQueue = new PostgresQueueService(verify);
+        var verifyAdmin = new QueueAdminService(verifyQueue);
+
+        Assert.Contains(await verifyAdmin.GetDlqMessagesAsync(), d => d.Id == dead.Id);
+        Assert.Null(await verifyQueue.DequeueAsync(QueueOptions.RulesEngineQueue));
+        Assert.Empty(verify.AuditEntries
+            .Where(a => a.EntityId == dead.Id.ToString() && a.Action == "Redrive")
+            .ToList());
+    }
+
     // --- A redrive through the service audits the dead-letter removal, retained independently ---
 
     [Fact]
@@ -468,6 +522,10 @@ public sealed class DlqRetentionTests
             Arg.Any<IReadOnlyDictionary<string, object>>(),
             Arg.Any<CancellationToken>());
     }
+
+    // A distinct exception so the atomicity test can assert the failure is its own throw rather than a
+    // provider error from a nested BeginTransaction (which a broken re-entrant join would surface first).
+    private sealed class RedriveAtomicityProbe : Exception;
 
     private static DeadLetterEntity NewDeadLetter(Guid id, DateTime deadLetteredAtUtc) => new()
     {

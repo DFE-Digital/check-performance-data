@@ -28,7 +28,12 @@ public sealed class PostgresFixture : IAsyncLifetime
     public PortalDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<PortalDbContext>()
-            .UseNpgsql(ConnectionString)
+            // Mirror production: both the web host and the rules-engine worker enable retry-on-failure,
+            // which installs a retrying execution strategy. ExecuteInTransactionAsync wraps its
+            // BeginTransaction inside that strategy and its re-entrant join must hold under it, so the
+            // integration tests exercise the same strategy production runs rather than the non-retrying
+            // default — otherwise the transactional code path here never matches the deployed one.
+            .UseNpgsql(ConnectionString, npgsql => npgsql.EnableRetryOnFailure())
             .Options;
         return new PortalDbContext(options, new FakeCurrentUserService());
     }

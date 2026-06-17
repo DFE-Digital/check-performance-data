@@ -456,13 +456,20 @@
     margin-bottom: 24px;
 }
 
-/* Print / save-as-PDF: hide the admin chrome and the export controls so only the dashboard
-   content prints. This is the client-side PDF path behind the "Print or save as PDF" CTA. */
+/* Print / save-as-PDF: hide the admin chrome and the interactive-only controls so only the
+   dashboard content prints, and keep each logical block whole on a page so the PDF paginates
+   cleanly instead of slicing a chart or the board across a page boundary. This is the client-side
+   PDF path behind the "Print or save as PDF" CTA. */
 @media print {
+    /* Interactive-only chrome and controls have no place in a static PDF. */
     .admin-chrome,
     .admin-rail,
+    .admin-nav-collapse,
     .govuk-footer,
     .obs-export,
+    .obs-range-form,
+    .obs-demo-panel,
+    .obs-board__toolbar,
     [data-obs-reconnect] {
         display: none !important;
     }
@@ -471,6 +478,27 @@
         width: 100%;
         margin: 0;
         padding: 0;
+    }
+
+    /* Keep each logical block intact across a page break: never split a chart panel, the board,
+       the health strip or a tile down the middle. */
+    .obs-board,
+    .obs-chart-panel,
+    .obs-health-strip,
+    .obs-tile,
+    .obs-legend-shared,
+    .govuk-details {
+        break-inside: avoid;
+        page-break-inside: avoid; /* legacy alias for older print engines */
+    }
+
+    /* The big workflow board is the focal point: give it its own page so it prints whole at a
+       usable size, with the charts that follow starting fresh on the next page. */
+    .obs-board {
+        break-before: page;
+        page-break-before: always;
+        break-after: page;
+        page-break-after: always;
     }
 }
 

@@ -283,6 +283,27 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("dataset", js);
 	}
 
+	// --- Print/PDF: logical blocks stay whole and the board prints on its own page ---
+
+	[Fact]
+	public void ObservabilityCss_KeepsBlocksWholeWhenPrintingToPdf()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var css = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "observability.css"));
+
+		// A print stylesheet exists and stops the board and chart panels being split across pages.
+		Assert.Contains("@media print", css);
+		Assert.Contains("break-inside: avoid", css);
+		// The board gets its own page.
+		Assert.Contains("break-before: page", css);
+		Assert.Contains("break-after: page", css);
+		// Interactive-only chrome is hidden in print.
+		Assert.Contains(".obs-range-form", css);
+		Assert.Contains(".obs-demo-panel", css);
+	}
+
 	// --- The hidden attribute must actually hide the reconnect notice ---
 
 	[Fact]

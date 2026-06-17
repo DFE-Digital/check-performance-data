@@ -195,6 +195,31 @@ public sealed class ObservabilityViewRenderTests
 		Assert.DoesNotContain("data-obs-slowmo", board);
 	}
 
+	// --- The chart data-table disclosures toggle exactly once (no open/close flicker) ---
+
+	[Fact]
+	public void ExportScript_OwnsChartDisclosureToggleAsASingleSourceOfTruth()
+	{
+		// The chart "View … data table" disclosures flickered open/closed because more than one
+		// toggle path fired per click. The dashboard script now owns the toggle as the single
+		// source of truth: it intercepts the summary click (preventDefault), flips details.open
+		// once behind a re-entrancy guard, and binds each summary only once.
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-export.js"));
+
+		// Targets the chart panels' disclosures specifically.
+		Assert.Contains("obs-chart-panel", js);
+		Assert.Contains("details", js);
+		Assert.Contains("summary", js);
+		// Exactly one toggle: the native default is suppressed and open is flipped once.
+		Assert.Contains("preventDefault", js);
+		Assert.Contains(".open", js);
+		// Bound once per summary (idempotency guard), so re-init cannot stack handlers.
+		Assert.Contains("dataset", js);
+	}
+
 	// --- The hidden attribute must actually hide the reconnect notice ---
 
 	[Fact]

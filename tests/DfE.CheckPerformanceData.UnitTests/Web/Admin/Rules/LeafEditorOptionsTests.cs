@@ -14,7 +14,7 @@ public sealed class LeafEditorOptionsTests
     [Fact]
     public void String_Field_Offers_Eq_Neq_In_Known_Lang()
     {
-        var tokens = LeafEditorOptions.OperatorTokensFor("keyStage").Select(o => o.Token).ToList();
+        var tokens = LeafEditorOptions.OperatorTokensFor("checkingWindowType").Select(o => o.Token).ToList();
         Assert.Equal(new[] { "eq", "neq", "in", "known", "lang" }, tokens);
     }
 
@@ -34,12 +34,12 @@ public sealed class LeafEditorOptionsTests
     [Fact]
     public void ValueEditor_Reflects_Operator_And_Type()
     {
-        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("keyStage", "known"));
-        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("keyStage", "in"));
-        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("keyStage", "lang"));
+        Assert.Equal(ValueEditorKind.None, LeafEditorOptions.ValueEditor("checkingWindowType", "known"));
+        Assert.Equal(ValueEditorKind.List, LeafEditorOptions.ValueEditor("checkingWindowType", "in"));
+        Assert.Equal(ValueEditorKind.Language, LeafEditorOptions.ValueEditor("checkingWindowType", "lang"));
         Assert.Equal(ValueEditorKind.BoolSelect, LeafEditorOptions.ValueEditor("isAddBack", "eq"));
         Assert.Equal(ValueEditorKind.Number, LeafEditorOptions.ValueEditor("pupilAge", "gte"));
         Assert.Equal(ValueEditorKind.Date, LeafEditorOptions.ValueEditor("schoolAdmissionDate", "lt"));
-        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("keyStage", "eq"));
+        Assert.Equal(ValueEditorKind.Text, LeafEditorOptions.ValueEditor("checkingWindowType", "eq"));
     }
 }

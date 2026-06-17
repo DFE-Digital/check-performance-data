@@ -10,16 +10,19 @@ public sealed class RuleContextMapperTests
     // --- OutcomeKey ---
 
     [Theory]
-    [InlineData("Deceased",                                                   "Deceased")]
-    [InlineData("Elective home education",                                    "ElectiveHomeEducation")]
-    [InlineData("  Elective home education  ",                                "ElectiveHomeEducation")]
-    [InlineData("elective home education",                                    "ElectiveHomeEducation")] // case-insensitive
-    [InlineData("Permanently left England",                                   "PermanentlyLeftEngland")]
-    [InlineData("Social care involvement - including police/prison",          "SocialCareInvolvement")]
-    [InlineData("Social care involvement including police/prison",            "SocialCareInvolvement")] // dash-less variant
-    [InlineData("Pupil missing in Education",                                 "PupilMissingInEducation")]
-    [InlineData("Not at end of 16 to 18 study",                               "NotAtEndOf16To18Study")]
-    public void Maps_KnownWhatToChange_ToOutcomeKey(string whatToChange, string expected)
+    [InlineData("Merge",                                    "MergePupils")]
+    [InlineData("Include",                                  "Inclusion")]
+    [InlineData("Remove - pupil-died",                      "Deceased")]
+    [InlineData("Remove - elective-home-education",         "ElectiveHomeEducation")]
+    [InlineData("  Remove - elective-home-education  ",     "ElectiveHomeEducation")] // whitespace-tolerant
+    [InlineData("remove - ELECTIVE-HOME-EDUCATION",         "ElectiveHomeEducation")] // case-insensitive
+    [InlineData("Remove - permanently-left-england",        "PermanentlyLeftEngland")]
+    [InlineData("Remove - social-care-involvement",         "SocialCareInvolvement")]
+    [InlineData("Remove - child-missing-education",         "PupilMissingInEducation")]
+    [InlineData("Remove - life-limiting-illness",           "TerminalCriticalIllness")]
+    [InlineData("Remove - permanent-exclusion",             "AdmittedFollowingPermanentExclusion")]
+    [InlineData("Remove - permanently-excluded",            "PermanentlyExcludedFromCurrentSchool")]
+    public void Maps_KnownRequestTypeCode_ToOutcomeKey(string whatToChange, string expected)
     {
         var msg = NewMessage(whatToChange);
 
@@ -29,7 +32,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void Maps_UnknownWhatToChange_ToUnknownSentinel()
+    public void Maps_UnknownRequestTypeCode_ToUnknownSentinel()
     {
         var msg = NewMessage("nonsense reason");
 
@@ -39,7 +42,7 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void Maps_NullWhatToChange_ToUnknownSentinel()
+    public void Maps_NullRequestTypeCode_ToUnknownSentinel()
     {
         var msg = NewMessage(whatToChange: null!);
 
@@ -48,64 +51,68 @@ public sealed class RuleContextMapperTests
         Assert.Equal(AnswerFieldMap.UnknownOutcomeKey, ctx.OutcomeKey);
     }
 
-    // --- KeyStage normalisation ---
+    // --- CheckingWindowType normalisation ---
 
     [Theory]
-    [InlineData("KS2",       "KS2")]
-    [InlineData("ks4",       "KS4")]   // case-insensitive
-    [InlineData("Post16",    "Post16")]
-    [InlineData("16 to 18",  "Post16")] // docx phrasing
-    [InlineData("16-18",     "Post16")]
-    [InlineData("",          "")]      // unrecognised → empty
-    public void Maps_CheckingWindowType_ToCanonicalKeyStage(string raw, string expected)
+    [InlineData("KS2",        "KS2")]
+    [InlineData("ks4june",    "KS4June")]   // case-insensitive
+    [InlineData("KS4Autumn",  "KS4Autumn")]
+    [InlineData("ks4autumn",  "KS4Autumn")]
+    [InlineData("Post16",     "Post16")]
+    [InlineData("16 to 18",   "Post16")] // legacy docx phrasing
+    [InlineData("16-18",      "Post16")]
+    [InlineData("KS4",        "KS4")]    // ambiguous June/Autumn → pass-through: matches no rule, falls to otherwise (Scrutiny)
+    [InlineData("",           "")]       // missing → empty
+    public void Maps_CheckingWindowType_ToCanonicalValue(string raw, string expected)
     {
-        var msg = NewMessage("Deceased", checkingWindowType: raw);
+        var msg = NewMessage("Remove - pupil-died", checkingWindowType: raw);
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(expected, ctx.KeyStage);
+        Assert.Equal(expected, ctx.CheckingWindowType);
     }
 
-    // --- Field projection ---
+    // --- Field projection: plain mapped questions ---
 
-    [Fact]
-    public void Maps_StringAnswer_ToFieldValueStr()
+    [Theory]
+    [InlineData("date-removed-from-roll",                 "dateOfRemoval")]
+    [InlineData("date-permanently-excluded",              "dateOfPermanentExclusion")]
+    [InlineData("date-pupil-excluded",                    "dateOfPermanentExclusion")]
+    [InlineData("date-pupil-started",                     "schoolAdmissionDate")]
+    [InlineData("date-pupil-started-school-in-england",   "firstSchoolAdmissionDate")]
+    [InlineData("date-pupil-arrived-in-england",          "dateOfArrivalInEngland")]
+    public void Maps_JourneyDateQuestion_ToCanonicalDateField(string questionId, string field)
     {
-        var msg = NewMessage("Inclusion", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
-            Answer("inclusion-status-flag", "402")
+            Answer(questionId, "2025-02-15")
         });
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new FieldValue.Str("402"), ctx.GetField("inclusionFlag"));
+        Assert.Equal(new FieldValue.Date(new DateOnly(2025, 2, 15)), ctx.GetField(field));
     }
 
     [Fact]
-    public void Maps_BoolAnswer_ToFieldValueBool()
+    public void Maps_CountryAnswer_ToCountryOfOrigin()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        // The producer puts the autocomplete's ISO code in RawValue.
+        var msg = NewMessage("Remove - english-not-first-language", answers: new[]
         {
-            Answer("terminal-illness", "true"),
-            Answer("critical-illness-12m", "yes"),
-            Answer("severe-profound-effect", "1"),
-            Answer("under-investigation-12m", "no"),
+            new AnswerRecord { QuestionId = "country-originally-from", QuestionTitle = "t", Type = "Autocomplete", Value = "France", RawValue = "FR" }
         });
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hasTerminalIllness"));
-        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hasCriticalIllness12mPlus"));
-        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("illnessHasSevereProfoundEffect"));
-        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("underInvestigation12mPlus"));
+        Assert.Equal(new FieldValue.Str("FR"), ctx.GetField("countryOfOrigin"));
     }
 
     [Fact]
-    public void Maps_DateAnswer_ToFieldValueDate()
+    public void RawValue_TakesPrecedenceOverDisplayValue()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
-            Answer("date-of-removal-from-roll", "2025-02-15")
+            new AnswerRecord { QuestionId = "date-removed-from-roll", QuestionTitle = "t", Type = "Date", Value = "15/02/2025", RawValue = "2025-02-15" }
         });
 
         var ctx = _sut.Map(msg);
@@ -116,9 +123,9 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Maps_IsoDateTimeAnswer_TruncatesToDate()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
-            Answer("date-of-removal-from-roll", "2025-02-15T13:45:00Z")
+            Answer("date-removed-from-roll", "2025-02-15T13:45:00Z")
         });
 
         var ctx = _sut.Map(msg);
@@ -129,9 +136,9 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void Throws_OnMalformedDate()
     {
-        var msg = NewMessage("Elective home education", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
-            Answer("date-of-removal-from-roll", "not-a-date")
+            Answer("date-removed-from-roll", "not-a-date")
         });
 
         var ex = Assert.Throws<RuleContextMappingException>(() => _sut.Map(msg));
@@ -139,34 +146,250 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
+    public void UnmappedQuestionId_IsSilentlyIgnored()
+    {
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
+        {
+            Answer("some-extra-question", "value"),
+            Answer("date-removed-from-roll", "2025-02-15"),
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Date(new DateOnly(2025, 2, 15)), ctx.GetField("dateOfRemoval"));
+        // No exception; the extra question is just ignored.
+    }
+
+    // --- Field projection: inclusionFlag from the pupil record ---
+
+    [Fact]
+    public void InclusionFlag_IsRead_FromPupilPincl()
+    {
+        var msg = NewMessage("Include", pupilPincl: 402);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Str("402"), ctx.GetField("inclusionFlag"));
+    }
+
+    [Fact]
+    public void InclusionFlag_IsUnknown_WhenPinclNotSupplied()
+    {
+        var msg = NewMessage("Include", pupilPincl: 0);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("inclusionFlag"));
+    }
+
+    // --- Field projection: isAddBack calculated from the pupil record ---
+
+    [Fact]
+    public void IsAddBack_IsTrue_WhenPinclIsAddBackCode()
+    {
+        var msg = NewMessage("Include", pupilPincl: 403);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true), ctx.GetField("isAddBack"));
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(402)]
+    [InlineData(414)]
+    [InlineData(421)]
+    [InlineData(431)]
+    public void IsAddBack_IsFalse_ForAnyOtherSuppliedPincl(int pincl)
+    {
+        var msg = NewMessage("Include", pupilPincl: pincl);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("isAddBack"));
+    }
+
+    [Fact]
+    public void IsAddBack_IsUnknown_WhenPinclNotSupplied()
+    {
+        // Fail-safe: no inclusion data means the add-back rules defer to Scrutiny.
+        var msg = NewMessage("Include", pupilPincl: 0);
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("isAddBack"));
+    }
+
+    // --- Field projection: translated radio vocabularies ---
+
+    [Theory]
+    [InlineData("english",          "ENG", false)]
+    [InlineData("believed-english", "ENG", true)]
+    [InlineData("other",            "OTH", false)]
+    [InlineData("believed-other",   "OTH", true)]
+    public void Maps_FirstLanguage_ToEngOthVocabulary(string raw, string expected, bool uncertain)
+    {
+        var msg = NewMessage("Remove - english-not-first-language", answers: new[]
+        {
+            Answer("first-language", raw)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        FieldValue expectedValue = uncertain
+            ? new FieldValue.Uncertain(new FieldValue.Str(expected))
+            : new FieldValue.Str(expected);
+        Assert.Equal(expectedValue, ctx.GetField("firstLanguage"));
+    }
+
+    [Theory]
+    [InlineData("chose-not-to-say")]
+    [InlineData("not-known")]
+    [InlineData("hand-crafted-nonsense")]
+    public void Maps_FirstLanguage_UnknownishValues_ToUnknown(string raw)
+    {
+        var msg = NewMessage("Remove - english-not-first-language", answers: new[]
+        {
+            Answer("first-language", raw)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("firstLanguage"));
+    }
+
+    [Theory]
+    [InlineData("lower",  "Lower")]
+    [InlineData("higher", "Higher")]
+    public void Maps_HigherLower_ToYearGroupChange(string raw, string expected)
+    {
+        var msg = NewMessage("Remove - year-group-change", answers: new[]
+        {
+            Answer("higher-lower", raw)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Str(expected), ctx.GetField("yearGroupChange"));
+    }
+
+    // --- Field projection: single-radio fan-out to booleans ---
+
+    [Fact]
+    public void SocialCareReason_FansOut_ToThreeBooleans()
+    {
+        var msg = NewMessage("Remove - social-care-involvement", answers: new[]
+        {
+            Answer("social-care-reason", "police-involvement")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hadSocialCareInvolvement"));
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hadRecentPoliceInvolvement"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasBeenDetainedInPrison"));
+    }
+
+    [Fact]
+    public void LifeLimitingIllnessHealthIssue_FansOut_ToIllnessBooleans()
+    {
+        var msg = NewMessage("Remove - life-limiting-illness", answers: new[]
+        {
+            Answer("life-limiting-illness-health-issue", "life-limiting")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(true),  ctx.GetField("hasTerminalIllness"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasCriticalIllness12mPlus"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasRecentLifeChangingDiagnosis"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("hasRecentLifeChangingInjury"));
+        Assert.Equal(new FieldValue.Bool(false), ctx.GetField("underInvestigation12mPlus"));
+        // No journey question collects this — stays Unknown so rules defer to Scrutiny.
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("illnessHasSevereProfoundEffect"));
+    }
+
+    [Fact]
+    public void FanOutAnswer_WithEmptyValue_LeavesFieldsUnknown()
+    {
+        var msg = NewMessage("Remove - social-care-involvement", answers: new[]
+        {
+            Answer("social-care-reason", "")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hadSocialCareInvolvement"));
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hadRecentPoliceInvolvement"));
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasBeenDetainedInPrison"));
+    }
+
+    // --- Field projection: sat-exams resolves by checking window type ---
+
+    [Theory]
+    [InlineData("KS4June",   "yes", "hasSatExamsAsYear11", true)]
+    [InlineData("KS4June",   "no",  "hasSatExamsAsYear11", false)]
+    [InlineData("KS4Autumn", "yes", "hasSatExamsAsYear11", true)]
+    [InlineData("KS4Autumn", "no",  "hasSatExamsAsYear11", false)]
+    [InlineData("KS2",       "yes", "hasSatExamsAsYear6",  true)]
+    [InlineData("KS2",       "no",  "hasSatExamsAsYear6",  false)]
+    public void SatExams_MapsToWindowTypeSpecificField(string checkingWindowType, string raw, string field, bool expected)
+    {
+        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: checkingWindowType, answers: new[]
+        {
+            Answer("sat-exams", raw)
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.Equal(new FieldValue.Bool(expected), ctx.GetField(field));
+    }
+
+    [Fact]
+    public void SatExams_OnUnrecognisedWindowType_IsIgnored()
+    {
+        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: "Post16", answers: new[]
+        {
+            Answer("sat-exams", "yes")
+        });
+
+        var ctx = _sut.Map(msg);
+
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasSatExamsAsYear11"));
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasSatExamsAsYear6"));
+    }
+
+    // --- Field projection: error and empty handling ---
+
+    [Fact]
     public void Throws_OnMalformedBool()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        var msg = NewMessage("Remove - social-care-involvement", checkingWindowType: "KS4June", answers: new[]
         {
-            Answer("terminal-illness", "maybe")
+            Answer("sat-exams", "maybe")
         });
 
         var ex = Assert.Throws<RuleContextMappingException>(() => _sut.Map(msg));
-        Assert.Contains("hasTerminalIllness", ex.Message);
+        Assert.Contains("hasSatExamsAsYear11", ex.Message);
     }
 
     [Fact]
     public void EmptyAnswerValue_BecomesUnknown()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: new[]
+        var msg = NewMessage("Remove - elective-home-education", answers: new[]
         {
-            Answer("terminal-illness", "")
+            Answer("date-removed-from-roll", "")
         });
 
         var ctx = _sut.Map(msg);
 
-        Assert.IsType<FieldValue.Unknown>(ctx.GetField("hasTerminalIllness"));
+        Assert.IsType<FieldValue.Unknown>(ctx.GetField("dateOfRemoval"));
     }
 
     [Fact]
     public void MissingAnswer_BecomesUnknown()
     {
-        var msg = NewMessage("Terminal/Critical illness", answers: Array.Empty<AnswerRecord>());
+        var msg = NewMessage("Remove - life-limiting-illness", answers: Array.Empty<AnswerRecord>());
 
         var ctx = _sut.Map(msg);
 
@@ -174,24 +397,9 @@ public sealed class RuleContextMapperTests
     }
 
     [Fact]
-    public void UnmappedQuestionId_IsSilentlyIgnored()
-    {
-        var msg = NewMessage("Inclusion", answers: new[]
-        {
-            Answer("some-extra-question", "value"),
-            Answer("inclusion-status-flag", "402"),
-        });
-
-        var ctx = _sut.Map(msg);
-
-        Assert.Equal(new FieldValue.Str("402"), ctx.GetField("inclusionFlag"));
-        // No exception; the extra question is just ignored.
-    }
-
-    [Fact]
     public void PupilAge_IsRead_FromPupilObject_WhenPositive()
     {
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 17);
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 17);
 
         var ctx = _sut.Map(msg);
 
@@ -202,7 +410,7 @@ public sealed class RuleContextMapperTests
     public void PupilAge_IsUnknown_WhenZero()
     {
         // 0 is the default for int — treat it as "not supplied" to keep Scrutiny defaults safe.
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 0);
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 0);
 
         var ctx = _sut.Map(msg);
 
@@ -212,7 +420,7 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void PupilAgeAnswer_OverridesPupilObject_WhenBothPresent()
     {
-        var msg = NewMessage("Not at end of 16 to 18 study", pupilAge: 17, answers: new[]
+        var msg = NewMessage("Remove - year-group-change", pupilAge: 17, answers: new[]
         {
             Answer("pupil-age", "18")
         });
@@ -225,12 +433,12 @@ public sealed class RuleContextMapperTests
     [Fact]
     public void EnvelopeFields_AreAlwaysPopulated()
     {
-        var msg = NewMessage("Deceased", checkingWindowType: "KS4");
+        var msg = NewMessage("Remove - pupil-died", checkingWindowType: "KS4June");
 
         var ctx = _sut.Map(msg);
 
-        Assert.Equal(new FieldValue.Str("KS4"),     ctx.GetField("keyStage"));
-        Assert.Equal(new FieldValue.Str("Deceased"), ctx.GetField("requestType"));
+        Assert.Equal(new FieldValue.Str("KS4June"),             ctx.GetField("checkingWindowType"));
+        Assert.Equal(new FieldValue.Str("Remove - pupil-died"), ctx.GetField("requestType"));
     }
 
     [Fact]
@@ -243,13 +451,15 @@ public sealed class RuleContextMapperTests
 
     private static RequestDocument NewMessage(
         string whatToChange,
-        string checkingWindowType = "KS4",
+        string checkingWindowType = "KS4June",
         IEnumerable<AnswerRecord>? answers = null,
-        int pupilAge = 0) =>
+        int pupilAge = 0,
+        int pupilPincl = 0) =>
         new()
         {
+            ChangeRequestId    = Guid.NewGuid(),
             ReferenceNumber    = "REF",
-            WhatToChange       = whatToChange,
+            RequestTypeCode    = whatToChange,
             CheckingWindowType = checkingWindowType,
             CheckingWindowId   = Guid.NewGuid(),
             SubmittedAt        = DateTime.UtcNow,
@@ -259,10 +469,11 @@ public sealed class RuleContextMapperTests
             {
                 Id = "p", CypmdId = "c", Firstname = "A", Surname = "B",
                 DateOfBirth = "01/01/2010", Sex = "F", Age = pupilAge, Upn = "UPN",
+                Pincl = pupilPincl,
             },
             Answers            = (answers ?? Array.Empty<AnswerRecord>()).ToList(),
         };
 
     private static AnswerRecord Answer(string id, string value) =>
-        new() { QuestionId = id, QuestionTitle = id, Type = "text", Value = value };
+        new() { QuestionId = id, QuestionTitle = id, Type = "text", Value = value, RawValue = value };
 }

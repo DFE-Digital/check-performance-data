@@ -221,7 +221,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         // produces an auto-approval or auto-rejection ticket.
         var status = changeRequest?.DecisionStatus ?? DecisionStatus.Scrutiny;
         var outcomeKey = string.IsNullOrEmpty(changeRequest?.DecisionOutcomeKey)
-            ? message.WhatToChange
+            ? message.RequestTypeCode
             : changeRequest.DecisionOutcomeKey;
         var matchedRuleId = changeRequest?.MatchedRuleId ?? string.Empty;
         return new Decision(status, outcomeKey, matchedRuleId, Array.Empty<string>());

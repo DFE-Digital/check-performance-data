@@ -17,7 +17,6 @@ public interface IPortalDbContext
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<WikiPage> WikiPages { get; }
     DbSet<WikiPageVersion> WikiPageVersions { get; }
-    DbSet<Pupil> Pupils { get; }
     DbSet<Setting> Settings { get; }
     DbSet<Country> Countries { get; }
     DbSet<QueueMessageEntity> QueueMessages { get; }

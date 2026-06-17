@@ -1,6 +1,6 @@
 {
-  "version": "2026.05.14-01",
-  "updatedAt": "2026-05-14T10:00:00Z",
+  "version": "2026.06.11-01",
+  "updatedAt": "2026-06-11T12:00:00Z",
   "outcomes": [
 
     {
@@ -20,7 +20,7 @@
       "label": "Admitted following permanent exclusion",
       "rules": [
         { "id": "AFE-PRE2023", "status": "AutoRejected",
-          "when": { "field": "dateOfPermanentExclusion", "lt": "2023-09-01" } },
+          "when": { "field": "dateOfPermanentExclusion", "lt": "2024-09-01" } },
         { "id": "AFE-DEF", "status": "Scrutiny", "when": "otherwise" }
       ]
     },
@@ -99,7 +99,7 @@
       "rules": [
         { "id": "SCI-KS4-REJ", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS4" },
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "any": [
               { "all": [
                 { "field": "hadSocialCareInvolvement",  "eq": false },
@@ -111,7 +111,7 @@
           ] } },
         { "id": "SCI-KS2-REJ", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS2" },
+            { "field": "checkingWindowType", "eq": "KS2" },
             { "any": [
               { "all": [
                 { "field": "hadSocialCareInvolvement",  "eq": false },
@@ -133,7 +133,7 @@
 
         { "id": "TCI-KS4-REJ", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS4" },
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "any": [
               { "all": [
                 { "field": "hasTerminalIllness",                "eq": false },
@@ -152,7 +152,7 @@
 
         { "id": "TCI-KS2-REJ", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS2" },
+            { "field": "checkingWindowType", "eq": "KS2" },
             { "any": [
               { "all": [
                 { "field": "hasTerminalIllness",                "eq": false },
@@ -197,12 +197,12 @@
       "rules": [
         { "id": "EHE-KS4", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS4" },
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "dateOfRemoval", "gt": "2025-01-16" }
           ] } },
         { "id": "EHE-KS2", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS2" },
+            { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "dateOfRemoval", "gt": "2025-05-12" }
           ] } },
         { "id": "EHE-DEF", "status": "Scrutiny", "when": "otherwise" }
@@ -222,10 +222,10 @@
       "label": "Not on roll",
       "rules": [
         { "id": "NOR-NONPOST16", "status": "AutoApproved",
-          "when": { "field": "keyStage", "neq": "Post16" } },
+          "when": { "field": "checkingWindowType", "neq": "Post16" } },
         { "id": "NOR-POST16-REASON", "status": "AutoApproved",
           "when": { "all": [
-            { "field": "keyStage", "eq": "Post16" },
+            { "field": "checkingWindowType", "eq": "Post16" },
             { "field": "removalReasonAtSchool", "in": ["Apprentice", "External candidate", "International student"] }
           ] } },
         { "id": "NOR-DEF", "status": "Scrutiny", "when": "otherwise" }
@@ -238,12 +238,12 @@
       "rules": [
         { "id": "PEX-KS4", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS4" },
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "dateOfPermanentExclusion", "gt": "2025-01-16" }
           ] } },
         { "id": "PEX-KS2", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS2" },
+            { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "dateOfPermanentExclusion", "gt": "2025-05-12" }
           ] } },
         { "id": "PEX-DEF", "status": "Scrutiny", "when": "otherwise" }
@@ -256,12 +256,12 @@
       "rules": [
         { "id": "PLE-KS4", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS4" },
+            { "field": "checkingWindowType", "eq": "KS4June" },
             { "field": "dateOfRemoval", "gt": "2025-05-09" }
           ] } },
         { "id": "PLE-KS2", "status": "AutoRejected",
           "when": { "all": [
-            { "field": "keyStage", "eq": "KS2" },
+            { "field": "checkingWindowType", "eq": "KS2" },
             { "field": "dateOfRemoval", "gt": "2025-05-12" }
           ] } },
         { "id": "PLE-DEF", "status": "Scrutiny", "when": "otherwise" }

@@ -47,7 +47,7 @@ public sealed class RuleSetValidator
 
         if (rules is null)
         {
-            return RuleSetValidationResult.Failure(new[] { "RuleSet was null." });
+            return RuleSetValidationResult.Failure(["RuleSet was null."]);
         }
 
         if (rules.Outcomes.Count == 0)
@@ -219,8 +219,7 @@ public sealed class RuleSetValidator
     /// Friendly coercions (Num → Str where field is Str; Str → Date where ISO date)
     /// keep the JSON readable for business users without sacrificing type safety.
     /// </summary>
-    private static FieldValue CoerceLiteral(string field, FieldValue value, string outcomeKey, string branchId,
-        List<string> errors)
+    private static FieldValue CoerceLiteral(string field, FieldValue value, string outcomeKey, string branchId, List<string> errors)
     {
         if (!FieldCatalogue.TryGetType(field, out var type))
         {

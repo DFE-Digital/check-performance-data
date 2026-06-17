@@ -8,9 +8,9 @@ public sealed class BranchEditTransformsTests
     private static List<PredicateNodeForm> Tree() => new()
     {
         new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-        new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+        new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
         new() { Id = 3, ParentId = 1, Kind = PredicateKind.AnyOf },
-        new() { Id = 4, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS2" },
+        new() { Id = 4, ParentId = 3, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS2" },
     };
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class BranchEditTransformsTests
         // Regression guard: the old SetField overwrote the bound field with a render-time arg,
         // reverting the user's choice. The field the user picked must survive.
         var list = Tree();
-        list.Single(n => n.Id == 2).Field = "pupilAge"; // user changed keyStage -> pupilAge
+        list.Single(n => n.Id == 2).Field = "pupilAge"; // user changed checkingWindowType -> pupilAge
         BranchEditTransforms.SetField(list, id: 2);
         Assert.Equal("pupilAge", list.Single(n => n.Id == 2).Field);
     }

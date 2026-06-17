@@ -18,6 +18,9 @@ public class ChangeRequest
     public required string ReferenceNumber { get; init; }
     public required string RequestType { get; init; }
     public string? CrmId { get; set; }
+
+    // Written by the rules engine consumer once it has decided on the request, and read
+    // back by the Zendesk consumer; all stay null until the rules engine has run.
     public DecisionStatus? DecisionStatus { get; set; }
     public string? DecisionOutcomeKey { get; set; }
     public string? MatchedRuleId { get; set; }

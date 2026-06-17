@@ -42,12 +42,13 @@ public sealed class DevPipelineRunner
     {
         var preset = OutcomePresets.Resolve(outcome);
         var reference = $"DEV-{Guid.NewGuid():N}"[..16];
+        var changeRequestId = Guid.NewGuid();
 
         await EnsureCheckingWindowAsync(cancellationToken);
 
         _dbContext.ChangeRequests.Add(new ChangeRequest
         {
-            Id = Guid.NewGuid(),
+            Id = changeRequestId,
             WindowId = DevWindowId,
             OrganisationUrn = 123456,
             PupilUpn = "UPN1",
@@ -64,7 +65,7 @@ public sealed class DevPipelineRunner
 
         // The queue stores a string payload verbatim (it only JSON-serialises non-strings), so the
         // pre-built RequestDocument JSON reaches the consumer exactly as shaped here.
-        var messageBody = BuildMessageJson(reference, preset);
+        var messageBody = BuildMessageJson(reference, preset, changeRequestId);
         var messageId = await _queueService.EnqueueAsync(
             QueueOptions.RulesEngineQueue, messageBody, cancellationToken);
 
@@ -99,7 +100,7 @@ public sealed class DevPipelineRunner
 
     // Builds the same queue-shaped RequestDocument the rules consumer expects. The Answers array
     // drives the rule evaluation, so the preset's answers determine the outcome.
-    private static string BuildMessageJson(string reference, OutcomePreset preset)
+    private static string BuildMessageJson(string reference, OutcomePreset preset, Guid changeRequestId)
     {
         var answersJson = string.Join(",\n      ", preset.Answers.Select(a =>
             $"{{ \"QuestionId\": \"{a.QuestionId}\", \"QuestionTitle\": \"{a.QuestionId}\", \"Type\": \"text\", \"Value\": \"{a.Value}\" }}"));
@@ -109,12 +110,13 @@ public sealed class DevPipelineRunner
 
         return $$"""
             {
+              "ChangeRequestId": "{{changeRequestId}}",
               "CheckingWindowId": "{{windowId}}",
               "CheckingWindowType": "{{preset.CheckingWindowType}}",
-              "WhatToChange": "{{preset.WhatToChange}}",
+              "RequestTypeCode": "{{preset.WhatToChange}}",
               "School": { "Urn": "123456", "Name": "Dev Harness School" },
               "SubmittedBy": { "UserId": "dev", "DisplayName": "Dev Harness" },
-              "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{preset.PupilAge}}, "Upn": "UPN1" },
+              "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{preset.PupilAge}}, "Upn": "UPN1", "Pincl": {{preset.Pincl}} },
               "Answers": [
                   {{answersJson}}
               ],

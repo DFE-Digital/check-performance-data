@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
@@ -13,10 +14,10 @@ public class RequestServiceTests
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IRequestBlobClient _blobClient = Substitute.For<IRequestBlobClient>();
     private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -25,7 +26,8 @@ public class RequestServiceTests
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _blobClient, _draftBlobClient, _requestRepository, _currentUser);
+        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
+            _queueService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -64,7 +66,7 @@ public class RequestServiceTests
         await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
 
-        await _blobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
+        await _queueService.DidNotReceive().EnqueueAsync(Arg.Any<string>(), Arg.Any<RequestDocument>());
         await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
@@ -107,6 +109,19 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task ConfirmRequestAsync_MapsPupilPincl()
+    {
+        // The rules engine derives inclusionFlag from the pupil record's Pincl —
+        // it is never asked as a journey question.
+        var (journey, config) = MakeSubmission();
+        journey.SelectedPupil!.Pincl = 402;
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal(402, doc.Pupil.Pincl);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_SavesChangeRequestToRepository()
     {
         var (journey, config) = MakeSubmission();
@@ -118,19 +133,33 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SavesRepositoryAfterBlob()
+    public async Task ConfirmRequestAsync_UpsertsChangeRequestBeforeEnqueue()
     {
+        // The document must carry the ChangeRequest row's Id, so the row has to
+        // exist before the document is enqueued.
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
         var callOrder = new List<string>();
-        _blobClient.SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>())
-            .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
+        _queueService.EnqueueAsync(Arg.Any<string>(), Arg.Any<RequestDocument>())
+            .Returns(_ => { callOrder.Add("enqueue"); return Guid.NewGuid(); });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
-            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+            .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        Assert.Equal(["blob", "db"], callOrder);
+        Assert.Equal(["db", "enqueue"], callOrder);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_DocumentCarriesChangeRequestIdReturnedByUpsert()
+    {
+        var changeRequestId = Guid.Parse("99999999-8888-7777-6666-555555555555");
+        _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>()).Returns(changeRequestId);
+        var (journey, config) = MakeSubmission();
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal(changeRequestId, doc.ChangeRequestId);
     }
 
     [Fact]
@@ -191,7 +220,8 @@ public class RequestServiceTests
             DateOfBirth = "02/02/2010",
             Age = 16,
             Cypmd_Id = "CYPMD456",
-            Upn = "456456"
+            Upn = "456456",
+            Pincl = 402
         };
         journey.MatchedPupilId = journey.MatchedPupil.Id.ToString();
 
@@ -201,6 +231,8 @@ public class RequestServiceTests
         Assert.Equal("John", doc.MatchedPupil.Firstname);
         Assert.Equal("Doe", doc.MatchedPupil.Surname);
         Assert.Equal("456456", doc.MatchedPupil.Upn);
+        // The rules engine needs Pincl on the matched pupil too, not just the selected pupil.
+        Assert.Equal(402, doc.MatchedPupil.Pincl);
     }
 
     [Fact]
@@ -249,6 +281,71 @@ public class RequestServiceTests
     }
 
     [Fact]
+    public async Task ConfirmRequestAsync_RadioAnswer_RawValueIsOptionValue()
+    {
+        var question = new Question
+        {
+            Id = "reason",
+            Type = QuestionType.Radio,
+            Title = "Reason",
+            Options = [new QuestionOption { Value = "opt-1", Label = "Opted Out" }]
+        };
+        var config = MakeConfig([new JourneyPage { Id = "reason", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new QuestionAnswer { TextValue = "opt-1" } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("opt-1", doc.Answers[0].RawValue);
+        Assert.Equal("Opted Out", doc.Answers[0].Value);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_DateAnswer_RawValueIsIsoDate()
+    {
+        var question = MakeQuestion(QuestionType.Date, id: "dob");
+        var config = MakeConfig([new JourneyPage { Id = "dob", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["dob"],
+            answers: new() { ["dob"] = new QuestionAnswer { DateValue = new DateAnswer { Day = 5, Month = 3, Year = 2010 } } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("2010-03-05", doc.Answers[0].RawValue);
+        Assert.Equal("05/03/2010", doc.Answers[0].Value);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_AutocompleteAnswer_RawValueIsCode()
+    {
+        var question = MakeQuestion(QuestionType.Autocomplete, id: "country");
+        var config = MakeConfig([new JourneyPage { Id = "country", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["country"],
+            answers: new() { ["country"] = new QuestionAnswer { TextValue = "France", CodeValue = "FR" } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("FR", doc.Answers[0].RawValue);
+        Assert.Equal("France", doc.Answers[0].Value);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_FreeTextAnswer_RawValueIsText()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, id: "notes");
+        var config = MakeConfig([new JourneyPage { Id = "notes", Questions = [question] }]);
+        var journey = ValidJourney(
+            history: ["notes"],
+            answers: new() { ["notes"] = new QuestionAnswer { TextValue = "Some detail" } });
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("Some detail", doc.Answers[0].RawValue);
+    }
+
+    [Fact]
     public async Task ConfirmRequestAsync_PupilNameTemplate_IsResolved()
     {
         var question = new Question { Id = "q1", Type = QuestionType.FreeText, Title = "Notes for {pupilName}" };
@@ -261,14 +358,36 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SavesDocumentToBlobStorage()
+    public async Task ConfirmRequestAsync_RequestTypeCode_IncludesReasonValue_WhenFlowResolvesOne()
+    {
+        var (journey, config) = MakeSubmission();
+        _flowService.ResolveRequestTypeValue(config, Arg.Any<RequestState>()).Returns("pupil-died");
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("Remove - pupil-died", doc.RequestTypeCode);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_RequestTypeCode_IsBarePrefix_WhenFlowResolvesNoValue()
+    {
+        var (journey, config) = MakeSubmission();
+        _flowService.ResolveRequestTypeValue(config, Arg.Any<RequestState>()).Returns(string.Empty);
+
+        var doc = await CaptureDocument(journey, config);
+
+        Assert.Equal("Remove", doc.RequestTypeCode);
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SendsDocumentToRulesEngineQueue()
     {
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _blobClient.Received(1).SaveRequestAsync(WindowId, Arg.Any<RequestDocument>());
+        await _queueService.Received(1).EnqueueAsync(QueueOptions.RulesEngineQueue, Arg.Any<RequestDocument>());
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
@@ -382,7 +501,7 @@ public class RequestServiceTests
         _draftBlobClient.SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
             .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
-            .Returns(_ => { callOrder.Add("db"); return Task.CompletedTask; });
+            .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
@@ -428,7 +547,7 @@ public class RequestServiceTests
     {
         SetupConfig(config);
         RequestDocument? captured = null;
-        await _blobClient.SaveRequestAsync(WindowId, Arg.Do<RequestDocument>(d => captured = d));
+        await _queueService.EnqueueAsync(Arg.Any<string>(), Arg.Do<RequestDocument>(d => captured = d));
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 

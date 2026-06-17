@@ -11,12 +11,13 @@ public sealed class RulesConsumerTests
 {
     private const string ValidMessage = """
     {
+        "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
         "ReferenceNumber": "REF-001",
         "SubmittedAt": "2026-06-10T00:00:00Z",
         "SubmittedBy": { "UserId": "u1", "DisplayName": "Test User" },
         "CheckingWindowId": "11111111-1111-1111-1111-111111111111",
         "CheckingWindowType": "Spring",
-        "WhatToChange": "not-on-roll",
+        "RequestTypeCode": "not-on-roll",
         "School": { "Urn": "100000", "Name": "Test School" },
         "Pupil": {
             "Id": "p1", "CypmdId": "c1", "Firstname": "Ann", "Surname": "Bell",

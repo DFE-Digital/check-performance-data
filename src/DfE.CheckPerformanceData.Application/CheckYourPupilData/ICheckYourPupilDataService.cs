@@ -33,6 +33,10 @@ public sealed class PupilDto
     public required int Age { get; init; }
     public required string Cypmd_Id { get; init; }
     public required string Upn { get; init; }
+
+    /// <summary>Inclusion status code from the pupil record (e.g. 401). Not required so
+    /// sessions serialised before this field existed still deserialise; 0 = not supplied.</summary>
+    public int Pincl { get; set; }
 }
 
 public record PupilSuggestionDto(Guid Id, string Label);

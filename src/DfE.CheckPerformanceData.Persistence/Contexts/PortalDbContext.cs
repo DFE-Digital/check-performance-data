@@ -19,7 +19,6 @@ public sealed class PortalDbContext(
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
-    public DbSet<Pupil> Pupils => Set<Pupil>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<Country> Countries => Set<Country>();

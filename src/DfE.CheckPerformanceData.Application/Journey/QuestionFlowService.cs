@@ -37,6 +37,20 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
         return page.NextPageId;
     }
 
+    public JourneyPage? GetReachableEvidencePage(QuestionFlowConfig config, Dictionary<string, QuestionAnswer> answers)
+    {
+        var pageId = config.FirstPageId;
+        var visited = new HashSet<string>();
+        while (pageId is not null && visited.Add(pageId))
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) return null;
+            if (page.Type == PageType.EvidenceUpload) return page;
+            pageId = GetNextPageId(config, pageId, answers);
+        }
+        return null;
+    }
+
     public JourneyNavigation? GetNavigationGuard(QuestionFlowConfig config, RequestState journey, string pageId)
     {
         if (journey.QuestionHistory.Contains(pageId)) return null;
@@ -101,6 +115,28 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
             {
                 if (journey.QuestionAnswers.TryGetValue(question.Id, out var answer))
                     return ResolveAnswerLabel(question, answer);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    public string ResolveRequestTypeValue(QuestionFlowConfig config, RequestState journey)
+    {
+        // Raw answer value of the first answered UseAsRequestType question in the
+        // visited branch. Deliberately no fallback to unflagged questions: this feeds
+        // the rules engine's WhatToChange contract, so flows without a flagged
+        // question must always produce the bare WhatToChange prefix.
+        foreach (var pageId in journey.QuestionHistory)
+        {
+            var page = GetPage(config, pageId);
+            if (page is null) continue;
+
+            foreach (var question in page.Questions)
+            {
+                if (!question.UseAsRequestType) continue;
+                if (!journey.QuestionAnswers.TryGetValue(question.Id, out var answer)) continue;
+                return answer.TextValue ?? string.Empty;
             }
         }
 

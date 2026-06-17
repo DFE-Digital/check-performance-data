@@ -128,15 +128,14 @@ public sealed class DevPipelineOutboxEndToEndTests
     // The approved preset the dev submit endpoint uses: Inclusion with an accepted status flag.
     private static string ApprovedRequestJson(string reference) => $$"""
         {
+          "ChangeRequestId": "11111111-2222-3333-4444-555555555555",
           "CheckingWindowId": "{{WindowId}}",
-          "CheckingWindowType": "KS4",
-          "WhatToChange": "Inclusion",
+          "CheckingWindowType": "KS4June",
+          "RequestTypeCode": "Include",
           "School": { "Urn": "123456", "Name": "Dev Harness School" },
           "SubmittedBy": { "UserId": "dev", "DisplayName": "Dev Harness" },
-          "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 12, "Upn": "UPN1" },
-          "Answers": [
-              { "QuestionId": "inclusion-status-flag", "QuestionTitle": "inclusion-status-flag", "Type": "text", "Value": "402" }
-          ],
+          "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": 12, "Upn": "UPN1", "Pincl": 402 },
+          "Answers": [],
           "ReferenceNumber": "{{reference}}",
           "SubmittedAt": "2026-05-14T10:00:00Z"
         }

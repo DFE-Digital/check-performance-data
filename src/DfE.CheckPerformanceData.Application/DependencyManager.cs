@@ -33,10 +33,25 @@ public static class DependencyManager
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<IEditAdviceService, EditAdviceService>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();
 
+        services.AddRulesEngineDependencies();
+
+        return services;
+    }
+
+    /// <summary>
+    /// The rules-engine subset of the Application layer: pure singletons with no
+    /// repository or external-client dependencies. The RulesEngineWorker host calls
+    /// this instead of <see cref="AddApplicationDependencies"/> — the full set needs
+    /// Persistence repositories, the DfE Sign-in client and the journey blob clients,
+    /// which only the Web host registers.
+    /// </summary>
+    public static IServiceCollection AddRulesEngineDependencies(this IServiceCollection services)
+    {
         services.AddSingleton<IRulesEngine, RulesEngine.RulesEngine>();
         services.AddSingleton<IRuleContextMapper, RuleContextMapper>();
         services.AddSingleton<RuleSetValidator>();

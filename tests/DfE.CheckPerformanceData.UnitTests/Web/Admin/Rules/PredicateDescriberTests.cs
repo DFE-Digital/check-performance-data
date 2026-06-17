@@ -10,9 +10,9 @@ public sealed class PredicateDescriberTests
     [Fact]
     public void FieldEq_string_renders_field_is_value()
     {
-        var node = Describe(new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")));
+        var node = Describe(new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")));
         Assert.True(node.IsLeaf);
-        Assert.Equal("keyStage is \"KS4\"", node.Text);
+        Assert.Equal("checkingWindowType is \"KS4June\"", node.Text);
     }
 
     [Fact]
@@ -86,14 +86,14 @@ public sealed class PredicateDescriberTests
     {
         var node = Describe(new Predicate.AllOf(new Predicate[]
         {
-            new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4")),
+            new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June")),
             new Predicate.IsKnownAndCertain("pupilAge")
         }));
 
         Assert.False(node.IsLeaf);
         Assert.Equal("All of the following are true:", node.Text);
         Assert.Equal(2, node.Children.Count);
-        Assert.Equal("keyStage is \"KS4\"", node.Children[0].Text);
+        Assert.Equal("checkingWindowType is \"KS4June\"", node.Children[0].Text);
         Assert.Equal("pupilAge is known and certain", node.Children[1].Text);
     }
 
@@ -102,7 +102,7 @@ public sealed class PredicateDescriberTests
     {
         var node = Describe(new Predicate.AnyOf(new Predicate[]
         {
-            new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2"))
+            new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2"))
         }));
         Assert.Equal("Any of the following are true:", node.Text);
         Assert.Single(node.Children);
@@ -111,10 +111,10 @@ public sealed class PredicateDescriberTests
     [Fact]
     public void Not_wraps_single_child()
     {
-        var node = Describe(new Predicate.Not(new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))));
+        var node = Describe(new Predicate.Not(new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))));
         Assert.Equal("Not true:", node.Text);
         Assert.Single(node.Children);
-        Assert.Equal("keyStage is \"KS4\"", node.Children[0].Text);
+        Assert.Equal("checkingWindowType is \"KS4June\"", node.Children[0].Text);
     }
 
     [Fact]
@@ -124,8 +124,8 @@ public sealed class PredicateDescriberTests
         {
             new Predicate.AnyOf(new Predicate[]
             {
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS2")),
-                new Predicate.FieldEq("keyStage", new FieldValue.Str("KS4"))
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS2")),
+                new Predicate.FieldEq("checkingWindowType", new FieldValue.Str("KS4June"))
             }),
             new Predicate.Not(new Predicate.IsKnownAndCertain("pupilAge"))
         }));

@@ -100,6 +100,128 @@ public class QuestionFlowServiceTests
         Assert.Null(_sut.GetNextPageId(_config, "evidence", answers));
     }
 
+    // ── GetReachableEvidencePage ────────────────────────────────────────────
+
+    [Fact]
+    public void GetReachableEvidencePage_LinearFlow_ReturnsEvidencePage()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "select-pupil",
+            Pages =
+            [
+                new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, Questions = [], NextPageId = "evidence" },
+                new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload, Questions = [] }
+            ]
+        };
+
+        var result = _sut.GetReachableEvidencePage(config, new Dictionary<string, QuestionAnswer>());
+
+        Assert.NotNull(result);
+        Assert.Equal("evidence", result!.Id);
+    }
+
+    [Fact]
+    public void GetReachableEvidencePage_BranchSelectsOptionA_ReturnsBranchAEvidencePage()
+    {
+        var config = BranchingConfig();
+        var answers = new Dictionary<string, QuestionAnswer> { ["reason"] = new() { TextValue = "option-a" } };
+
+        var result = _sut.GetReachableEvidencePage(config, answers);
+
+        Assert.NotNull(result);
+        Assert.Equal("evidence-a", result!.Id);
+    }
+
+    [Fact]
+    public void GetReachableEvidencePage_BranchSelectsOptionB_ReturnsBranchBEvidencePage()
+    {
+        var config = BranchingConfig();
+        var answers = new Dictionary<string, QuestionAnswer> { ["reason"] = new() { TextValue = "option-b" } };
+
+        var result = _sut.GetReachableEvidencePage(config, answers);
+
+        Assert.NotNull(result);
+        Assert.Equal("evidence-b", result!.Id);
+    }
+
+    [Fact]
+    public void GetReachableEvidencePage_NoEvidencePageInFlow_ReturnsNull()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "select-pupil",
+            Pages =
+            [
+                new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, Questions = [], NextPageId = "summary" },
+                new JourneyPage { Id = "summary", Type = PageType.Content, Questions = [] }
+            ]
+        };
+
+        Assert.Null(_sut.GetReachableEvidencePage(config, new Dictionary<string, QuestionAnswer>()));
+    }
+
+    [Fact]
+    public void GetReachableEvidencePage_DanglingNextPageId_ReturnsNull()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "select-pupil",
+            Pages =
+            [
+                new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, Questions = [], NextPageId = "does-not-exist" }
+            ]
+        };
+
+        Assert.Null(_sut.GetReachableEvidencePage(config, new Dictionary<string, QuestionAnswer>()));
+    }
+
+    [Fact]
+    public void GetReachableEvidencePage_CyclicFlow_ReturnsNull()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "page-a",
+            Pages =
+            [
+                new JourneyPage { Id = "page-a", Questions = [], NextPageId = "page-b" },
+                new JourneyPage { Id = "page-b", Questions = [], NextPageId = "page-a" }
+            ]
+        };
+
+        Assert.Null(_sut.GetReachableEvidencePage(config, new Dictionary<string, QuestionAnswer>()));
+    }
+
+    private static QuestionFlowConfig BranchingConfig() => new()
+    {
+        FirstPageId = "reason",
+        Pages =
+        [
+            new JourneyPage
+            {
+                Id = "reason",
+                Questions =
+                [
+                    new Question
+                    {
+                        Id = "reason",
+                        Type = QuestionType.Radio,
+                        Title = "Reason",
+                        Options =
+                        [
+                            new QuestionOption { Value = "option-a", Label = "Option A", NextPageId = "path-a" },
+                            new QuestionOption { Value = "option-b", Label = "Option B", NextPageId = "path-b" }
+                        ]
+                    }
+                ]
+            },
+            new JourneyPage { Id = "path-a", Questions = [], NextPageId = "evidence-a" },
+            new JourneyPage { Id = "evidence-a", Type = PageType.EvidenceUpload, Questions = [] },
+            new JourneyPage { Id = "path-b", Questions = [], NextPageId = "evidence-b" },
+            new JourneyPage { Id = "evidence-b", Type = PageType.EvidenceUpload, Questions = [] }
+        ]
+    };
+
     // ── GetNavigationGuard ──────────────────────────────────────────────────
 
     [Fact]
@@ -277,6 +399,90 @@ public class QuestionFlowServiceTests
         var journey = MakeJourney(history: ["reason"]);
 
         Assert.Equal(string.Empty, _sut.ResolveRequestType(_config, journey));
+    }
+
+    // ── ResolveRequestTypeValue ─────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenUseAsRequestTypeQuestion_ReturnsItsRawValue()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        UseAsRequestType = true,
+                        Options = [new QuestionOption { Value = "social-care-involvement", Label = "Social care involvement" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "social-care-involvement" } });
+
+        Assert.Equal("social-care-involvement", _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenNoUseAsRequestTypeQuestion_ReturnsEmpty_NoFallback()
+    {
+        // Unlike ResolveRequestType (display), the contract value must not fall back to
+        // the first answered question — flows without a flagged question are bare-prefix.
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "reason",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "reason",
+                    Questions = [new Question { Id = "reason", Type = QuestionType.Radio, Title = "Reason",
+                        Options = [new QuestionOption { Value = "other", Label = "Other reason" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["reason"],
+            answers: new() { ["reason"] = new() { TextValue = "other" } });
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenFlaggedQuestionUnanswered_ReturnsEmpty()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "p1",
+            Pages = [
+                new JourneyPage
+                {
+                    Id = "p1",
+                    Questions = [
+                        new Question { Id = "q-flag", Type = QuestionType.Radio, Title = "Flagged",
+                            UseAsRequestType = true,
+                            Options = [new QuestionOption { Value = "x", Label = "X" }] },
+                        new Question { Id = "q-other", Type = QuestionType.Radio, Title = "Other",
+                            Options = [new QuestionOption { Value = "y", Label = "Y" }] }
+                    ]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["p1"],
+            answers: new() { ["q-other"] = new() { TextValue = "y" } });
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(config, journey));
+    }
+
+    [Fact]
+    public void ResolveRequestTypeValue_WhenNoAnswers_ReturnsEmptyString()
+    {
+        var journey = MakeJourney(history: ["reason"]);
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestTypeValue(_config, journey));
     }
 
     // ── GetConfigAsync ──────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ public sealed class QueuePayloadReferenceTests
     [Fact]
     public void TryExtract_ReturnsTheReferenceNumber()
     {
-        var payload = """{ "ReferenceNumber": "KS4-1234", "WhatToChange": "Attainment" }""";
+        var payload = """{ "ReferenceNumber": "KS4-1234", "RequestTypeCode": "Attainment" }""";
 
         Assert.Equal("KS4-1234", QueuePayloadReference.TryExtract(payload));
     }

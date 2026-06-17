@@ -20,6 +20,8 @@ public sealed class CountryNamesTests
     [Theory]
     [InlineData("ZZ")]      // not an assigned region
     [InlineData("GB-ENG")]  // subdivision, not a plain alpha-2 region code
+    [InlineData("ENG")]     // three letters — never attempted as a region
+    [InlineData("G1")]      // digit — not an alpha-2 shape
     [InlineData("")]
     [InlineData("   ")]
     public void DisplayName_falls_back_to_input_for_unrecognised_codes(string code)

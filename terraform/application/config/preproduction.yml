@@ -2,7 +2,7 @@
 ASPNETCORE_ENVIRONMENT: Preproduction
 
 # Rules Engine Worker configuration
-RulesEngineOptions__QueueName: performance-requests
+RulesEngineOptions__QueueName: change-requests
 RulesEngineOptions__RetryDelayMs: 5000
 RulesEngineOptions__MaxMessagesPerPoll: 10
 RulesEngineOptions__EmptyQueueDelayMs: 5000

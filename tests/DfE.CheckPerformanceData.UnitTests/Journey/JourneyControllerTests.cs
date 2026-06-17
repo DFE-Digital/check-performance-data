@@ -328,6 +328,34 @@ public class JourneyControllerTests
         Assert.Null(remaining.MatchedPupilLabel);
     }
 
+    // ── PagePost — Autocomplete code capture ─────────────────────────────────
+
+    [Fact]
+    public async Task PagePost_AutocompleteQuestion_CapturesCodeValueAlongsideDisplayName()
+    {
+        var page = new JourneyPage
+        {
+            Id = "country-page",
+            Questions = [new Question { Id = "country-originally-from", Type = QuestionType.Autocomplete, Title = "Country" }]
+        };
+        _flowService.GetPage(Config, "country-page").Returns(page);
+        _flowService.GetNextPageId(Config, "country-page", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        SetupSession(ValidSession(history: ["country-page"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_country_originally_from"] = "France",
+            ["q_country_originally_from_code"] = "FR"
+        });
+
+        await _sut.PagePost(WindowId, "country-page", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["country-originally-from"];
+        Assert.Equal("France", saved.TextValue);
+        Assert.Equal("FR", saved.CodeValue);
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]
@@ -465,6 +493,8 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession());
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+            .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
         _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
         RequestStatus? capturedStatus = null;
         await _requestService.SaveDraftAsync(WindowId, Arg.Any<RequestState>(),
@@ -473,6 +503,45 @@ public class JourneyControllerTests
         await _sut.SaveDraft(WindowId, pageId: "evidence-page");
 
         Assert.Equal(RequestStatus.InProgress, capturedStatus);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WhenReadyToSubmit_AppendsPageToHistory()
+    {
+        // Mirrors "Save and continue": a completed (ReadyToSubmit) evidence page must be
+        // recorded in history so that resuming the request lands on the Summary rather than
+        // being bounced back to the evidence page by the Summary navigation guard.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "file.pdf", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 1024 }] }
+        };
+        SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(["select-pupil", "select-match-pupil", "evidence-page"], capturedJourney!.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task SaveDraft_EvidenceUploadPage_WhenInProgress_DoesNotAppendPageToHistory()
+    {
+        // An InProgress (invalid) evidence page must NOT be added to history so the request
+        // resumes on the evidence page rather than skipping past it to the Summary.
+        SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+            .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "evidence-page");
+
+        Assert.Equal(["select-pupil", "select-match-pupil"], capturedJourney!.QuestionHistory);
     }
 
     // ── DownloadEvidence ─────────────────────────────────────────────────────

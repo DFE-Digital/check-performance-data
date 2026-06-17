@@ -10,31 +10,35 @@ internal sealed record OutcomePreset(
     string WhatToChange,
     string CheckingWindowType,
     int PupilAge,
-    IReadOnlyList<(string QuestionId, string Value)> Answers);
+    IReadOnlyList<(string QuestionId, string Value)> Answers,
+    int Pincl = 0);
 
 internal static class OutcomePresets
 {
+    // Inclusion routes on the pupil's Pincl (402 = added back into the cohort), not on a
+    // journey answer, so the approved preset carries it on the pupil record and no answers.
     private static readonly OutcomePreset Approved = new(
         Name: "approved",
         ExpectedDecision: "AutoApproved",
-        WhatToChange: "Inclusion",
-        CheckingWindowType: "KS4",
+        WhatToChange: "Include",
+        CheckingWindowType: "KS4June",
         PupilAge: 12,
-        Answers: new[] { ("inclusion-status-flag", "402") });
+        Answers: Array.Empty<(string, string)>(),
+        Pincl: 402);
 
     private static readonly OutcomePreset Rejected = new(
         Name: "rejected",
         ExpectedDecision: "AutoRejected",
-        WhatToChange: "Admitted from abroad with English not first language",
-        CheckingWindowType: "KS4",
+        WhatToChange: "Remove - english-not-first-language",
+        CheckingWindowType: "KS4June",
         PupilAge: 12,
-        Answers: new[] { ("first-language", "ENG") });
+        Answers: new[] { ("first-language", "english") });
 
     private static readonly OutcomePreset Scrutiny = new(
         Name: "scrutiny",
         ExpectedDecision: "Scrutiny",
-        WhatToChange: "Other",
-        CheckingWindowType: "KS4",
+        WhatToChange: "Merge",
+        CheckingWindowType: "KS4June",
         PupilAge: 12,
         Answers: Array.Empty<(string, string)>());
 

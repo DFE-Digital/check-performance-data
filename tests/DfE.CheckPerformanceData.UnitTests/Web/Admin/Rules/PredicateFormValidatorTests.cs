@@ -18,7 +18,7 @@ public sealed class PredicateFormValidatorTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.Not },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.IsKnownAndCertain, Field = "keyStage", Operator = "known" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.IsKnownAndCertain, Field = "checkingWindowType", Operator = "known" },
             new() { Id = 3, ParentId = 1, Kind = PredicateKind.IsKnownAndCertain, Field = "pupilAge", Operator = "known" },
         };
         Assert.Contains(PredicateFormValidator.Validate(nodes), e => e.Contains("exactly one"));
@@ -41,7 +41,7 @@ public sealed class PredicateFormValidatorTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "" },
             new() { Id = 3, ParentId = 1, Kind = PredicateKind.IsKnownAndCertain, Field = "pupilAge", Operator = "known" },
         };
         var errors = PredicateFormValidator.Validate(nodes);
@@ -73,7 +73,7 @@ public sealed class PredicateFormValidatorTests
         var nodes = new List<PredicateNodeForm>
         {
             new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf },
-            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "keyStage", Operator = "eq", Value = "KS4" },
+            new() { Id = 2, ParentId = 1, Kind = PredicateKind.FieldEq, Field = "checkingWindowType", Operator = "eq", Value = "KS4June" },
         };
         Assert.Empty(PredicateFormValidator.Validate(nodes));
     }

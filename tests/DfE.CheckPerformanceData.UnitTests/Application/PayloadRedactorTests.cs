@@ -11,7 +11,7 @@ public sealed class PayloadRedactorTests
           "SubmittedBy": { "UserId": "user-1", "DisplayName": "Jane Teacher" },
           "CheckingWindowId": "11111111-1111-1111-1111-111111111111",
           "CheckingWindowType": "KS4June",
-          "WhatToChange": "AddPupil",
+          "RequestTypeCode": "AddPupil",
           "School": { "Urn": "100123", "Name": "Greendale Secondary" },
           "Pupil": {
             "Id": "pid-001",

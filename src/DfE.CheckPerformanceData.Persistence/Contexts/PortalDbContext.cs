@@ -63,6 +63,17 @@ public sealed class PortalDbContext(
 
     public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
+        // Re-entrant: when a transaction is already open (for example an audited admin action
+        // that wraps a queue operation which itself opens a transaction), join the ambient one
+        // rather than calling BeginTransactionAsync again — the provider does not allow a second
+        // concurrent transaction on the connection and would throw. The outer caller owns the
+        // commit, so the inner work simply enrols in it and stays atomic with the rest.
+        if (Database.CurrentTransaction is not null)
+        {
+            await work();
+            return;
+        }
+
         var strategy = Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {

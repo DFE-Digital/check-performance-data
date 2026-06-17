@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -171,6 +172,48 @@ public sealed class DlqRetentionTests
         // message from both tables.
         var stillDead = await adminService.GetDlqMessagesAsync();
         Assert.Contains(stillDead, d => d.Id == dead.Id);
+    }
+
+    // --- Redrive runs inside an ambient (audited) transaction without nesting ---
+
+    [Fact]
+    public async Task RedriveWithinAnAmbientTransaction_RemovesDeadLetter_AndDoesNotThrow()
+    {
+        await QueueTestData.ResetAsync(_fixture);
+
+        await using var context = _fixture.CreateContext();
+        var queueService = new PostgresQueueService(context);
+        var adminService = new QueueAdminService(queueService);
+
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, new { Reference = "AMBIENT-TX" });
+        var take = await queueService.DequeueAsync(QueueOptions.RulesEngineQueue);
+        await queueService.DeadLetterAsync(take!.Id, "needs redrive");
+
+        var dead = Assert.Single(await adminService.GetDlqMessagesAsync());
+
+        // The queue-admin controller redrives inside an audited transaction so the audit row and
+        // the requeue commit together. RedriveAsync opens its own transaction; that nested call
+        // must enrol in the ambient one rather than calling BeginTransaction again, which the
+        // provider rejects ("already in a transaction"). Before the re-entrancy fix this threw,
+        // the controller swallowed it, and the dead letter was left in the queue.
+        await context.ExecuteInTransactionAsync(async () =>
+        {
+            context.AuditEntries.Add(new AuditEntry
+            {
+                EntityType = "DlqMessage",
+                EntityId = dead.Id.ToString(),
+                Action = "Redrive",
+                Timestamp = DateTime.UtcNow,
+                UserId = "tester",
+            });
+            await context.SaveChangesAsync();
+
+            await adminService.RedriveAsync(new[] { dead.Id });
+        });
+
+        // The redrive committed: the dead letter is gone and the message is back on the queue.
+        Assert.Empty(await adminService.GetDlqMessagesAsync());
+        Assert.NotNull(await queueService.DequeueAsync(QueueOptions.RulesEngineQueue));
     }
 
     // --- A redrive through the service audits the dead-letter removal, retained independently ---

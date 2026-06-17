@@ -56,13 +56,11 @@ public sealed class NotifyServiceTests
     private static NotifySettings CreateSettings(string apiKey) => new()
     {
         ApiKey = apiKey,
-        FromAddress = "test@example.com",
         PupilDataCheckConfirmTemplateId = FallbackTemplateId,
         PupilDataCheckWithdrawTemplateId = FallbackTemplateId,
         SubmissionNotificationTemplateId = FallbackTemplateId,
         WithdrawNotificationTemplateId = FallbackTemplateId,
         DeadlineText = DeadlineText,
-        SubmitOthersUrl = "https://example.com/submit-others"
     };
 
     private static NotifyService CreateService(NotifySettings settings)

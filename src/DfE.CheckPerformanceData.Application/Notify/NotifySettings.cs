@@ -10,9 +10,6 @@ public class NotifySettings
     public string ApiKey { get; set; } = null!;
 
     [Required]
-    public string FromAddress { get; set; } = null!;
-
-    [Required]
     public string PupilDataCheckConfirmTemplateId { get; set; } = null!;
 
     [Required]
@@ -26,9 +23,6 @@ public class NotifySettings
 
     [Required]
     public string DeadlineText { get; set; } = null!;
-
-    [Obsolete("Use IEmailLinkGenerator instead")]
-    public string SubmitOthersUrl { get; set; } = null!;
 
     public string? UtmSource { get; set; }
 

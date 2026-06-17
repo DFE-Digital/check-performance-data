@@ -13,6 +13,14 @@ public enum HealthLevel
 // never by colour alone (WCAG 1.4.1, use of colour).
 public sealed record HealthState(HealthLevel Level, string Colour, string Label, string ShapeToken);
 
+// One reason a queue is not flowing: the signal that crossed a threshold, the band that crossing
+// reaches, and the preformatted actual value and limit it was measured against. The strip renders
+// these so "needs attention" explains itself — which condition tripped and the actual-vs-threshold
+// figures — rather than leaving a stakeholder to guess. Actual and Threshold are preformatted by
+// the evaluator (counts as plain numbers, durations as friendly "5m" strings) so the view stays
+// presentation-only and the formatting is unit-tested at the source.
+public sealed record HealthReason(string Signal, HealthLevel Band, string Actual, string Threshold);
+
 // The signals one queue (or the overall pipeline) presents at evaluation time: its current
 // depth, the age of its oldest waiting message (null when empty), and the count of dead-lettered
 // messages.

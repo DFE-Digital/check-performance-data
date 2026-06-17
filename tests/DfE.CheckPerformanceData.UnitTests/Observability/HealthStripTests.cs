@@ -121,4 +121,113 @@ public sealed class HealthStripTests
 
         Assert.Equal(HealthLevel.Flowing, state.Level);
     }
+
+    // === Explain(): the "why" behind a non-green state ===========================
+    // The strip must say which condition tripped and the actual-vs-threshold figures,
+    // not just "needs attention". Explain returns one HealthReason per signal that has
+    // reached at least its amber threshold, tagged with the band it reaches and the
+    // preformatted actual / limit values.
+
+    // --- Everything healthy → nothing to explain ---
+
+    [Fact]
+    public void Explain_BelowAllThresholds_IsEmpty()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 2, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 0),
+            Thresholds());
+
+        Assert.Empty(reasons);
+    }
+
+    // --- Depth at amber → one depth reason carrying the amber band and the amber limit ---
+
+    [Fact]
+    public void Explain_DepthAtAmber_NamesDepthAgainstAmberLimit()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 20, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 0),
+            Thresholds());
+
+        var reason = Assert.Single(reasons);
+        Assert.Equal("Queue depth", reason.Signal);
+        Assert.Equal(HealthLevel.BackingUp, reason.Band);
+        Assert.Equal("20", reason.Actual);
+        Assert.Equal("10", reason.Threshold);
+    }
+
+    // --- Depth at red → depth reason carrying the red band and the red limit ---
+
+    [Fact]
+    public void Explain_DepthAtRed_NamesDepthAgainstRedLimit()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 80, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 0),
+            Thresholds());
+
+        var reason = Assert.Single(reasons);
+        Assert.Equal("Queue depth", reason.Signal);
+        Assert.Equal(HealthLevel.NeedsAttention, reason.Band);
+        Assert.Equal("80", reason.Actual);
+        Assert.Equal("50", reason.Threshold);
+    }
+
+    // --- Oldest age over red → age reason with friendly durations (300s → "5m") ---
+
+    [Fact]
+    public void Explain_OldestAgeAtRed_NamesAgeWithFriendlyDurations()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 1, OldestAge: TimeSpan.FromSeconds(600), DeadLetterCount: 0),
+            Thresholds());
+
+        var reason = Assert.Single(reasons);
+        Assert.Equal("Oldest message age", reason.Signal);
+        Assert.Equal(HealthLevel.NeedsAttention, reason.Band);
+        Assert.Equal("10m", reason.Actual);
+        Assert.Equal("5m", reason.Threshold);
+    }
+
+    // --- A null oldest age contributes no age reason ---
+
+    [Fact]
+    public void Explain_NullOldestAge_HasNoAgeReason()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 0, OldestAge: null, DeadLetterCount: 0),
+            Thresholds());
+
+        Assert.DoesNotContain(reasons, r => r.Signal == "Oldest message age");
+    }
+
+    // --- Dead-letter over red → dead-letter reason (DLQ has a red threshold only) ---
+
+    [Fact]
+    public void Explain_DeadLetterAtRed_NamesDeadLetterCount()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 1, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 9),
+            Thresholds());
+
+        var reason = Assert.Single(reasons);
+        Assert.Equal("Dead-letter messages", reason.Signal);
+        Assert.Equal(HealthLevel.NeedsAttention, reason.Band);
+        Assert.Equal("9", reason.Actual);
+        Assert.Equal("5", reason.Threshold);
+    }
+
+    // --- Several signals tripped → one reason each, every concerning signal surfaced ---
+
+    [Fact]
+    public void Explain_MultipleSignalsTripped_ReturnsOneReasonEach()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 80, OldestAge: TimeSpan.FromSeconds(120), DeadLetterCount: 9),
+            Thresholds());
+
+        Assert.Equal(3, reasons.Count);
+        Assert.Contains(reasons, r => r.Signal == "Queue depth" && r.Band == HealthLevel.NeedsAttention);
+        Assert.Contains(reasons, r => r.Signal == "Oldest message age" && r.Band == HealthLevel.BackingUp);
+        Assert.Contains(reasons, r => r.Signal == "Dead-letter messages" && r.Band == HealthLevel.NeedsAttention);
+    }
 }

@@ -41,19 +41,25 @@
         var overall = Model.OverallHealth;
     }
     <div class="obs-light @modifier(overall)">
-        @Glyph(overall)
-        <span class="govuk-body-s govuk-!-margin-bottom-0">
-            <strong>Overall:</strong> @overall.Label
-        </span>
+        <div class="obs-light__row">
+            @Glyph(overall)
+            <span class="govuk-body-s govuk-!-margin-bottom-0">
+                <strong>Overall:</strong> @overall.Label
+            </span>
+        </div>
+        <partial name="_HealthReasons" model="Model.OverallReasons" />
     </div>
 
     @foreach (var queue in Model.QueueHealth)
     {
         <div class="obs-light @modifier(queue.State)">
-            @Glyph(queue.State)
-            <span class="govuk-body-s govuk-!-margin-bottom-0">
-                @queue.DisplayName: @queue.State.Label
-            </span>
+            <div class="obs-light__row">
+                @Glyph(queue.State)
+                <span class="govuk-body-s govuk-!-margin-bottom-0">
+                    @queue.DisplayName: @queue.State.Label
+                </span>
+            </div>
+            <partial name="_HealthReasons" model="queue.Reasons" />
         </div>
     }
 </div>

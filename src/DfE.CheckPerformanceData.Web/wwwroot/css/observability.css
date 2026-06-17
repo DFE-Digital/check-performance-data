@@ -13,11 +13,29 @@
 
 .obs-light {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     padding: 8px 16px;
     background: #f3f2f1;
     border-left: 5px solid #b1b4b6;
+}
+
+/* The glyph + label sit on one row; the optional "Why?" disclosure stacks beneath them. */
+.obs-light__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* The reasons disclosure is secondary detail — tighten it so it never crowds the light. */
+.obs-light__why {
+    margin-bottom: 0;
+}
+
+.obs-light__why .govuk-details__text {
+    margin-top: 4px;
+    padding: 8px 12px;
 }
 
 .obs-light__glyph {

@@ -35,4 +35,66 @@ public sealed class HealthEvaluator : IHealthEvaluator
 
         return Flowing;
     }
+
+    public IReadOnlyList<HealthReason> Explain(HealthInputs inputs, HealthThresholds thresholds)
+    {
+        var reasons = new List<HealthReason>();
+        var ageSeconds = inputs.OldestAge?.TotalSeconds ?? 0d;
+
+        // Depth: report against whichever limit it has reached, red first so the figure shown is
+        // the one that actually decided the band.
+        if (inputs.Depth >= thresholds.DepthRed)
+            reasons.Add(new HealthReason(
+                "Queue depth", HealthLevel.NeedsAttention,
+                inputs.Depth.ToString(), thresholds.DepthRed.ToString()));
+        else if (inputs.Depth >= thresholds.DepthAmber)
+            reasons.Add(new HealthReason(
+                "Queue depth", HealthLevel.BackingUp,
+                inputs.Depth.ToString(), thresholds.DepthAmber.ToString()));
+
+        // Oldest message age: only when the queue has a waiting message (null age = empty queue).
+        if (inputs.OldestAge is { } age)
+        {
+            if (ageSeconds >= thresholds.OldestAgeRedSeconds)
+                reasons.Add(new HealthReason(
+                    "Oldest message age", HealthLevel.NeedsAttention,
+                    FormatDuration(age),
+                    FormatDuration(TimeSpan.FromSeconds(thresholds.OldestAgeRedSeconds))));
+            else if (ageSeconds >= thresholds.OldestAgeAmberSeconds)
+                reasons.Add(new HealthReason(
+                    "Oldest message age", HealthLevel.BackingUp,
+                    FormatDuration(age),
+                    FormatDuration(TimeSpan.FromSeconds(thresholds.OldestAgeAmberSeconds))));
+        }
+
+        // Dead-letter count has a red threshold only — any dead-lettering is treated as attention,
+        // never merely "backing up".
+        if (inputs.DeadLetterCount >= thresholds.DlqRateRed)
+            reasons.Add(new HealthReason(
+                "Dead-letter messages", HealthLevel.NeedsAttention,
+                inputs.DeadLetterCount.ToString(), thresholds.DlqRateRed.ToString()));
+
+        return reasons;
+    }
+
+    // Compact, human-friendly duration: seconds under a minute, whole minutes (with a trailing
+    // seconds part only when non-zero), or hours-and-minutes above an hour. Keeps the "why" line
+    // readable ("10m" not "600 seconds") while staying exact.
+    private static string FormatDuration(TimeSpan span)
+    {
+        var total = (int)Math.Round(span.TotalSeconds);
+        if (total < 60)
+            return $"{total}s";
+
+        if (total < 3600)
+        {
+            var minutes = total / 60;
+            var seconds = total % 60;
+            return seconds == 0 ? $"{minutes}m" : $"{minutes}m {seconds}s";
+        }
+
+        var hours = total / 3600;
+        var remMinutes = total % 3600 / 60;
+        return remMinutes == 0 ? $"{hours}h" : $"{hours}h {remMinutes}m";
+    }
 }

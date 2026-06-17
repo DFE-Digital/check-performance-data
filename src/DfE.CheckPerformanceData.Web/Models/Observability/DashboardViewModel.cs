@@ -10,6 +10,11 @@ public sealed class DashboardViewModel
 {
     public required IReadOnlyList<QueueHealth> QueueHealth { get; init; }
     public required HealthState OverallHealth { get; init; }
+
+    // Why the overall light is not flowing — the reasons of the unhappiest queue, so the headline
+    // light explains itself just as the per-queue lights do. Empty when everything is flowing.
+    public IReadOnlyList<HealthReason> OverallReasons { get; init; } = Array.Empty<HealthReason>();
+
     public required string StatusSentence { get; init; }
 
     public int ProcessedToday { get; init; }
@@ -40,8 +45,20 @@ public sealed class DashboardViewModel
     public bool DemoToolsEnabled { get; init; }
 }
 
-// One queue's resolved health light for the strip: the display name plus the evaluated state.
-public sealed record QueueHealth(string QueueName, string DisplayName, HealthState State);
+// One queue's resolved health light for the strip: the display name, the evaluated state, and the
+// reasons behind a non-flowing state (which signals crossed which thresholds, with actual-vs-limit
+// figures) so "needs attention" can explain itself. Reasons is empty for a flowing queue.
+public sealed record QueueHealth(
+    string QueueName,
+    string DisplayName,
+    HealthState State,
+    IReadOnlyList<HealthReason> Reasons)
+{
+    public QueueHealth(string queueName, string displayName, HealthState state)
+        : this(queueName, displayName, state, Array.Empty<HealthReason>())
+    {
+    }
+}
 
 // The geometry a time-axis chart hands the shared deploy-marker partial so the dashed
 // rules-version verticals land on that chart's own plot area and time scale. One partial,

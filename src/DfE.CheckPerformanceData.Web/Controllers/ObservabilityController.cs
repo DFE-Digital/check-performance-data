@@ -93,16 +93,21 @@ public sealed class ObservabilityController : Controller
         {
             var depth = depths.FirstOrDefault(d => d.QueueName == queueName);
             var inputs = new HealthInputs(depth?.Depth ?? 0, depth?.OldestMessageAge, dlqCount);
-            queueHealth.Add(new QueueHealth(queueName, displayName, _health.Evaluate(inputs, thresholds)));
+            queueHealth.Add(new QueueHealth(
+                queueName, displayName,
+                _health.Evaluate(inputs, thresholds),
+                _health.Explain(inputs, thresholds)));
         }
 
-        // The overall light is the worst of the per-queue states so the at-a-glance answer never
-        // looks healthier than its unhappiest queue.
-        var overall = queueHealth
-            .Select(q => q.State)
-            .OrderByDescending(s => (int)s.Level)
-            .FirstOrDefault()
+        // The overall light is the worst of the per-queue lights so the at-a-glance answer never
+        // looks healthier than its unhappiest queue — and it carries that queue's reasons so the
+        // headline light explains its own state too.
+        var worstQueue = queueHealth
+            .OrderByDescending(q => (int)q.State.Level)
+            .FirstOrDefault();
+        var overall = worstQueue?.State
             ?? _health.Evaluate(new HealthInputs(0, null, dlqCount), thresholds);
+        var overallReasons = worstQueue?.Reasons ?? Array.Empty<HealthReason>();
 
         var throughput = await _query.GetThroughputAsync(
             QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
@@ -135,6 +140,7 @@ public sealed class ObservabilityController : Controller
         {
             QueueHealth = queueHealth,
             OverallHealth = overall,
+            OverallReasons = overallReasons,
             StatusSentence = sentence,
             ProcessedToday = processedToday,
             TypicalEndToEnd = typicalEndToEnd,

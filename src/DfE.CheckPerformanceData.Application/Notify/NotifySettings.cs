@@ -27,5 +27,12 @@ public class NotifySettings
     [Required]
     public string DeadlineText { get; set; } = null!;
 
+    [Obsolete("Use IEmailLinkGenerator instead")]
     public string SubmitOthersUrl { get; set; } = null!;
+
+    public string? UtmSource { get; set; }
+
+    public string? UtmMedium { get; set; }
+
+    public Dictionary<string, string>? UtmCampaigns { get; set; }
 }

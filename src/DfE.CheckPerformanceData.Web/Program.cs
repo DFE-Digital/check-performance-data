@@ -14,6 +14,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
@@ -82,6 +83,8 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries();
+
+    builder.Services.AddScoped<IEmailLinkGenerator, DfE.CheckPerformanceData.Web.Notify.EmailLinkGenerator>();
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered

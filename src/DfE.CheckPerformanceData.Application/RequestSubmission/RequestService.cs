@@ -19,7 +19,8 @@ public sealed class RequestService(
     IRequestQueueClient requestQueueClient,
     IRequestBlobClient requestBlobClient,
     RequestSubmissionOptions submissionOptions,
-    ILogger<RequestService> logger) : IRequestService
+    ILogger<RequestService> logger,
+    IEmailLinkGenerator emailLinkGenerator) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -70,13 +71,15 @@ public sealed class RequestService(
             "Sending Submission Notification emails for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
             refNum, recipients.Count, string.Join(", ", recipients));
 
+        var linkUrl = emailLinkGenerator.GenerateLink("WhatToChange", "Index", new { windowId }, "SubmissionNotification");
+
         foreach (var email in recipients)
         {
             await notifyService.SendSubmissionNotificationAsync(
                 email,
                 refNum,
                 notifySettings.Value.DeadlineText,
-                notifySettings.Value.SubmitOthersUrl);
+                linkUrl);
         }
     }
 

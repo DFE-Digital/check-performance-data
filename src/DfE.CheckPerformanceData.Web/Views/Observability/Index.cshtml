@@ -78,6 +78,11 @@
     @await Html.PartialAsync("_DwellChart", Model)
 </div>
 
+@* One shared decision-colour legend beneath the charts: states each decision colour→label once
+   for every chart that colours by decision (the pie and the over-time lines), rather than
+   repeating a colour key inside each chart. *@
+@await Html.PartialAsync("_DecisionLegend", Model)
+
 @if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)
 {
     <h2 class="govuk-heading-m">Nothing has flowed through yet</h2>

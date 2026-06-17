@@ -36,15 +36,10 @@
     var counts = cells.ToDictionary(c => (c.BucketStartUtc, c.DecisionStatus), c => c.Count);
     int CountAt(DateTime bucket, string status) => counts.GetValueOrDefault((bucket, status));
 
-    // The same status colours as the totals chart; each series also carries its own point
-    // shape so the lines stay tellable apart without colour.
-    var colours = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["AutoApproved"] = "#00703c",
-        ["AutoRejected"] = "#d4351c",
-        ["RequiresScrutiny"] = "#f47738",
-    };
-    string ColourOf(string status) => colours.GetValueOrDefault(status, "#505a5f");
+    // The same canonical status colours as the pie chart, read from the shared DecisionColours map
+    // so the two charts and the shared legend can never drift onto divergent hex literals. Each
+    // series also carries its own point shape so the lines stay tellable apart without colour.
+    string ColourOf(string status) => DecisionColours.For(status);
 
     DateTime? minTime = bucketStarts.Count > 0 ? bucketStarts[0] : null;
     DateTime? maxTime = bucketStarts.Count > 0 ? bucketStarts[^1] : null;

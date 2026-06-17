@@ -428,6 +428,19 @@
     flex: 0 0 auto;
 }
 
+/* The one shared decision-colour legend, sat beneath the chart grid: states the colour→label
+   meaning once for the pie and the over-time lines rather than per chart. */
+.obs-legend-shared {
+    margin-top: 16px;
+}
+
+/* The value labels inside the decision-mix pie slices. White for contrast on the GDS fills, with
+   a subtle shadow so a label crossing a slice edge stays legible. */
+.obs-pie__label {
+    paint-order: stroke;
+    text-shadow: 0 1px 1px rgba(11, 12, 12, 0.5);
+}
+
 /* --- Journey timeline ----------------------------------------------------- */
 
 .obs-why-slot {

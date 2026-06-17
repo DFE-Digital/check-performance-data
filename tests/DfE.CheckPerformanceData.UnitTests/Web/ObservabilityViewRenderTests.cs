@@ -195,6 +195,69 @@ public sealed class ObservabilityViewRenderTests
 		Assert.DoesNotContain("data-obs-slowmo", board);
 	}
 
+	// --- The decision-mix totals chart is a pie with the value in each slice ---
+
+	[Fact]
+	public void DecisionMixChart_IsAPieWithValueLabelsAndAPairedTable()
+	{
+		var view = ReadView("_Chart.cshtml");
+		// Bespoke SVG pie: slices are arc paths (plus a full-circle case), not bars.
+		Assert.Contains("Decision mix", view);
+		Assert.Contains("<path", view);
+		Assert.Contains("obs-pie__label", view);
+		// The slice label shows the count and the percentage.
+		Assert.Contains("entry.Count (@pct%)", view);
+		// The bar-chart rendering is gone.
+		Assert.DoesNotContain("var barWidth", view);
+		// Still accessible: role="img" + aria-label + the paired data table.
+		Assert.Contains("role=\"img\"", view);
+		Assert.Contains("Decision mix: @summary", view);
+		Assert.Contains("govuk-table", view);
+	}
+
+	// --- Decision colours come from ONE canonical map, consumed by every decision chart ---
+
+	[Fact]
+	public void DecisionColours_AreTheSingleSourceConsumedByEveryDecisionChart()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var map = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "Models", "Observability", "DecisionColours.cs"));
+
+		// The canonical GDS colours live in one place.
+		Assert.Contains("#00703c", map); // AutoApproved (green)
+		Assert.Contains("#d4351c", map); // AutoRejected (red)
+		Assert.Contains("#f47738", map); // Scrutiny (orange)
+
+		// Both decision charts read the map rather than hard-coding hex literals.
+		var pie = ReadView("_Chart.cshtml");
+		Assert.Contains("DecisionColours.For", pie);
+		Assert.DoesNotContain("#00703c", pie);
+		Assert.DoesNotContain("#f47738", pie);
+
+		var overTime = ReadView("_DecisionMixOverTimeChart.cshtml");
+		Assert.Contains("DecisionColours.For", overTime);
+		Assert.DoesNotContain("#00703c", overTime);
+		Assert.DoesNotContain("#f47738", overTime);
+	}
+
+	// --- One shared decision-colour legend below the charts, referenced once ---
+
+	[Fact]
+	public void DecisionLegend_IsOneSharedPartial_ReadingTheCanonicalColours()
+	{
+		var legend = ReadView("_DecisionLegend.cshtml");
+		Assert.Contains("DecisionColours.LegendItems", legend);
+		Assert.Contains("obs-legend", legend);
+
+		var index = ReadView("Index.cshtml");
+		// Referenced exactly once, beneath the chart group.
+		var first = index.IndexOf("_DecisionLegend", System.StringComparison.Ordinal);
+		Assert.True(first >= 0, "Index must render the shared decision legend.");
+		Assert.Equal(first, index.LastIndexOf("_DecisionLegend", System.StringComparison.Ordinal));
+	}
+
 	// --- The chart data-table disclosures toggle exactly once (no open/close flicker) ---
 
 	[Fact]

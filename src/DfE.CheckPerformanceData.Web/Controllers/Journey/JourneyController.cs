@@ -275,6 +275,11 @@ public sealed class JourneyController(
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
+        // Preserve any text the user typed on the page before they triggered the upload —
+        // the upload posts the whole page form, so the text fields ride along and must not
+        // be lost on the post-redirect re-render (even when the upload itself fails).
+        await PersistPageTextAnswersAsync(windowId, pageId, journey);
+
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
 
@@ -333,6 +338,9 @@ public sealed class JourneyController(
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
+
+        // Preserve text the user typed on the page before removing a file (see UploadFile).
+        await PersistPageTextAnswersAsync(windowId, pageId, journey);
 
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
@@ -526,6 +534,30 @@ public sealed class JourneyController(
 
     private Task<QuestionFlowConfig?> GetConfigAsync(RequestState journey) =>
         flowService.GetConfigAsync(journey.SelectedWhatToChange!.Value, journey.CheckingWindow!.CheckingWindowType);
+
+    // Persists the submitted answers for a page's non-file-upload questions to session so they
+    // survive an upload/remove round-trip. No validation here (e.g. char limit) — the answers are
+    // re-validated when the user submits the page via PagePost.
+    private async Task PersistPageTextAnswersAsync(Guid windowId, string pageId, RequestState journey)
+    {
+        var config = await GetConfigAsync(journey);
+        var page = config is null ? null : flowService.GetPage(config, pageId);
+        if (page is null) return;
+
+        var answers = page.Questions
+            .Where(q => q.Type != QuestionType.FileUpload)
+            .ToDictionary(q => q.Id, ReadFormAnswer);
+        if (answers.Count == 0) return;
+
+        foreach (var (qId, answer) in answers)
+            journey.QuestionAnswers[qId] = answer;
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            foreach (var (qId, answer) in answers)
+                s.QuestionAnswers[qId] = answer;
+        });
+    }
 
     private QuestionAnswer ReadFormAnswer(Question question)
     {

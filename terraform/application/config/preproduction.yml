@@ -1,6 +1,5 @@
 ---
 ASPNETCORE_ENVIRONMENT: Preproduction
-Notify__LinkBaseUrl: https://check-performance-data-development.preprod.teacherservices.cloud/
 
 # Notify template IDs, deadline text, and UTM parameters
 Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2

@@ -75,11 +75,15 @@ public sealed class RequestService(
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
-            Timestamp = DateTime.UtcNow,
+            // Local (wall-clock) time, not UTC — the "Submitted by → When" display must
+            // survive BST/GMT without a daylight-savings offset (see ConfirmRequestAsync).
+            Timestamp = DateTime.Now,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
             Status = RequestStatus.SubmittedUnCommitted,
-            RequestType = "Confirm Pupil Data Declaration"
+            RequestType = RequestType.ConfirmCorrect,
+            RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
     }
 
@@ -97,7 +101,7 @@ public sealed class RequestService(
     public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
         requestStateBlobClient.GetAsync(windowId, referenceNumber);
 
-    private string BuildRequestType(RequestState journey, QuestionFlowConfig? config)
+    private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)
     {
         var prefix = journey.SelectedWhatToChange!.Value.ToString();
         if (config is null) return prefix;
@@ -128,8 +132,10 @@ public sealed class RequestService(
             Timestamp = DateTime.UtcNow,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
             Status = status,
-            RequestType = BuildRequestType(journey, config)
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = BuildRequestTypeDescription(journey, config)
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)

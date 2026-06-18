@@ -36,6 +36,9 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(x => x.SubmittedByEmail)
+            .HasMaxLength(256);
+
         builder.Property(x => x.Status)
             .IsRequired()
             .HasConversion<string>();
@@ -48,6 +51,11 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
             .HasMaxLength(100);
 
         builder.Property(x => x.RequestType)
+            .IsRequired()
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
+        builder.Property(x => x.RequestTypeDescription)
             .IsRequired()
             .HasMaxLength(100);
 

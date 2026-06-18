@@ -1,12 +1,16 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
 public sealed class SubmittedRequestService(
     IRequestStateBlobClient requestStateBlobClient,
-    IQuestionFlowService flowService) : ISubmittedRequestService
+    IQuestionFlowService flowService,
+    IRequestRepository requestRepository,
+    ICurrentUserService currentUserService) : ISubmittedRequestService
 {
     public async Task<SubmittedRequestView?> GetAsync(Guid windowId, string referenceNumber)
     {
@@ -68,6 +72,21 @@ public sealed class SubmittedRequestService(
             ReferenceNumber = journey.ReferenceNumber ?? referenceNumber,
             SubmittedByEmail = journey.SubmittedByEmail,
             SubmittedAt = journey.SubmittedAt
+        };
+    }
+
+    public async Task<ConfirmDataCorrectView?> GetConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
+    {
+        var urn = long.Parse(currentUserService.OrganisationUrn);
+        var row = await requestRepository.GetConfirmDataCorrectAsync(windowId, urn, referenceNumber);
+        if (row is null || row.RequestType != RequestType.ConfirmCorrect)
+            return null;
+
+        return new ConfirmDataCorrectView
+        {
+            SubmittedByEmail = row.SubmittedByEmail,
+            SubmittedAt = row.Submitted,
+            ReferenceNumber = row.ReferenceNumber
         };
     }
 

@@ -87,7 +87,8 @@ public class AmendmentRequestsControllerTests
                 new AmendmentRequestDto
                 {
                     PupilName = "Jane Smith",
-                    RequestType = "Remove - Permanently left England",
+                    RequestType = RequestType.Amendment,
+                    RequestTypeDescription = "Remove - Permanently left England",
                     Status = RequestStatus.ReadyToSubmit,
                     ReferenceNumber = "REF001"
                 }
@@ -100,7 +101,8 @@ public class AmendmentRequestsControllerTests
         var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
         Assert.Single(vm.Rows);
         Assert.Equal("Jane Smith", vm.Rows[0].PupilName);
-        Assert.Equal("Remove - Permanently left England", vm.Rows[0].RequestType);
+        Assert.Equal(RequestType.Amendment, vm.Rows[0].RequestType);
+        Assert.Equal("Remove - Permanently left England", vm.Rows[0].RequestTypeDescription);
         Assert.Equal(RequestStatus.ReadyToSubmit, vm.Rows[0].Status);
         Assert.Equal("REF001", vm.Rows[0].ReferenceNumber);
     }
@@ -118,7 +120,8 @@ public class AmendmentRequestsControllerTests
                 new SubmittedRequestDto
                 {
                     PupilName = "John Doe",
-                    RequestType = "Remove - Permanently left England",
+                    RequestType = RequestType.Amendment,
+                    RequestTypeDescription = "Remove - Permanently left England",
                     ReferenceNumber = "REF010",
                     Status = RequestStatus.SubmittedUnCommitted,
                     Submitted = submitted
@@ -150,7 +153,8 @@ public class AmendmentRequestsControllerTests
                 new SubmittedRequestDto
                 {
                     PupilName = "John Doe",
-                    RequestType = "Remove - Permanently left England",
+                    RequestType = RequestType.Amendment,
+                    RequestTypeDescription = "Remove - Permanently left England",
                     ReferenceNumber = "REF011",
                     Status = RequestStatus.SubmittedWithdrawn,
                     Submitted = DateTime.UtcNow

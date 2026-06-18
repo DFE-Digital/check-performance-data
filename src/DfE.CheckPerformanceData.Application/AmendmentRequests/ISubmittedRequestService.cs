@@ -8,4 +8,11 @@ public interface ISubmittedRequestService
     /// submitted) or its flow config cannot be resolved.
     /// </summary>
     Task<SubmittedRequestView?> GetAsync(Guid windowId, string referenceNumber);
+
+    /// <summary>
+    /// Read-only view of a "confirm pupil data is correct" submission, read from the
+    /// <c>ChangeRequests</c> row (these have no journey blob). Returns <c>null</c> when no
+    /// row matches for the current user's school, or the row is not a ConfirmCorrect request.
+    /// </summary>
+    Task<ConfirmDataCorrectView?> GetConfirmDataCorrectAsync(Guid windowId, string referenceNumber);
 }

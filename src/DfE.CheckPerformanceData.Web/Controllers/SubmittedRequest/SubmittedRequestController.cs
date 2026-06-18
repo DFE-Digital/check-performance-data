@@ -39,6 +39,22 @@ public sealed class SubmittedRequestController(
         });
     }
 
+    [Route("/{windowId}/AmendmentRequests/{referenceNumber}/view-confirmation")]
+    public async Task<IActionResult> ViewConfirmation(Guid windowId, string referenceNumber)
+    {
+        var request = await service.GetConfirmDataCorrectAsync(windowId, referenceNumber);
+        if (request is null)
+            return RedirectToAction("Index", "AmendmentRequests", new { windowId });
+
+        return View(new ConfirmDataCorrectViewModel
+        {
+            WindowId = windowId,
+            SubmittedByEmail = request.SubmittedByEmail,
+            SubmittedAt = request.SubmittedAt,
+            ReferenceNumber = request.ReferenceNumber
+        });
+    }
+
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/evidence/{storedFileName}")]
     public async Task<IActionResult> DownloadEvidence(Guid windowId, string referenceNumber, string storedFileName)
     {

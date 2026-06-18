@@ -14,9 +14,11 @@ public class ChangeRequest
     public required DateTime Submitted { get; init; }
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
+    public string? SubmittedByEmail { get; init; }
     public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
-    public required string RequestType { get; init; }
+    public required RequestType RequestType { get; init; }
+    public required string RequestTypeDescription { get; init; }
     public string? CrmId { get; init; }
 
     // Written by the rules engine worker once it has decided on the request;

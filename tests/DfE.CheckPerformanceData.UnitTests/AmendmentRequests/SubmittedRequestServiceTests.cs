@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -15,11 +16,14 @@ public class SubmittedRequestServiceTests
 
     private readonly IRequestStateBlobClient _blob = Substitute.For<IRequestStateBlobClient>();
     private readonly IQuestionFlowService _flow = Substitute.For<IQuestionFlowService>();
+    private readonly IRequestRepository _requestRepo = Substitute.For<IRequestRepository>();
+    private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly SubmittedRequestService _sut;
 
     public SubmittedRequestServiceTests()
     {
-        _sut = new SubmittedRequestService(_blob, _flow);
+        _currentUser.OrganisationUrn.Returns("100000");
+        _sut = new SubmittedRequestService(_blob, _flow, _requestRepo, _currentUser);
     }
 
     [Fact]
@@ -140,6 +144,49 @@ public class SubmittedRequestServiceTests
         Assert.NotNull(result);
         Assert.Single(result!.Rows);
         Assert.Equal("Left England", result.Rows[0].DisplayValue);
+    }
+
+    [Fact]
+    public async Task GetConfirmDataCorrectAsync_WhenRowMissing_ReturnsNull()
+    {
+        _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference)
+            .Returns((ConfirmDataCorrectData?)null);
+
+        Assert.Null(await _sut.GetConfirmDataCorrectAsync(WindowId, Reference));
+    }
+
+    [Fact]
+    public async Task GetConfirmDataCorrectAsync_WhenRowIsAmendment_ReturnsNull()
+    {
+        _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference).Returns(new ConfirmDataCorrectData
+        {
+            RequestType = RequestType.Amendment,
+            SubmittedByEmail = "submitter@education.gov.uk",
+            Submitted = DateTime.Now,
+            ReferenceNumber = Reference
+        });
+
+        Assert.Null(await _sut.GetConfirmDataCorrectAsync(WindowId, Reference));
+    }
+
+    [Fact]
+    public async Task GetConfirmDataCorrectAsync_WhenConfirmCorrect_MapsView()
+    {
+        var submitted = new DateTime(2026, 6, 16, 9, 30, 0);
+        _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference).Returns(new ConfirmDataCorrectData
+        {
+            RequestType = RequestType.ConfirmCorrect,
+            SubmittedByEmail = "submitter@education.gov.uk",
+            Submitted = submitted,
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.GetConfirmDataCorrectAsync(WindowId, Reference);
+
+        Assert.NotNull(result);
+        Assert.Equal("submitter@education.gov.uk", result!.SubmittedByEmail);
+        Assert.Equal(submitted, result.SubmittedAt);
+        Assert.Equal(Reference, result.ReferenceNumber);
     }
 
     private void Setup(RequestState journey, JourneyPage page)

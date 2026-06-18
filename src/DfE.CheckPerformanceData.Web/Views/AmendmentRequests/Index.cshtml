@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Domain.Enums
 @model DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests.AmendmentRequestsViewModel
 
 @{
@@ -36,7 +37,7 @@ else
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@row.PupilName</td>
-                    <td class="govuk-table__cell">@row.RequestType</td>
+                    <td class="govuk-table__cell">@row.RequestTypeDescription</td>
                     <td class="govuk-table__cell">
                         <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
                     </td>
@@ -79,13 +80,16 @@ else
                         <tr class="govuk-table__row">
                             <td class="govuk-table__cell">@row.PupilName</td>
                             <td class="govuk-table__cell">@row.ReferenceNumber</td>
-                            <td class="govuk-table__cell">@row.RequestType</td>
+                            <td class="govuk-table__cell">@row.RequestTypeDescription</td>
                             <td class="govuk-table__cell">
                                 <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
                             </td>
                             <td class="govuk-table__cell">@row.SubmittedDateText</td>
                             <td class="govuk-table__cell">
-                                <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("View", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View</a>
+                                @{
+                                    var viewAction = row.RequestType == RequestType.ConfirmCorrect ? "ViewConfirmation" : "View";
+                                }
+                                <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View</a>
                                 <a class="govuk-link" href="#">Delete</a>
                             </td>
                         </tr>

@@ -106,7 +106,8 @@ public sealed class DecisionOutcomeRepositoryTests(PostgresFixture fixture)
             SubmittedByName = "Test User",
             Status = RequestStatus.SubmittedUnCommitted,
             ReferenceNumber = $"REF-{Guid.NewGuid():N}",
-            RequestType = "Remove"
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove"
         };
         ctx.ChangeRequests.Add(changeRequest);
         await ctx.SaveChangesAsync();

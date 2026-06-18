@@ -45,7 +45,8 @@ public class EditAdviceServiceTests
     private void StubStatus(RequestStatus status) =>
         _repo.GetAmendmentRequestAsync(WindowId, 123456, "REF001").Returns(new AmendmentRequestData
         {
-            RequestType = "Remove",
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove",
             Status = status,
             ReferenceNumber = "REF001"
         });

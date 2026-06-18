@@ -25,6 +25,7 @@ public class RequestServiceTests
     {
         _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
+        _currentUser.Email.Returns("test.user@education.gov.uk");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
         _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
@@ -481,8 +482,9 @@ public class RequestServiceTests
         Assert.Equal(100000L, captured.OrganisationUrn);
         Assert.Equal("Test User", captured.SubmittedByName);
         Assert.Equal(RequestStatus.ReadyToSubmit, captured.Status);
-        // Config is null in this test so RequestType falls back to the WhatToChange prefix only
-        Assert.Equal("Remove", captured.RequestType);
+        Assert.Equal(RequestType.Amendment, captured.RequestType);
+        // Config is null in this test so the description falls back to the WhatToChange prefix only
+        Assert.Equal("Remove", captured.RequestTypeDescription);
     }
 
     [Theory]
@@ -516,7 +518,21 @@ public class RequestServiceTests
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
-        Assert.Equal("Remove - Permanently excluded", captured!.RequestType);
+        Assert.Equal(RequestType.Amendment, captured!.RequestType);
+        Assert.Equal("Remove - Permanently excluded", captured.RequestTypeDescription);
+    }
+
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_WritesConfirmCorrectRequestType()
+    {
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999");
+
+        Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
+        Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
+        Assert.Equal("test.user@education.gov.uk", captured.SubmittedByEmail);
     }
 
     [Fact]

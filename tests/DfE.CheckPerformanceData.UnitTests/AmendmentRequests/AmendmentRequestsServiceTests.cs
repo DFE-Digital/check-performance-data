@@ -50,7 +50,7 @@ public class AmendmentRequestsServiceTests
 
         Assert.Equal(2, result.Rows.Count);
         Assert.Equal("Jane Smith", result.Rows[0].PupilName);
-        Assert.Equal("Remove - Permanently left England", result.Rows[0].RequestType);
+        Assert.Equal("Remove - Permanently left England", result.Rows[0].RequestTypeDescription);
         Assert.Equal(RequestStatus.ReadyToSubmit, result.Rows[0].Status);
         Assert.Equal("REF001", result.Rows[0].ReferenceNumber);
         Assert.Equal("John Doe", result.Rows[1].PupilName);
@@ -123,7 +123,7 @@ public class AmendmentRequestsServiceTests
 
         Assert.Single(result.SubmittedRows);
         Assert.Equal("Jane Smith", result.SubmittedRows[0].PupilName);
-        Assert.Equal("Remove - Permanently left England", result.SubmittedRows[0].RequestType);
+        Assert.Equal("Remove - Permanently left England", result.SubmittedRows[0].RequestTypeDescription);
         Assert.Equal("REF010", result.SubmittedRows[0].ReferenceNumber);
         Assert.Equal(RequestStatus.SubmittedWithdrawn, result.SubmittedRows[0].Status);
         Assert.Equal(submitted, result.SubmittedRows[0].Submitted);
@@ -160,7 +160,8 @@ public class AmendmentRequestsServiceTests
     {
         PupilFirstname = firstname,
         PupilSurname = surname,
-        RequestType = requestType,
+        RequestType = RequestType.Amendment,
+        RequestTypeDescription = requestType,
         Status = status,
         ReferenceNumber = referenceNumber
     };
@@ -172,7 +173,8 @@ public class AmendmentRequestsServiceTests
     {
         PupilFirstname = firstname,
         PupilSurname = surname,
-        RequestType = requestType,
+        RequestType = RequestType.Amendment,
+        RequestTypeDescription = requestType,
         ReferenceNumber = referenceNumber,
         Status = status,
         Submitted = submitted

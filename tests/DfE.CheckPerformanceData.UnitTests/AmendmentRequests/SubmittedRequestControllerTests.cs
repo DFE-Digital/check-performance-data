@@ -60,6 +60,39 @@ public class SubmittedRequestControllerTests
     }
 
     [Fact]
+    public async Task ViewConfirmation_WhenNotFound_RedirectsToAmendmentRequests()
+    {
+        _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns((ConfirmDataCorrectView?)null);
+
+        var result = await _sut.ViewConfirmation(WindowId, Reference);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task ViewConfirmation_WhenFound_ReturnsViewModel()
+    {
+        var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
+        _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
+        {
+            SubmittedByEmail = "submitter@education.gov.uk",
+            SubmittedAt = submittedAt,
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.ViewConfirmation(WindowId, Reference);
+
+        var vm = Assert.IsType<ConfirmDataCorrectViewModel>(((ViewResult)result).Model);
+        Assert.Equal(WindowId, vm.WindowId);
+        Assert.Equal("submitter@education.gov.uk", vm.SubmittedByEmail);
+        Assert.Equal(submittedAt, vm.SubmittedAt);
+        Assert.Equal(Reference, vm.ReferenceNumber);
+        Assert.Equal("Confirm pupil data is correct", vm.RequestTypeDisplay);
+    }
+
+    [Fact]
     public async Task DownloadEvidence_WhenStoredNameNotGuid_ReturnsNotFound()
     {
         var result = await _sut.DownloadEvidence(WindowId, Reference, "not-a-guid");

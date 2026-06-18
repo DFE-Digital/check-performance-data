@@ -23,6 +23,7 @@ public sealed class AmendmentRequestsService(
             {
                 PupilName = BuildPupilName(r.PupilFirstname, r.PupilSurname),
                 RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
                 ReferenceNumber = r.ReferenceNumber
             }).ToList(),
@@ -30,6 +31,7 @@ public sealed class AmendmentRequestsService(
             {
                 PupilName = BuildPupilName(r.PupilFirstname, r.PupilSurname),
                 RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
                 ReferenceNumber = r.ReferenceNumber,
                 Status = r.Status,
                 Submitted = r.Submitted

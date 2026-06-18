@@ -103,12 +103,6 @@ variable "worker_replicas" {
   description = "Number of replicas for the Rules Engine Worker."
 }
 
-variable "notify_api_key" {
-  type        = string
-  description = "GovUK Notify API key. Sensitive value injected into Key Vault. Must never appear in plaintext."
-  sensitive   = true
-}
-
 variable "blob_delete_after_days" {
   type        = number
   description = "Number of days after which blobs will be deleted. Set to 0 to disable automatic deletion."

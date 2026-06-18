@@ -99,7 +99,7 @@ services:
   # container if missing, and uploads seed/rules.json + seed/country-languages.json.
   # Idempotent: re-runs are a no-op if the blobs already exist.
   azurite_init:
-    profiles: [rules_engine, all]
+    profiles: [rules_engine, all, e2e]
     container_name: cypd_azurite_init
     image: mcr.microsoft.com/azure-cli:latest
     depends_on:
@@ -108,26 +108,31 @@ services:
       - ./src/DfE.CheckPerformanceData.RulesEngineWorker/seed:/seed:ro
     environment:
       - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
+    # command MUST be a single-element list (not a `command: |` block scalar): with an exec-form
+    # entrypoint, docker compose word-splits a string command into argv, so `/bin/sh -c |set -eu …`
+    # would run `sh -c set` and silently seed nothing. One list element keeps the whole script as the
+    # single argument to `sh -c`.
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      set -eu
-      echo "Waiting for Azurite to respond..."
-      for i in $$(seq 1 60); do
-        if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
-          break
-        fi
-        sleep 1
-      done
-      echo "Ensuring rules-config container..."
-      az storage container create --name rules-config --only-show-errors >/dev/null
-      echo "Uploading seed JSON..."
-      az storage blob upload-batch \
-        --destination rules-config \
-        --source /seed \
-        --pattern '*.json' \
-        --overwrite \
-        --only-show-errors
-      echo "Seed upload complete."
+    command:
+      - |
+        set -eu
+        echo "Waiting for Azurite to respond..."
+        for i in $$(seq 1 60); do
+          if az storage container list --only-show-errors >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+        done
+        echo "Ensuring rules-config container..."
+        az storage container create --name rules-config --only-show-errors >/dev/null
+        echo "Uploading seed JSON..."
+        az storage blob upload-batch \
+          --destination rules-config \
+          --source /seed \
+          --pattern '*.json' \
+          --overwrite \
+          --only-show-errors
+        echo "Seed upload complete."
     networks:
       - cypd
 
@@ -202,12 +207,17 @@ services:
     volumes:
       - ./:/work
       - cpd-nuget-cache:/root/.nuget/packages
-    # depends_on uses default condition (service_started). PlaywrightFixture
-    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
-    # any test exercises the web app — that is the authoritative readiness
-    # gate. (web service has no compose-level healthcheck today.)
+    # PlaywrightFixture polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s
+    # interval) before any test exercises the web app — that is the authoritative
+    # web-readiness gate (web has no compose-level healthcheck today). azurite_init
+    # seeds rules.json/country-languages.json into blob storage; the admin rules
+    # editor reads rules from the blob, so the suite must not start until that
+    # one-shot seeder has completed or the rules-editor tests 404.
     depends_on:
-      - web
+      web:
+        condition: service_started
+      azurite_init:
+        condition: service_completed_successfully
     networks:
       - cypd
     command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]

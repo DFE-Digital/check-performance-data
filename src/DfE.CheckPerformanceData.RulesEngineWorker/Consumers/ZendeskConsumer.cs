@@ -219,10 +219,10 @@ public sealed class ZendeskConsumer : ConsumerBase
         // The decision the rules consumer reached is persisted on the change request.
         // A genuinely missing status falls back to Scrutiny so a fault never silently
         // produces an auto-approval or auto-rejection ticket.
-        var status = changeRequest?.DecisionStatus ?? DecisionStatus.Scrutiny;
-        var outcomeKey = string.IsNullOrEmpty(changeRequest?.DecisionOutcomeKey)
+        var status = changeRequest?.Outcome ?? DecisionStatus.Scrutiny;
+        var outcomeKey = string.IsNullOrEmpty(changeRequest?.OutcomeKey)
             ? message.RequestTypeCode
-            : changeRequest.DecisionOutcomeKey;
+            : changeRequest.OutcomeKey;
         var matchedRuleId = changeRequest?.MatchedRuleId ?? string.Empty;
         return new Decision(status, outcomeKey, matchedRuleId, Array.Empty<string>());
     }

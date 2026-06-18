@@ -21,8 +21,8 @@ public class ChangeRequest
 
     // Written by the rules engine consumer once it has decided on the request, and read
     // back by the Zendesk consumer; all stay null until the rules engine has run.
-    public DecisionStatus? DecisionStatus { get; set; }
-    public string? DecisionOutcomeKey { get; set; }
+    public DecisionStatus? Outcome { get; set; }
+    public string? OutcomeKey { get; set; }
     public string? MatchedRuleId { get; set; }
     public string? RulesVersion { get; set; }
     public DateTime? DecidedAtUtc { get; set; }

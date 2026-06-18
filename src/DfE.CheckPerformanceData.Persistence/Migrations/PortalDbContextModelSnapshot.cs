@@ -228,20 +228,20 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime?>("DecidedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DecisionOutcomeKey")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("DecisionStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
                     b.Property<string>("MatchedRuleId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.Property<long>("OrganisationUrn")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OutcomeKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PupilFirstname")
                         .HasMaxLength(100)

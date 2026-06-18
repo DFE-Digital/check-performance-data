@@ -89,7 +89,7 @@ public sealed class DevPipelineOutboxEndToEndTests
 
         var decision = await verify.ChangeRequests.AsNoTracking()
             .SingleAsync(r => r.ReferenceNumber == reference);
-        Assert.Equal(DecisionStatus.AutoApproved, decision.DecisionStatus);
+        Assert.Equal(DecisionStatus.AutoApproved, decision.Outcome);
 
         var captured = await verify.DevZendeskTickets.AsNoTracking()
             .SingleAsync(t => t.ReferenceNumber == reference);

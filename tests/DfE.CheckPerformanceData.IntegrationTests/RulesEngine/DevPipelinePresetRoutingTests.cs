@@ -74,7 +74,7 @@ public sealed class DevPipelinePresetRoutingTests
                 await sut.ProcessMessageBodyAsync(message.Payload, CancellationToken.None);
 
                 var decided = await context.ChangeRequests.AsNoTracking()
-                    .AnyAsync(r => r.ReferenceNumber == reference && r.DecisionStatus != null);
+                    .AnyAsync(r => r.ReferenceNumber == reference && r.Outcome != null);
                 if (decided) break;
             }
         }
@@ -82,7 +82,7 @@ public sealed class DevPipelinePresetRoutingTests
         await using var verify = _fixture.CreateContext();
         var persisted = await verify.ChangeRequests.AsNoTracking()
             .SingleAsync(r => r.ReferenceNumber == reference);
-        Assert.Equal(expected, persisted.DecisionStatus);
+        Assert.Equal(expected, persisted.Outcome);
     }
 
     private static RulesSnapshot LoadSeedSnapshot()

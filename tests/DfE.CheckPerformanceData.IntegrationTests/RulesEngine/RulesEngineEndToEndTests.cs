@@ -88,8 +88,8 @@ public sealed class RulesEngineEndToEndTests
             .AsNoTracking()
             .SingleAsync(r => r.ReferenceNumber == reference);
 
-        Assert.Equal(scenario.ExpectedStatus, persisted.DecisionStatus);
-        Assert.Equal(scenario.ExpectedOutcomeKey, persisted.DecisionOutcomeKey);
+        Assert.Equal(scenario.ExpectedStatus, persisted.Outcome);
+        Assert.Equal(scenario.ExpectedOutcomeKey, persisted.OutcomeKey);
         Assert.Equal(scenario.ExpectedRuleId, persisted.MatchedRuleId);
     }
 

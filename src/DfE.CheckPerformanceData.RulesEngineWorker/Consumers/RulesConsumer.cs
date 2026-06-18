@@ -159,8 +159,8 @@ public sealed class RulesConsumer : ConsumerBase
                 .Where(r => r.ReferenceNumber == parsed.ReferenceNumber)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.Status, RequestStatus.RulesProcessed)
-                    .SetProperty(r => r.DecisionStatus, decision.Status)
-                    .SetProperty(r => r.DecisionOutcomeKey, decision.OutcomeKey)
+                    .SetProperty(r => r.Outcome, decision.Status)
+                    .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
                     .SetProperty(r => r.MatchedRuleId, decision.MatchedRuleId)
                     .SetProperty(r => r.RulesVersion, rulesVersion)
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow),

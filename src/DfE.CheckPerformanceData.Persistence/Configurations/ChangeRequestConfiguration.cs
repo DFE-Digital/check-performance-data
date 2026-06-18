@@ -47,11 +47,11 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.CrmId)
             .HasMaxLength(100);
 
-        builder.Property(x => x.DecisionStatus)
+        builder.Property(x => x.Outcome)
             .HasConversion<string>()
-            .HasMaxLength(50);
+            .HasMaxLength(20);
 
-        builder.Property(x => x.DecisionOutcomeKey)
+        builder.Property(x => x.OutcomeKey)
             .HasMaxLength(100);
 
         builder.Property(x => x.MatchedRuleId)

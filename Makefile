@@ -231,8 +231,13 @@ test-e2e: ## Run full E2E suite inside the Linux Playwright container; auto-boot
 	fi; \
 	docker compose --profile e2e run --rm e2e-tests
 
+.PHONY: playwright-install
+playwright-install: ## Install Playwright browser binaries matching the pinned package version (native E2E prerequisite; idempotent — skips browsers already present)
+	dotnet build tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
+	pwsh "$$(ls tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net*/playwright.ps1 | head -1)" install chromium
+
 .PHONY: test-e2e-fast
-test-e2e-fast: ## Run E2E suite natively on host SDK, skipping visual regression (fast TDD inner loop)
+test-e2e-fast: playwright-install ## Run E2E suite natively on host SDK, skipping visual regression (fast TDD inner loop)
 	dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
 
 .PHONY: clean-test-bin

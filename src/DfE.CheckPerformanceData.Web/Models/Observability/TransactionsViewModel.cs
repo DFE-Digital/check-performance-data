@@ -9,6 +9,13 @@ namespace DfE.CheckPerformanceData.Web.Models.Observability;
 public sealed class TransactionsViewModel
 {
     public IReadOnlyList<TransactionRow> Rows { get; init; } = [];
+
+    // When "group by message" is on, the rows are one-per-message across the pipeline stages
+    // (the same picture as the dashboard matrix) instead of one-per-event. Exactly one of Rows /
+    // GroupedRows is populated, per the Grouped flag.
+    public bool Grouped { get; init; }
+    public IReadOnlyList<GroupedTransactionRow> GroupedRows { get; init; } = [];
+
     public int TotalCount { get; init; }
     public int Page { get; init; }
     public int PageSize { get; init; }

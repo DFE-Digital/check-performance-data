@@ -544,6 +544,19 @@
     text-shadow: 0 1px 1px rgba(11, 12, 12, 0.5);
 }
 
+/* --- Transactions: group by message --------------------------------------- */
+/* When grouped, each message is one row spanning the pipeline stages; a left accent and a heavier
+   top rule box each message off from the next so the grouping is visible (a partition per message,
+   not colour alone — the reference cell is also emphasised). */
+.obs-tx-grouped tbody tr.obs-tx-group td {
+    border-top: 2px solid #b1b4b6;
+}
+
+.obs-tx-grouped tbody tr.obs-tx-group td:first-child {
+    border-left: 4px solid #1d70b8;
+    font-weight: 700;
+}
+
 /* --- Journey timeline ----------------------------------------------------- */
 
 .obs-why-slot {

@@ -225,13 +225,30 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
-	public void Transactions_DecisionColumnReadsTheResolvedDecision()
+	public void Transactions_UsesTheWideTemplate_AndOffersGroupByMessage()
 	{
 		var view = ReadView("Transactions.cshtml");
 
-		// The decision lives on the RulesEvaluated event; the table must surface the reference's
-		// resolved decision so non-RulesEvaluated rows are not blank.
-		Assert.Contains("row.ResolvedDecision", view);
+		// Wide template so the grid is not squished; a "Group by message" checkbox switches to the
+		// one-row-per-message matrix across the pipeline stages.
+		Assert.Contains("_AdminWideLayout", view);
+		Assert.Contains("Group by message", view);
+		Assert.Contains("name=\"group\"", view);
+		Assert.Contains("obs-tx-grouped", view);
+		Assert.Contains("Zendesk ticket", view);
+	}
+
+	[Fact]
+	public void Transactions_UngroupedRowShowsItsOwnEventDecision_NotTheResolvedOne()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// Fix: a per-event row shows only the decision its own stage carries (RulesEvaluated), so a
+		// Submitted row's decision cell is blank rather than borrowing the message's eventual
+		// decision (which read as "the decision existed at submit time"). The resolved decision is
+		// shown once per message in the grouped view instead.
+		Assert.Contains("row.DecisionStatus", view);
+		Assert.DoesNotContain("row.ResolvedDecision", view);
 	}
 
 	[Fact]

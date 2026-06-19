@@ -343,6 +343,92 @@ LIMIT @limit OFFSET @offset;";
         return new TransactionsPage(rows, total, page, pageSize);
     }
 
+    public async Task<GroupedTransactionsPage> GetGroupedTransactionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        string? reference = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        if (fromUtc is { } f && toUtc is { } t)
+            GuardRange(f, t);
+
+        var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        // The same optional window + reference-prefix predicate as the flat list, shared between the
+        // COUNT and the page so the distinct-reference total matches the rows.
+        var where = new List<string>();
+        if (fromUtc is not null) where.Add("recorded_at_utc >= @from");
+        if (toUtc is not null) where.Add("recorded_at_utc < @to");
+        if (referenceFilter is not null) where.Add("reference_number ILIKE @ref || '%'");
+        var whereClause = where.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", where);
+
+        // The page count is the number of distinct messages (references), not events.
+        var countSql = $"SELECT COUNT(DISTINCT reference_number) FROM queue_metrics_events {whereClause};";
+
+        // One aggregated row per reference: the per-stage timestamps via conditional aggregation, the
+        // decision and rules-engine latency from the RulesEvaluated event, and a dead-letter flag.
+        // Ordered by last activity so the most recently active message is first; paged in SQL.
+        var pageSql = $@"
+SELECT reference_number,
+       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
+       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
+       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
+       MAX(decision_status) FILTER (WHERE decision_status IS NOT NULL) AS decision,
+       MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
+       bool_or(stage = '{MetricStages.DeadLettered}') AS dead_lettered,
+       MAX(recorded_at_utc) AS last_at
+FROM queue_metrics_events
+{whereClause}
+GROUP BY reference_number
+ORDER BY last_at DESC
+LIMIT @limit OFFSET @offset;";
+
+        void BindFilters(NpgsqlCommand command)
+        {
+            if (fromUtc is { } from)
+                command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = from });
+            if (toUtc is { } to)
+                command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = to });
+            if (referenceFilter is not null)
+                command.Parameters.Add(new NpgsqlParameter("ref", NpgsqlDbType.Text) { Value = EscapeLike(referenceFilter) });
+        }
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, BindFilters, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        DateTime? Utc(NpgsqlDataReader reader, int ord) =>
+            reader.IsDBNull(ord) ? null : DateTime.SpecifyKind(reader.GetDateTime(ord), DateTimeKind.Utc);
+
+        var rows = new List<GroupedTransactionRow>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            BindFilters(command);
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            rows.Add(new GroupedTransactionRow(
+                reader.GetString(0),
+                Utc(reader, 1),
+                Utc(reader, 2),
+                Utc(reader, 3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                !reader.IsDBNull(6) && reader.GetBoolean(6),
+                DateTime.SpecifyKind(reader.GetDateTime(7), DateTimeKind.Utc)));
+        });
+
+        return new GroupedTransactionsPage(rows, total, page, pageSize);
+    }
+
     // The page query aliases queue_metrics_events as e (for the resolved-decision join), so the
     // shared WHERE — built unqualified for the COUNT — is requalified to the e alias here. The
     // column names are a fixed internal set, never caller input, so this string rewrite carries no

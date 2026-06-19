@@ -69,6 +69,21 @@ public interface IMetricsQueryService
         string? reference = null,
         CancellationToken cancellationToken = default);
 
+    // A newest-first page of transactions GROUPED by message: one row per distinct reference,
+    // aggregating its Submitted / RulesEvaluated / TicketCreated timestamps, decision, rules-engine
+    // latency and dead-letter flag, so the transactions page can show each message on one line
+    // across the pipeline stages. The grouping, ordering (by last activity, newest first) and paging
+    // (LIMIT/OFFSET plus a COUNT of distinct references) all happen in SQL. The same optional
+    // [from, to) window and reference prefix filter as the flat list apply, bounded by the same
+    // abusive-aggregation guard.
+    Task<GroupedTransactionsPage> GetGroupedTransactionsAsync(
+        int page,
+        int pageSize,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        string? reference = null,
+        CancellationToken cancellationToken = default);
+
     // A newest-first page of distinct request references that entered the pipeline, each with its
     // first-seen time and its most recent stage/decision — the picker for the interactive replay.
     // The distinct grouping, ordering and paging all happen in SQL (a grouped query paged with

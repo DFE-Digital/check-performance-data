@@ -1,7 +1,9 @@
 @using System.Globalization
 @model DfE.CheckPerformanceData.Web.Models.Observability.TransactionsViewModel
 @{
-    Layout = "_AdminLayout";
+    // The transactions page uses the wide dashboard template so the grid has room to breathe
+    // (the standard GDS column made it squished).
+    Layout = "_AdminWideLayout";
     ViewData["Title"] = "Transactions";
 
     string DateQs()
@@ -10,6 +12,7 @@
         if (Model.FromUtc is { } f) parts.Add($"from={Uri.EscapeDataString(f.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture))}");
         if (Model.ToUtc is { } t) parts.Add($"to={Uri.EscapeDataString(t.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture))}");
         if (!string.IsNullOrEmpty(Model.Reference)) parts.Add($"reference={Uri.EscapeDataString(Model.Reference)}");
+        if (Model.Grouped) parts.Add("group=true");
         return parts.Count == 0 ? string.Empty : "&" + string.Join("&", parts);
     }
 
@@ -20,14 +23,33 @@
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    var unit = Model.Grouped ? "message" : "transaction";
+
+    string Hms(DateTime? t) => t is null ? "—" : t.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+    string Waited(DateTime? a, DateTime? b)
+    {
+        if (a is null || b is null || b < a) return "—";
+        var ms = (b.Value - a.Value).TotalMilliseconds;
+        return ms >= 1000 ? $"waited {(ms / 1000):0.0}s" : $"waited {ms:0}ms";
+    }
+    string DecisionLabel(string? d) => d switch
+    {
+        "AutoApproved" => "Auto-approved",
+        "AutoRejected" => "Auto-rejected",
+        "Scrutiny" => "Scrutiny",
+        _ => string.IsNullOrEmpty(d) ? "—" : d
+    };
 }
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
 
 <a class="govuk-back-link" href="/admin/observability">Back to pipeline dashboard</a>
 
 <h1 class="govuk-heading-xl">Transactions</h1>
 <p class="govuk-body-l">
     Every message recorded passing through the queues, newest first. Open a reference to inspect
-    its journey through the pipeline stages.
+    its journey through the pipeline stages, or tick <strong>Group by message</strong> to see each
+    message on a single line across the stages.
 </p>
 
 <form method="get" action="/admin/observability/transactions" class="govuk-!-margin-bottom-6">
@@ -45,10 +67,19 @@
         <label class="govuk-label" for="to">To (UTC)</label>
         <input class="govuk-input govuk-input--width-20" id="to" name="to" type="datetime-local" value="@ToValue()" />
     </div>
+    @* Group by message: one row per reference across the pipeline stages, like the dashboard
+       matrix, instead of one row per recorded event. *@
+    <div class="govuk-checkboxes govuk-checkboxes--small govuk-!-margin-bottom-3">
+        <div class="govuk-checkboxes__item">
+            <input class="govuk-checkboxes__input" id="group" name="group" type="checkbox" value="true"
+                   @(Model.Grouped ? "checked" : "") />
+            <label class="govuk-label govuk-checkboxes__label" for="group">Group by message</label>
+        </div>
+    </div>
     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
         Search
     </button>
-    @if (Model.FromUtc is not null || Model.ToUtc is not null || !string.IsNullOrEmpty(Model.Reference))
+    @if (Model.FromUtc is not null || Model.ToUtc is not null || !string.IsNullOrEmpty(Model.Reference) || Model.Grouped)
     {
         <a class="govuk-link govuk-!-margin-left-2" href="/admin/observability/transactions">Clear filter</a>
     }
@@ -60,41 +91,83 @@
 }
 else
 {
-    <p class="govuk-body">Showing @firstRow to @lastRow of @Model.TotalCount transaction@(Model.TotalCount == 1 ? "" : "s").</p>
+    <p class="govuk-body">Showing @firstRow to @lastRow of @Model.TotalCount @(unit)@(Model.TotalCount == 1 ? "" : "s").</p>
 
-    <table class="govuk-table">
-        <caption class="govuk-table__caption govuk-visually-hidden">Recorded transactions</caption>
-        <thead class="govuk-table__head">
-            <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">Time (UTC)</th>
-                <th scope="col" class="govuk-table__header">Reference</th>
-                <th scope="col" class="govuk-table__header">Stage</th>
-                <th scope="col" class="govuk-table__header">Queue</th>
-                <th scope="col" class="govuk-table__header">Decision</th>
-                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Latency (ms)</th>
-            </tr>
-        </thead>
-        <tbody class="govuk-table__body">
-            @foreach (var row in Model.Rows)
-            {
+    @if (Model.Grouped)
+    {
+        @* Grouped: one row per message across the pipeline stages, mirroring the dashboard matrix —
+           each cell shows what happened at that stage (the submit time, the wait in each queue, the
+           rules-engine latency and decision, and the ticket time). Each message row is boxed so it
+           reads as one group. *@
+        <table class="govuk-table obs-tx-grouped">
+            <caption class="govuk-table__caption govuk-visually-hidden">Transactions grouped by message</caption>
+            <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@row.RecordedAtUtc.ToString("u")</td>
-                    <td class="govuk-table__cell">
-                        <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(row.ReferenceNumber)">@row.ReferenceNumber</a>
-                    </td>
-                    <td class="govuk-table__cell">@row.Stage</td>
-                    <td class="govuk-table__cell">@row.QueueName</td>
-                    @* The decision lives on the RulesEvaluated event; show the reference's resolved
-                       decision on every row so non-RulesEvaluated rows are not mysteriously blank,
-                       falling back to this row's own decision and then a dash. *@
-                    @{ var decision = !string.IsNullOrEmpty(row.DecisionStatus) ? row.DecisionStatus
-                           : !string.IsNullOrEmpty(row.ResolvedDecision) ? row.ResolvedDecision : "—"; }
-                    <td class="govuk-table__cell">@decision</td>
-                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.LatencyMs.ToString("0.###", CultureInfo.InvariantCulture)</td>
+                    <th scope="col" class="govuk-table__header">Reference</th>
+                    <th scope="col" class="govuk-table__header">Submit</th>
+                    <th scope="col" class="govuk-table__header">Rules queue</th>
+                    <th scope="col" class="govuk-table__header">Rules engine</th>
+                    <th scope="col" class="govuk-table__header">Status</th>
+                    <th scope="col" class="govuk-table__header">Zendesk queue</th>
+                    <th scope="col" class="govuk-table__header">Zendesk ticket</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in Model.GroupedRows)
+                {
+                    var status = row.DeadLettered ? "Dead-letter" : DecisionLabel(row.Decision);
+                    var engineCell = row.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : Hms(row.RulesEvaluatedAtUtc);
+                    <tr class="govuk-table__row obs-tx-group">
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(row.ReferenceNumber)">@row.ReferenceNumber</a>
+                        </td>
+                        <td class="govuk-table__cell">@Hms(row.SubmittedAtUtc)</td>
+                        <td class="govuk-table__cell">@Waited(row.SubmittedAtUtc, row.RulesEvaluatedAtUtc)</td>
+                        <td class="govuk-table__cell">@engineCell</td>
+                        <td class="govuk-table__cell">@status</td>
+                        <td class="govuk-table__cell">@(row.DeadLettered ? "—" : Waited(row.RulesEvaluatedAtUtc, row.TicketCreatedAtUtc))</td>
+                        <td class="govuk-table__cell">@Hms(row.TicketCreatedAtUtc)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        @* Ungrouped: one row per recorded event, ordered by time. The decision is shown only on the
+           event that actually carries it (the RulesEvaluated event) — a Submitted row has no
+           decision yet, so its decision cell is blank rather than borrowing the message's eventual
+           decision (which read as "the decision existed at submit time"). Group by message to see
+           the message's resolved decision on one line. *@
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-visually-hidden">Recorded transactions</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Time (UTC)</th>
+                    <th scope="col" class="govuk-table__header">Reference</th>
+                    <th scope="col" class="govuk-table__header">Stage</th>
+                    <th scope="col" class="govuk-table__header">Queue</th>
+                    <th scope="col" class="govuk-table__header">Decision</th>
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric">Latency (ms)</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in Model.Rows)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@row.RecordedAtUtc.ToString("u")</td>
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(row.ReferenceNumber)">@row.ReferenceNumber</a>
+                        </td>
+                        <td class="govuk-table__cell">@row.Stage</td>
+                        <td class="govuk-table__cell">@row.QueueName</td>
+                        <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.DecisionStatus) ? "—" : DecisionLabel(row.DecisionStatus))</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.LatencyMs.ToString("0.###", CultureInfo.InvariantCulture)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
 
     @if (Model.TotalPages > 1)
     {

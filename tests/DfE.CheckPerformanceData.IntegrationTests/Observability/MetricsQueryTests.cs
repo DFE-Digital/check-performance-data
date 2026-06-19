@@ -662,6 +662,43 @@ public sealed class MetricsQueryTests
         Assert.All(page2.Rows, r => Assert.Equal("SAME-REF", r.ReferenceNumber));
     }
 
+    // --- Group by message: each reference collapses to one aggregated row across the stages ---
+
+    [Fact]
+    public async Task GetGroupedTransactions_CollapsesEachMessageToOneRow_WithStageTimestampsAndDecision()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 15, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "GRP-1", anchor.AddSeconds(0)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "GRP-1", anchor.AddSeconds(10), decision: "AutoApproved", latencyMs: 12),
+            Metric(ZendeskQueue, "TicketCreated", "GRP-1", anchor.AddSeconds(20)),
+            Metric(RulesEngineQueue, "Submitted", "GRP-2", anchor.AddSeconds(30)),
+            Metric(RulesEngineQueue, "DeadLettered", "GRP-2", anchor.AddSeconds(40)));
+
+        var service = CreateService();
+        var page = await service.GetGroupedTransactionsAsync(page: 1, pageSize: 20);
+
+        // Two distinct messages, not five events.
+        Assert.Equal(2, page.TotalCount);
+
+        var g1 = page.Rows.Single(r => r.ReferenceNumber == "GRP-1");
+        Assert.Equal(anchor.AddSeconds(0), g1.SubmittedAtUtc);
+        Assert.Equal(anchor.AddSeconds(10), g1.RulesEvaluatedAtUtc);
+        Assert.Equal(anchor.AddSeconds(20), g1.TicketCreatedAtUtc);
+        Assert.Equal("AutoApproved", g1.Decision);
+        Assert.Equal(12, g1.RulesLatencyMs);
+        Assert.False(g1.DeadLettered);
+
+        var g2 = page.Rows.Single(r => r.ReferenceNumber == "GRP-2");
+        Assert.True(g2.DeadLettered);
+        Assert.Null(g2.Decision);
+
+        // Ordered by last activity, newest first: GRP-2's last event (40s) is after GRP-1's (20s).
+        Assert.Equal("GRP-2", page.Rows.First().ReferenceNumber);
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

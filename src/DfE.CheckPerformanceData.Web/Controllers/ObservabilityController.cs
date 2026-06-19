@@ -226,6 +226,7 @@ public sealed class ObservabilityController : Controller
         DateTime? from = null,
         DateTime? to = null,
         string? reference = null,
+        bool group = false,
         CancellationToken cancellationToken = default)
     {
         if (page < 1) page = 1;
@@ -239,6 +240,27 @@ public sealed class ObservabilityController : Controller
         // produce an always-empty result. The filter is carried back onto the model so the search
         // box stays populated and the pager links preserve it across pages.
         var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        // Group-by-message switches to one row per reference across the pipeline stages (the
+        // dashboard matrix picture); the default is the flat one-row-per-event list.
+        if (group)
+        {
+            var grouped = await _query.GetGroupedTransactionsAsync(
+                page, pageSize, fromUtc, toUtc, referenceFilter, cancellationToken);
+
+            return View(new TransactionsViewModel
+            {
+                Grouped = true,
+                GroupedRows = grouped.Rows,
+                TotalCount = grouped.TotalCount,
+                Page = grouped.Page,
+                PageSize = grouped.PageSize,
+                TotalPages = TotalPages(grouped.TotalCount, grouped.PageSize),
+                FromUtc = fromUtc,
+                ToUtc = toUtc,
+                Reference = referenceFilter,
+            });
+        }
 
         var result = await _query.GetTransactionsAsync(
             page, pageSize, fromUtc, toUtc, referenceFilter, cancellationToken);

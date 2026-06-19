@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(18, entries.Count);
+		Assert.Equal(20, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
@@ -41,6 +41,8 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);
 		Assert.Contains("Replay", titles);
+		Assert.Contains("Amendment requests", titles);
+		Assert.Contains("Uncommitted requests", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

@@ -37,17 +37,6 @@
          data-inspect-url="/admin/observability/inspect"
          data-replay-url="/admin/observability/replay">
 
-    @* Always-available board controls. Pause/Resume freezes all envelope motion (and the
-       replay/trickle) until resumed — it just stops animation, so it is not dev-gated and lives on
-       the board itself, reachable without opening the dev-only Demo panel. *@
-    <div class="obs-board__toolbar">
-        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
-                data-module="govuk-button" data-obs-pause aria-pressed="false"
-                title="Freeze every envelope on the board so you can read it; press again to resume.">
-            Pause
-        </button>
-    </div>
-
     @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
        animates envelope tokens between these nodes from the live feed; with JS off or motion
        reduced the skeleton and the textual parallel below convey the same information. A

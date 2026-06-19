@@ -18,63 +18,65 @@
             <span class="govuk-details__summary-text">Demo</span>
         </summary>
         <div class="govuk-details__text obs-demo-panel__body">
-            <p class="govuk-body">
-                Drive synthetic traffic through the pipeline and watch the board react. Use the drive
-                buttons to send approved, rejected or scrutiny requests; inject a failing message or
-                seed the dead-letter queue to rehearse failure and recovery; replay recent recorded
-                traffic, or trickle a steady demo flow. Nothing here touches pupil data — it is a dev
-                and test tool only.
+            <p class="govuk-body govuk-!-margin-bottom-2">
+                Drive synthetic traffic and watch the board react. Nothing here touches pupil data —
+                it is a dev and test tool only.
             </p>
 
-            @* ── Drive traffic ─────────────────────────────────────────────── *@
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="uat-batch">Batch size</label>
-                <span class="govuk-hint">How many requests each "drive" button fires (1–20).</span>
-                <input class="govuk-input govuk-input--width-3" id="uat-batch" name="count"
-                       type="number" min="1" max="20" value="1" data-uat-batch inputmode="numeric"
-                       title="How many requests each drive button sends in one click." />
-            </div>
+            @* ── Drive bar: batch size, the three drive buttons, inject/seed and Pause all on one
+               wrapping row so the panel stays short and the board below stays in view. ── *@
+            <div class="obs-demo-panel__bar">
+                <div class="obs-demo-panel__batch">
+                    <label class="govuk-label govuk-!-margin-bottom-0" for="uat-batch">Batch</label>
+                    <input class="govuk-input govuk-input--width-2" id="uat-batch" name="count"
+                           type="number" min="1" max="20" value="1" data-uat-batch inputmode="numeric"
+                           title="How many requests each drive button sends in one click (1–20)." />
+                </div>
 
-            <h3 class="govuk-heading-s">Drive traffic</h3>
-            <div class="govuk-button-group">
                 <form method="post" action="/dev/uat/drive?outcome=approved" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request the rules engine will approve; watch it reach a Zendesk ticket.">Drive approved</button>
+                            data-uat-tip title="Send a request the rules engine will approve; watch it route through Auto-approved to a Zendesk ticket.">Drive approved</button>
                 </form>
                 <form method="post" action="/dev/uat/drive?outcome=rejected" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request the rules engine will reject; it still produces a ticket carrying the rejection.">Drive rejected</button>
+                            data-uat-tip title="Send a request the rules engine will reject; it routes through Auto-rejected and still produces a ticket.">Drive rejected</button>
                 </form>
                 <form method="post" action="/dev/uat/drive?outcome=scrutiny" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request that falls to manual scrutiny; useful for exercising the scrutiny path.">Drive scrutiny</button>
+                            data-uat-tip title="Send a request that falls to manual scrutiny; exercises the scrutiny path.">Drive scrutiny</button>
                 </form>
-            </div>
 
-            @* ── Inject failure ────────────────────────────────────────────── *@
-            <h3 class="govuk-heading-s">Inject failure</h3>
-            <div class="govuk-button-group">
                 <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-obs-inject
-                            data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Inject failing message</button>
+                            data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Inject failure</button>
                 </form>
                 <form method="post" action="/dev/uat/seed-dlq" class="uat-inline-form">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-uat-tip title="Place a message straight onto the dead-letter queue so you can practise a redrive.">Seed DLQ</button>
                 </form>
+
+                @* Pause/Resume freezes all envelope motion so the board can be read. It lives in the
+                   Demo panel (only shown while Demo is expanded) and is styled as a clear primary
+                   button rather than the old grey-on-grey, per UAT. The board engine resolves it at
+                   document level. *@
+                <button type="button" class="govuk-button obs-demo-panel__pause govuk-!-margin-bottom-0"
+                        data-module="govuk-button" data-obs-pause aria-pressed="false"
+                        title="Freeze every envelope on the board so you can read it; press again to resume.">
+                    Pause
+                </button>
             </div>
 
             @* A live region the AJAX drives write the last reference into, in place of a reload. *@
-            <p class="govuk-body" data-uat-last-reference aria-live="polite"></p>
+            <p class="govuk-body govuk-!-margin-bottom-2" data-uat-last-reference aria-live="polite"></p>
 
             @* ── Replay + board demo controls (laid out horizontally to keep the panel short) ── *@
             <div class="obs-demo-panel__row">

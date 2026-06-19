@@ -226,5 +226,19 @@
                 </table>
             </div>
         </details>
+
+        @* The decision-colour key sits directly beneath the pie it explains (mirroring the
+           decision-mix-over-time chart's own legend), rather than one shared key far away in the
+           page. Reads the canonical DecisionColours map so it can never drift from the slices.
+           Decorative (aria-hidden) — the paired data table above carries the meaning in text. *@
+        <ul class="obs-legend govuk-body-s govuk-!-margin-top-2" aria-hidden="true">
+            @foreach (var item in DecisionColours.LegendItems)
+            {
+                <li class="obs-legend__item">
+                    <span class="obs-legend__swatch" style="background-color: @item.Colour"></span>
+                    @item.Label
+                </li>
+            }
+        </ul>
     }
 </div>

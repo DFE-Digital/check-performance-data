@@ -25,7 +25,9 @@ public sealed class ObservabilityBoardSourceTests
             new[] { RepoRoot, "src", "DfE.CheckPerformanceData.Web" }.Concat(parts).ToArray()));
 
     private static string Board() => WebFile("Views", "Observability", "_Board.cshtml");
+    private static string DemoPanel() => WebFile("Views", "Observability", "_DemoPanel.cshtml");
     private static string BoardJs() => WebFile("wwwroot", "js", "observability-board.js");
+    private static string UatConsoleJs() => WebFile("wwwroot", "js", "uat-console.js");
     private static string Css() => WebFile("wwwroot", "css", "observability.css");
 
     // --- Item 4: the final board box is labelled "Zendesk ticket", not "Ticket" ---
@@ -135,26 +137,104 @@ public sealed class ObservabilityBoardSourceTests
 
     // --- An always-available Pause control + hover/focus message details ---
 
+    // --- Round 3: Pause moved into the Demo panel (only shown while Demo is expanded) and is a
+    //     clear primary button, not the old grey-on-grey board toolbar ---
+
     [Fact]
-    public void Board_CarriesAnAlwaysAvailablePauseControl()
+    public void Pause_LivesInTheDemoPanel_NotTheBoardToolbar()
     {
         var board = Board();
+        var panel = DemoPanel();
 
-        // Pause lives on the board itself (not the dev-only Demo panel), so it is reachable without
-        // the Demo panel. It carries the hook the engine binds and an accessible toggle state.
-        Assert.Contains("data-obs-pause", board);
-        Assert.Contains("aria-pressed", board);
+        // Per UAT round 3, Pause should only show when the Demo panel is expanded, so it moved out of
+        // the always-on board toolbar into the Demo panel and is styled as a prominent button.
+        Assert.Contains("data-obs-pause", panel);
+        Assert.Contains("aria-pressed", panel);
+        Assert.Contains("obs-demo-panel__pause", panel);
+        // The board no longer carries its own pause toolbar.
+        Assert.DoesNotContain("data-obs-pause", board);
+        Assert.DoesNotContain("obs-board__toolbar", board);
     }
 
     [Fact]
-    public void BoardJs_PauseFreezesMotion_AndIsReachableFromTheBoard()
+    public void BoardJs_PauseFreezesMotion_AndIsResolvedAtDocumentLevel()
     {
         var js = BoardJs();
 
-        // The engine exposes a pause toggle that freezes envelope motion and the replay/trickle, and
-        // the board-level control is wired to it (resolved from the board root, not just the Demo panel).
+        // The engine exposes a pause toggle that freezes envelope motion and the replay/trickle; the
+        // control is resolved at document level so it works from the Demo panel.
         Assert.Contains("togglePause", js);
         Assert.Contains("data-obs-pause", js);
+    }
+
+    // --- Round 3: one envelope per MESSAGE (keyed by reference), not one per stage row ---
+
+    [Fact]
+    public void BoardJs_AnimatesOneEnvelopePerMessage_KeyedByReference()
+    {
+        var js = BoardJs();
+
+        // The engine remembers which references it has animated and primes a baseline on the first
+        // snapshot so history is not replayed on load — so one drive shows exactly one envelope.
+        Assert.Contains("animatedRefs", js);
+        Assert.Contains("primed", js);
+        // Optimistic, correctly-routed feedback for an AJAX drive, deduped against the SSE rows.
+        Assert.Contains("presentDrive", js);
+    }
+
+    [Fact]
+    public void BoardJs_DecidedEnvelopeRoutesThroughStatusThenZendeskQueueThenTicket()
+    {
+        var js = BoardJs();
+
+        // Canonical flow: the decision box feeds the Zendesk queue, which feeds the ticket — the
+        // engine never sends a decided envelope straight from its status to the ticket.
+        Assert.Contains("stage:zendesk-queue", js);
+        Assert.Contains("decisionAnchor", js);
+    }
+
+    [Fact]
+    public void BoardJs_ColoursTheEnvelopeByDecision()
+    {
+        var js = BoardJs();
+
+        // The envelope fill reflects the outcome: rejected red, scrutiny yellow (approved blue).
+        Assert.Contains("DECISION_COLOURS", js);
+        Assert.Contains("#ffdd00", js); // Scrutiny yellow
+        Assert.Contains("#d4351c", js); // Rejected / failed red
+    }
+
+    [Fact]
+    public void BoardJs_SingleStepIsAStickyMode_NotASelfUntickingButton()
+    {
+        var js = BoardJs();
+
+        // Single step is a sticky mode like slow motion (it must stay ticked); both compose via a
+        // speed product.
+        Assert.Contains("setStepMode", js);
+        Assert.Contains("stepFactor", js);
+    }
+
+    [Fact]
+    public void BoardJs_DemoTrickleSpreadsAcrossAllOutcomeTypes()
+    {
+        var js = BoardJs();
+
+        // Trickle/single-step send a random outcome so the board shows a realistic spread, not only
+        // the happy ticket path.
+        Assert.Contains("randomOutcome", js);
+        Assert.Contains("AutoRejected", js);
+    }
+
+    [Fact]
+    public void UatConsole_DriveGivesOptimisticBoardFeedbackByOutcome()
+    {
+        var js = UatConsoleJs();
+
+        // The AJAX drive tells the board the new reference and the intended outcome so it shows one
+        // correctly-routed envelope immediately (no fake extra envelope, no full reload).
+        Assert.Contains("present", js);
+        Assert.Contains("outcomeForForm", js);
     }
 
     [Fact]

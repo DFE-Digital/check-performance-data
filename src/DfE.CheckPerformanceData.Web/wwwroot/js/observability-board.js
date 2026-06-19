@@ -55,6 +55,15 @@
     // to the anchor of the box matching its decision.
     var DECISION_KEYS = ['AutoApproved', 'AutoRejected', 'Scrutiny'];
 
+    // Envelope fill by decision, so the colour of the envelope itself tells the outcome at a glance:
+    // approved is GDS blue, rejected GDS red, scrutiny GDS yellow. A failed/injected message is GDS
+    // red with the --failed modifier (handled separately). An undecided in-flight message is blue.
+    var DECISION_COLOURS = {
+        'AutoApproved': '#1d70b8',
+        'AutoRejected': '#d4351c',
+        'Scrutiny': '#ffdd00',
+    };
+
     // Map a queue depth to the three-state node class. Kept deliberately simple: any waiting work
     // backs the stage up; the health strip owns the authoritative red.
     function stateForCount(count) {
@@ -287,15 +296,24 @@
         // class, not colour alone.
         function makeToken(transition, failed) {
             var token = document.createElement('span');
-            token.className = 'obs-board__token' + (failed ? ' obs-board__token--failed' : '');
+            // The decision (if known) colours the envelope: blue approved, red rejected, yellow
+            // scrutiny. A failure is always red and carries the --failed modifier so it stays
+            // distinct by class too — colour AND modifier, never colour alone.
+            var decisionKey = failed ? null : decisionKeyFor(transition || {});
+            var modifier = failed ? ' obs-board__token--failed'
+                : (decisionKey ? ' obs-board__token--' + decisionKey.toLowerCase() : '');
+            token.className = 'obs-board__token' + modifier;
             token.setAttribute('tabindex', '0');
             token.setAttribute('role', 'button');
             token.setAttribute('aria-label', accessibleName(transition) + ' — inspect this message');
-            var fill = failed ? '#d4351c' : '#1d70b8';
+            var fill = failed ? '#d4351c' : (DECISION_COLOURS[decisionKey] || '#1d70b8');
+            // The white envelope flap reads on blue/red but not on yellow; use a dark flap on the
+            // yellow scrutiny envelope so the shape stays legible (contrast, never colour alone).
+            var flap = (decisionKey === 'Scrutiny') ? '#0b0c0c' : '#ffffff';
             token.innerHTML =
                 '<svg viewBox="0 0 24 18" width="20" height="15" aria-hidden="true" focusable="false">' +
                 '<rect x="1" y="1" width="22" height="16" rx="2" fill="' + fill + '" stroke="#0b0c0c" stroke-width="1.5"/>' +
-                '<path d="M2 3 L12 11 L22 3" fill="none" stroke="#ffffff" stroke-width="1.5"/>' +
+                '<path d="M2 3 L12 11 L22 3" fill="none" stroke="' + flap + '" stroke-width="1.5"/>' +
                 '</svg>';
             var reference = transition.referenceNumber || transition.ReferenceNumber || '';
             token.addEventListener('click', function () { inspect(reference); });
@@ -445,7 +463,10 @@
                             if (token.parentNode) { token.parentNode.removeChild(token); }
                         }, dwellFor('rules-engine', moveSpeed) * 2);
                     } else if (decisionKey) {
-                        // Route into the decision box, light it, dwell, then continue to the ticket.
+                        // Canonical flow: Rules engine → its decision box (Auto-approved /
+                        // Auto-rejected / Scrutiny) → Zendesk-queue → Zendesk ticket. The engine
+                        // never feeds the Zendesk queue directly; the decision routes through its
+                        // status box, the status feeds the queue, the queue produces the ticket.
                         var decId = 'decision:' + decisionKey;
                         var releaseDec = restAt(token, decId, decisionAnchor(decisionKey));
                         setDecisionActive(decisionKey, true);
@@ -453,13 +474,19 @@
                             releaseDec();
                             if ((occupancy[decId] || 0) <= 0) { setDecisionActive(decisionKey, false); }
                             token.style.visibility = '';
-                            // A decided message still produces a ticket: continue to the final box.
-                            placeAt(token, anchorFor('ticket'));
-                            var releaseTicket = restAt(token, 'stage:ticket', anchorFor('ticket'));
+                            // status → Zendesk-queue
+                            placeAt(token, anchorFor('zendesk-queue'));
+                            var releaseZq = restAt(token, 'stage:zendesk-queue', anchorFor('zendesk-queue'));
                             pausableTimeout(function () {
-                                releaseTicket();
-                                if (token.parentNode) { token.parentNode.removeChild(token); }
-                            }, dwellFor('ticket', moveSpeed) * 2);
+                                releaseZq();
+                                // Zendesk-queue → Zendesk ticket
+                                placeAt(token, anchorFor('ticket'));
+                                var releaseTicket = restAt(token, 'stage:ticket', anchorFor('ticket'));
+                                pausableTimeout(function () {
+                                    releaseTicket();
+                                    if (token.parentNode) { token.parentNode.removeChild(token); }
+                                }, dwellFor('ticket', moveSpeed) * 2);
+                            }, dwellFor('zendesk-queue', moveSpeed));
                         }, dwellFor('rules-engine', moveSpeed));
                     } else {
                         // No decision reported: rest at the final reported box then clear.
@@ -492,13 +519,20 @@
             });
         }
 
-        // The snapshot stream returns the latest transitions regardless of novelty, so the engine
-        // tracks the newest RecordedAtUtc it has rendered and only animates/announces transitions
-        // newer than it. Without the watermark every heartbeat would re-spawn envelopes for events
-        // that may be hours old and rewrite the aria-live list. Synthetic transitions (single-step,
-        // demo trickle, replay) carry no watermark obligation: they pass forceAnimate so deliberate
-        // re-presentation still runs.
-        var lastSeenUtc = null;
+        // The board animates ONE envelope per MESSAGE, not one per stage row. A single message emits
+        // several stage rows (submitted, rules-queue, rules-engine + decision, zendesk-queue,
+        // ticket), each with its own timestamp, and the snapshot re-pushes recent rows every
+        // heartbeat. Spawning per row made one drive look like several envelopes "dropping in" over
+        // 10-20s, one splitting to a status and another going straight to the ticket. Instead the
+        // engine keys by reference: it remembers which references it has already given an envelope
+        // (animatedRefs), and when a NEW reference becomes "ready" (decided, failed, or reached the
+        // ticket) it flies exactly one envelope along the full path, routed by that reference's
+        // resolved decision. On the FIRST snapshot it primes animatedRefs from the existing history
+        // WITHOUT animating, so loading the page does not replay hours of old traffic — only new
+        // references that appear after load animate. Synthetic transitions (single-step, demo
+        // trickle, replay, optimistic drive feedback) pass forceAnimate and animate directly.
+        var animatedRefs = {};
+        var primed = false;
         var listRendered = false;
 
         function timestampOf(transition) {
@@ -508,48 +542,116 @@
             return isNaN(ms) ? null : ms;
         }
 
+        function refOf(transition) {
+            return transition.referenceNumber || transition.ReferenceNumber || null;
+        }
+
+        // Collapse a reference's rows into a single message state: did any row fail, what decision
+        // did it resolve to (the last non-empty decisionStatus), did it reach the ticket, and which
+        // row is the latest (for the time/latency shown on hover).
+        function resolveMessage(rows) {
+            var failed = false, decision = null, latest = rows[0], latestTs = null, latency = null;
+            rows.forEach(function (t) {
+                if (isFailure(t)) { failed = true; }
+                var d = t.decisionStatus || t.DecisionStatus;
+                if (d) { decision = d; }
+                var l = (t.latencyMs !== undefined ? t.latencyMs : t.LatencyMs);
+                if (l !== undefined && l !== null && l !== '') { latency = l; }
+                var ts = timestampOf(t);
+                if (ts !== null && (latestTs === null || ts >= latestTs)) { latestTs = ts; latest = t; }
+            });
+            var reachedTicket = rows.some(function (t) { return stageKeyFor(t) === 'ticket'; });
+            return { failed: failed, decision: decision, reachedTicket: reachedTicket, latest: latest, latency: latency };
+        }
+
+        function renderTextList(list) {
+            if (!transitionsList) { return; }
+            transitionsList.innerHTML = '';
+            if (!list || list.length === 0) {
+                var empty = document.createElement('li');
+                empty.className = 'obs-board__transitions-empty';
+                empty.textContent = 'No transitions yet.';
+                transitionsList.appendChild(empty);
+            } else {
+                list.slice(0, MAX_RECENT_TRANSITIONS).forEach(function (t) {
+                    var li = document.createElement('li');
+                    li.textContent = accessibleName(t);
+                    transitionsList.appendChild(li);
+                });
+            }
+            listRendered = true;
+        }
+
         function updateTransitions(transitions, forceAnimate) {
             var list = transitions || [];
-            var fresh = list;
-            if (!forceAnimate) {
-                fresh = list.filter(function (t) {
-                    var ts = timestampOf(t);
-                    return ts === null || lastSeenUtc === null || ts > lastSeenUtc;
-                });
+
+            // Synthetic re-presentation (replay, trickle, single-step): animate each row directly.
+            if (forceAnimate) {
+                if (!listRendered) { renderTextList(list); }
                 list.forEach(function (t) {
-                    var ts = timestampOf(t);
-                    if (ts !== null && (lastSeenUtc === null || ts > lastSeenUtc)) { lastSeenUtc = ts; }
+                    var failed = isFailure(t);
+                    var token = makeToken(t, failed);
+                    flyEnvelope(token, stageKeyFor(t), failed, t);
                 });
+                return;
             }
 
-            // Only touch the live region when there is something new to say (or on first render).
-            if (transitionsList && (fresh.length > 0 || !listRendered)) {
-                transitionsList.innerHTML = '';
-                if (list.length === 0) {
-                    var empty = document.createElement('li');
-                    empty.className = 'obs-board__transitions-empty';
-                    empty.textContent = 'No transitions yet.';
-                    transitionsList.appendChild(empty);
-                } else {
-                    // The dashboard shows only the most recent handful; the full, paged history
-                    // lives on the transactions page (the "more" link beneath this list). Capping
-                    // here keeps the at-a-glance panel short without dropping any data — it is all
-                    // on the transactions page.
-                    list.slice(0, MAX_RECENT_TRANSITIONS).forEach(function (t) {
-                        var li = document.createElement('li');
-                        li.textContent = accessibleName(t);
-                        transitionsList.appendChild(li);
-                    });
-                }
-                listRendered = true;
-            }
-
-            // Fly one envelope per NEW transition along the stage path to its destination.
-            fresh.forEach(function (t) {
-                var failed = isFailure(t);
-                var token = makeToken(t, failed);
-                flyEnvelope(token, stageKeyFor(t), failed, t);
+            // Group the live rows by reference so each message is considered once.
+            var groups = {};
+            var order = [];
+            list.forEach(function (t) {
+                var ref = refOf(t);
+                if (!ref) { return; }
+                if (!groups[ref]) { groups[ref] = []; order.push(ref); }
+                groups[ref].push(t);
             });
+
+            // First snapshot: establish a baseline of existing references without animating, so the
+            // page does not replay history on load.
+            if (!primed) {
+                order.forEach(function (ref) { animatedRefs[ref] = true; });
+                primed = true;
+                renderTextList(list);
+                return;
+            }
+
+            var animatedAny = false;
+            order.forEach(function (ref) {
+                if (animatedRefs[ref]) { return; }
+                var state = resolveMessage(groups[ref]);
+                if (!(state.failed || state.decision || state.reachedTicket)) { return; } // still in flight
+                animatedRefs[ref] = true;
+                animatedAny = true;
+                var synthetic = {
+                    referenceNumber: ref,
+                    decisionStatus: state.decision,
+                    failed: state.failed,
+                    latencyMs: state.latency,
+                    recordedAtUtc: state.latest && (state.latest.recordedAtUtc || state.latest.RecordedAtUtc),
+                };
+                var token = makeToken(synthetic, state.failed);
+                flyEnvelope(token, 'ticket', state.failed, synthetic);
+            });
+
+            // Refresh the at-a-glance text list only when a new message actually animated.
+            if (animatedAny || !listRendered) { renderTextList(list); }
+        }
+
+        // Optimistic drive feedback: when a drive is triggered over AJAX we know the reference and
+        // the intended outcome, so we can show one correctly-routed envelope immediately rather than
+        // waiting up to a heartbeat for the SSE rows. The reference is marked animated so the rows
+        // that later arrive on the stream do not spawn a second envelope for the same message.
+        function presentDrive(reference, outcome) {
+            if (!reference) { return; }
+            var o = (outcome || '').toLowerCase();
+            var failed = (o === 'failed' || o === 'inject-failure' || o === 'seed-dlq');
+            var decision = o === 'approved' ? 'AutoApproved'
+                : o === 'rejected' ? 'AutoRejected'
+                : o === 'scrutiny' ? 'Scrutiny' : null;
+            animatedRefs[reference] = true;
+            var synthetic = { referenceNumber: reference, decisionStatus: decision, failed: failed };
+            var token = makeToken(synthetic, failed);
+            flyEnvelope(token, 'ticket', failed, synthetic);
         }
 
         function onSnapshot(snapshot) {
@@ -569,12 +671,17 @@
             if (reconnectNotice) { reconnectNotice.hidden = false; }
         }
 
-        // The clock seam. slow-mo scales it, single-step advances it by hand, demo-mode trickles
-        // synthetic envelopes through it, and replay drives it from a scrubber — all over this one
-        // renderer. moveSpeed scales how long an envelope dwells at each box; demoTimer is the
-        // auto-trickle interval handle.
+        // The clock seam. slow-mo scales it, single-step holds it right down so a watcher can follow
+        // one message a step at a time, demo-mode trickles synthetic envelopes through it, and replay
+        // drives it from a scrubber — all over this one renderer. moveSpeed scales how long an
+        // envelope dwells at each box; it is the product of the slow-motion and single-step factors
+        // so the two checkboxes compose. demoTimer is the auto-trickle interval handle.
         var moveSpeed = 1;
+        var slowFactor = 1;
+        var stepFactor = 1;
         var demoTimer = null;
+
+        function applySpeed() { moveSpeed = slowFactor * stepFactor; }
 
         // Pause freezes ALL envelope motion (and the replay/trickle): each in-flight hop is scheduled
         // through a pausable timer, so flipping paused holds every envelope where it sits until
@@ -622,18 +729,39 @@
         function isPaused() { return paused; }
         function onPauseChange(cb) { pauseSubscribers.push(cb); }
 
-        function setSlowMo(factor) {
-            moveSpeed = (factor && factor > 0) ? factor : 1;
+        // Slow motion is a sticky mode (a checkbox): on, every envelope dwells ~4x longer.
+        function setSlowMo(on) {
+            slowFactor = on ? 4 : 1;
+            applySpeed();
         }
 
-        // Single-step: send one synthetic envelope all the way through the pipeline so a presenter
-        // can walk an audience Submit → Ticket. forceAnimate bypasses the novelty watermark.
+        // Single step is a sticky mode (a checkbox), like slow motion — it must stay ticked, which is
+        // why the old "untick myself" behaviour read as "can't be ticked". While on it holds the
+        // clock right down (~8x) so a watcher can follow one message a step at a time through the
+        // stages; it composes with slow motion via the speed product.
+        function setStepMode(on) {
+            stepFactor = on ? 8 : 1;
+            applySpeed();
+        }
+
+        // A random demo outcome so trickle/single-step exercise the whole pipeline — approved,
+        // rejected, scrutiny and the dead-letter queue — rather than only the happy ticket path, so
+        // the board (and the live decision mix) shows a realistic spread.
+        function randomOutcome(prefix) {
+            var roll = Math.floor(Math.random() * 100);
+            var ev = { referenceNumber: prefix + '-' + Date.now() + '-' + roll, stage: 'ticket' };
+            if (roll < 15) { ev.stage = 'rules-engine'; ev.failed = true; }      // ~15% dead-letter
+            else if (roll < 40) { ev.decisionStatus = 'AutoApproved'; }
+            else if (roll < 65) { ev.decisionStatus = 'AutoRejected'; }
+            else { ev.decisionStatus = 'Scrutiny'; }
+            return ev;
+        }
+
+        // Single-step: send one synthetic envelope all the way through the pipeline (with a real
+        // decision so it routes through a status box) so a presenter can walk an audience
+        // Submit → status → Zendesk ticket. forceAnimate bypasses the per-message dedupe.
         function singleStep() {
-            onSnapshot({
-                recentTransitions: [{ referenceNumber: 'STEP-' + Date.now(), stage: 'ticket' }],
-                depths: [],
-                forceAnimate: true,
-            });
+            onSnapshot({ recentTransitions: [randomOutcome('STEP')], depths: [], forceAnimate: true });
         }
 
         // Inject a failing envelope: it walks to Rules-engine then diverts to the dead-letter marker.
@@ -645,9 +773,9 @@
             });
         }
 
-        // Demo-mode auto-trickle: inject one synthetic envelope (running the full path) on an
-        // interval so the board stays alive during a demo even with no real traffic. Returns whether
-        // it is now running.
+        // Demo-mode auto-trickle: inject one synthetic envelope on an interval, spread across all the
+        // outcome types, so the board stays alive during a demo even with no real traffic. Returns
+        // whether it is now running.
         function toggleDemoMode() {
             if (demoTimer) {
                 window.clearInterval(demoTimer);
@@ -655,11 +783,7 @@
                 return false;
             }
             demoTimer = window.setInterval(function () {
-                onSnapshot({
-                    recentTransitions: [{ referenceNumber: 'DEMO-' + Date.now(), stage: 'ticket' }],
-                    depths: [],
-                    forceAnimate: true,
-                });
+                onSnapshot({ recentTransitions: [randomOutcome('DEMO')], depths: [], forceAnimate: true });
             }, Math.max(900, 1500 * moveSpeed));
             return true;
         }
@@ -668,12 +792,14 @@
             onSnapshot: onSnapshot,
             onError: onError,
             setSlowMo: setSlowMo,
+            setStepMode: setStepMode,
             singleStep: singleStep,
             injectFailure: injectFailure,
             toggleDemoMode: toggleDemoMode,
             togglePause: togglePause,
             isPaused: isPaused,
             onPauseChange: onPauseChange,
+            presentDrive: presentDrive,
         };
     }
 
@@ -836,19 +962,18 @@
         var slowMo = controls.querySelector('[data-obs-slowmo]');
         if (slowMo) {
             slowMo.addEventListener('change', function () {
-                engine.setSlowMo(slowMo.checked ? 4 : 1);
+                engine.setSlowMo(slowMo.checked);
             });
         }
 
-        // Single step is now a checkbox: each time it is ticked it sends one envelope all the way
-        // through, then resets itself so it can be ticked again.
+        // Single step is a sticky mode checkbox like Slow motion: ticking it stays ticked and holds
+        // the board right down so a watcher can follow one message a step at a time; unticking it
+        // restores normal speed. (Previously it unticked itself instantly, which read as "can't be
+        // ticked".)
         var step = controls.querySelector('[data-obs-step]');
         if (step) {
             step.addEventListener('change', function () {
-                if (step.checked) {
-                    engine.singleStep();
-                    step.checked = false;
-                }
+                engine.setStepMode(step.checked);
             });
         }
 
@@ -895,6 +1020,11 @@
         start: start,
         liveFeed: liveFeed,
         recordedFeed: recordedFeed,
-        refresh: function () { if (sharedEngine) { sharedEngine.singleStep(); } }
+        // Optimistic, correctly-routed single-envelope feedback for an AJAX drive: the host page
+        // passes the new reference and the intended outcome, and the board flies one envelope at
+        // once (deduped against the SSE rows that follow). Replaces the old refresh() that injected
+        // a fake extra envelope on every drive.
+        present: function (reference, outcome) { if (sharedEngine) { sharedEngine.presentDrive(reference, outcome); } },
+        refresh: function () { /* no-op retained for back-compat; SSE + present() drive the board now */ }
     };
 })();

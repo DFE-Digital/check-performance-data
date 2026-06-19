@@ -348,6 +348,37 @@
     margin-bottom: 32px;
 }
 
+/* The drive bar: batch size, the drive/inject/seed buttons and Pause on one wrapping row so the
+   panel stays short and the board below stays in view. */
+.obs-demo-panel__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.obs-demo-panel__bar .uat-inline-form {
+    margin: 0;
+}
+
+.obs-demo-panel__batch {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Pause sits at the far end of the bar and is a clear primary button (not the old grey-on-grey);
+   while paused it turns GDS yellow so the frozen state is unmistakable. */
+.obs-demo-panel__pause {
+    margin-left: auto;
+}
+
+.obs-demo-panel__pause[aria-pressed="true"] {
+    background: #ffdd00;
+    color: #0b0c0c;
+    box-shadow: 0 2px 0 #b58a00;
+}
+
 /* Replay box and board demo controls share one horizontal row so the Demo panel stays short;
    they wrap onto separate lines only on narrow viewports. The replay box takes the remaining
    width; the demo controls size to their content. */

@@ -48,11 +48,23 @@
     el.appendChild(strong);
   }
 
-  // Ask the board to re-animate: the live SSE feed pushes fresh snapshots on its own, but a manual
-  // refresh gives immediate feedback after a drive. The board exposes a global hook when present.
-  function refreshBoard() {
-    if (window.ObservabilityBoard && typeof window.ObservabilityBoard.refresh === 'function') {
-      window.ObservabilityBoard.refresh();
+  // The outcome a drive form intends, parsed from its action so the board can show one correctly
+  // routed envelope immediately. Drive carries ?outcome=approved|rejected|scrutiny; inject/seed map
+  // to a failed (dead-letter) envelope.
+  function outcomeForForm(form) {
+    var action = form.getAttribute('action') || '';
+    var m = action.match(/outcome=([a-z]+)/i);
+    if (m) { return m[1].toLowerCase(); }
+    if (/inject-failure|seed-dlq/.test(action)) { return 'failed'; }
+    return null;
+  }
+
+  // Give the board immediate, correctly-routed feedback for the just-driven message: one envelope,
+  // animated through its status, deduped against the SSE rows that follow. Falls back silently when
+  // the board hook is absent (no-JS / board not present).
+  function presentOnBoard(form, reference) {
+    if (window.ObservabilityBoard && typeof window.ObservabilityBoard.present === 'function') {
+      window.ObservabilityBoard.present(reference, outcomeForForm(form));
     }
   }
 
@@ -76,7 +88,12 @@
       .then(function (data) {
         if (data && data.ok) {
           updateLastReference(data.reference);
-          refreshBoard();
+          // Only the drive buttons present optimistically here; inject-failure already drives the
+          // board from its own [data-obs-inject] click handler, and seed-dlq surfaces via the SSE
+          // feed — presenting those here too would double the envelope.
+          if (/\/dev\/uat\/drive/.test(form.getAttribute('action') || '')) {
+            presentOnBoard(form, data.reference);
+          }
         } else {
           form.submit(); // unexpected response — fall back to the full-page post
         }

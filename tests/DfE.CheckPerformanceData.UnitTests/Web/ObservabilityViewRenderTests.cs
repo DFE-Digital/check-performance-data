@@ -294,20 +294,24 @@ public sealed class ObservabilityViewRenderTests
 		Assert.DoesNotContain("#f47738", overTime);
 	}
 
-	// --- One shared decision-colour legend below the charts, referenced once ---
+	// --- Round 3: each colour-coded chart carries its OWN legend beneath it; the single shared
+	//     lower-left legend is gone ---
 
 	[Fact]
-	public void DecisionLegend_IsOneSharedPartial_ReadingTheCanonicalColours()
+	public void DecisionMixPie_CarriesItsOwnLegendBeneathIt()
 	{
-		var legend = ReadView("_DecisionLegend.cshtml");
-		Assert.Contains("DecisionColours.LegendItems", legend);
-		Assert.Contains("obs-legend", legend);
+		var pie = ReadView("_Chart.cshtml");
+		// The pie now states its own colour key directly beneath it, reading the canonical map.
+		Assert.Contains("DecisionColours.LegendItems", pie);
+		Assert.Contains("obs-legend", pie);
+	}
 
+	[Fact]
+	public void Index_NoLongerRendersTheSingleSharedDecisionLegend()
+	{
 		var index = ReadView("Index.cshtml");
-		// Referenced exactly once, beneath the chart group.
-		var first = index.IndexOf("_DecisionLegend", System.StringComparison.Ordinal);
-		Assert.True(first >= 0, "Index must render the shared decision legend.");
-		Assert.Equal(first, index.LastIndexOf("_DecisionLegend", System.StringComparison.Ordinal));
+		// The shared lower-left legend was removed in favour of per-chart legends.
+		Assert.DoesNotContain("_DecisionLegend", index);
 	}
 
 	// --- The chart data-table disclosures toggle exactly once (no open/close flicker) ---

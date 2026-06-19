@@ -318,6 +318,24 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Charts_AreEnlargeableInAModalOnClick()
+	{
+		var index = ReadView("Index.cshtml");
+		Assert.Contains("observability-chart-modal.js", index);
+
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-chart-modal.js"));
+
+		// Clicking a chart (or its Enlarge button) opens a scaled clone in a native dialog so the
+		// small labels are readable.
+		Assert.Contains("obs-chart-panel", js);
+		Assert.Contains("Enlarge chart", js);
+		Assert.Contains("showModal", js);
+	}
+
+	[Fact]
 	public void UatConsole_StaggersABatchedDriveIntoAVisibleCluster()
 	{
 		var thisFile = ThisFilePath();

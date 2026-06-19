@@ -643,6 +643,45 @@
     padding: 16px;
 }
 
+/* The "Enlarge chart" button injected into each chart panel (JS only). */
+.obs-chart-panel__enlarge {
+    margin-bottom: 12px;
+}
+
+/* The enlarge-to-read modal: a native <dialog> holding a scaled clone of the clicked chart so its
+   labels are readable. GDS palette only. */
+.obs-chart-modal {
+    width: min(92vw, 1100px);
+    max-width: 1100px;
+    border: 1px solid #0b0c0c;
+    padding: 0;
+}
+
+.obs-chart-modal::backdrop {
+    background: rgba(11, 12, 12, 0.6);
+}
+
+.obs-chart-modal__inner {
+    padding: 20px;
+}
+
+.obs-chart-modal__bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.obs-chart-modal__close {
+    margin-bottom: 0;
+}
+
+.obs-chart-modal__svg {
+    width: 100%;
+    height: auto;
+}
+
 .obs-legend {
     display: flex;
     flex-wrap: wrap;
@@ -720,6 +759,7 @@
     .obs-range-form,
     .obs-demo-panel,
     .obs-board__toolbar,
+    .obs-chart-panel__enlarge,
     [data-obs-reconnect] {
         display: none !important;
     }

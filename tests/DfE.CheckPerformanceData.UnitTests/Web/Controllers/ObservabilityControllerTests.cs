@@ -359,6 +359,38 @@ public sealed class ObservabilityControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // --- Export this view as an Excel workbook (four chart tabs) ---
+
+    [Fact]
+    public void ExportExcel_HasAuthorizeAttribute_WithAdminRole()
+    {
+        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.ExportExcel));
+        Assert.NotNull(method);
+        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
+        Assert.NotNull(authorize);
+        Assert.Equal("cypmd_admin", authorize!.Roles);
+    }
+
+    [Fact]
+    public async Task ExportExcel_ReturnsAnXlsxWorkbookFile()
+    {
+        var query = BuildQuery();
+        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new ThroughputBucket(new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc), 7) });
+        query.GetDecisionMixAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new DecisionMixEntry("AutoApproved", 7) });
+
+        var controller = BuildController(query);
+
+        var result = await controller.ExportExcel();
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.ContentType);
+        Assert.EndsWith(".xlsx", file.FileDownloadName);
+        Assert.NotEmpty(file.FileContents);
+    }
+
     // --- The full transactions page is paged by the Wiki:PageLength setting ---
 
     [Fact]

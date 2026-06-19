@@ -89,10 +89,11 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
     {
         var body = await LoadDashboardAsAdminAsync();
 
-        // The export is now a server-side CSV download link (the old client-side chart-PNG path was
-        // removed), so the CTA points at the export.csv endpoint and is labelled accordingly.
+        // Export this view is now a single Excel workbook (four tabs, one per chart, each with an
+        // embedded chart); the CSV remains as a secondary data download. Both are server-side links.
+        Assert.Contains("/admin/observability/export.xlsx", body);
+        Assert.Contains("Export this view (Excel)", body);
         Assert.Contains("/admin/observability/export.csv", body);
-        Assert.Contains("Export this view (CSV)", body);
 
         // Both board scripts are still wired: the board engine, and the export helper that drives the
         // print-to-PDF button (the CSV link itself needs no JavaScript).

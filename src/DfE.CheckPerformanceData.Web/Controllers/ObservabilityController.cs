@@ -214,6 +214,61 @@ public sealed class ObservabilityController : Controller
         return File(System.Text.Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
     }
 
+    // The Excel export: a single .xlsx with one tab per dashboard chart (throughput, decision mix,
+    // decision mix over time, per-stage dwell), each carrying the data AND an embedded native chart
+    // matching the on-screen one. Built with the MIT-licensed Open XML SDK from the same query
+    // series, at the same resolved range/granularity, so the workbook is accurate by construction.
+    // Role-gated cypmd_admin like every other action.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/export.xlsx")]
+    public async Task<IActionResult> ExportExcel(
+        string? range = null,
+        string? granularity = null,
+        CancellationToken cancellationToken = default)
+    {
+        var rangeOption = DashboardRanges.Resolve(range);
+        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
+
+        var now = DateTime.UtcNow;
+        var from = now - rangeOption.Window;
+
+        var throughput = await _query.GetThroughputAsync(
+            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
+        var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
+        var decisionMixOverTime = await _query.GetDecisionMixOverTimeAsync(
+            bucketSize, from, now, cancellationToken);
+        var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
+
+        // The headline figures always describe the last 24 hours, mirroring the dashboard tiles.
+        var headlineThroughput = rangeOption.Window == DefaultWindow
+            ? throughput
+            : await _query.GetThroughputAsync(
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
+        var headlineDwell = rangeOption.Window == DefaultWindow
+            ? dwell
+            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+
+        var processedToday = headlineThroughput.Sum(b => b.Count);
+        var typicalEndToEnd = headlineDwell.Count == 0
+            ? TimeSpan.Zero
+            : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
+
+        var bytes = MetricsWorkbookBuilder.Build(new MetricsWorkbookData
+        {
+            RangeLabel = rangeOption.Label,
+            GranularityLabel = DashboardRanges.Describe(bucketSize),
+            ProcessedToday = processedToday,
+            TypicalEndToEnd = typicalEndToEnd,
+            Throughput = throughput,
+            DecisionMix = decisionMix,
+            DecisionMixOverTime = decisionMixOverTime,
+            Dwell = dwell,
+        });
+
+        var fileName = $"pipeline-dashboard-{now:yyyyMMdd-HHmmss}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
     // The full transactions list: a paged, newest-first table of every recorded queue metric event
     // (timestamp, reference, stage, queue, decision, latency). The "Recent transitions" panel on
     // the dashboard caps at ~10 and links here for the complete history. Paging is by the

@@ -82,10 +82,12 @@
             <li class="obs-board__lane" data-stage="@stage.Key">
                 <span class="obs-board__node" aria-hidden="true"></span>
                 <span class="obs-board__label">@stage.Label</span>
-                @if (stage.Count.HasValue)
-                {
-                    <span class="obs-board__count" data-stage-count="@stage.Key">@stage.Count waiting</span>
-                }
+                @* Live in-flight count: how many submissions are currently in this box. Seeded with
+                   the queue depth for the two real queues; the board engine keeps it live as
+                   envelopes flow through. Hidden while zero so an idle box stays clean. *@
+                @{ var initialCount = stage.Count ?? 0; }
+                <span class="obs-board__count obs-board__live-count" data-live-count="@stage.Key"
+                      aria-label="@stage.Label — submissions in this stage" @(initialCount == 0 ? "hidden" : "")>@initialCount</span>
                 @if (i < stages.Length - 1)
                 {
                     <span class="obs-board__connector" aria-hidden="true">→</span>
@@ -105,11 +107,13 @@
             <div class="obs-board__dlq obs-board__decision" data-obs-decision="@decision.Key" aria-hidden="true">
                 <span class="obs-board__dlq-node"></span>
                 <span class="obs-board__dlq-label">@decision.Label</span>
+                <span class="obs-board__live-count obs-board__live-count--box" data-live-count="@decision.Key" hidden>0</span>
             </div>
         }
         <div class="obs-board__dlq" data-obs-dlq aria-hidden="true">
             <span class="obs-board__dlq-node"></span>
             <span class="obs-board__dlq-label">Dead-letter queue</span>
+            <span class="obs-board__live-count obs-board__live-count--box" data-live-count="dlq" hidden>0</span>
         </div>
     </div>
 

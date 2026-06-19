@@ -265,6 +265,55 @@
             }
         }
 
+        // --- Live per-box in-flight counts ---
+        // Every box shows how many envelopes are currently in it, so a cluster is seen entering
+        // Submit, the rules queue, the engine and so on as it flows. Tracked independently of the
+        // stacking occupancy above: moveToken decrements the box an envelope leaves and increments
+        // the one it enters; clearToken releases its box when the envelope is removed. Box ids are
+        // the stage keys, 'decision:<key>' and 'dlq'. The two real queues also fold in their snapshot
+        // depth (baseDepth), so a queue box shows waiting + in-flight on the one badge.
+        var liveCounts = {};
+        var baseDepth = {};
+        var tokenBoxId = new WeakMap();
+
+        function liveBadge(boxId) {
+            if (boxId === 'dlq') { return root.querySelector('[data-live-count="dlq"]'); }
+            if (boxId.indexOf('decision:') === 0) {
+                return root.querySelector('[data-live-count="' + boxId.slice('decision:'.length) + '"]');
+            }
+            var lane = lanes[boxId];
+            return lane ? lane.querySelector('[data-live-count="' + boxId + '"]') : null;
+        }
+
+        function renderLiveCount(boxId) {
+            var badge = liveBadge(boxId);
+            if (!badge) { return; }
+            var n = (liveCounts[boxId] || 0) + (baseDepth[boxId] || 0);
+            badge.textContent = n;
+            if (n > 0) { badge.removeAttribute('hidden'); }
+            else { badge.setAttribute('hidden', ''); }
+        }
+
+        function moveToken(token, boxId) {
+            var prev = tokenBoxId.get(token);
+            if (prev === boxId) { return; }
+            if (prev) {
+                liveCounts[prev] = Math.max(0, (liveCounts[prev] || 0) - 1);
+                renderLiveCount(prev);
+            }
+            tokenBoxId.set(token, boxId);
+            liveCounts[boxId] = (liveCounts[boxId] || 0) + 1;
+            renderLiveCount(boxId);
+        }
+
+        function clearToken(token) {
+            var prev = tokenBoxId.get(token);
+            if (!prev) { return; }
+            liveCounts[prev] = Math.max(0, (liveCounts[prev] || 0) - 1);
+            renderLiveCount(prev);
+            tokenBoxId['delete'](token);
+        }
+
         // Position an envelope at an anchor point (centre of a stage box, or the DLQ marker).
         // Under reduced motion we strip the transition so it snaps; otherwise the CSS transition
         // (gated behind no-preference) eases the transform.
@@ -461,10 +510,12 @@
                 else if (decisionKey) { restAnchor = decisionAnchor(decisionKey); restId = 'decision:' + decisionKey; }
                 else { restAnchor = anchorFor(destKey); restId = 'stage:' + destKey; }
                 var releaseR = restAt(token, restId, restAnchor);
+                moveToken(token, failed ? 'dlq' : (decisionKey ? 'decision:' + decisionKey : destKey));
                 if (failed && dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
                 if (decisionKey) { setDecisionActive(decisionKey, true); }
                 window.setTimeout(function () {
                     releaseR();
+                    clearToken(token);
                     if (decisionKey && (occupancy['decision:' + decisionKey] || 0) <= 0) {
                         setDecisionActive(decisionKey, false);
                     }
@@ -488,24 +539,23 @@
             for (var i = 0; i <= stopIdx; i++) { path.push(STAGE_ORDER[i]); }
 
             placeAt(token, anchorFor('submit'));
+            moveToken(token, 'submit');
             var hop = 0;
             window.requestAnimationFrame(function () {
-                function clear(delay) {
-                    pausableTimeout(function () {
-                        if (token.parentNode) { token.parentNode.removeChild(token); }
-                    }, delay);
-                }
                 function next() {
                     hop += 1;
                     if (hop < path.length) {
                         placeAt(token, anchorFor(path[hop]));
+                        moveToken(token, path[hop]);
                         pausableTimeout(next, dwellFor(path[hop], moveSpeed));
                     } else if (failed) {
                         // Terminal at the dead-letter box; reveal it and rest there.
                         if (dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
                         var releaseDlq = restAt(token, 'dlq', dlqAnchor());
+                        moveToken(token, 'dlq');
                         pausableTimeout(function () {
                             releaseDlq();
+                            clearToken(token);
                             if (token.parentNode) { token.parentNode.removeChild(token); }
                         }, dwellFor('rules-engine', moveSpeed) * 2);
                     } else if (decisionKey) {
@@ -515,6 +565,7 @@
                         // status box, the status feeds the queue, the queue produces the ticket.
                         var decId = 'decision:' + decisionKey;
                         var releaseDec = restAt(token, decId, decisionAnchor(decisionKey));
+                        moveToken(token, decId);
                         setDecisionActive(decisionKey, true);
                         pausableTimeout(function () {
                             releaseDec();
@@ -522,14 +573,17 @@
                             token.style.visibility = '';
                             // status → Zendesk-queue
                             placeAt(token, anchorFor('zendesk-queue'));
+                            moveToken(token, 'zendesk-queue');
                             var releaseZq = restAt(token, 'stage:zendesk-queue', anchorFor('zendesk-queue'));
                             pausableTimeout(function () {
                                 releaseZq();
                                 // Zendesk-queue → Zendesk ticket
                                 placeAt(token, anchorFor('ticket'));
+                                moveToken(token, 'ticket');
                                 var releaseTicket = restAt(token, 'stage:ticket', anchorFor('ticket'));
                                 pausableTimeout(function () {
                                     releaseTicket();
+                                    clearToken(token);
                                     if (token.parentNode) { token.parentNode.removeChild(token); }
                                 }, dwellFor('ticket', moveSpeed) * 2);
                             }, dwellFor('zendesk-queue', moveSpeed));
@@ -537,8 +591,10 @@
                     } else {
                         // No decision reported: rest at the final reported box then clear.
                         var releaseStage = restAt(token, 'stage:' + destKey, anchorFor(destKey));
+                        moveToken(token, destKey);
                         pausableTimeout(function () {
                             releaseStage();
+                            clearToken(token);
                             if (token.parentNode) { token.parentNode.removeChild(token); }
                         }, dwellFor(destKey, moveSpeed) * 2);
                     }
@@ -547,7 +603,10 @@
             });
         }
 
-        // Update the per-stage counts (board + accessible parallel) from the snapshot depths.
+        // Update the per-queue depth (colour state + the live-count baseline) from the snapshot. The
+        // two real queues fold their waiting depth into the same live-count badge the animation
+        // drives, so a queue box shows waiting + in-flight as one number; the other boxes have no
+        // depth and show in-flight only.
         function updateCounts(depths) {
             updateDepthTile(depths); // the "current depths (all queues)" tile tracks the snapshot live
             (depths || []).forEach(function (d) {
@@ -558,8 +617,8 @@
                 var lane = lanes[key];
                 if (lane) {
                     lane.setAttribute('data-state', stateForCount(depth));
-                    var count = lane.querySelector('[data-stage-count="' + key + '"]');
-                    if (count) { count.textContent = depth + ' waiting'; }
+                    baseDepth[key] = depth;
+                    renderLiveCount(key);
                 }
             });
         }

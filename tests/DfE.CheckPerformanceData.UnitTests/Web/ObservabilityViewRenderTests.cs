@@ -269,6 +269,36 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Board_EveryBoxCarriesALiveInFlightCountHook()
+	{
+		var board = ReadView("_Board.cshtml");
+
+		// Every box — the five stage lanes plus the decision and dead-letter boxes — carries a
+		// live-count badge the engine fills as envelopes flow through, so a cluster is seen entering
+		// each box. Hidden while zero. The lane/decision keys are Razor-bound; the DLQ is literal.
+		Assert.Contains("data-live-count=\"@stage.Key\"", board);   // the five stage lanes
+		Assert.Contains("data-live-count=\"@decision.Key\"", board); // the three decision boxes
+		Assert.Contains("data-live-count=\"dlq\"", board);          // the dead-letter box
+		Assert.Contains("obs-board__live-count", board);
+	}
+
+	[Fact]
+	public void BoardEngine_KeepsEveryBoxInFlightCountLive()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-board.js"));
+
+		// The engine moves a token's count from the box it leaves to the box it enters, folds the
+		// queue depth into the same badge, and clears the count when the envelope is removed.
+		Assert.Contains("data-live-count", js);
+		Assert.Contains("moveToken", js);
+		Assert.Contains("clearToken", js);
+		Assert.Contains("baseDepth", js);
+	}
+
+	[Fact]
 	public void Transactions_HasAReferenceSearchBox()
 	{
 		var view = ReadView("Transactions.cshtml");

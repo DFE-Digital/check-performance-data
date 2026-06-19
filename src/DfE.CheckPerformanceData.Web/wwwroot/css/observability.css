@@ -193,6 +193,34 @@
     font-size: 14px;
 }
 
+/* The live in-flight count on each box: how many submissions are currently in it. A small filled
+   badge so a cluster moving through is visible at a glance; hidden (via the hidden attribute) while
+   the box is empty. The [hidden] rule restores the attribute's meaning over dfefrontend's
+   span/display rules, as for the reconnect notice. */
+.obs-board__live-count {
+    display: inline-block;
+    min-width: 20px;
+    margin-top: 4px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #1d70b8;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 20px;
+}
+
+.obs-board__live-count[hidden] {
+    display: none;
+}
+
+/* On the decision/DLQ boxes the badge sits inline beside the label. */
+.obs-board__live-count--box {
+    margin-top: 0;
+    margin-left: 6px;
+}
+
 .obs-board__connector {
     position: absolute;
     top: 6px;

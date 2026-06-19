@@ -1,0 +1,71 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.QueuePanelViewModel
+@{
+    static string Age(TimeSpan? age) => age is { } a ? $"{(int)a.TotalMinutes} min" : "—";
+
+    // The dead-letter panel links to the existing dead-letter surface; working queues link to
+    // their own view-all and to the redaction-gated detail for each message.
+    var viewAllUrl = Model.IsDeadLetter
+        ? "/admin/queues/dlq"
+        : $"/admin/queues/list/{Model.QueueName}";
+    var viewAllLabel = Model.IsDeadLetter ? "View dead-letter queue" : "View all messages";
+}
+
+<div class="govuk-summary-card govuk-!-margin-bottom-6">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">@Model.DisplayName</h2>
+        <ul class="govuk-summary-card__actions">
+            <li class="govuk-summary-card__action">
+                <a class="govuk-link" href="@viewAllUrl">@viewAllLabel</a>
+            </li>
+        </ul>
+    </div>
+    <div class="govuk-summary-card__content">
+        <p class="govuk-body">
+            <strong class="govuk-tag @(Model.Count > 0 ? (Model.IsDeadLetter ? "govuk-tag--red" : "govuk-tag--blue") : "govuk-tag--green")">
+                @Model.Count
+            </strong>
+            message@(Model.Count == 1 ? "" : "s")@(Model.IsDeadLetter ? " in the dead-letter queue" : " waiting").
+            @if (!Model.IsDeadLetter)
+            {
+                <span class="govuk-!-margin-left-2">Oldest message age: @Age(Model.OldestMessageAge)</span>
+            }
+        </p>
+
+        @if (Model.IsDeadLetter)
+        {
+            @* The dead-letter detail and actions live on the existing dead-letter page. *@
+        }
+        else if (Model.TopMessages.Count == 0)
+        {
+            <p class="govuk-body">This queue is empty. No messages are currently waiting.</p>
+        }
+        else
+        {
+            <table class="govuk-table">
+                <caption class="govuk-table__caption govuk-table__caption--m govuk-visually-hidden">
+                    Oldest @Model.TopMessages.Count messages in the @Model.DisplayName
+                </caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Message</th>
+                        <th scope="col" class="govuk-table__header">Enqueued</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var message in Model.TopMessages)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">
+                                <a class="govuk-link" href="/admin/queues/list/@Model.QueueName/@message.Id">Inspect message</a>
+                                <span class="govuk-visually-hidden">@message.Id</span>
+                            </td>
+                            <td class="govuk-table__cell">@message.EnqueuedAtUtc.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>

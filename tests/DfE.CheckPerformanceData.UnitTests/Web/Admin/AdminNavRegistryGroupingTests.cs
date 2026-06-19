@@ -32,34 +32,51 @@ public sealed class AdminNavRegistryGroupingTests
 		Assert.Contains("storage-admin", groupKeys);
 	}
 
-	// --- Tiles_Have_NonNull_ParentKey_Matching_A_Group ---
+	// --- Tiles_Have_NonNull_ParentKey_Matching_An_Existing_Entry ---
 
 	[Fact]
-	public void Tiles_Have_NonNull_ParentKey_Matching_A_Group()
+	public void Tiles_Have_NonNull_ParentKey_Matching_An_Existing_Entry()
 	{
 		var entries = ResolveEntries();
 
-		var groupKeys = entries.Where(e => e.ParentKey is null).Select(e => e.Key).ToHashSet();
+		// With deep (3-4 level) nesting a ParentKey may reference either a top-level group
+		// or an intermediate entry; every ParentKey must still resolve to a registered Key.
+		var allKeys = entries.Select(e => e.Key).ToHashSet();
 		var tiles = entries.Where(e => e.ParentKey is not null).ToList();
 
 		Assert.NotEmpty(tiles);
 		foreach (var tile in tiles)
 		{
-			Assert.Contains(tile.ParentKey!, groupKeys);
+			Assert.Contains(tile.ParentKey!, allKeys);
 		}
 	}
 
-    // --- All_Keys_Are_Unique_Across_Eleven_Registrations ---
+    // --- All_Keys_Are_Unique_Across_Registrations ---
 
     [Fact]
-	public void All_Keys_Are_Unique_Across_Eleven_Registrations()
+	public void All_Keys_Are_Unique_Across_Registrations()
 	{
 		var entries = ResolveEntries();
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(11, keys.Count);
+		Assert.Equal(18, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
+	}
+
+	// --- RulesEngine_Queues_Is_RulesEngineGroup_Child_Order_20_Live ---
+
+	[Fact]
+	public void RulesEngine_Queues_Is_RulesEngineGroup_Child_Order_20_Live()
+	{
+		var entries = ResolveEntries();
+
+		var rulesEngine = entries.Single(e => e.Key == "rules-engine");
+
+		Assert.Equal("rules-engine-group", rulesEngine.ParentKey);
+		Assert.Equal(20, rulesEngine.Order);
+		Assert.True(rulesEngine.Enabled);
+		Assert.Equal("/admin/queues", rulesEngine.Url);
 	}
 
 	// --- CmsAdmin_Group_Has_Order_10_And_SystemAdmin_Has_Order_20 ---

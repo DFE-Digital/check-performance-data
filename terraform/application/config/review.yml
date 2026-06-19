@@ -9,6 +9,11 @@ GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
 SeedDevelopmentData: true
 
+# Review apps are ephemeral PR deploys used by the E2E suite, so the dev tooling
+# surface (e.g. the dead-letter seed endpoint) is enabled here. The endpoint still
+# hard-guards against Production regardless of this flag.
+Dev__ToolsEnabled: true
+
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests
 RulesEngineOptions__RetryDelayMs: 5000

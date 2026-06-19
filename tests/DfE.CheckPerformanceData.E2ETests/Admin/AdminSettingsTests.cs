@@ -28,7 +28,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("CMS settings", body);
+            Assert.Contains("System settings", body);
             Assert.Contains("Wiki:PageLength", body);
         }
         finally

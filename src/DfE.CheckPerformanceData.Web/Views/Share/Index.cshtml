@@ -1,0 +1,46 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.AggregateShareViewModel
+@{
+    Layout = "_ShareLayout";
+    ViewData["Title"] = "Pipeline overview";
+}
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/share.css" asp-append-version="true" />
+
+@* Read-only, aggregate-only stakeholder view. No admin actions, no inspect/journey links, no
+   destructive verbs — only the banner, the health strip, big-number tiles and the charts. The
+   model is the aggregate-only AggregateShareViewModel, so there is no pupil data to render. *@
+
+<div class="govuk-notification-banner" role="region" aria-label="Information">
+    <div class="govuk-notification-banner__header">
+        <h2 class="govuk-notification-banner__title">Information</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+        <p class="govuk-notification-banner__heading">
+            Read-only view. Figures are aggregated and contain no pupil information.
+        </p>
+    </div>
+</div>
+
+<h1 class="govuk-heading-xl">Pipeline overview</h1>
+
+@await Html.PartialAsync("_ShareHealthStrip", Model)
+
+@await Html.PartialAsync("_ShareTiles", Model)
+
+<h2 class="govuk-heading-l">Charts</h2>
+
+<div class="obs-chart-group">
+    @await Html.PartialAsync("_ShareCharts", Model)
+</div>
+
+@if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)
+{
+    <h2 class="govuk-heading-m">Nothing has flowed through yet</h2>
+    <p class="govuk-body">
+        No messages have been processed in this time range. Charts and counts will appear here as
+        requests move through the pipeline.
+    </p>
+}
+
+<p class="govuk-body-s govuk-hint">Refreshed at @Model.CapturedAtUtc.ToString("u").</p>

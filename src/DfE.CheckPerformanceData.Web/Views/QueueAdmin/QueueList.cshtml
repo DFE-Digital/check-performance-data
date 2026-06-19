@@ -1,0 +1,82 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.QueueListViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = Model.DisplayName;
+
+    string PageLink(int p) => $"/admin/queues/list/{Model.QueueName}?page={p}";
+
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<a class="govuk-back-link" href="/admin/queues">Back to queues</a>
+
+<h1 class="govuk-heading-xl">@Model.DisplayName</h1>
+<p class="govuk-body-l">
+    All messages currently waiting on this queue, oldest first. Open a message to inspect it.
+</p>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">This queue is empty. No messages are currently waiting.</p>
+}
+else
+{
+    <p class="govuk-body">Showing @firstRow to @lastRow of @Model.TotalCount waiting message@(Model.TotalCount == 1 ? "" : "s").</p>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--m">Waiting messages</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Message</th>
+                <th scope="col" class="govuk-table__header">Enqueued</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var message in Model.Messages)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/queues/list/@Model.QueueName/@message.Id">Inspect message</a>
+                        <span class="govuk-visually-hidden">@message.Id</span>
+                    </td>
+                    <td class="govuk-table__cell">@message.EnqueuedAtUtc.ToString("u")</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+            @if (Model.Page > 1)
+            {
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            }
+            <ul class="govuk-pagination__list">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    var current = p == Model.Page;
+                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
+                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
+                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
+                    </li>
+                }
+            </ul>
+            @if (Model.Page < Model.TotalPages)
+            {
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                    </a>
+                </div>
+            }
+        </nav>
+    }
+}

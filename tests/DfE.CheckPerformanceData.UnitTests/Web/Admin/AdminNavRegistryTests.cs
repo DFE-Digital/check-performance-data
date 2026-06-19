@@ -6,10 +6,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
 public sealed class AdminNavRegistryTests
 {
-    // --- AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries ---
+    // --- AddAdminNavEntries_Registers_Hierarchical_Entries ---
 
     [Fact]
-	public void AddAdminNavEntries_Registers_Eleven_Hierarchical_Entries()
+	public void AddAdminNavEntries_Registers_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -17,20 +17,30 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(11, entries.Count);
+		Assert.Equal(18, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
-		Assert.Contains("Visual regression dashboard", titles);
-		Assert.Contains("Rules engine configuration", titles);
+		Assert.DoesNotContain("Visual regression dashboard", titles);
+		Assert.Contains("Rules Engine", titles);
+		Assert.Contains("Queues", titles);
+		Assert.Contains("Rules Engine Queue", titles);
+		Assert.Contains("Zendesk Queue", titles);
+		Assert.Contains("Dead Letter Queue", titles);
+		Assert.Contains("Rules Engine configuration", titles);
 		Assert.Contains("CMS administration", titles);
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Deleted pages", titles);
 		Assert.Contains("Seed sample pages", titles);
-		Assert.Contains("CMS settings", titles);
+		Assert.Contains("System settings", titles);
+		Assert.DoesNotContain("CMS settings", titles);
 		Assert.Contains("Storage administration", titles);
 		Assert.Contains("Blob storage browser", titles);
+		Assert.DoesNotContain("Debug Pipelines", titles);
+		Assert.Contains("Pipeline dashboard", titles);
+		Assert.Contains("Transactions", titles);
+		Assert.Contains("Replay", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---
@@ -56,8 +66,24 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
-		Assert.Equal(new[] { 10, 30 }, systemOrders);
+		Assert.Equal(new[] { 10, 20, 30, 40 }, cmsOrders);
+		// System administration now has two direct children: the Rules Engine sub-group (10)
+		// and System settings (20). The pipeline tiles nest one level deeper under Rules Engine.
+		Assert.Equal(new[] { 10, 20 }, systemOrders);
+
+		var rulesEngineGroupOrders = entries
+			.Where(e => e.ParentKey == "rules-engine-group")
+			.Select(e => e.Order)
+			.OrderBy(o => o)
+			.ToArray();
+		Assert.Equal(new[] { 10, 20, 30 }, rulesEngineGroupOrders);
+
+		var queueOrders = entries
+			.Where(e => e.ParentKey == "rules-engine")
+			.Select(e => e.Order)
+			.OrderBy(o => o)
+			.ToArray();
+		Assert.Equal(new[] { 10, 20, 30 }, queueOrders);
 	}
 
 	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---
@@ -92,21 +118,42 @@ public sealed class AdminNavRegistryTests
 		Assert.True(entry.Enabled);
 	}
 
-	// --- CmsSettings_Tile_Is_Enabled_CmsAdmin_Child_LinkingToAdminSettings ---
+	// --- SystemSettings_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminSettings ---
 
 	[Fact]
-	public void CmsSettings_Tile_Is_Enabled_CmsAdmin_Child_LinkingToAdminSettings()
+	public void SystemSettings_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminSettings()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
-			.Single(e => e.Key == "cms-settings");
+			.Single(e => e.Key == "system-settings");
 
-		Assert.Equal("cms-admin", entry.ParentKey);
+		Assert.Equal("system-admin", entry.ParentKey);
 		Assert.Equal("/admin/settings", entry.Url);
+		Assert.Equal("System settings", entry.Title);
 		Assert.Equal("GET", entry.HttpMethod);
+		Assert.True(entry.Enabled);
+	}
+
+	// --- DeadLetterQueue_Tile_Is_Enabled_SystemAdmin_Child_LinkingToDlq ---
+
+	[Fact]
+	public void DeadLetterQueue_Tile_Is_Enabled_SystemAdmin_Child_LinkingToDlq()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries();
+
+		using var provider = services.BuildServiceProvider();
+		var entry = provider.GetServices<IAdminNavEntry>()
+			.Single(e => e.Key == "dead-letter-queue");
+
+		Assert.Equal("rules-engine", entry.ParentKey);
+		Assert.Equal("/admin/queues/dlq", entry.Url);
+		Assert.Equal("Dead Letter Queue", entry.Title);
+		Assert.Equal("GET", entry.HttpMethod);
+		Assert.Equal(30, entry.Order);
 		Assert.True(entry.Enabled);
 	}
 
@@ -122,7 +169,7 @@ public sealed class AdminNavRegistryTests
 		var entry = provider.GetServices<IAdminNavEntry>()
 			.Single(e => e.Key == "rules-config");
 
-		Assert.Equal("system-admin", entry.ParentKey);
+		Assert.Equal("rules-engine-group", entry.ParentKey);
 		Assert.Equal("/admin/rules", entry.Url);
 		Assert.Equal("GET", entry.HttpMethod);
 		Assert.Equal(30, entry.Order);

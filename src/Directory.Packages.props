@@ -5,7 +5,6 @@
   <ItemGroup>
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.25.0" />
     <PackageVersion Include="Azure.Storage.Common" Version="12.26.0" />
-    <PackageVersion Include="Azure.Storage.Queues" Version="12.25.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.5.0" />
     <PackageVersion Include="DfeAnalytics.Core" Version="0.5.0" />

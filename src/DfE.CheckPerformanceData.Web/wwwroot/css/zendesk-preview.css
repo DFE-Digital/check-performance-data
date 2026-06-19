@@ -1,0 +1,169 @@
+/* Zendesk-styled ticket preview. This is the one surface in the observability work that
+   deliberately mimics Zendesk's visual language rather than GDS, so a stakeholder sees a faithful
+   "what we'll send" simulation. It stays reasonably accessible: real text (no images of text),
+   semantic headings in the markup, and contrast ratios that meet WCAG AA. */
+
+.zd-ticket {
+    border: 1px solid #c2c8cc;
+    border-radius: 6px;
+    background: #ffffff;
+    overflow: hidden;
+    max-width: 1000px;
+    font-family: "GDS Transport", arial, sans-serif;
+}
+
+.zd-ticket__header {
+    background: #f8f9f9;
+    border-bottom: 1px solid #c2c8cc;
+    padding: 16px 20px;
+}
+
+.zd-ticket__meta {
+    margin: 0 0 4px;
+    color: #49545c;
+    font-size: 14px;
+}
+
+.zd-ticket__subject {
+    margin: 0 0 12px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #2f3941;
+}
+
+.zd-ticket__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.zd-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.zd-badge--urgent { background: #8c232c; color: #ffffff; }
+.zd-badge--high { background: #b35900; color: #ffffff; }
+.zd-badge--normal { background: #e9ebed; color: #2f3941; border-color: #c2c8cc; }
+.zd-badge--low { background: #e9ebed; color: #49545c; border-color: #c2c8cc; }
+.zd-badge--status { background: #1f73b7; color: #ffffff; }
+.zd-badge--type { background: #03363d; color: #ffffff; }
+
+.zd-ticket__body-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+}
+
+.zd-ticket__conversation {
+    flex: 1 1 60%;
+    min-width: 280px;
+    padding: 20px;
+}
+
+.zd-ticket__sidebar {
+    flex: 1 1 30%;
+    min-width: 220px;
+    background: #f8f9f9;
+    border-left: 1px solid #c2c8cc;
+    padding: 20px;
+}
+
+.zd-comment {
+    border: 1px solid #e9ebed;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.zd-comment__author {
+    margin: 0;
+    font-weight: 700;
+    color: #2f3941;
+}
+
+.zd-comment__time {
+    margin: 0 0 12px;
+    color: #49545c;
+    font-size: 13px;
+}
+
+.zd-comment__body {
+    color: #2f3941;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.zd-comment__empty {
+    color: #49545c;
+    font-style: italic;
+}
+
+.zd-comment__attachments {
+    margin-top: 16px;
+}
+
+.zd-comment__attachments-heading,
+.zd-sidebar__heading {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #49545c;
+    margin: 16px 0 4px;
+}
+
+.zd-attachment-list,
+.zd-tag-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.zd-attachment {
+    background: #e9ebed;
+    border: 1px solid #c2c8cc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 13px;
+    color: #2f3941;
+}
+
+.zd-tag {
+    background: #1f73b7;
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 13px;
+}
+
+.zd-sidebar__value {
+    margin: 0 0 8px;
+    color: #2f3941;
+}
+
+.zd-fields {
+    margin: 0;
+}
+
+.zd-fields__row {
+    border-top: 1px solid #e9ebed;
+    padding: 6px 0;
+}
+
+.zd-fields__key {
+    font-size: 13px;
+    color: #49545c;
+}
+
+.zd-fields__value {
+    color: #2f3941;
+    word-break: break-word;
+}

@@ -1,37 +1,43 @@
 using System.Text.Json;
-using Azure.Storage.Queues;
-using DfE.CheckPerformanceData.Application.Analytics;
-using DfE.CheckPerformanceData.Application.RequestDecision;
+using DfE.CheckPerformanceData.Application.Observability;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
-using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Infrastructure.Queue;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using DfE.CheckPerformanceData.Persistence.Entities;
+using DfE.CheckPerformanceData.Persistence.Observability;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using RulesEngineImpl = DfE.CheckPerformanceData.Application.RulesEngine.RulesEngine;
-using WorkerHost = DfE.CheckPerformanceData.RulesEngineWorker;
+using RulesConsumer = DfE.CheckPerformanceData.RulesEngineWorker.Consumers.RulesConsumer;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.RulesEngine;
 
 /// <summary>
-/// End-to-end coverage of the worker pipeline: queue-shaped JSON →
-/// <see cref="WorkerHost.RulesEngineWorker.ProcessMessageBodyAsync"/> →
+/// End-to-end coverage of the rules consumer: queue-shaped JSON →
 /// real <see cref="RuleContextMapper"/> → real <see cref="RulesEngineImpl"/> →
-/// captured <see cref="Decision"/> handed to a stubbed
-/// <see cref="IRequestDecisionHandler"/>.
+/// the decision persisted on the matching <see cref="ChangeRequest"/>.
 ///
 /// Rules and lookups come from the seed JSON shipped at
 /// <c>src/DfE.CheckPerformanceData.RulesEngineWorker/seed/</c> — the same files
 /// <c>BlobRulesProvider</c> loads in production. One happy-path scenario per
-/// Stage 1 outcome guards against drift in routing or per-table evaluation.
-///
-/// No Postgres fixture: the worker's pipeline has no DB writes (the handler
-/// produces Zendesk tickets), so spinning up a container would prove nothing.
+/// Stage 1 outcome guards against drift in routing or per-table evaluation, and
+/// proves the consumer writes back both the decision status and the outcome key.
 /// </summary>
+[Collection(nameof(PostgresCollection))]
+[Trait("Category", "W0")]
 public sealed class RulesEngineEndToEndTests
 {
     private static readonly RulesSnapshot Snapshot = LoadSeedSnapshot();
+
+    private readonly PostgresFixture _fixture;
+
+    public RulesEngineEndToEndTests(PostgresFixture fixture)
+    {
+        _fixture = fixture;
+    }
 
     public static TheoryData<OutcomeScenario> Scenarios()
     {
@@ -44,19 +50,116 @@ public sealed class RulesEngineEndToEndTests
     [MemberData(nameof(Scenarios))]
     public async Task Pipeline_RoutesScenarioToExpectedDecision(OutcomeScenario scenario)
     {
-        Decision? captured = null;
-        var handler = Substitute.For<IRequestDecisionHandler>();
-        handler
-            .When(h => h.HandleAsync(Arg.Any<RequestDocument>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>()))
-            .Do(call => captured = call.ArgAt<Decision>(1));
+        var reference = scenario.ReferenceNumber;
 
-        var sut = NewWorker(handler);
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            if (!await seedContext.CheckingWindows.AnyAsync(w => w.Id == WindowId))
+            {
+                seedContext.CheckingWindows.Add(NewCheckingWindow());
+                await seedContext.SaveChangesAsync();
+            }
 
-        await sut.ProcessMessageBodyAsync(scenario.MessageJson, CancellationToken.None);
+            seedContext.ChangeRequests.RemoveRange(
+                seedContext.ChangeRequests.Where(r => r.ReferenceNumber == reference));
+            await seedContext.SaveChangesAsync();
+            seedContext.ChangeRequests.Add(NewChangeRequest(reference));
+            await seedContext.SaveChangesAsync();
+        }
 
-        Assert.NotNull(captured);
-        Assert.Equal(scenario.ExpectedStatus, captured!.Status);
-        Assert.Equal(scenario.ExpectedRuleId, captured.MatchedRuleId);
+        await using (var context = _fixture.CreateContext())
+        {
+            var queueService = new PostgresQueueService(context);
+            var rulesProvider = Substitute.For<IRulesProvider>();
+            rulesProvider.Current.Returns(Snapshot);
+
+            var sut = new RulesConsumer(
+                queueService,
+                rulesProvider,
+                new RulesEngineImpl(),
+                new RuleContextMapper(),
+                context);
+
+            await sut.ProcessMessageBodyAsync(scenario.MessageJson, CancellationToken.None);
+        }
+
+        await using var verifyContext = _fixture.CreateContext();
+        var persisted = await verifyContext.ChangeRequests
+            .AsNoTracking()
+            .SingleAsync(r => r.ReferenceNumber == reference);
+
+        Assert.Equal(scenario.ExpectedStatus, persisted.Outcome);
+        Assert.Equal(scenario.ExpectedOutcomeKey, persisted.OutcomeKey);
+        Assert.Equal(scenario.ExpectedRuleId, persisted.MatchedRuleId);
+    }
+
+    // --- A processed message records a metric row carrying the decision status ---
+
+    [Fact]
+    public async Task Pipeline_RecordsMetric_WithDecisionStatusPopulated()
+    {
+        // A scenario with a known, non-Scrutiny decision so we can assert the exact status.
+        var scenario = new OutcomeScenario(
+            "Metric-Inclusion-AutoApproved", "Include", "KS4June",
+            Answers: [],
+            DecisionStatus.AutoApproved, "INC-ACC",
+            PupilPincl: 402);
+        var reference = scenario.ReferenceNumber;
+
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            if (!await seedContext.CheckingWindows.AnyAsync(w => w.Id == WindowId))
+            {
+                seedContext.CheckingWindows.Add(NewCheckingWindow());
+                await seedContext.SaveChangesAsync();
+            }
+
+            seedContext.ChangeRequests.RemoveRange(
+                seedContext.ChangeRequests.Where(r => r.ReferenceNumber == reference));
+            await seedContext.QueueMetricEvents
+                .Where(e => e.ReferenceNumber == reference)
+                .ExecuteDeleteAsync();
+            await seedContext.SaveChangesAsync();
+            seedContext.ChangeRequests.Add(NewChangeRequest(reference));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using (var context = _fixture.CreateContext())
+        {
+            var queueService = new PostgresQueueService(context);
+            var rulesProvider = Substitute.For<IRulesProvider>();
+            rulesProvider.Current.Returns(Snapshot);
+            var sink = new DbMetricsSink(context);
+
+            var sut = new RulesConsumer(
+                queueService,
+                rulesProvider,
+                new RulesEngineImpl(),
+                new RuleContextMapper(),
+                context,
+                sink);
+
+            await sut.ProcessMessageBodyAsync(scenario.MessageJson, CancellationToken.None);
+
+            // The hosting loop records the metric after a successful ack, mirrored here.
+            var message = new QueueMessage
+            {
+                Id = Guid.NewGuid(),
+                QueueName = QueueOptions.RulesEngineQueue,
+                Payload = scenario.MessageJson,
+                Attempts = 1,
+                EnqueuedAt = DateTime.UtcNow.AddSeconds(-2),
+            };
+            await sut.RecordMetricSafelyAsync(message, deadLettered: false, CancellationToken.None);
+        }
+
+        await using var verify = _fixture.CreateContext();
+        var metric = await verify.QueueMetricEvents
+            .AsNoTracking()
+            .SingleAsync(e => e.ReferenceNumber == reference);
+
+        Assert.Equal(MetricStages.RulesEvaluated, metric.Stage);
+        Assert.Equal(DecisionStatus.AutoApproved.ToString(), metric.DecisionStatus);
     }
 
     // --- scenarios ---------------------------------------------------------
@@ -180,50 +283,39 @@ public sealed class RulesEngineEndToEndTests
 
     // --- wiring ------------------------------------------------------------
 
-    private static WorkerHost.RulesEngineWorker NewWorker(IRequestDecisionHandler handler)
+    private static readonly Guid WindowId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+    private static CheckingWindow NewCheckingWindow() => new()
     {
-        var queueServiceClient = Substitute.For<QueueServiceClient>();
-        queueServiceClient.GetQueueClient("test-queue").Returns(Substitute.For<QueueClient>());
+        Id = WindowId,
+        StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Unspecified),
+        EndDate = new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Unspecified),
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        Title = "Test Window",
+    };
 
-        var options = Options.Create(new WorkerHost.RulesEngineOptions
-        {
-            QueueName = "test-queue",
-            MaxMessagesPerPoll = 1,
-            EmptyQueueDelayMs = 0,
-            RetryDelayMs = 0,
-            MaxDequeueCount = 5,
-        });
-
-        var rulesProvider = Substitute.For<IRulesProvider>();
-        rulesProvider.Current.Returns(Snapshot);
-
-        // The worker resolves the (scoped) handler and outcome repository per
-        // message via the scope factory. The outcome write is covered by
-        // DecisionOutcomeRepositoryTests; here a stub keeps the pipeline DB-free.
-        var outcomes = Substitute.For<IDecisionOutcomeRepository>();
-        outcomes.RecordOutcomeAsync(Arg.Any<Guid>(), Arg.Any<Decision>(), Arg.Any<CancellationToken>())
-            .Returns(true);
-        var services = new ServiceCollection();
-        services.AddScoped(_ => handler);
-        services.AddScoped(_ => outcomes);
-        services.AddScoped<IAnalyticsService>(_ => new NullAnalyticsService());
-        var scopeFactory = services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
-
-        return new WorkerHost.RulesEngineWorker(
-            NullLogger<WorkerHost.RulesEngineWorker>.Instance,
-            queueServiceClient,
-            options,
-            scopeFactory,
-            rulesProvider,
-            new RulesEngineImpl(),
-            new RuleContextMapper());
-    }
+    private static ChangeRequest NewChangeRequest(string reference) => new()
+    {
+        Id = Guid.NewGuid(),
+        WindowId = WindowId,
+        OrganisationUrn = 123456,
+        PupilUpn = "UPN1",
+        PupilFirstname = "Bob",
+        PupilSurname = "Smith",
+        Submitted = new DateTime(2026, 5, 14, 10, 0, 0, DateTimeKind.Unspecified),
+        SubmittedById = Guid.NewGuid(),
+        SubmittedByName = "Alice",
+        Status = RequestStatus.SubmittedUnCommitted,
+        ReferenceNumber = reference,
+        RequestType = "change",
+    };
 
     private static RulesSnapshot LoadSeedSnapshot()
     {
         var seedDir = LocateSeedDirectory();
 
-        var rulesJson = System.IO.File.ReadAllText(Path.Combine(seedDir, "rules.json"));
+        var rulesJson = File.ReadAllText(Path.Combine(seedDir, "rules.json"));
         var rules = JsonSerializer.Deserialize<RuleSet>(rulesJson, RulesJson.Options)
             ?? throw new InvalidOperationException("Seed rules.json did not deserialise.");
         var validation = new RuleSetValidator().Validate(rules);
@@ -233,7 +325,7 @@ public sealed class RulesEngineEndToEndTests
                 "Seed rules.json failed validation:\n  " + string.Join("\n  ", validation.Errors));
         }
 
-        var lookupsJson = System.IO.File.ReadAllText(Path.Combine(seedDir, "country-languages.json"));
+        var lookupsJson = File.ReadAllText(Path.Combine(seedDir, "country-languages.json"));
         var raw = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(lookupsJson, RulesJson.Options)
             ?? throw new InvalidOperationException("Seed country-languages.json did not deserialise.");
         var countryLanguages = raw
@@ -254,11 +346,11 @@ public sealed class RulesEngineEndToEndTests
 
     private static string LocateSeedDirectory()
     {
-        var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
             var candidate = Path.Combine(dir.FullName, "src", "DfE.CheckPerformanceData.RulesEngineWorker", "seed");
-            if (System.IO.Directory.Exists(candidate)) return candidate;
+            if (Directory.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
         throw new DirectoryNotFoundException(
@@ -275,6 +367,27 @@ public sealed class RulesEngineEndToEndTests
         int PupilAge = 12,
         int PupilPincl = 0)
     {
+        // The ReferenceNumber column is capped at 50 chars, so key off a stable
+        // hash of the scenario name rather than the (sometimes long) name itself.
+        public string ReferenceNumber => "REF-" + StableHash(Name).ToString("X8");
+
+        private static uint StableHash(string value)
+        {
+            const uint offset = 2166136261;
+            const uint prime = 16777619;
+            var hash = offset;
+            foreach (var c in value)
+            {
+                hash = (hash ^ c) * prime;
+            }
+            return hash;
+        }
+
+        public string ExpectedOutcomeKey =>
+            AnswerFieldMap.WhatToChangeToOutcomeKey.TryGetValue(RequestTypeCode, out var key)
+                ? key
+                : AnswerFieldMap.UnknownOutcomeKey;
+
         public string MessageJson
         {
             get
@@ -297,7 +410,7 @@ public sealed class RulesEngineEndToEndTests
                       "Answers": [
                           {{answersJson}}
                       ],
-                      "ReferenceNumber": "REF-001",
+                      "ReferenceNumber": "{{ReferenceNumber}}",
                       "SubmittedAt": "2026-05-14T10:00:00Z"
                     }
                     """;

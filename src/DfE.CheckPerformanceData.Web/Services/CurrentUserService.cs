@@ -23,6 +23,11 @@ public sealed class CurrentUserService(IHttpContextAccessor httpContextAccessor)
         }
     }
 
+    public string Email =>
+        httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value
+        ?? httpContextAccessor.HttpContext?.User.FindFirst("email")?.Value
+        ?? "";
+
     public string OrganisationId =>
         httpContextAccessor.HttpContext?.User.FindFirst("organisation_id")?.Value
         ?? "";

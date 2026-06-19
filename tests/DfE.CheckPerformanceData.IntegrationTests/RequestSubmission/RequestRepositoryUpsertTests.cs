@@ -58,7 +58,8 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
             Status = status,
-            RequestType = "Remove"
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove"
         };
 
     private async Task TruncateAsync()

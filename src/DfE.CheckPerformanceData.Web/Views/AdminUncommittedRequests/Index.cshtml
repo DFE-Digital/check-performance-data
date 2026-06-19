@@ -1,0 +1,72 @@
+@using DfE.CheckPerformanceData.Application.RulesEngine
+@using DfE.CheckPerformanceData.Application.UncommittedRequests
+@model IReadOnlyList<UncommittedRequestRow>
+@{
+    ViewData["Title"] = "Uncommitted requests";
+
+    string TagClass(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "govuk-tag--green",
+        DecisionStatus.AutoRejected => "govuk-tag--red",
+        _ => "govuk-tag--yellow"
+    };
+
+    string TagText(DecisionStatus s) => s switch
+    {
+        DecisionStatus.AutoApproved => "Auto approved",
+        DecisionStatus.AutoRejected => "Auto rejected",
+        _ => "Scrutiny"
+    };
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Uncommitted requests</h1>
+<p class="govuk-body-l">
+    Submitted requests for the current open checking window that have not yet been committed,
+    and their rules-engine outcome.
+</p>
+
+@if (Model.Count == 0)
+{
+    <p class="govuk-body">There are no uncommitted requests for the current open window.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Reference</th>
+                <th scope="col" class="govuk-table__header">Pupil</th>
+                <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Submitted by</th>
+                <th scope="col" class="govuk-table__header">Submitted</th>
+                <th scope="col" class="govuk-table__header">Outcome</th>
+                <th scope="col" class="govuk-table__header">Matched Rule</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@row.ReferenceNumber</td>
+                    <td class="govuk-table__cell">@($"{row.PupilSurname}, {row.PupilFirstname}".Trim(',', ' '))</td>
+                    <td class="govuk-table__cell">@row.RequestTypeDescription</td>
+                    <td class="govuk-table__cell">@row.SubmittedByName</td>
+                    <td class="govuk-table__cell">@row.Submitted.ToString("dd MMM yyyy HH:mm")</td>
+                    <td class="govuk-table__cell">
+                        @if (row.Outcome is { } outcome)
+                        {
+                            <strong class="govuk-tag @TagClass(outcome)">@TagText(outcome)</strong>
+                        }
+                        else
+                        {
+                            <span class="govuk-hint govuk-!-margin-0">Not yet processed</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

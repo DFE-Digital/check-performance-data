@@ -14,10 +14,12 @@ public class ChangeRequest
     public required DateTime Submitted { get; init; }
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
-    public required RequestStatus Status { get; set; }
+    public string? SubmittedByEmail { get; init; }
+    public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
-    public required string RequestType { get; init; }
-    public string? CrmId { get; set; }
+    public required RequestType RequestType { get; init; }
+    public required string RequestTypeDescription { get; init; }
+    public string? CrmId { get; init; }
 
     // Written by the rules engine consumer once it has decided on the request, and read
     // back by the Zendesk consumer; all stay null until the rules engine has run.

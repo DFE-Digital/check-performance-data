@@ -65,18 +65,21 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- The board ships an accessible textual parallel (counts per stage + recent transitions) ---
+    // --- The board ships an accessible pipeline-state matrix (a govuk-table of recent messages by
+    //     stage), which is both the visual record and the textual parallel to the animation ---
 
     [Fact]
-    public async Task Dashboard_RendersAccessibleTextualParallel()
+    public async Task Dashboard_RendersPipelineStateMatrix()
     {
         var body = await LoadDashboardAsAdminAsync();
 
-        // The accessible parallel region carries per-stage counts and the recent transitions list,
-        // so a non-visual user gets the same information the animation conveys.
+        // The matrix replaces the old summary-list + recent-transitions list: a real table whose
+        // body the engine fills live, with stage columns and queue-page links (new tab).
         Assert.Contains("obs-board__parallel", body);
-        Assert.Contains("Pipeline state", body);
-        Assert.Contains("Recent transitions", body);
+        Assert.Contains("Recent messages", body);
+        Assert.Contains("data-obs-grid", body);
+        Assert.Contains("Zendesk ticket", body);
+        Assert.Contains("/admin/queues/list/rules-engine", body);
     }
 
     // --- The export CTA and the board/export scripts are present and wired ---
@@ -148,15 +151,15 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
             await Page.GotoAsync($"{Fixture.BaseUrl}/admin/observability");
             await Page.WaitForLoadStateAsync(LoadState.Load);
 
-            // The board root and the recent-transitions live region are bound in the DOM.
+            // The board root and the pipeline-state matrix are bound in the DOM.
             Assert.Equal(1, await Page.Locator("[data-obs-board]").CountAsync());
-            var liveRegion = Page.Locator("[data-obs-transitions]");
-            Assert.Equal(1, await liveRegion.CountAsync());
-            Assert.Equal("polite", await liveRegion.GetAttributeAsync("aria-live"));
+            var grid = Page.Locator("[data-obs-grid]");
+            Assert.Equal(1, await grid.CountAsync());
 
-            // Drive a snapshot through the engine directly (the live SSE feed depends on traffic
-            // that may not exist in the test environment); the engine must render a focusable,
-            // labelled token and update the live region — the board's behavioural contract.
+            // Drive snapshots through the engine directly (the live SSE feed depends on traffic that
+            // may not exist in the test environment). The first snapshot primes the baseline (the
+            // matrix records it but it is not re-animated on load); a later snapshot with a NEW
+            // reference animates a focusable, labelled token — the board's behavioural contract.
             await Page.EvaluateAsync(@"() => {
                 const root = document.querySelector('[data-obs-board]');
                 const engine = window.ObservabilityBoard.start(root, { subscribe: () => {} });
@@ -166,14 +169,21 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
                         { referenceNumber: 'REF-1042', stage: 'RulesEvaluated', decisionStatus: 'AutoApproved' }
                     ]
                 });
+                engine.onSnapshot({
+                    depths: [],
+                    recentTransitions: [
+                        { referenceNumber: 'REF-2055', stage: 'TicketCreated', decisionStatus: 'AutoApproved' }
+                    ]
+                });
             }");
 
-            // The live region now lists the transition.
-            await Assertions.Expect(liveRegion).ToContainTextAsync("REF-1042");
+            // The matrix now records both messages.
+            await Assertions.Expect(grid).ToContainTextAsync("REF-1042");
+            await Assertions.Expect(grid).ToContainTextAsync("REF-2055");
 
-            // A token (the reworked board renders each message as an anchored SVG envelope, still
-            // class .obs-board__token) was rendered, is keyboard-focusable (tabindex), exposes a
-            // button role, and carries an accessible name naming the message and inviting inspection.
+            // A token (each message renders as an anchored SVG envelope, class .obs-board__token) was
+            // rendered for the new reference, is keyboard-focusable (tabindex), exposes a button role,
+            // and carries an accessible name naming the message and inviting inspection.
             var token = Page.Locator(".obs-board__token").First;
             Assert.Equal("0", await token.GetAttributeAsync("tabindex"));
             Assert.Equal("button", await token.GetAttributeAsync("role"));
@@ -183,7 +193,7 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
             Assert.Equal(1, await token.Locator("svg").CountAsync());
 
             var name = await token.GetAttributeAsync("aria-label");
-            Assert.Contains("REF-1042", name);
+            Assert.Contains("REF-2055", name);
             Assert.Contains("inspect", name, StringComparison.OrdinalIgnoreCase);
 
             await token.FocusAsync();

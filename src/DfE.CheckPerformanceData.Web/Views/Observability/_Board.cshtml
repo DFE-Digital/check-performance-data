@@ -79,32 +79,46 @@
         </div>
     </div>
 
-    @* Accessible textual parallel: the same information the animation conveys, for non-visual
-       users and for the reduced-motion/paused state. Counts per stage and a live region for the
-       most recent transitions the SSE feed reports. *@
+    @* Pipeline-state MATRIX: one row per recent message, newest at the top and pushed down as new
+       ones arrive; one column per pipeline stage. Each cell says what happened to that message at
+       that stage — the time it was submitted, how long it waited in each queue, the rules-engine
+       decision, and when its Zendesk ticket was created. This is both the visual record (it scrolls,
+       showing the latest ~10) and the accessible parallel to the animation: a real govuk-table with
+       stage column headers, so screen-reader and reduced-motion users get the same picture. The
+       queue column headers link (new tab) to that queue's admin page. The board engine fills the
+       body live from the SSE snapshot; the full, paged history is on the transactions page. *@
     <div class="obs-board__parallel">
-        <h3 class="govuk-heading-s">Pipeline state</h3>
-        <dl class="govuk-summary-list govuk-summary-list--no-border">
-            @foreach (var stage in stages)
-            {
-                <div class="govuk-summary-list__row">
-                    <dt class="govuk-summary-list__key">@stage.Label</dt>
-                    <dd class="govuk-summary-list__value" data-stage-parallel="@stage.Key">
-                        @(stage.Count.HasValue ? $"{stage.Count} waiting" : "—")
-                    </dd>
-                </div>
-            }
-        </dl>
-
-        <h3 class="govuk-heading-s">Recent transitions</h3>
-        <ul class="govuk-list govuk-list--bullet" data-obs-transitions aria-live="polite" aria-atomic="false">
-            <li class="obs-board__transitions-empty">No transitions yet.</li>
-        </ul>
-        @* Only the latest few transitions are shown here; the full, paged history lives on the
-           transactions page, and the replay picker lets you follow chosen submissions across the
-           stages. *@
-        <p class="govuk-body-s">
-            <a class="govuk-link" href="/admin/observability/transactions">View all transactions →</a>
+        <h3 class="govuk-heading-s">Recent messages</h3>
+        <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-2">
+            The latest messages and what happened at each stage — newest at the top.
+        </p>
+        <div class="obs-board__grid-scroll">
+            <table class="govuk-table obs-board__grid">
+                <caption class="govuk-table__caption govuk-visually-hidden">Recent messages by pipeline stage</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Reference</th>
+                        <th scope="col" class="govuk-table__header">Submit</th>
+                        <th scope="col" class="govuk-table__header">
+                            <a class="govuk-link" href="/admin/queues/list/rules-engine" target="_blank" rel="noopener">Rules queue</a>
+                        </th>
+                        <th scope="col" class="govuk-table__header">Rules engine</th>
+                        <th scope="col" class="govuk-table__header">Status</th>
+                        <th scope="col" class="govuk-table__header">
+                            <a class="govuk-link" href="/admin/queues/list/zendesk" target="_blank" rel="noopener">Zendesk queue</a>
+                        </th>
+                        <th scope="col" class="govuk-table__header">Zendesk ticket</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body" data-obs-grid>
+                    <tr class="govuk-table__row obs-board__grid-empty">
+                        <td class="govuk-table__cell" colspan="7">No messages yet. Drive some traffic to see them flow.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="govuk-body-s govuk-!-margin-top-2">
+            <a class="govuk-link" href="/admin/observability/transactions" target="_blank" rel="noopener">View all transactions →</a>
         </p>
         <p class="govuk-body-s">
             <a class="govuk-link" href="/admin/observability/submissions">Replay submissions through the stages →</a>

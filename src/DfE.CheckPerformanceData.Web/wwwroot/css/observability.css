@@ -329,6 +329,34 @@
     padding: 16px;
 }
 
+/* The pipeline-state matrix: a scrollable table of recent messages by stage. The visible height is
+   capped at roughly ten rows then it scrolls, newest message at the top. The header stays put while
+   the body scrolls so the stage columns are always labelled. */
+.obs-board__grid-scroll {
+    max-height: 24em;
+    overflow: auto;
+    border: 1px solid #b1b4b6;
+    background: #ffffff;
+}
+
+.obs-board__grid {
+    margin-bottom: 0;
+    font-size: 16px;
+}
+
+.obs-board__grid th,
+.obs-board__grid td {
+    padding: 6px 10px;
+    white-space: nowrap;
+}
+
+.obs-board__grid thead th {
+    position: sticky;
+    top: 0;
+    background: #f3f2f1;
+    z-index: 1;
+}
+
 .obs-board__reconnect {
     color: #d4351c;
     margin-top: 16px;

@@ -15,10 +15,10 @@
 
     var STAGE_ORDER = ['submit', 'rules-queue', 'rules-engine', 'zendesk-queue', 'ticket'];
 
-    // The dashboard's "Recent transitions" panel is an at-a-glance summary, not the full log: it
-    // shows at most this many of the latest transitions and links to the paged transactions page
-    // for the complete history.
-    var MAX_RECENT_TRANSITIONS = 10;
+    // The pipeline-state matrix shows at most this many of the latest messages (newest at the top);
+    // older ones scroll off the visible area and the full, paged history lives on the transactions
+    // page. A generous cap so the scroll area has depth without unbounded DOM growth.
+    var GRID_MAX_ROWS = 50;
 
     // Base dwell at each stage in ms (scaled by the slow-mo clock). Kept short so a live board feels
     // lively; slow motion multiplies it for a demo.
@@ -83,7 +83,7 @@
         STAGE_ORDER.forEach(function (key) {
             lanes[key] = root.querySelector('.obs-board__lane[data-stage="' + key + '"]');
         });
-        var transitionsList = root.querySelector('[data-obs-transitions]');
+        var gridBody = root.querySelector('[data-obs-grid]');
         var reconnectNotice = root.querySelector('[data-obs-reconnect]');
         var dlqMarker = root.querySelector('[data-obs-dlq]');
 
@@ -537,8 +537,6 @@
                     var count = lane.querySelector('[data-stage-count="' + key + '"]');
                     if (count) { count.textContent = depth + ' waiting'; }
                 }
-                var parallel = root.querySelector('[data-stage-parallel="' + key + '"]');
-                if (parallel) { parallel.textContent = depth + ' waiting'; }
             });
         }
 
@@ -556,7 +554,13 @@
         // trickle, replay, optimistic drive feedback) pass forceAnimate and animate directly.
         var animatedRefs = {};
         var primed = false;
-        var listRendered = false;
+
+        // The pipeline-state matrix: one accumulated row per reference, built from the recorded
+        // stage events as they arrive. Keyed by reference; seq preserves first-seen order so the
+        // newest message sits at the top and existing ones are pushed down as they fill in.
+        var gridRows = {};
+        var gridSeq = 0;
+        var gridRendered = false;
 
         function timestampOf(transition) {
             var raw = transition.recordedAtUtc || transition.RecordedAtUtc;
@@ -587,30 +591,106 @@
             return { failed: failed, decision: decision, reachedTicket: reachedTicket, latest: latest, latency: latency };
         }
 
-        function renderTextList(list) {
-            if (!transitionsList) { return; }
-            transitionsList.innerHTML = '';
-            if (!list || list.length === 0) {
-                var empty = document.createElement('li');
-                empty.className = 'obs-board__transitions-empty';
-                empty.textContent = 'No transitions yet.';
-                transitionsList.appendChild(empty);
-            } else {
-                list.slice(0, MAX_RECENT_TRANSITIONS).forEach(function (t) {
-                    var li = document.createElement('li');
-                    li.textContent = accessibleName(t);
-                    transitionsList.appendChild(li);
-                });
+        // --- Pipeline-state matrix: accumulate per-message stage timings and render the table ---
+
+        var DECISION_LABELS = {
+            'AutoApproved': 'Auto-approved',
+            'AutoRejected': 'Auto-rejected',
+            'Scrutiny': 'Scrutiny',
+        };
+
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // HH:MM:SS (UTC) from an epoch-ms timestamp, or a dash when the stage hasn't been reached.
+        function hms(ts) {
+            if (!ts) { return '—'; }
+            return new Date(ts).toISOString().substr(11, 8);
+        }
+
+        // A friendly "waited Nms / Ns" between two stage timestamps, or a dash if either is missing.
+        function waited(fromTs, toTs) {
+            if (!fromTs || !toTs || toTs < fromTs) { return '—'; }
+            var ms = toTs - fromTs;
+            return ms >= 1000 ? ('waited ' + (ms / 1000).toFixed(1) + 's') : ('waited ' + ms + 'ms');
+        }
+
+        // Fold one stage event into its message's matrix row. The recorded stages are Submitted,
+        // RulesEvaluated (carries the decision + processing latency) and TicketCreated; they map onto
+        // the matrix columns, from which the queue waits are derived.
+        function ingestEvent(t) {
+            var ref = refOf(t);
+            if (!ref) { return; }
+            var row = gridRows[ref];
+            if (!row) {
+                row = gridRows[ref] = { ref: ref, submit: null, engine: null, ticket: null,
+                    decision: null, latency: null, failed: false, seq: gridSeq++ };
             }
-            listRendered = true;
+            if (isFailure(t)) { row.failed = true; }
+            var d = t.decisionStatus || t.DecisionStatus;
+            if (d) { row.decision = d; }
+            var l = (t.latencyMs !== undefined ? t.latencyMs : t.LatencyMs);
+            if (l !== undefined && l !== null && l !== '') { row.latency = l; }
+            var ts = timestampOf(t);
+            var stage = (t.stage || t.Stage || '').toLowerCase();
+            if (stage.indexOf('submit') >= 0) { if (ts) { row.submit = ts; } }
+            else if (stage.indexOf('ticket') >= 0) { if (ts) { row.ticket = ts; } }
+            else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { if (ts) { row.engine = ts; } }
+        }
+
+        function gridRowHtml(r) {
+            var refLink = '<a class="govuk-link" target="_blank" rel="noopener" href="/admin/observability/journey/'
+                + encodeURIComponent(r.ref) + '">' + esc(r.ref) + '</a>';
+            var status = r.failed ? 'Dead-letter'
+                : (r.decision ? (DECISION_LABELS[r.decision] || r.decision) : '—');
+            var engineCell = r.latency != null ? (Math.round(r.latency) + 'ms')
+                : (r.engine ? hms(r.engine) : '—');
+            // The rules-queue cell shows the wait between submit and the engine picking the message
+            // up; the zendesk-queue cell the wait between the decision and the ticket being created.
+            var rulesQueueCell = r.submit ? (r.engine ? waited(r.submit, r.engine) : 'in queue') : '—';
+            var zendeskQueueCell = r.engine && !r.failed ? (r.ticket ? waited(r.engine, r.ticket) : 'in queue') : '—';
+            return '<tr class="govuk-table__row">'
+                + '<td class="govuk-table__cell">' + refLink + '</td>'
+                + '<td class="govuk-table__cell">' + hms(r.submit) + '</td>'
+                + '<td class="govuk-table__cell">' + esc(rulesQueueCell) + '</td>'
+                + '<td class="govuk-table__cell">' + esc(engineCell) + '</td>'
+                + '<td class="govuk-table__cell">' + esc(status) + '</td>'
+                + '<td class="govuk-table__cell">' + esc(zendeskQueueCell) + '</td>'
+                + '<td class="govuk-table__cell">' + hms(r.ticket) + '</td>'
+                + '</tr>';
+        }
+
+        function renderGrid() {
+            if (!gridBody) { return; }
+            var rows = Object.keys(gridRows).map(function (k) { return gridRows[k]; })
+                .sort(function (a, b) { return b.seq - a.seq; }) // newest first-seen at the top
+                .slice(0, GRID_MAX_ROWS);
+            if (rows.length === 0) {
+                gridBody.innerHTML = '<tr class="govuk-table__row obs-board__grid-empty">'
+                    + '<td class="govuk-table__cell" colspan="7">No messages yet. '
+                    + 'Drive some traffic to see them flow.</td></tr>';
+            } else {
+                gridBody.innerHTML = rows.map(gridRowHtml).join('');
+            }
+            gridRendered = true;
+        }
+
+        // Fold a whole snapshot's transitions into the matrix and re-render once.
+        function ingestAndRender(list) {
+            (list || []).forEach(ingestEvent);
+            renderGrid();
         }
 
         function updateTransitions(transitions, forceAnimate) {
             var list = transitions || [];
 
             // Synthetic re-presentation (replay, trickle, single-step): animate each row directly.
+            // These do not feed the matrix — it is the record of real recorded traffic (drives add a
+            // row optimistically via presentDrive, completed by the real SSE rows that follow).
             if (forceAnimate) {
-                if (!listRendered) { renderTextList(list); }
                 list.forEach(function (t) {
                     var failed = isFailure(t);
                     var token = makeToken(t, failed);
@@ -619,7 +699,10 @@
                 return;
             }
 
-            // Group the live rows by reference so each message is considered once.
+            // The matrix reflects every recent recorded event, on load and live.
+            ingestAndRender(list);
+
+            // Group the live rows by reference so each message is considered once for animation.
             var groups = {};
             var order = [];
             list.forEach(function (t) {
@@ -630,21 +713,18 @@
             });
 
             // First snapshot: establish a baseline of existing references without animating, so the
-            // page does not replay history on load.
+            // page does not replay history on load (the matrix still shows that history).
             if (!primed) {
                 order.forEach(function (ref) { animatedRefs[ref] = true; });
                 primed = true;
-                renderTextList(list);
                 return;
             }
 
-            var animatedAny = false;
             order.forEach(function (ref) {
                 if (animatedRefs[ref]) { return; }
                 var state = resolveMessage(groups[ref]);
                 if (!(state.failed || state.decision || state.reachedTicket)) { return; } // still in flight
                 animatedRefs[ref] = true;
-                animatedAny = true;
                 if (!state.failed) { bumpProcessed(); } // a decided message processed through to a ticket
                 var synthetic = {
                     referenceNumber: ref,
@@ -656,9 +736,6 @@
                 var token = makeToken(synthetic, state.failed);
                 flyEnvelope(token, 'ticket', state.failed, synthetic);
             });
-
-            // Refresh the at-a-glance text list only when a new message actually animated.
-            if (animatedAny || !listRendered) { renderTextList(list); }
         }
 
         // Optimistic drive feedback: when a drive is triggered over AJAX we know the reference and
@@ -674,6 +751,11 @@
                 : o === 'scrutiny' ? 'Scrutiny' : null;
             animatedRefs[reference] = true;
             if (!failed) { bumpProcessed(); } // an approved/rejected/scrutiny drive reaches a ticket
+            // Optimistically add a matrix row so the driven message shows immediately; the real
+            // recorded events fill in the queue waits and ticket time as they arrive on the stream.
+            ingestEvent({ referenceNumber: reference, stage: 'Submitted',
+                recordedAtUtc: new Date().toISOString(), decisionStatus: decision, failed: failed });
+            renderGrid();
             var synthetic = { referenceNumber: reference, decisionStatus: decision, failed: failed };
             var token = makeToken(synthetic, failed);
             flyEnvelope(token, 'ticket', failed, synthetic);

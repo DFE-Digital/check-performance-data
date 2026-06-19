@@ -237,6 +237,40 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("outcomeForForm", js);
     }
 
+    // --- Round 3: the pipeline-state section is a live MATRIX grid (rows = messages, columns =
+    //     stages), replacing the old summary list + recent-transitions list ---
+
+    [Fact]
+    public void Board_PipelineStateIsAMatrixGrid_NotTheOldSummaryAndTransitionsList()
+    {
+        var board = Board();
+
+        // A scrollable table the engine fills, newest message at the top.
+        Assert.Contains("data-obs-grid", board);
+        Assert.Contains("Recent messages", board);
+        Assert.Contains("obs-board__grid", board);
+        // Stage columns; the queue headers link to the queue pages in a new tab.
+        Assert.Contains("Zendesk ticket", board);
+        Assert.Contains("/admin/queues/list/rules-engine", board);
+        Assert.Contains("/admin/queues/list/zendesk", board);
+        Assert.Contains("target=\"_blank\"", board);
+        // The old summary list + recent-transitions live region are gone.
+        Assert.DoesNotContain("Recent transitions", board);
+        Assert.DoesNotContain("data-obs-transitions", board);
+    }
+
+    [Fact]
+    public void BoardJs_AccumulatesPerMessageRowsAndRendersTheMatrix()
+    {
+        var js = BoardJs();
+
+        // Per-reference rows are accumulated from the recorded stage events and rendered into the
+        // grid body; the queue waits are derived between the stage timestamps.
+        Assert.Contains("ingestEvent", js);
+        Assert.Contains("renderGrid", js);
+        Assert.Contains("data-obs-grid", js);
+    }
+
     // --- Round 3: the headline tiles update live from the SSE snapshot, not only on a refresh ---
 
     [Fact]

@@ -11,13 +11,18 @@
     replay scrubber and the slow-mo / single-step / demo-trickle checkboxes carry the same hooks the
     board engine binds (it now finds them at the document level), so they drive the same renderer.
 *@
+@*
+    The panel keeps its position above the board (controls and the board the envelopes move through
+    visible together), but its TOGGLE is decoupled: a subtle "Demo tools" link rendered below the
+    Recent submissions table (in _Board) shows/hides this region via aria-controls. The region
+    renders visible with no JS (progressive enhancement); uat-console.js collapses it on first load
+    and wires the trigger, so the toggle and panel stay in sync.
+*@
 @if (Model.DemoToolsEnabled)
 {
-    <details class="govuk-details obs-demo-panel" data-module="govuk-details">
-        <summary class="govuk-details__summary">
-            <span class="govuk-details__summary-text">Demo</span>
-        </summary>
-        <div class="govuk-details__text obs-demo-panel__body">
+    <section class="obs-demo-panel" id="obs-demo-panel" data-obs-demo-panel
+             aria-label="Demo tools (development and test only)">
+        <div class="obs-demo-panel__body">
             <p class="govuk-body govuk-!-margin-bottom-2">
                 Drive synthetic traffic and watch the board react. Nothing here touches pupil data —
                 it is a dev and test tool only.
@@ -158,5 +163,5 @@
                 </div>
             </div>
         </div>
-    </details>
+    </section>
 }

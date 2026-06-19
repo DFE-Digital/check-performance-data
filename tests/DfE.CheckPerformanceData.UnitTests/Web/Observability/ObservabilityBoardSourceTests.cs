@@ -245,9 +245,9 @@ public sealed class ObservabilityBoardSourceTests
     {
         var board = Board();
 
-        // A scrollable table the engine fills, newest message at the top.
+        // A scrollable table the engine fills, newest submission at the top.
         Assert.Contains("data-obs-grid", board);
-        Assert.Contains("Recent messages", board);
+        Assert.Contains("Recent submissions", board);
         Assert.Contains("obs-board__grid", board);
         // Stage columns; the queue headers link to the queue pages in a new tab.
         Assert.Contains("Zendesk ticket", board);

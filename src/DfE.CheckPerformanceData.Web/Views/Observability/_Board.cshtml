@@ -88,13 +88,14 @@
        queue column headers link (new tab) to that queue's admin page. The board engine fills the
        body live from the SSE snapshot; the full, paged history is on the transactions page. *@
     <div class="obs-board__parallel">
-        <h3 class="govuk-heading-s">Recent messages</h3>
+        <h3 class="govuk-heading-s">Recent submissions</h3>
         <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-2">
-            The latest messages and what happened at each stage — newest at the top.
+            The latest submissions and what happened at each stage — newest at the top. Each stage
+            cell shows the time the submission reached it and how long it spent there.
         </p>
         <div class="obs-board__grid-scroll">
             <table class="govuk-table obs-board__grid">
-                <caption class="govuk-table__caption govuk-visually-hidden">Recent messages by pipeline stage</caption>
+                <caption class="govuk-table__caption govuk-visually-hidden">Recent submissions by pipeline stage</caption>
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
                         <th scope="col" class="govuk-table__header">Reference</th>
@@ -112,13 +113,22 @@
                 </thead>
                 <tbody class="govuk-table__body" data-obs-grid>
                     <tr class="govuk-table__row obs-board__grid-empty">
-                        <td class="govuk-table__cell" colspan="7">No messages yet. Drive some traffic to see them flow.</td>
+                        <td class="govuk-table__cell" colspan="7">No submissions yet. Drive some traffic to see them flow.</td>
                     </tr>
                 </tbody>
             </table>
         </div>
-        <p class="govuk-body-s govuk-!-margin-top-2">
+        <p class="govuk-body-s govuk-!-margin-top-2 obs-board__parallel-footer">
             <a class="govuk-link" href="/admin/observability/transactions" target="_blank" rel="noopener">View all transactions →</a>
+            @* The decoupled Demo-tools toggle: a subtle right-aligned link that shows/hides the Demo
+               panel (which stays above the board). Kept out of the way at the bottom-right of the
+               table so the always-on dashboard does not lead with the dev controls. Gated on the
+               same flag as the panel; uat-console.js wires it and collapses the panel on load. *@
+            @if (Model.DemoToolsEnabled)
+            {
+                <button type="button" class="obs-demo-toggle govuk-link" data-obs-demo-toggle
+                        aria-controls="obs-demo-panel" aria-expanded="true">Demo tools</button>
+            }
         </p>
     </div>
 

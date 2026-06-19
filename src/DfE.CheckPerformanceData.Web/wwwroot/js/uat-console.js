@@ -172,12 +172,45 @@
     });
   }
 
+  // --- Demo-tools toggle ----------------------------------------------------------------------
+  // The Demo panel stays above the board, but its toggle is a subtle link rendered below the
+  // Recent submissions table (decoupled via aria-controls). The panel renders visible with no JS;
+  // here we collapse it on load and wire the trigger so the always-on dashboard does not lead with
+  // the dev controls. Expanding scrolls the panel (which is above) into view and moves focus to it.
+
+  function wireDemoToggle() {
+    var toggle = document.querySelector('[data-obs-demo-toggle]');
+    var panel = document.querySelector('[data-obs-demo-panel]');
+    if (!toggle || !panel) { return; }
+
+    // Make the panel focusable so focus can move to it when revealed from the link below it.
+    if (!panel.hasAttribute('tabindex')) { panel.setAttribute('tabindex', '-1'); }
+
+    function setExpanded(expanded) {
+      panel.hidden = !expanded;
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    // Collapse on first load (progressive enhancement: without JS the panel just shows).
+    setExpanded(false);
+
+    toggle.addEventListener('click', function () {
+      var expanded = toggle.getAttribute('aria-expanded') === 'true';
+      setExpanded(!expanded);
+      if (!expanded) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        panel.focus({ preventScroll: true });
+      }
+    });
+  }
+
   // --- Wire up --------------------------------------------------------------------------------
 
   function init() {
     syncBatch();
     enrichCoverage();
     wireDrives();
+    wireDemoToggle();
 
     document.addEventListener('change', function (e) {
       if (e.target.matches('[data-uat-batch]')) syncBatch();

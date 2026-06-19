@@ -23,7 +23,7 @@
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-    var unit = Model.Grouped ? "message" : "transaction";
+    var unit = Model.Grouped ? "submission" : "transaction";
 
     string Hms(DateTime? t) => t is null ? "—" : t.Value.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
     string Waited(DateTime? a, DateTime? b)
@@ -47,9 +47,9 @@
 
 <h1 class="govuk-heading-xl">Transactions</h1>
 <p class="govuk-body-l">
-    Every message recorded passing through the queues, newest first. Open a reference to inspect
-    its journey through the pipeline stages, or tick <strong>Group by message</strong> to see each
-    message on a single line across the stages.
+    Every submission recorded passing through the queues, newest first. Open a reference to inspect
+    its journey through the pipeline stages, or tick <strong>Group by submission</strong> to see each
+    submission on a single line across the stages.
 </p>
 
 <form method="get" action="/admin/observability/transactions" class="govuk-!-margin-bottom-6">
@@ -73,7 +73,7 @@
         <div class="govuk-checkboxes__item">
             <input class="govuk-checkboxes__input" id="group" name="group" type="checkbox" value="true"
                    @(Model.Grouped ? "checked" : "") />
-            <label class="govuk-label govuk-checkboxes__label" for="group">Group by message</label>
+            <label class="govuk-label govuk-checkboxes__label" for="group">Group by submission</label>
         </div>
     </div>
     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
@@ -100,7 +100,7 @@ else
            rules-engine latency and decision, and the ticket time). Each message row is boxed so it
            reads as one group. *@
         <table class="govuk-table obs-tx-grouped">
-            <caption class="govuk-table__caption govuk-visually-hidden">Transactions grouped by message</caption>
+            <caption class="govuk-table__caption govuk-visually-hidden">Transactions grouped by submission</caption>
             <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                     <th scope="col" class="govuk-table__header">Reference</th>

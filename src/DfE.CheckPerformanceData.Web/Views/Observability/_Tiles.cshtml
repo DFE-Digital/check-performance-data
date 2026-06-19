@@ -32,3 +32,28 @@
         <p class="govuk-body-s obs-tile__label">Current depths (all queues)</p>
     </div>
 </div>
+
+@* Ongoing 24-hour decision counts, breaking the processed total down by outcome (auto-approved /
+   auto-rejected / scrutiny) plus the current dead-letter count — so the headline reads e.g.
+   "103 processed → 62 approved, 3 rejected, 14 scrutiny, 1 dead-letter". Server-rendered from the
+   24-hour decision mix; the board engine increments the matching counter live as each decided or
+   failed submission completes (the data-hooks below are its targets). Each count carries a coloured
+   marker AND its label so the outcome is conveyed by more than colour. *@
+<div class="obs-counts" aria-label="Decisions in the last 24 hours">
+    <div class="obs-count obs-count--approved">
+        <span class="obs-count__value" data-obs-tile-approved>@Model.AutoApprovedToday</span>
+        <span class="obs-count__label">Auto-approved</span>
+    </div>
+    <div class="obs-count obs-count--rejected">
+        <span class="obs-count__value" data-obs-tile-rejected>@Model.AutoRejectedToday</span>
+        <span class="obs-count__label">Auto-rejected</span>
+    </div>
+    <div class="obs-count obs-count--scrutiny">
+        <span class="obs-count__value" data-obs-tile-scrutiny>@Model.ScrutinyToday</span>
+        <span class="obs-count__label">Scrutiny</span>
+    </div>
+    <div class="obs-count obs-count--deadletter">
+        <span class="obs-count__value" data-obs-tile-deadletter>@Model.DeadLetterCount</span>
+        <span class="obs-count__label">Dead-letter queue</span>
+    </div>
+</div>

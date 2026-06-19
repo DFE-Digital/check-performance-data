@@ -226,6 +226,50 @@ public sealed class ObservabilityControllerTests
         Assert.Equal(series, model.DecisionMixOverTime);
     }
 
+    // --- The headline decision counters describe the last 24 hours ---
+    // Alongside "processed today", the dashboard shows ongoing 24-hour counts per decision —
+    // auto-approved / auto-rejected / scrutiny — plus the current dead-letter count.
+
+    [Fact]
+    public async Task Index_PopulatesDecisionCounters_FromTheDecisionMixAndDlq()
+    {
+        var query = BuildQuery();
+        query.GetDecisionMixAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[]
+            {
+                new DecisionMixEntry("AutoApproved", 62),
+                new DecisionMixEntry("AutoRejected", 3),
+                new DecisionMixEntry("Scrutiny", 14),
+            });
+
+        var queueAdmin = Substitute.For<IQueueAdminService>();
+        queueAdmin.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<QueueDepth>());
+        queueAdmin.GetDlqCountAsync(Arg.Any<CancellationToken>()).Returns(1);
+
+        var controller = BuildController(query, queueAdmin);
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(await controller.Index()).Model);
+
+        Assert.Equal(62, model.AutoApprovedToday);
+        Assert.Equal(3, model.AutoRejectedToday);
+        Assert.Equal(14, model.ScrutinyToday);
+        Assert.Equal(1, model.DeadLetterCount);
+    }
+
+    [Fact]
+    public async Task Index_NonDefaultWindow_KeepsDecisionCountersOnTheLast24Hours()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query);
+
+        await controller.Index(range: "1h");
+
+        // The chart decision-mix uses the selected (1h) window; the counters always describe the
+        // last 24 hours, so a second 24-hour decision-mix read happens alongside.
+        await query.Received(2).GetDecisionMixAsync(
+            Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+    }
+
     // --- The orphaned throughput JSON endpoint is gone: the dashboard form replaced it ---
 
     [Fact]

@@ -134,6 +134,17 @@ public sealed class ObservabilityController : Controller
             ? TimeSpan.Zero
             : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
 
+        // The decision counters, like the processed total, always describe the last 24 hours —
+        // the selected window only drives the charts. Reuse the chart decision-mix when the window
+        // IS the default; otherwise take a second 24-hour read.
+        var headlineDecisionMix = rangeOption.Window == DefaultWindow
+            ? decisionMix
+            : await _query.GetDecisionMixAsync(now - DefaultWindow, now, cancellationToken);
+
+        int DecisionCount(string status) => headlineDecisionMix
+            .Where(d => string.Equals(d.DecisionStatus, status, StringComparison.OrdinalIgnoreCase))
+            .Sum(d => d.Count);
+
         var sentence = _sentence.Build(overall.Level, processedToday, typicalEndToEnd);
 
         var model = new DashboardViewModel
@@ -144,6 +155,10 @@ public sealed class ObservabilityController : Controller
             StatusSentence = sentence,
             ProcessedToday = processedToday,
             TypicalEndToEnd = typicalEndToEnd,
+            AutoApprovedToday = DecisionCount("AutoApproved"),
+            AutoRejectedToday = DecisionCount("AutoRejected"),
+            ScrutinyToday = DecisionCount("Scrutiny"),
+            DeadLetterCount = dlqCount,
             Depths = depths
                 .Select(d => new QueueDepthSnapshot(d.QueueName, d.Depth, d.OldestMessageAge))
                 .ToList(),

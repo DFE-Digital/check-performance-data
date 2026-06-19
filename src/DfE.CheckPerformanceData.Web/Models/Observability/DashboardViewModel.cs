@@ -19,6 +19,16 @@ public sealed class DashboardViewModel
 
     public int ProcessedToday { get; init; }
     public TimeSpan TypicalEndToEnd { get; init; }
+
+    // Ongoing 24-hour counts per decision, shown beside "processed today" so the headline reads
+    // e.g. 103 processed → 62 auto-approved, 3 auto-rejected, 14 scrutiny, 1 dead-letter. The three
+    // decision counts come from the 24-hour decision mix; the dead-letter count is the current DLQ
+    // depth. The board engine keeps each live, incrementing the matching counter as a decided or
+    // failed submission completes — like the processed-today tile.
+    public int AutoApprovedToday { get; init; }
+    public int AutoRejectedToday { get; init; }
+    public int ScrutinyToday { get; init; }
+    public int DeadLetterCount { get; init; }
     public IReadOnlyList<QueueDepthSnapshot> Depths { get; init; } = Array.Empty<QueueDepthSnapshot>();
 
     public IReadOnlyList<ThroughputBucket> Throughput { get; init; } = Array.Empty<ThroughputBucket>();

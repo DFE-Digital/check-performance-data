@@ -76,7 +76,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
         // The matrix replaces the old summary-list + recent-transitions list: a real table whose
         // body the engine fills live, with stage columns and queue-page links (new tab).
         Assert.Contains("obs-board__parallel", body);
-        Assert.Contains("Recent messages", body);
+        Assert.Contains("Recent submissions", body);
         Assert.Contains("data-obs-grid", body);
         Assert.Contains("Zendesk ticket", body);
         Assert.Contains("/admin/queues/list/rules-engine", body);

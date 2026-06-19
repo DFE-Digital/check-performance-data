@@ -93,11 +93,35 @@
         var processedTile = document.querySelector('[data-obs-tile-processed]');
         var depthTile = document.querySelector('[data-obs-tile-depth]');
 
-        function bumpProcessed() {
-            if (!processedTile) { return; }
-            var n = parseInt((processedTile.textContent || '').replace(/[^0-9-]/g, ''), 10);
+        // The 24-hour decision counters (auto-approved / auto-rejected / scrutiny / dead-letter),
+        // kept live alongside the processed-today tile: as each decided or failed submission
+        // completes, the matching counter ticks up by one so the headline breakdown stays current
+        // without a page refresh.
+        var decisionTiles = {
+            'AutoApproved': document.querySelector('[data-obs-tile-approved]'),
+            'AutoRejected': document.querySelector('[data-obs-tile-rejected]'),
+            'Scrutiny': document.querySelector('[data-obs-tile-scrutiny]'),
+        };
+        var deadletterTile = document.querySelector('[data-obs-tile-deadletter]');
+
+        // Increment a counter element's integer text by one, tolerating thousands separators and a
+        // blank/em-dash starting value.
+        function bumpCounter(el) {
+            if (!el) { return; }
+            var n = parseInt((el.textContent || '').replace(/[^0-9-]/g, ''), 10);
             if (isNaN(n)) { n = 0; }
-            processedTile.textContent = (n + 1);
+            el.textContent = (n + 1);
+        }
+
+        function bumpProcessed() {
+            bumpCounter(processedTile);
+        }
+
+        // Tick the counter matching a completed submission's outcome: its decision box, or the
+        // dead-letter counter for a failure. A decided submission also counts toward "processed".
+        function bumpDecision(decisionKey, failed) {
+            if (failed) { bumpCounter(deadletterTile); return; }
+            if (decisionKey && decisionTiles[decisionKey]) { bumpCounter(decisionTiles[decisionKey]); }
         }
 
         function updateDepthTile(depths) {
@@ -670,7 +694,7 @@
                 .slice(0, GRID_MAX_ROWS);
             if (rows.length === 0) {
                 gridBody.innerHTML = '<tr class="govuk-table__row obs-board__grid-empty">'
-                    + '<td class="govuk-table__cell" colspan="7">No messages yet. '
+                    + '<td class="govuk-table__cell" colspan="7">No submissions yet. '
                     + 'Drive some traffic to see them flow.</td></tr>';
             } else {
                 gridBody.innerHTML = rows.map(gridRowHtml).join('');
@@ -726,6 +750,7 @@
                 if (!(state.failed || state.decision || state.reachedTicket)) { return; } // still in flight
                 animatedRefs[ref] = true;
                 if (!state.failed) { bumpProcessed(); } // a decided message processed through to a ticket
+                bumpDecision(state.decision, state.failed); // tick the matching 24h decision counter
                 var synthetic = {
                     referenceNumber: ref,
                     decisionStatus: state.decision,
@@ -751,6 +776,7 @@
                 : o === 'scrutiny' ? 'Scrutiny' : null;
             animatedRefs[reference] = true;
             if (!failed) { bumpProcessed(); } // an approved/rejected/scrutiny drive reaches a ticket
+            bumpDecision(decision, failed); // tick the matching 24h decision counter
             // Optimistically add a matrix row so the driven message shows immediately; the real
             // recorded events fill in the queue waits and ticket time as they arrive on the stream.
             ingestEvent({ referenceNumber: reference, stage: 'Submitted',
@@ -870,6 +896,7 @@
         function singleStep() {
             var ev = randomOutcome('STEP');
             if (!ev.failed) { bumpProcessed(); }
+            bumpDecision(ev.decisionStatus, ev.failed);
             onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
         }
 
@@ -894,6 +921,7 @@
             demoTimer = window.setInterval(function () {
                 var ev = randomOutcome('DEMO');
                 if (!ev.failed) { bumpProcessed(); }
+                bumpDecision(ev.decisionStatus, ev.failed);
                 onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
             }, Math.max(900, 1500 * moveSpeed));
             return true;

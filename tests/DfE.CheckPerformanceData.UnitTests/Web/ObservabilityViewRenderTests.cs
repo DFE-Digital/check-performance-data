@@ -132,10 +132,11 @@ public sealed class ObservabilityViewRenderTests
 	// --- The Demo panel folds the old Debug Pipeline controls into the dashboard, dev-gated ---
 
 	[Fact]
-	public void Index_RendersACollapsibleDemoPanel_GatedOnDemoToolsEnabled()
+	public void Index_RendersADemoPanel_GatedOnDemoToolsEnabled_WithADecoupledToggleBelowTheTable()
 	{
 		var index = ReadView("Index.cshtml");
 		var panel = ReadView("_DemoPanel.cshtml");
+		var board = ReadView("_Board.cshtml");
 
 		// The dashboard pulls in the Demo panel partial; the panel itself is gated on the flag and
 		// loads the AJAX-drive script only when rendered.
@@ -143,11 +144,17 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("Model.DemoToolsEnabled", index); // guards the uat-console.js include
 		Assert.Contains("uat-console.js", index);
 
-		// The panel only renders when the controller resolved the dev/test gate, behind a
-		// collapsible GDS <details> opened by a "Demo" toggle (hidden by default).
+		// The panel only renders when the controller resolved the dev/test gate, as an addressable
+		// region (no longer a GDS <details> — its toggle is decoupled below the table).
 		Assert.Contains("Model.DemoToolsEnabled", panel);
-		Assert.Contains("govuk-details", panel);
-		Assert.Contains(">Demo</span>", panel);
+		Assert.Contains("data-obs-demo-panel", panel);
+		Assert.Contains("id=\"obs-demo-panel\"", panel);
+
+		// The trigger is a subtle toggle rendered below the Recent submissions table, controlling the
+		// panel above by aria-controls; it is gated on the same flag as the panel.
+		Assert.Contains("data-obs-demo-toggle", board);
+		Assert.Contains("aria-controls=\"obs-demo-panel\"", board);
+		Assert.Contains("Model.DemoToolsEnabled", board);
 	}
 
 	[Fact]
@@ -213,6 +220,23 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Tiles_RenderTheTwentyFourHourDecisionCounters_WithLiveHooks()
+	{
+		var view = ReadView("_Tiles.cshtml");
+		// Ongoing 24-hour counts beside "processed today": auto-approved / auto-rejected / scrutiny
+		// plus the current dead-letter count, each server-rendered and carrying a live-update hook
+		// the board engine ticks as a decided/failed submission completes.
+		Assert.Contains("data-obs-tile-approved", view);
+		Assert.Contains("data-obs-tile-rejected", view);
+		Assert.Contains("data-obs-tile-scrutiny", view);
+		Assert.Contains("data-obs-tile-deadletter", view);
+		Assert.Contains("Model.AutoApprovedToday", view);
+		Assert.Contains("Model.AutoRejectedToday", view);
+		Assert.Contains("Model.ScrutinyToday", view);
+		Assert.Contains("Model.DeadLetterCount", view);
+	}
+
+	[Fact]
 	public void Transactions_HasAReferenceSearchBox()
 	{
 		var view = ReadView("Transactions.cshtml");
@@ -232,7 +256,7 @@ public sealed class ObservabilityViewRenderTests
 		// Wide template so the grid is not squished; a "Group by message" checkbox switches to the
 		// one-row-per-message matrix across the pipeline stages.
 		Assert.Contains("_AdminWideLayout", view);
-		Assert.Contains("Group by message", view);
+		Assert.Contains("Group by submission", view);
 		Assert.Contains("name=\"group\"", view);
 		Assert.Contains("obs-tx-grouped", view);
 		Assert.Contains("Zendesk ticket", view);

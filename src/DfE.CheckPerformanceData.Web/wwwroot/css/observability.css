@@ -74,6 +74,43 @@
     color: #505a5f;
 }
 
+/* The 24-hour decision counts: a compact row breaking the processed total down by outcome plus
+   the current dead-letter count. Each count carries a coloured left marker AND its label, so the
+   outcome is never conveyed by colour alone. The colours match the canonical decision palette used
+   on the board and the decision-mix charts. */
+.obs-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.obs-count {
+    flex: 1 1 160px;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-left: 4px solid #505a5f;
+    padding: 8px 12px;
+}
+
+.obs-count__value {
+    font-weight: 700;
+    font-size: 27px;
+    line-height: 1.2;
+}
+
+.obs-count__label {
+    color: #505a5f;
+    font-size: 16px;
+}
+
+.obs-count--approved { border-left-color: #00703c; }
+.obs-count--rejected { border-left-color: #d4351c; }
+.obs-count--scrutiny { border-left-color: #f47738; }
+.obs-count--deadletter { border-left-color: #0b0c0c; }
+
 /* --- Workflow board ------------------------------------------------------- */
 
 .obs-board {
@@ -374,6 +411,40 @@
    controls side by side (wrapping on narrow viewports), beneath the drive/inject/seed buttons. */
 .obs-demo-panel {
     margin-bottom: 32px;
+}
+
+/* The panel is no longer a GDS <details> (its toggle is the decoupled link below the table), so
+   its body carries the disclosure's left rule + inset itself, keeping the familiar boxed look. */
+.obs-demo-panel__body {
+    border-left: 5px solid #b1b4b6;
+    padding-left: 16px;
+}
+
+.obs-demo-panel:focus {
+    outline: 3px solid #ffdd00;
+    outline-offset: 2px;
+}
+
+/* The decoupled Demo-tools toggle: a subtle, right-aligned link below the Recent submissions table,
+   styled as a link (it is a <button> for correct semantics) so it does not lead the dashboard. */
+.obs-board__parallel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+
+.obs-demo-toggle {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin-left: auto;
+    cursor: pointer;
+    font-size: inherit;
+}
+
+.obs-demo-toggle[aria-expanded="true"] {
+    font-weight: 700;
 }
 
 /* The drive bar: batch size, the drive/inject/seed buttons and Pause on one wrapping row so the

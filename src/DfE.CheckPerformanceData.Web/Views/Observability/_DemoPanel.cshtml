@@ -133,6 +133,30 @@
                     </div>
                 </div>
             </div>
+
+            @* ── Replay selected submissions: search recent submissions, tick a few and Play them
+               through the board, obeying the demo slow-mo / single-step. Folded in from the retired
+               standalone submissions + walkthrough pages — the board itself is the walkthrough now. ── *@
+            <div class="obs-replay-picker" data-obs-replay-picker>
+                <h3 class="govuk-heading-s">Replay submissions through the stages</h3>
+                <div class="obs-replay-picker__controls">
+                    <label class="govuk-label govuk-!-margin-bottom-0" for="obs-picker-search">Search</label>
+                    <input class="govuk-input govuk-input--width-10 govuk-!-margin-bottom-0" id="obs-picker-search"
+                           type="search" autocomplete="off" data-obs-picker-search placeholder="reference"
+                           title="Filter the recent submissions by reference." />
+                    <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                            data-module="govuk-button" data-obs-picker-load
+                            title="Load recent submissions to choose from.">Find submissions</button>
+                    <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                            data-module="govuk-button" data-obs-picker-play
+                            title="Animate the ticked submissions through the board, obeying the demo controls.">Play selected</button>
+                </div>
+                <div class="obs-replay-picker__list" data-obs-picker-list aria-live="polite">
+                    <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-0">
+                        Press “Find submissions”, tick the ones to follow, then Play to watch them move through the board.
+                    </p>
+                </div>
+            </div>
         </div>
     </details>
 }

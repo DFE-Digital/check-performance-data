@@ -39,7 +39,6 @@ public sealed class AdminNavActiveTrackingTests
     [Theory]
     [InlineData("/admin/observability", AdminNavKeys.Observability)]
     [InlineData("/admin/observability/transactions", AdminNavKeys.Transactions)]
-    [InlineData("/admin/observability/submissions", AdminNavKeys.ReplaySubmissions)]
     [InlineData("/admin/queues", AdminNavKeys.RulesEngine)]
     [InlineData("/admin/queues/dlq", AdminNavKeys.DeadLetterQueue)]
     [InlineData("/admin/rules", AdminNavKeys.RulesConfig)]
@@ -114,7 +113,6 @@ public sealed class AdminNavActiveTrackingTests
             new RulesEngineGroupNavEntry(),
             new ObservabilityNavEntry(),
             new TransactionsNavEntry(),
-            new ReplaySubmissionsNavEntry(),
             new RulesEngineNavEntry(),
             new DeadLetterQueueNavEntry(),
             new RulesConfigNavEntry(),

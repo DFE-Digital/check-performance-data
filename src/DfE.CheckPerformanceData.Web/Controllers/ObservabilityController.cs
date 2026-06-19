@@ -278,92 +278,49 @@ public sealed class ObservabilityController : Controller
         });
     }
 
-    // The interactive-replay submissions picker: a paged, newest-first list of distinct references
-    // that entered the pipeline, each with a checkbox and a Play button. A date/time filter narrows
-    // the list; with no filter the picker opens on a recent window (the last DefaultWindow) so it
-    // shows the latest submissions rather than every reference ever recorded. Paged by the
-    // Wiki:PageLength setting (default 20), in SQL. Role-gated cypmd_admin.
+    // The in-dashboard replay submission picker reads its list from here: a newest-first set of
+    // distinct references (with submitted time + resolved decision) from a recent window, as JSON.
+    // Replaces the standalone submissions page — the picker now lives in the dashboard Demo panel
+    // and animates the chosen submissions through the board. The list is a generous recent cap so a
+    // client-side search can narrow it without another round trip. Role-gated cypmd_admin.
     [Authorize(Roles = WikiConstants.AdminRole)]
-    [HttpGet("admin/observability/submissions")]
-    public async Task<IActionResult> Submissions(
-        int page = 1,
-        DateTime? from = null,
-        DateTime? to = null,
-        CancellationToken cancellationToken = default)
+    [HttpGet("admin/observability/submissions.json")]
+    public async Task<IActionResult> SubmissionsJson(CancellationToken cancellationToken = default)
     {
-        if (page < 1) page = 1;
-
-        var pageSize = await ResolvePageSizeAsync();
-
-        // Default to a recent window so the picker opens on the latest submissions; an explicit
-        // from/to filter overrides it. The default has no upper bound (open 'to') so very recent
-        // events still appear.
         var now = DateTime.UtcNow;
-        var fromUtc = from is not null ? AsUtc(from.Value)
-            : to is null ? now - DefaultWindow : (DateTime?)null;
-        var toUtc = to is null ? (DateTime?)null : AsUtc(to.Value);
+        var result = await _query.GetSubmissionsAsync(1, 100, now - DefaultWindow, null, cancellationToken);
 
-        var result = await _query.GetSubmissionsAsync(page, pageSize, fromUtc, toUtc, cancellationToken);
-
-        return View(new SubmissionsViewModel
+        var rows = result.Rows.Select(r => new
         {
-            Rows = result.Rows,
-            TotalCount = result.TotalCount,
-            Page = result.Page,
-            PageSize = result.PageSize,
-            TotalPages = TotalPages(result.TotalCount, result.PageSize),
-            FromUtc = fromUtc,
-            ToUtc = toUtc,
+            referenceNumber = r.ReferenceNumber,
+            submittedAtUtc = r.SubmittedAtUtc,
+            decision = r.ResolvedDecision,
         });
+
+        return Json(new { rows });
     }
 
-    // The followed-replay walkthrough: builds a per-reference stage progression from each selected
-    // reference's real recorded events (reusing the journey read), so the page can show the same
-    // chosen items moving across the five pipeline stages and single-step them. The progression is
-    // the ordered, de-duplicated board-stage keys the reference actually visited. Role-gated
-    // cypmd_admin.
+    // The recorded events for the picked submissions, combined and time-ordered, as JSON — so the
+    // dashboard board can animate just those references through the stages, obeying the demo slow-mo
+    // / single-step. Replaces the standalone walkthrough page (which duplicated the board). The
+    // cohort is capped so a hand-edited query string cannot fan out to an unbounded read. Role-gated.
     [Authorize(Roles = WikiConstants.AdminRole)]
-    [HttpGet("admin/observability/replay/walkthrough")]
-    public async Task<IActionResult> Walkthrough(
+    [HttpGet("admin/observability/replay/selected")]
+    public async Task<IActionResult> ReplaySelected(
         [FromQuery(Name = "reference")] string[]? reference = null,
         CancellationToken cancellationToken = default)
     {
         var references = (reference ?? Array.Empty<string>())
             .Where(r => !string.IsNullOrWhiteSpace(r))
             .Distinct(StringComparer.Ordinal)
+            .Take(50)
             .ToArray();
 
-        var items = new List<WalkthroughItem>();
+        var events = new List<JourneyEvent>();
         foreach (var refNumber in references)
-        {
-            var journey = await _query.GetJourneyAsync(refNumber, cancellationToken);
-            if (journey.Count == 0)
-                continue;
+            events.AddRange(await _query.GetJourneyAsync(refNumber, cancellationToken));
 
-            // Map each event to its board stage key, in recorded order, collapsing consecutive
-            // repeats so the cohort steps one node at a time along the path it really took.
-            var stageKeys = new List<string>();
-            foreach (var ev in journey.OrderBy(e => e.RecordedAtUtc))
-            {
-                var key = PipelineStages.KeyForStage(ev.Stage);
-                if (stageKeys.Count == 0 || stageKeys[^1] != key)
-                    stageKeys.Add(key);
-            }
-
-            var latestDecision = journey
-                .Where(e => !string.IsNullOrEmpty(e.DecisionStatus))
-                .Select(e => e.DecisionStatus)
-                .LastOrDefault();
-
-            items.Add(new WalkthroughItem
-            {
-                ReferenceNumber = refNumber,
-                StageKeys = stageKeys,
-                LatestDecision = latestDecision,
-            });
-        }
-
-        return View(new WalkthroughViewModel { Items = items });
+        return Json(events.OrderBy(e => e.RecordedAtUtc));
     }
 
     [Authorize(Roles = WikiConstants.AdminRole)]

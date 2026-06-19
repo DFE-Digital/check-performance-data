@@ -456,11 +456,11 @@ public sealed class ObservabilityControllerTests
             Arg.Is<DateTime>(d => d == from), Arg.Is<DateTime>(d => d == to), Arg.Any<CancellationToken>());
     }
 
-    // --- The submissions picker is admin-gated and paged by Wiki:PageLength ---
+    // --- The in-dashboard replay endpoints (picker list + selected events) are admin-gated ---
 
     [Theory]
-    [InlineData(nameof(ObservabilityController.Submissions))]
-    [InlineData(nameof(ObservabilityController.Walkthrough))]
+    [InlineData(nameof(ObservabilityController.SubmissionsJson))]
+    [InlineData(nameof(ObservabilityController.ReplaySelected))]
     public void ReplaySurfaces_HaveAuthorizeAttribute_WithAdminRole(string actionName)
     {
         var method = typeof(ObservabilityController).GetMethod(actionName);
@@ -471,77 +471,45 @@ public sealed class ObservabilityControllerTests
     }
 
     [Fact]
-    public async Task Submissions_PagesByTheConfiguredPageLength_AndDefaultsToARecentWindow()
+    public async Task SubmissionsJson_ReturnsRecentSubmissionsForThePicker()
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetSubmissionsAsync(Arg.Any<int>(), Arg.Any<int>(),
                 Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
-            .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
-
-        var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
-
-        var controller = BuildController(query, settings: settings);
-
-        var result = await controller.Submissions();
-
-        var model = Assert.IsType<SubmissionsViewModel>(Assert.IsType<ViewResult>(result).Model);
-        Assert.Equal(20, model.PageSize);
-
-        // Default window: a recent window is applied (a non-null from), so the picker opens on the
-        // last 20 by recency rather than every reference ever seen.
-        await query.Received(1).GetSubmissionsAsync(
-            1, 20, Arg.Is<DateTime?>(d => d != null), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Submissions_DateFilterNarrowsTheWindow()
-    {
-        var query = Substitute.For<IMetricsQueryService>();
-        query.GetSubmissionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>())
-            .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
-
-        var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
-
-        var controller = BuildController(query, settings: settings);
-
-        var from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        var to = new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
-
-        await controller.Submissions(from: from, to: to);
-
-        await query.Received(1).GetSubmissionsAsync(
-            1, 20,
-            Arg.Is<DateTime?>(d => d == from),
-            Arg.Is<DateTime?>(d => d == to),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task Walkthrough_BuildsAStageProgressionForEachSelectedReference()
-    {
-        var query = Substitute.For<IMetricsQueryService>();
-        query.GetJourneyAsync("REF-1", Arg.Any<CancellationToken>())
-            .Returns(new[]
-            {
-                new JourneyEvent("Submitted", "REF-1", "rules-engine", null, 0, DateTime.UtcNow),
-                new JourneyEvent("RulesEvaluated", "REF-1", "rules-engine", "AutoApproved", 10, DateTime.UtcNow.AddSeconds(1)),
-                new JourneyEvent("TicketCreated", "REF-1", "zendesk", "AutoApproved", 20, DateTime.UtcNow.AddSeconds(2)),
-            });
+            .Returns(new SubmissionsPage(
+                new[] { new SubmissionRow("REF-1", DateTime.UtcNow, "RulesEvaluated", null, "AutoApproved") }, 1, 1, 100));
 
         var controller = BuildController(query);
 
-        var result = await controller.Walkthrough(new[] { "REF-1" });
+        var result = await controller.SubmissionsJson();
 
-        var model = Assert.IsType<WalkthroughViewModel>(Assert.IsType<ViewResult>(result).Model);
-        var item = Assert.Single(model.Items);
-        Assert.Equal("REF-1", item.ReferenceNumber);
+        // A JSON list over a recent window (a non-null from) — the picker filters client-side.
+        Assert.IsType<JsonResult>(result);
+        await query.Received(1).GetSubmissionsAsync(
+            1, 100, Arg.Is<DateTime?>(d => d != null), Arg.Any<DateTime?>(), Arg.Any<CancellationToken>());
+    }
 
-        // The stage progression is the ordered stage keys the reference actually visited, mapped to
-        // the five board stages, so the cohort can be single-stepped across them.
-        Assert.Equal(new[] { "submit", "rules-engine", "ticket" }, item.StageKeys);
+    [Fact]
+    public async Task ReplaySelected_CombinesTheJourneysOfTheChosenReferences_TimeOrdered()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        var t0 = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        query.GetJourneyAsync("REF-1", Arg.Any<CancellationToken>())
+            .Returns(new[] { new JourneyEvent("Submitted", "REF-1", "rules-engine", null, 0, t0.AddSeconds(2)) });
+        query.GetJourneyAsync("REF-2", Arg.Any<CancellationToken>())
+            .Returns(new[] { new JourneyEvent("Submitted", "REF-2", "rules-engine", null, 0, t0.AddSeconds(1)) });
+
+        var controller = BuildController(query);
+
+        var result = await controller.ReplaySelected(new[] { "REF-1", "REF-2" });
+
+        var json = Assert.IsType<JsonResult>(result);
+        var events = Assert.IsAssignableFrom<IEnumerable<JourneyEvent>>(json.Value).ToList();
+        Assert.Equal(2, events.Count);
+
+        // Combined and ordered by recorded time: REF-2 (1s) before REF-1 (2s).
+        Assert.Equal("REF-2", events[0].ReferenceNumber);
+        Assert.Equal("REF-1", events[1].ReferenceNumber);
     }
 
     // --- Inspect is a journey-only panel: decision + stages, never a queue-row payload ---

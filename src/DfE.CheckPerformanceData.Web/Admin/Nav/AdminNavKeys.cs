@@ -24,5 +24,4 @@ public static class AdminNavKeys
     public const string StorageAdmin = "storage-admin";
     public const string StorageBrowser = "storage-browser";
     public const string Transactions = "transactions";
-    public const string ReplaySubmissions = "replay-submissions";
 }

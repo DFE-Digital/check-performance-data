@@ -426,6 +426,29 @@
     flex: 0 1 auto;
 }
 
+/* The in-panel replay submission picker: a compact search + load/play controls and a scrollable
+   checkbox list of recent submissions to follow through the board (folded in from the retired
+   standalone submissions + walkthrough pages). */
+.obs-replay-picker {
+    margin-top: 16px;
+    background: #ffffff;
+    border: 1px solid #b1b4b6;
+    padding: 16px;
+}
+
+.obs-replay-picker__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.obs-replay-picker__list {
+    max-height: 12em;
+    overflow: auto;
+}
+
 /* Always-on replay scrubber and the dev-only demo controls. The scrubber is a GDS-styled range
    input + play/pause; both control groups are keyboard-operable. */
 .obs-board__replay,

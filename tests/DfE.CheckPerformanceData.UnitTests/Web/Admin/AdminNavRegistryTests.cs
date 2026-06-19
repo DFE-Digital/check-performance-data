@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(18, entries.Count);
+		Assert.Equal(17, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
@@ -40,7 +40,9 @@ public sealed class AdminNavRegistryTests
 		Assert.DoesNotContain("Debug Pipelines", titles);
 		Assert.Contains("Pipeline dashboard", titles);
 		Assert.Contains("Transactions", titles);
-		Assert.Contains("Replay", titles);
+		// The standalone "Replay" submissions nav item was retired (its picker moved into the
+		// dashboard Demo panel).
+		Assert.DoesNotContain("Replay", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

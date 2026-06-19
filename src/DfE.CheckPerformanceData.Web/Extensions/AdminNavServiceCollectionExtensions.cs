@@ -37,7 +37,6 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
-        services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
         return services;
     }
 }

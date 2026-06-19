@@ -252,12 +252,25 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
-	public void Submissions_DecisionColumnReadsTheResolvedDecision()
+	public void DemoPanel_HostsTheReplaySubmissionPicker_InPlaceOfTheStandalonePages()
 	{
-		var view = ReadView("Submissions.cshtml");
+		var panel = ReadView("_DemoPanel.cshtml");
 
-		// The picker's decision column reads the resolved decision, not the latest stage's blank.
-		Assert.Contains("row.ResolvedDecision", view);
+		// The submission picker (search recent submissions, tick, Play through the board) now lives
+		// in the Demo panel — the standalone submissions + walkthrough pages were retired.
+		Assert.Contains("data-obs-replay-picker", panel);
+		Assert.Contains("data-obs-picker-load", panel);
+		Assert.Contains("data-obs-picker-play", panel);
+	}
+
+	[Fact]
+	public void Board_NoLongerLinksToAStandaloneReplayPage()
+	{
+		var board = ReadView("_Board.cshtml");
+
+		// The "Replay submissions through the stages" link to /submissions is gone; replay is in the
+		// dashboard Demo panel now.
+		Assert.DoesNotContain("/admin/observability/submissions", board);
 	}
 
 	[Fact]

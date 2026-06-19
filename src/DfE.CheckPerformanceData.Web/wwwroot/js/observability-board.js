@@ -1104,6 +1104,101 @@
         if (inject) {
             inject.addEventListener('click', function () { engine.injectFailure(); });
         }
+
+        // --- Replay selected submissions (Demo panel) ---
+        // Search recent submissions, tick a few and Play them through THIS board — folded in from the
+        // retired standalone submissions + walkthrough pages. The chosen references' recorded events
+        // are fetched and animated through the same engine; each envelope's motion obeys the demo
+        // slow-mo / single-step because flyEnvelope reads the engine clock.
+        var picker = controls.querySelector('[data-obs-replay-picker]');
+        if (picker) {
+            var pickerSearch = picker.querySelector('[data-obs-picker-search]');
+            var pickerList = picker.querySelector('[data-obs-picker-list]');
+            var loadBtn = picker.querySelector('[data-obs-picker-load]');
+            var playSelBtn = picker.querySelector('[data-obs-picker-play]');
+            var submissions = [];
+
+            function renderPicker(filter) {
+                var f = (filter || '').toLowerCase();
+                var matching = submissions.filter(function (s) {
+                    return !f || (s.referenceNumber || '').toLowerCase().indexOf(f) >= 0;
+                });
+                pickerList.innerHTML = '';
+                if (matching.length === 0) {
+                    var p = document.createElement('p');
+                    p.className = 'govuk-body-s govuk-hint govuk-!-margin-bottom-0';
+                    p.textContent = submissions.length === 0
+                        ? 'No recent submissions found.' : 'No matching submissions.';
+                    pickerList.appendChild(p);
+                    return;
+                }
+                var group = document.createElement('div');
+                group.className = 'govuk-checkboxes govuk-checkboxes--small';
+                matching.slice(0, 50).forEach(function (s, i) {
+                    var item = document.createElement('div');
+                    item.className = 'govuk-checkboxes__item';
+                    var input = document.createElement('input');
+                    input.className = 'govuk-checkboxes__input';
+                    input.type = 'checkbox';
+                    input.id = 'obs-pick-' + i;
+                    input.setAttribute('data-obs-pick', '');
+                    input.value = s.referenceNumber;
+                    var label = document.createElement('label');
+                    label.className = 'govuk-label govuk-checkboxes__label';
+                    label.setAttribute('for', input.id);
+                    label.textContent = s.referenceNumber + (s.decision ? ' — ' + s.decision : '');
+                    item.appendChild(input);
+                    item.appendChild(label);
+                    group.appendChild(item);
+                });
+                pickerList.appendChild(group);
+            }
+
+            function loadSubmissions() {
+                if (loadBtn) { loadBtn.disabled = true; }
+                fetch('/admin/observability/submissions.json', { credentials: 'same-origin' })
+                    .then(function (r) { return r.ok ? r.json() : { rows: [] }; })
+                    .then(function (data) {
+                        submissions = (data && data.rows) || [];
+                        renderPicker(pickerSearch ? pickerSearch.value : '');
+                    })
+                    .catch(function () {
+                        pickerList.textContent = 'Could not load submissions.';
+                    })
+                    .then(function () { if (loadBtn) { loadBtn.disabled = false; } });
+            }
+
+            // Animate the chosen submissions' recorded events through the board, one after another.
+            function playEvents(events) {
+                var i = 0;
+                (function stepNext() {
+                    if (i >= events.length) { return; }
+                    engine.onSnapshot({ recentTransitions: [events[i]], depths: [], forceAnimate: true });
+                    i += 1;
+                    window.setTimeout(stepNext, 700);
+                })();
+            }
+
+            if (loadBtn) { loadBtn.addEventListener('click', loadSubmissions); }
+            if (pickerSearch) {
+                pickerSearch.addEventListener('input', function () { renderPicker(pickerSearch.value); });
+            }
+            if (playSelBtn) {
+                playSelBtn.addEventListener('click', function () {
+                    var refs = Array.prototype.slice
+                        .call(pickerList.querySelectorAll('[data-obs-pick]:checked'))
+                        .map(function (c) { return c.value; });
+                    if (refs.length === 0) { return; }
+                    var qs = refs.map(function (r) { return 'reference=' + encodeURIComponent(r); }).join('&');
+                    playSelBtn.disabled = true;
+                    fetch('/admin/observability/replay/selected?' + qs, { credentials: 'same-origin' })
+                        .then(function (r) { return r.ok ? r.json() : []; })
+                        .then(function (events) { playEvents(events || []); })
+                        .catch(function () { /* best effort */ })
+                        .then(function () { playSelBtn.disabled = false; });
+                });
+            }
+        }
     }
 
     var sharedEngine = null;

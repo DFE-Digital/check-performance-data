@@ -65,10 +65,10 @@ public sealed class AdminNavHierarchyTests
         Assert.DoesNotContain(entries, e => e.Title.Contains("Debug Pipeline", StringComparison.OrdinalIgnoreCase));
     }
 
-    // --- Transactions_And_Replay_Sit_Under_PipelineDashboard ---
+    // --- Transactions_Sits_Under_PipelineDashboard ---
 
     [Fact]
-    public void Transactions_And_Replay_Sit_Under_PipelineDashboard()
+    public void Transactions_Sits_Under_PipelineDashboard()
     {
         var transactions = Single(AdminNavKeys.Transactions);
 
@@ -76,19 +76,12 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("Transactions", transactions.Title);
         Assert.Equal("/admin/observability/transactions", transactions.Url);
         Assert.True(transactions.Enabled);
-
-        var replay = Single(AdminNavKeys.ReplaySubmissions);
-
-        Assert.Equal(AdminNavKeys.Observability, replay.ParentKey);
-        Assert.Equal("Replay", replay.Title);
-        Assert.Equal("/admin/observability/submissions", replay.Url);
-        Assert.True(replay.Enabled);
     }
 
-    // --- PipelineDashboard_Children_Order_Is_Transactions_Replay ---
+    // --- PipelineDashboard_Children_Is_Transactions ---
 
     [Fact]
-    public void PipelineDashboard_Children_Order_Is_Transactions_Replay()
+    public void PipelineDashboard_Children_Is_Transactions()
     {
         var entries = ResolveEntries();
 
@@ -97,10 +90,10 @@ public sealed class AdminNavHierarchyTests
             .OrderBy(e => e.Order)
             .ToList();
 
-        // Debug Pipelines was removed; the dashboard now parents just Transactions and Replay.
-        Assert.Equal(2, dashboardChildren.Count);
+        // The standalone Replay submissions page was retired (its picker now lives in the dashboard
+        // Demo panel), so the dashboard parents just Transactions.
+        Assert.Single(dashboardChildren);
         Assert.Equal(AdminNavKeys.Transactions, dashboardChildren[0].Key);
-        Assert.Equal(AdminNavKeys.ReplaySubmissions, dashboardChildren[1].Key);
     }
 
     // --- Queues_Is_RulesEngineGroup_Child ---

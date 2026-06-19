@@ -1,0 +1,26 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.QueueIndexViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Queues";
+}
+
+<h1 class="govuk-heading-xl">Queues</h1>
+<p class="govuk-body-l">
+    Each queue shows how many messages are waiting, the age of the oldest message, and the
+    five oldest messages. Open a message to inspect it, or view the full list. Figures are
+    taken on each page load.
+</p>
+
+<form action="/admin/queues" method="get" class="govuk-!-margin-bottom-6">
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+        Refresh
+    </button>
+    <p class="govuk-body-s govuk-hint">
+        Last refreshed @Model.RefreshedAtUtc.ToString("u")
+    </p>
+</form>
+
+@foreach (var panel in Model.Panels)
+{
+    <partial name="_QueuePanel" model="panel" />
+}

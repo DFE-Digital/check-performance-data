@@ -12,6 +12,18 @@ public sealed class RulesEngineWorkerProgramTests
         Assert.DoesNotContain("Console.Write", src);
     }
 
+    [Fact]
+    public void Program_GatesDevZendeskFakeOnConfigFlagNotEnvironmentName()
+    {
+        var src = File.ReadAllText(ResolveProgramPath());
+
+        // The dev outbox fake is selected through the Zendesk:UseFake config flag, not the
+        // environment name, so the test site (which runs as Development) can be flipped to the
+        // real Zendesk client by config alone.
+        Assert.Contains("ConfigureFakeZendesk", src);
+        Assert.DoesNotContain("IsDevelopment()", src);
+    }
+
     private static string ResolveProgramPath([CallerFilePath] string testFile = "")
     {
         var dir = new DirectoryInfo(Path.GetDirectoryName(testFile)!);

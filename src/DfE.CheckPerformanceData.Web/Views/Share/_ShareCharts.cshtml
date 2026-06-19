@@ -1,0 +1,179 @@
+@using DfE.CheckPerformanceData.Application.Observability
+@model DfE.CheckPerformanceData.Web.Models.Observability.AggregateShareViewModel
+@{
+    // Bespoke inline SVG charts (GDS has no chart component), each followed by a <details> data
+    // table that carries the identical numbers and is the accessible source of truth. Series are
+    // distinguished by colour AND a marker shape, never colour alone; chart text stays at
+    // govuk-body-s (16px). The data is aggregate-only, so there is nothing per-pupil to render.
+    var buckets = Model.Throughput;
+
+    const int width = 600;
+    const int height = 200;
+    const int padLeft = 40;
+    const int padBottom = 24;
+    const int padTop = 8;
+    const int padRight = 8;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var maxCount = buckets.Count == 0 ? 0 : buckets.Max(b => b.Count);
+    var safeMax = maxCount == 0 ? 1 : maxCount;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    string Y(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeMax)).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    var points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.Count)}"));
+
+    var ariaLabel = buckets.Count == 0
+        ? "Throughput per hour: no data for this range."
+        : $"Throughput per hour over the last 24 hours: peak {maxCount}, currently {buckets[^1].Count}.";
+}
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Throughput (last 24 hours)</h3>
+
+    @if (buckets.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try again once messages are flowing.
+        </p>
+    }
+    else
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false">
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@points" aria-hidden="true" />
+
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <rect x="@X(i)" y="@Y(buckets[i].Count)" width="4" height="4"
+                      transform="translate(-2,-2)" fill="#1d70b8" aria-hidden="true" />
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View throughput data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Throughput per bucket</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Time (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Processed</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var bucket in buckets)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@bucket.BucketStartUtc.ToString("u")</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.Count</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Decision mix (last 24 hours)</h3>
+
+    @if (Model.DecisionMix.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="Decision mix: no data for this range." focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try again once messages are flowing.
+        </p>
+    }
+    else
+    {
+        var total = Model.DecisionMix.Sum(d => d.Count);
+        var safeTotal = total == 0 ? 1 : total;
+        var colours = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AutoApproved"] = "#00703c",
+            ["AutoRejected"] = "#d4351c",
+            ["RequiresScrutiny"] = "#f47738",
+        };
+        var barWidth = (width - padLeft - padRight) / Math.Max(1, Model.DecisionMix.Count) - 8;
+        var summary = string.Join(", ", Model.DecisionMix.Select(d => $"{d.DecisionStatus} {d.Count}"));
+
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="Decision mix: @summary." focusable="false">
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            @{
+                var maxDecision = Model.DecisionMix.Max(d => d.Count);
+                var safeMaxDecision = maxDecision == 0 ? 1 : maxDecision;
+            }
+            @for (var i = 0; i < Model.DecisionMix.Count; i++)
+            {
+                var entry = Model.DecisionMix[i];
+                var colour = colours.TryGetValue(entry.DecisionStatus, out var c) ? c : "#505a5f";
+                var barH = plotH * (double)entry.Count / safeMaxDecision;
+                var bx = padLeft + i * (barWidth + 8);
+                var by = padTop + plotH - barH;
+                <rect x="@bx.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                      y="@by.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                      width="@barWidth.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                      height="@barH.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)"
+                      fill="@colour" aria-hidden="true" />
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View decision mix data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Decision mix</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Decision</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Count</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Share</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var entry in Model.DecisionMix)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@entry.DecisionStatus</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@entry.Count</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">
+                                    @Math.Round(100.0 * entry.Count / safeTotal)%
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>

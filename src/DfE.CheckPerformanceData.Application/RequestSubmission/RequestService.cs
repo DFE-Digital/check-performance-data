@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -9,9 +10,7 @@ public sealed class RequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
-    IRequestQueueClient requestQueueClient,
-    IRequestBlobClient requestBlobClient,
-    RequestSubmissionOptions submissionOptions) : IRequestService
+    IQueueService queueService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -55,17 +54,9 @@ public sealed class RequestService(
             BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
         var document = BuildRequestDocument(context, config, changeRequestId);
 
-        // TEMPORARY: the rules-engine queue path is paused. When the switch is on the
-        // document is written to blob storage instead of being enqueued. See
-        // RequestSubmissionOptions.
-        if (submissionOptions.WriteToBlobInsteadOfQueue)
-            await requestBlobClient.SaveRequestAsync(windowId, document);
-        else
-            await requestQueueClient.EnqueueRequestAsync(document);
-
-        // Retain the full journey so the read-only view can rebuild the summary without
-        // the RequestDocument (which is bound for a queue and not persisted long-term).
-        await requestStateBlobClient.SaveAsync(windowId, refNum, journey);
+        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+        // picks it up, evaluates it and writes the decision back to the row.
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

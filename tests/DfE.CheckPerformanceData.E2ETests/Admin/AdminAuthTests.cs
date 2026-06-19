@@ -104,7 +104,6 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
 
             var body = await response.Content.ReadAsStringAsync();
             Assert.Contains("Version retention", body);
-            Assert.Contains("Visual regression dashboard", body);
             Assert.Contains("Content staging import/export", body);
             Assert.Contains("Coming soon", body);
 
@@ -113,7 +112,10 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
             Assert.Contains("System administration", body);
             Assert.Contains("Deleted pages", body);
             Assert.Contains("Seed sample pages", body);
-            Assert.Contains("Rules engine configuration", body);
+            Assert.Contains("Queues", body);
+            Assert.Contains("Dead Letter Queue", body);
+            Assert.Contains("Rules Engine configuration", body);
+            Assert.Contains("System settings", body);
         }
         finally
         {

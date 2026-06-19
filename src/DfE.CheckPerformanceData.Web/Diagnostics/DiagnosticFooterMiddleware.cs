@@ -63,10 +63,13 @@ public sealed class DiagnosticFooterMiddleware(
         }
     }
 
-    // Skip non-GET requests and anything that's clearly an asset/API call. The buffer
-    // swap is otherwise a tax for no benefit. Page navigations are GET text/html.
+    // Skip non-GET requests, and any request negotiating a server-sent-event stream: an SSE
+    // response stays open for the lifetime of the page, so swapping in a MemoryStream would
+    // hold every event in memory and the client would never receive a byte.
     private static bool ShouldIntercept(HttpContext context) =>
-        HttpMethods.IsGet(context.Request.Method);
+        HttpMethods.IsGet(context.Request.Method)
+        && !context.Request.Headers.Accept.ToString()
+            .Contains("text/event-stream", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsHtmlResponse(HttpContext context) =>
         context.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true

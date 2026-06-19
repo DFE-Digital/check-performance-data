@@ -1,0 +1,85 @@
+/* Styles for the anonymised share link and the wallboard. The share link reuses the dashboard's
+   observability.css for the strip / tiles / charts; this file adds only the wallboard's chrome-less
+   large-type scope. GDS palette and GDS Transport only — no new colours, no new font family, weights
+   400 and 700 only. */
+
+/* --- Wallboard: chrome-less, large-type, across-the-room legibility --- */
+
+.wallboard {
+    margin: 0;
+    background: #ffffff;
+    color: #0b0c0c;
+    font-family: "GDS Transport", arial, sans-serif;
+}
+
+.wallboard__main {
+    padding: 32px 48px 64px;
+}
+
+.wallboard__banner {
+    background: #f3f2f1;
+    border-left: 10px solid #1d70b8;
+    padding: 16px 24px;
+    margin: 0 0 32px;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+.wallboard__heading {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1.04;
+    margin: 0 0 32px;
+}
+
+.wallboard__heading--sub {
+    font-size: 48px;
+    margin-top: 48px;
+}
+
+.wallboard__meta {
+    font-size: 24px;
+    font-weight: 400;
+    color: #505a5f;
+    margin-top: 48px;
+}
+
+/* Scale the shared tiles, strip and chart panels up inside the wallboard scope. */
+
+.wallboard .obs-tile__value {
+    font-size: 96px;
+    font-weight: 700;
+    line-height: 1.04;
+}
+
+.wallboard .obs-tile__label {
+    font-size: 24px;
+    font-weight: 400;
+}
+
+.wallboard .obs-health-strip {
+    font-size: 24px;
+    gap: 24px;
+    margin-bottom: 48px;
+}
+
+.wallboard .obs-light span {
+    font-size: 24px;
+}
+
+.wallboard .obs-light__glyph {
+    width: 32px;
+    height: 32px;
+}
+
+.wallboard .obs-chart-panel h3 {
+    font-size: 36px;
+    font-weight: 700;
+}
+
+.wallboard .obs-chart {
+    width: 100%;
+    max-width: 1000px;
+    height: auto;
+}

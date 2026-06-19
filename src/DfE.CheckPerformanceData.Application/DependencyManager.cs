@@ -36,6 +36,9 @@ public static class DependencyManager
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
 
+        services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
+        services.AddSingleton<Observability.StatusSentenceBuilder>();
+
         services.AddRulesEngineDependencies();
 
         return services;

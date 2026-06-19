@@ -1,0 +1,42 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.AggregateShareViewModel
+@{
+    // The wallboard drops _AdminLayout entirely: it is a chrome-less, large-type, auto-refreshing
+    // rendering variant of the SAME aggregate-only contract as the share link, behind the SAME
+    // token gate. It scales GDS Transport up for across-the-room legibility (see share.css
+    // .wallboard scope) and refreshes itself on an interval. Same aggregate-only model, so there is
+    // no pupil data to render.
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en" class="govuk-template">
+<head>
+    <meta charset="utf-8" />
+    <title>Pipeline wallboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    @* Auto-refresh: the wallboard re-fetches itself on a fixed cadence so a screen left open all
+       day stays current without any client JS or a long-lived SSE connection. *@
+    <meta http-equiv="refresh" content="30" />
+    <link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/share.css" asp-append-version="true" />
+</head>
+<body class="govuk-template__body wallboard">
+    <main class="wallboard__main" id="main-content">
+        <p class="wallboard__banner">
+            Read-only view. Figures are aggregated and contain no pupil information.
+        </p>
+
+        <h1 class="wallboard__heading">Pipeline wallboard</h1>
+
+        @await Html.PartialAsync("../Share/_ShareHealthStrip", Model)
+
+        @await Html.PartialAsync("../Share/_ShareTiles", Model)
+
+        <h2 class="wallboard__heading wallboard__heading--sub">Charts</h2>
+        <div class="obs-chart-group">
+            @await Html.PartialAsync("../Share/_ShareCharts", Model)
+        </div>
+
+        <p class="wallboard__meta">Refreshed at @Model.CapturedAtUtc.ToString("u").</p>
+    </main>
+</body>
+</html>

@@ -1,0 +1,62 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.QueueMessageViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Queue message";
+}
+
+<a class="govuk-back-link" href="/admin/queues/list/@Model.QueueName">Back to queue</a>
+
+<h1 class="govuk-heading-xl">Queue message</h1>
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Message ID</dt>
+        <dd class="govuk-summary-list__value">@Model.Id</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Queue</dt>
+        <dd class="govuk-summary-list__value">@Model.QueueName</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Attempts</dt>
+        <dd class="govuk-summary-list__value">@Model.Attempts</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Enqueued</dt>
+        <dd class="govuk-summary-list__value">@Model.EnqueuedAtUtc.ToString("u")</dd>
+    </div>
+    @if (!string.IsNullOrEmpty(Model.ReferenceNumber))
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Reference</dt>
+            <dd class="govuk-summary-list__value">@Model.ReferenceNumber</dd>
+            <dd class="govuk-summary-list__actions">
+                <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(Model.ReferenceNumber)">
+                    Track this request<span class="govuk-visually-hidden"> @Model.ReferenceNumber</span>
+                </a>
+            </dd>
+        </div>
+    }
+</dl>
+
+<h2 class="govuk-heading-l">Payload</h2>
+@if (Model.IsRedacted)
+{
+    <div class="govuk-inset-text">
+        Pupil identifiers are hidden. The full payload can be enabled by an administrator
+        on the System settings page (System administration &rsaquo; System settings);
+        viewing it is recorded in the audit log.
+    </div>
+}
+else
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            This is the full payload including pupil identifiers. This view has been recorded.
+        </strong>
+    </div>
+}
+
+<pre class="govuk-body app-code-block"><code>@Model.Payload</code></pre>

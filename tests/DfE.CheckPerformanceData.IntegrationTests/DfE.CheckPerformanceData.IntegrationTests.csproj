@@ -8,10 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.7" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.4.0" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="Testcontainers.Azurite" Version="4.7.0" />
@@ -32,6 +37,7 @@
     <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Persistence\DfE.CheckPerformanceData.Persistence.csproj" />
 	  <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Infrastructure\DfE.CheckPerformanceData.Infrastructure.csproj" />
 	  <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.RulesEngineWorker\DfE.CheckPerformanceData.RulesEngineWorker.csproj" />
+	  <ProjectReference Include="..\..\src\DfE.CheckPerformanceData.Web\DfE.CheckPerformanceData.Web.csproj" />
 </ItemGroup>
 
 </Project>

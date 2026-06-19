@@ -21,9 +21,11 @@ public class ChangeRequest
     public required string RequestTypeDescription { get; init; }
     public string? CrmId { get; init; }
 
-    // Written by the rules engine worker once it has decided on the request;
-    // all three stay null until then.
-    public DecisionStatus? Outcome { get; init; }
-    public string? OutcomeKey { get; init; }
-    public string? MatchedRuleId { get; init; }
+    // Written by the rules engine consumer once it has decided on the request, and read
+    // back by the Zendesk consumer; all stay null until the rules engine has run.
+    public DecisionStatus? Outcome { get; set; }
+    public string? OutcomeKey { get; set; }
+    public string? MatchedRuleId { get; set; }
+    public string? RulesVersion { get; set; }
+    public DateTime? DecidedAtUtc { get; set; }
 }

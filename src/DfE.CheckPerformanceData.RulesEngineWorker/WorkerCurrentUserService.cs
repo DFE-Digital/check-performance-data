@@ -3,9 +3,10 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 namespace DfE.CheckPerformanceData.RulesEngineWorker;
 
 /// <summary>
-/// The worker has no signed-in user; <see cref="ICurrentUserService"/> is needed
-/// only because <c>PortalDbContext</c> stamps audit rows with a UserId on
-/// SaveChanges. Writes made by the worker are attributed to this system identity.
+/// Identity used for audit entries the worker writes. The worker acts on behalf of
+/// the system rather than an interactive user, so it reports a fixed system id.
+/// <see cref="ICurrentUserService"/> is needed because <c>PortalDbContext</c> stamps
+/// audit rows with a UserId on SaveChanges.
 /// </summary>
 public sealed class WorkerCurrentUserService : ICurrentUserService
 {

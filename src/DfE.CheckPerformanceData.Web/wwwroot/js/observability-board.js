@@ -888,6 +888,72 @@
             flyEnvelope(token, 'ticket', failed, synthetic);
         }
 
+        // Replay counts per root reference, so re-replaying a submission yields -R1, -R2, ...
+        var replayCounts = {};
+
+        function nowIso() { return new Date().toISOString(); }
+
+        // Replay ONE recorded submission as a SINGLE envelope along the full path — not one envelope
+        // per stage row, which was the bug: a Submitted row flew to Submit and vanished, and a
+        // TicketCreated row crossed the top boxes with no status. Group the reference's recorded
+        // events, resolve its decision/outcome, mint a <root>-R{n} copy, add it to the Recent
+        // submissions matrix and fly one correctly-routed envelope. The matrix row fills in
+        // progressively (submit → decision → ticket) so it is seen completing as the envelope reaches
+        // the Zendesk ticket. Visual only: no real queue work, metric rows or tickets are created.
+        function replaySubmission(events) {
+            var list = events || [];
+            if (!list.length) { return; }
+            var rootRef = refOf(list[0]) || 'unknown';
+            var state = resolveMessage(list);
+            var n = (replayCounts[rootRef] = (replayCounts[rootRef] || 0) + 1);
+            var replayRef = rootRef + '-R' + n;
+            animatedRefs[replayRef] = true;
+
+            // The reference's recorded per-stage times, carried onto the replay copy's row so it
+            // shows the original submission's timings.
+            var times = {};
+            list.forEach(function (e) {
+                var stage = (e.stage || e.Stage || '').toLowerCase();
+                var when = e.recordedAtUtc || e.RecordedAtUtc;
+                if (!when) { return; }
+                if (stage.indexOf('submit') >= 0) { times.submit = when; }
+                else if (stage.indexOf('ticket') >= 0) { times.ticket = when; }
+                else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { times.engine = when; }
+            });
+
+            // One correctly-routed envelope for the whole submission.
+            var synthetic = { referenceNumber: replayRef, decisionStatus: state.decision,
+                failed: state.failed, latencyMs: state.latency };
+            var token = makeToken(synthetic, state.failed);
+            flyEnvelope(token, 'ticket', state.failed, synthetic);
+
+            // Fill the matrix row in step with the flight: submit now, the engine decision shortly
+            // after, then the dead-letter or the ticket.
+            ingestEvent({ referenceNumber: replayRef, stage: 'Submitted', recordedAtUtc: times.submit || nowIso() });
+            renderGrid();
+            var unit = STAGE_DWELL_MS * (moveSpeed || 1);
+            if (state.failed) {
+                pausableTimeout(function () {
+                    ingestEvent({ referenceNumber: replayRef, stage: 'DeadLettered',
+                        recordedAtUtc: times.engine || nowIso(), failed: true });
+                    renderGrid();
+                }, unit * 2);
+            } else {
+                pausableTimeout(function () {
+                    ingestEvent({ referenceNumber: replayRef, stage: 'RulesEvaluated',
+                        recordedAtUtc: times.engine || nowIso(),
+                        decisionStatus: state.decision, latencyMs: state.latency });
+                    renderGrid();
+                }, unit * 2);
+                if (times.ticket) {
+                    pausableTimeout(function () {
+                        ingestEvent({ referenceNumber: replayRef, stage: 'TicketCreated', recordedAtUtc: times.ticket });
+                        renderGrid();
+                    }, unit * 4);
+                }
+            }
+        }
+
         function onSnapshot(snapshot) {
             if (reconnectNotice) { reconnectNotice.hidden = true; }
             if (!snapshot) { return; }
@@ -1043,6 +1109,7 @@
             isPaused: isPaused,
             onPauseChange: onPauseChange,
             presentDrive: presentDrive,
+            replaySubmission: replaySubmission,
         };
     }
 
@@ -1061,33 +1128,44 @@
         };
     }
 
+    // Group a flat list of recorded stage events into one bucket per reference, preserving
+    // first-seen order (the events arrive time-ordered, so this orders messages by first activity).
+    function groupByReference(events) {
+        var byRef = {};
+        var order = [];
+        (events || []).forEach(function (e) {
+            var ref = e.referenceNumber || e.ReferenceNumber;
+            if (!ref) { return; }
+            if (!byRef[ref]) { byRef[ref] = []; order.push(ref); }
+            byRef[ref].push(e);
+        });
+        return order.map(function (ref) { return byRef[ref]; });
+    }
+
     // The recorded/replay feed. It fetches the recorded events for a window from the always-on
-    // replay endpoint, then plays them into the same renderer on a scrubber-controlled clock — the
-    // engine never knows the difference between live and recorded. Exposes load(from, to),
-    // seek(index) and the count so a scrubber UI can drive it.
+    // replay endpoint and groups them into MESSAGES (one per reference), then plays one message at a
+    // time through the engine's per-submission replay — so each scrubber step is a whole submission
+    // (a <root>-R{n} copy that flows the full path and fills the matrix), never a single stage row.
+    // Exposes load(from, to), seek(index) and the message count so a scrubber UI can drive it.
     function recordedFeed(replayUrl) {
-        var events = [];
-        var sink = null;
+        var messages = [];
+        var handler = null;
         return {
-            subscribe: function (onSnapshot) {
-                sink = onSnapshot;
-            },
+            onMessage: function (cb) { handler = cb; },
             load: function (fromIso, toIso) {
                 var url = replayUrl + '?from=' + encodeURIComponent(fromIso) + '&to=' + encodeURIComponent(toIso);
                 return fetch(url, { credentials: 'same-origin' })
                     .then(function (r) { return r.ok ? r.json() : []; })
-                    .then(function (data) { events = data || []; return events.length; })
-                    .catch(function () { events = []; return 0; });
+                    .then(function (data) { messages = groupByReference(data || []); return messages.length; })
+                    .catch(function () { messages = []; return 0; });
             },
-            count: function () { return events.length; },
-            // Animate the recorded event at the scrubber position through the board; each step flies
-            // one envelope along the stage path. Replay is deliberate re-presentation of old events,
-            // so it bypasses the live-feed novelty watermark via forceAnimate.
+            count: function () { return messages.length; },
+            // Replay the message at the scrubber position as one envelope along the full path.
             seek: function (index) {
-                if (!sink) { return; }
-                var e = events[index];
-                if (!e) { return; }
-                sink({ recentTransitions: [e], depths: [], forceAnimate: true });
+                if (!handler) { return; }
+                var m = messages[index];
+                if (!m) { return; }
+                handler(m);
             },
         };
     }
@@ -1132,14 +1210,14 @@
         var windowSelect = controls.querySelector('[data-obs-replay-window]');
         if (scrubber) {
             var feed = recordedFeed(replayUrl);
-            feed.subscribe(engine.onSnapshot);
+            feed.onMessage(engine.replaySubmission);
             var playing = false;
             var playTimer = null;
 
             function announce(index, total) {
                 var text = total > 0
-                    ? ('Event ' + (index + 1) + ' of ' + total)
-                    : 'No recorded events in this window';
+                    ? ('Submission ' + (index + 1) + ' of ' + total)
+                    : 'No recorded submissions in this window';
                 scrubber.setAttribute('aria-valuetext', text);
                 if (status) { status.textContent = text; }
             }
@@ -1300,14 +1378,17 @@
                     .then(function () { if (loadBtn) { loadBtn.disabled = false; } });
             }
 
-            // Animate the chosen submissions' recorded events through the board, one after another.
+            // Animate the chosen submissions through the board, one whole submission after another —
+            // each a <root>-R{n} copy that flows the full path and fills the matrix (the same
+            // per-submission replay the scrubber uses), never one envelope per stage row.
             function playEvents(events) {
+                var messages = groupByReference(events);
                 var i = 0;
                 (function stepNext() {
-                    if (i >= events.length) { return; }
-                    engine.onSnapshot({ recentTransitions: [events[i]], depths: [], forceAnimate: true });
+                    if (i >= messages.length) { return; }
+                    engine.replaySubmission(messages[i]);
                     i += 1;
-                    window.setTimeout(stepNext, 700);
+                    window.setTimeout(stepNext, 900);
                 })();
             }
 

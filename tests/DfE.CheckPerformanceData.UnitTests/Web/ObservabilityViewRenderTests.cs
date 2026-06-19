@@ -299,6 +299,40 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void BoardEngine_ReplaysOnePerSubmission_WithAnRnCopyThatFillsTheMatrix()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-board.js"));
+
+		// Replay is per-SUBMISSION, not per stage row (the bug where a Submitted row vanished at
+		// Submit and a TicketCreated row crossed the top boxes with no status). Each replayed
+		// submission flies one envelope along the full path and is added to the matrix as a
+		// <root>-R{n} copy.
+		Assert.Contains("replaySubmission", js);
+		Assert.Contains("groupByReference", js);
+		Assert.Contains("'-R'", js);
+		// The scrubber and the picker both drive whole submissions through that one path.
+		Assert.Contains("feed.onMessage", js);
+	}
+
+	[Fact]
+	public void UatConsole_StaggersABatchedDriveIntoAVisibleCluster()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "uat-console.js"));
+
+		// A batch of more than one drive fires one at a time with randomised gaps, so a cluster
+		// appears and flows through the board rather than a single envelope for the whole batch.
+		Assert.Contains("staggerDrives", js);
+		Assert.Contains("submitDriveForm(form, 1)", js);
+		Assert.Contains("Math.random", js);
+	}
+
+	[Fact]
 	public void Transactions_HasAReferenceSearchBox()
 	{
 		var view = ReadView("Transactions.cshtml");

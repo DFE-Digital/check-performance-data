@@ -68,12 +68,17 @@
     }
   }
 
-  function submitDriveForm(form) {
+  function submitDriveForm(form, countOverride) {
     var token = antiForgeryToken(form);
     var body = new URLSearchParams();
-    // Carry every named field the no-JS post would (count etc.).
+    // Carry every named field the no-JS post would (count etc.). When a countOverride is given
+    // (the staggered batch path drives one at a time), it replaces the form's count.
     form.querySelectorAll('input[name]').forEach(function (input) {
-      body.append(input.name, input.value);
+      if (countOverride != null && input.name === 'count') {
+        body.append('count', String(countOverride));
+      } else {
+        body.append(input.name, input.value);
+      }
     });
     var headers = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
     if (token) headers['RequestVerificationToken'] = token;
@@ -101,16 +106,37 @@
       .catch(function () { form.submit(); });
   }
 
+  // Drive a batch of N one at a time with small randomised gaps, so a batch appears as a CLUSTER
+  // entering the board and flowing through the stages — rather than the server looping N at once and
+  // the board showing a single envelope. The first fires immediately; each subsequent one after a
+  // randomised 150–450ms gap. Each single drive presents its own envelope and updates the last
+  // reference.
+  function staggerDrives(form, n) {
+    var delay = 0;
+    for (var i = 0; i < n; i++) {
+      window.setTimeout(function () { submitDriveForm(form, 1); }, delay);
+      delay += 150 + Math.floor(Math.random() * 300);
+    }
+  }
+
   function wireDrives() {
     document.querySelectorAll('.uat-inline-form').forEach(function (form) {
       form.addEventListener('submit', function (e) {
+        var action = form.getAttribute('action') || '';
         // Only intercept our action forms; let anything else post normally.
-        if (!/\/dev\/uat\/(drive|inject-failure|seed-dlq)/.test(form.getAttribute('action') || '')) {
+        if (!/\/dev\/uat\/(drive|inject-failure|seed-dlq)/.test(action)) {
           return;
         }
         e.preventDefault();
         syncBatch();
-        submitDriveForm(form);
+        // A batch of more than one drive is staggered into a visible cluster; everything else
+        // (a single drive, inject, seed) posts once.
+        var n = /\/dev\/uat\/drive/.test(action) ? batchSize() : 1;
+        if (n > 1) {
+          staggerDrives(form, n);
+        } else {
+          submitDriveForm(form);
+        }
       });
     });
   }

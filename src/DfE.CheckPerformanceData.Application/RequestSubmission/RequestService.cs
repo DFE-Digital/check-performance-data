@@ -125,7 +125,9 @@ public sealed class RequestService(
             PupilUpn = journey.SelectedPupil!.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
-            Timestamp = DateTime.UtcNow,
+            // Local (wall-clock) time, not UTC — the "Submitted" timestamp must survive
+            // BST/GMT without a daylight-savings offset, matching ConfirmDataCorrectAsync.
+            Timestamp = DateTime.Now,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,

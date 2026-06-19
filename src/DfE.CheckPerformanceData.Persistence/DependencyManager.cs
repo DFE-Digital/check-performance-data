@@ -47,6 +47,8 @@ public static class DependencyManager
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
+        services.AddScoped<Application.UncommittedRequests.IUncommittedRequestsRepository,
+            Repositories.UncommittedRequestsRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();

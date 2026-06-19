@@ -19,7 +19,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
-        var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Unspecified);
+        var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
 
         // ReferenceNumber is unique, so at most one row matches.
         var existingId = await db.ChangeRequests

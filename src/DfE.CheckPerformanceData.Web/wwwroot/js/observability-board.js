@@ -87,6 +87,28 @@
         var reconnectNotice = root.querySelector('[data-obs-reconnect]');
         var dlqMarker = root.querySelector('[data-obs-dlq]');
 
+        // The headline tiles live above the board (siblings, not under the board root), so resolve
+        // them at document level. The engine keeps them live from the SSE snapshot: the depth tile
+        // tracks the summed queue depths, and the processed-today tile ticks up as messages complete.
+        var processedTile = document.querySelector('[data-obs-tile-processed]');
+        var depthTile = document.querySelector('[data-obs-tile-depth]');
+
+        function bumpProcessed() {
+            if (!processedTile) { return; }
+            var n = parseInt((processedTile.textContent || '').replace(/[^0-9-]/g, ''), 10);
+            if (isNaN(n)) { n = 0; }
+            processedTile.textContent = (n + 1);
+        }
+
+        function updateDepthTile(depths) {
+            if (!depthTile) { return; }
+            var sum = 0;
+            (depths || []).forEach(function (d) {
+                sum += (d.depth !== undefined ? d.depth : d.Depth) || 0;
+            });
+            depthTile.textContent = sum;
+        }
+
         // The decision-destination boxes, keyed by decisionStatus, so a decided envelope can anchor
         // to its box and light it up as it lands.
         var decisionMarkers = {};
@@ -503,6 +525,7 @@
 
         // Update the per-stage counts (board + accessible parallel) from the snapshot depths.
         function updateCounts(depths) {
+            updateDepthTile(depths); // the "current depths (all queues)" tile tracks the snapshot live
             (depths || []).forEach(function (d) {
                 var queue = d.queueName || d.QueueName;
                 var depth = (d.depth !== undefined ? d.depth : d.Depth) || 0;
@@ -622,6 +645,7 @@
                 if (!(state.failed || state.decision || state.reachedTicket)) { return; } // still in flight
                 animatedRefs[ref] = true;
                 animatedAny = true;
+                if (!state.failed) { bumpProcessed(); } // a decided message processed through to a ticket
                 var synthetic = {
                     referenceNumber: ref,
                     decisionStatus: state.decision,
@@ -649,6 +673,7 @@
                 : o === 'rejected' ? 'AutoRejected'
                 : o === 'scrutiny' ? 'Scrutiny' : null;
             animatedRefs[reference] = true;
+            if (!failed) { bumpProcessed(); } // an approved/rejected/scrutiny drive reaches a ticket
             var synthetic = { referenceNumber: reference, decisionStatus: decision, failed: failed };
             var token = makeToken(synthetic, failed);
             flyEnvelope(token, 'ticket', failed, synthetic);
@@ -761,7 +786,9 @@
         // decision so it routes through a status box) so a presenter can walk an audience
         // Submit → status → Zendesk ticket. forceAnimate bypasses the per-message dedupe.
         function singleStep() {
-            onSnapshot({ recentTransitions: [randomOutcome('STEP')], depths: [], forceAnimate: true });
+            var ev = randomOutcome('STEP');
+            if (!ev.failed) { bumpProcessed(); }
+            onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
         }
 
         // Inject a failing envelope: it walks to Rules-engine then diverts to the dead-letter marker.
@@ -783,7 +810,9 @@
                 return false;
             }
             demoTimer = window.setInterval(function () {
-                onSnapshot({ recentTransitions: [randomOutcome('DEMO')], depths: [], forceAnimate: true });
+                var ev = randomOutcome('DEMO');
+                if (!ev.failed) { bumpProcessed(); }
+                onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
             }, Math.max(900, 1500 * moveSpeed));
             return true;
         }

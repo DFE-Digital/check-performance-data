@@ -237,6 +237,20 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("outcomeForForm", js);
     }
 
+    // --- Round 3: the headline tiles update live from the SSE snapshot, not only on a refresh ---
+
+    [Fact]
+    public void BoardJs_KeepsHeadlineTilesLive()
+    {
+        var js = BoardJs();
+
+        // The depth tile tracks the summed queue depths each snapshot; the processed-today tile
+        // ticks up as each message is processed through to a ticket.
+        Assert.Contains("data-obs-tile-processed", js);
+        Assert.Contains("data-obs-tile-depth", js);
+        Assert.Contains("bumpProcessed", js);
+    }
+
     [Fact]
     public void BoardJs_SurfacesMessageDetailsOnHoverOrFocus()
     {

@@ -14,9 +14,13 @@
     var totalDepth = Model.Depths.Sum(d => d.Depth);
 }
 
+@* The tiles are server-rendered at load (the true figures) and then kept live by the board engine
+   from the SSE snapshot: the depth tile is set from the snapshot's per-queue depths, and the
+   processed-today tile ticks up by one as each message is processed through to a ticket — so driving
+   traffic moves the numbers without a page refresh. The data-hooks below are the engine's targets. *@
 <div class="obs-tiles">
     <div class="obs-tile">
-        <p class="govuk-heading-xl obs-tile__value">@Model.ProcessedToday</p>
+        <p class="govuk-heading-xl obs-tile__value" data-obs-tile-processed>@Model.ProcessedToday</p>
         <p class="govuk-body-s obs-tile__label">Processed today</p>
     </div>
     <div class="obs-tile">
@@ -24,7 +28,7 @@
         <p class="govuk-body-s obs-tile__label">Average end-to-end</p>
     </div>
     <div class="obs-tile">
-        <p class="govuk-heading-xl obs-tile__value">@totalDepth</p>
+        <p class="govuk-heading-xl obs-tile__value" data-obs-tile-depth>@totalDepth</p>
         <p class="govuk-body-s obs-tile__label">Current depths (all queues)</p>
     </div>
 </div>

@@ -204,6 +204,15 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Tiles_CarryLiveUpdateHooksForTheBoardEngine()
+	{
+		var view = ReadView("_Tiles.cshtml");
+		// The board engine targets these hooks to keep the figures live as traffic is driven.
+		Assert.Contains("data-obs-tile-processed", view);
+		Assert.Contains("data-obs-tile-depth", view);
+	}
+
+	[Fact]
 	public void Transactions_HasAReferenceSearchBox()
 	{
 		var view = ReadView("Transactions.cshtml");

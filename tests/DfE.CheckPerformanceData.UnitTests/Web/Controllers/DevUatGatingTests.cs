@@ -71,4 +71,11 @@ public sealed class DevUatGatingTests
         var sut = CreateSut(toolsEnabled: false);
         Assert.IsType<NotFoundResult>(await sut.SeedDlq(CancellationToken.None));
     }
+
+    [Fact]
+    public async Task SeedMessages_ToolsDisabled_ReturnsNotFound()
+    {
+        var sut = CreateSut(toolsEnabled: false);
+        Assert.IsType<NotFoundResult>(await sut.SeedMessages(CancellationToken.None));
+    }
 }

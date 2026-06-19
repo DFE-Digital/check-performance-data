@@ -36,6 +36,26 @@ public sealed class DbMetricsSink : IMetricsSink
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task RecordManyAsync(IEnumerable<MetricDto> metrics, CancellationToken cancellationToken)
+    {
+        // One AddRange + one SaveChanges so seeding a couple of months of history is a single round
+        // trip rather than thousands. Like RecordAsync this is a plain insert outside any dequeue-ack
+        // transaction — it only ever runs from the dev-only seed tool against a development database.
+        _dbContext.QueueMetricEvents.AddRange(metrics.Select(metric => new MetricEntity
+        {
+            QueueName = metric.QueueName,
+            Stage = metric.Stage,
+            ReferenceNumber = metric.ReferenceNumber,
+            MessageId = metric.MessageId,
+            DecisionStatus = metric.DecisionStatus,
+            RulesVersion = metric.RulesVersion,
+            LatencyMs = metric.LatencyMs,
+            RecordedAtUtc = metric.RecordedAtUtc,
+        }));
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<int> PurgeExpiredAsync(TimeSpan olderThan, CancellationToken cancellationToken)
     {
         var cutoff = DateTime.UtcNow - olderThan;

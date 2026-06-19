@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.AspNetCore.Authorization;
@@ -22,18 +23,27 @@ public sealed class DevUatController : Controller
     private readonly IQueueService _queueService;
     private readonly DevPipelineRunner _runner;
     private readonly IHostEnvironment? _hostEnvironment;
+    private readonly IMetricsSink? _metricsSink;
 
     public DevUatController(
         IConfiguration configuration,
         IQueueService queueService,
         DevPipelineRunner runner,
-        IHostEnvironment? hostEnvironment = null)
+        IHostEnvironment? hostEnvironment = null,
+        IMetricsSink? metricsSink = null)
     {
         _configuration = configuration;
         _queueService = queueService;
         _runner = runner;
         _hostEnvironment = hostEnvironment;
+        _metricsSink = metricsSink;
     }
+
+    // The "seed messages" spread: a couple of months of synthetic history, 10–100 submissions a day,
+    // so a fresh dev environment's charts look full. Cumulative — each click adds another batch.
+    private const int SeedDays = 60;
+    private const int SeedMinPerDay = 10;
+    private const int SeedMaxPerDay = 100;
 
     // Where a no-JS form post lands after a drive/inject/seed: the Pipeline dashboard, whose Demo
     // panel now hosts these controls (the standalone console it used to return to is gone). The
@@ -120,6 +130,27 @@ public sealed class DevUatController : Controller
 
         if (IsAjax)
             return Json(new { ok = true, reference });
+
+        return Redirect(DashboardUrl);
+    }
+
+    // Seed a couple of months of synthetic pipeline history so a fresh dev environment's charts and
+    // counters look full without driving thousands of requests by hand. Cumulative: each click adds
+    // another batch of 10–100 backdated submissions per day. Writes only synthetic metric events to
+    // the dev database via the bulk sink; gated exactly like the other /dev/* tooling.
+    [HttpPost("dev/uat/seed-messages")]
+    public async Task<IActionResult> SeedMessages(CancellationToken cancellationToken)
+    {
+        if (!IsAllowed || _metricsSink is null)
+            return NotFound();
+
+        var events = PipelineMetricsSeeder.Generate(
+            DateTime.UtcNow, SeedDays, SeedMinPerDay, SeedMaxPerDay, new Random());
+
+        await _metricsSink.RecordManyAsync(events, cancellationToken);
+
+        if (IsAjax)
+            return Json(new { ok = true, count = events.Count });
 
         return Redirect(DashboardUrl);
     }

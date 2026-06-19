@@ -169,6 +169,9 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("/dev/uat/drive?outcome=scrutiny", panel);
 		Assert.Contains("/dev/uat/inject-failure", panel);
 		Assert.Contains("/dev/uat/seed-dlq", panel);
+		// Seed a couple of months of synthetic history so the charts look full on a fresh dev env.
+		Assert.Contains("/dev/uat/seed-messages", panel);
+		Assert.Contains("Seed messages", panel);
 		// The batch-size input the drives mirror onto each form.
 		Assert.Contains("data-uat-batch", panel);
 		// AJAX-drive hooks so a drive refreshes the board in place rather than reloading.

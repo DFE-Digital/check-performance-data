@@ -9,5 +9,9 @@ public interface IMetricsSink
 {
     Task RecordAsync(QueueMetricEvent metric, CancellationToken cancellationToken);
 
+    // Bulk insert of many events in one round trip — used by the dev-only "seed messages" tool to
+    // backfill a couple of months of synthetic history without thousands of single saves.
+    Task RecordManyAsync(IEnumerable<QueueMetricEvent> metrics, CancellationToken cancellationToken);
+
     Task<int> PurgeExpiredAsync(TimeSpan olderThan, CancellationToken cancellationToken);
 }

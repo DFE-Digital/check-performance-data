@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -19,6 +20,7 @@ public sealed class DevUatActionTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IMetricsSink _metricsSink = Substitute.For<IMetricsSink>();
 
     private DevUatController CreateSut(bool ajax = false)
     {
@@ -31,7 +33,7 @@ public sealed class DevUatActionTests
         var httpContext = new DefaultHttpContext();
         if (ajax)
             httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
-        var sut = new DevUatController(config, _queueService, runner, env)
+        var sut = new DevUatController(config, _queueService, runner, env, _metricsSink)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>()),
@@ -110,6 +112,36 @@ public sealed class DevUatActionTests
         Assert.Equal("/admin/observability", redirect.Url);
         await _queueService.Received(1).DeadLetterAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SeedMessages_Enabled_BulkWritesSyntheticHistoryAndRedirects()
+    {
+        var sut = CreateSut();
+
+        var result = await sut.SeedMessages(CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/observability", redirect.Url);
+        // A single bulk write of a non-empty batch of synthetic events.
+        await _metricsSink.Received(1).RecordManyAsync(
+            Arg.Is<IEnumerable<QueueMetricEvent>>(e => e.Any()), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SeedMessages_AjaxRequest_ReturnsOkJsonWithACount()
+    {
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.SeedMessages(CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);
+        var count = json.Value!.GetType().GetProperty("count")!.GetValue(json.Value);
+        Assert.Equal(true, ok);
+        Assert.True((int)count! > 0);
+        await _metricsSink.Received(1).RecordManyAsync(
+            Arg.Any<IEnumerable<QueueMetricEvent>>(), Arg.Any<CancellationToken>());
     }
 
     // The AJAX contract: an XMLHttpRequest drive returns JSON { ok, reference } so the page can

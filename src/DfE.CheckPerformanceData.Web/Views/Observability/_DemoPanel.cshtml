@@ -68,6 +68,14 @@
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-uat-tip title="Place a message straight onto the dead-letter queue so you can practise a redrive.">Seed DLQ</button>
                 </form>
+                @* Seed a couple of months of synthetic history so the charts below look full on a
+                   fresh dev environment. A full-page post so the dashboard reloads with the new data;
+                   cumulative — click again for more. *@
+                <form method="post" action="/dev/uat/seed-messages">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Seed 10–100 synthetic submissions a day for the last two months so the charts below look full. Click again to add more.">Seed messages</button>
+                </form>
 
                 @* Pause/Resume freezes all envelope motion so the board can be read. It lives in the
                    Demo panel (only shown while Demo is expanded) and is styled as a clear primary

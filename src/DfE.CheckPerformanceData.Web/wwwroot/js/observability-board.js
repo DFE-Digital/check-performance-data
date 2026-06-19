@@ -665,25 +665,37 @@
             else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { if (ts) { row.engine = ts; } }
         }
 
+        // One matrix stage cell: the time the submission reached the stage on top, the time spent
+        // there beneath. A blank duration ('—') renders just the time. Mirrors the server-rendered
+        // cell markup in _Board.cshtml so live rows and seeded rows look identical.
+        function stageCell(timeTs, dur) {
+            var time = '<span class="obs-cell-time">' + esc(hms(timeTs)) + '</span>';
+            if (!dur || dur === '—') {
+                return '<td class="govuk-table__cell">' + time + '</td>';
+            }
+            return '<td class="govuk-table__cell">' + time
+                + '<span class="obs-cell-dur">' + esc(dur) + '</span></td>';
+        }
+
         function gridRowHtml(r) {
             var refLink = '<a class="govuk-link" target="_blank" rel="noopener" href="/admin/observability/journey/'
                 + encodeURIComponent(r.ref) + '">' + esc(r.ref) + '</a>';
             var status = r.failed ? 'Dead-letter'
                 : (r.decision ? (DECISION_LABELS[r.decision] || r.decision) : '—');
-            var engineCell = r.latency != null ? (Math.round(r.latency) + 'ms')
-                : (r.engine ? hms(r.engine) : '—');
-            // The rules-queue cell shows the wait between submit and the engine picking the message
-            // up; the zendesk-queue cell the wait between the decision and the ticket being created.
-            var rulesQueueCell = r.submit ? (r.engine ? waited(r.submit, r.engine) : 'in queue') : '—';
-            var zendeskQueueCell = r.engine && !r.failed ? (r.ticket ? waited(r.engine, r.ticket) : 'in queue') : '—';
+            // The rules-engine cell's duration is its processing latency; the queue cells' is the
+            // wait (submit→engine, decision→ticket). Each cell also shows the time it reached the
+            // stage, so every column answers "when did it arrive and how long did it spend".
+            var engineDur = r.latency != null ? (Math.round(r.latency) + 'ms') : '—';
+            var rulesQueueDur = r.submit ? (r.engine ? waited(r.submit, r.engine) : 'in queue') : '—';
+            var zendeskQueueDur = (r.engine && !r.failed) ? (r.ticket ? waited(r.engine, r.ticket) : 'in queue') : '—';
             return '<tr class="govuk-table__row">'
                 + '<td class="govuk-table__cell">' + refLink + '</td>'
-                + '<td class="govuk-table__cell">' + hms(r.submit) + '</td>'
-                + '<td class="govuk-table__cell">' + esc(rulesQueueCell) + '</td>'
-                + '<td class="govuk-table__cell">' + esc(engineCell) + '</td>'
+                + '<td class="govuk-table__cell"><span class="obs-cell-time">' + esc(hms(r.submit)) + '</span></td>'
+                + stageCell(r.submit, rulesQueueDur)
+                + stageCell(r.engine, engineDur)
                 + '<td class="govuk-table__cell">' + esc(status) + '</td>'
-                + '<td class="govuk-table__cell">' + esc(zendeskQueueCell) + '</td>'
-                + '<td class="govuk-table__cell">' + hms(r.ticket) + '</td>'
+                + stageCell(r.failed ? null : r.engine, zendeskQueueDur)
+                + '<td class="govuk-table__cell"><span class="obs-cell-time">' + esc(hms(r.ticket)) + '</span></td>'
                 + '</tr>';
         }
 
@@ -705,6 +717,36 @@
         // Fold a whole snapshot's transitions into the matrix and re-render once.
         function ingestAndRender(list) {
             (list || []).forEach(ingestEvent);
+            renderGrid();
+        }
+
+        // Seed the live grid from the server-rendered recent submissions (a JSON blob beside the
+        // table) so the matrix is populated on load and the engine's first re-render does not wipe
+        // that history. Each seeded reference also primes animatedRefs so loading the page does not
+        // replay historical submissions when the first SSE snapshot arrives. Iterated oldest-first so
+        // the newest server row takes the highest seq and sorts to the top.
+        function seedGridFromServer() {
+            var el = document.querySelector('[data-obs-grid-seed]');
+            if (!el) { return; }
+            var seed;
+            try { seed = JSON.parse(el.textContent || '[]'); } catch (e) { return; }
+            if (!seed || !seed.length) { return; }
+            for (var i = seed.length - 1; i >= 0; i--) {
+                var s = seed[i];
+                if (!s || !s.ref) { continue; }
+                var row = gridRows[s.ref];
+                if (!row) {
+                    row = gridRows[s.ref] = { ref: s.ref, submit: null, engine: null, ticket: null,
+                        decision: null, latency: null, failed: false, seq: gridSeq++ };
+                }
+                if (s.submit) { row.submit = Date.parse(s.submit); }
+                if (s.rules) { row.engine = Date.parse(s.rules); }
+                if (s.ticket) { row.ticket = Date.parse(s.ticket); }
+                if (s.decision) { row.decision = s.decision; }
+                if (s.latencyMs !== null && s.latencyMs !== undefined) { row.latency = s.latencyMs; }
+                if (s.deadLettered) { row.failed = true; }
+                animatedRefs[s.ref] = true;
+            }
             renderGrid();
         }
 
@@ -926,6 +968,9 @@
             }, Math.max(900, 1500 * moveSpeed));
             return true;
         }
+
+        // Populate the live grid from the server-rendered history before any feed connects.
+        seedGridFromServer();
 
         return {
             onSnapshot: onSnapshot,

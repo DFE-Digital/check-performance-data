@@ -47,6 +47,9 @@ public sealed class ObservabilityControllerTests
         query.GetDecisionMixOverTimeAsync(Arg.Any<ThroughputGranularity>(),
                 Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<DecisionMixBucket>());
+        query.GetGroupedTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new GroupedTransactionsPage(Array.Empty<GroupedTransactionRow>(), 0, 1, 25));
         return query;
     }
 
@@ -268,6 +271,33 @@ public sealed class ObservabilityControllerTests
         // last 24 hours, so a second 24-hour decision-mix read happens alongside.
         await query.Received(2).GetDecisionMixAsync(
             Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>());
+    }
+
+    // --- The recent-submissions matrix is server-rendered from grouped transactions ---
+    // So the table is populated on load (not empty/null until live traffic arrives); the board
+    // engine seeds its live grid from these rows and folds in updates.
+
+    [Fact]
+    public async Task Index_PopulatesRecentSubmissions_FromGroupedTransactionsOverTheLast24Hours()
+    {
+        var query = BuildQuery();
+        var now = DateTime.UtcNow;
+        query.GetGroupedTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(new GroupedTransactionsPage(
+                new[]
+                {
+                    new GroupedTransactionRow("REF-1", now.AddSeconds(-30), now.AddSeconds(-20),
+                        now.AddSeconds(-10), "AutoApproved", 120, false, now.AddSeconds(-10)),
+                }, 1, 1, 25));
+
+        var controller = BuildController(query);
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(await controller.Index()).Model);
+
+        var row = Assert.Single(model.RecentSubmissions);
+        Assert.Equal("REF-1", row.ReferenceNumber);
+        Assert.Equal("AutoApproved", row.Decision);
     }
 
     // --- The orphaned throughput JSON endpoint is gone: the dashboard form replaced it ---

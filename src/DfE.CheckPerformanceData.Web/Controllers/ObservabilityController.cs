@@ -117,6 +117,12 @@ public sealed class ObservabilityController : Controller
         var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
         var markers = await _query.GetDeployMarkersAsync(from, now, cancellationToken);
 
+        // The recent-submissions matrix is server-rendered from the grouped (one-row-per-reference)
+        // transactions over the last 24 hours, so the table is populated on load and the board engine
+        // seeds its live grid from real history rather than starting empty.
+        var recentSubmissions = await _query.GetGroupedTransactionsAsync(
+            1, RecentSubmissionsCount, now - DefaultWindow, now, null, cancellationToken);
+
         // The headline tiles and the status sentence always describe the last 24 hours,
         // whatever window the charts are showing; the chart series double as the headline
         // source only when the selected window IS the default. The processed total is
@@ -162,6 +168,7 @@ public sealed class ObservabilityController : Controller
             Depths = depths
                 .Select(d => new QueueDepthSnapshot(d.QueueName, d.Depth, d.OldestMessageAge))
                 .ToList(),
+            RecentSubmissions = recentSubmissions.Rows,
             Throughput = throughput,
             DecisionMix = decisionMix,
             DecisionMixOverTime = decisionMixOverTime,
@@ -513,6 +520,11 @@ public sealed class ObservabilityController : Controller
     // Falls back to 20 when no settings service is wired (bare unit construction) or the stored
     // value is non-positive.
     private const int DefaultPageLength = 20;
+
+    // How many recent submissions the dashboard matrix server-renders (and the board engine seeds
+    // its live grid from). Matches the engine's visible scroll depth; the full paged history is on
+    // the transactions page.
+    private const int RecentSubmissionsCount = 25;
 
     private async Task<int> ResolvePageSizeAsync()
     {

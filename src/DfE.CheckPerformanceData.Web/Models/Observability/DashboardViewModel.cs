@@ -31,6 +31,13 @@ public sealed class DashboardViewModel
     public int DeadLetterCount { get; init; }
     public IReadOnlyList<QueueDepthSnapshot> Depths { get; init; } = Array.Empty<QueueDepthSnapshot>();
 
+    // The recent-submissions matrix, server-rendered so the table is populated on load rather than
+    // empty until live traffic arrives: one row per recent reference with its per-stage timestamps,
+    // decision, rules-engine latency and dead-letter flag. The board engine seeds its live grid from
+    // these and folds in SSE updates on top.
+    public IReadOnlyList<GroupedTransactionRow> RecentSubmissions { get; init; } =
+        Array.Empty<GroupedTransactionRow>();
+
     public IReadOnlyList<ThroughputBucket> Throughput { get; init; } = Array.Empty<ThroughputBucket>();
     public IReadOnlyList<DecisionMixEntry> DecisionMix { get; init; } = Array.Empty<DecisionMixEntry>();
     public IReadOnlyList<DecisionMixBucket> DecisionMixOverTime { get; init; } = Array.Empty<DecisionMixBucket>();

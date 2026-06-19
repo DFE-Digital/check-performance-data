@@ -30,6 +30,40 @@
         new { Key = "AutoRejected", Label = "Auto-rejected" },
         new { Key = "Scrutiny", Label = "Scrutiny" },
     };
+
+    // Matrix cell formatting, mirrored exactly by observability-board.js so the server-rendered rows
+    // and the live rows look identical. Each stage cell shows the time the submission reached it and
+    // the time it spent there (the queue waits derived from the timestamps; the rules engine its
+    // processing latency).
+    string Hms(DateTime? t) => t is null ? "—" : t.Value.ToString("HH:mm:ss");
+    string Waited(DateTime? a, DateTime? b)
+    {
+        if (a is null || b is null || b < a) return "—";
+        var ms = (b.Value - a.Value).TotalMilliseconds;
+        return ms >= 1000 ? $"waited {(ms / 1000):0.0}s" : $"waited {ms:0}ms";
+    }
+    string DecisionLabel(string? d) => d switch
+    {
+        "AutoApproved" => "Auto-approved",
+        "AutoRejected" => "Auto-rejected",
+        "Scrutiny" => "Scrutiny",
+        _ => string.IsNullOrEmpty(d) ? "—" : d,
+    };
+
+    // The seed the board engine reads on load to populate its live grid (so a re-render does not wipe
+    // the server-rendered history). System.Text.Json escapes <, > and & so it is safe to inline in a
+    // script element.
+    var gridSeed = Model.RecentSubmissions.Select(r => new
+    {
+        @ref = r.ReferenceNumber,
+        submit = r.SubmittedAtUtc,
+        rules = r.RulesEvaluatedAtUtc,
+        ticket = r.TicketCreatedAtUtc,
+        decision = r.Decision,
+        latencyMs = r.RulesLatencyMs,
+        deadLettered = r.DeadLettered,
+    });
+    var gridSeedJson = System.Text.Json.JsonSerializer.Serialize(gridSeed);
 }
 
 <section class="obs-board" aria-label="Live workflow board" data-obs-board
@@ -112,12 +146,51 @@
                     </tr>
                 </thead>
                 <tbody class="govuk-table__body" data-obs-grid>
-                    <tr class="govuk-table__row obs-board__grid-empty">
-                        <td class="govuk-table__cell" colspan="7">No submissions yet. Drive some traffic to see them flow.</td>
-                    </tr>
+                    @if (Model.RecentSubmissions.Count == 0)
+                    {
+                        <tr class="govuk-table__row obs-board__grid-empty">
+                            <td class="govuk-table__cell" colspan="7">No submissions yet. Drive some traffic to see them flow.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var r in Model.RecentSubmissions)
+                        {
+                            var status = r.DeadLettered ? "Dead-letter" : DecisionLabel(r.Decision);
+                            var rulesQueueDur = r.SubmittedAtUtc is null ? "—"
+                                : (r.RulesEvaluatedAtUtc is null ? "in queue" : Waited(r.SubmittedAtUtc, r.RulesEvaluatedAtUtc));
+                            var engineDur = r.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : "—";
+                            var zendeskQueueDur = (r.RulesEvaluatedAtUtc is null || r.DeadLettered) ? "—"
+                                : (r.TicketCreatedAtUtc is null ? "in queue" : Waited(r.RulesEvaluatedAtUtc, r.TicketCreatedAtUtc));
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">
+                                    <a class="govuk-link" target="_blank" rel="noopener"
+                                       href="/admin/observability/journey/@Uri.EscapeDataString(r.ReferenceNumber)">@r.ReferenceNumber</a>
+                                </td>
+                                <td class="govuk-table__cell">@Hms(r.SubmittedAtUtc)</td>
+                                <td class="govuk-table__cell">
+                                    <span class="obs-cell-time">@Hms(r.SubmittedAtUtc)</span>
+                                    <span class="obs-cell-dur">@rulesQueueDur</span>
+                                </td>
+                                <td class="govuk-table__cell">
+                                    <span class="obs-cell-time">@Hms(r.RulesEvaluatedAtUtc)</span>
+                                    <span class="obs-cell-dur">@engineDur</span>
+                                </td>
+                                <td class="govuk-table__cell">@status</td>
+                                <td class="govuk-table__cell">
+                                    <span class="obs-cell-time">@(r.DeadLettered ? "—" : Hms(r.RulesEvaluatedAtUtc))</span>
+                                    <span class="obs-cell-dur">@zendeskQueueDur</span>
+                                </td>
+                                <td class="govuk-table__cell">@Hms(r.TicketCreatedAtUtc)</td>
+                            </tr>
+                        }
+                    }
                 </tbody>
             </table>
         </div>
+        @* The board engine reads this seed on load to populate its live grid from the server-rendered
+           history, so its first re-render does not wipe these rows. *@
+        <script type="application/json" data-obs-grid-seed>@Html.Raw(gridSeedJson)</script>
         <p class="govuk-body-s govuk-!-margin-top-2 obs-board__parallel-footer">
             <a class="govuk-link" href="/admin/observability/transactions" target="_blank" rel="noopener">View all transactions →</a>
             @* The decoupled Demo-tools toggle: a subtle right-aligned link that shows/hides the Demo

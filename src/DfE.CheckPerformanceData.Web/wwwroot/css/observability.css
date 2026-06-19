@@ -181,6 +181,18 @@
     font-size: 16px;
 }
 
+/* A matrix stage cell stacks the time it reached the stage (top) over how long it spent there
+   (beneath, muted/smaller), so each column answers "when did it arrive and how long did it take". */
+.obs-cell-time {
+    display: block;
+}
+
+.obs-cell-dur {
+    display: block;
+    color: #505a5f;
+    font-size: 14px;
+}
+
 .obs-board__connector {
     position: absolute;
     top: 6px;

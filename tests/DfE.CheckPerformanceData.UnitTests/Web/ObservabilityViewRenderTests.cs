@@ -237,6 +237,38 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Board_ServerRendersTheRecentSubmissionsMatrix_WithPerStageTimeAndDuration_AndASeed()
+	{
+		var board = ReadView("_Board.cshtml");
+
+		// The matrix is server-rendered from the grouped recent submissions, so it is populated on
+		// load rather than empty until live traffic arrives.
+		Assert.Contains("Model.RecentSubmissions", board);
+		// Each stage cell stacks the arrival time over the time spent there.
+		Assert.Contains("obs-cell-time", board);
+		Assert.Contains("obs-cell-dur", board);
+		// A JSON seed beside the table lets the board engine populate its live grid from the
+		// server-rendered history without wiping it on the first re-render.
+		Assert.Contains("data-obs-grid-seed", board);
+	}
+
+	[Fact]
+	public void BoardEngine_SeedsItsLiveGridFromTheServerRenderedHistory()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-board.js"));
+
+		// The engine reads the seed blob and primes its grid (and animatedRefs) before any feed
+		// connects, and renders the stacked time/duration cells.
+		Assert.Contains("data-obs-grid-seed", js);
+		Assert.Contains("seedGridFromServer", js);
+		Assert.Contains("obs-cell-time", js);
+		Assert.Contains("obs-cell-dur", js);
+	}
+
+	[Fact]
 	public void Transactions_HasAReferenceSearchBox()
 	{
 		var view = ReadView("Transactions.cshtml");

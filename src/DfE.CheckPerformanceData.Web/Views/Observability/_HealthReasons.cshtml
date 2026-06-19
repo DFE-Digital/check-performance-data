@@ -1,0 +1,37 @@
+@using DfE.CheckPerformanceData.Application.Observability
+@model IReadOnlyList<HealthReason>
+@*
+    The "why" behind a non-flowing health light: a compact GDS disclosure that names each signal
+    that crossed a threshold and the actual-vs-limit figures, so "needs attention" / "backing up"
+    explains itself rather than leaving a stakeholder to guess which queue condition tripped.
+    Rendered only when the light carries reasons (a flowing light has none).
+*@
+@functions {
+    // The plain-English phrase for the band a reason reaches: the attention band reads as a stall
+    // or rising DLQ, the backing-up band as a slow-down. Pairs with the figures to form one line.
+    static string BandPhrase(HealthLevel band) => band switch
+    {
+        HealthLevel.NeedsAttention => "needs attention above",
+        HealthLevel.BackingUp => "backing up above",
+        _ => "above",
+    };
+}
+@if (Model is { Count: > 0 })
+{
+    <details class="govuk-details obs-light__why" data-module="govuk-details">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">Why?</span>
+        </summary>
+        <div class="govuk-details__text">
+            <ul class="govuk-list govuk-list--bullet govuk-body-s govuk-!-margin-bottom-0">
+                @foreach (var reason in Model)
+                {
+                    <li>
+                        @reason.Signal <strong>@reason.Actual</strong>
+                        — @BandPhrase(reason.Band) @reason.Threshold
+                    </li>
+                }
+            </ul>
+        </div>
+    </details>
+}

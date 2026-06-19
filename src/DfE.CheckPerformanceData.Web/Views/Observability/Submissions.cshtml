@@ -1,0 +1,143 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Models.Observability.SubmissionsViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Replay submissions";
+
+    string DateQs()
+    {
+        var parts = new List<string>();
+        if (Model.FromUtc is { } f) parts.Add($"from={Uri.EscapeDataString(f.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture))}");
+        if (Model.ToUtc is { } t) parts.Add($"to={Uri.EscapeDataString(t.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture))}");
+        return parts.Count == 0 ? string.Empty : "&" + string.Join("&", parts);
+    }
+
+    string PageLink(int p) => $"/admin/observability/submissions?page={p}{DateQs()}";
+    string FromValue() => Model.FromUtc?.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+    string ToValue() => Model.ToUtc?.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture) ?? string.Empty;
+
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<a class="govuk-back-link" href="/admin/observability">Back to pipeline dashboard</a>
+
+<h1 class="govuk-heading-xl">Replay submissions</h1>
+<p class="govuk-body-l">
+    Pick one or more submissions and press Play to follow them through the pipeline stages,
+    single-stepping as they move. Defaults to the most recent submissions.
+</p>
+
+<form method="get" action="/admin/observability/submissions" class="govuk-!-margin-bottom-6">
+    <div class="govuk-form-group govuk-!-margin-bottom-2">
+        <label class="govuk-label" for="from">From (UTC)</label>
+        <input class="govuk-input govuk-input--width-20" id="from" name="from" type="datetime-local" value="@FromValue()" />
+    </div>
+    <div class="govuk-form-group govuk-!-margin-bottom-2">
+        <label class="govuk-label" for="to">To (UTC)</label>
+        <input class="govuk-input govuk-input--width-20" id="to" name="to" type="datetime-local" value="@ToValue()" />
+    </div>
+    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">
+        Filter
+    </button>
+    @if (Model.FromUtc is not null || Model.ToUtc is not null)
+    {
+        <a class="govuk-link govuk-!-margin-left-2" href="/admin/observability/submissions">Reset to recent</a>
+    }
+</form>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No submissions found in this view.</p>
+}
+else
+{
+    <p class="govuk-body">Showing @firstRow to @lastRow of @Model.TotalCount submission@(Model.TotalCount == 1 ? "" : "s").</p>
+
+    @* The Play button submits the checked references to the walkthrough. A GET keeps it
+       shareable and needs no antiforgery (it is a read-only navigation to the replay view). *@
+    <form method="get" action="/admin/observability/replay/walkthrough" data-replay-picker>
+        <div class="govuk-button-group govuk-!-margin-bottom-4">
+            <button type="submit" class="govuk-button" data-module="govuk-button" data-replay-play>
+                Play selected
+            </button>
+            <button type="button" class="govuk-button govuk-button--secondary" data-module="govuk-button" data-replay-selectall>
+                Select all on this page
+            </button>
+        </div>
+
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-visually-hidden">Submissions</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Select</span></th>
+                    <th scope="col" class="govuk-table__header">Reference</th>
+                    <th scope="col" class="govuk-table__header">Submitted (UTC)</th>
+                    <th scope="col" class="govuk-table__header">Latest stage</th>
+                    <th scope="col" class="govuk-table__header">Decision</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in Model.Rows)
+                {
+                    var id = $"sel-{row.ReferenceNumber}";
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">
+                            <div class="govuk-checkboxes govuk-checkboxes--small">
+                                <div class="govuk-checkboxes__item govuk-!-margin-bottom-0">
+                                    <input class="govuk-checkboxes__input" type="checkbox" id="@id"
+                                           name="reference" value="@row.ReferenceNumber" data-replay-checkbox />
+                                    <label class="govuk-label govuk-checkboxes__label" for="@id">
+                                        <span class="govuk-visually-hidden">Select @row.ReferenceNumber</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(row.ReferenceNumber)">@row.ReferenceNumber</a>
+                        </td>
+                        <td class="govuk-table__cell">@row.SubmittedAtUtc.ToString("u")</td>
+                        <td class="govuk-table__cell">@row.LatestStage</td>
+                        @* The decision is carried on the RulesEvaluated event, not the latest stage, so
+                           read the resolved decision; "Pending" until the rules engine has decided. *@
+                        <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.ResolvedDecision) ? "Pending" : row.ResolvedDecision)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </form>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+            @if (Model.Page > 1)
+            {
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            }
+            <ul class="govuk-pagination__list">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    var current = p == Model.Page;
+                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
+                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
+                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
+                    </li>
+                }
+            </ul>
+            @if (Model.Page < Model.TotalPages)
+            {
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                    </a>
+                </div>
+            }
+        </nav>
+    }
+}
+
+<script src="~/js/observability-replay-picker.js" asp-append-version="true"></script>

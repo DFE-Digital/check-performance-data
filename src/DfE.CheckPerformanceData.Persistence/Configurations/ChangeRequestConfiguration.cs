@@ -47,10 +47,6 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.CrmId)
             .HasMaxLength(100);
 
-        builder.Property(x => x.RequestType)
-            .IsRequired()
-            .HasMaxLength(100);
-
         builder.Property(x => x.Outcome)
             .HasConversion<string>()
             .HasMaxLength(20);
@@ -61,6 +57,13 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.Property(x => x.MatchedRuleId)
             .HasMaxLength(100);
 
+        builder.Property(x => x.RulesVersion)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.RequestType)
+            .IsRequired()
+            .HasMaxLength(100);
+
         builder.HasOne<CheckingWindow>()
             .WithMany()
             .HasForeignKey(x => x.WindowId)
@@ -68,6 +71,14 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
 
         builder.HasIndex(x => x.ReferenceNumber)
             .IsUnique();
+
+        // The durable idempotency guard for the "ticket created" transition: a CRM id can
+        // only ever be recorded once, so two concurrent or redelivered messages for the same
+        // request cannot both write a (different) Zendesk ticket id. Partial so the many rows
+        // that have not yet been ticketed (CrmId null) are not forced unique.
+        builder.HasIndex(x => x.CrmId)
+            .IsUnique()
+            .HasFilter("\"CrmId\" IS NOT NULL");
 
         builder.HasIndex(x => new { x.WindowId, x.OrganisationUrn });
 

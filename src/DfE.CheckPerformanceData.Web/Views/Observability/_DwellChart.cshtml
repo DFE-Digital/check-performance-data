@@ -1,0 +1,112 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    // Per-stage dwell: how long messages typically wait at each pipeline stage across the
+    // selected window, as horizontal bars. Bespoke inline SVG (GDS has no chart component);
+    // the <details> data table that follows carries the identical numbers and is the
+    // accessible source of truth. Bars carry an in-chart text value so the figure is never
+    // conveyed by length alone.
+    var dwell = Model.Dwell;
+    var windowText = Model.RangeLabel.ToLowerInvariant();
+
+    const int width = 600;
+    const int rowHeight = 36;
+    const int padLeft = 150;
+    const int padTop = 8;
+    const int padBottom = 8;
+    const int padRight = 80;
+
+    var plotW = width - padLeft - padRight;
+    var height = padTop + Math.Max(1, dwell.Count) * rowHeight + padBottom;
+
+    var maxLatency = dwell.Count == 0 ? 0d : dwell.Max(d => d.AverageLatencyMs);
+    var safeMax = maxLatency <= 0 ? 1d : maxLatency;
+
+    static string Describe(double latencyMs)
+    {
+        var span = TimeSpan.FromMilliseconds(latencyMs);
+        if (span.TotalSeconds < 1)
+            return $"{Math.Round(span.TotalMilliseconds)}ms";
+        if (span.TotalSeconds < 90)
+            return $"{Math.Round(span.TotalSeconds)}s";
+        if (span.TotalMinutes < 90)
+            return $"{Math.Round(span.TotalMinutes)}m";
+        return $"{Math.Round(span.TotalHours, 1)}h";
+    }
+
+    static string Fmt(double value) =>
+        value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    var summary = dwell.Count == 0
+        ? "Average wait at each stage: no data for this range."
+        : $"Average wait at each stage over the {windowText}: " +
+          string.Join(", ", dwell.Select(d => $"{d.Stage} {Describe(d.AverageLatencyMs)}")) + ".";
+}
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Time at each stage (@windowText)</h3>
+
+    @if (dwell.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@summary" focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try a wider time range or check back once messages are flowing.
+        </p>
+    }
+    else
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@summary" focusable="false">
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(height - padBottom)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @* SVG <text> collides with Razor's <text> literal escape inside a code block, so the
+               labels are emitted via Html.Raw with the dynamic stage name HTML-encoded — the same
+               approach as the deploy-marker labels on the throughput chart. *@
+            @for (var i = 0; i < dwell.Count; i++)
+            {
+                var entry = dwell[i];
+                var barW = Math.Max(2, plotW * entry.AverageLatencyMs / safeMax);
+                var y = padTop + i * rowHeight;
+                var barY = y + 8;
+                var textY = y + rowHeight / 2 + 5;
+                @Html.Raw($"<text x='{padLeft - 8}' y='{textY}' text-anchor='end' class='govuk-body-s' font-size='16' aria-hidden='true'>{System.Net.WebUtility.HtmlEncode(entry.Stage)}</text>")
+                <rect x="@padLeft" y="@barY" width="@Fmt(barW)" height="@(rowHeight - 16)"
+                      fill="#1d70b8" aria-hidden="true" />
+                @Html.Raw($"<text x='{Fmt(padLeft + barW + 8)}' y='{textY}' class='govuk-body-s' font-size='16' fill='#505a5f' aria-hidden='true'>{System.Net.WebUtility.HtmlEncode(Describe(entry.AverageLatencyMs))}</text>")
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View stage wait data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Average wait per stage</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Stage</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Average wait</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Milliseconds</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var entry in dwell)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@entry.Stage</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@Describe(entry.AverageLatencyMs)</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@Math.Round(entry.AverageLatencyMs)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>

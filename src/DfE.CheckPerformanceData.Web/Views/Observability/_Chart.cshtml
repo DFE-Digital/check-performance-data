@@ -1,0 +1,230 @@
+@using DfE.CheckPerformanceData.Application.Observability
+@using DfE.CheckPerformanceData.Web.Models.Observability
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    // The chart is bespoke inline SVG (GDS has no chart component); the <details> data table that
+    // follows carries the identical numbers and is the accessible source of truth. Series are
+    // distinguished by colour AND a marker shape, never colour alone; chart text stays at
+    // govuk-body-s (16px) so it is never below the readable minimum.
+    var buckets = Model.Throughput;
+    var markers = Model.DeployMarkers;
+
+    const int width = 600;
+    const int height = 200;
+    const int padLeft = 40;
+    const int padBottom = 24;
+    const int padTop = 8;
+    const int padRight = 8;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var maxCount = buckets.Count == 0 ? 0 : buckets.Max(b => b.Count);
+    var safeMax = maxCount == 0 ? 1 : maxCount;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    string Y(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeMax)).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    var points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.Count)}"));
+
+    DateTime? minTime = buckets.Count > 0 ? buckets.Min(b => b.BucketStartUtc) : null;
+    DateTime? maxTime = buckets.Count > 0 ? buckets.Max(b => b.BucketStartUtc) : null;
+
+    var windowText = Model.RangeLabel.ToLowerInvariant();
+
+    var ariaLabel = buckets.Count == 0
+        ? $"Throughput {Model.GranularityLabel}: no data for this range."
+        : $"Throughput {Model.GranularityLabel} over the {windowText}: peak {maxCount}, currently {buckets[^1].Count}.";
+}
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Throughput (@windowText, @Model.GranularityLabel)</h3>
+
+    @if (buckets.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try a wider time range or check back once messages are flowing.
+        </p>
+    }
+    else
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false">
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @await Html.PartialAsync("_DeployMarkers",
+                new ChartMarkersViewModel(markers, minTime, maxTime, padLeft, padTop, plotW, plotH))
+
+            <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@points" aria-hidden="true" />
+
+            @* Marker shape on each point distinguishes the series by shape, not colour alone. *@
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <rect x="@X(i)" y="@Y(buckets[i].Count)" width="4" height="4"
+                      transform="translate(-2,-2)" fill="#1d70b8" aria-hidden="true" />
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View throughput data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Throughput per bucket</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Time (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Processed</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var bucket in buckets)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@bucket.BucketStartUtc.ToString("u")</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.Count</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>
+
+<div class="obs-chart-panel">
+    <h3 class="govuk-heading-m">Decision mix (@windowText)</h3>
+
+    @if (Model.DecisionMix.Count == 0)
+    {
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="Decision mix: no data for this range." focusable="false">
+            <text x="@(width / 2)" y="@(height / 2)" text-anchor="middle" class="govuk-body-s" font-size="16">
+                No data for this range
+            </text>
+        </svg>
+        <p class="govuk-body">
+            No data for this range. Try a wider time range or check back once messages are flowing.
+        </p>
+    }
+    else
+    {
+        // A bespoke SVG pie (GDS has no chart component): one slice per decision outcome, sized by
+        // share of the total and coloured from the canonical DecisionColours map so the pie, the
+        // over-time chart and the shared legend never drift. Each slice carries its count (and the
+        // percentage) as a label placed at the slice midpoint, so the value is readable on the chart
+        // itself. role="img" + aria-label and the paired data table below remain the accessible
+        // source of truth — colour is never the only signal.
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var total = Model.DecisionMix.Sum(d => d.Count);
+        var safeTotal = total == 0 ? 1 : total;
+        var summary = string.Join(", ", Model.DecisionMix.Select(d => $"{d.DecisionStatus} {d.Count}"));
+
+        // Geometry: a centred circle that fits the chart box, leaving room for labels.
+        var cx = width / 2.0;
+        var cy = height / 2.0;
+        var radius = Math.Min(plotW, plotH) / 2.0 - 4;
+        // Label sits partway out along the slice's mid-angle.
+        var labelR = radius * 0.6;
+
+        // Pre-compute each slice's start/end angle (radians, clockwise from 12 o'clock) so a slice
+        // can be drawn as an SVG arc path and its label placed at the mid-angle.
+        double Px(double angle, double r) => cx + r * Math.Sin(angle);
+        double Py(double angle, double r) => cy - r * Math.Cos(angle);
+
+        <svg class="obs-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="Decision mix: @summary." focusable="false">
+            @{
+                var running = 0.0;
+            }
+            @for (var i = 0; i < Model.DecisionMix.Count; i++)
+            {
+                var entry = Model.DecisionMix[i];
+                var colour = DecisionColours.For(entry.DecisionStatus);
+                var fraction = (double)entry.Count / safeTotal;
+                var startAngle = running * 2 * Math.PI;
+                running += fraction;
+                var endAngle = running * 2 * Math.PI;
+                var pct = (int)Math.Round(100.0 * entry.Count / safeTotal);
+
+                if (entry.Count <= 0)
+                {
+                    continue;
+                }
+
+                var midAngle = (startAngle + endAngle) / 2;
+                var lx = Px(midAngle, labelR).ToString("0.##", inv);
+                var ly = Py(midAngle, labelR).ToString("0.##", inv);
+
+                if (Model.DecisionMix.Count(d => d.Count > 0) == 1)
+                {
+                    // A single non-zero outcome fills the whole circle: an arc path can't draw a full
+                    // 360° sweep, so render it as a plain circle.
+                    <circle cx="@cx.ToString("0.##", inv)" cy="@cy.ToString("0.##", inv)"
+                            r="@radius.ToString("0.##", inv)" fill="@colour" aria-hidden="true" />
+                }
+                else
+                {
+                    var x1 = Px(startAngle, radius).ToString("0.##", inv);
+                    var y1 = Py(startAngle, radius).ToString("0.##", inv);
+                    var x2 = Px(endAngle, radius).ToString("0.##", inv);
+                    var y2 = Py(endAngle, radius).ToString("0.##", inv);
+                    var largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
+                    var d = $"M {cx.ToString("0.##", inv)} {cy.ToString("0.##", inv)} " +
+                            $"L {x1} {y1} A {radius.ToString("0.##", inv)} {radius.ToString("0.##", inv)} 0 {largeArc} 1 {x2} {y2} Z";
+                    <path d="@d" fill="@colour" stroke="#ffffff" stroke-width="1" aria-hidden="true" />
+                }
+
+                @* The value in the slice: count and percentage, white for contrast on the GDS fills.
+                   Wrapped in a <g> so the Razor parser treats the SVG <text> as markup, not its own
+                   literal <text> tag. *@
+                <g aria-hidden="true"><text x="@lx" y="@ly" text-anchor="middle" dominant-baseline="middle"
+                      class="obs-pie__label" fill="#ffffff" font-size="14" font-weight="700">@entry.Count (@pct%)</text></g>
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View decision mix data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Decision mix</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Decision</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Count</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Share</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var entry in Model.DecisionMix)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@entry.DecisionStatus</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@entry.Count</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">
+                                    @Math.Round(100.0 * entry.Count / safeTotal)%
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>

@@ -1,0 +1,22 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.ChartMarkersViewModel
+@{
+    // Rules-version deploy markers: a dashed vertical with a "rules vN" label, rendered inside
+    // a host chart's SVG. The host hands over its plot geometry and time extent so the markers
+    // land on its own scale; this partial is the single owner of the marker markup for every
+    // time-axis chart.
+    string MarkerX(DateTime at)
+    {
+        if (Model.MinTime is null || Model.MaxTime is null || Model.MaxTime.Value <= Model.MinTime.Value)
+            return Model.PadLeft.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var frac = (at - Model.MinTime.Value).TotalSeconds / (Model.MaxTime.Value - Model.MinTime.Value).TotalSeconds;
+        frac = Math.Clamp(frac, 0, 1);
+        return (Model.PadLeft + Model.PlotWidth * frac).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+}
+@foreach (var marker in Model.Markers)
+{
+    var mx = MarkerX(marker.CreatedAtUtc);
+    <line x1="@mx" y1="@Model.PadTop" x2="@mx" y2="@(Model.PadTop + Model.PlotHeight)"
+          stroke="#505a5f" stroke-width="1" stroke-dasharray="4 2" aria-hidden="true" />
+    @Html.Raw($"<text x='{mx}' y='{Model.PadTop + 12}' class='govuk-body-s' font-size='12' fill='#505a5f' text-anchor='middle'>{System.Net.WebUtility.HtmlEncode(marker.Label)}</text>")
+}

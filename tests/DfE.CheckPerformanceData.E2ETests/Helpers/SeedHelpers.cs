@@ -251,6 +251,29 @@ public static class SeedHelpers
         }
     }
 
+    // Seeds a single dead-lettered message via the dev-only queue seed endpoint and returns
+    // its id so a queue-admin test can act on it (redrive/purge). The endpoint enqueues,
+    // dequeues and dead-letters in one hop; it 404s in Production.
+    public static async Task<Guid> SeedDeadLetterAsync(HttpClient client)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/dev/queues/seed-dlq");
+        var response = await SendWithoutFollowingRedirects(client, request);
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync();
+        var match = DlqSeedIdPattern.Match(body);
+        if (!match.Success || !Guid.TryParse(match.Groups["id"].Value, out var id))
+        {
+            throw new InvalidOperationException(
+                $"Could not parse seeded dead-letter id from response: {body}");
+        }
+
+        return id;
+    }
+
+    private static readonly Regex DlqSeedIdPattern =
+        new("\"id\"\\s*:\\s*\"(?<id>[0-9a-fA-F-]{36})\"", RegexOptions.Compiled);
+
     public static async Task SoftDeleteWikiPageAsync(HttpClient client, int id)
     {
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");

@@ -23,6 +23,11 @@ public sealed class PortalDbContext(
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<Country> Countries => Set<Country>();
     public DbSet<Setting> Settings => Set<Setting>();
+    public DbSet<QueueMessageEntity> QueueMessages => Set<QueueMessageEntity>();
+    public DbSet<DeadLetterEntity> DeadLetters => Set<DeadLetterEntity>();
+    public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
+    public DbSet<QueueMetricEvent> QueueMetricEvents => Set<QueueMetricEvent>();
+    public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +41,11 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());
         modelBuilder.ApplyConfiguration(new CountryConfiguration());
         modelBuilder.ApplyConfiguration(new SettingConfiguration());
+        modelBuilder.ApplyConfiguration(new QueueMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new DeadLetterConfiguration());
+        modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
+        modelBuilder.ApplyConfiguration(new QueueMetricEventConfiguration());
+        modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -53,6 +63,17 @@ public sealed class PortalDbContext(
 
     public async Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default)
     {
+        // Re-entrant: when a transaction is already open (for example an audited admin action
+        // that wraps a queue operation which itself opens a transaction), join the ambient one
+        // rather than calling BeginTransactionAsync again — the provider does not allow a second
+        // concurrent transaction on the connection and would throw. The outer caller owns the
+        // commit, so the inner work simply enrols in it and stays atomic with the rest.
+        if (Database.CurrentTransaction is not null)
+        {
+            await work();
+            return;
+        }
+
         var strategy = Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
         {
@@ -70,6 +91,10 @@ public sealed class PortalDbContext(
         foreach (var entry in ChangeTracker.Entries().ToList())
         {
             if (entry.Entity is AuditEntry) continue;
+            // Metric events are high-volume telemetry, not user data mutations: every processed
+            // message writes one, so auditing them would double write volume on the hottest path
+            // and retain reference numbers in audit_entries beyond the metrics retention purge.
+            if (entry.Entity is QueueMetricEvent) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

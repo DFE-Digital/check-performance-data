@@ -1,0 +1,131 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    // The five pipeline stages, left to right. Each stage carries a token so its state is
+    // conveyed by position + colour + shape + text — never colour alone — so a reduced-motion or
+    // paused render stays fully legible. Depth-bearing stages map to the two working queues.
+    var rulesDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "rules-engine")?.Depth ?? 0;
+    var zendeskDepth = Model.Depths.FirstOrDefault(d => d.QueueName == "zendesk")?.Depth ?? 0;
+
+    // The board is now pure board: the replay scrubber and the dev-only demo controls (slow-mo /
+    // single-step / demo trickle / inject) moved into the dashboard's collapsible Demo panel
+    // (_DemoPanel.cshtml). The board JS finds those control hooks at the document level, so they
+    // drive this same renderer from wherever they are rendered.
+
+    var stages = new[]
+    {
+        new { Key = "submit", Label = "Submit", Count = (int?)null },
+        new { Key = "rules-queue", Label = "Rules-queue", Count = (int?)rulesDepth },
+        new { Key = "rules-engine", Label = "Rules engine", Count = (int?)null },
+        new { Key = "zendesk-queue", Label = "Zendesk-queue", Count = (int?)zendeskDepth },
+        new { Key = "ticket", Label = "Zendesk ticket", Count = (int?)null },
+    };
+
+    // The destination row that sits below the lane after the Rules engine: the three decision
+    // outcomes a message can reach, plus the dead-letter queue for failed/injected messages. An
+    // envelope routes into the box matching its decisionStatus; the value is also the engine's key
+    // (data-obs-decision) so it can anchor to and activate the box as envelopes land.
+    var decisions = new[]
+    {
+        new { Key = "AutoApproved", Label = "Auto-approved" },
+        new { Key = "AutoRejected", Label = "Auto-rejected" },
+        new { Key = "Scrutiny", Label = "Scrutiny" },
+    };
+}
+
+<section class="obs-board" aria-label="Live workflow board" data-obs-board
+         data-stream-url="/admin/observability/stream"
+         data-inspect-url="/admin/observability/inspect"
+         data-replay-url="/admin/observability/replay">
+
+    @* Always-available board controls. Pause/Resume freezes all envelope motion (and the
+       replay/trickle) until resumed — it just stops animation, so it is not dev-gated and lives on
+       the board itself, reachable without opening the dev-only Demo panel. *@
+    <div class="obs-board__toolbar">
+        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                data-module="govuk-button" data-obs-pause aria-pressed="false"
+                title="Freeze every envelope on the board so you can read it; press again to resume.">
+            Pause
+        </button>
+    </div>
+
+    @* The server-rendered skeleton: labelled stage nodes connected left to right. The JS engine
+       animates envelope tokens between these nodes from the live feed; with JS off or motion
+       reduced the skeleton and the textual parallel below convey the same information. A
+       dead-letter marker sits below the lane for failed messages to park at. *@
+    <ol class="obs-board__lanes" role="list">
+        @for (var i = 0; i < stages.Length; i++)
+        {
+            var stage = stages[i];
+            <li class="obs-board__lane" data-stage="@stage.Key">
+                <span class="obs-board__node" aria-hidden="true"></span>
+                <span class="obs-board__label">@stage.Label</span>
+                @if (stage.Count.HasValue)
+                {
+                    <span class="obs-board__count" data-stage-count="@stage.Key">@stage.Count waiting</span>
+                }
+                @if (i < stages.Length - 1)
+                {
+                    <span class="obs-board__connector" aria-hidden="true">→</span>
+                }
+            </li>
+        }
+    </ol>
+
+    @* The decision-destination row, sitting after the Rules engine: the three decision outcomes a
+       decided message routes into, plus the dead-letter queue a failed/injected message parks at.
+       Each box reuses the dead-letter marker's structure and lights up as envelopes land in it. A
+       decided (non-failed) envelope passes through its decision box and continues to the Zendesk
+       ticket; a failed one is terminal at the dead-letter queue. *@
+    <div class="obs-board__destinations" data-obs-destinations>
+        @foreach (var decision in decisions)
+        {
+            <div class="obs-board__dlq obs-board__decision" data-obs-decision="@decision.Key" aria-hidden="true">
+                <span class="obs-board__dlq-node"></span>
+                <span class="obs-board__dlq-label">@decision.Label</span>
+            </div>
+        }
+        <div class="obs-board__dlq" data-obs-dlq aria-hidden="true">
+            <span class="obs-board__dlq-node"></span>
+            <span class="obs-board__dlq-label">Dead-letter queue</span>
+        </div>
+    </div>
+
+    @* Accessible textual parallel: the same information the animation conveys, for non-visual
+       users and for the reduced-motion/paused state. Counts per stage and a live region for the
+       most recent transitions the SSE feed reports. *@
+    <div class="obs-board__parallel">
+        <h3 class="govuk-heading-s">Pipeline state</h3>
+        <dl class="govuk-summary-list govuk-summary-list--no-border">
+            @foreach (var stage in stages)
+            {
+                <div class="govuk-summary-list__row">
+                    <dt class="govuk-summary-list__key">@stage.Label</dt>
+                    <dd class="govuk-summary-list__value" data-stage-parallel="@stage.Key">
+                        @(stage.Count.HasValue ? $"{stage.Count} waiting" : "—")
+                    </dd>
+                </div>
+            }
+        </dl>
+
+        <h3 class="govuk-heading-s">Recent transitions</h3>
+        <ul class="govuk-list govuk-list--bullet" data-obs-transitions aria-live="polite" aria-atomic="false">
+            <li class="obs-board__transitions-empty">No transitions yet.</li>
+        </ul>
+        @* Only the latest few transitions are shown here; the full, paged history lives on the
+           transactions page, and the replay picker lets you follow chosen submissions across the
+           stages. *@
+        <p class="govuk-body-s">
+            <a class="govuk-link" href="/admin/observability/transactions">View all transactions →</a>
+        </p>
+        <p class="govuk-body-s">
+            <a class="govuk-link" href="/admin/observability/submissions">Replay submissions through the stages →</a>
+        </p>
+    </div>
+
+    @* The reconnect notice the engine reveals on a dropped stream; EventSource reconnects on its
+       own, so the copy reassures rather than asks the user to act. *@
+    <p class="obs-board__reconnect govuk-body" data-obs-reconnect hidden>
+        The live view is temporarily unavailable. The pipeline is unaffected; this page will
+        reconnect automatically.
+    </p>
+</section>

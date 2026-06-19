@@ -1,0 +1,136 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@*
+    The dashboard's collapsible Demo panel: every demo control in one place, folded in from the
+    retired /dev/uat Debug Pipeline page. Hidden by default behind a GDS <details> "Demo" toggle so
+    the always-on dashboard stays uncluttered; the whole panel only renders when the controller
+    resolved DemoToolsEnabled (Dev:ToolsEnabled AND not production). Nothing here touches pupil
+    data — it is a dev and test aid only.
+
+    The drive / inject / seed buttons post to the retained /dev/uat POST endpoints; uat-console.js
+    upgrades them to fetch() so a drive refreshes the board in place rather than reloading. The
+    replay scrubber and the slow-mo / single-step / demo-trickle checkboxes carry the same hooks the
+    board engine binds (it now finds them at the document level), so they drive the same renderer.
+*@
+@if (Model.DemoToolsEnabled)
+{
+    <details class="govuk-details obs-demo-panel" data-module="govuk-details">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">Demo</span>
+        </summary>
+        <div class="govuk-details__text obs-demo-panel__body">
+            <p class="govuk-body">
+                Drive synthetic traffic through the pipeline and watch the board react. Use the drive
+                buttons to send approved, rejected or scrutiny requests; inject a failing message or
+                seed the dead-letter queue to rehearse failure and recovery; replay recent recorded
+                traffic, or trickle a steady demo flow. Nothing here touches pupil data — it is a dev
+                and test tool only.
+            </p>
+
+            @* ── Drive traffic ─────────────────────────────────────────────── *@
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="uat-batch">Batch size</label>
+                <span class="govuk-hint">How many requests each "drive" button fires (1–20).</span>
+                <input class="govuk-input govuk-input--width-3" id="uat-batch" name="count"
+                       type="number" min="1" max="20" value="1" data-uat-batch inputmode="numeric"
+                       title="How many requests each drive button sends in one click." />
+            </div>
+
+            <h3 class="govuk-heading-s">Drive traffic</h3>
+            <div class="govuk-button-group">
+                <form method="post" action="/dev/uat/drive?outcome=approved" class="uat-inline-form" data-uat-drive-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="count" value="1" data-uat-batch-mirror />
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Send a request the rules engine will approve; watch it reach a Zendesk ticket.">Drive approved</button>
+                </form>
+                <form method="post" action="/dev/uat/drive?outcome=rejected" class="uat-inline-form" data-uat-drive-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="count" value="1" data-uat-batch-mirror />
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Send a request the rules engine will reject; it still produces a ticket carrying the rejection.">Drive rejected</button>
+                </form>
+                <form method="post" action="/dev/uat/drive?outcome=scrutiny" class="uat-inline-form" data-uat-drive-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="count" value="1" data-uat-batch-mirror />
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Send a request that falls to manual scrutiny; useful for exercising the scrutiny path.">Drive scrutiny</button>
+                </form>
+            </div>
+
+            @* ── Inject failure ────────────────────────────────────────────── *@
+            <h3 class="govuk-heading-s">Inject failure</h3>
+            <div class="govuk-button-group">
+                <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-obs-inject
+                            data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Inject failing message</button>
+                </form>
+                <form method="post" action="/dev/uat/seed-dlq" class="uat-inline-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Place a message straight onto the dead-letter queue so you can practise a redrive.">Seed DLQ</button>
+                </form>
+            </div>
+
+            @* A live region the AJAX drives write the last reference into, in place of a reload. *@
+            <p class="govuk-body" data-uat-last-reference aria-live="polite"></p>
+
+            @* ── Replay + board demo controls (laid out horizontally to keep the panel short) ── *@
+            <div class="obs-demo-panel__row">
+                @* Replay recent traffic: window select + play + scrubber all on one line so the box
+                   stays compact rather than taking half-page width. *@
+                <div class="obs-board__replay" role="group" aria-label="Replay recorded traffic">
+                    <h3 class="govuk-heading-s">Replay recent traffic</h3>
+                    <div class="obs-board__replay-controls">
+                        <label class="govuk-label govuk-!-margin-bottom-0" for="obs-replay-window">Span</label>
+                        <select class="govuk-select govuk-!-margin-bottom-0" id="obs-replay-window" data-obs-replay-window
+                                title="How far back the replay reaches; defaults to the last day.">
+                            <option value="60">Last hour</option>
+                            <option value="360">Last 6 hours</option>
+                            <option value="1440" selected>Last 24 hours</option>
+                            <option value="10080">Last 7 days</option>
+                        </select>
+                        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                                data-module="govuk-button" data-obs-replay-play aria-pressed="false"
+                                title="Play or pause the recorded traffic through the board.">
+                            Play
+                        </button>
+                        <label class="govuk-label govuk-visually-hidden" for="obs-replay-scrubber">
+                            Replay position
+                        </label>
+                        <input type="range" id="obs-replay-scrubber" class="obs-board__scrubber"
+                               min="0" max="0" value="0" step="1"
+                               data-obs-scrubber aria-valuetext="No recorded events in this window"
+                               title="Drag to scrub through recorded events; each step animates an envelope through the stages." />
+                    </div>
+                    <p class="govuk-body-s govuk-!-margin-bottom-0" data-obs-replay-status aria-live="polite">
+                        No recorded events in this window
+                    </p>
+                </div>
+
+                @* Board demo controls sit beside the replay box on the same row. *@
+                <div class="obs-board__dev-controls" role="group" aria-label="Demo controls (development and test only)">
+                    <h3 class="govuk-heading-s">Board demo controls</h3>
+                    <div class="govuk-checkboxes govuk-checkboxes--small obs-board__dev-controls-list">
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" id="obs-slowmo" type="checkbox" data-obs-slowmo
+                                   title="Slow every envelope's motion right down so an audience can follow it." />
+                            <label class="govuk-label govuk-checkboxes__label" for="obs-slowmo">Slow motion</label>
+                        </div>
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" id="obs-step" type="checkbox" data-obs-step
+                                   title="Tick to send one envelope from Submit through to the Zendesk ticket, one step at a time." />
+                            <label class="govuk-label govuk-checkboxes__label" for="obs-step">Single step</label>
+                        </div>
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input" id="obs-demo" type="checkbox" data-obs-demo
+                                   title="Trickle a steady flow of synthetic envelopes so the board stays alive during a demo." />
+                            <label class="govuk-label govuk-checkboxes__label" for="obs-demo">Demo trickle</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </details>
+}

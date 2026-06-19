@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
@@ -16,9 +17,7 @@ public class RequestServiceTests
     private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
-    private readonly IRequestQueueClient _requestQueue = Substitute.For<IRequestQueueClient>();
-    private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
-    private readonly RequestSubmissionOptions _submissionOptions = new();
+    private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -28,7 +27,7 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
         _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
-            _requestQueue, _requestBlobClient, _submissionOptions);
+            _queueService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -67,7 +66,7 @@ public class RequestServiceTests
         await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
 
-        await _requestQueue.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
+        await _queueService.DidNotReceive().EnqueueAsync(Arg.Any<string>(), Arg.Any<RequestDocument>());
         await _requestRepository.DidNotReceive().UpsertAsync(Arg.Any<ChangeRequestData>());
     }
 
@@ -141,8 +140,8 @@ public class RequestServiceTests
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
         var callOrder = new List<string>();
-        _requestQueue.EnqueueRequestAsync(Arg.Any<RequestDocument>())
-            .Returns(_ => { callOrder.Add("enqueue"); return Task.CompletedTask; });
+        _queueService.EnqueueAsync(Arg.Any<string>(), Arg.Any<RequestDocument>())
+            .Returns(_ => { callOrder.Add("enqueue"); return Guid.NewGuid(); });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
 
@@ -221,7 +220,8 @@ public class RequestServiceTests
             DateOfBirth = "02/02/2010",
             Age = 16,
             Cypmd_Id = "CYPMD456",
-            Upn = "456456"
+            Upn = "456456",
+            Pincl = 402
         };
         journey.MatchedPupilId = journey.MatchedPupil.Id.ToString();
 
@@ -231,6 +231,8 @@ public class RequestServiceTests
         Assert.Equal("John", doc.MatchedPupil.Firstname);
         Assert.Equal("Doe", doc.MatchedPupil.Surname);
         Assert.Equal("456456", doc.MatchedPupil.Upn);
+        // The rules engine needs Pincl on the matched pupil too, not just the selected pupil.
+        Assert.Equal(402, doc.MatchedPupil.Pincl);
     }
 
     [Fact]
@@ -385,21 +387,7 @@ public class RequestServiceTests
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _requestQueue.Received(1).EnqueueRequestAsync(Arg.Any<RequestDocument>());
-        await _requestBlobClient.DidNotReceive().SaveRequestAsync(Arg.Any<Guid>(), Arg.Any<RequestDocument>());
-    }
-
-    [Fact]
-    public async Task ConfirmRequestAsync_WhenWriteToBlobEnabled_SavesToBlobAndDoesNotEnqueue()
-    {
-        var (journey, config) = MakeSubmission();
-        SetupConfig(config);
-        _submissionOptions.WriteToBlobInsteadOfQueue = true;
-
-        await _sut.ConfirmRequestAsync(WindowId, journey);
-
-        await _requestBlobClient.Received(1).SaveRequestAsync(WindowId, Arg.Any<RequestDocument>());
-        await _requestQueue.DidNotReceive().EnqueueRequestAsync(Arg.Any<RequestDocument>());
+        await _queueService.Received(1).EnqueueAsync(QueueOptions.RulesEngineQueue, Arg.Any<RequestDocument>());
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
@@ -559,7 +547,7 @@ public class RequestServiceTests
     {
         SetupConfig(config);
         RequestDocument? captured = null;
-        await _requestQueue.EnqueueRequestAsync(Arg.Do<RequestDocument>(d => captured = d));
+        await _queueService.EnqueueAsync(Arg.Any<string>(), Arg.Do<RequestDocument>(d => captured = d));
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 

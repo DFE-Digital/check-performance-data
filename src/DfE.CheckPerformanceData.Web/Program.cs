@@ -1,6 +1,5 @@
 using AngleSharp;
 using Azure.Storage.Blobs;
-using Azure.Storage.Queues;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Infrastructure;
@@ -13,10 +12,11 @@ using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
-using DfE.CheckPerformanceData.Infrastructure.QueueStorage;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
@@ -128,6 +128,13 @@ try
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();
 
+    builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
+    builder.Services.AddScoped<IQueueService, PostgresQueueService>();
+    builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
+    builder.Services.AddSingleton<PayloadRedactor>();
+
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
 
@@ -158,27 +165,6 @@ try
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IDraftBlobClient, DraftBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
-
-    // TEMPORARY: toggles request submission between the rules-engine queue and blob storage.
-    builder.Services.AddSingleton(
-        builder.Configuration.GetSection(RequestSubmissionOptions.SectionName).Get<RequestSubmissionOptions>()
-        ?? new RequestSubmissionOptions());
-
-    builder.Services.AddSingleton(_ => new QueueServiceClient(builder.Configuration.GetConnectionString("AzureStorage"),
-        new QueueClientOptions
-        {
-            MessageEncoding = QueueMessageEncoding.Base64
-        }));
-
-    builder.Services.AddSingleton<QueueClient>(sp =>
-    {
-        var queueName = builder.Configuration["RulesEngineOptions:QueueName"]
-            ?? throw new InvalidOperationException(
-                "RulesEngineQueue is not configured; set it to the RulesEngineWorker's queue name (e.g. \"change-requests\").");
-        return sp.GetRequiredService<QueueServiceClient>().GetQueueClient(queueName);
-    });
-    builder.Services.AddScoped<IRequestQueueClient, RequestQueueClient>();
-
 
     builder.Services.AddAntiforgery(options =>
     {

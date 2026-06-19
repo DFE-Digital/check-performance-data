@@ -28,8 +28,6 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
         _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
-            _requestQueue, _requestBlobClient, _submissionOptions);
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
             _queueService);
     }
 

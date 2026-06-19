@@ -148,7 +148,8 @@ public sealed class ZendeskConsumerIdempotencyTests
             SubmittedByName = "Test User",
             Status = RequestStatus.RulesProcessed,
             ReferenceNumber = Reference,
-            RequestType = "not-on-roll",
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Not on roll",
             Outcome = DecisionStatus.Scrutiny,
         });
         await ctx.SaveChangesAsync();

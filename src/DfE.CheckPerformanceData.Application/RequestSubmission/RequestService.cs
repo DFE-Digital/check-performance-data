@@ -57,6 +57,11 @@ public sealed class RequestService(
         // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+
+        // Persist the stamped journey so the read-only submitted-request view can
+        // rebuild its summary (and "Submitted by" section) from the journey alone —
+        // the enqueued RequestDocument is bound for the queue and not retained.
+        await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

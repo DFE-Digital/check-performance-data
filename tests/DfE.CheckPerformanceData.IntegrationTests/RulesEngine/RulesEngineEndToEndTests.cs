@@ -308,7 +308,8 @@ public sealed class RulesEngineEndToEndTests
         SubmittedByName = "Alice",
         Status = RequestStatus.SubmittedUnCommitted,
         ReferenceNumber = reference,
-        RequestType = "change",
+        RequestType = RequestType.Amendment, 
+        RequestTypeDescription = "Amendment"
     };
 
     private static RulesSnapshot LoadSeedSnapshot()

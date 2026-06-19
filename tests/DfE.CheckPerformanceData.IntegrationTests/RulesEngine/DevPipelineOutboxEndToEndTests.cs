@@ -122,7 +122,8 @@ public sealed class DevPipelineOutboxEndToEndTests
         SubmittedByName = "Dev Harness",
         Status = RequestStatus.SubmittedUnCommitted,
         ReferenceNumber = reference,
-        RequestType = "change",
+        RequestType = RequestType.Amendment, 
+        RequestTypeDescription = "Amendment"
     };
 
     // The approved preset the dev submit endpoint uses: Inclusion with an accepted status flag.

@@ -61,17 +61,23 @@ public sealed class SubmittedRequestService(
 
         var (firstRecord, secondRecord) = BuildMergeDisplays(journey);
 
+        var urn = long.Parse(currentUserService.OrganisationUrn);
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
+
         return new SubmittedRequestView
         {
             WhatToChange = journey.SelectedWhatToChange.Value,
+            Status = row?.Status ?? RequestStatus.SubmittedUnCommitted,
             PupilName = pupilName,
             FirstRecordDisplay = firstRecord,
             SecondRecordDisplay = secondRecord,
             Rows = rows,
             Files = files,
             ReferenceNumber = journey.ReferenceNumber ?? referenceNumber,
-            SubmittedByEmail = journey.SubmittedByEmail,
-            SubmittedAt = journey.SubmittedAt
+            // The ChangeRequests row is the single source of truth for who saved/submitted
+            // the request and when (set for both drafts and submissions).
+            SubmittedByEmail = row?.SubmittedByEmail,
+            SubmittedAt = row?.Submitted
         };
     }
 
@@ -84,6 +90,7 @@ public sealed class SubmittedRequestService(
 
         return new ConfirmDataCorrectView
         {
+            Status = row.Status,
             SubmittedByEmail = row.SubmittedByEmail,
             SubmittedAt = row.Submitted,
             ReferenceNumber = row.ReferenceNumber

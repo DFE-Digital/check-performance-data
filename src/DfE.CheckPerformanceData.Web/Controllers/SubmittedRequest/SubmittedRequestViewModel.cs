@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 
@@ -6,6 +7,8 @@ public sealed class SubmittedRequestViewModel
 {
     public required Guid WindowId { get; init; }
     public required WhatToChange WhatToChange { get; init; }
+    public required RequestStatus Status { get; init; }
+    public bool ConfirmingDelete { get; init; }
     public required string PupilName { get; init; }
     public string? FirstRecordDisplay { get; init; }
     public string? SecondRecordDisplay { get; init; }
@@ -33,6 +36,17 @@ public sealed class SubmittedRequestViewModel
 
     public string SubmittedAtText =>
         SubmittedAt is { } d ? $"{d:d MMMM yyyy} at {d.ToString("h:mmtt").ToLower()}" : "";
+
+    public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
+
+    public bool IsDraft => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit;
+
+    // Drafts haven't been submitted yet, so the by-line reads "Saved by" rather than "Submitted by".
+    public string ByLineTitle => IsDraft ? "Saved by" : "Submitted by";
+
+    public string ConfirmDeleteTitle => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit
+        ? $"Are you sure you want to delete {PupilName} from your saved requests"
+        : $"Are you sure you want to delete {PupilName} from your submitted requests";
 }
 
 public sealed class SubmittedRequestRow

@@ -2,13 +2,13 @@
 @model ConfirmDataCorrectViewModel
 
 @{
-    ViewBag.Title = "Submitted request";
+    ViewBag.Title = Model.ConfirmingDelete ? Model.ConfirmDeleteTitle : "Submitted request";
     Layout = "_Layout";
 }
 
 <a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
 
-<h1 class="govuk-heading-xl">Submitted request</h1>
+<h1 class="govuk-heading-xl">@(Model.ConfirmingDelete ? Model.ConfirmDeleteTitle : "Submitted request")</h1>
 
 <dl class="govuk-summary-list">
     <div class="govuk-summary-list__row">
@@ -33,11 +33,25 @@
     </div>
 </dl>
 
-<form method="post" action="@Url.Action("Delete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
-    @Html.AntiForgeryToken()
-    <govuk-button type="submit" class="govuk-button--warning">Delete request</govuk-button>
-</form>
+@if (Model.ConfirmingDelete)
+{
+    <form method="post" action="@Url.Action("Delete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit" class="govuk-button--warning">Delete request</govuk-button>
+    </form>
 
-<p class="govuk-body">
-    <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Go back to amendment requests summary</a>
-</p>
+    <p class="govuk-body">
+        <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Cancel and go back to amendment requests summary</a>
+    </p>
+}
+else
+{
+    if (Model.ShowDeleteButton)
+    {
+        <a class="govuk-button govuk-button--warning" href="@Url.Action("ConfirmDeleteConfirmation", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">Delete request</a>
+    }
+
+    <p class="govuk-body">
+        <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Go back to amendment requests summary</a>
+    </p>
+}

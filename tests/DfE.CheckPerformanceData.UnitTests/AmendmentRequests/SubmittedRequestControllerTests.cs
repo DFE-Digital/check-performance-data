@@ -1,8 +1,12 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.FileStorage;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
@@ -13,12 +17,16 @@ public class SubmittedRequestControllerTests
     private const string Reference = "CYPMD_KS4June_ABC1234";
 
     private readonly ISubmittedRequestService _service = Substitute.For<ISubmittedRequestService>();
+    private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IFileStorageService _fileStorage = Substitute.For<IFileStorageService>();
     private readonly SubmittedRequestController _sut;
 
     public SubmittedRequestControllerTests()
     {
-        _sut = new SubmittedRequestController(_service, _fileStorage);
+        _sut = new SubmittedRequestController(_service, _requestService, _fileStorage)
+        {
+            TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
+        };
     }
 
     [Fact]
@@ -40,6 +48,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         {
             WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
             Rows = [new SubmittedRequestAnswerRow { Title = "Why?", DisplayValue = "Left England" }],
             Files = [],
@@ -77,6 +86,7 @@ public class SubmittedRequestControllerTests
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
         _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
         {
+            Status = RequestStatus.SubmittedUnCommitted,
             SubmittedByEmail = "submitter@education.gov.uk",
             SubmittedAt = submittedAt,
             ReferenceNumber = Reference
@@ -107,6 +117,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         {
             WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
             Rows = [],
             Files = [],
@@ -125,6 +136,7 @@ public class SubmittedRequestControllerTests
         _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
         {
             WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.SubmittedUnCommitted,
             PupilName = "Jane Smith",
             Rows = [],
             Files =
@@ -149,13 +161,76 @@ public class SubmittedRequestControllerTests
     }
 
     [Fact]
-    public void Delete_RedirectsBackToView()
+    public async Task ConfirmDelete_WhenFound_ReturnsViewInConfirmMode()
     {
-        var result = _sut.Delete(WindowId, Reference);
+        _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
+        {
+            WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.SubmittedUnCommitted,
+            PupilName = "Jane Smith",
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference
+        });
 
+        var result = await _sut.ConfirmDelete(WindowId, Reference);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("View", view.ViewName);
+        var vm = Assert.IsType<SubmittedRequestViewModel>(view.Model);
+        Assert.True(vm.ConfirmingDelete);
+    }
+
+    [Fact]
+    public async Task ConfirmDeleteConfirmation_WhenFound_ReturnsViewInConfirmMode()
+    {
+        _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
+        {
+            Status = RequestStatus.SubmittedUnCommitted,
+            SubmittedByEmail = "submitter@education.gov.uk",
+            SubmittedAt = new DateTime(2026, 6, 16, 9, 30, 0),
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.ConfirmDeleteConfirmation(WindowId, Reference);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("ViewConfirmation", view.ViewName);
+        var vm = Assert.IsType<ConfirmDataCorrectViewModel>(view.Model);
+        Assert.True(vm.ConfirmingDelete);
+    }
+
+    [Fact]
+    public async Task Delete_DeletesAndRedirectsToAmendmentRequests()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith"));
+
+        var result = await _sut.Delete(WindowId, Reference);
+
+        await _requestService.Received(1).DeleteAsync(WindowId, Reference);
         var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("View", redirect.ActionName);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
         Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
-        Assert.Equal(Reference, redirect.RouteValues!["referenceNumber"]);
+    }
+
+    [Fact]
+    public async Task Delete_WhenHardDeleted_SetsConfirmationMessage()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(true, "Jane Smith"));
+
+        await _sut.Delete(WindowId, Reference);
+
+        Assert.Equal("Jane Smith has been removed from your saved request", _sut.TempData["DeletedMessage"]);
+    }
+
+    [Fact]
+    public async Task Delete_WhenWithdrawn_SetsSubmittedConfirmationMessage()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith"));
+
+        await _sut.Delete(WindowId, Reference);
+
+        Assert.Equal($"Jane Smith(reference number - {Reference}) has been removed from your submitted request.", _sut.TempData["DeletedMessage"]);
     }
 }

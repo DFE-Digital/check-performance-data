@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
@@ -11,6 +12,7 @@ namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 public sealed class SubmittedRequestView
 {
     public required WhatToChange WhatToChange { get; init; }
+    public required RequestStatus Status { get; init; }
     public required string PupilName { get; init; }
     public string? FirstRecordDisplay { get; init; }
     public string? SecondRecordDisplay { get; init; }

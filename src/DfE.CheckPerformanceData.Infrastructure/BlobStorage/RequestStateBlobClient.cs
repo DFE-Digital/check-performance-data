@@ -37,4 +37,11 @@ public sealed class RequestStateBlobClient(BlobServiceClient blobServiceClient) 
         var response = await blob.DownloadContentAsync();
         return JsonSerializer.Deserialize<RequestState>(response.Value.Content, JsonOptions);
     }
+
+    public async Task DeleteAsync(Guid windowId, string referenceNumber)
+    {
+        var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
+        var blob = container.GetBlobClient(BlobName(referenceNumber));
+        await blob.DeleteIfExistsAsync();
+    }
 }

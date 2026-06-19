@@ -146,8 +146,10 @@ public sealed class RulesConsumer : ConsumerBase
         }
 
         _logger.LogInformation(
-            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
-            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber);
+            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}{NewLine}Trace:{NewLine}{Trace}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber,
+            Environment.NewLine, Environment.NewLine,
+            decision.Trace.Count > 0 ? string.Join(Environment.NewLine, decision.Trace) : "(none)");
 
         // Capture the outcome so the post-ack metric record (DescribeMetric) can attach the
         // decision status and rules version for this reference.

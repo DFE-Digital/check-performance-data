@@ -39,6 +39,37 @@
     var ariaLabel = buckets.Count == 0
         ? $"Throughput {Model.GranularityLabel}: no data for this range."
         : $"Throughput {Model.GranularityLabel} over the {windowText}: peak {maxCount}, currently {buckets[^1].Count}.";
+
+    // Axis tick decorations, built as an SVG string and emitted via Html.Raw — Razor treats a bare
+    // <text> as its own text-literal transition, so SVG <text> can't be written inline in a code
+    // block (same approach as the dwell chart's labels). Without these the chart had axis lines but
+    // no readable values; now the Y axis shows 0 / mid / peak with faint gridlines and the X axis
+    // shows thinned, non-overlapping time labels.
+    var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+    var yTicks = new List<int> { 0 };
+    if (maxCount >= 2) yTicks.Add((int)Math.Round(maxCount / 2.0));
+    if (maxCount >= 1) yTicks.Add(maxCount);
+    yTicks = yTicks.Distinct().ToList();
+
+    // At most ~6 X labels, evenly spaced, so adjacent times never overlap.
+    const int maxXTicks = 6;
+    var xStep = buckets.Count <= maxXTicks ? 1 : (int)Math.Ceiling(buckets.Count / (double)maxXTicks);
+    var xLabelFormat = Model.SelectedGranularity == ThroughputGranularity.Day ? "dd MMM" : "HH:mm";
+
+    var axis = new System.Text.StringBuilder();
+    foreach (var v in yTicks)
+    {
+        var y = Y(v);
+        axis.Append($"<line x1='{padLeft}' y1='{y}' x2='{padLeft + plotW}' y2='{y}' stroke='#f3f2f1' stroke-width='1' />");
+        axis.Append($"<text x='{padLeft - 4}' y='{y}' text-anchor='end' dominant-baseline='middle' font-size='12' fill='#505a5f'>{v}</text>");
+    }
+    for (var i = 0; i < buckets.Count; i += xStep)
+    {
+        var label = System.Net.WebUtility.HtmlEncode(buckets[i].BucketStartUtc.ToString(xLabelFormat, culture));
+        axis.Append($"<text x='{X(i)}' y='{padTop + plotH + 16}' text-anchor='middle' font-size='12' fill='#505a5f'>{label}</text>");
+    }
+    var axisDecorations = axis.ToString();
 }
 
 <div class="obs-chart-panel">
@@ -64,6 +95,10 @@
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
             <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @* Y-axis value labels + gridlines and thinned X-axis time labels (decorative; the data
+               table below is the accessible source of truth). *@
+            @Html.Raw(axisDecorations)
 
             @await Html.PartialAsync("_DeployMarkers",
                 new ChartMarkersViewModel(markers, minTime, maxTime, padLeft, padTop, plotW, plotH))

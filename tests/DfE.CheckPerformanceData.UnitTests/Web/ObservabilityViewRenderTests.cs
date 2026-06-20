@@ -325,6 +325,20 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void ThroughputChart_RendersAxisValueLabels()
+	{
+		var view = ReadView("_Chart.cshtml");
+
+		// The throughput chart was unreadable — axis lines but no values. It now builds Y-axis tick
+		// values (0 / mid / peak) and thinned X-axis time labels as SVG text, emitted via Html.Raw.
+		Assert.Contains("yTicks", view);
+		Assert.Contains("axisDecorations", view);
+		Assert.Contains("Html.Raw(axisDecorations)", view);
+		// X labels are thinned so adjacent times never overlap.
+		Assert.Contains("maxXTicks", view);
+	}
+
+	[Fact]
 	public void Charts_AreEnlargeableInAModalOnClick()
 	{
 		var index = ReadView("Index.cshtml");

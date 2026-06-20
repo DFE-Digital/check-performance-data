@@ -637,6 +637,53 @@ public sealed class MetricsQueryTests
         Assert.DoesNotContain(page.Rows, r => r.ReferenceNumber == "BBB-222");
     }
 
+    // --- The transactions list filters by stage (only the ticked stages survive) ---
+
+    [Fact]
+    public async Task GetTransactions_StageFilter_ReturnsOnlyTheRequestedStages()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "S-1", anchor.AddSeconds(0)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "S-1", anchor.AddSeconds(10), decision: "AutoApproved"),
+            Metric(ZendeskQueue, "TicketCreated", "S-1", anchor.AddSeconds(20)),
+            Metric(RulesEngineQueue, "Submitted", "S-2", anchor.AddSeconds(30)));
+
+        var service = CreateService();
+
+        var page = await service.GetTransactionsAsync(page: 1, pageSize: 20, stages: new[] { "Submitted" });
+
+        Assert.Equal(2, page.TotalCount); // the two Submitted rows only
+        Assert.All(page.Rows, r => Assert.Equal("Submitted", r.Stage));
+    }
+
+    // --- The transactions list sorts by a chosen column and direction ---
+
+    [Fact]
+    public async Task GetTransactions_SortByReferenceAscending_OrdersByReference()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 13, 13, 0, 0, DateTimeKind.Utc);
+
+        // Seed out of reference order (newest first by time would put CCC first).
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "CCC", anchor.AddSeconds(30)),
+            Metric(RulesEngineQueue, "Submitted", "AAA", anchor.AddSeconds(20)),
+            Metric(RulesEngineQueue, "Submitted", "BBB", anchor.AddSeconds(10)));
+
+        var service = CreateService();
+
+        var asc = await service.GetTransactionsAsync(
+            page: 1, pageSize: 20, sortKey: "reference", descending: false);
+        Assert.Equal(new[] { "AAA", "BBB", "CCC" }, asc.Rows.Select(r => r.ReferenceNumber).ToArray());
+
+        var desc = await service.GetTransactionsAsync(
+            page: 1, pageSize: 20, sortKey: "reference", descending: true);
+        Assert.Equal(new[] { "CCC", "BBB", "AAA" }, desc.Rows.Select(r => r.ReferenceNumber).ToArray());
+    }
+
     [Fact]
     public async Task GetTransactions_ReferenceFilter_KeepsPagination()
     {

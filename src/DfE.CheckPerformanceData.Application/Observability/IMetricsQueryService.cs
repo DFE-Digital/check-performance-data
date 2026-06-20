@@ -61,12 +61,19 @@ public interface IMetricsQueryService
     // sharing the predicate between the COUNT and the page so pagination stays correct. Each row
     // also carries its reference's ResolvedDecision (from that reference's RulesEvaluated event)
     // so the decision column is populated even on the rows whose own stage carries no decision.
+    // An optional set of stage values (Submitted / RulesEvaluated / TicketCreated / DeadLettered)
+    // narrows the list to just those stages, so a tester can see e.g. only the submission rows. The
+    // sort key is validated against TransactionSort's allow-list before reaching the ORDER BY, with
+    // a direction; an unknown key falls back to newest-first.
     Task<TransactionsPage> GetTransactionsAsync(
         int page,
         int pageSize,
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
         string? reference = null,
+        IReadOnlyList<string>? stages = null,
+        string? sortKey = null,
+        bool descending = true,
         CancellationToken cancellationToken = default);
 
     // A newest-first page of transactions GROUPED by message: one row per distinct reference,

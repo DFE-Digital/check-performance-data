@@ -730,6 +730,26 @@
     font-weight: 700;
 }
 
+/* Sortable transactions headers: the column label is a link with a direction caret; an inactive
+   column shows a faint ⇅ to signal it is sortable. */
+.obs-sort {
+    white-space: nowrap;
+}
+
+.obs-sort__caret {
+    font-size: 12px;
+}
+
+.obs-sort__caret--idle {
+    color: #b1b4b6;
+}
+
+.obs-stage-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
 /* --- Journey timeline ----------------------------------------------------- */
 
 .obs-why-slot {

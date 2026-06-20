@@ -398,6 +398,28 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Transactions_HasSortableHeaders_AndPerStageFilters()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// Every flat-view header is a sort link with a direction caret.
+		Assert.Contains("SortLink(\"time\"", view);
+		Assert.Contains("SortLink(\"reference\"", view);
+		Assert.Contains("SortLink(\"stage\"", view);
+		Assert.Contains("SortLink(\"latency\"", view);
+		Assert.Contains("obs-sort__caret", view);
+
+		// Per-stage filter checkboxes (one per known stage) so a tester can see only e.g. submissions.
+		Assert.Contains("Filter by stage", view);
+		Assert.Contains("name=\"stage\"", view);
+		Assert.Contains("Rules evaluated", view);
+		Assert.Contains("Dead-lettered", view);
+		// The sort is preserved across a filter submit.
+		Assert.Contains("name=\"sort\"", view);
+		Assert.Contains("name=\"dir\"", view);
+	}
+
+	[Fact]
 	public void Transactions_UngroupedRowShowsItsOwnEventDecision_NotTheResolvedOne()
 	{
 		var view = ReadView("Transactions.cshtml");

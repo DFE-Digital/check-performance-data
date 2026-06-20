@@ -326,6 +326,9 @@ public sealed class ObservabilityController : Controller
         DateTime? to = null,
         string? reference = null,
         bool group = false,
+        [FromQuery(Name = "stage")] string[]? stage = null,
+        string? sort = null,
+        string? dir = null,
         CancellationToken cancellationToken = default)
     {
         if (page < 1) page = 1;
@@ -339,6 +342,18 @@ public sealed class ObservabilityController : Controller
         // produce an always-empty result. The filter is carried back onto the model so the search
         // box stays populated and the pager links preserve it across pages.
         var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        // The ticked stage filters, narrowed to the known stages; carried back so the boxes stay
+        // ticked across paging and sorting.
+        var stageFilter = (stage ?? Array.Empty<string>())
+            .Where(s => MetricStages.All.Contains(s, StringComparer.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        // The sort selection: a validated key (unknown → newest-first) and a direction. Carried
+        // back so the headers render the active caret and the links toggle direction.
+        var sortKey = TransactionSort.Resolve(sort);
+        var descending = !string.Equals(dir, "asc", StringComparison.OrdinalIgnoreCase);
 
         // Group-by-message switches to one row per reference across the pipeline stages (the
         // dashboard matrix picture); the default is the flat one-row-per-event list.
@@ -362,7 +377,7 @@ public sealed class ObservabilityController : Controller
         }
 
         var result = await _query.GetTransactionsAsync(
-            page, pageSize, fromUtc, toUtc, referenceFilter, cancellationToken);
+            page, pageSize, fromUtc, toUtc, referenceFilter, stageFilter, sortKey, descending, cancellationToken);
 
         return View(new TransactionsViewModel
         {
@@ -374,6 +389,9 @@ public sealed class ObservabilityController : Controller
             FromUtc = fromUtc,
             ToUtc = toUtc,
             Reference = referenceFilter,
+            Stages = stageFilter,
+            SortKey = sortKey,
+            SortDescending = descending,
         });
     }
 

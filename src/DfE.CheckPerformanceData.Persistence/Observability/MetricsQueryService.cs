@@ -259,6 +259,9 @@ ORDER BY recorded_at_utc, id;";
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
         string? reference = null,
+        IReadOnlyList<string>? stages = null,
+        string? sortKey = null,
+        bool descending = true,
         CancellationToken cancellationToken = default)
     {
         // Defensive clamps: a page below 1 or a non-positive size would produce a negative OFFSET
@@ -273,25 +276,38 @@ ORDER BY recorded_at_utc, id;";
         // A blank/whitespace reference is no filter at all.
         var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
 
-        // An optional [from, to) window plus an optional reference filter. Every value crosses as a
-        // parameter; the predicate is only added when a value is supplied, so an unfiltered list
-        // reads the whole (newest-first) table by page. The reference match is a case-insensitive
-        // prefix (ILIKE with an escaped literal + a trailing wildcard) so a tester can paste a
-        // reference and find all its transactions. The COUNT and the page share the identical WHERE
-        // so the total matches the rows and pagination stays correct.
+        // The stage filter is narrowed to the known metric stages, so a hand-edited value can never
+        // smuggle an arbitrary string into the ANY(@stages) array; an empty result means no filter.
+        var stageFilter = (stages ?? Array.Empty<string>())
+            .Where(s => MetricStages.All.Contains(s, StringComparer.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        // The sort key resolves against the allow-list (unknown → newest-first by time); the column
+        // is never caller text. The direction is a bool, so only ASC/DESC can reach the SQL.
+        var resolvedSortKey = TransactionSort.Resolve(sortKey);
+        var sortColumn = TransactionSort.Column(resolvedSortKey);
+        var sortDir = descending ? "DESC" : "ASC";
+
+        // An optional [from, to) window, an optional reference prefix, and an optional stage set.
+        // Every value crosses as a parameter; predicates are only added when supplied. The COUNT and
+        // the page share the identical WHERE so the total matches the rows and pagination stays
+        // correct.
         var where = new List<string>();
         if (fromUtc is not null) where.Add("recorded_at_utc >= @from");
         if (toUtc is not null) where.Add("recorded_at_utc < @to");
         if (referenceFilter is not null) where.Add("reference_number ILIKE @ref || '%'");
+        if (stageFilter.Length > 0) where.Add("stage = ANY(@stages)");
         var whereClause = where.Count == 0 ? string.Empty : "WHERE " + string.Join(" AND ", where);
 
         var countSql = $"SELECT COUNT(*) FROM queue_metrics_events {whereClause};";
 
         // LIMIT/OFFSET paging in the database: only one page of rows ever crosses into memory,
-        // never the whole table. Ordered newest-first, with id as a stable tie-break so two events
-        // in the same instant page deterministically. The LEFT JOIN onto resolved_decisions attaches
-        // each reference's RulesEvaluated decision (the only stage that carries one) to every one of
-        // its rows, so the decision column is populated even on rows whose own stage is null.
+        // never the whole table. Ordered by the chosen column + direction, with id as a stable
+        // tie-break so rows with equal sort keys page deterministically. The LEFT JOIN onto
+        // resolved_decisions attaches each reference's RulesEvaluated decision (the only stage that
+        // carries one) to every one of its rows, so the decision column is populated even on rows
+        // whose own stage is null.
         var pageSql = $@"
 SELECT e.recorded_at_utc, e.reference_number, e.stage, e.queue_name, e.decision_status, e.latency_ms,
        rd.decision_status AS resolved_decision
@@ -303,7 +319,7 @@ LEFT JOIN (
     ORDER BY reference_number, recorded_at_utc DESC, id DESC
 ) rd ON rd.reference_number = e.reference_number
 {Requalify(whereClause)}
-ORDER BY e.recorded_at_utc DESC, e.id DESC
+ORDER BY e.{sortColumn} {sortDir}, e.id DESC
 LIMIT @limit OFFSET @offset;";
 
         void BindFilters(NpgsqlCommand command)
@@ -314,6 +330,8 @@ LIMIT @limit OFFSET @offset;";
                 command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = to });
             if (referenceFilter is not null)
                 command.Parameters.Add(new NpgsqlParameter("ref", NpgsqlDbType.Text) { Value = EscapeLike(referenceFilter) });
+            if (stageFilter.Length > 0)
+                command.Parameters.Add(new NpgsqlParameter("stages", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = stageFilter });
         }
 
         var total = 0;

@@ -540,7 +540,8 @@ public sealed class ObservabilityControllerTests
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 15));
 
         var settings = Substitute.For<ISettingService>();
@@ -555,7 +556,8 @@ public sealed class ObservabilityControllerTests
 
         // The page size comes from Wiki:PageLength, not a hard-coded constant.
         await query.Received(1).GetTransactionsAsync(
-            2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
+            2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+            Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -563,7 +565,8 @@ public sealed class ObservabilityControllerTests
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 41, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
@@ -584,7 +587,8 @@ public sealed class ObservabilityControllerTests
     {
         var query = Substitute.For<IMetricsQueryService>();
         query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
@@ -599,7 +603,60 @@ public sealed class ObservabilityControllerTests
 
         await query.Received(1).GetTransactionsAsync(
             1, 20, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(),
-            Arg.Is<string?>(r => r == "REF-123"), Arg.Any<CancellationToken>());
+            Arg.Is<string?>(r => r == "REF-123"),
+            Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
+    // --- Stage filters and sort flow through to the query and onto the model ---
+
+    [Fact]
+    public async Task Transactions_PassesStageFiltersAndSort_AndExposesThemOnTheModel()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions(
+            page: 1, stage: new[] { "Submitted", "bogus" }, sort: "reference", dir: "asc");
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        // The bogus stage is dropped (only known stages survive); the sort is exposed for the headers.
+        Assert.Equal(new[] { "Submitted" }, model.Stages);
+        Assert.Equal("reference", model.SortKey);
+        Assert.False(model.SortDescending);
+
+        await query.Received(1).GetTransactionsAsync(
+            1, 20, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+            Arg.Is<IReadOnlyList<string>?>(s => s != null && s.Count == 1 && s[0] == "Submitted"),
+            "reference", false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Transactions_UnknownSort_FallsBackToTheDefaultDescending()
+    {
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<string>?>(), Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 20));
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions(page: 1, sort: "injection; drop table");
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(TransactionSort.DefaultKey, model.SortKey);
+        Assert.True(model.SortDescending);
     }
 
     [Fact]

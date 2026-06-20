@@ -12,4 +12,11 @@ public static class MetricStages
     public const string RulesEvaluated = "RulesEvaluated";
     public const string TicketCreated = "TicketCreated";
     public const string DeadLettered = "DeadLettered";
+
+    // The known stages, in pipeline order — the allow-list the transactions stage filter validates
+    // against so only a recorded stage value can reach the query.
+    public static readonly IReadOnlyList<string> All = new[]
+    {
+        Submitted, RulesEvaluated, TicketCreated, DeadLettered,
+    };
 }

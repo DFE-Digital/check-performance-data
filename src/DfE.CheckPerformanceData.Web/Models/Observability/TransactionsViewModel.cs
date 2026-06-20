@@ -26,4 +26,13 @@ public sealed class TransactionsViewModel
     // The active reference search term (case-insensitive prefix), carried back so the search box
     // stays populated and the pager links preserve it across pages.
     public string? Reference { get; init; }
+
+    // The ticked stage filters (Submitted / RulesEvaluated / TicketCreated / DeadLettered), carried
+    // back so the checkboxes stay ticked and the pager/sort links preserve the filter.
+    public IReadOnlyList<string> Stages { get; init; } = [];
+
+    // The active sort: the validated column key and direction, so the headers render the active
+    // caret and toggle direction, and the pager links preserve the sort.
+    public string SortKey { get; init; } = TransactionSort.DefaultKey;
+    public bool SortDescending { get; init; } = true;
 }

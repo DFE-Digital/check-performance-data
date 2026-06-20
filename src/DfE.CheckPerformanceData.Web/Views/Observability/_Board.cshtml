@@ -24,11 +24,21 @@
     // outcomes a message can reach, plus the dead-letter queue for failed/injected messages. An
     // envelope routes into the box matching its decisionStatus; the value is also the engine's key
     // (data-obs-decision) so it can anchor to and activate the box as envelopes land.
+    // Display order Approved → Scrutiny → Rejected (then the dead-letter box) per UAT — the
+    // routing keys are unchanged, the engine anchors each box by its data-obs-decision key, so the
+    // order here is purely the left-to-right layout of the destination row.
     var decisions = new[]
     {
         new { Key = "AutoApproved", Label = "Auto-approved" },
-        new { Key = "AutoRejected", Label = "Auto-rejected" },
         new { Key = "Scrutiny", Label = "Scrutiny" },
+        new { Key = "AutoRejected", Label = "Auto-rejected" },
+    };
+
+    // The two real queues' admin pages, so their board boxes link through like the matrix headers.
+    var queueLinks = new Dictionary<string, string>
+    {
+        ["rules-queue"] = "/admin/queues/list/rules-engine",
+        ["zendesk-queue"] = "/admin/queues/list/zendesk",
     };
 
     // Matrix cell formatting, mirrored exactly by observability-board.js so the server-rendered rows
@@ -81,7 +91,16 @@
             var stage = stages[i];
             <li class="obs-board__lane" data-stage="@stage.Key">
                 <span class="obs-board__node" aria-hidden="true"></span>
-                <span class="obs-board__label">@stage.Label</span>
+                @* The two real queue boxes link to their admin pages (new tab), like the matrix
+                   column headers; the other stages are plain labels. *@
+                @if (queueLinks.TryGetValue(stage.Key, out var queueHref))
+                {
+                    <a class="obs-board__label govuk-link" href="@queueHref" target="_blank" rel="noopener">@stage.Label</a>
+                }
+                else
+                {
+                    <span class="obs-board__label">@stage.Label</span>
+                }
                 @* Live in-flight count: how many submissions are currently in this box. Seeded with
                    the queue depth for the two real queues; the board engine keeps it live as
                    envelopes flow through. Hidden while zero so an idle box stays clean. *@

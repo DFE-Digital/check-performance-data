@@ -101,6 +101,32 @@ public sealed class ObservabilityBoardSourceTests
     }
 
     [Fact]
+    public void Board_OrdersDecisionBoxes_ApprovedScrutinyRejected()
+    {
+        var board = Board();
+
+        // Per UAT the destination row reads Auto-approved → Scrutiny → Auto-rejected (then the
+        // dead-letter box). The decisions array drives the layout order.
+        var approved = board.IndexOf("\"AutoApproved\"", StringComparison.Ordinal);
+        var scrutiny = board.IndexOf("\"Scrutiny\"", StringComparison.Ordinal);
+        var rejected = board.IndexOf("\"AutoRejected\"", StringComparison.Ordinal);
+        Assert.True(approved < scrutiny && scrutiny < rejected,
+            $"expected Approved < Scrutiny < Rejected, got {approved}/{scrutiny}/{rejected}");
+    }
+
+    [Fact]
+    public void Board_LinksTheTwoQueueBoxesToTheirAdminPages()
+    {
+        var board = Board();
+
+        // The rules-queue and zendesk-queue boxes link to their queue admin pages (new tab), like
+        // the matrix column headers.
+        Assert.Contains("/admin/queues/list/rules-engine", board);
+        Assert.Contains("/admin/queues/list/zendesk", board);
+        Assert.Contains("obs-board__label govuk-link", board);
+    }
+
+    [Fact]
     public void BoardJs_RoutesEnvelopesToTheirDecisionBox()
     {
         var js = BoardJs();

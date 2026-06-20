@@ -645,6 +645,12 @@
         var gridSeq = 0;
         var gridRendered = false;
 
+        // The set of references ticked for replay, kept outside the DOM so a tick survives the
+        // matrix re-rendering on each snapshot. The current reference filter text, applied after
+        // each render so newly-arrived rows obey it too.
+        var selectedRefs = {};
+        var gridFilterText = '';
+
         function timestampOf(transition) {
             var raw = transition.recordedAtUtc || transition.RecordedAtUtc;
             if (!raw) { return null; }
@@ -736,6 +742,17 @@
                 + '<span class="obs-cell-dur">' + esc(dur) + '</span></td>';
         }
 
+        // The leading replay-select cell: a checkbox carrying the reference, its checked state read
+        // from the selection set so it survives a re-render.
+        function pickCell(ref) {
+            var checked = selectedRefs[ref] ? ' checked' : '';
+            return '<td class="govuk-table__cell">'
+                + '<div class="govuk-checkboxes__item govuk-checkboxes--small govuk-!-margin-bottom-0">'
+                + '<input class="govuk-checkboxes__input" type="checkbox" data-obs-grid-pick value="'
+                + esc(ref) + '"' + checked + ' aria-label="Select ' + esc(ref) + ' for replay" />'
+                + '</div></td>';
+        }
+
         function gridRowHtml(r) {
             var refLink = '<a class="govuk-link" target="_blank" rel="noopener" href="/admin/observability/journey/'
                 + encodeURIComponent(r.ref) + '">' + esc(r.ref) + '</a>';
@@ -747,7 +764,8 @@
             var engineDur = r.latency != null ? (Math.round(r.latency) + 'ms') : '—';
             var rulesQueueDur = r.submit ? (r.engine ? waited(r.submit, r.engine) : 'in queue') : '—';
             var zendeskQueueDur = (r.engine && !r.failed) ? (r.ticket ? waited(r.engine, r.ticket) : 'in queue') : '—';
-            return '<tr class="govuk-table__row">'
+            return '<tr class="govuk-table__row" data-obs-grid-row="' + esc(r.ref) + '">'
+                + pickCell(r.ref)
                 + '<td class="govuk-table__cell">' + refLink + '</td>'
                 + '<td class="govuk-table__cell"><span class="obs-cell-time">' + esc(hms(r.submit)) + '</span></td>'
                 + stageCell(r.submit, rulesQueueDur)
@@ -765,12 +783,40 @@
                 .slice(0, GRID_MAX_ROWS);
             if (rows.length === 0) {
                 gridBody.innerHTML = '<tr class="govuk-table__row obs-board__grid-empty">'
-                    + '<td class="govuk-table__cell" colspan="7">No submissions yet. '
+                    + '<td class="govuk-table__cell" colspan="8">No submissions yet. '
                     + 'Drive some traffic to see them flow.</td></tr>';
             } else {
                 gridBody.innerHTML = rows.map(gridRowHtml).join('');
             }
+            applyGridFilter();
             gridRendered = true;
+        }
+
+        // Hide matrix rows whose reference does not contain the filter text (case-insensitive);
+        // re-applied after every render so live-arriving rows obey the active filter.
+        function applyGridFilter() {
+            if (!gridBody) { return; }
+            var f = (gridFilterText || '').toLowerCase();
+            var rowEls = gridBody.querySelectorAll('[data-obs-grid-row]');
+            for (var i = 0; i < rowEls.length; i++) {
+                var ref = (rowEls[i].getAttribute('data-obs-grid-row') || '').toLowerCase();
+                rowEls[i].style.display = (!f || ref.indexOf(f) >= 0) ? '' : 'none';
+            }
+        }
+
+        // The references ticked for replay (from the selection set, not the DOM, so a tick survives
+        // re-renders). Exposed so the matrix Play-selected control can read them.
+        function selectedReferences() {
+            return Object.keys(selectedRefs).filter(function (k) { return selectedRefs[k]; });
+        }
+
+        function setSelected(ref, on) {
+            if (on) { selectedRefs[ref] = true; } else { delete selectedRefs[ref]; }
+        }
+
+        function setGridFilter(text) {
+            gridFilterText = text || '';
+            applyGridFilter();
         }
 
         // Fold a whole snapshot's transitions into the matrix and re-render once.
@@ -1094,12 +1140,25 @@
             return true;
         }
 
+        // Keep the selection set in step with the matrix checkboxes (delegated, so it works across
+        // re-renders). The change fires on the live checkbox the user toggled.
+        if (gridBody) {
+            gridBody.addEventListener('change', function (e) {
+                var t = e.target;
+                if (t && t.getAttribute && t.getAttribute('data-obs-grid-pick') !== null) {
+                    setSelected(t.value, t.checked);
+                }
+            });
+        }
+
         // Populate the live grid from the server-rendered history before any feed connects.
         seedGridFromServer();
 
         return {
             onSnapshot: onSnapshot,
             onError: onError,
+            selectedReferences: selectedReferences,
+            setGridFilter: setGridFilter,
             setSlowMo: setSlowMo,
             setStepMode: setStepMode,
             singleStep: singleStep,
@@ -1315,102 +1374,45 @@
             inject.addEventListener('click', function () { engine.injectFailure(); });
         }
 
-        // --- Replay selected submissions (Demo panel) ---
-        // Search recent submissions, tick a few and Play them through THIS board — folded in from the
-        // retired standalone submissions + walkthrough pages. The chosen references' recorded events
-        // are fetched and animated through the same engine; each envelope's motion obeys the demo
-        // slow-mo / single-step because flyEnvelope reads the engine clock.
-        var picker = controls.querySelector('[data-obs-replay-picker]');
-        if (picker) {
-            var pickerSearch = picker.querySelector('[data-obs-picker-search]');
-            var pickerList = picker.querySelector('[data-obs-picker-list]');
-            var loadBtn = picker.querySelector('[data-obs-picker-load]');
-            var playSelBtn = picker.querySelector('[data-obs-picker-play]');
-            var submissions = [];
+        // --- Replay from the Recent submissions matrix ---
+        // The matrix rows carry a checkbox; a reference filter narrows the visible rows and "Play
+        // selected" replays the ticked references through THIS board (each a non-destructive
+        // <root>-R{n} copy that flows the full path and fills the matrix). This replaces the old
+        // Demo-panel picker so replay lives on the always-visible matrix. The selection is read from
+        // the engine (a set kept outside the DOM), so a tick survives the matrix re-rendering.
+        var gridFilter = controls.querySelector('[data-obs-grid-filter]');
+        if (gridFilter) {
+            gridFilter.addEventListener('input', function () { engine.setGridFilter(gridFilter.value); });
+        }
 
-            function renderPicker(filter) {
-                var f = (filter || '').toLowerCase();
-                var matching = submissions.filter(function (s) {
-                    return !f || (s.referenceNumber || '').toLowerCase().indexOf(f) >= 0;
-                });
-                pickerList.innerHTML = '';
-                if (matching.length === 0) {
-                    var p = document.createElement('p');
-                    p.className = 'govuk-body-s govuk-hint govuk-!-margin-bottom-0';
-                    p.textContent = submissions.length === 0
-                        ? 'No recent submissions found.' : 'No matching submissions.';
-                    pickerList.appendChild(p);
-                    return;
-                }
-                var group = document.createElement('div');
-                group.className = 'govuk-checkboxes govuk-checkboxes--small';
-                matching.slice(0, 50).forEach(function (s, i) {
-                    var item = document.createElement('div');
-                    item.className = 'govuk-checkboxes__item';
-                    var input = document.createElement('input');
-                    input.className = 'govuk-checkboxes__input';
-                    input.type = 'checkbox';
-                    input.id = 'obs-pick-' + i;
-                    input.setAttribute('data-obs-pick', '');
-                    input.value = s.referenceNumber;
-                    var label = document.createElement('label');
-                    label.className = 'govuk-label govuk-checkboxes__label';
-                    label.setAttribute('for', input.id);
-                    label.textContent = s.referenceNumber + (s.decision ? ' — ' + s.decision : '');
-                    item.appendChild(input);
-                    item.appendChild(label);
-                    group.appendChild(item);
-                });
-                pickerList.appendChild(group);
-            }
+        // Replay the ticked references, one whole submission after another, fetching their recorded
+        // events and grouping them per message (the same per-submission replay the scrubber uses).
+        function playSelectedRows(refs, playBtn) {
+            var qs = refs.map(function (r) { return 'reference=' + encodeURIComponent(r); }).join('&');
+            if (playBtn) { playBtn.disabled = true; }
+            fetch('/admin/observability/replay/selected?' + qs, { credentials: 'same-origin' })
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (events) {
+                    var messages = groupByReference(events || []);
+                    var i = 0;
+                    (function stepNext() {
+                        if (i >= messages.length) { return; }
+                        engine.replaySubmission(messages[i]);
+                        i += 1;
+                        window.setTimeout(stepNext, 900);
+                    })();
+                })
+                .catch(function () { /* best effort */ })
+                .then(function () { if (playBtn) { playBtn.disabled = false; } });
+        }
 
-            function loadSubmissions() {
-                if (loadBtn) { loadBtn.disabled = true; }
-                fetch('/admin/observability/submissions.json', { credentials: 'same-origin' })
-                    .then(function (r) { return r.ok ? r.json() : { rows: [] }; })
-                    .then(function (data) {
-                        submissions = (data && data.rows) || [];
-                        renderPicker(pickerSearch ? pickerSearch.value : '');
-                    })
-                    .catch(function () {
-                        pickerList.textContent = 'Could not load submissions.';
-                    })
-                    .then(function () { if (loadBtn) { loadBtn.disabled = false; } });
-            }
-
-            // Animate the chosen submissions through the board, one whole submission after another —
-            // each a <root>-R{n} copy that flows the full path and fills the matrix (the same
-            // per-submission replay the scrubber uses), never one envelope per stage row.
-            function playEvents(events) {
-                var messages = groupByReference(events);
-                var i = 0;
-                (function stepNext() {
-                    if (i >= messages.length) { return; }
-                    engine.replaySubmission(messages[i]);
-                    i += 1;
-                    window.setTimeout(stepNext, 900);
-                })();
-            }
-
-            if (loadBtn) { loadBtn.addEventListener('click', loadSubmissions); }
-            if (pickerSearch) {
-                pickerSearch.addEventListener('input', function () { renderPicker(pickerSearch.value); });
-            }
-            if (playSelBtn) {
-                playSelBtn.addEventListener('click', function () {
-                    var refs = Array.prototype.slice
-                        .call(pickerList.querySelectorAll('[data-obs-pick]:checked'))
-                        .map(function (c) { return c.value; });
-                    if (refs.length === 0) { return; }
-                    var qs = refs.map(function (r) { return 'reference=' + encodeURIComponent(r); }).join('&');
-                    playSelBtn.disabled = true;
-                    fetch('/admin/observability/replay/selected?' + qs, { credentials: 'same-origin' })
-                        .then(function (r) { return r.ok ? r.json() : []; })
-                        .then(function (events) { playEvents(events || []); })
-                        .catch(function () { /* best effort */ })
-                        .then(function () { playSelBtn.disabled = false; });
-                });
-            }
+        var gridPlayBtn = controls.querySelector('[data-obs-grid-play]');
+        if (gridPlayBtn) {
+            gridPlayBtn.addEventListener('click', function () {
+                var refs = engine.selectedReferences();
+                if (refs.length === 0) { return; }
+                playSelectedRows(refs, gridPlayBtn);
+            });
         }
     }
 

@@ -433,15 +433,20 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
-	public void DemoPanel_HostsTheReplaySubmissionPicker_InPlaceOfTheStandalonePages()
+	public void RecentSubmissionsMatrix_HostsTheReplayControls_AndTheDemoPanelPickerIsGone()
 	{
+		var board = ReadView("_Board.cshtml");
 		var panel = ReadView("_DemoPanel.cshtml");
 
-		// The submission picker (search recent submissions, tick, Play through the board) now lives
-		// in the Demo panel — the standalone submissions + walkthrough pages were retired.
-		Assert.Contains("data-obs-replay-picker", panel);
-		Assert.Contains("data-obs-picker-load", panel);
-		Assert.Contains("data-obs-picker-play", panel);
+		// Replay-from-the-matrix: a checkbox per row, a reference filter and a Play-selected button
+		// on the always-visible Recent submissions matrix.
+		Assert.Contains("data-obs-grid-pick", board);
+		Assert.Contains("data-obs-grid-filter", board);
+		Assert.Contains("data-obs-grid-play", board);
+
+		// The duplicate Demo-panel picker was removed (replay lives on the matrix now).
+		Assert.DoesNotContain("data-obs-replay-picker", panel);
+		Assert.DoesNotContain("data-obs-picker-play", panel);
 	}
 
 	[Fact]

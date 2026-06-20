@@ -416,6 +416,16 @@
     background: #ffffff;
 }
 
+/* The replay-from-the-matrix controls: a reference filter + Play-selected button on one row above
+   the table. */
+.obs-board__grid-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
 .obs-board__grid {
     margin-bottom: 0;
     font-size: 16px;

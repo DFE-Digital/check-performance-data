@@ -148,13 +148,27 @@
         <h3 class="govuk-heading-s">Recent submissions</h3>
         <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-2">
             The latest submissions and what happened at each stage — newest at the top. Each stage
-            cell shows the time the submission reached it and how long it spent there.
+            cell shows the time the submission reached it and how long it spent there. Tick a few and
+            <strong>Play selected</strong> to replay them through the board.
         </p>
+        @* Replay-from-the-matrix controls: filter the rows by reference and replay the ticked ones
+           through the board (each a non-destructive <reference>-R{n} copy). Folded in from the
+           retired Demo-panel picker so there is one replay UI, on the always-visible matrix. *@
+        <div class="obs-board__grid-controls" data-obs-grid-controls>
+            <label class="govuk-label govuk-!-margin-bottom-0" for="obs-grid-filter">Filter</label>
+            <input class="govuk-input govuk-input--width-10 govuk-!-margin-bottom-0" id="obs-grid-filter"
+                   type="search" autocomplete="off" data-obs-grid-filter placeholder="reference"
+                   title="Show only the rows whose reference contains this text." />
+            <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                    data-module="govuk-button" data-obs-grid-play
+                    title="Replay the ticked submissions through the board as non-destructive copies.">Play selected</button>
+        </div>
         <div class="obs-board__grid-scroll">
             <table class="govuk-table obs-board__grid">
                 <caption class="govuk-table__caption govuk-visually-hidden">Recent submissions by pipeline stage</caption>
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Replay</span></th>
                         <th scope="col" class="govuk-table__header">Reference</th>
                         <th scope="col" class="govuk-table__header">Submit</th>
                         <th scope="col" class="govuk-table__header">
@@ -172,7 +186,7 @@
                     @if (Model.RecentSubmissions.Count == 0)
                     {
                         <tr class="govuk-table__row obs-board__grid-empty">
-                            <td class="govuk-table__cell" colspan="7">No submissions yet. Drive some traffic to see them flow.</td>
+                            <td class="govuk-table__cell" colspan="8">No submissions yet. Drive some traffic to see them flow.</td>
                         </tr>
                     }
                     else
@@ -185,7 +199,14 @@
                             var engineDur = r.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : "—";
                             var zendeskQueueDur = (r.RulesEvaluatedAtUtc is null || r.DeadLettered) ? "—"
                                 : (r.TicketCreatedAtUtc is null ? "in queue" : Waited(r.RulesEvaluatedAtUtc, r.TicketCreatedAtUtc));
-                            <tr class="govuk-table__row">
+                            <tr class="govuk-table__row" data-obs-grid-row="@r.ReferenceNumber">
+                                <td class="govuk-table__cell">
+                                    <div class="govuk-checkboxes__item govuk-checkboxes--small govuk-!-margin-bottom-0">
+                                        <input class="govuk-checkboxes__input" type="checkbox"
+                                               data-obs-grid-pick value="@r.ReferenceNumber"
+                                               aria-label="Select @r.ReferenceNumber for replay" />
+                                    </div>
+                                </td>
                                 <td class="govuk-table__cell">
                                     <a class="govuk-link" target="_blank" rel="noopener"
                                        href="/admin/observability/journey/@Uri.EscapeDataString(r.ReferenceNumber)">@r.ReferenceNumber</a>

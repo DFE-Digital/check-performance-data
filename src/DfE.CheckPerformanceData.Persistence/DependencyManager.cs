@@ -54,6 +54,8 @@ public static class DependencyManager
             Observability.MetricsQueryService>();
         services.AddScoped<Application.Observability.IMetricsSink,
             Observability.DbMetricsSink>();
+        services.AddScoped<Application.Observability.IDemoTrafficPurger,
+            Observability.DemoTrafficPurger>();
         services.AddScoped<Application.Observability.IShareTokenService,
             Observability.ShareTokenService>();
 

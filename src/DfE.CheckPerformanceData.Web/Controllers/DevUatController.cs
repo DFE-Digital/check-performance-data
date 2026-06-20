@@ -24,19 +24,22 @@ public sealed class DevUatController : Controller
     private readonly DevPipelineRunner _runner;
     private readonly IHostEnvironment? _hostEnvironment;
     private readonly IMetricsSink? _metricsSink;
+    private readonly IDemoTrafficPurger? _demoPurger;
 
     public DevUatController(
         IConfiguration configuration,
         IQueueService queueService,
         DevPipelineRunner runner,
         IHostEnvironment? hostEnvironment = null,
-        IMetricsSink? metricsSink = null)
+        IMetricsSink? metricsSink = null,
+        IDemoTrafficPurger? demoPurger = null)
     {
         _configuration = configuration;
         _queueService = queueService;
         _runner = runner;
         _hostEnvironment = hostEnvironment;
         _metricsSink = metricsSink;
+        _demoPurger = demoPurger;
     }
 
     // The "seed messages" spread: a couple of months of synthetic history, 10–100 submissions a day,
@@ -151,6 +154,23 @@ public sealed class DevUatController : Controller
 
         if (IsAjax)
             return Json(new { ok = true, count = events.Count });
+
+        return Redirect(DashboardUrl);
+    }
+
+    // Remove all synthetic demo traffic (drive / seed / inject) from the pipeline tables while
+    // keeping real submissions, matched by the well-known demo reference prefixes. Lets a tester
+    // reset a demo'd dev environment back to just its real data. Gated like the other dev tooling.
+    [HttpPost("dev/uat/purge-demo")]
+    public async Task<IActionResult> PurgeDemo(CancellationToken cancellationToken)
+    {
+        if (!IsAllowed || _demoPurger is null)
+            return NotFound();
+
+        var result = await _demoPurger.PurgeAsync(cancellationToken);
+
+        if (IsAjax)
+            return Json(new { ok = true, removed = result.Total });
 
         return Redirect(DashboardUrl);
     }

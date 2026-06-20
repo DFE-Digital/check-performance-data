@@ -172,6 +172,10 @@ public sealed class ObservabilityViewRenderTests
 		// Seed a couple of months of synthetic history so the charts look full on a fresh dev env.
 		Assert.Contains("/dev/uat/seed-messages", panel);
 		Assert.Contains("Seed messages", panel);
+		// Purge all demo traffic (keeping real submissions) behind a confirm.
+		Assert.Contains("/dev/uat/purge-demo", panel);
+		Assert.Contains("Purge demo traffic", panel);
+		Assert.Contains("data-uat-confirm", panel);
 		// The batch-size input the drives mirror onto each form.
 		Assert.Contains("data-uat-batch", panel);
 		// AJAX-drive hooks so a drive refreshes the board in place rather than reloading.

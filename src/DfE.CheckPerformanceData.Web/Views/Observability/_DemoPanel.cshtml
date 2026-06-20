@@ -76,6 +76,13 @@
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-uat-tip title="Seed 10–100 synthetic submissions a day for the last two months so the charts below look full. Click again to add more.">Seed messages</button>
                 </form>
+                @* Remove all demo-created traffic (drive / seed / inject) from the pipeline tables,
+                   keeping real submissions. A warning button + confirm because it deletes rows. *@
+                <form method="post" action="/dev/uat/purge-demo" data-uat-confirm="Remove all demo-created traffic (drive, seed and inject)? Real submissions are kept.">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Delete all synthetic demo traffic (DEV-/SEED-/demo-fail-/uat-dlq-/e2e-dlq- references) from the pipeline tables. Real submissions are kept.">Purge demo traffic</button>
+                </form>
 
                 @* Pause/Resume freezes all envelope motion so the board can be read. It lives in the
                    Demo panel (only shown while Demo is expanded) and is styled as a clear primary

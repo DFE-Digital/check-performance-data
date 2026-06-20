@@ -230,6 +230,20 @@
     });
   }
 
+  // --- Confirm before destructive demo actions ------------------------------------------------
+  // A form carrying data-uat-confirm asks for confirmation before its (full-page) post — used by
+  // the "Purge demo traffic" button, which deletes rows. With no JS the post just proceeds.
+  function wireConfirms() {
+    document.querySelectorAll('form[data-uat-confirm]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var message = form.getAttribute('data-uat-confirm');
+        if (message && !window.confirm(message)) {
+          e.preventDefault();
+        }
+      });
+    });
+  }
+
   // --- Wire up --------------------------------------------------------------------------------
 
   function init() {
@@ -237,6 +251,7 @@
     enrichCoverage();
     wireDrives();
     wireDemoToggle();
+    wireConfirms();
 
     document.addEventListener('change', function (e) {
       if (e.target.matches('[data-uat-batch]')) syncBatch();

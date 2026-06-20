@@ -21,6 +21,7 @@ public sealed class DevUatActionTests
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly IMetricsSink _metricsSink = Substitute.For<IMetricsSink>();
+    private readonly IDemoTrafficPurger _demoPurger = Substitute.For<IDemoTrafficPurger>();
 
     private DevUatController CreateSut(bool ajax = false)
     {
@@ -33,7 +34,7 @@ public sealed class DevUatActionTests
         var httpContext = new DefaultHttpContext();
         if (ajax)
             httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
-        var sut = new DevUatController(config, _queueService, runner, env, _metricsSink)
+        var sut = new DevUatController(config, _queueService, runner, env, _metricsSink, _demoPurger)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>()),
@@ -142,6 +143,38 @@ public sealed class DevUatActionTests
         Assert.True((int)count! > 0);
         await _metricsSink.Received(1).RecordManyAsync(
             Arg.Any<IEnumerable<QueueMetricEvent>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PurgeDemo_Enabled_PurgesAndRedirects()
+    {
+        _demoPurger.PurgeAsync(Arg.Any<CancellationToken>())
+            .Returns(new DemoPurgeResult(10, 2, 1));
+
+        var sut = CreateSut();
+
+        var result = await sut.PurgeDemo(CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/observability", redirect.Url);
+        await _demoPurger.Received(1).PurgeAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PurgeDemo_AjaxRequest_ReturnsOkJsonWithRemovedCount()
+    {
+        _demoPurger.PurgeAsync(Arg.Any<CancellationToken>())
+            .Returns(new DemoPurgeResult(10, 2, 1));
+
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.PurgeDemo(CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);
+        var removed = json.Value!.GetType().GetProperty("removed")!.GetValue(json.Value);
+        Assert.Equal(true, ok);
+        Assert.Equal(13, removed); // 10 + 2 + 1
     }
 
     // The AJAX contract: an XMLHttpRequest drive returns JSON { ok, reference } so the page can

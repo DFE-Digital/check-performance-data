@@ -11,7 +11,14 @@ public sealed record DashboardRangeOption(
     string Label,
     TimeSpan Window,
     ThroughputGranularity DefaultGranularity,
-    IReadOnlyList<ThroughputGranularity> AllowedGranularities);
+    IReadOnlyList<ThroughputGranularity> AllowedGranularities,
+    bool SinceMidnight = false)
+{
+    // The window start for this option relative to now: a "today" option counts from midnight UTC
+    // (so it grows through the day — "today" means since midnight), every other option is a rolling
+    // window ending at now.
+    public DateTime From(DateTime nowUtc) => SinceMidnight ? nowUtc.Date : nowUtc - Window;
+}
 
 // The server-side allow-list behind the dashboard's range/granularity form. Both selections
 // resolve against it before any query runs, so a hand-edited query string can never reach the
@@ -19,10 +26,16 @@ public sealed record DashboardRangeOption(
 // than erroring — the form is a GET and must always render a dashboard.
 public static class DashboardRanges
 {
-    public const string DefaultValue = "24h";
+    public const string DefaultValue = "today";
 
     public static readonly IReadOnlyList<DashboardRangeOption> All = new[]
     {
+        // "Today" — since midnight UTC — sits at the top and is the default; its window grows
+        // through the day, so it is bucketed hourly (or per 10 minutes early in the day).
+        new DashboardRangeOption("today", "Today", TimeSpan.FromHours(24),
+            ThroughputGranularity.Hour,
+            new[] { ThroughputGranularity.TenMinute, ThroughputGranularity.Hour },
+            SinceMidnight: true),
         new DashboardRangeOption("1h", "Last hour", TimeSpan.FromHours(1),
             ThroughputGranularity.Minute,
             new[] { ThroughputGranularity.Minute, ThroughputGranularity.FiveMinute }),

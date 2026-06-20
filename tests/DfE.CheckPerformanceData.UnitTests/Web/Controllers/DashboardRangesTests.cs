@@ -39,7 +39,31 @@ public sealed class DashboardRangesTests
         var option = DashboardRanges.Resolve(range);
 
         Assert.Equal(DashboardRanges.DefaultValue, option.Value);
-        Assert.Equal(TimeSpan.FromHours(24), option.Window);
+    }
+
+    // "Today" is the default and the first option, and it counts from midnight rather than a
+    // rolling window — "today" means since midnight, so it grows through the day.
+    [Fact]
+    public void Default_IsTodaySinceMidnight()
+    {
+        Assert.Equal("today", DashboardRanges.DefaultValue);
+
+        var today = DashboardRanges.Resolve(null);
+        Assert.Equal("today", today.Value);
+        Assert.True(today.SinceMidnight);
+        Assert.Same(DashboardRanges.All[0], today); // first in the list (top of the select)
+    }
+
+    [Fact]
+    public void TodayRange_FromIsMidnightUtc_OtherRangesAreRolling()
+    {
+        var now = new DateTime(2026, 6, 20, 14, 30, 0, DateTimeKind.Utc);
+
+        var today = DashboardRanges.Resolve("today");
+        Assert.Equal(new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc), today.From(now));
+
+        var rolling = DashboardRanges.Resolve("24h");
+        Assert.Equal(now - TimeSpan.FromHours(24), rolling.From(now));
     }
 
     [Fact]

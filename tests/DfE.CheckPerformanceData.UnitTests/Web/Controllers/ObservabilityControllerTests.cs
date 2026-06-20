@@ -92,10 +92,10 @@ public sealed class ObservabilityControllerTests
         Assert.NotNull(view.Model);
     }
 
-    // --- With no selection the dashboard renders the 24-hour window in hourly buckets ---
+    // --- With no selection the dashboard renders Today (since midnight) in hourly buckets ---
 
     [Fact]
-    public async Task Index_Defaults_ToHourlyBucketsOverTheLast24Hours()
+    public async Task Index_Defaults_ToTodayInHourlyBuckets()
     {
         var query = BuildQuery();
         var controller = BuildController(query);
@@ -104,7 +104,7 @@ public sealed class ObservabilityControllerTests
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<DashboardViewModel>(view.Model);
-        Assert.Equal("24h", model.SelectedRange);
+        Assert.Equal("today", model.SelectedRange);
         Assert.Equal(ThroughputGranularity.Hour, model.SelectedGranularity);
         await query.Received(1).GetThroughputAsync(
             QueueOptions.ZendeskQueue,
@@ -153,7 +153,7 @@ public sealed class ObservabilityControllerTests
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<DashboardViewModel>(view.Model);
-        Assert.Equal("24h", model.SelectedRange);
+        Assert.Equal("today", model.SelectedRange);
         Assert.Equal(ThroughputGranularity.Hour, model.SelectedGranularity);
     }
 

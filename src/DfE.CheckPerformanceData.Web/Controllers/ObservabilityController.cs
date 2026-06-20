@@ -81,7 +81,16 @@ public sealed class ObservabilityController : Controller
         var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
 
         var now = DateTime.UtcNow;
-        var from = now - rangeOption.Window;
+        var from = rangeOption.From(now);
+        // Defensive: at the exact midnight tick "today" yields from == now, which the range guard
+        // would reject; nudge it back a minute so the dashboard always renders.
+        if (from >= now) from = now.AddMinutes(-1);
+
+        // The headline tiles (processed today, the decision counters, typical end-to-end) describe
+        // TODAY — since midnight UTC — whatever window the charts show. When Today is the selected
+        // range the chart series ARE the headline series, so they are reused rather than re-queried.
+        var headlineFrom = now.Date;
+        var todaySelected = rangeOption.SinceMidnight;
 
         var thresholds = await ResolveThresholdsAsync();
 
@@ -123,29 +132,26 @@ public sealed class ObservabilityController : Controller
         var recentSubmissions = await _query.GetGroupedTransactionsAsync(
             1, RecentSubmissionsCount, now - DefaultWindow, now, null, cancellationToken);
 
-        // The headline tiles and the status sentence always describe the last 24 hours,
-        // whatever window the charts are showing; the chart series double as the headline
-        // source only when the selected window IS the default. The processed total is
-        // granularity-independent (it is a sum over the window), so only the window matters.
-        var headlineThroughput = rangeOption.Window == DefaultWindow
+        // The headline figures describe today (since midnight); reuse the chart series when Today
+        // is the selected window, otherwise take a since-midnight read alongside the chart window.
+        var headlineThroughput = todaySelected
             ? throughput
             : await _query.GetThroughputAsync(
-                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
-        var headlineDwell = rangeOption.Window == DefaultWindow
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, headlineFrom, now, cancellationToken);
+        var headlineDwell = todaySelected
             ? dwell
-            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+            : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
         var processedToday = headlineThroughput.Sum(b => b.Count);
         var typicalEndToEnd = headlineDwell.Count == 0
             ? TimeSpan.Zero
             : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
 
-        // The decision counters, like the processed total, always describe the last 24 hours —
-        // the selected window only drives the charts. Reuse the chart decision-mix when the window
-        // IS the default; otherwise take a second 24-hour read.
-        var headlineDecisionMix = rangeOption.Window == DefaultWindow
+        // The decision counters, like the processed total, describe today (since midnight). Reuse
+        // the chart decision-mix when Today is selected; otherwise take a since-midnight read.
+        var headlineDecisionMix = todaySelected
             ? decisionMix
-            : await _query.GetDecisionMixAsync(now - DefaultWindow, now, cancellationToken);
+            : await _query.GetDecisionMixAsync(headlineFrom, now, cancellationToken);
 
         int DecisionCount(string status) => headlineDecisionMix
             .Where(d => string.Equals(d.DecisionStatus, status, StringComparison.OrdinalIgnoreCase))
@@ -200,21 +206,24 @@ public sealed class ObservabilityController : Controller
         var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
 
         var now = DateTime.UtcNow;
-        var from = now - rangeOption.Window;
+        var from = rangeOption.From(now);
+        if (from >= now) from = now.AddMinutes(-1);
+        var headlineFrom = now.Date;
+        var todaySelected = rangeOption.SinceMidnight;
 
         var throughput = await _query.GetThroughputAsync(
             QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
         var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
         var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
 
-        // The headline figures always describe the last 24 hours, mirroring the dashboard tiles.
-        var headlineThroughput = rangeOption.Window == DefaultWindow
+        // The headline figures describe today (since midnight), mirroring the dashboard tiles.
+        var headlineThroughput = todaySelected
             ? throughput
             : await _query.GetThroughputAsync(
-                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
-        var headlineDwell = rangeOption.Window == DefaultWindow
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, headlineFrom, now, cancellationToken);
+        var headlineDwell = todaySelected
             ? dwell
-            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+            : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
         var processedToday = headlineThroughput.Sum(b => b.Count);
         var typicalEndToEnd = headlineDwell.Count == 0
@@ -252,7 +261,10 @@ public sealed class ObservabilityController : Controller
         var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
 
         var now = DateTime.UtcNow;
-        var from = now - rangeOption.Window;
+        var from = rangeOption.From(now);
+        if (from >= now) from = now.AddMinutes(-1);
+        var headlineFrom = now.Date;
+        var todaySelected = rangeOption.SinceMidnight;
 
         var throughput = await _query.GetThroughputAsync(
             QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
@@ -261,14 +273,14 @@ public sealed class ObservabilityController : Controller
             bucketSize, from, now, cancellationToken);
         var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
 
-        // The headline figures always describe the last 24 hours, mirroring the dashboard tiles.
-        var headlineThroughput = rangeOption.Window == DefaultWindow
+        // The headline figures describe today (since midnight), mirroring the dashboard tiles.
+        var headlineThroughput = todaySelected
             ? throughput
             : await _query.GetThroughputAsync(
-                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, now - DefaultWindow, now, cancellationToken);
-        var headlineDwell = rangeOption.Window == DefaultWindow
+                QueueOptions.ZendeskQueue, ThroughputGranularity.Hour, headlineFrom, now, cancellationToken);
+        var headlineDwell = todaySelected
             ? dwell
-            : await _query.GetDwellByStageAsync(now - DefaultWindow, now, cancellationToken);
+            : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
         var processedToday = headlineThroughput.Sum(b => b.Count);
         var typicalEndToEnd = headlineDwell.Count == 0

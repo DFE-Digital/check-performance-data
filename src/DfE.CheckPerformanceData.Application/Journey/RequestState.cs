@@ -17,4 +17,9 @@ public sealed class RequestState
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();
     public List<string> QuestionHistory { get; set; } = new();
+
+    // Stamped at submission so the read-only view of a submitted request can show a
+    // "Submitted by" section without depending on the queued RequestDocument.
+    public string? SubmittedByEmail { get; set; }
+    public DateTime? SubmittedAt { get; set; }
 }

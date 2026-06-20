@@ -167,15 +167,12 @@ public sealed class RulesConsumer : ConsumerBase
             await dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == parsed.ReferenceNumber)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.Status, RequestStatus.RulesProcessed)
                     .SetProperty(r => r.Outcome, decision.Status)
                     .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
                     .SetProperty(r => r.MatchedRuleId, decision.MatchedRuleId)
                     .SetProperty(r => r.RulesVersion, rulesVersion)
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow),
                     cancellationToken);
-
-            await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, parsed, cancellationToken);
         }, cancellationToken);
 
         // Emit the decision-mix analytics event after the decision is durably persisted and

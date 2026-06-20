@@ -262,6 +262,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<string>("RequestType")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("RequestTypeDescription")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -275,6 +280,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<DateTime>("Submitted")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("SubmittedByEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<Guid>("SubmittedById")
                         .HasColumnType("uuid");

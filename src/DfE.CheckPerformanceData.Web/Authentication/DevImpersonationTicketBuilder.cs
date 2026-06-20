@@ -11,6 +11,7 @@ public static class DevImpersonationTicketBuilder
 {
     private const string SyntheticNameIdentifier = "dev-impersonation-user";
     private const string SyntheticName = "Dev impersonation user";
+    private const string SyntheticEmail = "dev-impersonation-user@education.gov.uk";
 
     public static AuthenticationTicket? TryBuild(string cookieValue)
     {
@@ -24,7 +25,8 @@ public static class DevImpersonationTicketBuilder
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, SyntheticNameIdentifier),
-            new(ClaimTypes.Name, SyntheticName)
+            new(ClaimTypes.Name, SyntheticName),
+            new(ClaimTypes.Email, SyntheticEmail)
         };
 
         if (cookieValue == DevImpersonationConstants.EditorValue)

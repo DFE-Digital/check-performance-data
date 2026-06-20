@@ -13,6 +13,8 @@ public sealed class ChangeRequestData
     public required DateTime Timestamp { get; init; }
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
+    public string? SubmittedByEmail { get; init; }
     public required RequestStatus Status { get; init; }
-    public required string RequestType { get; init; }
+    public required RequestType RequestType { get; init; }
+    public required string RequestTypeDescription { get; init; }
 }

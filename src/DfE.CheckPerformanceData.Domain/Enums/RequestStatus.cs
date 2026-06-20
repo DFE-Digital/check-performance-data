@@ -5,6 +5,7 @@ public enum RequestStatus
     InProgress,
     ReadyToSubmit,
     SubmittedUnCommitted,
+    SubmittedWithdrawn,
     RulesProcessed,
     ZendeskTicketCreating,
     ZendeskTicketCreated

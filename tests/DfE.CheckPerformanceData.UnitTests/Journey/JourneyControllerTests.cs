@@ -63,6 +63,19 @@ public class JourneyControllerTests
         Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Evidence" }]
     };
 
+    // Evidence page mixing a file upload with a free-text explanation — the shape that
+    // triggers the "text lost on upload/remove" bug.
+    private static readonly JourneyPage EvidenceWithTextPage = new()
+    {
+        Id = "evidence-with-text",
+        Type = PageType.EvidenceUpload,
+        Questions =
+        [
+            new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Evidence" },
+            new Question { Id = "explanation", Type = QuestionType.TextArea, Title = "Explain" }
+        ]
+    };
+
     public JourneyControllerTests()
     {
         _env.EnvironmentName.Returns("Production");
@@ -604,6 +617,48 @@ public class JourneyControllerTests
         await _sut.SaveDraft(WindowId, pageId: "evidence-page");
 
         Assert.Equal(["select-pupil", "select-match-pupil"], capturedJourney!.QuestionHistory);
+    }
+
+    // ── UploadFile / RemoveFile — preserve text answers ──────────────────────
+
+    [Fact]
+    public async Task UploadFile_PreservesSubmittedTextAnswers()
+    {
+        // The evidence text box lives in the same page as the upload control. Submitting an
+        // upload (even one that fails validation, e.g. no file selected) must not discard text
+        // the user has already typed.
+        SetupSession(ValidSession());
+        _flowService.GetPage(Config, "evidence-with-text").Returns(EvidenceWithTextPage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_explanation"] = "My evidence explanation"
+        });
+
+        await _sut.UploadFile(WindowId, "evidence-with-text", "evidence", fromSummary: false, fileUpload: null);
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers;
+        Assert.Equal("My evidence explanation", saved["explanation"].TextValue);
+    }
+
+    [Fact]
+    public async Task RemoveFile_PreservesSubmittedTextAnswers()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "stored.pdf", OriginalFileName = "e.pdf", PageCount = 1, FileSizeBytes = 10 }] }
+        };
+        SetupSession(ValidSession(answers: answers));
+        _flowService.GetPage(Config, "evidence-with-text").Returns(EvidenceWithTextPage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_explanation"] = "Keep me"
+        });
+
+        await _sut.RemoveFile(WindowId, "evidence-with-text", "evidence", fromSummary: false, storedFileName: "stored.pdf");
+
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers;
+        Assert.Equal("Keep me", saved["explanation"].TextValue);
+        Assert.Empty(saved["evidence"].FileValues!);
     }
 
     // ── DownloadEvidence ─────────────────────────────────────────────────────

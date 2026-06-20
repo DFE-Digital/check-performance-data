@@ -118,6 +118,15 @@ public sealed class ObservabilityController : Controller
             ?? _health.Evaluate(new HealthInputs(0, null, dlqCount), thresholds);
         var overallReasons = worstQueue?.Reasons ?? Array.Empty<HealthReason>();
 
+        // When every queue light is identical to the overall — same level and the same set of
+        // reasons (the usual case when the only problem is a shared dead-letter backlog that trips
+        // them all the same way) — the per-queue blocks just repeat the overall, so suppress them
+        // and show the single overall block. Reasons compared as sets (HealthReason is a record).
+        var showPerQueueHealth = !(queueHealth.Count > 0 && queueHealth.All(q =>
+            q.State.Level == overall.Level
+            && q.Reasons.Count == overallReasons.Count
+            && !q.Reasons.Except(overallReasons).Any()));
+
         var throughput = await _query.GetThroughputAsync(
             QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
         var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
@@ -164,6 +173,7 @@ public sealed class ObservabilityController : Controller
             QueueHealth = queueHealth,
             OverallHealth = overall,
             OverallReasons = overallReasons,
+            ShowPerQueueHealth = showPerQueueHealth,
             StatusSentence = sentence,
             ProcessedToday = processedToday,
             TypicalEndToEnd = typicalEndToEnd,

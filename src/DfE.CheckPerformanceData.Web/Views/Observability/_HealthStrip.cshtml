@@ -50,7 +50,10 @@
         <partial name="_HealthReasons" model="Model.OverallReasons" />
     </div>
 
-    @foreach (var queue in Model.QueueHealth)
+    @* Per-queue lights are suppressed when they each merely repeat the overall (same level + same
+       reasons) — e.g. a shared dead-letter backlog that trips all of them identically; then only
+       the overall block above shows. *@
+    @foreach (var queue in Model.ShowPerQueueHealth ? Model.QueueHealth : Enumerable.Empty<DfE.CheckPerformanceData.Web.Models.Observability.QueueHealth>())
     {
         <div class="obs-light @modifier(queue.State)">
             <div class="obs-light__row">

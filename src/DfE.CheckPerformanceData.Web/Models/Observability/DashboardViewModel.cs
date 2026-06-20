@@ -15,6 +15,12 @@ public sealed class DashboardViewModel
     // light explains itself just as the per-queue lights do. Empty when everything is flowing.
     public IReadOnlyList<HealthReason> OverallReasons { get; init; } = Array.Empty<HealthReason>();
 
+    // Whether to render the per-queue health lights beneath the overall one. When every queue
+    // light carries the same level and the same reasons as the overall (e.g. the only problem is a
+    // shared dead-letter backlog that trips all of them identically), the per-queue blocks just
+    // repeat the overall, so they are suppressed and only the overall block shows.
+    public bool ShowPerQueueHealth { get; init; } = true;
+
     public required string StatusSentence { get; init; }
 
     public int ProcessedToday { get; init; }

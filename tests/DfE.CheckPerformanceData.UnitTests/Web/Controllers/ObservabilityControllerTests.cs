@@ -229,6 +229,64 @@ public sealed class ObservabilityControllerTests
         Assert.Equal(series, model.DecisionMixOverTime);
     }
 
+    // --- Duplicate per-queue health lights collapse to just the overall ---
+
+    [Fact]
+    public async Task Index_AllQueuesShareTheOverallReasons_SuppressesPerQueueLights()
+    {
+        // A dead-letter backlog trips every queue identically (depth/age fine, DLQ over its limit),
+        // so the per-queue lights merely repeat the overall — only the overall should render.
+        var query = BuildQuery();
+        var queueAdmin = Substitute.For<IQueueAdminService>();
+        queueAdmin.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new QueueDepth("rules-engine", 0, null),
+            new QueueDepth("zendesk", 0, null),
+        });
+        queueAdmin.GetDlqCountAsync(Arg.Any<CancellationToken>()).Returns(99); // over the red limit
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.HealthDepthAmber).Returns(25);
+        settings.GetIntAsync(SettingKeys.HealthDepthRed).Returns(100);
+        settings.GetIntAsync(SettingKeys.HealthOldestAgeAmberSeconds).Returns(120);
+        settings.GetIntAsync(SettingKeys.HealthOldestAgeRedSeconds).Returns(600);
+        settings.GetIntAsync(SettingKeys.HealthDlqRateRed).Returns(5);
+
+        var controller = BuildController(query, queueAdmin, settings);
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(await controller.Index()).Model);
+
+        Assert.False(model.ShowPerQueueHealth);
+    }
+
+    [Fact]
+    public async Task Index_QueuesDifferFromOverall_KeepsPerQueueLights()
+    {
+        // One queue backing up on depth while the other is healthy: the lights differ, so the
+        // per-queue breakdown is kept.
+        var query = BuildQuery();
+        var queueAdmin = Substitute.For<IQueueAdminService>();
+        queueAdmin.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(new[]
+        {
+            new QueueDepth("rules-engine", 60, TimeSpan.FromSeconds(30)),
+            new QueueDepth("zendesk", 0, null),
+        });
+        queueAdmin.GetDlqCountAsync(Arg.Any<CancellationToken>()).Returns(0);
+
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.HealthDepthAmber).Returns(25);
+        settings.GetIntAsync(SettingKeys.HealthDepthRed).Returns(100);
+        settings.GetIntAsync(SettingKeys.HealthOldestAgeAmberSeconds).Returns(120);
+        settings.GetIntAsync(SettingKeys.HealthOldestAgeRedSeconds).Returns(600);
+        settings.GetIntAsync(SettingKeys.HealthDlqRateRed).Returns(5);
+
+        var controller = BuildController(query, queueAdmin, settings);
+
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(await controller.Index()).Model);
+
+        Assert.True(model.ShowPerQueueHealth);
+    }
+
     // --- The headline decision counters describe the last 24 hours ---
     // Alongside "processed today", the dashboard shows ongoing 24-hour counts per decision —
     // auto-approved / auto-rejected / scrutiny — plus the current dead-letter count.

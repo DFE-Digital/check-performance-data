@@ -290,6 +290,20 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void BoardEngine_ClearsTheDeadLetterBoxWhenEmpty()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-board.js"));
+
+		// The DLQ marker used to stay lit forever after a failed message left (a stuck half-coloured
+		// circle); it now self-clears when no envelope rests in it, like the decision boxes.
+		Assert.Contains("clearDlqIfEmpty", js);
+		Assert.Contains("removeAttribute('data-obs-dlq-active')", js);
+	}
+
+	[Fact]
 	public void BoardEngine_KeepsEveryBoxInFlightCountLive()
 	{
 		var thisFile = ThisFilePath();

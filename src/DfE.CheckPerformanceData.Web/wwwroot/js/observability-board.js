@@ -205,6 +205,15 @@
             return { x: a.x, y: a.y + 80 };
         }
 
+        // Clear the dead-letter box's active (lit) state once no envelope is resting in it. Without
+        // this the DLQ marker stayed lit forever after a failed message left — it read as a stuck
+        // half-coloured circle on the board. Mirrors the decision boxes, which already self-clear.
+        function clearDlqIfEmpty() {
+            if (dlqMarker && (occupancy['dlq'] || 0) <= 0) {
+                dlqMarker.removeAttribute('data-obs-dlq-active');
+            }
+        }
+
         // Light up a decision box (or clear it) as envelopes land/leave, mirroring the DLQ marker's
         // active attribute. Conveyed by the box's fill AND its always-present label.
         function setDecisionActive(decisionKey, active) {
@@ -519,6 +528,7 @@
                     if (decisionKey && (occupancy['decision:' + decisionKey] || 0) <= 0) {
                         setDecisionActive(decisionKey, false);
                     }
+                    if (failed) { clearDlqIfEmpty(); }
                     if (token.parentNode) { token.parentNode.removeChild(token); }
                 }, 0);
                 return;
@@ -556,6 +566,7 @@
                         pausableTimeout(function () {
                             releaseDlq();
                             clearToken(token);
+                            clearDlqIfEmpty(); // don't leave the DLQ box lit after the message leaves
                             if (token.parentNode) { token.parentNode.removeChild(token); }
                         }, dwellFor('rules-engine', moveSpeed) * 2);
                     } else if (decisionKey) {

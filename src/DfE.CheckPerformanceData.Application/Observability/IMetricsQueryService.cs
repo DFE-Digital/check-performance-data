@@ -82,13 +82,17 @@ public interface IMetricsQueryService
     // across the pipeline stages. The grouping, ordering (by last activity, newest first) and paging
     // (LIMIT/OFFSET plus a COUNT of distinct references) all happen in SQL. The same optional
     // [from, to) window and reference prefix filter as the flat list apply, bounded by the same
-    // abusive-aggregation guard.
+    // abusive-aggregation guard. The sort key is validated against GroupedTransactionSort's
+    // allow-list before reaching the ORDER BY, with a direction; an unknown key falls back to most
+    // recently active first.
     Task<GroupedTransactionsPage> GetGroupedTransactionsAsync(
         int page,
         int pageSize,
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
         string? reference = null,
+        string? sortKey = null,
+        bool descending = true,
         CancellationToken cancellationToken = default);
 
     // A newest-first page of distinct request references that entered the pipeline, each with its

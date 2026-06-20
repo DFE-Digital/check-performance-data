@@ -48,7 +48,8 @@ public sealed class ObservabilityControllerTests
                 Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<DecisionMixBucket>());
         query.GetGroupedTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new GroupedTransactionsPage(Array.Empty<GroupedTransactionRow>(), 0, 1, 25));
         return query;
     }
@@ -341,7 +342,8 @@ public sealed class ObservabilityControllerTests
         var query = BuildQuery();
         var now = DateTime.UtcNow;
         query.GetGroupedTransactionsAsync(Arg.Any<int>(), Arg.Any<int>(),
-                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+                Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+                Arg.Any<string?>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(new GroupedTransactionsPage(
                 new[]
                 {
@@ -656,6 +658,46 @@ public sealed class ObservabilityControllerTests
 
         var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.Equal(TransactionSort.DefaultKey, model.SortKey);
+        Assert.True(model.SortDescending);
+    }
+
+    // --- Grouped view: the grouped sort key flows through to the grouped query and onto the model ---
+
+    [Fact]
+    public async Task Transactions_Grouped_PassesGroupedSortThrough_AndExposesItOnTheModel()
+    {
+        var query = BuildQuery();
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        var result = await controller.Transactions(page: 1, group: true, sort: "submit", dir: "asc");
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(model.Grouped);
+        Assert.Equal("submit", model.SortKey);
+        Assert.False(model.SortDescending);
+
+        await query.Received(1).GetGroupedTransactionsAsync(
+            1, 20, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(),
+            "submit", false, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Transactions_Grouped_UnknownSort_FallsBackToTheGroupedDefault()
+    {
+        var query = BuildQuery();
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var controller = BuildController(query, settings: settings);
+
+        // A flat-list key (or anything not in the grouped allow-list) snaps to the grouped default.
+        var result = await controller.Transactions(page: 1, group: true, sort: "latency");
+
+        var model = Assert.IsType<TransactionsViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(GroupedTransactionSort.DefaultKey, model.SortKey);
         Assert.True(model.SortDescending);
     }
 

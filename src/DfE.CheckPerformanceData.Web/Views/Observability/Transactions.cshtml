@@ -152,15 +152,18 @@ else
            reads as one group. *@
         <table class="govuk-table obs-tx-grouped">
             <caption class="govuk-table__caption govuk-visually-hidden">Transactions grouped by submission</caption>
+            @* Every grouped header is a sort link with a direction caret, just like the flat view:
+               clicking sorts by that column (the per-queue columns sort by the derived wait); the
+               sort is server-side (ORDER BY from the GroupedTransactionSort allow-list). *@
             <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
-                    <th scope="col" class="govuk-table__header">Reference</th>
-                    <th scope="col" class="govuk-table__header">Submit</th>
-                    <th scope="col" class="govuk-table__header">Rules queue</th>
-                    <th scope="col" class="govuk-table__header">Rules engine</th>
-                    <th scope="col" class="govuk-table__header">Status</th>
-                    <th scope="col" class="govuk-table__header">Zendesk queue</th>
-                    <th scope="col" class="govuk-table__header">Zendesk ticket</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("reference", "Reference"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("submit", "Submit"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("rulesqueue", "Rules queue"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("rulesengine", "Rules engine"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("status", "Status"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("zendeskqueue", "Zendesk queue"))</th>
+                    <th scope="col" class="govuk-table__header">@Html.Raw(SortLink("zendeskticket", "Zendesk ticket"))</th>
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
@@ -222,35 +225,10 @@ else
         </table>
     }
 
-    @if (Model.TotalPages > 1)
+    @await Html.PartialAsync("_Pager", new PagerModel
     {
-        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
-            @if (Model.Page > 1)
-            {
-                <div class="govuk-pagination__prev">
-                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
-                        <span class="govuk-pagination__link-title">Previous</span>
-                    </a>
-                </div>
-            }
-            <ul class="govuk-pagination__list">
-                @for (var p = 1; p <= Model.TotalPages; p++)
-                {
-                    var current = p == Model.Page;
-                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
-                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
-                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
-                    </li>
-                }
-            </ul>
-            @if (Model.Page < Model.TotalPages)
-            {
-                <div class="govuk-pagination__next">
-                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
-                        <span class="govuk-pagination__link-title">Next</span>
-                    </a>
-                </div>
-            }
-        </nav>
-    }
+        CurrentPage = Model.Page,
+        TotalPages = Model.TotalPages,
+        PageUrl = PageLink,
+    })
 }

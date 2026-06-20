@@ -169,37 +169,12 @@
                 </tbody>
             </table>
 
-            @if (r.TotalPages > 1)
+            @await Html.PartialAsync("_Pager", new PagerModel
             {
-                <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
-                    @if (r.Page > 1)
-                    {
-                        <div class="govuk-pagination__prev">
-                            <a class="govuk-link govuk-pagination__link" href="@PageLink(r.Page - 1)" rel="prev">
-                                <span class="govuk-pagination__link-title">Previous</span>
-                            </a>
-                        </div>
-                    }
-                    <ul class="govuk-pagination__list">
-                        @for (var p = 1; p <= r.TotalPages; p++)
-                        {
-                            var current = p == r.Page;
-                            <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
-                                <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
-                                   aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
-                            </li>
-                        }
-                    </ul>
-                    @if (r.Page < r.TotalPages)
-                    {
-                        <div class="govuk-pagination__next">
-                            <a class="govuk-link govuk-pagination__link" href="@PageLink(r.Page + 1)" rel="next">
-                                <span class="govuk-pagination__link-title">Next</span>
-                            </a>
-                        </div>
-                    }
-                </nav>
-            }
+                CurrentPage = r.Page,
+                TotalPages = r.TotalPages,
+                PageUrl = PageLink,
+            })
         }
     </div>
 </div>

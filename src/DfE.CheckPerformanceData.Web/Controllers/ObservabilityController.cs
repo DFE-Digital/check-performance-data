@@ -139,7 +139,7 @@ public sealed class ObservabilityController : Controller
         // transactions over the last 24 hours, so the table is populated on load and the board engine
         // seeds its live grid from real history rather than starting empty.
         var recentSubmissions = await _query.GetGroupedTransactionsAsync(
-            1, RecentSubmissionsCount, now - DefaultWindow, now, null, cancellationToken);
+            1, RecentSubmissionsCount, now - DefaultWindow, now, null, cancellationToken: cancellationToken);
 
         // The headline figures describe today (since midnight); reuse the chart series when Today
         // is the selected window, otherwise take a since-midnight read alongside the chart window.
@@ -350,17 +350,20 @@ public sealed class ObservabilityController : Controller
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-        // The sort selection: a validated key (unknown → newest-first) and a direction. Carried
-        // back so the headers render the active caret and the links toggle direction.
-        var sortKey = TransactionSort.Resolve(sort);
+        // The sort direction is shared by both views; the key resolves against whichever allow-list
+        // matches the active view, so a grouped key never reaches the flat ORDER BY and vice versa.
         var descending = !string.Equals(dir, "asc", StringComparison.OrdinalIgnoreCase);
 
         // Group-by-message switches to one row per reference across the pipeline stages (the
         // dashboard matrix picture); the default is the flat one-row-per-event list.
         if (group)
         {
+            // The grouped headers submit grouped sort keys; resolve against the grouped allow-list so
+            // the headers render the active caret and the query orders by the chosen column.
+            var groupedSortKey = GroupedTransactionSort.Resolve(sort);
+
             var grouped = await _query.GetGroupedTransactionsAsync(
-                page, pageSize, fromUtc, toUtc, referenceFilter, cancellationToken);
+                page, pageSize, fromUtc, toUtc, referenceFilter, groupedSortKey, descending, cancellationToken);
 
             return View(new TransactionsViewModel
             {
@@ -373,8 +376,13 @@ public sealed class ObservabilityController : Controller
                 FromUtc = fromUtc,
                 ToUtc = toUtc,
                 Reference = referenceFilter,
+                SortKey = groupedSortKey,
+                SortDescending = descending,
             });
         }
+
+        // The flat one-row-per-event list: a validated flat sort key (unknown → newest-first).
+        var sortKey = TransactionSort.Resolve(sort);
 
         var result = await _query.GetTransactionsAsync(
             page, pageSize, fromUtc, toUtc, referenceFilter, stageFilter, sortKey, descending, cancellationToken);

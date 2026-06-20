@@ -367,6 +367,8 @@ LIMIT @limit OFFSET @offset;";
         DateTime? fromUtc = null,
         DateTime? toUtc = null,
         string? reference = null,
+        string? sortKey = null,
+        bool descending = true,
         CancellationToken cancellationToken = default)
     {
         if (page < 1) page = 1;
@@ -376,6 +378,12 @@ LIMIT @limit OFFSET @offset;";
             GuardRange(f, t);
 
         var referenceFilter = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+
+        // The sort resolves against the grouped allow-list (unknown → most recently active first);
+        // the expression references the aggregated subquery's columns, never caller text, and the
+        // direction is a bool, so only ASC/DESC can reach the SQL.
+        var sortExpr = GroupedTransactionSort.OrderExpression(GroupedTransactionSort.Resolve(sortKey));
+        var sortDir = descending ? "DESC" : "ASC";
 
         // The same optional window + reference-prefix predicate as the flat list, shared between the
         // COUNT and the page so the distinct-reference total matches the rows.
@@ -390,20 +398,26 @@ LIMIT @limit OFFSET @offset;";
 
         // One aggregated row per reference: the per-stage timestamps via conditional aggregation, the
         // decision and rules-engine latency from the RulesEvaluated event, and a dead-letter flag.
-        // Ordered by last activity so the most recently active message is first; paged in SQL.
+        // The aggregate is wrapped in a subquery so the chosen sort can ORDER BY the derived columns
+        // (including the per-queue waits) by their aliases; reference_number is a stable tie-break and
+        // NULLS LAST sinks rows missing the sorted stage (not yet processed) to the bottom. Paged in
+        // SQL. The default sort (last activity, newest first) preserves the original ordering.
         var pageSql = $@"
-SELECT reference_number,
-       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
-       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
-       MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
-       MAX(decision_status) FILTER (WHERE decision_status IS NOT NULL) AS decision,
-       MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
-       bool_or(stage = '{MetricStages.DeadLettered}') AS dead_lettered,
-       MAX(recorded_at_utc) AS last_at
-FROM queue_metrics_events
-{whereClause}
-GROUP BY reference_number
-ORDER BY last_at DESC
+SELECT reference_number, submitted_at, rules_at, ticket_at, decision, rules_latency, dead_lettered, last_at
+FROM (
+    SELECT reference_number,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
+           MAX(decision_status) FILTER (WHERE decision_status IS NOT NULL) AS decision,
+           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
+           bool_or(stage = '{MetricStages.DeadLettered}') AS dead_lettered,
+           MAX(recorded_at_utc) AS last_at
+    FROM queue_metrics_events
+    {whereClause}
+    GROUP BY reference_number
+) g
+ORDER BY {sortExpr} {sortDir} NULLS LAST, reference_number
 LIMIT @limit OFFSET @offset;";
 
         void BindFilters(NpgsqlCommand command)

@@ -434,6 +434,37 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Transactions_GroupedHeadersAreSortable_AcrossEveryColumn()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// The grouped (one-row-per-submission) view's headers are sort links too, so a tester can
+		// group by submission and then sort by submit time — or any other column, including the
+		// derived per-queue waits.
+		Assert.Contains("SortLink(\"reference\"", view);
+		Assert.Contains("SortLink(\"submit\"", view);
+		Assert.Contains("SortLink(\"rulesqueue\"", view);
+		Assert.Contains("SortLink(\"rulesengine\"", view);
+		Assert.Contains("SortLink(\"status\"", view);
+		Assert.Contains("SortLink(\"zendeskqueue\"", view);
+		Assert.Contains("SortLink(\"zendeskticket\"", view);
+		// The grouped header row is no longer plain text.
+		Assert.DoesNotContain("<th scope=\"col\" class=\"govuk-table__header\">Submit</th>", view);
+	}
+
+	[Fact]
+	public void Transactions_UsesTheSharedPager_NotAnInlineFullPageLoop()
+	{
+		var view = ReadView("Transactions.cshtml");
+
+		// The pager is the one shared control; the old inline nav that listed every page (page 1..82
+		// straight down the bottom) is gone.
+		Assert.Contains("\"_Pager\"", view);
+		Assert.DoesNotContain("for (var p = 1; p <= Model.TotalPages", view);
+		Assert.DoesNotContain("govuk-pagination__list", view);
+	}
+
+	[Fact]
 	public void Transactions_UngroupedRowShowsItsOwnEventDecision_NotTheResolvedOne()
 	{
 		var view = ReadView("Transactions.cshtml");

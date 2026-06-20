@@ -746,6 +746,34 @@ public sealed class MetricsQueryTests
         Assert.Equal("GRP-2", page.Rows.First().ReferenceNumber);
     }
 
+    [Fact]
+    public async Task GetGroupedTransactions_SortsByAChosenColumnAndDirection()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 16, 9, 0, 0, DateTimeKind.Utc);
+
+        // Each reference is a single Submitted event, so last activity equals submit time. Seeded so
+        // newest-first-by-submit (the default's effect here) would be AAA, BBB, CCC.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "AAA", anchor.AddSeconds(30)),
+            Metric(RulesEngineQueue, "Submitted", "BBB", anchor.AddSeconds(20)),
+            Metric(RulesEngineQueue, "Submitted", "CCC", anchor.AddSeconds(10)));
+
+        var service = CreateService();
+
+        var bySubmitAsc = await service.GetGroupedTransactionsAsync(
+            page: 1, pageSize: 20, sortKey: "submit", descending: false);
+        Assert.Equal(new[] { "CCC", "BBB", "AAA" }, bySubmitAsc.Rows.Select(r => r.ReferenceNumber).ToArray());
+
+        var bySubmitDesc = await service.GetGroupedTransactionsAsync(
+            page: 1, pageSize: 20, sortKey: "submit", descending: true);
+        Assert.Equal(new[] { "AAA", "BBB", "CCC" }, bySubmitDesc.Rows.Select(r => r.ReferenceNumber).ToArray());
+
+        var byReferenceAsc = await service.GetGroupedTransactionsAsync(
+            page: 1, pageSize: 20, sortKey: "reference", descending: false);
+        Assert.Equal(new[] { "AAA", "BBB", "CCC" }, byReferenceAsc.Rows.Select(r => r.ReferenceNumber).ToArray());
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

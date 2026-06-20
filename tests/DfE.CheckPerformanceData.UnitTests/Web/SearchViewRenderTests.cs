@@ -54,12 +54,14 @@ public sealed class SearchViewRenderTests
 	}
 
 	[Fact]
-	public Task SearchView_RendersPaginationWhenTotalCountExceedsPageSize()
+	public Task SearchView_RendersPaginationThroughTheSharedPager()
 	{
 		var view = ReadView("Search.cshtml");
-		// Contract: <govuk-pagination> appears inside an @if (Model.TotalPages > 1) block.
-		Assert.Contains("Model.TotalPages > 1", view);
-		Assert.Contains("<govuk-pagination", view);
+		// Contract: pagination renders through the single shared _Pager control (which guards on
+		// TotalPages > 1 and owns the windowing), fed this page's current/total and a PageUrl closure.
+		Assert.Contains("\"_Pager\"", view);
+		Assert.Contains("Model.TotalPages", view);
+		Assert.Contains("Model.CurrentPage", view);
 		return Task.CompletedTask;
 	}
 

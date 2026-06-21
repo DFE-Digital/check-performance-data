@@ -255,15 +255,15 @@
     outline-offset: 2px;
 }
 
-/* A failed/injected envelope is GDS red, not the blue of a good message, so its divert to the
-   dead-letter marker is unmistakable. The SVG fill is also set red inline by the engine; this
-   stronger drop-shadow makes the red token stand out as it crosses the board. */
+/* A dead-lettered envelope is GDS orange once it parks at the dead-letter queue (it travelled blue
+   to get there). The engine sets the orange fill inline; a CSS rule outranks an SVG presentation
+   attribute, so the fill is restated here, with a matching drop-shadow to make it stand out. */
 .obs-board__token--failed {
-    filter: drop-shadow(0 1px 2px rgba(212, 53, 28, 0.6));
+    filter: drop-shadow(0 1px 2px rgba(244, 119, 56, 0.6));
 }
 
 .obs-board__token--failed svg rect {
-    fill: #d4351c;
+    fill: #f47738;
 }
 
 /* The dead-letter parking marker: failed/injected envelopes divert here instead of reaching
@@ -281,17 +281,17 @@
     width: 28px;
     height: 28px;
     background: #ffffff;
-    border: 3px dashed #d4351c;
+    border: 3px dashed #f47738;
     border-radius: 2px;
     margin-bottom: 8px;
 }
 
 .obs-board__dlq[data-obs-dlq-active="true"] .obs-board__dlq-node {
-    background: #d4351c;
+    background: #f47738;
 }
 
 .obs-board__dlq-label {
-    color: #d4351c;
+    color: #b54a00;
     font-weight: 700;
     font-size: 16px;
 }
@@ -333,7 +333,7 @@
 }
 
 .obs-board__decision[data-obs-decision="Scrutiny"] .obs-board__dlq-node {
-    border-color: #f47738;
+    border-color: #ffdd00;
 }
 
 .obs-board__decision[data-obs-decision-active="true"][data-obs-decision="AutoApproved"] .obs-board__dlq-node {
@@ -345,7 +345,7 @@
 }
 
 .obs-board__decision[data-obs-decision-active="true"][data-obs-decision="Scrutiny"] .obs-board__dlq-node {
-    background: #f47738;
+    background: #ffdd00;
 }
 
 /* The always-available board controls (Pause/Resume). Sits on the board itself, not the dev-only

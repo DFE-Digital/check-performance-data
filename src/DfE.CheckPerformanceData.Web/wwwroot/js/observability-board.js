@@ -55,13 +55,16 @@
     // to the anchor of the box matching its decision.
     var DECISION_KEYS = ['AutoApproved', 'AutoRejected', 'Scrutiny'];
 
-    // Envelope fill by decision, so the colour of the envelope itself tells the outcome at a glance:
-    // approved is GDS blue, rejected GDS red, scrutiny GDS yellow. A failed/injected message is GDS
-    // red with the --failed modifier (handled separately). An undecided in-flight message is blue.
+    // Every envelope ENTERS blue and stays blue through Submit → Rules-queue → Rules-engine; it only
+    // takes its outcome colour once it lands in a status box — approved GDS green, rejected GDS red,
+    // scrutiny GDS yellow — or GDS orange for the dead-letter queue. The canonical green/red/yellow
+    // match the charts. In-flight (and any undecided) envelope is blue.
+    var IN_FLIGHT_COLOUR = '#1d70b8';   // GDS blue
+    var DEADLETTER_COLOUR = '#f47738';  // GDS orange
     var DECISION_COLOURS = {
-        'AutoApproved': '#1d70b8',
-        'AutoRejected': '#d4351c',
-        'Scrutiny': '#ffdd00',
+        'AutoApproved': '#00703c',      // GDS green
+        'AutoRejected': '#d4351c',      // GDS red
+        'Scrutiny': '#ffdd00',          // GDS yellow
     };
 
     // Map a queue depth to the three-state node class. Kept deliberately simple: any waiting work
@@ -393,31 +396,38 @@
                 .catch(function () { /* inspect is best-effort; a failed fetch leaves the board intact */ });
         }
 
+        // Repaint an envelope to its outcome colour AND modifier class (never colour alone), called
+        // only once it lands in a status box: green approved, red rejected, yellow scrutiny, orange
+        // dead-letter. Until then the envelope stays its created blue.
+        function paintToken(token, decisionKey, failed) {
+            var fill = failed ? DEADLETTER_COLOUR : (DECISION_COLOURS[decisionKey] || IN_FLIGHT_COLOUR);
+            var flap = (decisionKey === 'Scrutiny') ? '#0b0c0c' : '#ffffff';
+            var rect = token.querySelector('rect');
+            var flapPath = token.querySelector('path');
+            if (rect) { rect.setAttribute('fill', fill); }
+            if (flapPath) { flapPath.setAttribute('stroke', flap); }
+            token.classList.remove(
+                'obs-board__token--autoapproved', 'obs-board__token--autorejected',
+                'obs-board__token--scrutiny', 'obs-board__token--failed');
+            if (failed) { token.classList.add('obs-board__token--failed'); }
+            else if (decisionKey) { token.classList.add('obs-board__token--' + decisionKey.toLowerCase()); }
+        }
+
         // The envelope element: an inline SVG envelope, keyboard-focusable and labelled, positioned
-        // absolutely so it can be driven across the board by transform. A good message is GDS blue
-        // (#1d70b8); a failed/injected one is GDS red (#d4351c) and carries the --failed modifier so
-        // it is visually distinct as it diverts to the dead-letter marker — colour AND the modifier
-        // class, not colour alone.
+        // absolutely so it can be driven across the board by transform. EVERY envelope is created GDS
+        // blue and stays blue through Submit → Rules-queue → Rules-engine; paintToken gives it its
+        // outcome colour only when it lands in a status box (or the dead-letter queue), since the
+        // outcome is not known in-world until the rules engine has run.
         function makeToken(transition, failed) {
             var token = document.createElement('span');
-            // The decision (if known) colours the envelope: blue approved, red rejected, yellow
-            // scrutiny. A failure is always red and carries the --failed modifier so it stays
-            // distinct by class too — colour AND modifier, never colour alone.
-            var decisionKey = failed ? null : decisionKeyFor(transition || {});
-            var modifier = failed ? ' obs-board__token--failed'
-                : (decisionKey ? ' obs-board__token--' + decisionKey.toLowerCase() : '');
-            token.className = 'obs-board__token' + modifier;
+            token.className = 'obs-board__token';
             token.setAttribute('tabindex', '0');
             token.setAttribute('role', 'button');
             token.setAttribute('aria-label', accessibleName(transition) + ' — inspect this message');
-            var fill = failed ? '#d4351c' : (DECISION_COLOURS[decisionKey] || '#1d70b8');
-            // The white envelope flap reads on blue/red but not on yellow; use a dark flap on the
-            // yellow scrutiny envelope so the shape stays legible (contrast, never colour alone).
-            var flap = (decisionKey === 'Scrutiny') ? '#0b0c0c' : '#ffffff';
             token.innerHTML =
                 '<svg viewBox="0 0 24 18" width="20" height="15" aria-hidden="true" focusable="false">' +
-                '<rect x="1" y="1" width="22" height="16" rx="2" fill="' + fill + '" stroke="#0b0c0c" stroke-width="1.5"/>' +
-                '<path d="M2 3 L12 11 L22 3" fill="none" stroke="' + flap + '" stroke-width="1.5"/>' +
+                '<rect x="1" y="1" width="22" height="16" rx="2" fill="' + IN_FLIGHT_COLOUR + '" stroke="#0b0c0c" stroke-width="1.5"/>' +
+                '<path d="M2 3 L12 11 L22 3" fill="none" stroke="#ffffff" stroke-width="1.5"/>' +
                 '</svg>';
             var reference = transition.referenceNumber || transition.ReferenceNumber || '';
             token.addEventListener('click', function () { inspect(reference); });
@@ -520,6 +530,8 @@
                 else { restAnchor = anchorFor(destKey); restId = 'stage:' + destKey; }
                 var releaseR = restAt(token, restId, restAnchor);
                 moveToken(token, failed ? 'dlq' : (decisionKey ? 'decision:' + decisionKey : destKey));
+                // No traversal under reduced motion: it lands at its resting box, so colour it now.
+                if (failed || decisionKey) { paintToken(token, decisionKey, failed); }
                 if (failed && dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
                 if (decisionKey) { setDecisionActive(decisionKey, true); }
                 window.setTimeout(function () {
@@ -559,10 +571,12 @@
                         moveToken(token, path[hop]);
                         pausableTimeout(next, dwellFor(path[hop], moveSpeed));
                     } else if (failed) {
-                        // Terminal at the dead-letter box; reveal it and rest there.
+                        // Terminal at the dead-letter box; reveal it and rest there. The envelope
+                        // travelled blue to here and now takes the dead-letter orange.
                         if (dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
                         var releaseDlq = restAt(token, 'dlq', dlqAnchor());
                         moveToken(token, 'dlq');
+                        paintToken(token, null, true);
                         pausableTimeout(function () {
                             releaseDlq();
                             clearToken(token);
@@ -577,6 +591,8 @@
                         var decId = 'decision:' + decisionKey;
                         var releaseDec = restAt(token, decId, decisionAnchor(decisionKey));
                         moveToken(token, decId);
+                        // Reached its status box: the outcome is now known in-world, so colour it.
+                        paintToken(token, decisionKey, false);
                         setDecisionActive(decisionKey, true);
                         pausableTimeout(function () {
                             releaseDec();
@@ -1036,11 +1052,24 @@
         // envelope dwells at each box; it is the product of the slow-motion and single-step factors
         // so the two checkboxes compose. demoTimer is the auto-trickle interval handle.
         var moveSpeed = 1;
-        var slowFactor = 1;
-        var stepFactor = 1;
+        var demoCount = 1;   // messages per trickle burst (the "Messages" slider)
+        var demoSpeed = 50;  // 0..100, the "Speed" slider: 0 = slow single-step crawl, 100 = racing
         var demoTimer = null;
 
-        function applySpeed() { moveSpeed = slowFactor * stepFactor; }
+        // The Speed slider replaces the old slow-motion + single-step checkboxes with one control:
+        // 50 (the default) is normal speed so the live board is unaffected; dragging left slows the
+        // dwell clock right down (≈8x, the old single-step crawl), dragging right races it (≈0.4x).
+        function applyDemoSpeed(v) {
+            demoSpeed = Math.max(0, Math.min(100, v | 0));
+            moveSpeed = demoSpeed >= 50
+                ? 1 + ((0.4 - 1) * ((demoSpeed - 50) / 50))   // 50→1 … 100→0.4 (faster)
+                : 1 + ((8 - 1) * ((50 - demoSpeed) / 50));     // 50→1 … 0→8 (slower)
+        }
+
+        // The gap between trickle bursts tracks the same slider, clamped so it never stalls or floods.
+        function demoIntervalMs() {
+            return Math.min(3000, Math.max(250, 1200 * moveSpeed));
+        }
 
         // Pause freezes ALL envelope motion (and the replay/trickle): each in-flight hop is scheduled
         // through a pausable timer, so flipping paused holds every envelope where it sits until
@@ -1088,19 +1117,16 @@
         function isPaused() { return paused; }
         function onPauseChange(cb) { pauseSubscribers.push(cb); }
 
-        // Slow motion is a sticky mode (a checkbox): on, every envelope dwells ~4x longer.
-        function setSlowMo(on) {
-            slowFactor = on ? 4 : 1;
-            applySpeed();
+        // The Speed slider (0..100). Sets the dwell clock; if the trickle is running, re-arm it at the
+        // new pace so a speed change takes effect immediately.
+        function setDemoSpeed(v) {
+            applyDemoSpeed(v);
+            if (demoTimer) { startDemo(); }
         }
 
-        // Single step is a sticky mode (a checkbox), like slow motion — it must stay ticked, which is
-        // why the old "untick myself" behaviour read as "can't be ticked". While on it holds the
-        // clock right down (~8x) so a watcher can follow one message a step at a time through the
-        // stages; it composes with slow motion via the speed product.
-        function setStepMode(on) {
-            stepFactor = on ? 8 : 1;
-            applySpeed();
+        // The Messages slider: how many synthetic envelopes each trickle burst sends.
+        function setDemoCount(n) {
+            demoCount = Math.max(1, n | 0);
         }
 
         // A random demo outcome so trickle/single-step exercise the whole pipeline — approved,
@@ -1135,21 +1161,33 @@
             });
         }
 
-        // Demo-mode auto-trickle: inject one synthetic envelope on an interval, spread across all the
-        // outcome types, so the board stays alive during a demo even with no real traffic. Returns
-        // whether it is now running.
+        // One trickle burst: send demoCount synthetic envelopes, spread across all the outcome types
+        // so the board (and the live decision mix) shows a realistic mix, not only the happy path.
+        function spawnDemoBurst() {
+            for (var i = 0; i < demoCount; i++) {
+                var ev = randomOutcome('DEMO');
+                if (!ev.failed) { bumpProcessed(); }
+                bumpDecision(ev.decisionStatus, ev.failed);
+                onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
+            }
+        }
+
+        // Demo-mode auto-trickle: emit a burst of demoCount envelopes on an interval set by the Speed
+        // slider, so the board stays alive during a demo even with no real traffic. Re-arming uses the
+        // current interval, so a speed change takes effect immediately.
+        function startDemo() {
+            if (demoTimer) { window.clearInterval(demoTimer); }
+            spawnDemoBurst();
+            demoTimer = window.setInterval(spawnDemoBurst, demoIntervalMs());
+        }
+
         function toggleDemoMode() {
             if (demoTimer) {
                 window.clearInterval(demoTimer);
                 demoTimer = null;
                 return false;
             }
-            demoTimer = window.setInterval(function () {
-                var ev = randomOutcome('DEMO');
-                if (!ev.failed) { bumpProcessed(); }
-                bumpDecision(ev.decisionStatus, ev.failed);
-                onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
-            }, Math.max(900, 1500 * moveSpeed));
+            startDemo();
             return true;
         }
 
@@ -1172,8 +1210,8 @@
             onError: onError,
             selectedReferences: selectedReferences,
             setGridFilter: setGridFilter,
-            setSlowMo: setSlowMo,
-            setStepMode: setStepMode,
+            setDemoSpeed: setDemoSpeed,
+            setDemoCount: setDemoCount,
             singleStep: singleStep,
             injectFailure: injectFailure,
             toggleDemoMode: toggleDemoMode,
@@ -1335,25 +1373,40 @@
                 announce(idx, feed.count());
             });
 
+            // The replay Speed slider (0..100, default 50): how fast auto-play steps through events.
+            // Slow end ≈ 2s/step, default ≈ 800ms, fast end ≈ 150ms. A change mid-play re-arms.
+            var speedSlider = controls.querySelector('[data-obs-replay-speed]');
+            function replayIntervalMs() {
+                var v = speedSlider ? (parseInt(speedSlider.value, 10) || 50) : 50;
+                return Math.round(2000 + ((150 - 2000) * (v / 100)));
+            }
+            function armPlay() {
+                if (playTimer) { window.clearInterval(playTimer); }
+                playTimer = window.setInterval(function () {
+                    var idx = parseInt(scrubber.value, 10) || 0;
+                    if (idx >= feed.count() - 1) {
+                        playing = false;
+                        playBtn.setAttribute('aria-pressed', 'false');
+                        playBtn.textContent = 'Play';
+                        window.clearInterval(playTimer);
+                        return;
+                    }
+                    scrubber.value = idx + 1;
+                    feed.seek(idx + 1);
+                    announce(idx + 1, feed.count());
+                }, replayIntervalMs());
+            }
+            if (speedSlider) {
+                speedSlider.addEventListener('input', function () { if (playing) { armPlay(); } });
+            }
+
             if (playBtn) {
                 playBtn.addEventListener('click', function () {
                     playing = !playing;
                     playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
                     playBtn.textContent = playing ? 'Pause' : 'Play';
                     if (playing) {
-                        playTimer = window.setInterval(function () {
-                            var idx = parseInt(scrubber.value, 10) || 0;
-                            if (idx >= feed.count() - 1) {
-                                playing = false;
-                                playBtn.setAttribute('aria-pressed', 'false');
-                                playBtn.textContent = 'Play';
-                                window.clearInterval(playTimer);
-                                return;
-                            }
-                            scrubber.value = idx + 1;
-                            feed.seek(idx + 1);
-                            announce(idx + 1, feed.count());
-                        }, 800);
+                        armPlay();
                     } else if (playTimer) {
                         window.clearInterval(playTimer);
                     }
@@ -1364,25 +1417,23 @@
         }
 
         // --- Dev-only controls (only in the DOM when DemoToolsEnabled rendered them) ---
-        var slowMo = controls.querySelector('[data-obs-slowmo]');
-        if (slowMo) {
-            slowMo.addEventListener('change', function () {
-                engine.setSlowMo(slowMo.checked);
-            });
+        // Demo trickle is a checkbox: ticking it starts the auto-trickle, unticking it stops. Its pace
+        // and volume come from the two sliders below (replacing the old slow-motion + single-step
+        // checkboxes): Speed (slow single-step crawl ↔ racing) and Messages (per burst).
+        var demoCountSlider = controls.querySelector('[data-obs-demo-count]');
+        if (demoCountSlider) {
+            var applyCount = function () { engine.setDemoCount(parseInt(demoCountSlider.value, 10) || 1); };
+            applyCount();
+            demoCountSlider.addEventListener('input', applyCount);
         }
 
-        // Single step is a sticky mode checkbox like Slow motion: ticking it stays ticked and holds
-        // the board right down so a watcher can follow one message a step at a time; unticking it
-        // restores normal speed. (Previously it unticked itself instantly, which read as "can't be
-        // ticked".)
-        var step = controls.querySelector('[data-obs-step]');
-        if (step) {
-            step.addEventListener('change', function () {
-                engine.setStepMode(step.checked);
-            });
+        var demoSpeedSlider = controls.querySelector('[data-obs-demo-speed]');
+        if (demoSpeedSlider) {
+            var applyDemoSpeedControl = function () { engine.setDemoSpeed(parseInt(demoSpeedSlider.value, 10) || 50); };
+            applyDemoSpeedControl();
+            demoSpeedSlider.addEventListener('input', applyDemoSpeedControl);
         }
 
-        // Demo trickle is a checkbox: ticking it starts the auto-trickle, unticking it stops.
         var demo = controls.querySelector('[data-obs-demo]');
         if (demo) {
             demo.addEventListener('change', function () {

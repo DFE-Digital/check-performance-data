@@ -224,21 +224,41 @@ public sealed class ObservabilityBoardSourceTests
     {
         var js = BoardJs();
 
-        // The envelope fill reflects the outcome: rejected red, scrutiny yellow (approved blue).
+        // The envelope fill reflects the outcome: approved green, rejected red, scrutiny yellow.
         Assert.Contains("DECISION_COLOURS", js);
+        Assert.Contains("#00703c", js); // Approved green (canonical)
         Assert.Contains("#ffdd00", js); // Scrutiny yellow
-        Assert.Contains("#d4351c", js); // Rejected / failed red
+        Assert.Contains("#d4351c", js); // Rejected red
     }
 
     [Fact]
-    public void BoardJs_SingleStepIsAStickyMode_NotASelfUntickingButton()
+    public void BoardJs_EnvelopesEnterBlueAndOnlyTakeColourAtAStatusBox()
     {
         var js = BoardJs();
 
-        // Single step is a sticky mode like slow motion (it must stay ticked); both compose via a
-        // speed product.
-        Assert.Contains("setStepMode", js);
-        Assert.Contains("stepFactor", js);
+        // Every envelope is created GDS blue and only repainted once it lands in a status box (or the
+        // dead-letter queue, which is orange) — the outcome isn't known in-world until the engine runs.
+        Assert.Contains("IN_FLIGHT_COLOUR", js);
+        Assert.Contains("#1d70b8", js);          // in-flight blue
+        Assert.Contains("DEADLETTER_COLOUR", js);
+        Assert.Contains("#f47738", js);          // dead-letter orange
+        Assert.Contains("paintToken", js);
+        // makeToken creates the rect with the in-flight colour, not a pre-computed decision fill.
+        Assert.Contains("fill=\"' + IN_FLIGHT_COLOUR +", js);
+    }
+
+    [Fact]
+    public void BoardJs_DemoTrickleIsDrivenBySpeedAndCountSliders()
+    {
+        var js = BoardJs();
+
+        // The slow-motion + single-step checkboxes were replaced by two demo-trickle sliders: Speed
+        // (slow single-step crawl ↔ racing, via the dwell clock) and Messages (per burst).
+        Assert.Contains("setDemoSpeed", js);
+        Assert.Contains("setDemoCount", js);
+        Assert.Contains("demoIntervalMs", js);
+        Assert.DoesNotContain("setStepMode", js);
+        Assert.DoesNotContain("setSlowMo", js);
     }
 
     [Fact]

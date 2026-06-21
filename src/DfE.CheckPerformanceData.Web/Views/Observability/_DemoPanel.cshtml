@@ -179,30 +179,42 @@
                                min="0" max="0" value="0" step="1"
                                data-obs-scrubber aria-valuetext="No recorded events in this window"
                                title="Drag to scrub through recorded events; each step animates an envelope through the stages." />
+                        @* Replay speed: how fast auto-play steps through the recorded events. *@
+                        <label class="govuk-label govuk-!-margin-bottom-0" for="obs-replay-speed">Speed</label>
+                        <input type="range" id="obs-replay-speed" class="obs-board__speed"
+                               min="0" max="100" value="50" step="1" data-obs-replay-speed
+                               title="Slide left to slow the replay down, right to speed it up." />
                     </div>
                     <p class="govuk-body-s govuk-!-margin-bottom-0" data-obs-replay-status aria-live="polite">
                         No recorded events in this window
                     </p>
                 </div>
 
-                @* Board demo controls sit beside the replay box on the same row. *@
+                @* Board demo controls sit beside the replay box on the same row. The old slow-motion
+                   and single-step checkboxes are gone: Demo trickle now has two sliders — Messages
+                   (how many per burst) and Speed. Speed's far left is a slow single step, its far
+                   right races envelopes through the system. *@
                 <div class="obs-board__dev-controls" role="group" aria-label="Demo controls (development and test only)">
-                    <h3 class="govuk-heading-s">Board demo controls</h3>
-                    <div class="govuk-checkboxes govuk-checkboxes--small obs-board__dev-controls-list">
-                        <div class="govuk-checkboxes__item">
-                            <input class="govuk-checkboxes__input" id="obs-slowmo" type="checkbox" data-obs-slowmo
-                                   title="Slow every envelope's motion right down so an audience can follow it." />
-                            <label class="govuk-label govuk-checkboxes__label" for="obs-slowmo">Slow motion</label>
+                    <h3 class="govuk-heading-s">Demo trickle</h3>
+                    <div class="obs-board__dev-controls-list">
+                        <div class="govuk-checkboxes govuk-checkboxes--small govuk-!-margin-bottom-2">
+                            <div class="govuk-checkboxes__item">
+                                <input class="govuk-checkboxes__input" id="obs-demo" type="checkbox" data-obs-demo
+                                       title="Trickle a steady flow of synthetic envelopes so the board stays alive during a demo." />
+                                <label class="govuk-label govuk-checkboxes__label" for="obs-demo">Run demo trickle</label>
+                            </div>
                         </div>
-                        <div class="govuk-checkboxes__item">
-                            <input class="govuk-checkboxes__input" id="obs-step" type="checkbox" data-obs-step
-                                   title="Tick to send one envelope from Submit through to the Zendesk ticket, one step at a time." />
-                            <label class="govuk-label govuk-checkboxes__label" for="obs-step">Single step</label>
+                        <div class="govuk-form-group govuk-!-margin-bottom-1">
+                            <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="obs-demo-count">Messages</label>
+                            <input type="range" id="obs-demo-count" class="obs-board__speed"
+                                   min="1" max="10" value="1" step="1" data-obs-demo-count
+                                   title="How many synthetic envelopes each trickle burst sends." />
                         </div>
-                        <div class="govuk-checkboxes__item">
-                            <input class="govuk-checkboxes__input" id="obs-demo" type="checkbox" data-obs-demo
-                                   title="Trickle a steady flow of synthetic envelopes so the board stays alive during a demo." />
-                            <label class="govuk-label govuk-checkboxes__label" for="obs-demo">Demo trickle</label>
+                        <div class="govuk-form-group govuk-!-margin-bottom-0">
+                            <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="obs-demo-speed">Speed</label>
+                            <input type="range" id="obs-demo-speed" class="obs-board__speed"
+                                   min="0" max="100" value="50" step="1" data-obs-demo-speed
+                                   title="Far left: a slow single step you can follow. Far right: envelopes race through the system." />
                         </div>
                     </div>
                 </div>

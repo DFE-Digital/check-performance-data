@@ -298,13 +298,17 @@ public sealed class ObservabilityViewRenderTests
 	{
 		var panel = ReadView("_DemoPanel.cshtml");
 
-		// The replay scrubber and the demo checkboxes moved out of the standalone board boxes into
-		// the one Demo panel: the panel now carries those control hooks directly.
+		// The replay scrubber and the demo controls live in the one Demo panel. Demo trickle is now
+		// driven by two sliders (Messages + Speed) instead of the old slow-motion/single-step
+		// checkboxes; the replay box has its own speed slider.
 		Assert.Contains("Replay recent traffic", panel);
 		Assert.Contains("data-obs-scrubber", panel);
-		Assert.Contains("data-obs-slowmo", panel);
-		Assert.Contains("data-obs-step", panel);
+		Assert.Contains("data-obs-replay-speed", panel);
 		Assert.Contains("data-obs-demo", panel);
+		Assert.Contains("data-obs-demo-count", panel);
+		Assert.Contains("data-obs-demo-speed", panel);
+		Assert.DoesNotContain("data-obs-slowmo", panel);
+		Assert.DoesNotContain("data-obs-step", panel);
 	}
 
 	[Fact]

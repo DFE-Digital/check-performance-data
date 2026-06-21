@@ -89,20 +89,49 @@ public sealed class DevUatController : Controller
         var batch = Math.Clamp(count <= 0 ? 1 : count, 1, 20);
 
         string? lastReference = null;
+        string? lastOutcome = null;
         for (var i = 0; i < batch; i++)
         {
-            var result = await _runner.SubmitAsync(outcome, cancellationToken);
-            lastReference = result.Reference;
+            // "random" rolls one of the four outcomes per message (so a batch is a realistic mix);
+            // a failure rolls down the dead-letter path, the rest through the rules engine.
+            var chosen = ResolveDriveOutcome(outcome);
+            if (chosen == FailureOutcome)
+            {
+                var reference = $"demo-fail-{Guid.NewGuid():N}"[..20];
+                await SeedFailedMessageAsync(
+                    reference, "Synthetic failing message driven for the demo.", cancellationToken);
+                lastReference = reference;
+            }
+            else
+            {
+                var result = await _runner.SubmitAsync(chosen, cancellationToken);
+                lastReference = result.Reference;
+            }
+
+            lastOutcome = chosen;
         }
 
         if (lastReference is not null)
             _lastReference = lastReference;
 
         if (IsAjax)
-            return Json(new { ok = true, reference = lastReference });
+            return Json(new { ok = true, reference = lastReference, outcome = lastOutcome });
 
         return Redirect(DashboardUrl);
     }
+
+    // The board's failure token value (matches observability-board.js presentDrive()).
+    private const string FailureOutcome = "failed";
+
+    // The four outcomes the "Random" drive can produce.
+    public static readonly string[] RandomOutcomes = { "approved", "rejected", "scrutiny", FailureOutcome };
+
+    // Resolves the drive outcome: a literal preset name passes through; "random" rolls one of the
+    // four. Pure and public so the roll's value-set is unit-tested without the HTTP action.
+    public static string ResolveDriveOutcome(string? outcome, Random? random = null) =>
+        string.Equals(outcome, "random", StringComparison.OrdinalIgnoreCase)
+            ? RandomOutcomes[(random ?? Random.Shared).Next(RandomOutcomes.Length)]
+            : (outcome ?? "approved");
 
     // The failure-and-recovery demo. Composes the existing seed/dead-letter path (one synthetic
     // failing message) rather than adding any new failure machinery, then redirects back so the

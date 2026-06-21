@@ -114,6 +114,56 @@ ORDER BY stage;";
         return results;
     }
 
+    public async Task<StageAverages> GetStageAveragesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        GuardRange(fromUtc, toUtc);
+
+        // Collapse each reference to its per-step figures, then average across the messages that
+        // have each step. The two queue waits are timestamp differences (Submitted→RulesEvaluated and
+        // RulesEvaluated→TicketCreated), in milliseconds; the engine and ticket figures are the
+        // recorded latencies on those stages. AVG ignores NULLs, so a message missing a step simply
+        // does not contribute to that average.
+        var sql = $@"
+WITH per_ref AS (
+    SELECT reference_number,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
+           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
+           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_latency
+    FROM queue_metrics_events
+    WHERE recorded_at_utc >= @from AND recorded_at_utc < @to
+    GROUP BY reference_number
+)
+SELECT
+    AVG(EXTRACT(EPOCH FROM (rules_at - submitted_at)) * 1000)
+        FILTER (WHERE rules_at IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
+    AVG(rules_latency) FILTER (WHERE rules_latency IS NOT NULL) AS rules_engine_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_at - rules_at)) * 1000)
+        FILTER (WHERE ticket_at IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
+    AVG(ticket_latency) FILTER (WHERE ticket_latency IS NOT NULL) AS ticket_ms
+FROM per_ref;";
+
+        double? rulesQueue = null, rulesEngine = null, zendeskQueue = null, ticket = null;
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            double? Read(int ord) => reader.IsDBNull(ord) ? null : Convert.ToDouble(reader.GetValue(ord));
+            rulesQueue = Read(0);
+            rulesEngine = Read(1);
+            zendeskQueue = Read(2);
+            ticket = Read(3);
+        });
+
+        return new StageAverages(rulesQueue, rulesEngine, zendeskQueue, ticket);
+    }
+
     public async Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,
         DateTime toUtc,

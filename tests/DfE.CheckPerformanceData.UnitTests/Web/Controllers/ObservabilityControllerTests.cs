@@ -42,6 +42,8 @@ public sealed class ObservabilityControllerTests
             .Returns(Array.Empty<DecisionMixEntry>());
         query.GetDwellByStageAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<StageDwell>());
+        query.GetStageAveragesAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new StageAverages(null, null, null, null));
         query.GetDeployMarkersAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
             .Returns(Array.Empty<DeployMarker>());
         query.GetDecisionMixOverTimeAsync(Arg.Any<ThroughputGranularity>(),

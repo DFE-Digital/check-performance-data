@@ -477,6 +477,53 @@
 
 /* The decoupled Demo-tools toggle: a subtle, right-aligned link below the Recent submissions table,
    styled as a link (it is a <button> for correct semantics) so it does not lead the dashboard. */
+/* The real-time per-step averages strip between the board boxes and the Recent submissions table:
+   the four figures listed horizontally, the window dropdown, and the Load test launcher on the
+   right. Wraps on narrow viewports. */
+.obs-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px 24px;
+    margin: 12px 0 20px;
+    padding: 12px 16px;
+    background: #f3f2f1;
+    border-left: 4px solid #1d70b8;
+}
+
+.obs-stats__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    flex: 1 1 auto;
+}
+
+.obs-stats__item {
+    display: flex;
+    flex-direction: column;
+    min-width: 110px;
+}
+
+.obs-stats__label {
+    font-size: 0.8rem;
+    color: #505a5f;
+}
+
+.obs-stats__value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.obs-stats__window {
+    display: flex;
+    flex-direction: column;
+}
+
+.obs-stats__load {
+    flex: 0 0 auto;
+}
+
 .obs-board__parallel-footer {
     display: flex;
     justify-content: space-between;

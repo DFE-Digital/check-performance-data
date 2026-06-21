@@ -23,6 +23,15 @@ public interface IMetricsQueryService
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    // The average per-step durations across [from, to): the rules-engine queue wait, the rules-engine
+    // evaluation latency, the Zendesk queue wait and the ticket-creation latency. Computed per message
+    // (from its stage timestamps and the recorded latencies) then averaged, database-side. Each
+    // component is null when no message completed that step in the window.
+    Task<StageAverages> GetStageAveragesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     // Count of events per decision status across [from, to].
     Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,

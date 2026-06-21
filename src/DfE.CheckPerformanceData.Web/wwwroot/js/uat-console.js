@@ -62,9 +62,12 @@
   // Give the board immediate, correctly-routed feedback for the just-driven message: one envelope,
   // animated through its status, deduped against the SSE rows that follow. Falls back silently when
   // the board hook is absent (no-JS / board not present).
-  function presentOnBoard(form, reference) {
+  // outcomeOverride wins when the server resolved the outcome itself (the Random drive rolls one of
+  // four server-side and returns it), so the optimistic envelope routes to the actual destination
+  // rather than the literal "random" parsed from the action.
+  function presentOnBoard(form, reference, outcomeOverride) {
     if (window.ObservabilityBoard && typeof window.ObservabilityBoard.present === 'function') {
-      window.ObservabilityBoard.present(reference, outcomeForForm(form));
+      window.ObservabilityBoard.present(reference, outcomeOverride || outcomeForForm(form));
     }
   }
 
@@ -97,7 +100,7 @@
           // board from its own [data-obs-inject] click handler, and seed-dlq surfaces via the SSE
           // feed — presenting those here too would double the envelope.
           if (/\/dev\/uat\/drive/.test(form.getAttribute('action') || '')) {
-            presentOnBoard(form, data.reference);
+            presentOnBoard(form, data.reference, data.outcome);
           }
         } else {
           form.submit(); // unexpected response — fall back to the full-page post

@@ -1,0 +1,54 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@using DfE.CheckPerformanceData.Web.Models.Observability
+@using DfE.CheckPerformanceData.Application.Observability
+@*
+    The real-time per-step averages strip: how long the typical message spends waiting in the
+    rules-engine queue, being evaluated, waiting in the Zendesk queue, and creating its ticket, over
+    a chosen recent window. The window dropdown uses the same granularity vocabulary as the charts.
+    observability-stats.js refreshes the figures on an interval and on a window change from the
+    stage-averages JSON endpoint. The Load test launcher (dev-gated) sits to the right.
+*@
+@{
+    string Fmt(double? ms) => ms is not { } v ? "—" : v >= 1000 ? $"{(v / 1000):0.0}s" : $"{v:0}ms";
+    var a = Model.StageAverages ?? new StageAverages(null, null, null, null);
+}
+<div class="obs-stats" data-obs-stats data-obs-stats-url="/admin/observability/stage-averages.json">
+    <div class="obs-stats__items">
+        <div class="obs-stats__item">
+            <span class="obs-stats__label">Rules queue wait</span>
+            <span class="obs-stats__value" data-obs-stat="rulesQueueMs">@Fmt(a.RulesQueueMs)</span>
+        </div>
+        <div class="obs-stats__item">
+            <span class="obs-stats__label">Rules engine</span>
+            <span class="obs-stats__value" data-obs-stat="rulesEngineMs">@Fmt(a.RulesEngineMs)</span>
+        </div>
+        <div class="obs-stats__item">
+            <span class="obs-stats__label">Zendesk queue wait</span>
+            <span class="obs-stats__value" data-obs-stat="zendeskQueueMs">@Fmt(a.ZendeskQueueMs)</span>
+        </div>
+        <div class="obs-stats__item">
+            <span class="obs-stats__label">Zendesk ticket</span>
+            <span class="obs-stats__value" data-obs-stat="ticketMs">@Fmt(a.TicketMs)</span>
+        </div>
+    </div>
+
+    <div class="obs-stats__window">
+        <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="obs-stats-window">Average over</label>
+        <select class="govuk-select" id="obs-stats-window" data-obs-stats-window>
+            @foreach (var g in Model.StatsWindowOptions)
+            {
+                <option value="@g" selected="@(g == Model.StatsWindow)">@DashboardRanges.DescribeLookback(g)</option>
+            }
+        </select>
+    </div>
+
+    @* The self load-test launcher (R9-3); dev-gated like the rest of the demo tooling. *@
+    @if (Model.DemoToolsEnabled)
+    {
+        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0 obs-stats__load"
+                data-obs-loadtest
+                title="Run a rough self load-test: drive increasing message rates and find the throughput where processing starts to slow.">
+            Load test
+        </button>
+    }
+</div>

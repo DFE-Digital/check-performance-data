@@ -140,6 +140,12 @@ public sealed class ObservabilityController : Controller
         var dwell = await _query.GetDwellByStageAsync(windowFrom, windowTo, cancellationToken);
         var markers = await _query.GetDeployMarkersAsync(windowFrom, windowTo, cancellationToken);
 
+        // The real-time per-step averages strip describes the last <stats window> of traffic,
+        // independent of the chart window; the strip refreshes itself from the JSON endpoint after.
+        var statsWindow = DashboardRanges.DefaultStatsWindow;
+        var stageAverages = await _query.GetStageAveragesAsync(
+            now - DashboardRanges.LookbackFor(statsWindow), now, cancellationToken);
+
         // The recent-submissions matrix is server-rendered from the grouped (one-row-per-reference)
         // transactions over the last 24 hours, so the table is populated on load and the board engine
         // seeds its live grid from real history rather than starting empty.
@@ -203,6 +209,9 @@ public sealed class ObservabilityController : Controller
             IsCustomRange = rangeOption.Value == DashboardRanges.CustomValue,
             SelectedFromUtc = windowFrom,
             SelectedToUtc = windowTo,
+            StageAverages = stageAverages,
+            StatsWindow = statsWindow,
+            StatsWindowOptions = DashboardRanges.StatsWindowGranularities,
             RefreshedAtUtc = now,
             DemoToolsEnabled = DemoToolsEnabled,
         };
@@ -331,6 +340,28 @@ public sealed class ObservabilityController : Controller
 
         var fileName = $"pipeline-dashboard-{now:yyyyMMdd-HHmmss}.xlsx";
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
+    // The real-time per-step averages for the stats strip, over the last <window> of traffic. The
+    // window is a granularity from the same allow-list the charts use, resolved server-side; an
+    // unknown value snaps to the default (last hour). Role-gated cypmd_admin.
+    [Authorize(Roles = WikiConstants.AdminRole)]
+    [HttpGet("admin/observability/stage-averages.json")]
+    public async Task<IActionResult> StageAveragesJson(string? window, CancellationToken cancellationToken = default)
+    {
+        var granularity = DashboardRanges.ResolveStatsWindow(window);
+        var now = DateTime.UtcNow;
+        var averages = await _query.GetStageAveragesAsync(
+            now - DashboardRanges.LookbackFor(granularity), now, cancellationToken);
+
+        return Json(new
+        {
+            rulesQueueMs = averages.RulesQueueMs,
+            rulesEngineMs = averages.RulesEngineMs,
+            zendeskQueueMs = averages.ZendeskQueueMs,
+            ticketMs = averages.TicketMs,
+            window = granularity.ToString(),
+        });
     }
 
     // The full transactions list: a paged, newest-first table of every recorded queue metric event

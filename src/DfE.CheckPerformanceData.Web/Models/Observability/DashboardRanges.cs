@@ -175,6 +175,58 @@ public static class DashboardRanges
         return defaultGranularity;
     }
 
+    // The granularities offered in the stage-averages strip's window dropdown — the same vocabulary
+    // the charts use, here naming a "last N" lookback rather than a bucket size, for continuity.
+    public static readonly IReadOnlyList<ThroughputGranularity> StatsWindowGranularities = new[]
+    {
+        Minute, TenMinute, Hour, Day, Week,
+    };
+
+    public const ThroughputGranularity DefaultStatsWindow = Hour;
+
+    // Resolves the stage-averages window from a granularity string against the offered set; an
+    // unknown value snaps to the default (last hour).
+    public static ThroughputGranularity ResolveStatsWindow(string? granularity) =>
+        granularity is not null
+        && Enum.TryParse<ThroughputGranularity>(granularity, ignoreCase: true, out var g)
+        && Enum.IsDefined(g)
+        && StatsWindowGranularities.Contains(g)
+            ? g
+            : DefaultStatsWindow;
+
+    // The lookback span a granularity names when used as a "last N" window (the stage-averages strip
+    // averages over the last <granularity> of traffic). Calendar-ish spans for the coarse ones.
+    public static TimeSpan LookbackFor(ThroughputGranularity granularity) => granularity switch
+    {
+        Second => TimeSpan.FromSeconds(1),
+        Minute => TimeSpan.FromMinutes(1),
+        FiveMinute => TimeSpan.FromMinutes(5),
+        TenMinute => TimeSpan.FromMinutes(10),
+        Hour => TimeSpan.FromHours(1),
+        Day => TimeSpan.FromDays(1),
+        Week => TimeSpan.FromDays(7),
+        Month => TimeSpan.FromDays(30),
+        Quarter => TimeSpan.FromDays(90),
+        Year => TimeSpan.FromDays(365),
+        _ => TimeSpan.FromHours(1),
+    };
+
+    // The "last N" phrasing for a granularity used as a lookback window (the stats strip dropdown).
+    public static string DescribeLookback(ThroughputGranularity granularity) => granularity switch
+    {
+        Second => "last second",
+        Minute => "last minute",
+        FiveMinute => "last 5 minutes",
+        TenMinute => "last 10 minutes",
+        Hour => "last hour",
+        Day => "last 24 hours",
+        Week => "last 7 days",
+        Month => "last 30 days",
+        Quarter => "last 90 days",
+        Year => "last year",
+        _ => "last hour",
+    };
+
     public static string Describe(ThroughputGranularity granularity) => granularity switch
     {
         Second => "per second",

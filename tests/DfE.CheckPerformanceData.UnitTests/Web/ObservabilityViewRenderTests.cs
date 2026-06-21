@@ -215,6 +215,24 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Index_DemoPanel_DriveButtonsAreTerse_AndOfferRandom()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// The buttons drop the "Drive"/"Inject" verbs — just the outcome.
+		Assert.Contains(">Approved</button>", panel);
+		Assert.Contains(">Rejected</button>", panel);
+		Assert.Contains(">Scrutiny</button>", panel);
+		Assert.Contains(">Failure</button>", panel);
+		Assert.DoesNotContain("Drive approved", panel);
+		Assert.DoesNotContain("Inject failure", panel);
+
+		// A Random drive that rolls one of the four outcomes server-side.
+		Assert.Contains("/dev/uat/drive?outcome=random", panel);
+		Assert.Contains(">Random</button>", panel);
+	}
+
+	[Fact]
 	public void Index_DemoPanel_SeedMessagesTakesATimeFrameAndPerDay()
 	{
 		var panel = ReadView("_DemoPanel.cshtml");
@@ -289,6 +307,35 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("Model.AutoRejectedToday", view);
 		Assert.Contains("Model.ScrutinyToday", view);
 		Assert.Contains("Model.DeadLetterCount", view);
+	}
+
+	[Fact]
+	public void Board_RendersTheStageAveragesStrip_BetweenBoxesAndRecentSubmissions()
+	{
+		var board = ReadView("_Board.cshtml");
+		var strip = ReadView("_StageAverages.cshtml");
+
+		// The board pulls in the stats strip before the Recent submissions block.
+		Assert.Contains("_StageAverages", board);
+		var stripIdx = board.IndexOf("_StageAverages", StringComparison.Ordinal);
+		var recentIdx = board.IndexOf("obs-board__parallel\"", StringComparison.Ordinal);
+		Assert.True(stripIdx >= 0 && recentIdx > stripIdx, "stats strip must precede Recent submissions");
+
+		// The strip lists the four per-step averages, a window dropdown using the chart vocabulary,
+		// and (dev-gated) the Load test launcher.
+		Assert.Contains("data-obs-stat=\"rulesQueueMs\"", strip);
+		Assert.Contains("data-obs-stat=\"rulesEngineMs\"", strip);
+		Assert.Contains("data-obs-stat=\"zendeskQueueMs\"", strip);
+		Assert.Contains("data-obs-stat=\"ticketMs\"", strip);
+		Assert.Contains("data-obs-stats-window", strip);
+		Assert.Contains("DashboardRanges.DescribeLookback", strip);
+		Assert.Contains("data-obs-loadtest", strip);
+		Assert.Contains("Model.DemoToolsEnabled", strip); // the Load button is gated
+
+		// The strip refreshes itself from the JSON endpoint.
+		Assert.Contains("/admin/observability/stage-averages.json", strip);
+		var index = ReadView("Index.cshtml");
+		Assert.Contains("observability-stats.js", index);
 	}
 
 	[Fact]

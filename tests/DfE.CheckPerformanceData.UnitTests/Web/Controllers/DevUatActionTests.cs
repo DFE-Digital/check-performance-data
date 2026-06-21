@@ -130,6 +130,48 @@ public sealed class DevUatActionTests
             Arg.Is<IEnumerable<QueueMetricEvent>>(e => e.Any()), Arg.Any<CancellationToken>());
     }
 
+    // --- The Random drive resolves to one of the four outcomes; a literal passes through ---
+
+    [Theory]
+    [InlineData("approved")]
+    [InlineData("rejected")]
+    [InlineData("scrutiny")]
+    [InlineData("failed")]
+    [InlineData(null)]
+    public void ResolveDriveOutcome_NonRandom_PassesThroughOrDefaults(string? outcome)
+    {
+        var resolved = DevUatController.ResolveDriveOutcome(outcome);
+        Assert.Equal(outcome ?? "approved", resolved);
+    }
+
+    [Fact]
+    public void ResolveDriveOutcome_Random_OnlyEverProducesTheFourOutcomes_AndAllAppear()
+    {
+        var rng = new Random(20260621);
+        var seen = new HashSet<string>();
+        for (var i = 0; i < 500; i++)
+        {
+            var o = DevUatController.ResolveDriveOutcome("random", rng);
+            Assert.Contains(o, DevUatController.RandomOutcomes);
+            seen.Add(o);
+        }
+
+        // Over 500 rolls every one of the four outcomes is produced.
+        Assert.Equal(new[] { "approved", "failed", "rejected", "scrutiny" }, seen.OrderBy(s => s).ToArray());
+    }
+
+    [Fact]
+    public async Task Drive_Random_ReturnsOkWithAResolvedOutcome()
+    {
+        var sut = CreateSut(ajax: true);
+
+        var result = await sut.Drive("random", count: 1, CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        var outcome = json.Value!.GetType().GetProperty("outcome")!.GetValue(json.Value) as string;
+        Assert.Contains(outcome, DevUatController.RandomOutcomes);
+    }
+
     [Fact]
     public async Task SeedMessages_CustomWindowAndPerDay_SeedsThatDensityAcrossTheWindow()
     {

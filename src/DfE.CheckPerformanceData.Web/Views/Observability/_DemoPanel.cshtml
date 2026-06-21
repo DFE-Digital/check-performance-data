@@ -43,26 +43,35 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request the rules engine will approve; watch it route through Auto-approved to a Zendesk ticket.">Drive approved</button>
+                            data-uat-tip title="Send a request the rules engine will approve; watch it route through Auto-approved to a Zendesk ticket.">Approved</button>
                 </form>
                 <form method="post" action="/dev/uat/drive?outcome=rejected" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request the rules engine will reject; it routes through Auto-rejected and still produces a ticket.">Drive rejected</button>
+                            data-uat-tip title="Send a request the rules engine will reject; it routes through Auto-rejected and still produces a ticket.">Rejected</button>
                 </form>
                 <form method="post" action="/dev/uat/drive?outcome=scrutiny" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="count" value="1" data-uat-batch-mirror />
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Send a request that falls to manual scrutiny; exercises the scrutiny path.">Drive scrutiny</button>
+                            data-uat-tip title="Send a request that falls to manual scrutiny; exercises the scrutiny path.">Scrutiny</button>
                 </form>
 
                 <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-obs-inject
-                            data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Inject failure</button>
+                            data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Failure</button>
+                </form>
+                @* Random: rolls one of the four outcomes (approved / rejected / scrutiny / failure) per
+                   message, so a batch is a realistic mix. Drives through the same path; the server
+                   returns the chosen outcome so the board shows the correctly-routed envelope. *@
+                <form method="post" action="/dev/uat/drive?outcome=random" class="uat-inline-form" data-uat-drive-form>
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="count" value="1" data-uat-batch-mirror />
+                    <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
+                            data-uat-tip title="Send a request whose outcome is a random one of approved, rejected, scrutiny or failure.">Random</button>
                 </form>
                 <form method="post" action="/dev/uat/seed-dlq" class="uat-inline-form">
                     @Html.AntiForgeryToken()

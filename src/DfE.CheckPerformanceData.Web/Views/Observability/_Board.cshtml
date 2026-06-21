@@ -144,6 +144,11 @@
        stage column headers, so screen-reader and reduced-motion users get the same picture. The
        queue column headers link (new tab) to that queue's admin page. The board engine fills the
        body live from the SSE snapshot; the full, paged history is on the transactions page. *@
+    @* Real-time per-step averages sit between the animation boxes and the Recent submissions table:
+       how long a message spends in each queue and stage, over a chosen recent window, with the Load
+       test launcher to their right. *@
+    @await Html.PartialAsync("_StageAverages", Model)
+
     <div class="obs-board__parallel">
         <h3 class="govuk-heading-s">Recent submissions</h3>
         <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-2">

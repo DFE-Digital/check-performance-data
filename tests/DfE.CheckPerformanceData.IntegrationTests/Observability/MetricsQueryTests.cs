@@ -803,6 +803,45 @@ public sealed class MetricsQueryTests
         Assert.Equal(new[] { "AAA", "BBB", "CCC" }, byReferenceAsc.Rows.Select(r => r.ReferenceNumber).ToArray());
     }
 
+    // --- Per-step averages: queue waits from timestamps, engine/ticket from recorded latencies ---
+
+    [Fact]
+    public async Task GetStageAverages_ComputesPerStepAveragesAcrossMessages()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 5, 1, 10, 0, 0, DateTimeKind.Utc);
+
+        // One fully-completed message: submitted, rules-evaluated 4s later (latency 1000ms),
+        // ticketed 6s after rules (latency 200ms).
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "AVG-1", anchor),
+            Metric(RulesEngineQueue, "RulesEvaluated", "AVG-1", anchor.AddSeconds(4), decision: "AutoApproved", latencyMs: 1000),
+            Metric(ZendeskQueue, "TicketCreated", "AVG-1", anchor.AddSeconds(10), latencyMs: 200));
+
+        var service = CreateService();
+        var avg = await service.GetStageAveragesAsync(anchor.AddMinutes(-1), anchor.AddMinutes(5));
+
+        Assert.NotNull(avg.RulesQueueMs);
+        Assert.Equal(4000, avg.RulesQueueMs!.Value, 0);   // Submitted → RulesEvaluated = 4s
+        Assert.Equal(1000, avg.RulesEngineMs!.Value, 0);  // RulesEvaluated latency
+        Assert.Equal(6000, avg.ZendeskQueueMs!.Value, 0); // RulesEvaluated → TicketCreated = 6s
+        Assert.Equal(200, avg.TicketMs!.Value, 0);        // TicketCreated latency
+    }
+
+    [Fact]
+    public async Task GetStageAverages_NoData_ReturnsNullComponents()
+    {
+        await ResetMetricsAsync();
+        var now = new DateTime(2026, 5, 2, 10, 0, 0, DateTimeKind.Utc);
+
+        var avg = await CreateService().GetStageAveragesAsync(now.AddHours(-1), now);
+
+        Assert.Null(avg.RulesQueueMs);
+        Assert.Null(avg.RulesEngineMs);
+        Assert.Null(avg.ZendeskQueueMs);
+        Assert.Null(avg.TicketMs);
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

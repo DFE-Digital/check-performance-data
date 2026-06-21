@@ -7,6 +7,17 @@ public sealed record ThroughputBucket(DateTime BucketStartUtc, int Count);
 // Average dwell (latency) recorded for messages at a given pipeline stage in a time window.
 public sealed record StageDwell(string Stage, double AverageLatencyMs);
 
+// The average time, in milliseconds, a message spends at each step of the pipeline across a time
+// window: waiting in the rules-engine queue (Submitted → RulesEvaluated), being evaluated by the
+// rules engine (the RulesEvaluated latency), waiting in the Zendesk queue (RulesEvaluated →
+// TicketCreated) and creating the Zendesk ticket (the TicketCreated latency). Each is null when no
+// message completed that step in the window. Computed per-message then averaged, database-side.
+public sealed record StageAverages(
+    double? RulesQueueMs,
+    double? RulesEngineMs,
+    double? ZendeskQueueMs,
+    double? TicketMs);
+
 // Count of recorded events carrying a given decision status in a time window.
 public sealed record DecisionMixEntry(string DecisionStatus, int Count);
 

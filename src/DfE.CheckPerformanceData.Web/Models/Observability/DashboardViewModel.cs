@@ -67,6 +67,14 @@ public sealed class DashboardViewModel
     public DateTime SelectedFromUtc { get; init; }
     public DateTime SelectedToUtc { get; init; }
 
+    // The real-time per-step averages strip (rules-queue wait / rules-engine / Zendesk-queue wait /
+    // ticket), the selected lookback window, and the windows the dropdown offers. The strip refreshes
+    // itself from the stage-averages JSON endpoint; these are the initial server-rendered values.
+    public StageAverages StageAverages { get; init; } = new(null, null, null, null);
+    public ThroughputGranularity StatsWindow { get; init; } = DashboardRanges.DefaultStatsWindow;
+    public IReadOnlyList<ThroughputGranularity> StatsWindowOptions { get; init; } =
+        Array.Empty<ThroughputGranularity>();
+
     public DateTime RefreshedAtUtc { get; init; }
 
     // Whether the dev/test-only Demo panel renders: drive / inject / seed / replay / demo-trickle

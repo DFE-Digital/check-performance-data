@@ -55,21 +55,36 @@ public static class DashboardRanges
         Minute, FiveMinute, TenMinute, Hour, Day, Week, Month, Quarter, Year,
     };
 
+    // Ordered shortest window first, longest last, with the open-ended custom range pinned to the
+    // bottom — so the charting range dropdown and the seed time-frame dropdown both read in order.
+    // Rolling windows ("last N") and calendar ranges ("this/last period") are interleaved by span:
+    // a "this period" partial window sorts before the completed "last period" of the same length.
     public static readonly IReadOnlyList<DashboardRangeOption> All = new[]
     {
-        // --- Calendar ranges (today first; "this period" ends at now, the others end before now) ---
+        new DashboardRangeOption("1h", "Last hour", Minute,
+            new[] { Minute, FiveMinute },
+            now => (now.AddHours(-1), now)),
+        new DashboardRangeOption("6h", "Last 6 hours", FiveMinute,
+            new[] { FiveMinute, TenMinute, Hour },
+            now => (now.AddHours(-6), now)),
         new DashboardRangeOption("today", "Today", Hour,
             new[] { TenMinute, Hour },
             now => (now.Date, now)) { IsToday = true },
         new DashboardRangeOption("yesterday", "Yesterday", Hour,
             new[] { TenMinute, Hour },
             now => (now.Date.AddDays(-1), now.Date)),
+        new DashboardRangeOption("24h", "Last 24 hours", Hour,
+            new[] { TenMinute, Hour },
+            now => (now.AddHours(-24), now)),
         new DashboardRangeOption("thisweek", "This week", Day,
             new[] { Hour, Day },
             now => (StartOfWeek(now), now)),
         new DashboardRangeOption("lastweek", "Last week", Day,
             new[] { Hour, Day },
             now => (StartOfWeek(now).AddDays(-7), StartOfWeek(now))),
+        new DashboardRangeOption("7d", "Last 7 days", Day,
+            new[] { Hour, Day },
+            now => (now.AddDays(-7), now)),
         new DashboardRangeOption("thismonth", "This month", Day,
             new[] { Day, Week },
             now => (StartOfMonth(now), now)),
@@ -88,20 +103,6 @@ public static class DashboardRanges
         new DashboardRangeOption("lastyear", "Last year", Month,
             new[] { Week, Month, Quarter },
             now => (StartOfYear(now).AddYears(-1), StartOfYear(now))),
-
-        // --- Rolling windows, kept for fine-grained recent inspection ---
-        new DashboardRangeOption("1h", "Last hour", Minute,
-            new[] { Minute, FiveMinute },
-            now => (now.AddHours(-1), now)),
-        new DashboardRangeOption("6h", "Last 6 hours", FiveMinute,
-            new[] { FiveMinute, TenMinute, Hour },
-            now => (now.AddHours(-6), now)),
-        new DashboardRangeOption("24h", "Last 24 hours", Hour,
-            new[] { TenMinute, Hour },
-            now => (now.AddHours(-24), now)),
-        new DashboardRangeOption("7d", "Last 7 days", Day,
-            new[] { Hour, Day },
-            now => (now.AddDays(-7), now)),
 
         // --- Custom from/to: the concrete window and granularity pairing are computed from the
         //     query params via ResolveWindow/ForSpan; this entry just renders the option and gives a

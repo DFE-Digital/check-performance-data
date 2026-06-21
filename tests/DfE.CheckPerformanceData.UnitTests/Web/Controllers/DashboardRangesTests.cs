@@ -51,7 +51,25 @@ public sealed class DashboardRangesTests
         var today = DashboardRanges.Resolve(null);
         Assert.Equal("today", today.Value);
         Assert.True(today.IsToday);
-        Assert.Same(DashboardRanges.All[0], today); // first in the list (top of the select)
+    }
+
+    // The select lists windows shortest first, longest last, with the open-ended custom range at the
+    // bottom — so both the charting range dropdown and the seed time-frame dropdown read in order.
+    [Fact]
+    public void All_AreOrderedShortestToLongest_CustomLast()
+    {
+        var expected = new[]
+        {
+            "1h", "6h", "today", "yesterday", "24h",
+            "thisweek", "lastweek", "7d",
+            "thismonth", "lastmonth",
+            "thisquarter", "lastquarter",
+            "thisyear", "lastyear",
+            "custom",
+        };
+
+        Assert.Equal(expected, DashboardRanges.All.Select(o => o.Value).ToArray());
+        Assert.Equal("custom", DashboardRanges.All[^1].Value);
     }
 
     [Fact]

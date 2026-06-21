@@ -94,7 +94,7 @@
                         <select class="govuk-select" id="seed-range" name="range">
                             @foreach (var option in DashboardRanges.All)
                             {
-                                <option value="@option.Value" selected="@(option.Value == DashboardRanges.CustomValue)">@option.Label</option>
+                                <option value="@option.Value" selected="@(option.Value == DashboardRanges.DefaultValue)">@option.Label</option>
                             }
                         </select>
                     </div>

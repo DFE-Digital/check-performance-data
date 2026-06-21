@@ -148,14 +148,25 @@
                 <div class="obs-board__replay" role="group" aria-label="Replay recorded traffic">
                     <h3 class="govuk-heading-s">Replay recent traffic</h3>
                     <div class="obs-board__replay-controls">
-                        <label class="govuk-label govuk-!-margin-bottom-0" for="obs-replay-window">Span</label>
-                        <select class="govuk-select govuk-!-margin-bottom-0" id="obs-replay-window" data-obs-replay-window
-                                title="How far back the replay reaches; defaults to the last day.">
-                            <option value="60">Last hour</option>
-                            <option value="360">Last 6 hours</option>
-                            <option value="1440" selected>Last 24 hours</option>
-                            <option value="10080">Last 7 days</option>
+                        <label class="govuk-label govuk-!-margin-bottom-0" for="obs-replay-window">Time frame</label>
+                        @* The same range vocabulary the chart and seed dropdowns use, defaulting to
+                           Today; the window is resolved server-side by the replay endpoint. Custom
+                           reveals the from/to inputs (the shared range-custom script). *@
+                        <select class="govuk-select govuk-!-margin-bottom-0" id="obs-replay-window" data-obs-replay-window data-obs-range-select
+                                title="How far back the replay reaches; defaults to today.">
+                            @foreach (var option in DashboardRanges.All)
+                            {
+                                <option value="@option.Value" selected="@(option.Value == DashboardRanges.DefaultValue)">@option.Label</option>
+                            }
                         </select>
+                        <div class="govuk-form-group govuk-!-margin-bottom-0" data-obs-custom-range hidden>
+                            <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="obs-replay-from">From (UTC, custom)</label>
+                            <input class="govuk-input govuk-input--width-15 govuk-!-margin-bottom-0" type="datetime-local" id="obs-replay-from" />
+                        </div>
+                        <div class="govuk-form-group govuk-!-margin-bottom-0" data-obs-custom-range hidden>
+                            <label class="govuk-label govuk-label--s govuk-!-margin-bottom-0" for="obs-replay-to">To (UTC, custom)</label>
+                            <input class="govuk-input govuk-input--width-15 govuk-!-margin-bottom-0" type="datetime-local" id="obs-replay-to" />
+                        </div>
                         <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
                                 data-module="govuk-button" data-obs-replay-play aria-pressed="false"
                                 title="Play or pause the recorded traffic through the board.">

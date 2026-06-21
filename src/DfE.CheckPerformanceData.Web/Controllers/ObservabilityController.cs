@@ -550,10 +550,30 @@ public sealed class ObservabilityController : Controller
     public async Task<IActionResult> Replay(
         DateTime? from,
         DateTime? to,
+        string? range = null,
         CancellationToken cancellationToken = default)
     {
-        var toUtc = AsUtc(to ?? DateTime.UtcNow);
-        var fromUtc = from is null ? toUtc - DefaultWindow : AsUtc(from.Value);
+        DateTime fromUtc;
+        DateTime toUtc;
+        if (!string.IsNullOrEmpty(range))
+        {
+            // A named range from the same vocabulary the charts and seed dropdowns use, resolved
+            // server-side so the calendar maths (since-midnight, week-from-Monday, quarters) lives in
+            // one place. Custom carries the from/to through ResolveWindow; an unknown range snaps to
+            // the safe default there.
+            var resolved = DashboardRanges.ResolveWindow(
+                range,
+                from is null ? null : AsUtc(from.Value),
+                to is null ? null : AsUtc(to.Value),
+                DateTime.UtcNow);
+            fromUtc = resolved.From;
+            toUtc = resolved.To;
+        }
+        else
+        {
+            toUtc = AsUtc(to ?? DateTime.UtcNow);
+            fromUtc = from is null ? toUtc - DefaultWindow : AsUtc(from.Value);
+        }
 
         try
         {

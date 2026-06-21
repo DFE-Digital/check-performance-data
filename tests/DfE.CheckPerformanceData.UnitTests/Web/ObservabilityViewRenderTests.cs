@@ -308,15 +308,21 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
-	public void Index_DemoPanel_ReplayHasASelectableWindowDefaultingToTheLastDay()
+	public void Index_DemoPanel_ReplayWindowUsesTheSharedRangeVocabularyDefaultingToToday()
 	{
 		var panel = ReadView("_DemoPanel.cshtml");
 
-		// A window select drives how far back the replay reaches; the 24-hour option is the default
-		// so "Event N of M" reflects a recent window rather than every event ever recorded.
+		// The replay window select now uses the same calendar vocabulary as the chart/seed dropdowns
+		// (driven from DashboardRanges.All) and defaults to Today; the window is resolved server-side
+		// from the range key. It carries the custom-range markers so Custom reveals its from/to.
 		Assert.Contains("data-obs-replay-window", panel);
-		Assert.Contains("Last 24 hours", panel);
-		Assert.Contains("value=\"1440\" selected", panel);
+		Assert.Contains("data-obs-range-select", panel);
+		Assert.Contains("DashboardRanges.All", panel);
+		Assert.Contains("DashboardRanges.DefaultValue", panel);
+		Assert.Contains("obs-replay-from", panel);
+		Assert.Contains("obs-replay-to", panel);
+		// The old minute-span options are gone.
+		Assert.DoesNotContain("value=\"1440\" selected", panel);
 	}
 
 	[Fact]

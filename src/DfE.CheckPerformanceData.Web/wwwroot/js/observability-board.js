@@ -1222,8 +1222,8 @@
         var handler = null;
         return {
             onMessage: function (cb) { handler = cb; },
-            load: function (fromIso, toIso) {
-                var url = replayUrl + '?from=' + encodeURIComponent(fromIso) + '&to=' + encodeURIComponent(toIso);
+            load: function (query) {
+                var url = replayUrl + '?' + query;
                 return fetch(url, { credentials: 'same-origin' })
                     .then(function (r) { return r.ok ? r.json() : []; })
                     .then(function (data) { messages = groupByReference(data || []); return messages.length; })
@@ -1292,28 +1292,40 @@
                 if (status) { status.textContent = text; }
             }
 
-            // The replay window. The select drives how far back the replay reaches; it defaults to
-            // the last 24 hours so "Event N of M" reflects a recent window rather than every event
-            // ever recorded. A missing/blank select falls back to 24 hours.
-            function windowMs() {
-                var minutes = windowSelect ? parseInt(windowSelect.value, 10) : NaN;
-                return (isFinite(minutes) && minutes > 0 ? minutes : 24 * 60) * 60 * 1000;
+            // The replay window. The select uses the same calendar vocabulary as the chart/seed
+            // dropdowns (Today, Yesterday, This week, …), defaulting to Today; the window itself is
+            // resolved server-side by the replay endpoint from the range key, so the calendar maths
+            // lives in one place. Custom carries the from/to inputs. A missing select falls back to
+            // Today.
+            function replayQuery() {
+                var val = (windowSelect && windowSelect.value) || 'today';
+                if (val.toLowerCase() === 'custom') {
+                    var qs = 'range=custom';
+                    var f = controls.querySelector('#obs-replay-from');
+                    var t = controls.querySelector('#obs-replay-to');
+                    if (f && f.value) { qs += '&from=' + encodeURIComponent(f.value); }
+                    if (t && t.value) { qs += '&to=' + encodeURIComponent(t.value); }
+                    return qs;
+                }
+                return 'range=' + encodeURIComponent(val);
             }
 
             function loadWindow() {
-                var to = new Date();
-                var from = new Date(to.getTime() - windowMs());
-                return feed.load(from.toISOString(), to.toISOString()).then(function (count) {
+                return feed.load(replayQuery()).then(function (count) {
                     scrubber.max = count > 0 ? (count - 1) : 0;
                     scrubber.value = 0;
                     announce(0, count);
                 });
             }
 
-            // Changing the window reloads the replay for the new span and resets the scrubber.
+            // Changing the window (or the custom from/to) reloads the replay and resets the scrubber.
             if (windowSelect) {
                 windowSelect.addEventListener('change', function () { loadWindow(); });
             }
+            ['#obs-replay-from', '#obs-replay-to'].forEach(function (sel) {
+                var el = controls.querySelector(sel);
+                if (el) { el.addEventListener('change', function () { loadWindow(); }); }
+            });
 
             scrubber.addEventListener('input', function () {
                 var idx = parseInt(scrubber.value, 10) || 0;

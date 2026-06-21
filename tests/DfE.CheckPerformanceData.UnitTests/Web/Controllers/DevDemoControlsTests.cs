@@ -193,6 +193,38 @@ public sealed class DevDemoControlsTests
     }
 
     [Fact]
+    public async Task Replay_WithRange_ResolvesTheCalendarWindowServerSide()
+    {
+        // The replay dropdown now uses the same calendar vocabulary as the charts/seed; passing a
+        // named range resolves its window server-side via DashboardRanges (single source of the
+        // calendar maths). "today" is since-midnight-to-now.
+        DateTime? capturedFrom = null;
+        DateTime? capturedTo = null;
+        var query = Substitute.For<IMetricsQueryService>();
+        query.GetReplayWindowAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                capturedFrom = ci.ArgAt<DateTime>(0);
+                capturedTo = ci.ArgAt<DateTime>(1);
+                return (IReadOnlyList<JourneyEvent>)System.Array.Empty<JourneyEvent>();
+            });
+
+        var controller = new ObservabilityController(
+            query,
+            Substitute.For<IQueueAdminService>(),
+            new HealthEvaluator(),
+            new StatusSentenceBuilder());
+
+        await controller.Replay(from: null, to: null, range: "today");
+
+        Assert.NotNull(capturedFrom);
+        Assert.NotNull(capturedTo);
+        Assert.Equal(TimeSpan.Zero, capturedFrom!.Value.TimeOfDay); // midnight start
+        Assert.Equal(DateTime.UtcNow.Date, capturedFrom.Value.Date);
+        Assert.True(capturedTo > capturedFrom);
+    }
+
+    [Fact]
     public void Replay_CarriesAdminRoleAuthorizeAttribute()
     {
         var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Replay));

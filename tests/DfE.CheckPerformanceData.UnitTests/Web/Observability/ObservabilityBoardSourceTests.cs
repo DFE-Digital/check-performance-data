@@ -119,11 +119,24 @@ public sealed class ObservabilityBoardSourceTests
     {
         var board = Board();
 
-        // The rules-queue and zendesk-queue boxes link to their queue admin pages (new tab), like
-        // the matrix column headers.
+        // The rules-queue and zendesk-queue boxes link to their queue admin pages (new tab). These
+        // are the only queue links on the board — the matrix column headers are plain text.
         Assert.Contains("/admin/queues/list/rules-engine", board);
         Assert.Contains("/admin/queues/list/zendesk", board);
         Assert.Contains("obs-board__label govuk-link", board);
+    }
+
+    [Fact]
+    public void Board_RecentSubmissionHeaders_ArePlainText_NotQueueLinks()
+    {
+        var board = Board();
+
+        // The queue links live on the board boxes; the recent-submissions column headers don't
+        // duplicate them — they are plain text.
+        Assert.DoesNotContain(">Rules queue</a>", board);
+        Assert.DoesNotContain(">Zendesk queue</a>", board);
+        Assert.Contains(">Rules queue</th>", board);
+        Assert.Contains(">Zendesk queue</th>", board);
     }
 
     [Fact]

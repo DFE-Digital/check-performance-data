@@ -437,6 +437,23 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Board_RecentSubmissionTimesShowMilliseconds()
+	{
+		// Times and waits carry millisecond precision so sub-second stages are distinguishable
+		// rather than all reading "a second or two". The server formatter and the JS mirror agree.
+		var board = ReadView("_Board.cshtml");
+		Assert.Contains("HH:mm:ss.fff", board);
+		Assert.Contains("0.000", board); // waited seconds to 3 dp
+
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-board.js"));
+		Assert.Contains("substr(11, 12)", js);
+		Assert.Contains("toFixed(3)", js);
+	}
+
+	[Fact]
 	public void BoardEngine_SeedsItsLiveGridFromTheServerRenderedHistory()
 	{
 		var thisFile = ThisFilePath();

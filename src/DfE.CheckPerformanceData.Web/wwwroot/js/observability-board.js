@@ -705,17 +705,19 @@
                 .replace(/"/g, '&quot;');
         }
 
-        // HH:MM:SS (UTC) from an epoch-ms timestamp, or a dash when the stage hasn't been reached.
+        // HH:MM:SS.fff (UTC) from an epoch-ms timestamp, or a dash when the stage hasn't been reached.
+        // Millisecond precision so sub-second stages are distinguishable rather than all "a second or two".
         function hms(ts) {
             if (!ts) { return '—'; }
-            return new Date(ts).toISOString().substr(11, 8);
+            return new Date(ts).toISOString().substr(11, 12);
         }
 
-        // A friendly "waited Nms / Ns" between two stage timestamps, or a dash if either is missing.
+        // A friendly "waited Nms / N.NNNs" between two stage timestamps, or a dash if either is missing.
+        // Seconds keep millisecond resolution (3 dp) so two waits that round to the same second still read apart.
         function waited(fromTs, toTs) {
             if (!fromTs || !toTs || toTs < fromTs) { return '—'; }
             var ms = toTs - fromTs;
-            return ms >= 1000 ? ('waited ' + (ms / 1000).toFixed(1) + 's') : ('waited ' + ms + 'ms');
+            return ms >= 1000 ? ('waited ' + (ms / 1000).toFixed(3) + 's') : ('waited ' + ms + 'ms');
         }
 
         // Fold one stage event into its message's matrix row. The recorded stages are Submitted,

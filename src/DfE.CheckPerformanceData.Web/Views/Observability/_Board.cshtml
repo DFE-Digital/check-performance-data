@@ -45,12 +45,14 @@
     // and the live rows look identical. Each stage cell shows the time the submission reached it and
     // the time it spent there (the queue waits derived from the timestamps; the rules engine its
     // processing latency).
-    string Hms(DateTime? t) => t is null ? "—" : t.Value.ToString("HH:mm:ss");
+    // HH:mm:ss.fff and millisecond-resolution waits so sub-second stages are distinguishable rather
+    // than all reading "a second or two". Mirrored exactly by observability-board.js (hms / waited).
+    string Hms(DateTime? t) => t is null ? "—" : t.Value.ToString("HH:mm:ss.fff");
     string Waited(DateTime? a, DateTime? b)
     {
         if (a is null || b is null || b < a) return "—";
         var ms = (b.Value - a.Value).TotalMilliseconds;
-        return ms >= 1000 ? $"waited {(ms / 1000):0.0}s" : $"waited {ms:0}ms";
+        return ms >= 1000 ? $"waited {(ms / 1000):0.000}s" : $"waited {ms:0}ms";
     }
     string DecisionLabel(string? d) => d switch
     {

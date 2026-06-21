@@ -29,7 +29,8 @@ public sealed class HealthEvaluator : IHealthEvaluator
 
         var amber =
             inputs.Depth >= thresholds.DepthAmber ||
-            ageSeconds >= thresholds.OldestAgeAmberSeconds;
+            ageSeconds >= thresholds.OldestAgeAmberSeconds ||
+            inputs.DeadLetterCount >= thresholds.DlqRateAmber;
         if (amber)
             return BackingUp;
 
@@ -67,12 +68,17 @@ public sealed class HealthEvaluator : IHealthEvaluator
                     FormatDuration(TimeSpan.FromSeconds(thresholds.OldestAgeAmberSeconds))));
         }
 
-        // Dead-letter count has a red threshold only — any dead-lettering is treated as attention,
-        // never merely "backing up".
+        // Dead-letter count: report against whichever limit it has reached, red first so the figure
+        // shown is the one that decided the band. A warning (amber) level lets operators see the
+        // dead-letter queue rising before it reaches the failure threshold.
         if (inputs.DeadLetterCount >= thresholds.DlqRateRed)
             reasons.Add(new HealthReason(
                 "Dead-letter messages", HealthLevel.NeedsAttention,
                 inputs.DeadLetterCount.ToString(), thresholds.DlqRateRed.ToString()));
+        else if (inputs.DeadLetterCount >= thresholds.DlqRateAmber)
+            reasons.Add(new HealthReason(
+                "Dead-letter messages", HealthLevel.BackingUp,
+                inputs.DeadLetterCount.ToString(), thresholds.DlqRateAmber.ToString()));
 
         return reasons;
     }

@@ -37,6 +37,37 @@ public static class PipelineMetricsSeeder
         return events;
     }
 
+    // Build the events across an explicit [fromUtc, toUtc) window, with a fixed number of submissions
+    // per day. Lets the Seed-messages tool seed a chosen time frame (the same ranges the charts
+    // offer) at a chosen density, rather than a hard-coded "last 60 days, 10–100/day". Every
+    // submission time falls inside the window and is therefore backdated when the window ends at now.
+    public static IReadOnlyList<QueueMetricEvent> Generate(
+        DateTime fromUtc, DateTime toUtc, int perDay, Random random)
+    {
+        if (toUtc <= fromUtc) toUtc = fromUtc.AddDays(1);
+        if (perDay < 0) perDay = 0;
+
+        var events = new List<QueueMetricEvent>();
+        var days = Math.Max(1, (int)Math.Ceiling((toUtc - fromUtc).TotalDays));
+
+        for (var d = 0; d < days; d++)
+        {
+            var dayStart = fromUtc.AddDays(d);
+            if (dayStart >= toUtc) break;
+
+            // Spread the day's submissions across that day, clamped so the last (partial) day never
+            // produces a future timestamp.
+            var maxOffset = (int)Math.Min(86_400, (toUtc - dayStart).TotalSeconds);
+            for (var i = 0; i < perDay; i++)
+            {
+                var submittedAt = dayStart.AddSeconds(random.Next(0, Math.Max(1, maxOffset)));
+                AppendSubmission(events, submittedAt, random);
+            }
+        }
+
+        return events;
+    }
+
     private static void AppendSubmission(List<QueueMetricEvent> events, DateTime submittedAt, Random random)
     {
         var reference = $"SEED-{submittedAt:yyyyMMdd}-{Guid.NewGuid():N}"[..24];

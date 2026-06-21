@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@using DfE.CheckPerformanceData.Web.Models.Observability
 @*
     The dashboard's collapsible Demo panel: every demo control in one place, folded in from the
     retired /dev/uat Debug Pipeline page. Hidden by default behind a GDS <details> "Demo" toggle so
@@ -68,13 +69,41 @@
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
                             data-uat-tip title="Place a message straight onto the dead-letter queue so you can practise a redrive.">Seed DLQ</button>
                 </form>
-                @* Seed a couple of months of synthetic history so the charts below look full on a
-                   fresh dev environment. A full-page post so the dashboard reloads with the new data;
-                   cumulative — click again for more. *@
-                <form method="post" action="/dev/uat/seed-messages">
+                @* Seed synthetic history so the charts below look full on a fresh dev environment.
+                   Pick a time frame (the same ranges the charts offer) and how many submissions a day;
+                   defaults to the last couple of months. A full-page post so the dashboard reloads with
+                   the new data; cumulative — submit again for more. *@
+                @{
+                    var seedNow = DateTime.UtcNow;
+                    var seedFrom = seedNow.AddDays(-60).ToString("yyyy-MM-ddTHH:mm");
+                    var seedTo = seedNow.ToString("yyyy-MM-ddTHH:mm");
+                }
+                <form method="post" action="/dev/uat/seed-messages" class="obs-seed-form">
                     @Html.AntiForgeryToken()
+                    <div class="govuk-form-group govuk-!-margin-bottom-0">
+                        <label class="govuk-label govuk-label--s" for="seed-range">Seed time frame</label>
+                        <select class="govuk-select" id="seed-range" name="range">
+                            @foreach (var option in DashboardRanges.All)
+                            {
+                                <option value="@option.Value" selected="@(option.Value == DashboardRanges.CustomValue)">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="govuk-form-group govuk-!-margin-bottom-0">
+                        <label class="govuk-label govuk-label--s" for="seed-from">From (UTC, custom)</label>
+                        <input class="govuk-input govuk-input--width-20" type="datetime-local" id="seed-from" name="from" value="@seedFrom" />
+                    </div>
+                    <div class="govuk-form-group govuk-!-margin-bottom-0">
+                        <label class="govuk-label govuk-label--s" for="seed-to">To (UTC, custom)</label>
+                        <input class="govuk-input govuk-input--width-20" type="datetime-local" id="seed-to" name="to" value="@seedTo" />
+                    </div>
+                    <div class="govuk-form-group govuk-!-margin-bottom-0">
+                        <label class="govuk-label govuk-label--s" for="seed-per-day">Messages per day</label>
+                        <input class="govuk-input govuk-input--width-5" type="number" id="seed-per-day" name="perDay"
+                               min="1" max="500" value="50" inputmode="numeric" />
+                    </div>
                     <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-uat-tip title="Seed 10–100 synthetic submissions a day for the last two months so the charts below look full. Click again to add more.">Seed messages</button>
+                            data-uat-tip title="Seed synthetic submissions across the chosen time frame at the chosen per-day rate so the charts below look full. A named range uses its calendar window; Custom uses the from/to. Submit again to add more.">Seed messages</button>
                 </form>
                 @* Remove all demo-created traffic (drive / seed / inject) from the pipeline tables,
                    keeping real submissions. A warning button + confirm because it deletes rows. *@

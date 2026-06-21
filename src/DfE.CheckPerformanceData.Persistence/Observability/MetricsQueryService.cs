@@ -638,7 +638,8 @@ LIMIT @limit OFFSET @offset;";
     // can override these from the Health:* settings; the anonymised aggregate surface uses the code
     // defaults so it stays a self-contained pure aggregate read with no settings dependency.
     private static readonly HealthThresholds DefaultThresholds =
-        new(DepthAmber: 25, DepthRed: 100, OldestAgeAmberSeconds: 120, OldestAgeRedSeconds: 600, DlqRateRed: 5);
+        new(DepthAmber: 25, DepthRed: 100, OldestAgeAmberSeconds: 120, OldestAgeRedSeconds: 600,
+            DlqRateRed: 5, DlqRateAmber: 3);
 
     public async Task<AggregateShareSnapshot> GetAggregateShareAsync(CancellationToken cancellationToken = default)
     {

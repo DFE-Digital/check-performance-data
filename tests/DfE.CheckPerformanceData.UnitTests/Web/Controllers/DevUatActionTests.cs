@@ -120,7 +120,8 @@ public sealed class DevUatActionTests
     {
         var sut = CreateSut();
 
-        var result = await sut.SeedMessages(CancellationToken.None);
+        // Default invocation (no range/from/to/perDay) seeds the default "last couple months" window.
+        var result = await sut.SeedMessages(cancellationToken: CancellationToken.None);
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/admin/observability", redirect.Url);
@@ -130,11 +131,35 @@ public sealed class DevUatActionTests
     }
 
     [Fact]
+    public async Task SeedMessages_CustomWindowAndPerDay_SeedsThatDensityAcrossTheWindow()
+    {
+        var sut = CreateSut();
+
+        IEnumerable<QueueMetricEvent>? captured = null;
+        await _metricsSink.RecordManyAsync(
+            Arg.Do<IEnumerable<QueueMetricEvent>>(e => captured = e.ToList()), Arg.Any<CancellationToken>());
+
+        // A 5-day custom window at 4/day → 20 distinct submissions, all inside the window.
+        var from = "2026-04-01T00:00";
+        var to = "2026-04-06T00:00";
+        await sut.SeedMessages(range: "custom", from: from, to: to, perDay: 4,
+            cancellationToken: CancellationToken.None);
+
+        Assert.NotNull(captured);
+        var references = captured!.Select(e => e.ReferenceNumber).Distinct().Count();
+        Assert.Equal(20, references);
+        Assert.All(captured!, e => Assert.InRange(
+            e.RecordedAtUtc,
+            new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 4, 6, 0, 1, 0, DateTimeKind.Utc)));
+    }
+
+    [Fact]
     public async Task SeedMessages_AjaxRequest_ReturnsOkJsonWithACount()
     {
         var sut = CreateSut(ajax: true);
 
-        var result = await sut.SeedMessages(CancellationToken.None);
+        var result = await sut.SeedMessages(cancellationToken: CancellationToken.None);
 
         var json = Assert.IsType<JsonResult>(result);
         var ok = json.Value!.GetType().GetProperty("ok")!.GetValue(json.Value);

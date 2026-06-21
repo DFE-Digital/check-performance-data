@@ -15,7 +15,8 @@ public sealed class HealthStripTests
         DepthRed: 50,
         OldestAgeAmberSeconds: 60,
         OldestAgeRedSeconds: 300,
-        DlqRateRed: 5);
+        DlqRateRed: 5,
+        DlqRateAmber: 3);
 
     // --- Below every threshold → Flowing (green, "Flowing", filled circle) ---
 
@@ -96,6 +97,30 @@ public sealed class HealthStripTests
             Thresholds());
 
         Assert.Equal(HealthLevel.NeedsAttention, state.Level);
+    }
+
+    // --- Dead-letter count at the amber threshold (below red) → Backing up (a warning) ---
+
+    [Fact]
+    public void Evaluate_DeadLetterAtAmber_BelowRed_IsBackingUp()
+    {
+        // Amber 3, red 5: a count of 3 is a warning, not yet a failure.
+        var state = _sut.Evaluate(
+            new HealthInputs(Depth: 1, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 3),
+            Thresholds());
+
+        Assert.Equal(HealthLevel.BackingUp, state.Level);
+        Assert.Equal("#f47738", state.Colour); // the amber/warning colour
+    }
+
+    [Fact]
+    public void Evaluate_DeadLetterBelowAmber_IsFlowing()
+    {
+        var state = _sut.Evaluate(
+            new HealthInputs(Depth: 1, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 2),
+            Thresholds());
+
+        Assert.Equal(HealthLevel.Flowing, state.Level);
     }
 
     // --- Red dominates amber: a queue both backing up and stalled reads Needs attention ---
@@ -214,6 +239,22 @@ public sealed class HealthStripTests
         Assert.Equal(HealthLevel.NeedsAttention, reason.Band);
         Assert.Equal("9", reason.Actual);
         Assert.Equal("5", reason.Threshold);
+    }
+
+    // --- Dead-letter at amber (below red) → dead-letter reason against the amber limit ---
+
+    [Fact]
+    public void Explain_DeadLetterAtAmber_NamesDeadLetterAgainstAmberLimit()
+    {
+        var reasons = _sut.Explain(
+            new HealthInputs(Depth: 1, OldestAge: TimeSpan.FromSeconds(5), DeadLetterCount: 3),
+            Thresholds());
+
+        var reason = Assert.Single(reasons);
+        Assert.Equal("Dead-letter messages", reason.Signal);
+        Assert.Equal(HealthLevel.BackingUp, reason.Band);
+        Assert.Equal("3", reason.Actual);
+        Assert.Equal("3", reason.Threshold);
     }
 
     // --- Several signals tripped → one reason each, every concerning signal surfaced ---

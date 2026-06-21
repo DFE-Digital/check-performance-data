@@ -215,6 +215,22 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Index_DemoPanel_SeedMessagesTakesATimeFrameAndPerDay()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// Seed messages is now a form: a time-frame select (the same ranges the charts offer),
+		// custom from/to, and a messages-per-day input — not a bare button.
+		Assert.Contains("/dev/uat/seed-messages", panel);
+		Assert.Contains("DashboardRanges.All", panel);
+		Assert.Contains("name=\"range\"", panel);
+		Assert.Contains("name=\"perDay\"", panel);
+		Assert.Contains("name=\"from\"", panel);
+		Assert.Contains("name=\"to\"", panel);
+		Assert.Contains("Messages per day", panel);
+	}
+
+	[Fact]
 	public void Index_DemoPanel_HoldsTheReplayAndBoardDemoControls()
 	{
 		var panel = ReadView("_DemoPanel.cshtml");
@@ -663,6 +679,22 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	// --- The hidden attribute must actually hide the reconnect notice ---
+
+	[Fact]
+	public void ObservabilityCss_DemoToolsFooterSpansTheFullBoardWidth()
+	{
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var css = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "css", "observability.css"));
+
+		// The footer holding the Demo tools toggle must override the GDS body max-width so it spans the
+		// full board; otherwise the right-aligned toggle lands under the middle of the wide grid.
+		var idx = css.IndexOf(".obs-board__parallel-footer", StringComparison.Ordinal);
+		Assert.True(idx >= 0);
+		var block = css.Substring(idx, Math.Min(600, css.Length - idx));
+		Assert.Contains("max-width: none", block);
+	}
 
 	[Fact]
 	public void ObservabilityCss_RestoresTheHiddenAttributeOnTheReconnectNotice()

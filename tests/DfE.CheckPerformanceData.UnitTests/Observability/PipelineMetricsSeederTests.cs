@@ -39,6 +39,38 @@ public sealed class PipelineMetricsSeederTests
         Assert.InRange(references, 20 * 5, 20 * 15);
     }
 
+    // --- The window+perDay overload: a fixed density across an explicit [from, to) window ---
+
+    [Fact]
+    public void Generate_WindowOverload_SeedsPerDayAcrossTheWindow_AllInsideIt()
+    {
+        var from = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 4, 11, 0, 0, 0, DateTimeKind.Utc); // 10 days
+
+        var events = PipelineMetricsSeeder.Generate(from, to, perDay: 7, new Random(2024));
+
+        // 10 days × 7 submissions = 70 distinct references.
+        var references = events.Select(e => e.ReferenceNumber).Distinct().Count();
+        Assert.Equal(70, references);
+
+        // Every event falls inside the requested window (never in the future / outside it).
+        Assert.All(events, e =>
+        {
+            Assert.True(e.RecordedAtUtc >= from, "event is at/after the window start");
+            Assert.True(e.RecordedAtUtc <= to.AddSeconds(20), "event is within the window (+ stage slack)");
+            Assert.Equal(DateTimeKind.Utc, e.RecordedAtUtc.Kind);
+        });
+    }
+
+    [Fact]
+    public void Generate_WindowOverload_InvertedOrEmptyWindow_StillProducesSomething()
+    {
+        var t = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+        var events = PipelineMetricsSeeder.Generate(t, t, perDay: 5, new Random(1)); // to == from
+
+        Assert.NotEmpty(events); // empty window is widened to a day rather than producing nothing
+    }
+
     [Fact]
     public void Generate_EachSubmissionHasAFullJourneyAcrossTheStages()
     {

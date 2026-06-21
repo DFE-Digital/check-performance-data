@@ -631,9 +631,11 @@ public sealed class ObservabilityController : Controller
             DepthRed: await _settings.GetIntAsync(SettingKeys.HealthDepthRed),
             OldestAgeAmberSeconds: await _settings.GetIntAsync(SettingKeys.HealthOldestAgeAmberSeconds),
             OldestAgeRedSeconds: await _settings.GetIntAsync(SettingKeys.HealthOldestAgeRedSeconds),
-            DlqRateRed: await _settings.GetIntAsync(SettingKeys.HealthDlqRateRed));
+            DlqRateRed: await _settings.GetIntAsync(SettingKeys.HealthDlqRateRed),
+            DlqRateAmber: await _settings.GetIntAsync(SettingKeys.HealthDlqRateAmber));
     }
 
     private static readonly HealthThresholds DefaultThresholds =
-        new(DepthAmber: 25, DepthRed: 100, OldestAgeAmberSeconds: 120, OldestAgeRedSeconds: 600, DlqRateRed: 5);
+        new(DepthAmber: 25, DepthRed: 100, OldestAgeAmberSeconds: 120, OldestAgeRedSeconds: 600,
+            DlqRateRed: 5, DlqRateAmber: 3);
 }

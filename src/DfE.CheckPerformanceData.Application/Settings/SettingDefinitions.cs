@@ -18,6 +18,7 @@ public static class SettingKeys
     public const string HealthDepthRed = "Health:DepthRed";
     public const string HealthOldestAgeAmberSeconds = "Health:OldestAgeAmberSeconds";
     public const string HealthOldestAgeRedSeconds = "Health:OldestAgeRedSeconds";
+    public const string HealthDlqRateAmber = "Health:DlqRateAmber";
     public const string HealthDlqRateRed = "Health:DlqRateRed";
 
     public const string DevToolsEnabled = "Dev:ToolsEnabled";
@@ -92,8 +93,12 @@ public static class SettingDefinitions
             "Age in seconds of the oldest waiting message at which the health strip turns red (a stall).",
             "600",
             SettingKind.Int),
+        new(SettingKeys.HealthDlqRateAmber,
+            "Dead-letter queue count at which the health strip turns amber (a warning that the dead-letter queue is rising). Set below the red count.",
+            "3",
+            SettingKind.Int),
         new(SettingKeys.HealthDlqRateRed,
-            "Dead-letter queue count at which the health strip turns red (the dead-letter queue is rising).",
+            "Dead-letter queue count at which the health strip turns red (a failure — the dead-letter queue needs attention).",
             "5",
             SettingKind.Int)
     ];

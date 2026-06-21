@@ -33,4 +33,5 @@ public sealed record HealthThresholds(
     int DepthRed,
     int OldestAgeAmberSeconds,
     int OldestAgeRedSeconds,
-    int DlqRateRed);
+    int DlqRateRed,
+    int DlqRateAmber);

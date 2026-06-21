@@ -1,6 +1,8 @@
+using System.Globalization;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Models.Observability;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
@@ -44,9 +46,11 @@ public sealed class DevUatController : Controller
 
     // The "seed messages" spread: a couple of months of synthetic history, 10–100 submissions a day,
     // so a fresh dev environment's charts look full. Cumulative — each click adds another batch.
-    private const int SeedDays = 60;
-    private const int SeedMinPerDay = 10;
-    private const int SeedMaxPerDay = 100;
+    // Seed-messages defaults + caps: the "last couple months" default window and a sensible default
+    // density, with a hard per-day cap so a hand-posted value can't fan out unbounded.
+    private const int SeedDefaultDays = 60;
+    private const int SeedDefaultPerDay = 50;
+    private const int SeedMaxPerDayCap = 500;
 
     // Where a no-JS form post lands after a drive/inject/seed: the Pipeline dashboard, whose Demo
     // panel now hosts these controls (the standalone console it used to return to is gone). The
@@ -137,18 +141,47 @@ public sealed class DevUatController : Controller
         return Redirect(DashboardUrl);
     }
 
-    // Seed a couple of months of synthetic pipeline history so a fresh dev environment's charts and
-    // counters look full without driving thousands of requests by hand. Cumulative: each click adds
-    // another batch of 10–100 backdated submissions per day. Writes only synthetic metric events to
-    // the dev database via the bulk sink; gated exactly like the other /dev/* tooling.
+    // Seed synthetic pipeline history so a fresh dev environment's charts and counters look full
+    // without driving thousands of requests by hand. The tester chooses the time frame — a named
+    // range from the same list the charts offer, or a custom from/to — and how many submissions per
+    // day; it defaults to the last couple of months. Cumulative: each post adds another batch.
+    // Writes only synthetic metric events to the dev database via the bulk sink; gated exactly like
+    // the other /dev/* tooling.
     [HttpPost("dev/uat/seed-messages")]
-    public async Task<IActionResult> SeedMessages(CancellationToken cancellationToken)
+    public async Task<IActionResult> SeedMessages(
+        string? range = null,
+        string? from = null,
+        string? to = null,
+        int perDay = SeedDefaultPerDay,
+        CancellationToken cancellationToken = default)
     {
         if (!IsAllowed || _metricsSink is null)
             return NotFound();
 
-        var events = PipelineMetricsSeeder.Generate(
-            DateTime.UtcNow, SeedDays, SeedMinPerDay, SeedMaxPerDay, new Random());
+        var now = DateTime.UtcNow;
+
+        // A named range reuses the dashboard's calendar/rolling windows for continuity; otherwise the
+        // custom from/to apply (to defaults to now, from to the "last couple months").
+        DateTime fromUtc, toUtc;
+        if (!string.IsNullOrEmpty(range)
+            && !string.Equals(range, DashboardRanges.CustomValue, StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = DashboardRanges.ResolveWindow(range, null, null, now);
+            (fromUtc, toUtc) = (resolved.From, resolved.To);
+        }
+        else
+        {
+            toUtc = ParseUtc(to) ?? now;
+            fromUtc = ParseUtc(from) ?? toUtc.AddDays(-SeedDefaultDays);
+        }
+
+        // Guard an inverted/empty window and clamp the span, mirroring the dashboard's bounds.
+        if (toUtc <= fromUtc) fromUtc = toUtc.AddDays(-SeedDefaultDays);
+        if (toUtc - fromUtc > DashboardRanges.MaxCustomSpan) fromUtc = toUtc - DashboardRanges.MaxCustomSpan;
+
+        var perDayClamped = Math.Clamp(perDay, 1, SeedMaxPerDayCap);
+
+        var events = PipelineMetricsSeeder.Generate(fromUtc, toUtc, perDayClamped, new Random());
 
         await _metricsSink.RecordManyAsync(events, cancellationToken);
 
@@ -156,6 +189,17 @@ public sealed class DevUatController : Controller
             return Json(new { ok = true, count = events.Count });
 
         return Redirect(DashboardUrl);
+    }
+
+    // Parses a datetime-local / ISO from-to value to UTC; DateTime does not bind from these query
+    // values, so the seed form posts strings and we parse them here (mirrors the dashboard).
+    private static DateTime? ParseUtc(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt)
+            ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+            : null;
     }
 
     // Remove all synthetic demo traffic (drive / seed / inject) from the pipeline tables while

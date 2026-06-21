@@ -11,4 +11,8 @@ public enum ThroughputGranularity
     TenMinute,
     Hour,
     Day,
+    Week,
+    Month,
+    Quarter,
+    Year,
 }

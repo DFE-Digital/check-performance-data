@@ -55,7 +55,15 @@
     // At most ~6 X labels, evenly spaced, so adjacent times never overlap.
     const int maxXTicks = 6;
     var xStep = buckets.Count <= maxXTicks ? 1 : (int)Math.Ceiling(buckets.Count / (double)maxXTicks);
-    var xLabelFormat = Model.SelectedGranularity == ThroughputGranularity.Day ? "dd MMM" : "HH:mm";
+    // The X label format follows the bucket size: time for sub-day buckets, calendar dates for
+    // day/week, month-year for month/quarter, and the year alone for year buckets.
+    var xLabelFormat = Model.SelectedGranularity switch
+    {
+        ThroughputGranularity.Day or ThroughputGranularity.Week => "dd MMM",
+        ThroughputGranularity.Month or ThroughputGranularity.Quarter => "MMM yyyy",
+        ThroughputGranularity.Year => "yyyy",
+        _ => "HH:mm",
+    };
 
     var axis = new System.Text.StringBuilder();
     foreach (var v in yTicks)

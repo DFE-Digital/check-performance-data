@@ -56,6 +56,35 @@ public sealed class MetricsQueryTests
         Assert.Equal(anchor.AddMinutes(1), buckets[1].BucketStartUtc);
     }
 
+    // --- Calendar-interval buckets (month) gap-fill and count across month boundaries ---
+
+    [Fact]
+    public async Task GetThroughput_PerMonth_BucketsByCalendarMonth_GapFillingEmptyMonths()
+    {
+        await ResetMetricsAsync();
+
+        // Jan: two events. Feb: none. Mar: one. A calendar month is not a fixed TimeSpan, so this
+        // exercises the SQL interval-literal step (INTERVAL '1 month') and date_trunc('month', ...).
+        await SeedMetricsAsync(
+            Metric(ZendeskQueue, "TicketCreated", "M-1", new DateTime(2026, 1, 10, 9, 0, 0, DateTimeKind.Utc)),
+            Metric(ZendeskQueue, "TicketCreated", "M-2", new DateTime(2026, 1, 25, 9, 0, 0, DateTimeKind.Utc)),
+            Metric(ZendeskQueue, "TicketCreated", "M-3", new DateTime(2026, 3, 5, 9, 0, 0, DateTimeKind.Utc)));
+
+        var service = CreateService();
+        var from = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var buckets = await service.GetThroughputAsync(ZendeskQueue, ThroughputGranularity.Month, from, to);
+
+        Assert.Equal(3, buckets.Count); // Jan, Feb, Mar
+        Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), buckets[0].BucketStartUtc);
+        Assert.Equal(2, buckets[0].Count);
+        Assert.Equal(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), buckets[1].BucketStartUtc);
+        Assert.Equal(0, buckets[1].Count); // gap-filled empty month
+        Assert.Equal(new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc), buckets[2].BucketStartUtc);
+        Assert.Equal(1, buckets[2].Count);
+    }
+
     // --- An unaligned (mid-bucket) from still joins the calendar-aligned counts ---
 
     [Fact]

@@ -177,6 +177,13 @@ public static class MetricsWorkbookBuilder
                 new C.Scaling(new C.Orientation { Val = C.OrientationValues.MinMax }),
                 new C.Delete { Val = false },
                 new C.AxisPosition { Val = C.AxisPositionValues.Bottom },
+                // Rotate the category-axis labels -45° so long date-time labels never overlap each
+                // OTHER along the bottom (the reported "letters on top of each other"). txPr must come
+                // before crossAx per the CT_CatAx schema order.
+                new C.TextProperties(
+                    new A.BodyProperties { Rotation = -2700000, Vertical = A.TextVerticalValues.Horizontal },
+                    new A.ListStyle(),
+                    new A.Paragraph(new A.ParagraphProperties(new A.DefaultRunProperties()))),
                 new C.CrossingAxis { Val = valAxisId },
                 new C.Crosses { Val = C.CrossesValues.AutoZero },
                 new C.AutoLabeled { Val = true },
@@ -199,7 +206,12 @@ public static class MetricsWorkbookBuilder
                 new A.Paragraph(new A.Run(new A.RunProperties { Language = "en-GB" }, new A.Text(title)))))),
             new C.AutoTitleDeleted { Val = false },
             plotArea,
-            new C.Legend(new C.LegendPosition { Val = C.LegendPositionValues.Bottom }),
+            // Legend on the RIGHT with overlay off, so it reserves its own space rather than sitting
+            // ON TOP of the bottom category-axis labels (the reported "count legend over the dates"
+            // overlap). Overlay=false is what makes the plot area shrink to make room.
+            new C.Legend(
+                new C.LegendPosition { Val = C.LegendPositionValues.Right },
+                new C.Overlay { Val = false }),
             new C.PlotVisibleOnly { Val = true });
 
         chartPart.ChartSpace = new C.ChartSpace(chart);

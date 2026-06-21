@@ -701,6 +701,59 @@ public sealed class ObservabilityControllerTests
         Assert.True(model.SortDescending);
     }
 
+    // --- Range/granularity: custom from/to drives the chart window; named ranges resolve ---
+
+    [Fact]
+    public async Task Index_CustomRange_QueriesTheSuppliedWindow_AndExposesItOnTheModel()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query, settings: Substitute.For<ISettingService>());
+
+        var from = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to = new DateTime(2026, 6, 8, 0, 0, 0, DateTimeKind.Utc);
+
+        // The from/to arrive as datetime-local strings (DateTime does not bind from these query values).
+        var result = await controller.Index(
+            range: "custom", from: "2026-06-01T00:00", to: "2026-06-08T00:00");
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+
+        Assert.True(model.IsCustomRange);
+        Assert.Equal("custom", model.SelectedRange);
+        Assert.Equal(from, model.SelectedFromUtc);
+        Assert.Equal(to, model.SelectedToUtc);
+
+        // The chart series are queried for the supplied window, not a fixed rolling one.
+        await query.Received().GetThroughputAsync(
+            Arg.Any<string>(), Arg.Any<ThroughputGranularity>(), from, to, Arg.Any<CancellationToken>());
+        await query.Received().GetDecisionMixAsync(from, to, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Index_NamedCalendarRange_IsResolvedAndExposed_NotCustom()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query, settings: Substitute.For<ISettingService>());
+
+        var result = await controller.Index(range: "lastmonth");
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+
+        Assert.Equal("lastmonth", model.SelectedRange);
+        Assert.False(model.IsCustomRange);
+        Assert.Contains(model.SelectedGranularity, model.GranularityOptions);
+    }
+
+    [Fact]
+    public async Task Index_UnknownRange_FallsBackToTodayDefault()
+    {
+        var query = BuildQuery();
+        var controller = BuildController(query, settings: Substitute.For<ISettingService>());
+
+        var result = await controller.Index(range: "fortnight");
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(result).Model);
+
+        Assert.Equal(DashboardRanges.DefaultValue, model.SelectedRange);
+    }
+
     [Fact]
     public async Task Replay_HonoursTheRequestedFromAndToWindow()
     {

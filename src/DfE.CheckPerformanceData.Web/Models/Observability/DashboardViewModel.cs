@@ -60,6 +60,13 @@ public sealed class DashboardViewModel
     public IReadOnlyList<ThroughputGranularity> GranularityOptions { get; init; } =
         Array.Empty<ThroughputGranularity>();
 
+    // The custom-range from/to the charts were queried with, so the form's date inputs repopulate.
+    // IsCustomRange drives whether those inputs are the active selection. The values are always
+    // populated (even for a named range) so switching to "Custom" starts from the current window.
+    public bool IsCustomRange { get; init; }
+    public DateTime SelectedFromUtc { get; init; }
+    public DateTime SelectedToUtc { get; init; }
+
     public DateTime RefreshedAtUtc { get; init; }
 
     // Whether the dev/test-only Demo panel renders: drive / inject / seed / replay / demo-trickle

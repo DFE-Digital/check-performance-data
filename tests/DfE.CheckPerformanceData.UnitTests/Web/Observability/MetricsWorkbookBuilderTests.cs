@@ -4,6 +4,8 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Validation;
+using A = DocumentFormat.OpenXml.Drawing;
+using C = DocumentFormat.OpenXml.Drawing.Charts;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Observability;
 
@@ -70,6 +72,42 @@ public sealed class MetricsWorkbookBuilderTests
         var errors = validator.Validate(doc).ToList();
         Assert.True(errors.Count == 0,
             "OOXML validation errors:\n" + string.Join("\n", errors.Select(e => e.Description)));
+    }
+
+    [Fact]
+    public void Build_LegendReservesSpace_AndCategoryLabelsAreRotated()
+    {
+        var bytes = MetricsWorkbookBuilder.Build(Sample());
+        using var ms = new MemoryStream(bytes);
+        using var doc = SpreadsheetDocument.Open(ms, false);
+
+        var charts = doc.WorkbookPart!.WorksheetParts
+            .SelectMany(ws => ws.DrawingsPart?.ChartParts ?? Enumerable.Empty<ChartPart>())
+            .ToList();
+        Assert.Equal(4, charts.Count);
+
+        // Every chart's legend reserves its own space on the right rather than overlaying the plot
+        // area / axis labels (the reported "legend over the date-times" overlap).
+        foreach (var chart in charts)
+        {
+            var legend = chart.ChartSpace.Descendants<C.Legend>().Single();
+            Assert.Equal(C.LegendPositionValues.Right, legend.GetFirstChild<C.LegendPosition>()!.Val!.Value);
+            var overlay = legend.GetFirstChild<C.Overlay>();
+            Assert.NotNull(overlay);
+            Assert.False(overlay!.Val!.Value);
+        }
+
+        // The line/bar charts rotate their category-axis labels so long date-time labels don't
+        // collide with each other along the bottom. (The pie has no category axis.)
+        var catAxes = charts.SelectMany(c => c.ChartSpace.Descendants<C.CategoryAxis>()).ToList();
+        Assert.NotEmpty(catAxes);
+        Assert.All(catAxes, ax =>
+        {
+            var body = ax.Descendants<A.BodyProperties>().FirstOrDefault();
+            Assert.NotNull(body);
+            Assert.NotNull(body!.Rotation);
+            Assert.NotEqual(0, body.Rotation!.Value);
+        });
     }
 
     [Fact]

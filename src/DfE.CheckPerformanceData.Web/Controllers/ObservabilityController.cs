@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -72,25 +73,29 @@ public sealed class ObservabilityController : Controller
     public async Task<IActionResult> Index(
         string? range = null,
         string? granularity = null,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
-        // Both selections resolve against the server-side allow-list before any query runs;
-        // anything unrecognised snaps to the default window rather than erroring, because the
-        // form is a GET and a stale or hand-edited query string must still render a dashboard.
-        var rangeOption = DashboardRanges.Resolve(range);
-        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
-
         var now = DateTime.UtcNow;
-        var from = rangeOption.From(now);
-        // Defensive: at the exact midnight tick "today" yields from == now, which the range guard
-        // would reject; nudge it back a minute so the dashboard always renders.
-        if (from >= now) from = now.AddMinutes(-1);
+
+        // The window resolves against the server-side allow-list before any query runs: a named
+        // calendar/rolling range, or a custom from/to (to defaults to now) clamped to the max span.
+        // The granularity then resolves against that range's legible pairing. Anything unrecognised
+        // snaps to a safe default rather than erroring — the form is a GET and a stale or hand-edited
+        // query string must still render a dashboard.
+        var resolved = DashboardRanges.ResolveWindow(range, ParseUtc(from), ParseUtc(to), now);
+        var rangeOption = resolved.Option;
+        var windowFrom = resolved.From;
+        var windowTo = resolved.To;
+        var bucketSize = DashboardRanges.ResolveGranularity(
+            resolved.DefaultGranularity, resolved.AllowedGranularities, granularity);
 
         // The headline tiles (processed today, the decision counters, typical end-to-end) describe
         // TODAY — since midnight UTC — whatever window the charts show. When Today is the selected
         // range the chart series ARE the headline series, so they are reused rather than re-queried.
         var headlineFrom = now.Date;
-        var todaySelected = rangeOption.SinceMidnight;
+        var todaySelected = rangeOption.IsToday;
 
         var thresholds = await ResolveThresholdsAsync();
 
@@ -128,12 +133,12 @@ public sealed class ObservabilityController : Controller
             && !q.Reasons.Except(overallReasons).Any()));
 
         var throughput = await _query.GetThroughputAsync(
-            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
-        var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
+            QueueOptions.ZendeskQueue, bucketSize, windowFrom, windowTo, cancellationToken);
+        var decisionMix = await _query.GetDecisionMixAsync(windowFrom, windowTo, cancellationToken);
         var decisionMixOverTime = await _query.GetDecisionMixOverTimeAsync(
-            bucketSize, from, now, cancellationToken);
-        var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
-        var markers = await _query.GetDeployMarkersAsync(from, now, cancellationToken);
+            bucketSize, windowFrom, windowTo, cancellationToken);
+        var dwell = await _query.GetDwellByStageAsync(windowFrom, windowTo, cancellationToken);
+        var markers = await _query.GetDeployMarkersAsync(windowFrom, windowTo, cancellationToken);
 
         // The recent-submissions matrix is server-rendered from the grouped (one-row-per-reference)
         // transactions over the last 24 hours, so the table is populated on load and the board engine
@@ -192,15 +197,24 @@ public sealed class ObservabilityController : Controller
             DeployMarkers = markers,
             SelectedRange = rangeOption.Value,
             SelectedGranularity = bucketSize,
-            RangeLabel = rangeOption.Label,
+            RangeLabel = RangeLabelFor(rangeOption, windowFrom, windowTo),
             GranularityLabel = DashboardRanges.Describe(bucketSize),
-            GranularityOptions = rangeOption.AllowedGranularities,
+            GranularityOptions = resolved.AllowedGranularities,
+            IsCustomRange = rangeOption.Value == DashboardRanges.CustomValue,
+            SelectedFromUtc = windowFrom,
+            SelectedToUtc = windowTo,
             RefreshedAtUtc = now,
             DemoToolsEnabled = DemoToolsEnabled,
         };
 
         return View(model);
     }
+
+    // A custom range has no fixed label, so describe it by its dates; named ranges use their label.
+    private static string RangeLabelFor(DashboardRangeOption option, DateTime from, DateTime to) =>
+        option.Value == DashboardRanges.CustomValue
+            ? $"{from:d MMM yyyy HH:mm}–{to:d MMM yyyy HH:mm} UTC"
+            : option.Label;
 
     // The dashboard export: the data BEHIND the charts as CSV, never a chart image. It reads the
     // same MetricsQueryService series the dashboard renders, at the same resolved range/granularity,
@@ -210,21 +224,24 @@ public sealed class ObservabilityController : Controller
     public async Task<IActionResult> Export(
         string? range = null,
         string? granularity = null,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
-        var rangeOption = DashboardRanges.Resolve(range);
-        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
-
         var now = DateTime.UtcNow;
-        var from = rangeOption.From(now);
-        if (from >= now) from = now.AddMinutes(-1);
+        var resolved = DashboardRanges.ResolveWindow(range, ParseUtc(from), ParseUtc(to), now);
+        var rangeOption = resolved.Option;
+        var windowFrom = resolved.From;
+        var windowTo = resolved.To;
+        var bucketSize = DashboardRanges.ResolveGranularity(
+            resolved.DefaultGranularity, resolved.AllowedGranularities, granularity);
         var headlineFrom = now.Date;
-        var todaySelected = rangeOption.SinceMidnight;
+        var todaySelected = rangeOption.IsToday;
 
         var throughput = await _query.GetThroughputAsync(
-            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
-        var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
-        var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
+            QueueOptions.ZendeskQueue, bucketSize, windowFrom, windowTo, cancellationToken);
+        var decisionMix = await _query.GetDecisionMixAsync(windowFrom, windowTo, cancellationToken);
+        var dwell = await _query.GetDwellByStageAsync(windowFrom, windowTo, cancellationToken);
 
         // The headline figures describe today (since midnight), mirroring the dashboard tiles.
         var headlineThroughput = todaySelected
@@ -242,7 +259,7 @@ public sealed class ObservabilityController : Controller
 
         var csv = MetricsCsvBuilder.Build(new MetricsCsvData
         {
-            RangeLabel = rangeOption.Label,
+            RangeLabel = RangeLabelFor(rangeOption, windowFrom, windowTo),
             GranularityLabel = DashboardRanges.Describe(bucketSize),
             ProcessedToday = processedToday,
             TypicalEndToEnd = typicalEndToEnd,
@@ -265,23 +282,26 @@ public sealed class ObservabilityController : Controller
     public async Task<IActionResult> ExportExcel(
         string? range = null,
         string? granularity = null,
+        string? from = null,
+        string? to = null,
         CancellationToken cancellationToken = default)
     {
-        var rangeOption = DashboardRanges.Resolve(range);
-        var bucketSize = DashboardRanges.ResolveGranularity(rangeOption, granularity);
-
         var now = DateTime.UtcNow;
-        var from = rangeOption.From(now);
-        if (from >= now) from = now.AddMinutes(-1);
+        var resolved = DashboardRanges.ResolveWindow(range, ParseUtc(from), ParseUtc(to), now);
+        var rangeOption = resolved.Option;
+        var windowFrom = resolved.From;
+        var windowTo = resolved.To;
+        var bucketSize = DashboardRanges.ResolveGranularity(
+            resolved.DefaultGranularity, resolved.AllowedGranularities, granularity);
         var headlineFrom = now.Date;
-        var todaySelected = rangeOption.SinceMidnight;
+        var todaySelected = rangeOption.IsToday;
 
         var throughput = await _query.GetThroughputAsync(
-            QueueOptions.ZendeskQueue, bucketSize, from, now, cancellationToken);
-        var decisionMix = await _query.GetDecisionMixAsync(from, now, cancellationToken);
+            QueueOptions.ZendeskQueue, bucketSize, windowFrom, windowTo, cancellationToken);
+        var decisionMix = await _query.GetDecisionMixAsync(windowFrom, windowTo, cancellationToken);
         var decisionMixOverTime = await _query.GetDecisionMixOverTimeAsync(
-            bucketSize, from, now, cancellationToken);
-        var dwell = await _query.GetDwellByStageAsync(from, now, cancellationToken);
+            bucketSize, windowFrom, windowTo, cancellationToken);
+        var dwell = await _query.GetDwellByStageAsync(windowFrom, windowTo, cancellationToken);
 
         // The headline figures describe today (since midnight), mirroring the dashboard tiles.
         var headlineThroughput = todaySelected
@@ -299,7 +319,7 @@ public sealed class ObservabilityController : Controller
 
         var bytes = MetricsWorkbookBuilder.Build(new MetricsWorkbookData
         {
-            RangeLabel = rangeOption.Label,
+            RangeLabel = RangeLabelFor(rangeOption, windowFrom, windowTo),
             GranularityLabel = DashboardRanges.Describe(bucketSize),
             ProcessedToday = processedToday,
             TypicalEndToEnd = typicalEndToEnd,
@@ -322,8 +342,8 @@ public sealed class ObservabilityController : Controller
     [HttpGet("admin/observability/transactions")]
     public async Task<IActionResult> Transactions(
         int page = 1,
-        DateTime? from = null,
-        DateTime? to = null,
+        string? from = null,
+        string? to = null,
         string? reference = null,
         bool group = false,
         [FromQuery(Name = "stage")] string[]? stage = null,
@@ -335,8 +355,10 @@ public sealed class ObservabilityController : Controller
 
         var pageSize = await ResolvePageSizeAsync();
 
-        var fromUtc = from is null ? (DateTime?)null : AsUtc(from.Value);
-        var toUtc = to is null ? (DateTime?)null : AsUtc(to.Value);
+        // Parsed explicitly rather than via DateTime model binding, which does not bind these query
+        // values (see ParseUtc) — the date-window filter on this page silently never applied before.
+        var fromUtc = ParseUtc(from);
+        var toUtc = ParseUtc(to);
 
         // A blank search box is no filter; trim it so trailing whitespace from a paste does not
         // produce an always-empty result. The filter is carried back onto the model so the search
@@ -525,6 +547,19 @@ public sealed class ObservabilityController : Controller
         DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
         _ => value.ToUniversalTime(),
     };
+
+    // Parses a from/to query value (a datetime-local "yyyy-MM-ddTHH:mm", or any ISO-ish form) to
+    // UTC. Done explicitly because ASP.NET's default model binder does not bind a DateTime from these
+    // query values here — a string parameter always binds, and parsing ourselves keeps the UTC
+    // handling unambiguous (a naive value is read as UTC, a zoned value is converted to UTC).
+    private static DateTime? ParseUtc(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DateTime.TryParse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt)
+            ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+            : null;
+    }
 
     [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/stream")]

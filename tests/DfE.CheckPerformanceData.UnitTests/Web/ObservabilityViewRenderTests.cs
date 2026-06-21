@@ -32,6 +32,38 @@ public sealed class ObservabilityViewRenderTests
 		Assert.Contains("govuk-label", view);
 	}
 
+	[Fact]
+	public void Index_ControlsForm_OffersCustomFromAndToDateInputs()
+	{
+		var view = ReadView("Index.cshtml");
+
+		// A Custom range needs from/to date pickers, pre-filled from the resolved window.
+		Assert.Contains("id=\"obs-controls-form\"", view);
+		Assert.Contains("type=\"datetime-local\"", view);
+		Assert.Contains("name=\"from\"", view);
+		Assert.Contains("name=\"to\"", view);
+		Assert.Contains("Model.SelectedFromUtc", view);
+		Assert.Contains("Model.SelectedToUtc", view);
+	}
+
+	[Fact]
+	public void Index_ExportButtons_AreBelowTheCharts_AndSubmitTheControlsForm()
+	{
+		var view = ReadView("Index.cshtml");
+
+		// The export buttons submit the controls form (form= + formaction), so the download always
+		// reflects the live range/granularity/from-to selection — "derived from the dropdown".
+		Assert.Contains("form=\"obs-controls-form\"", view);
+		Assert.Contains("formaction=\"/admin/observability/export.xlsx\"", view);
+		Assert.Contains("formaction=\"/admin/observability/export.csv\"", view);
+
+		// The export block sits AFTER the charts, not at the top of the page.
+		var chartsIdx = view.IndexOf("obs-chart-group", StringComparison.Ordinal);
+		var exportIdx = view.IndexOf("data-obs-export", StringComparison.Ordinal);
+		Assert.True(chartsIdx >= 0 && exportIdx > chartsIdx,
+			"The export button group must appear below the chart group.");
+	}
+
 	// --- The chart headings and aria summaries follow the selected window, not a fixed 24h ---
 
 	[Fact]

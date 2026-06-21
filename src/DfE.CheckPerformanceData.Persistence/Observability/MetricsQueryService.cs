@@ -21,9 +21,13 @@ namespace DfE.CheckPerformanceData.Persistence.Observability;
 // Application), so the database-touching read side belongs on this side of the boundary.
 public sealed class MetricsQueryService : IMetricsQueryService
 {
-    // The widest a single aggregation request may span. Generous enough for "last 90 days at
-    // a daily granularity" while making a decade-of-seconds request impossible.
-    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(366);
+    // The widest a single aggregation request may span. Generous enough for the "this year /
+    // last year" ranges and a modest multi-year custom window, while still making a
+    // decade-of-seconds request impossible. The per-range granularity pairing (and the custom
+    // range's span-derived pairing) is what actually bounds the bucket count — a long span only
+    // ever pairs with a coarse granularity — so this is a backstop on the raw span, not the
+    // bucket count.
+    private static readonly TimeSpan MaxRange = TimeSpan.FromDays(1830);
 
     private readonly IPortalDbContext _dbContext;
 
@@ -55,7 +59,7 @@ public sealed class MetricsQueryService : IMetricsQueryService
         // until the bucket rolled over.
         var sql = $@"
 SELECT b.bucket AS bucket, COALESCE(e.cnt, 0) AS cnt
-FROM generate_series({spineStartExpr}, {spineEndExpr}, @step) AS b(bucket)
+FROM generate_series({spineStartExpr}, {spineEndExpr}, INTERVAL '{spec.StepLiteral}') AS b(bucket)
 LEFT JOIN (
     SELECT {bucketExpr} AS bucket, COUNT(*) AS cnt
     FROM queue_metrics_events
@@ -70,7 +74,6 @@ ORDER BY b.bucket;";
         {
             command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
             command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
-            command.Parameters.Add(new NpgsqlParameter("step", NpgsqlDbType.Interval) { Value = spec.Interval });
             command.Parameters.Add(new NpgsqlParameter("queue", NpgsqlDbType.Text) { Value = queueName });
         }, reader =>
         {
@@ -161,7 +164,7 @@ ORDER BY decision_status;";
         // @to is included — the same discipline as throughput.
         var sql = $@"
 SELECT b.bucket AS bucket, s.decision_status, COALESCE(e.cnt, 0) AS cnt
-FROM generate_series({spineStartExpr}, {spineEndExpr}, @step) AS b(bucket)
+FROM generate_series({spineStartExpr}, {spineEndExpr}, INTERVAL '{spec.StepLiteral}') AS b(bucket)
 CROSS JOIN (
     SELECT DISTINCT decision_status
     FROM queue_metrics_events
@@ -181,7 +184,6 @@ ORDER BY b.bucket, s.decision_status;";
         {
             command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
             command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
-            command.Parameters.Add(new NpgsqlParameter("step", NpgsqlDbType.Interval) { Value = spec.Interval });
         }, reader =>
         {
             var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
@@ -745,16 +747,24 @@ LIMIT @limit OFFSET @offset;";
     // Maps a ThroughputGranularity to its bucket SQL and the generate_series step. This is the
     // ONLY place a granularity becomes SQL — an out-of-range enum value throws here, never
     // reaching the query.
-    private readonly record struct BucketSpec(string Unit, int? FloorMinutes, TimeSpan Interval)
+    private readonly record struct BucketSpec(string Unit, int? FloorMinutes, string StepLiteral)
     {
         public static BucketSpec For(ThroughputGranularity granularity) => granularity switch
         {
-            ThroughputGranularity.Second => new("second", null, TimeSpan.FromSeconds(1)),
-            ThroughputGranularity.Minute => new("minute", null, TimeSpan.FromMinutes(1)),
-            ThroughputGranularity.FiveMinute => new("minute", 5, TimeSpan.FromMinutes(5)),
-            ThroughputGranularity.TenMinute => new("minute", 10, TimeSpan.FromMinutes(10)),
-            ThroughputGranularity.Hour => new("hour", null, TimeSpan.FromHours(1)),
-            ThroughputGranularity.Day => new("day", null, TimeSpan.FromDays(1)),
+            // StepLiteral is the generate_series step as a Postgres interval literal. It comes from
+            // this server-side enum mapping, NEVER from caller input, so inlining it into the SQL
+            // carries no injection path — and a literal (e.g. '1 month') expresses the calendar
+            // intervals a TimeSpan parameter cannot (a month/quarter/year is not a fixed duration).
+            ThroughputGranularity.Second => new("second", null, "1 second"),
+            ThroughputGranularity.Minute => new("minute", null, "1 minute"),
+            ThroughputGranularity.FiveMinute => new("minute", 5, "5 minutes"),
+            ThroughputGranularity.TenMinute => new("minute", 10, "10 minutes"),
+            ThroughputGranularity.Hour => new("hour", null, "1 hour"),
+            ThroughputGranularity.Day => new("day", null, "1 day"),
+            ThroughputGranularity.Week => new("week", null, "1 week"),
+            ThroughputGranularity.Month => new("month", null, "1 month"),
+            ThroughputGranularity.Quarter => new("quarter", null, "3 months"),
+            ThroughputGranularity.Year => new("year", null, "1 year"),
             _ => throw new ArgumentException(
                 $"Unsupported throughput granularity '{granularity}'.", nameof(granularity)),
         };

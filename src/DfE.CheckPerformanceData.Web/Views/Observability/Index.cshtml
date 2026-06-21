@@ -12,32 +12,6 @@
 @* Reading order: health strip (top, at-a-glance answer) → status sentence → big-number tiles →
    the animated board (the focal point, given the most canvas) → charts (detail on demand). *@
 
-@{
-    var exportQs = $"?range={Uri.EscapeDataString(Model.SelectedRange)}&granularity={Model.SelectedGranularity}";
-}
-<div class="obs-export govuk-button-group" data-obs-export>
-    @* Export this view as a single Excel workbook: one tab per chart (throughput, decision mix,
-       decision mix over time, per-stage dwell), each carrying the data AND an embedded native chart.
-       A plain download link carrying the current range/granularity — no JS required. *@
-    <a class="govuk-button govuk-button--secondary" role="button" draggable="false"
-       data-module="govuk-button" data-export-xlsx
-       href="/admin/observability/export.xlsx@(exportQs)"
-       title="Download this dashboard as an Excel workbook: four tabs, one per chart, each with the data and an embedded chart.">
-        Export this view (Excel)
-    </a>
-    @* The same data as a flat CSV, for a quick paste into another tool. *@
-    <a class="govuk-button govuk-button--secondary" role="button" draggable="false"
-       data-module="govuk-button" data-export-csv
-       href="/admin/observability/export.csv@(exportQs)"
-       title="Download the data behind this dashboard (throughput, decisions, dwell and the headline figures) as a CSV file.">
-        Export data (CSV)
-    </a>
-    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button"
-            title="Open the browser print dialog to print or save this dashboard as a PDF.">
-        Print or save as PDF
-    </button>
-</div>
-
 @await Html.PartialAsync("_HealthStrip", Model)
 
 <p class="govuk-body-l">@Model.StatusSentence</p>
@@ -56,8 +30,12 @@
 
 @* Plain GET form, no JS required: the granularity options are the pairings allowed for the
    currently rendered window, and the server snaps a stale pairing (range changed, granularity
-   not resubmitted sensibly) to the new window's default rather than erroring. *@
-<form method="get" action="/admin/observability" class="obs-range-form">
+   not resubmitted sensibly) to the new window's default rather than erroring. The Custom from/to
+   inputs apply only when "Custom range" is selected; they are always rendered (no JS) and pre-filled
+   with the current window so switching to Custom starts from what is on screen. The export buttons
+   below the charts submit THIS form (via form= + formaction), so the download always reflects the
+   live range/granularity/from/to selection. *@
+<form method="get" action="/admin/observability" class="obs-range-form" id="obs-controls-form">
     <div class="govuk-form-group">
         <label class="govuk-label" for="range">Time range</label>
         <select class="govuk-select" id="range" name="range">
@@ -76,6 +54,16 @@
             }
         </select>
     </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="from">Custom from (UTC)</label>
+        <input class="govuk-input govuk-input--width-20" type="datetime-local" id="from" name="from"
+               value="@Model.SelectedFromUtc.ToString("yyyy-MM-ddTHH:mm")" />
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="to">Custom to (UTC)</label>
+        <input class="govuk-input govuk-input--width-20" type="datetime-local" id="to" name="to"
+               value="@Model.SelectedToUtc.ToString("yyyy-MM-ddTHH:mm")" />
+    </div>
     <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
         Update charts
     </button>
@@ -85,6 +73,26 @@
     @await Html.PartialAsync("_Chart", Model)
     @await Html.PartialAsync("_DecisionMixOverTimeChart", Model)
     @await Html.PartialAsync("_DwellChart", Model)
+</div>
+
+@* Export sits BELOW the charts and submits the controls form above (form= + formaction), so the
+   downloaded data is always for the range/granularity/from-to currently shown. No JS for the two
+   downloads; the PDF button uses the browser print dialog. *@
+<div class="obs-export govuk-button-group" data-obs-export>
+    <button type="submit" form="obs-controls-form" formaction="/admin/observability/export.xlsx" formmethod="get"
+            class="govuk-button govuk-button--secondary" data-module="govuk-button" data-export-xlsx
+            title="Download the data behind these charts as an Excel workbook: four tabs, one per chart, each with the data and an embedded chart, for the time range shown.">
+        Export this view (Excel)
+    </button>
+    <button type="submit" form="obs-controls-form" formaction="/admin/observability/export.csv" formmethod="get"
+            class="govuk-button govuk-button--secondary" data-module="govuk-button" data-export-csv
+            title="Download the data behind these charts (throughput, decisions, dwell and the headline figures) as a CSV file, for the time range shown.">
+        Export data (CSV)
+    </button>
+    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button"
+            title="Open the browser print dialog to print or save this dashboard as a PDF.">
+        Print or save as PDF
+    </button>
 </div>
 
 @if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)

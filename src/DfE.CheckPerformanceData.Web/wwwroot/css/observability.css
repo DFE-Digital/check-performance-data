@@ -727,6 +727,13 @@
     margin-bottom: 0;
 }
 
+/* The custom from/to groups are shown only when "Custom range" is selected. Restore the hidden
+   attribute's meaning so a framework `display` rule can't keep them on screen (the same dfefrontend
+   override that bites the reconnect notice and the live counts). */
+[data-obs-custom-range][hidden] {
+    display: none;
+}
+
 .obs-chart-group {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

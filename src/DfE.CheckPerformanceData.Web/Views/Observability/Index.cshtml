@@ -41,7 +41,7 @@
 <form method="get" action="/admin/observability" class="obs-range-form" id="obs-controls-form">
     <div class="govuk-form-group">
         <label class="govuk-label" for="range">Time range</label>
-        <select class="govuk-select" id="range" name="range">
+        <select class="govuk-select" id="range" name="range" data-obs-range-select>
             @foreach (var option in DashboardRanges.All)
             {
                 <option value="@option.Value" selected="@(option.Value == Model.SelectedRange)">@option.Label</option>
@@ -57,12 +57,15 @@
             }
         </select>
     </div>
-    <div class="govuk-form-group">
+    @* Custom from/to apply only when "Custom range" is selected; the range-custom script reveals them
+       on that selection. Rendered visible server-side only when custom is already the saved range so
+       the form still works without JS. *@
+    <div class="govuk-form-group" data-obs-custom-range @(Model.SelectedRange == DashboardRanges.CustomValue ? "" : "hidden")>
         <label class="govuk-label" for="from">Custom from (UTC)</label>
         <input class="govuk-input govuk-input--width-20" type="datetime-local" id="from" name="from"
                value="@Model.SelectedFromUtc.ToString("yyyy-MM-ddTHH:mm")" />
     </div>
-    <div class="govuk-form-group">
+    <div class="govuk-form-group" data-obs-custom-range @(Model.SelectedRange == DashboardRanges.CustomValue ? "" : "hidden")>
         <label class="govuk-label" for="to">Custom to (UTC)</label>
         <input class="govuk-input govuk-input--width-20" type="datetime-local" id="to" name="to"
                value="@Model.SelectedToUtc.ToString("yyyy-MM-ddTHH:mm")" />
@@ -111,6 +114,8 @@
 
 <script src="~/js/observability-board.js" asp-append-version="true"></script>
 <script src="~/js/observability-stats.js" asp-append-version="true"></script>
+@* Show the custom from/to date inputs only when a range dropdown is set to "Custom range". *@
+<script src="~/js/observability-range-custom.js" asp-append-version="true"></script>
 @if (Model.DemoToolsEnabled)
 {
     <script src="~/js/observability-loadtest.js" asp-append-version="true"></script>

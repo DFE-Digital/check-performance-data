@@ -249,6 +249,51 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Index_DemoPanel_SeedControlsAreBehindASeedDisclosure()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// Seed messages, Seed DLQ and Purge demo are tucked behind a GDS <details> "Seed" toggle so
+		// the always-visible drive bar stays short.
+		Assert.Contains("obs-demo-panel__seed", panel);
+		Assert.Contains(">Seed</span>", panel); // the details summary text
+
+		// The three seeding/cleanup controls live inside that disclosure.
+		var bodyIdx = panel.IndexOf("obs-demo-panel__seed", StringComparison.Ordinal);
+		var body = panel.Substring(bodyIdx);
+		Assert.Contains("/dev/uat/seed-messages", body);
+		Assert.Contains("/dev/uat/seed-dlq", body);
+		Assert.Contains("/dev/uat/purge-demo", body);
+	}
+
+	[Fact]
+	public void Index_Board_DemoToggleReadsDemo_NotDemoTools()
+	{
+		var board = ReadView("_Board.cshtml");
+
+		// The decoupled toggle reads just "Demo" (was "Demo tools").
+		Assert.Contains(">Demo</button>", board);
+		Assert.DoesNotContain(">Demo tools</button>", board);
+	}
+
+	[Fact]
+	public void Index_CustomDateInputs_AreGatedBehindTheCustomRangeSelection()
+	{
+		var index = ReadView("Index.cshtml");
+
+		// The range select drives custom from/to visibility; the groups carry the marker and the
+		// toggle script is loaded.
+		Assert.Contains("data-obs-range-select", index);
+		Assert.Contains("data-obs-custom-range", index);
+		Assert.Contains("observability-range-custom.js", index);
+
+		// The seed time-frame select gets the same treatment.
+		var panel = ReadView("_DemoPanel.cshtml");
+		Assert.Contains("data-obs-range-select", panel);
+		Assert.Contains("data-obs-custom-range", panel);
+	}
+
+	[Fact]
 	public void Index_DemoPanel_HoldsTheReplayAndBoardDemoControls()
 	{
 		var panel = ReadView("_DemoPanel.cshtml");

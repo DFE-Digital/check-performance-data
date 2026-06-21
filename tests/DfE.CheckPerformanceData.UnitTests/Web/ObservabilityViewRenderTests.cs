@@ -458,6 +458,28 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Charts_OnScreen_HaveAxisLabelsLegendsAndDistinctColours()
+	{
+		// Decision-mix-over-time renders axis value labels (Y ticks + thinned X time labels), not
+		// just bare axis lines.
+		var overTime = ReadView("_DecisionMixOverTimeChart.cshtml");
+		Assert.Contains("axisDecorations", overTime);
+		Assert.Contains("yTicks", overTime);
+
+		// Time-at-each-stage colours each bar per stage and carries a legend beneath.
+		var dwell = ReadView("_DwellChart.cshtml");
+		Assert.Contains("StageColour", dwell);
+		Assert.Contains("obs-legend", dwell);
+
+		// The enlarge-to-modal brings the chart's legend along, not just the SVG.
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var modalJs = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-chart-modal.js"));
+		Assert.Contains(".obs-legend", modalJs);
+	}
+
+	[Fact]
 	public void BoardEngine_SeedsItsLiveGridFromTheServerRenderedHistory()
 	{
 		var thisFile = ThisFilePath();

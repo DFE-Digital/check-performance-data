@@ -140,6 +140,17 @@ public sealed class ObservabilityBoardSourceTests
     }
 
     [Fact]
+    public void Board_StageAndDestinationBoxesCarryMeaningfulIcons()
+    {
+        var board = Board();
+
+        // The stage and destination boxes render meaningful line-icons (not plain squares).
+        Assert.Contains("obs-board__icon", board);
+        Assert.Contains("StageIconSvg", board);
+        Assert.Contains("DestinationIconSvg", board);
+    }
+
+    [Fact]
     public void BoardJs_RoutesEnvelopesToTheirDecisionBox()
     {
         var js = BoardJs();

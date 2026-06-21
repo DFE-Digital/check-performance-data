@@ -146,18 +146,35 @@
 /* The stage node: a square by default; state is conveyed by colour AND shape AND the text label
    beneath, never colour alone, so a reduced-motion / paused render stays legible. */
 .obs-board__node {
-    width: 28px;
-    height: 28px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0b0c0c;                /* the stage icon (currentColor) on the default white box */
     background: #ffffff;
     border: 3px solid #505a5f;
-    border-radius: 2px;
+    border-radius: 4px;
     margin-bottom: 8px;
+}
+
+/* The stage / destination icons: monochrome line-icons that take the node's colour. */
+.obs-board__icon {
+    width: 26px;
+    height: 26px;
+    display: block;
+}
+
+.obs-board__dlq-node .obs-board__icon {
+    width: 22px;
+    height: 22px;
 }
 
 .obs-board__lane[data-state="flowing"] .obs-board__node {
     border-color: #00703c;
     border-radius: 50%;            /* circle */
     background: #00703c;
+    color: #ffffff;                /* white icon on the filled green node */
 }
 
 .obs-board__lane[data-state="backingup"] .obs-board__node {
@@ -278,16 +295,28 @@
 }
 
 .obs-board__dlq-node {
-    width: 28px;
-    height: 28px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0b0c0c;
     background: #ffffff;
     border: 3px dashed #f47738;
-    border-radius: 2px;
+    border-radius: 4px;
     margin-bottom: 8px;
 }
 
 .obs-board__dlq[data-obs-dlq-active="true"] .obs-board__dlq-node {
     background: #f47738;
+    color: #ffffff;
+}
+
+/* A filled (active) decision destination shows a white icon on its dark colour; scrutiny's active
+   fill is yellow, so its icon stays dark for contrast. */
+.obs-board__decision[data-obs-decision-active="true"][data-obs-decision="AutoApproved"] .obs-board__dlq-node,
+.obs-board__decision[data-obs-decision-active="true"][data-obs-decision="AutoRejected"] .obs-board__dlq-node {
+    color: #ffffff;
 }
 
 .obs-board__dlq-label {

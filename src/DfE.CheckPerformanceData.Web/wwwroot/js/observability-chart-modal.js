@@ -78,6 +78,11 @@
     body.innerHTML = '';
     body.appendChild(clone);
 
+    // Bring the chart's colour legend along so the enlarged view explains its colours too (the
+    // small inline legend would otherwise be left behind on the page).
+    var legend = panel.querySelector('.obs-legend');
+    if (legend) { body.appendChild(legend.cloneNode(true)); }
+
     if (typeof dialog.showModal === 'function') { dialog.showModal(); }
     else { dialog.setAttribute('open', ''); }
   }

@@ -39,9 +39,14 @@ public sealed class DevPipelineRunner
     // for the rules consumer, recording the journey's first (Submitted) metric. Returns the minted
     // reference and the preset's expected outcome.
     public async Task<DriveResult> SubmitAsync(string? outcome, CancellationToken cancellationToken)
+        => await SubmitAsync(outcome, "DEV-", cancellationToken);
+
+    // As above, with an explicit reference prefix so a caller can tag its traffic distinctly — the
+    // drive buttons use DEV-, the self load-test uses load-, both purgeable by their well-known prefix.
+    public async Task<DriveResult> SubmitAsync(string? outcome, string referencePrefix, CancellationToken cancellationToken)
     {
         var preset = OutcomePresets.Resolve(outcome);
-        var reference = $"DEV-{Guid.NewGuid():N}"[..16];
+        var reference = $"{referencePrefix}{Guid.NewGuid():N}"[..16];
         var changeRequestId = Guid.NewGuid();
 
         await EnsureCheckingWindowAsync(cancellationToken);

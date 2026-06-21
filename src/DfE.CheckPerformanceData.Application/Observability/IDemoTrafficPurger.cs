@@ -16,6 +16,7 @@ public interface IDemoTrafficPurger
 //   demo-fail- DevUat InjectFailure + DevQueueSeed InjectFailureDemo (demo-fail-{preset}-…)
 //   uat-dlq-   DevUat SeedDlq
 //   e2e-dlq-   DevQueueSeed SeedDeadLetter (also used by the E2E harness)
+//   load-      DevUat LoadTest (load-… drives + load-fail-… failures)
 public static class DemoTrafficPrefixes
 {
     public static readonly IReadOnlyList<string> All = new[]
@@ -25,6 +26,7 @@ public static class DemoTrafficPrefixes
         "demo-fail-",
         "uat-dlq-",
         "e2e-dlq-",
+        "load-",
     };
 }
 

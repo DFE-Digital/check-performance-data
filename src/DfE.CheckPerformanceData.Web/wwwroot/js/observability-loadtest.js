@@ -65,15 +65,29 @@
             resumeBoard();
         });
 
-        function addRow(r, isBest) {
+        function cell(text, numeric) {
+            var td = document.createElement('td');
+            td.className = 'govuk-table__cell' + (numeric ? ' govuk-table__cell--numeric' : '');
+            td.textContent = text;
+            return td;
+        }
+
+        // A row appears as soon as a level STARTS, showing how many messages are being driven and a
+        // "processing…" state; fillRow updates it in place once the batch has drained and the per-step
+        // averages are known. So the user sees the rate go out, then the numbers come back, per level.
+        function placeholderRow(rate) {
             var tr = document.createElement('tr');
+            tr.className = 'govuk-table__row';
+            tr.appendChild(cell(String(rate), false));
+            tr.appendChild(cell('processing…', false));
+            for (var i = 0; i < 6; i++) { tr.appendChild(cell('…', true)); }
+            rows.appendChild(tr);
+            return tr;
+        }
+
+        function fillRow(tr, r, isBest) {
             tr.className = 'govuk-table__row' + (isBest ? ' obs-loadtest__row--best' : '');
-            function cell(text, numeric) {
-                var td = document.createElement('td');
-                td.className = 'govuk-table__cell' + (numeric ? ' govuk-table__cell--numeric' : '');
-                td.textContent = text;
-                return td;
-            }
+            tr.innerHTML = '';
             tr.appendChild(cell(String(r.rate) + (r.timedOut ? ' (timed out)' : ''), false));
             tr.appendChild(cell(r.completed + '/' + r.driven, true));
             tr.appendChild(cell(r.throughputPerSec != null ? r.throughputPerSec.toFixed(1) : '—', true));
@@ -82,7 +96,6 @@
             tr.appendChild(cell(fmtMs(r.rulesEngineMs), true));
             tr.appendChild(cell(fmtMs(r.zendeskQueueMs), true));
             tr.appendChild(cell(fmtMs(r.ticketMs), true));
-            rows.appendChild(tr);
         }
 
         function bestIndex() {
@@ -173,11 +186,13 @@
                 if (cancelled) { finish('Stopped.'); return; }
                 var rate = LADDER[i];
                 status.textContent = 'Driving ' + rate + ' message' + (rate === 1 ? '' : 's') + '…';
+                // Show the row immediately (rate + processing…), then fill it when the batch drains.
+                var tr = placeholderRow(rate);
                 var r;
                 try { r = await runLevel(rate); } catch (e) { r = null; }
-                if (!r || !r.ok) { finish('Load test failed at rate ' + rate + '.'); return; }
+                if (!r || !r.ok) { tr.remove(); finish('Load test failed at rate ' + rate + '.'); return; }
                 results.push(r);
-                addRow(r, false);
+                fillRow(tr, r, false);
                 drawChart();
 
                 // Knee detection: stop once a level cannot keep up (some messages did not finish in

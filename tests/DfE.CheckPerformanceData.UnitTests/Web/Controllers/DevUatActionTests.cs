@@ -200,6 +200,27 @@ public sealed class DevUatActionTests
     }
 
     [Fact]
+    public async Task LoadTest_DrivesReferencesPrefixedWithLoad()
+    {
+        // Load-test traffic is tagged with the load- prefix (load-… drives, load-fail-… failures) so
+        // it is distinct from the drive buttons' DEV- traffic and purgeable by its well-known prefix.
+        var sut = CreateSut(ajax: true);
+        IReadOnlyList<string>? captured = null;
+        _metricsQuery.GetLoadSampleAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                captured = ci.ArgAt<IReadOnlyList<string>>(0);
+                return new LoadSample(captured.Count, new StageAverages(1, 1, 1, 1));
+            });
+
+        await sut.LoadTest(rate: 3, timeoutMs: 2000, CancellationToken.None);
+
+        Assert.NotNull(captured);
+        Assert.Equal(3, captured!.Count);
+        Assert.All(captured, r => Assert.StartsWith("load-", r));
+    }
+
+    [Fact]
     public async Task LoadTest_ToolsDisabled_ReturnsNotFound()
     {
         var config = new ConfigurationBuilder()

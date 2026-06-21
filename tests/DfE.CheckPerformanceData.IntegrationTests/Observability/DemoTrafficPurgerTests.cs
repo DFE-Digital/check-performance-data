@@ -35,6 +35,7 @@ public sealed class DemoTrafficPurgerTests
             Metric("demo-fail-scrutiny-ccc", anchor),
             Metric("uat-dlq-ddd", anchor),
             Metric("e2e-dlq-eee", anchor),
+            Metric("load-fff", anchor),               // self load-test traffic
             Metric("2026-REAL-001", anchor)); // a genuine submission reference
 
         // Dead-letters and queue messages carry the reference inside their JSON payload.
@@ -49,7 +50,7 @@ public sealed class DemoTrafficPurgerTests
         // Every demo metric event is gone; the real one survives.
         var metricRefs = await ctx.QueueMetricEvents.Select(e => e.ReferenceNumber).ToListAsync();
         Assert.Equal(new[] { "2026-REAL-001" }, metricRefs);
-        Assert.Equal(5, result.MetricEvents);
+        Assert.Equal(6, result.MetricEvents);
 
         // Demo dead-letters gone, real one survives.
         var dlqPayloads = await ctx.DeadLetters.Select(d => d.Payload).ToListAsync();

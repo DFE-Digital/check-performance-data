@@ -230,7 +230,10 @@ public sealed class DevUatController : Controller
     // measured. Returns the wall-clock throughput (completed / elapsed) and the per-step averages for
     // the batch. The client escalates the rate and finds the knee. Dev-gated; JSON only.
     private const int LoadMaxRate = 200;
-    private const int LoadDefaultTimeoutMs = 30000;
+    // The per-level drain budget. Kept modest (was 30s) so a level that can't fully drain caps quickly
+    // rather than churning for 30–60s: knee detection stops the ladder at the first level that can't
+    // keep up, and the throughput is measured on whatever drained within the budget.
+    private const int LoadDefaultTimeoutMs = 12000;
     private const int LoadPollMs = 400;
 
     [HttpPost("dev/uat/load-test")]
@@ -251,13 +254,14 @@ public sealed class DevUatController : Controller
             var chosen = ResolveDriveOutcome("random");
             if (chosen == FailureOutcome)
             {
-                var reference = $"demo-fail-{Guid.NewGuid():N}"[..20];
+                var reference = $"load-fail-{Guid.NewGuid():N}"[..20];
                 await SeedFailedMessageAsync(reference, "Load-test failing message.", cancellationToken);
                 references.Add(reference);
             }
             else
             {
-                var result = await _runner.SubmitAsync(chosen, cancellationToken);
+                // load- prefix so load-test traffic is distinct from drive (DEV-) and purgeable.
+                var result = await _runner.SubmitAsync(chosen, "load-", cancellationToken);
                 references.Add(result.Reference);
             }
         }

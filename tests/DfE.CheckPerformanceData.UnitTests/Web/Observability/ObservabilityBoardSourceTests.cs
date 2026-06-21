@@ -272,6 +272,21 @@ public sealed class ObservabilityBoardSourceTests
     }
 
     [Fact]
+    public void BoardJs_EnvelopesStackAtEveryStage_AndDesyncPerMessage()
+    {
+        var js = BoardJs();
+
+        // B7: every lane stage stacks (restAt with the per-stage anchor), feeding the "+N" overlay —
+        // not just the terminal boxes, so a burst piling into Submit/the queues shows the overlay.
+        Assert.Contains("restAt(token, 'stage:' + path[hop]", js);
+        Assert.Contains("obs-board__stack-count", js);
+        // B3: per-message dwell jitter + staggered burst spawns, so a batch trickles in and the
+        // envelopes desync rather than marching out in one lump.
+        Assert.Contains("0.65 + Math.random()", js);
+        Assert.Contains("setTimeout(spawnOne", js);
+    }
+
+    [Fact]
     public void BoardJs_DemoTrickleIsDrivenBySpeedAndCountSliders()
     {
         var js = BoardJs();

@@ -37,10 +37,13 @@
     };
 
     // The dwell an envelope spends AT a given stage before hopping on, scaled by the slow-mo clock.
+    // A per-call random jitter (±~35%) desyncs envelopes PER MESSAGE as well as per stage, so two
+    // envelopes that entered a stage together don't march out in lockstep.
     function dwellFor(stageKey, speed) {
         var base = STAGE_DWELL_BY_KEY[stageKey];
         if (!base) { base = STAGE_DWELL_MS; }
-        return base * (speed || 1);
+        var jitter = 0.65 + Math.random() * 0.7;
+        return base * (speed || 1) * jitter;
     }
 
     // When several envelopes occupy the same box at once they offset diagonally by this many px per
@@ -503,6 +506,8 @@
             if (index >= STACK_MAX_VISIBLE) {
                 token.style.visibility = 'hidden';
             } else {
+                // Restore visibility in case this envelope was hidden behind a "+N" at a busier box.
+                token.style.visibility = '';
                 var off = stackOffset(index);
                 placeAt(token, { x: anchor.x + off.x, y: anchor.y + off.y });
             }
@@ -562,13 +567,18 @@
 
             placeAt(token, anchorFor('submit'));
             moveToken(token, 'submit');
+            // Stack at every lane stage too (not just the terminal boxes), so a burst piles up
+            // diagonally and shows the "+N" overlay as it passes through Submit, the queues and the
+            // engine. laneRelease frees the box this envelope is resting in before it hops to the next.
+            var laneRelease = restAt(token, 'stage:submit', anchorFor('submit'));
             var hop = 0;
             window.requestAnimationFrame(function () {
                 function next() {
+                    if (laneRelease) { laneRelease(); laneRelease = null; }
                     hop += 1;
                     if (hop < path.length) {
-                        placeAt(token, anchorFor(path[hop]));
                         moveToken(token, path[hop]);
+                        laneRelease = restAt(token, 'stage:' + path[hop], anchorFor(path[hop]));
                         pausableTimeout(next, dwellFor(path[hop], moveSpeed));
                     } else if (failed) {
                         // Terminal at the dead-letter box; reveal it and rest there. The envelope
@@ -1163,12 +1173,17 @@
 
         // One trickle burst: send demoCount synthetic envelopes, spread across all the outcome types
         // so the board (and the live decision mix) shows a realistic mix, not only the happy path.
+        // The envelopes are STAGGERED by a small randomised delay each, so a burst trickles in rather
+        // than dropping onto the board as one synchronised lump.
+        function spawnOne() {
+            var ev = randomOutcome('DEMO');
+            if (!ev.failed) { bumpProcessed(); }
+            bumpDecision(ev.decisionStatus, ev.failed);
+            onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
+        }
         function spawnDemoBurst() {
             for (var i = 0; i < demoCount; i++) {
-                var ev = randomOutcome('DEMO');
-                if (!ev.failed) { bumpProcessed(); }
-                bumpDecision(ev.decisionStatus, ev.failed);
-                onSnapshot({ recentTransitions: [ev], depths: [], forceAnimate: true });
+                window.setTimeout(spawnOne, i * (50 + Math.random() * 200));
             }
         }
 

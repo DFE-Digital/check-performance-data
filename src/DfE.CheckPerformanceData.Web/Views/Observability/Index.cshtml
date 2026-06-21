@@ -26,6 +26,9 @@
 
 @await Html.PartialAsync("_Board", Model)
 
+@* The self load-test overlay (dev-gated). Its launcher is the Load test button in the stats strip. *@
+@await Html.PartialAsync("_LoadTestModal", Model)
+
 <h2 class="govuk-heading-l">Charts</h2>
 
 @* Plain GET form, no JS required: the granularity options are the pairings allowed for the
@@ -108,6 +111,10 @@
 
 <script src="~/js/observability-board.js" asp-append-version="true"></script>
 <script src="~/js/observability-stats.js" asp-append-version="true"></script>
+@if (Model.DemoToolsEnabled)
+{
+    <script src="~/js/observability-loadtest.js" asp-append-version="true"></script>
+}
 <script src="~/js/observability-export.js" asp-append-version="true"></script>
 @* Click a chart (or its Enlarge button) to read it larger in a modal — the on-page charts are small
    and their labels hard to read. Progressive enhancement: charts and their data tables work without it. *@

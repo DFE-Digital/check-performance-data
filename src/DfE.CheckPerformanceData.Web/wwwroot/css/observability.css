@@ -477,6 +477,45 @@
 
 /* The decoupled Demo-tools toggle: a subtle, right-aligned link below the Recent submissions table,
    styled as a link (it is a <button> for correct semantics) so it does not lead the dashboard. */
+/* The self load-test modal: a wide overlay with a live results grid and a throughput chart. */
+.obs-loadtest {
+    width: min(900px, 92vw);
+    max-height: 90vh;
+    overflow: auto;
+    border: 1px solid #b1b4b6;
+    border-radius: 4px;
+    padding: 24px;
+}
+
+.obs-loadtest::backdrop {
+    background: rgba(11, 12, 12, 0.6);
+}
+
+.obs-loadtest__dismiss {
+    float: right;
+    margin: 0 0 8px 16px;
+}
+
+.obs-loadtest__grid-scroll {
+    overflow-x: auto;
+    margin-top: 12px;
+}
+
+/* The best (peak-throughput) row stands out by colour AND a left bar, never colour alone. */
+.obs-loadtest__row--best > td {
+    background: #cce2d8;
+    font-weight: 700;
+}
+
+.obs-loadtest__row--best > td:first-child {
+    box-shadow: inset 4px 0 0 0 #00703c;
+}
+
+.obs-loadtest__chart {
+    margin: 20px 0 0;
+    max-width: 560px;
+}
+
 /* The real-time per-step averages strip between the board boxes and the Recent submissions table:
    the four figures listed horizontally, the window dropdown, and the Load test launcher on the
    right. Wraps on narrow viewports. */

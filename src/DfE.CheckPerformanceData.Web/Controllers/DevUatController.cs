@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -27,6 +28,7 @@ public sealed class DevUatController : Controller
     private readonly IHostEnvironment? _hostEnvironment;
     private readonly IMetricsSink? _metricsSink;
     private readonly IDemoTrafficPurger? _demoPurger;
+    private readonly IMetricsQueryService? _metricsQuery;
 
     public DevUatController(
         IConfiguration configuration,
@@ -34,7 +36,8 @@ public sealed class DevUatController : Controller
         DevPipelineRunner runner,
         IHostEnvironment? hostEnvironment = null,
         IMetricsSink? metricsSink = null,
-        IDemoTrafficPurger? demoPurger = null)
+        IDemoTrafficPurger? demoPurger = null,
+        IMetricsQueryService? metricsQuery = null)
     {
         _configuration = configuration;
         _queueService = queueService;
@@ -42,6 +45,7 @@ public sealed class DevUatController : Controller
         _hostEnvironment = hostEnvironment;
         _metricsSink = metricsSink;
         _demoPurger = demoPurger;
+        _metricsQuery = metricsQuery;
     }
 
     // The "seed messages" spread: a couple of months of synthetic history, 10–100 submissions a day,
@@ -218,6 +222,111 @@ public sealed class DevUatController : Controller
             return Json(new { ok = true, count = events.Count });
 
         return Redirect(DashboardUrl);
+    }
+
+    // One level of the self load-test: drive a burst of `rate` random-outcome messages, then wait
+    // (polling the metrics for exactly those references) until the whole batch reaches a terminal
+    // stage or the timeout elapses — the rules-engine worker draining the queue is what is being
+    // measured. Returns the wall-clock throughput (completed / elapsed) and the per-step averages for
+    // the batch. The client escalates the rate and finds the knee. Dev-gated; JSON only.
+    private const int LoadMaxRate = 200;
+    private const int LoadDefaultTimeoutMs = 30000;
+    private const int LoadPollMs = 400;
+
+    [HttpPost("dev/uat/load-test")]
+    public async Task<IActionResult> LoadTest(int rate, int? timeoutMs, CancellationToken cancellationToken)
+    {
+        if (!IsAllowed || _metricsQuery is null)
+            return NotFound();
+
+        var batch = Math.Clamp(rate <= 0 ? 1 : rate, 1, LoadMaxRate);
+        var timeout = Math.Clamp(timeoutMs ?? LoadDefaultTimeoutMs, 1000, 60000);
+
+        var started = Stopwatch.GetTimestamp();
+
+        // Drive the batch and remember exactly which references it produced.
+        var references = new List<string>(batch);
+        for (var i = 0; i < batch; i++)
+        {
+            var chosen = ResolveDriveOutcome("random");
+            if (chosen == FailureOutcome)
+            {
+                var reference = $"demo-fail-{Guid.NewGuid():N}"[..20];
+                await SeedFailedMessageAsync(reference, "Load-test failing message.", cancellationToken);
+                references.Add(reference);
+            }
+            else
+            {
+                var result = await _runner.SubmitAsync(chosen, cancellationToken);
+                references.Add(result.Reference);
+            }
+        }
+
+        // Poll until the whole batch completes or the timeout elapses.
+        var sample = new LoadSample(0, new StageAverages(null, null, null, null));
+        var deadlineTicks = Stopwatch.GetTimestamp() + (long)(timeout / 1000.0 * Stopwatch.Frequency);
+        while (true)
+        {
+            sample = await _metricsQuery.GetLoadSampleAsync(references, cancellationToken);
+            if (sample.Completed >= batch)
+                break;
+            if (Stopwatch.GetTimestamp() >= deadlineTicks)
+                break;
+            await Task.Delay(LoadPollMs, cancellationToken);
+        }
+
+        var elapsedMs = (Stopwatch.GetTimestamp() - started) * 1000.0 / Stopwatch.Frequency;
+        var throughput = elapsedMs > 0 ? sample.Completed / (elapsedMs / 1000.0) : 0;
+
+        return Json(new
+        {
+            ok = true,
+            rate = batch,
+            driven = batch,
+            completed = sample.Completed,
+            elapsedMs = Math.Round(elapsedMs),
+            throughputPerSec = Math.Round(throughput, 2),
+            rulesQueueMs = sample.Averages.RulesQueueMs,
+            rulesEngineMs = sample.Averages.RulesEngineMs,
+            zendeskQueueMs = sample.Averages.ZendeskQueueMs,
+            ticketMs = sample.Averages.TicketMs,
+            timedOut = sample.Completed < batch,
+        });
+    }
+
+    // The load-test results exported as an .xlsx (a throughput-by-rate chart and a step-times chart).
+    // The client posts the rows it collected; we render the workbook. Dev-gated like the rest.
+    public sealed record LoadTestExportRow(
+        int Rate, int Completed, double ThroughputPerSec, double ElapsedMs,
+        double? RulesQueueMs, double? RulesEngineMs, double? ZendeskQueueMs, double? TicketMs);
+
+    public sealed record LoadTestExportRequest(IReadOnlyList<LoadTestExportRow>? Rows);
+
+    [HttpPost("dev/uat/load-test/export.xlsx")]
+    public IActionResult LoadTestExport([FromBody] LoadTestExportRequest? request)
+    {
+        if (!IsAllowed)
+            return NotFound();
+
+        var rows = (request?.Rows ?? Array.Empty<LoadTestExportRow>())
+            .Select(r => new LoadTestRow
+            {
+                Rate = r.Rate,
+                Completed = r.Completed,
+                ThroughputPerSec = r.ThroughputPerSec,
+                ElapsedMs = r.ElapsedMs,
+                RulesQueueMs = r.RulesQueueMs,
+                RulesEngineMs = r.RulesEngineMs,
+                ZendeskQueueMs = r.ZendeskQueueMs,
+                TicketMs = r.TicketMs,
+            })
+            .ToList();
+
+        var bytes = LoadTestWorkbookBuilder.Build(rows);
+        return File(
+            bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "load-test.xlsx");
     }
 
     // Parses a datetime-local / ISO from-to value to UTC; DateTime does not bind from these query

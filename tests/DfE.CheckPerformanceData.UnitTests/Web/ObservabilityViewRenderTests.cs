@@ -310,6 +310,37 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void Index_RendersTheLoadTestModal_GatedOnDemoTools_WithItsScript()
+	{
+		var index = ReadView("Index.cshtml");
+		var modal = ReadView("_LoadTestModal.cshtml");
+
+		// The dashboard pulls in the modal partial and its driver script, both behind the flag.
+		Assert.Contains("_LoadTestModal", index);
+		Assert.Contains("observability-loadtest.js", index);
+		Assert.Contains("Model.DemoToolsEnabled", modal); // the whole modal is gated
+
+		// The modal is a dialog with a Start, the live results grid, the throughput chart and Export.
+		Assert.Contains("data-obs-loadtest-modal", modal);
+		Assert.Contains("data-obs-loadtest-start", modal);
+		Assert.Contains("data-obs-loadtest-rows", modal);
+		Assert.Contains("data-obs-loadtest-chart", modal);
+		Assert.Contains("data-obs-loadtest-export", modal);
+		Assert.Contains("Throughput (msg/s)", modal);
+
+		// The launcher lives in the stats strip and the endpoints are wired in the script.
+		var strip = ReadView("_StageAverages.cshtml");
+		Assert.Contains("data-obs-loadtest", strip);
+		var thisFile = ThisFilePath();
+		var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", ".."));
+		var js = File.ReadAllText(Path.Combine(
+			repoRoot, "src", "DfE.CheckPerformanceData.Web", "wwwroot", "js", "observability-loadtest.js"));
+		Assert.Contains("/dev/uat/load-test", js);
+		Assert.Contains("/dev/uat/load-test/export.xlsx", js);
+		Assert.Contains("data-obs-pause", js); // pauses the board while running
+	}
+
+	[Fact]
 	public void Board_RendersTheStageAveragesStrip_BetweenBoxesAndRecentSubmissions()
 	{
 		var board = ReadView("_Board.cshtml");

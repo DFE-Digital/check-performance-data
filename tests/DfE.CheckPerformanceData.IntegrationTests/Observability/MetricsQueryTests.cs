@@ -842,6 +842,45 @@ public sealed class MetricsQueryTests
         Assert.Null(avg.TicketMs);
     }
 
+    // --- Load sample: completion count + per-step averages scoped to an exact reference set ---
+
+    [Fact]
+    public async Task GetLoadSample_CountsTerminalReferences_AndAveragesOnlyThatBatch()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 5, 3, 10, 0, 0, DateTimeKind.Utc);
+
+        // Two batch references: one fully completed (ticket), one dead-lettered — both terminal.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "LOAD-1", anchor),
+            Metric(RulesEngineQueue, "RulesEvaluated", "LOAD-1", anchor.AddSeconds(2), decision: "AutoApproved", latencyMs: 500),
+            Metric(ZendeskQueue, "TicketCreated", "LOAD-1", anchor.AddSeconds(5), latencyMs: 100),
+            Metric(RulesEngineQueue, "Submitted", "LOAD-2", anchor.AddSeconds(1)),
+            Metric(RulesEngineQueue, "DeadLettered", "LOAD-2", anchor.AddSeconds(3)),
+            // One in-flight batch reference (submitted only — not terminal).
+            Metric(RulesEngineQueue, "Submitted", "LOAD-3", anchor.AddSeconds(1)),
+            // Noise outside the batch must not be counted.
+            Metric(RulesEngineQueue, "Submitted", "OTHER", anchor),
+            Metric(ZendeskQueue, "TicketCreated", "OTHER", anchor.AddSeconds(4), latencyMs: 999));
+
+        var service = CreateService();
+        var sample = await service.GetLoadSampleAsync(new[] { "LOAD-1", "LOAD-2", "LOAD-3" });
+
+        // LOAD-1 (ticket) and LOAD-2 (dead-letter) are terminal; LOAD-3 is not; OTHER is excluded.
+        Assert.Equal(2, sample.Completed);
+        // Averages cover only the batch: rules engine latency = 500 (only LOAD-1 has one).
+        Assert.Equal(500, sample.Averages.RulesEngineMs!.Value, 0);
+        Assert.Equal(100, sample.Averages.TicketMs!.Value, 0);
+    }
+
+    [Fact]
+    public async Task GetLoadSample_EmptySet_ReturnsZero()
+    {
+        var sample = await CreateService().GetLoadSampleAsync(Array.Empty<string>());
+        Assert.Equal(0, sample.Completed);
+        Assert.Null(sample.Averages.RulesEngineMs);
+    }
+
     private IMetricsQueryService CreateService() =>
         new MetricsQueryService(_fixture.CreateContext());
 

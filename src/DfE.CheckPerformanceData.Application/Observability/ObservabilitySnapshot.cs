@@ -21,6 +21,11 @@ public sealed record StageAverages(
 // Count of recorded events carrying a given decision status in a time window.
 public sealed record DecisionMixEntry(string DecisionStatus, int Count);
 
+// A measurement of one load-test batch: how many of the driven references have reached a terminal
+// stage (a ticket or a dead-letter), and the per-step averages over that batch. Scoped to an exact
+// set of references so a load level measures only its own messages, not other traffic.
+public sealed record LoadSample(int Completed, StageAverages Averages);
+
 // One cell of the decision-mix-over-time series: how many events carried a given decision
 // status within one time bucket. Buckets with no events for a status present in the window
 // are gap-filled to zero so a chart never shows a broken time axis.

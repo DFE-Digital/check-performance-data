@@ -32,6 +32,13 @@ public interface IMetricsQueryService
         DateTime toUtc,
         CancellationToken cancellationToken = default);
 
+    // Measures one load-test batch: how many of the given references have reached a terminal stage
+    // (TicketCreated or DeadLettered) and the per-step averages over them. Scoped to the exact
+    // reference set so a load level measures only its own messages. An empty set returns zero/nulls.
+    Task<LoadSample> GetLoadSampleAsync(
+        IReadOnlyList<string> references,
+        CancellationToken cancellationToken = default);
+
     // Count of events per decision status across [from, to].
     Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,

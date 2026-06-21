@@ -22,6 +22,7 @@ public sealed class DevUatActionTests
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly IMetricsSink _metricsSink = Substitute.For<IMetricsSink>();
     private readonly IDemoTrafficPurger _demoPurger = Substitute.For<IDemoTrafficPurger>();
+    private readonly IMetricsQueryService _metricsQuery = Substitute.For<IMetricsQueryService>();
 
     private DevUatController CreateSut(bool ajax = false)
     {
@@ -34,7 +35,7 @@ public sealed class DevUatActionTests
         var httpContext = new DefaultHttpContext();
         if (ajax)
             httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";
-        var sut = new DevUatController(config, _queueService, runner, env, _metricsSink, _demoPurger)
+        var sut = new DevUatController(config, _queueService, runner, env, _metricsSink, _demoPurger, _metricsQuery)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext },
             TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>()),
@@ -170,6 +171,66 @@ public sealed class DevUatActionTests
         var json = Assert.IsType<JsonResult>(result);
         var outcome = json.Value!.GetType().GetProperty("outcome")!.GetValue(json.Value) as string;
         Assert.Contains(outcome, DevUatController.RandomOutcomes);
+    }
+
+    // --- The load-test level drives the batch and reports the measured throughput ---
+
+    [Fact]
+    public async Task LoadTest_DrivesTheBatch_AndReturnsThroughputWhenComplete()
+    {
+        var sut = CreateSut(ajax: true);
+
+        // The metrics query reports the whole batch already terminal, so the poll returns at once.
+        _metricsQuery.GetLoadSampleAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(new LoadSample(4, new StageAverages(200, 400, 600, 150)));
+
+        var result = await sut.LoadTest(rate: 4, timeoutMs: 5000, CancellationToken.None);
+
+        var json = Assert.IsType<JsonResult>(result);
+        int Prop(string n) => Convert.ToInt32(json.Value!.GetType().GetProperty(n)!.GetValue(json.Value));
+        Assert.Equal(4, Prop("rate"));
+        Assert.Equal(4, Prop("completed"));
+        var timedOut = (bool)json.Value!.GetType().GetProperty("timedOut")!.GetValue(json.Value)!;
+        Assert.False(timedOut);
+
+        // The batch was measured against the metrics query (the random outcome split decides which
+        // queue each message lands on, so the exact rules-engine enqueue count is not asserted here).
+        await _metricsQuery.Received().GetLoadSampleAsync(
+            Arg.Is<IReadOnlyList<string>>(r => r.Count == 4), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LoadTest_ToolsDisabled_ReturnsNotFound()
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Dev:ToolsEnabled"] = "false" })
+            .Build();
+        var runner = new DevPipelineRunner(_dbContext, _queueService);
+        var sut = new DevUatController(config, _queueService, runner, metricsQuery: _metricsQuery)
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+        };
+
+        Assert.IsType<NotFoundResult>(await sut.LoadTest(rate: 4, timeoutMs: 1000, CancellationToken.None));
+    }
+
+    [Fact]
+    public void LoadTestExport_BuildsAnXlsxFromPostedRows()
+    {
+        var sut = CreateSut();
+
+        var request = new DevUatController.LoadTestExportRequest(new[]
+        {
+            new DevUatController.LoadTestExportRow(1, 1, 1.0, 1000, 200, 400, 600, 150),
+            new DevUatController.LoadTestExportRow(10, 9, 8.0, 1200, 300, 420, 800, 160),
+        });
+
+        var result = sut.LoadTestExport(request);
+
+        var file = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file.ContentType);
+        Assert.EndsWith(".xlsx", file.FileDownloadName);
+        Assert.NotEmpty(file.FileContents);
     }
 
     [Fact]

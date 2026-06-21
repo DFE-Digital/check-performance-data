@@ -1,0 +1,67 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@*
+    The self load-test modal (R9-3): a dev-gated overlay that drives random messages at increasing
+    rates, measures how long each batch takes to drain through the worker, and finds the throughput
+    knee — the rough optimum messages/second for this environment. Opening it pauses the board
+    animation (it would otherwise compete for the same browser horsepower). The grid fills a row per
+    rate level live; the chart plots throughput vs rate and marks the peak; the results export to an
+    Excel workbook with a chart. observability-loadtest.js drives it.
+
+    Only rendered when DemoToolsEnabled (Dev:ToolsEnabled AND not production), like the rest of the
+    demo tooling — a load test must never run against production.
+*@
+@if (Model.DemoToolsEnabled)
+{
+    <dialog class="obs-loadtest" data-obs-loadtest-modal aria-labelledby="obs-loadtest-title">
+        <form method="dialog" class="obs-loadtest__dismiss">
+            <button class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" value="close"
+                    data-obs-loadtest-close>Close</button>
+        </form>
+
+        <h2 class="govuk-heading-l" id="obs-loadtest-title">Self load-test</h2>
+        <p class="govuk-body">
+            Drives random messages at increasing rates and measures how long each batch takes to drain
+            through the pipeline, to find roughly the highest throughput this environment sustains. The
+            board animation is paused while it runs. This drives real synthetic traffic — use the
+            <strong>Purge demo traffic</strong> button afterwards to clear it.
+        </p>
+
+        @Html.AntiForgeryToken()
+
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-!-margin-bottom-0" data-obs-loadtest-start
+                    data-module="govuk-button">Start load test</button>
+            <button type="button" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
+                    data-obs-loadtest-stop hidden data-module="govuk-button">Stop</button>
+            <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                    data-obs-loadtest-export hidden data-module="govuk-button">Export to Excel</button>
+        </div>
+
+        <p class="govuk-body govuk-!-margin-top-2" data-obs-loadtest-status aria-live="polite"></p>
+        <p class="govuk-body govuk-!-font-weight-bold" data-obs-loadtest-optimum aria-live="polite" hidden></p>
+
+        <div class="obs-loadtest__grid-scroll">
+            <table class="govuk-table obs-loadtest__grid">
+                <caption class="govuk-table__caption govuk-visually-hidden">Load-test results by rate</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Rate (msgs)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Completed</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Throughput (msg/s)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Elapsed</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Rules queue</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Rules engine</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Zendesk queue</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">Ticket</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body" data-obs-loadtest-rows></tbody>
+            </table>
+        </div>
+
+        <figure class="obs-loadtest__chart" data-obs-loadtest-chart>
+            <figcaption class="govuk-heading-s">Throughput vs rate</figcaption>
+            <div data-obs-loadtest-chart-svg></div>
+        </figure>
+    </dialog>
+}

@@ -164,6 +164,60 @@ FROM per_ref;";
         return new StageAverages(rulesQueue, rulesEngine, zendeskQueue, ticket);
     }
 
+    public async Task<LoadSample> GetLoadSampleAsync(
+        IReadOnlyList<string> references,
+        CancellationToken cancellationToken = default)
+    {
+        if (references is null || references.Count == 0)
+            return new LoadSample(0, new StageAverages(null, null, null, null));
+
+        var refs = references.Distinct(StringComparer.Ordinal).ToArray();
+
+        // Per reference: the step timestamps + latencies, and whether it has reached a terminal stage
+        // (a ticket or a dead-letter). Then count the completed and average the per-step durations
+        // over the batch — exactly the same step definitions as GetStageAveragesAsync, scoped to the
+        // driven references via ANY(@refs) (parameterised, no interpolation).
+        var sql = $@"
+WITH per_ref AS (
+    SELECT reference_number,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
+           MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
+           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
+           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_latency,
+           bool_or(stage IN ('{MetricStages.TicketCreated}', '{MetricStages.DeadLettered}')) AS terminal
+    FROM queue_metrics_events
+    WHERE reference_number = ANY(@refs)
+    GROUP BY reference_number
+)
+SELECT
+    COUNT(*) FILTER (WHERE terminal) AS completed,
+    AVG(EXTRACT(EPOCH FROM (rules_at - submitted_at)) * 1000)
+        FILTER (WHERE rules_at IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
+    AVG(rules_latency) FILTER (WHERE rules_latency IS NOT NULL) AS rules_engine_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_at - rules_at)) * 1000)
+        FILTER (WHERE ticket_at IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
+    AVG(ticket_latency) FILTER (WHERE ticket_latency IS NOT NULL) AS ticket_ms
+FROM per_ref;";
+
+        var completed = 0;
+        double? rulesQueue = null, rulesEngine = null, zendeskQueue = null, ticket = null;
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("refs", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = refs });
+        }, reader =>
+        {
+            double? Read(int ord) => reader.IsDBNull(ord) ? null : Convert.ToDouble(reader.GetValue(ord));
+            completed = Convert.ToInt32(reader.GetInt64(0));
+            rulesQueue = Read(1);
+            rulesEngine = Read(2);
+            zendeskQueue = Read(3);
+            ticket = Read(4);
+        });
+
+        return new LoadSample(completed, new StageAverages(rulesQueue, rulesEngine, zendeskQueue, ticket));
+    }
+
     public async Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,
         DateTime toUtc,

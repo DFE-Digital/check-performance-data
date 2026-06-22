@@ -12,8 +12,20 @@ public sealed class CheckingWindow
     public KeyStages KeyStage { get; init; }
     public CheckingWindowType CheckingWindowType { get; init; }
     public string Title { get; init; } = string.Empty;
+    public bool Published { get; init; } = false;
+    public string IngressFile { get; init; } = string.Empty;
+    public string SchemaFile { get; init; } = string.Empty;
+    public string IngressFileChecksum { get; init; } = string.Empty;
+    public string SchemaFileChecksum { get; init; } = string.Empty;
+    public WindowValidated? Validated { get; init; }
 }
 
+public sealed class WindowValidated
+{
+    public DateTime ValidatedAt { get; init; }
+    public string IngressValidationChecksum { get; init; } = string.Empty;
+    public string SchemaValidationChecksum { get; init; } = string.Empty;
+}
 
 public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<CheckingWindow>
 {
@@ -43,5 +55,26 @@ public sealed class CheckingWindowConfiguration : IEntityTypeConfiguration<Check
         builder.Property(x => x.Title)
             .IsRequired()
             .HasMaxLength(200);
+        
+        builder.Property(x => x.IngressFile)
+            .HasMaxLength(255);
+        
+        builder.Property(x => x.SchemaFile)
+            .HasMaxLength(255);
+        
+        builder.Property(x => x.IngressFileChecksum)
+            .HasMaxLength(256);
+        
+        builder.Property(x => x.SchemaFileChecksum)
+            .HasMaxLength(256);
+        
+        builder.OwnsOne(x => x.Validated, validated =>
+        {
+            validated.Property(v => v.ValidatedAt);
+            validated.Property(v => v.IngressValidationChecksum)
+                .HasMaxLength(256);
+            validated.Property(v => v.SchemaValidationChecksum)
+                .HasMaxLength(256);
+        });
     }
 }

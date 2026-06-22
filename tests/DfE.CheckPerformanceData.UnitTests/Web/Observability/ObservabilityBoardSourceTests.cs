@@ -126,6 +126,24 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("obs-board__label govuk-link", board);
     }
 
+    // --- A queue that drains to EMPTY must clear its waiting count and backing-up marker ---
+    // Regression: an empty queue is ABSENT from the snapshot depths — the server groups existing
+    // QueueMessages rows, so a queue with nothing waiting produces no group and no depth entry.
+    // updateCounts therefore has to reset every known queue to empty BEFORE applying the depths the
+    // snapshot does carry; otherwise a queue that went from N to 0 keeps its stale "N" badge and
+    // orange backing-up state forever, because the per-depth loop never visits a queue missing from
+    // the array.
+    [Fact]
+    public void BoardJs_UpdateCounts_ResetsDrainedQueuesAbsentFromTheSnapshot()
+    {
+        var js = BoardJs();
+
+        // The set of queues the board tracks, zeroed on every snapshot before the present depths are
+        // applied, so a drained queue clears rather than sticking at its last non-zero value.
+        Assert.Contains("KNOWN_QUEUE_KEYS", js);
+        Assert.Contains("baseDepth[key] = 0", js);
+    }
+
     [Fact]
     public void Board_RecentSubmissionHeaders_ArePlainText_NotQueueLinks()
     {

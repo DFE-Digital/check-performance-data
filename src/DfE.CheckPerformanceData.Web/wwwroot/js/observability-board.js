@@ -640,12 +640,32 @@
             });
         }
 
+        // The two real queues the board folds a waiting depth into. An EMPTY queue is absent from the
+        // snapshot's depths — the server groups existing QueueMessages rows, so a queue with nothing
+        // waiting produces no group and no depth entry — so updateCounts must reset these to empty
+        // before applying whatever the snapshot carries.
+        var KNOWN_QUEUE_KEYS = ['rules-queue', 'zendesk-queue'];
+
         // Update the per-queue depth (colour state + the live-count baseline) from the snapshot. The
         // two real queues fold their waiting depth into the same live-count badge the animation
         // drives, so a queue box shows waiting + in-flight as one number; the other boxes have no
         // depth and show in-flight only.
         function updateCounts(depths) {
             updateDepthTile(depths); // the "current depths (all queues)" tile tracks the snapshot live
+
+            // Reset every known queue to empty FIRST. A queue that has drained to 0 drops out of the
+            // snapshot entirely (no rows ⇒ no group), so the per-depth loop below would never visit
+            // it and the box would keep its last non-zero badge and orange backing-up marker forever.
+            // Zeroing here, then re-applying the present depths, lets a drained queue clear correctly.
+            KNOWN_QUEUE_KEYS.forEach(function (key) {
+                var lane = lanes[key];
+                if (lane) {
+                    lane.setAttribute('data-state', stateForCount(0));
+                    baseDepth[key] = 0;
+                    renderLiveCount(key);
+                }
+            });
+
             (depths || []).forEach(function (d) {
                 var queue = d.queueName || d.QueueName;
                 var depth = (d.depth !== undefined ? d.depth : d.Depth) || 0;

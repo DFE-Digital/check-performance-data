@@ -15,10 +15,13 @@ public static class GroupedTransactionSort
         {
             ["reference"] = "reference_number",
             ["submit"] = "submitted_at",
-            ["rulesqueue"] = "(rules_at - submitted_at)",   // wait in the rules-engine queue
-            ["rulesengine"] = "rules_latency",
+            // The per-queue waits and engine processing sort by the SAME real spans the grouped view
+            // shows: queue wait = enqueue → dequeue (started), processing = dequeue → done. Rows
+            // missing the started time (legacy) sort null and sink via the NULLS LAST in the query.
+            ["rulesqueue"] = "(rules_started - submitted_at)",   // submit → rules dequeue
+            ["rulesengine"] = "(rules_at - rules_started)",      // rules dequeue → done (processing)
             ["status"] = "decision",
-            ["zendeskqueue"] = "(ticket_at - rules_at)",     // wait in the Zendesk queue
+            ["zendeskqueue"] = "(ticket_started - rules_at)",    // rules done → Zendesk dequeue
             ["zendeskticket"] = "ticket_at",
             ["last"] = "last_at",
         };

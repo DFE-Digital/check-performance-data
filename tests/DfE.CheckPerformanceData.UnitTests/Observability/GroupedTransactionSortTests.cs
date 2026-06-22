@@ -12,10 +12,10 @@ public sealed class GroupedTransactionSortTests
     [Theory]
     [InlineData("reference", "reference_number")]
     [InlineData("submit", "submitted_at")]
-    [InlineData("rulesqueue", "(rules_at - submitted_at)")]
-    [InlineData("rulesengine", "rules_latency")]
+    [InlineData("rulesqueue", "(rules_started - submitted_at)")]
+    [InlineData("rulesengine", "(rules_at - rules_started)")]
     [InlineData("status", "decision")]
-    [InlineData("zendeskqueue", "(ticket_at - rules_at)")]
+    [InlineData("zendeskqueue", "(ticket_started - rules_at)")]
     [InlineData("zendeskticket", "ticket_at")]
     [InlineData("last", "last_at")]
     public void OrderExpression_MapsEachKnownKeyToItsExpression(string key, string expected)

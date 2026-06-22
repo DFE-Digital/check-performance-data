@@ -806,6 +806,29 @@ public sealed class MetricsQueryTests
         Assert.Equal(new[] { "AAA", "BBB", "CCC" }, byReferenceAsc.Rows.Select(r => r.ReferenceNumber).ToArray());
     }
 
+    [Fact]
+    public async Task GetGroupedTransactions_SortsByRulesQueueWait_UsingTheDequeueTime()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 3, 17, 9, 0, 0, DateTimeKind.Utc);
+
+        // Both submitted at the same instant; FAST is dequeued after 1s, SLOW after 5s — so the
+        // rules-queue WAIT (submit → dequeue) orders them, exercising the started-time sort expression.
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "FAST", anchor),
+            Metric(RulesEngineQueue, "RulesEvaluated", "FAST", anchor.AddSeconds(2), decision: "AutoApproved", latencyMs: 2000, startedAtUtc: anchor.AddSeconds(1)),
+            Metric(RulesEngineQueue, "Submitted", "SLOW", anchor),
+            Metric(RulesEngineQueue, "RulesEvaluated", "SLOW", anchor.AddSeconds(6), decision: "AutoApproved", latencyMs: 6000, startedAtUtc: anchor.AddSeconds(5)));
+
+        var service = CreateService();
+
+        var asc = await service.GetGroupedTransactionsAsync(page: 1, pageSize: 20, sortKey: "rulesqueue", descending: false);
+        Assert.Equal(new[] { "FAST", "SLOW" }, asc.Rows.Select(r => r.ReferenceNumber).ToArray());
+
+        var desc = await service.GetGroupedTransactionsAsync(page: 1, pageSize: 20, sortKey: "rulesqueue", descending: true);
+        Assert.Equal(new[] { "SLOW", "FAST" }, desc.Rows.Select(r => r.ReferenceNumber).ToArray());
+    }
+
     // --- Per-step averages: REAL queue wait (enqueue→dequeue) and processing (dequeue→done),
     //     split via the recorded started_at, not the whole subsystem span double-counted ---
 

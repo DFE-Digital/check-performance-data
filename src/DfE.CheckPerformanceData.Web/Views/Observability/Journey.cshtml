@@ -1,0 +1,14 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.JourneyViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Request journey";
+}
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+
+<h1 class="govuk-heading-xl">Request journey</h1>
+<p class="govuk-body-l">
+    The path request @Model.ReferenceNumber took through the pipeline, from submission to ticket.
+</p>
+
+@await Html.PartialAsync("_Timeline", Model)

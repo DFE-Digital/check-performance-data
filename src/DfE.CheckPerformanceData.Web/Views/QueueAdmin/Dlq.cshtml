@@ -1,0 +1,182 @@
+@using DfE.CheckPerformanceData.Application.Queue
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DlqListViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Dead-letter queue";
+
+    static string Truncate(string value, int max) =>
+        string.IsNullOrEmpty(value) || value.Length <= max ? value : value[..max] + "…";
+}
+
+<h1 class="govuk-heading-xl">Dead-letter queue</h1>
+<p class="govuk-body-l">
+    Messages that failed processing after the maximum number of attempts. Open a message
+    to inspect its payload, requeue it for another attempt, or purge it permanently.
+</p>
+
+@if (TempData["QueueAdminResult"] is string result)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="dlq-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="dlq-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@result</p>
+        </div>
+    </div>
+}
+
+@if (Model.Messages.Count == 0)
+{
+    <p class="govuk-body">The dead-letter queue is empty.</p>
+}
+else
+{
+    <form id="dlq-selection-form">
+        <table class="govuk-table" id="dlq-table">
+            <caption class="govuk-table__caption govuk-table__caption--m">Dead-lettered messages</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">
+                        <div class="govuk-checkboxes govuk-checkboxes--small">
+                            <div class="govuk-checkboxes__item govuk-!-margin-bottom-0">
+                                <input class="govuk-checkboxes__input" id="dlq-select-all" type="checkbox" />
+                                <label class="govuk-label govuk-checkboxes__label govuk-visually-hidden" for="dlq-select-all">
+                                    Select all messages
+                                </label>
+                            </div>
+                        </div>
+                    </th>
+                    <th scope="col" class="govuk-table__header">Message</th>
+                    <th scope="col" class="govuk-table__header">Queue</th>
+                    <th scope="col" class="govuk-table__header">Reference</th>
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric">Attempts</th>
+                    <th scope="col" class="govuk-table__header">Reason</th>
+                    <th scope="col" class="govuk-table__header">Dead-lettered</th>
+                    <th scope="col" class="govuk-table__header">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var message in Model.Messages)
+                {
+                    var redriveModalId = $"confirm-redrive-{message.Id}";
+                    var purgeModalId = $"confirm-purge-{message.Id}";
+
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">
+                            <div class="govuk-checkboxes govuk-checkboxes--small">
+                                <div class="govuk-checkboxes__item govuk-!-margin-bottom-0">
+                                    <input class="govuk-checkboxes__input dlq-select" id="select-@message.Id"
+                                           name="ids" type="checkbox" value="@message.Id" />
+                                    <label class="govuk-label govuk-checkboxes__label govuk-visually-hidden" for="select-@message.Id">
+                                        Select message @message.Id
+                                    </label>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link" href="/admin/queues/dlq/@message.Id">@message.Id</a>
+                        </td>
+                        <td class="govuk-table__cell">@message.QueueName</td>
+                        <td class="govuk-table__cell">
+                            @{
+                                var reference = QueuePayloadReference.TryExtract(message.Payload);
+                            }
+                            @if (reference is null)
+                            {
+                                <span aria-hidden="true">—</span>
+                            }
+                            else
+                            {
+                                @reference
+                                <br />
+                                <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(reference)">
+                                    Track this request<span class="govuk-visually-hidden"> @reference</span>
+                                </a>
+                            }
+                        </td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@message.Attempts</td>
+                        <td class="govuk-table__cell">@Truncate(message.Reason, 120)</td>
+                        <td class="govuk-table__cell">@message.DeadLetteredAtUtc.ToString("u")</td>
+                        <td class="govuk-table__cell">
+                            <div class="govuk-button-group govuk-!-margin-bottom-0">
+                                <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+                                        data-confirm-trigger="@redriveModalId" aria-haspopup="dialog"
+                                        aria-controls="@redriveModalId" data-module="govuk-button">
+                                    Redrive
+                                </button>
+                                <button type="button" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
+                                        data-confirm-trigger="@purgeModalId" aria-haspopup="dialog"
+                                        aria-controls="@purgeModalId" data-module="govuk-button">
+                                    Purge
+                                </button>
+                            </div>
+
+                            <govuk-confirm-modal id="@redriveModalId"
+                                                 title="Requeue this message?"
+                                                 warning-text="Requeuing replays the message through processing, which may create a downstream effect such as a support ticket."
+                                                 body="The message is moved back to its source queue for another attempt."
+                                                 confirm-label="Yes, requeue"
+                                                 destructive="true"
+                                                 form-action="/admin/queues/dlq/@message.Id/redrive"
+                                                 form-method="post">
+                                @Html.AntiForgeryToken()
+                            </govuk-confirm-modal>
+
+                            <govuk-confirm-modal id="@purgeModalId"
+                                                 title="Purge this message?"
+                                                 warning-text="This permanently deletes the message from the dead-letter queue. This action cannot be undone."
+                                                 body="The forensic audit record of this purge is retained."
+                                                 confirm-label="Yes, purge"
+                                                 destructive="true"
+                                                 form-action="/admin/queues/dlq/@message.Id/purge"
+                                                 form-method="post">
+                                @Html.AntiForgeryToken()
+                            </govuk-confirm-modal>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </form>
+
+    <div class="govuk-button-group">
+        <button type="button" class="govuk-button govuk-button--secondary" id="dlq-bulk-redrive-trigger"
+                data-confirm-trigger="confirm-bulk-redrive" aria-haspopup="dialog"
+                aria-controls="confirm-bulk-redrive" data-module="govuk-button" disabled>
+            Redrive selected
+        </button>
+        <button type="button" class="govuk-button govuk-button--warning" id="dlq-bulk-purge-trigger"
+                data-confirm-trigger="confirm-bulk-purge" aria-haspopup="dialog"
+                aria-controls="confirm-bulk-purge" data-module="govuk-button" disabled>
+            Purge selected
+        </button>
+    </div>
+
+    <govuk-confirm-modal id="confirm-bulk-redrive"
+                         title="Requeue the selected messages?"
+                         warning-text="Requeuing replays each message through processing, which may create downstream effects such as support tickets."
+                         body="Each selected message is moved back to its source queue for another attempt."
+                         confirm-label="Yes, requeue selected"
+                         destructive="true"
+                         form-action="/admin/queues/dlq/redrive"
+                         form-method="post">
+        @Html.AntiForgeryToken()
+        <div data-bulk-ids="redrive"></div>
+    </govuk-confirm-modal>
+
+    <govuk-confirm-modal id="confirm-bulk-purge"
+                         title="Purge the selected messages?"
+                         warning-text="This permanently deletes every selected message from the dead-letter queue. This action cannot be undone."
+                         body="The forensic audit record of each purge is retained."
+                         confirm-label="Yes, purge selected"
+                         destructive="true"
+                         form-action="/admin/queues/dlq/purge"
+                         form-method="post">
+        @Html.AntiForgeryToken()
+        <div data-bulk-ids="purge"></div>
+    </govuk-confirm-modal>
+
+    <script src="~/js/dlq-bulk-select.js" asp-append-version="true"></script>
+}

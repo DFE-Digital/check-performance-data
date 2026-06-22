@@ -45,22 +45,20 @@
 
     var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
 
-    var navAll = AdminNavEntries.ToList();
-    var adminNavGroups = navAll
-        .Where(e => e.ParentKey is null)
-        .OrderBy(e => e.Order)
-        .Select(g => new AdminNavGroupViewModel
-        {
-            Key = g.Key,
-            Title = g.Title,
-            Description = g.Description,
-            Children = navAll
-                .Where(e => e.ParentKey == g.Key)
-                .OrderBy(e => e.Order)
-                .ToList()
-        })
-        .ToList();
-    var adminNavTreeModel = new AdminLandingViewModel { Groups = adminNavGroups };
+    var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
+
+    // Active-page tracking: resolve the nav entry the current request path belongs to, so the tree
+    // highlights it (aria-current=page) and force-expands its ancestor groups. The recursive node
+    // partial reads these two ViewData keys; without them the active key was always null and the
+    // nav never tracked location.
+    var adminCurrentPath = Context.Request.Path.Value ?? string.Empty;
+    ViewData["AdminCurrentPath"] = adminCurrentPath;
+    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(adminCurrentPath, AdminNavEntries);
+
+    // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
+    // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and
+    // the content. Other admin pages keep the standard centred, fixed-width layout.
+    var adminWide = ViewData["AdminWide"] is true;
 }
 <head>
     @await Html.PartialAsync("_GtmHead")
@@ -86,6 +84,10 @@
                     </span>
                     <nav aria-label="Menu" class="govuk-service-navigation__wrapper">
                         <ul class="govuk-service-navigation__list" id="govuk-service-navigation-list">
+                            @if (User.IsInRole(WikiConstants.AdminRole))
+                            {
+                                @await Component.InvokeAsync("DlqBadge")
+                            }
                             <li class="govuk-service-navigation__item sign-in-nav-item">
                                 @if (showSignOut)
                                 {
@@ -115,16 +117,35 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
-<div class="govuk-width-container">
-    <div class="admin-layout">
-        <aside class="admin-rail" aria-label="Administration sidebar">
+@if (adminWide)
+{
+    <div class="admin-layout admin-layout--wide" data-admin-nav-collapse-root>
+        <aside class="admin-rail" id="admin-rail" aria-label="Administration sidebar">
             @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
         </aside>
+        <button type="button" class="admin-nav-collapse" data-admin-nav-collapse
+                aria-expanded="true" aria-controls="admin-rail"
+                aria-label="Collapse navigation" title="Collapse navigation">
+            <span class="admin-nav-collapse__chevron" aria-hidden="true"></span>
+        </button>
         <main class="admin-main" id="main-content">
             @RenderBody()
         </main>
     </div>
-</div>
+}
+else
+{
+    <div class="govuk-width-container">
+        <div class="admin-layout">
+            <aside class="admin-rail" aria-label="Administration sidebar">
+                @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
+            </aside>
+            <main class="admin-main" id="main-content">
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+}
 @Html.GovUkFrontendScriptImports()
 
 @section Footer {
@@ -150,5 +171,9 @@
 @section BodyEnd {
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
+    @if (adminWide)
+    {
+        <script src="~/js/admin-nav-collapse.js"></script>
+    }
     @RenderSection("Scripts", required: false)
 }

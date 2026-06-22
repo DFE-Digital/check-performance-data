@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -20,7 +21,8 @@ public sealed class RequestService(
     IRequestBlobClient requestBlobClient,
     RequestSubmissionOptions submissionOptions,
     ILogger<RequestService> logger,
-    IEmailLinkGenerator emailLinkGenerator) : IRequestService
+    IEmailLinkGenerator emailLinkGenerator,
+    IQueueService queueService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -81,6 +83,10 @@ public sealed class RequestService(
                 notifySettings.Value.DeadlineText,
                 linkUrl);
         }
+    
+        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+        // picks it up, evaluates it and writes the decision back to the row.
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

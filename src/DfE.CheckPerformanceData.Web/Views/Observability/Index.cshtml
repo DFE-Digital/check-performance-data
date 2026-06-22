@@ -1,0 +1,104 @@
+@using DfE.CheckPerformanceData.Web.Models.Observability
+@model DfE.CheckPerformanceData.Web.Models.Observability.DashboardViewModel
+@{
+    Layout = "_AdminWideLayout";
+    ViewData["Title"] = "Pipeline dashboard";
+}
+
+<link rel="stylesheet" href="~/css/observability.css" asp-append-version="true" />
+
+<h1 class="govuk-heading-xl">Pipeline dashboard</h1>
+
+@* Reading order: health strip (top, at-a-glance answer) → status sentence → big-number tiles →
+   the animated board (the focal point, given the most canvas) → charts (detail on demand). *@
+
+@{
+    var exportQs = $"?range={Uri.EscapeDataString(Model.SelectedRange)}&granularity={Model.SelectedGranularity}";
+}
+<div class="obs-export govuk-button-group" data-obs-export>
+    @* Export the DATA behind the charts as CSV (throughput, decision-mix, dwell, the headline
+       tiles), built server-side from the same series the dashboard renders so the numbers match.
+       A plain download link carrying the current range/granularity — no JS required. *@
+    <a class="govuk-button govuk-button--secondary" role="button" draggable="false"
+       data-module="govuk-button" data-export-csv
+       href="/admin/observability/export.csv@(exportQs)"
+       title="Download the data behind this dashboard (throughput, decisions, dwell and the headline figures) as a CSV file.">
+        Export this view (CSV)
+    </a>
+    <button type="button" class="govuk-button govuk-button--secondary" data-export-pdf data-module="govuk-button"
+            title="Open the browser print dialog to print or save this dashboard as a PDF.">
+        Print or save as PDF
+    </button>
+</div>
+
+@await Html.PartialAsync("_HealthStrip", Model)
+
+<p class="govuk-body-l">@Model.StatusSentence</p>
+
+@await Html.PartialAsync("_Tiles", Model)
+
+@await Html.PartialAsync("_Board", Model)
+
+@* The dev/test-only Demo panel: drive / inject / seed / replay / demo-trickle controls folded in
+   from the retired /dev/uat page, collapsed behind a "Demo" toggle and gated on DemoToolsEnabled. *@
+@await Html.PartialAsync("_DemoPanel", Model)
+
+<h2 class="govuk-heading-l">Charts</h2>
+
+@* Plain GET form, no JS required: the granularity options are the pairings allowed for the
+   currently rendered window, and the server snaps a stale pairing (range changed, granularity
+   not resubmitted sensibly) to the new window's default rather than erroring. *@
+<form method="get" action="/admin/observability" class="obs-range-form">
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="range">Time range</label>
+        <select class="govuk-select" id="range" name="range">
+            @foreach (var option in DashboardRanges.All)
+            {
+                <option value="@option.Value" selected="@(option.Value == Model.SelectedRange)">@option.Label</option>
+            }
+        </select>
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="granularity">Granularity</label>
+        <select class="govuk-select" id="granularity" name="granularity">
+            @foreach (var granularity in Model.GranularityOptions)
+            {
+                <option value="@granularity" selected="@(granularity == Model.SelectedGranularity)">@DashboardRanges.Describe(granularity)</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+        Update charts
+    </button>
+</form>
+
+<div class="obs-chart-group">
+    @await Html.PartialAsync("_Chart", Model)
+    @await Html.PartialAsync("_DecisionMixOverTimeChart", Model)
+    @await Html.PartialAsync("_DwellChart", Model)
+</div>
+
+@* One shared decision-colour legend beneath the charts: states each decision colour→label once
+   for every chart that colours by decision (the pie and the over-time lines), rather than
+   repeating a colour key inside each chart. *@
+@await Html.PartialAsync("_DecisionLegend", Model)
+
+@if (Model.Depths.Count == 0 && Model.Throughput.Count == 0)
+{
+    <h2 class="govuk-heading-m">Nothing has flowed through yet</h2>
+    <p class="govuk-body">
+        No messages have been processed in this time range. Charts and counts will appear here as
+        requests move through the pipeline.
+    </p>
+}
+
+<p class="govuk-body-s govuk-hint">Refreshed at @Model.RefreshedAtUtc.ToString("u").</p>
+
+<script src="~/js/observability-board.js" asp-append-version="true"></script>
+<script src="~/js/observability-export.js" asp-append-version="true"></script>
+@if (Model.DemoToolsEnabled)
+{
+    @* The Demo panel's AJAX-drive wiring: upgrades the drive/inject/seed forms to fetch() so a
+       drive refreshes the board in place. Only loaded when the panel is rendered. *@
+    <script src="~/js/uat-console.js" asp-append-version="true"></script>
+}

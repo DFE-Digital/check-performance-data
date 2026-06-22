@@ -900,8 +900,106 @@ dialog.govuk-modal-dialogue__box::backdrop {
   .admin-rail { flex: 0 0 auto; max-width: none; }
 }
 
+/* ---- Full-width collapsible-nav admin pages (Pipeline dashboard, Debug pipeline) ----
+   These two pages bend the GDS max-width: the grid runs edge-to-edge so the wide boards
+   and control panels get the full viewport. A chevron toggle between the rail and the
+   content slides the rail away and lets the content fill the row. */
+/* The GDS page template wraps every page body in a centred, max-width
+   .govuk-width-container > .govuk-main-wrapper. For the two wide admin pages we break
+   out of it: :has() neutralises ONLY the container/wrapper that actually contains a wide
+   layout, so every other admin and public page keeps its standard GDS width. */
+.govuk-width-container:has(.admin-layout--wide) {
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.govuk-main-wrapper:has(.admin-layout--wide) {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.admin-layout--wide {
+  width: 100%;
+  max-width: none;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-top: 12px;
+  box-sizing: border-box;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.admin-nav-collapse {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-top: 4px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.admin-nav-collapse:hover {
+  background: #f3f2f1;
+}
+
+.admin-nav-collapse:focus-visible {
+  outline: 3px solid #ffdd00;
+  outline-offset: 0;
+  box-shadow: 0 2px 0 #0b0c0c;
+}
+
+/* Chevron drawn with a rotated border square; points left (collapse) by default. */
+.admin-nav-collapse__chevron {
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid #0b0c0c;
+  border-bottom: 2px solid #0b0c0c;
+  transform: rotate(45deg);
+  transition: transform .15s ease;
+}
+
+/* Collapsed: hide the rail, point the chevron the other way (expand). */
+.admin-layout--nav-collapsed .admin-rail {
+  display: none;
+}
+
+.admin-layout--nav-collapsed .admin-nav-collapse__chevron {
+  transform: rotate(-135deg);
+}
+
+/* Tighten the vertical rhythm on the two wide pages so more fits above the fold on a
+   1920x1080 viewport, without reflowing the content itself. */
+.admin-layout--wide .admin-main > h1 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .admin-layout--wide { flex-direction: column; padding-left: 16px; padding-right: 16px; }
+  .admin-nav-collapse { display: none; }
+  .admin-layout--nav-collapsed .admin-rail { display: block; }
+}
+
 .admin-nav-tree {
   font-family: "GDS Transport", arial, sans-serif;
+}
+
+/* The top "Administration" heading sits visually above the group/sub-group labels:
+   bolder and larger than the bold parent labels (.tv-link-parent) beneath it. */
+.admin-nav-tree__heading {
+  font-size: 1.3125rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .admin-nav-group + .admin-nav-group {

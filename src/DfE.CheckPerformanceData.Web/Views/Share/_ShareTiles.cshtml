@@ -1,0 +1,30 @@
+@model DfE.CheckPerformanceData.Web.Models.Observability.AggregateShareViewModel
+@{
+    static string DescribeDuration(TimeSpan span)
+    {
+        if (span <= TimeSpan.Zero)
+            return "—";
+        if (span.TotalSeconds < 90)
+            return $"{Math.Round(span.TotalSeconds)}s";
+        if (span.TotalMinutes < 90)
+            return $"{Math.Round(span.TotalMinutes)}m";
+        return $"{Math.Round(span.TotalHours, 1)}h";
+    }
+
+    var totalDepth = Model.Depths.Sum(d => d.Depth);
+}
+
+<div class="obs-tiles">
+    <div class="obs-tile">
+        <p class="govuk-heading-xl obs-tile__value">@Model.ProcessedToday</p>
+        <p class="govuk-body-s obs-tile__label">Processed today</p>
+    </div>
+    <div class="obs-tile">
+        <p class="govuk-heading-xl obs-tile__value">@DescribeDuration(Model.TypicalEndToEnd)</p>
+        <p class="govuk-body-s obs-tile__label">Average end-to-end</p>
+    </div>
+    <div class="obs-tile">
+        <p class="govuk-heading-xl obs-tile__value">@totalDepth</p>
+        <p class="govuk-body-s obs-tile__label">Current depths (all queues)</p>
+    </div>
+</div>

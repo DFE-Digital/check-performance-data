@@ -7,7 +7,6 @@
     <UserSecretsId>39a90cfc-6b78-4c1d-bf53-2e6b38f1d44c</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Azure.Storage.Queues" />
     <PackageReference Include="PdfPig" />
     <PackageReference Include="GovUk.Frontend.AspNetCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">

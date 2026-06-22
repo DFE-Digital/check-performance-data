@@ -47,10 +47,15 @@ public static class DependencyManager
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
-        services.AddScoped<Application.RequestDecision.IDecisionOutcomeRepository, DecisionOutcomeRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
+        services.AddScoped<Application.Observability.IMetricsQueryService,
+            Observability.MetricsQueryService>();
+        services.AddScoped<Application.Observability.IMetricsSink,
+            Observability.DbMetricsSink>();
+        services.AddScoped<Application.Observability.IShareTokenService,
+            Observability.ShareTokenService>();
 
         return services;
     }

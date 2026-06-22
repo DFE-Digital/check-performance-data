@@ -1,0 +1,116 @@
+@model DfE.CheckPerformanceData.Web.Models.Dev.ZendeskTicketPreviewViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Ticket preview";
+
+    // This surface deliberately mimics Zendesk's visual language rather than GDS — it is a
+    // "what we'll send" simulation of how the captured ticket would look in Zendesk. It is the
+    // only surface exempt from the GDS contract, but stays reasonably accessible: semantic
+    // headings, real text (no images of text), and sufficient contrast.
+    string PriorityClass(string p) => (p ?? string.Empty).ToLowerInvariant() switch
+    {
+        "urgent" => "zd-badge zd-badge--urgent",
+        "high" => "zd-badge zd-badge--high",
+        "low" => "zd-badge zd-badge--low",
+        _ => "zd-badge zd-badge--normal",
+    };
+}
+
+<link rel="stylesheet" href="~/css/zendesk-preview.css" asp-append-version="true" />
+
+<p class="govuk-body">
+    <a class="govuk-link" href="/dev/zendesk/outbox">Back to the dev Zendesk outbox</a>
+</p>
+
+<p class="govuk-body-s govuk-hint">
+    A simulation of how this captured ticket would appear in Zendesk. Nothing here reaches a real
+    Zendesk instance.
+</p>
+
+<article class="zd-ticket" aria-label="Zendesk ticket preview">
+    <header class="zd-ticket__header">
+        <p class="zd-ticket__meta">Ticket #@Model.TicketId</p>
+        <h1 class="zd-ticket__subject">@Model.Subject</h1>
+        <div class="zd-ticket__badges">
+            <span class="@PriorityClass(Model.Priority)">Priority: @Model.Priority</span>
+            <span class="zd-badge zd-badge--status">Status: @Model.Status</span>
+            @if (!string.IsNullOrEmpty(Model.Type))
+            {
+                <span class="zd-badge zd-badge--type">Type: @Model.Type</span>
+            }
+        </div>
+    </header>
+
+    <div class="zd-ticket__body-grid">
+        <section class="zd-ticket__conversation" aria-label="Conversation">
+            <div class="zd-comment">
+                <p class="zd-comment__author">@Model.Requester</p>
+                <p class="zd-comment__time">@Model.CreatedAtUtc.ToString("f") (UTC)</p>
+                <div class="zd-comment__body">
+                    @if (string.IsNullOrWhiteSpace(Model.Body))
+                    {
+                        <p class="zd-comment__empty">No message body was captured for this ticket.</p>
+                    }
+                    else
+                    {
+                        <p>@Model.Body</p>
+                    }
+                </div>
+
+                @if (Model.Attachments.Count > 0)
+                {
+                    <div class="zd-comment__attachments">
+                        <h2 class="zd-comment__attachments-heading">Attachments</h2>
+                        <ul class="zd-attachment-list">
+                            @foreach (var attachment in Model.Attachments)
+                            {
+                                <li class="zd-attachment">@attachment</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </section>
+
+        <aside class="zd-ticket__sidebar" aria-label="Ticket details">
+            <h2 class="zd-sidebar__heading">Requester</h2>
+            <p class="zd-sidebar__value">@Model.Requester</p>
+
+            <h2 class="zd-sidebar__heading">Reference</h2>
+            <p class="zd-sidebar__value">@(string.IsNullOrEmpty(Model.ReferenceNumber) ? "—" : Model.ReferenceNumber)</p>
+
+            <h2 class="zd-sidebar__heading">Tags</h2>
+            @if (Model.Tags.Count == 0)
+            {
+                <p class="zd-sidebar__value">No tags</p>
+            }
+            else
+            {
+                <ul class="zd-tag-list">
+                    @foreach (var tag in Model.Tags)
+                    {
+                        <li class="zd-tag">@tag</li>
+                    }
+                </ul>
+            }
+
+            <h2 class="zd-sidebar__heading">Custom fields</h2>
+            @if (Model.CustomFields.Count == 0)
+            {
+                <p class="zd-sidebar__value">No custom fields</p>
+            }
+            else
+            {
+                <dl class="zd-fields">
+                    @foreach (var field in Model.CustomFields)
+                    {
+                        <div class="zd-fields__row">
+                            <dt class="zd-fields__key">Field @field.Id</dt>
+                            <dd class="zd-fields__value">@field.Value</dd>
+                        </div>
+                    }
+                </dl>
+            }
+        </aside>
+    </div>
+</article>

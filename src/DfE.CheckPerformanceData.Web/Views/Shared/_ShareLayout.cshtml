@@ -1,0 +1,54 @@
+@*
+    Public, chrome-light layout for the anonymised share link. The share surface is
+    [AllowAnonymous] and served to external stakeholders, so it must leak nothing about the
+    admin estate or the token itself:
+
+    - No admin nav rail (the 404-not-401 contract hides the admin URL topology).
+    - No Google Tag Manager: the share URL carries the live bearer token in its path, and
+      default GTM page-view tracking would exfiltrate that URL to a third party.
+    - No sign-in / dev-impersonation controls.
+
+    Only the GOV.UK header (no service-navigation links) and the standard footer render.
+*@
+@{
+    Layout = "_GovUkPageTemplate";
+}
+<head>
+    @Html.GovUkFrontendStyleImports()
+    <link rel="stylesheet" href="~/css/dfefrontend-2.0.0.min.css" />
+</head>
+@section BodyStart {
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+}
+
+@section Header {
+    <govuk-header home-page-url="https://gov.uk/"/>
+}
+
+@Html.GovUkFrontendJsEnabledScript()
+<div class="govuk-width-container">
+    <main class="govuk-main-wrapper" id="main-content">
+        @RenderBody()
+    </main>
+</div>
+@Html.GovUkFrontendScriptImports()
+
+@section Footer {
+    <footer class="govuk-footer">
+        <div class="govuk-width-container">
+            <hr class="govuk-footer__section-break">
+            <div class="govuk-footer__meta">
+                <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
+                    <span class="govuk-footer__licence-description">All content is available under the <a
+                            class="govuk-footer__link"
+                            href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"
+                            rel="license">Open Government Licence v3.0</a>, except where otherwise stated</span>
+                </div>
+                <div class="govuk-footer__meta-item">
+                    <a class="govuk-footer__link govuk-footer__copyright-logo"
+                       href="https://www.nationalarchives.gov.uk/information-management/re-using-public-sector-information/uk-government-licensing-framework/crown-copyright/">© Crown copyright</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+}

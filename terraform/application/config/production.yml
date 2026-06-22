@@ -1,5 +1,12 @@
 ---
 ASPNETCORE_ENVIRONMENT: Production
+DfeSignIn__BaseUrl: https://api.signin.education.gov.uk/
+DfeSignIn__ClientId: CheckPerformanceData
+DfeSignIn__Audience: signin.education.gov.uk
+DfeSignIn__MetadataAddress: https://oidc.signin.education.gov.uk/.well-known/openid-configuration
+DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
+GoogleTagManager__Enabled: true
+GoogleTagManager__PreviewId: env-4
 
 # Notify template IDs, deadline text, and UTM parameters
 Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2

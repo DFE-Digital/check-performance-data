@@ -6,16 +6,17 @@ using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.Notifications;
+using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
-using DfE.CheckPerformanceData.Application.RequestDecision;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
-using DfE.CheckPerformanceData.Infrastructure.Services;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -36,12 +37,16 @@ public static class DependencyManager
 {
     public static IServiceCollection AddInfrastructureDependencies(this IServiceCollection services, IConfiguration config)
     {
-        services.AddScoped<IRequestDecisionHandler, RequestDecisionHandler>();
         var conn = config.GetConnectionString("AzureStorage");
         if (!string.IsNullOrEmpty(conn))
         {
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
+
+        services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
+        // GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
+        // dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
+        services.AddSingleton<INotifyClient, NoOpNotifyClient>();
 
         // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
         // the Web host) because the Persistence repositories that consume it are pulled in

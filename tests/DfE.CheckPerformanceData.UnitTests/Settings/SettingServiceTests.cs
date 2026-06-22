@@ -99,4 +99,16 @@ public sealed class SettingServiceTests
         Assert.Equal("40", pageLength.Value);
         Assert.False(pageLength.IsDefault);
     }
+
+    [Fact]
+    public async Task GetAllWithValuesAsync_CarriesSettingKind_ToViewItem()
+    {
+        var items = await _sut.GetAllWithValuesAsync();
+
+        var boolItem = Assert.Single(items, i => i.Key == SettingKeys.DlqFullPayloadEnabled);
+        Assert.Equal(SettingKind.Bool, boolItem.Kind);
+
+        var intItem = Assert.Single(items, i => i.Key == SettingKeys.WikiPageLength);
+        Assert.Equal(SettingKind.Int, intItem.Kind);
+    }
 }

@@ -14,7 +14,8 @@ public sealed class SettingService(ISettingRepository repository) : ISettingServ
                 Description: d.Description,
                 Value: hasStored ? value! : d.DefaultValue,
                 DefaultValue: d.DefaultValue,
-                IsDefault: !hasStored);
+                IsDefault: !hasStored,
+                Kind: d.Kind);
         }).ToList();
     }
 

@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;

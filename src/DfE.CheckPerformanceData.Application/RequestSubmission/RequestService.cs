@@ -70,7 +70,7 @@ public sealed class RequestService(
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
-        var recipients = await BuildNotificationRecipients(false);
+        var recipients = await BuildNotificationRecipients();
 
         logger.LogInformation(
             "Sending Submission Notification emails for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
@@ -112,7 +112,7 @@ public sealed class RequestService(
             RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
 
-        var recipients = await BuildNotificationRecipients(false);
+        var recipients = await BuildNotificationRecipients();
 
         logger.LogInformation(
             "Sending Pupil Data Check Confirm email for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
@@ -244,17 +244,9 @@ public sealed class RequestService(
         };
     }
 
-    private async Task<HashSet<string>> BuildNotificationRecipients(bool includeApprovers)
+    private async Task<HashSet<string>> BuildNotificationRecipients()
     {
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
-
-        if (includeApprovers)
-        {
-            // TODO - add this endpoint in and test when it is available for use.
-            // var approvers = await dfESignInApiClient.GetApproversAsync();//GetOrganisationApproversAsync(currentUserService.OrganisationId);
-            // if (approvers?.Users != null)
-            //     foreach (var approver in approvers.Users) recipients.Add(approver.Email);
-        }
 
         var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
         if (orgUsers?.Users != null)

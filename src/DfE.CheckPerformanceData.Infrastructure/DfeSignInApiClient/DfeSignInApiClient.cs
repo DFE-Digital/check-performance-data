@@ -32,20 +32,7 @@ public sealed class DfeSignInApiClient(HttpClient httpClient, IOptions<DfeSignin
         return userRoles.Roles;
     }
 
-    public async Task<ApproversResponseDto?> GetApproversAsync(int page = 1, int pageSize = 25)
-    {
-        return await httpClient.GetFromJsonAsync<ApproversResponseDto>(
-            $"users/approvers?page={page}&pageSize={pageSize}",
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-    }
 
-    public async Task<ApproversResponseDto?> GetOrganisationApproversAsync(string organisationId, int page = 1, int pageSize = 25)
-    {
-        // this endpoint does not exist. if get approvers is not filtered find out the role and pass it to GetOrganisationUsersAsync
-        return await httpClient.GetFromJsonAsync<ApproversResponseDto>(
-            $"organisations/{organisationId}/approvers?page={page}&pageSize={pageSize}",
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-    }
 
     public async Task<OrganisationUsersResponseDto?> GetOrganisationUsersAsync(string ukprn, string[]? roles = null)
     {

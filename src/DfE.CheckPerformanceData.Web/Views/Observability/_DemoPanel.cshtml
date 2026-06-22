@@ -58,10 +58,14 @@
                             data-uat-tip title="Send a request that falls to manual scrutiny; exercises the scrutiny path.">Scrutiny</button>
                 </form>
 
-                <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form">
+                @* Drives over AJAX like the other buttons (data-uat-drive-form), so its success bumps
+                   the live dead-letter counter and animates exactly one failed envelope via the
+                   board's optimistic present — rather than a full-page reload. The board's
+                   present (a failed-outcome drive) is the single source of the animation, so the
+                   button carries no separate board-only inject hook (which would double the envelope). *@
+                <form method="post" action="/dev/uat/inject-failure" class="uat-inline-form" data-uat-drive-form>
                     @Html.AntiForgeryToken()
                     <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0" data-module="govuk-button"
-                            data-obs-inject
                             data-uat-tip title="Add one synthetic failing message so it diverts to the dead-letter queue on the board.">Failure</button>
                 </form>
                 @* Random: rolls one of the four outcomes (approved / rejected / scrutiny / failure) per

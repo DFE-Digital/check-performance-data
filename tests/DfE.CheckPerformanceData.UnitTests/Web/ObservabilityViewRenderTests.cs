@@ -18,6 +18,37 @@ public sealed class ObservabilityViewRenderTests
 	private static string ThisFilePath([System.Runtime.CompilerServices.CallerFilePath] string path = "")
 		=> path;
 
+	// --- The 24h decision counters read in the same order as the board destination boxes ---
+
+	[Fact]
+	public void Tiles_DecisionCounts_OrderApprovedScrutinyRejected_MatchingTheBoard()
+	{
+		var view = ReadView("_Tiles.cshtml");
+		var approved = view.IndexOf("data-obs-tile-approved", StringComparison.Ordinal);
+		var scrutiny = view.IndexOf("data-obs-tile-scrutiny", StringComparison.Ordinal);
+		var rejected = view.IndexOf("data-obs-tile-rejected", StringComparison.Ordinal);
+		var deadletter = view.IndexOf("data-obs-tile-deadletter", StringComparison.Ordinal);
+
+		// Board order (Auto-approved → Scrutiny → Auto-rejected → Dead-letter), not the old
+		// approved → rejected → scrutiny.
+		Assert.True(approved >= 0 && scrutiny > approved && rejected > scrutiny && deadletter > rejected,
+			$"expected approved < scrutiny < rejected < deadletter, got {approved}/{scrutiny}/{rejected}/{deadletter}");
+	}
+
+	// --- The Failure button drives over AJAX (like the others) so the dead-letter count bumps live ---
+
+	[Fact]
+	public void DemoPanel_FailureButton_DrivesOverAjax_SoTheDeadLetterCountBumpsLive()
+	{
+		var panel = ReadView("_DemoPanel.cshtml");
+
+		// The Failure form is a drive form like approved/rejected/scrutiny, so its success bumps the
+		// live counter rather than doing a full-page reload; and it no longer carries the board-only
+		// inject animation hook (which would double the envelope).
+		Assert.Contains("action=\"/dev/uat/inject-failure\" class=\"uat-inline-form\" data-uat-drive-form", panel);
+		Assert.DoesNotContain("data-obs-inject", panel);
+	}
+
 	// --- The dashboard carries a GET form selecting the chart window and bucket size ---
 
 	[Fact]

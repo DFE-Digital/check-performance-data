@@ -237,6 +237,17 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("submitAnchor.x - 90", js);                 // start off the left of Submit
     }
 
+    // --- The Failure drive presents on the board, so its dead-letter counter bumps live ---
+    [Fact]
+    public void UatConsoleJs_PresentsInjectFailure_SoTheDeadLetterCounterBumpsLive()
+    {
+        var js = UatConsoleJs();
+
+        // The optimistic board present (which bumps the matching live counter — the dead-letter
+        // count for a failure) fires for inject-failure too, not only the /drive endpoints.
+        Assert.Contains("(drive|inject-failure)", js);
+    }
+
     // --- The matrix splits queue wait from processing using the recorded dequeue (started) time ---
     // Each stage now records when the consumer began processing it, so the grid shows the real queue
     // wait (submit/done → dequeue) and processing (dequeue → done) separately, instead of taking the

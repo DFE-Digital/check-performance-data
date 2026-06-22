@@ -96,10 +96,11 @@
       .then(function (data) {
         if (data && data.ok) {
           updateLastReference(data.reference);
-          // Only the drive buttons present optimistically here; inject-failure already drives the
-          // board from its own [data-obs-inject] click handler, and seed-dlq surfaces via the SSE
-          // feed — presenting those here too would double the envelope.
-          if (/\/dev\/uat\/drive/.test(form.getAttribute('action') || '')) {
+          // The drive buttons AND Failure (inject-failure) present optimistically here: presentDrive
+          // routes one correctly-coloured envelope and bumps the matching live counter — a decision
+          // counter for a drive, the dead-letter count for a failure — deduped against the SSE rows
+          // that follow. (seed-dlq is left to the SSE feed; presenting it here too would double it.)
+          if (/\/dev\/uat\/(drive|inject-failure)/.test(form.getAttribute('action') || '')) {
             presentOnBoard(form, data.reference, data.outcome);
           }
         } else {

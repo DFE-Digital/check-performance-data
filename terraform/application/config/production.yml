@@ -7,6 +7,8 @@ DfeSignIn__MetadataAddress: https://oidc.signin.education.gov.uk/.well-known/ope
 DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
+Clarity__Enabled: true
+Clarity__ProjectId: wjs4rw6fei
 
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests

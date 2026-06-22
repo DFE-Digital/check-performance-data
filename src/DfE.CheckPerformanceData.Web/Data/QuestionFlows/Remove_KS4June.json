@@ -11,6 +11,7 @@
     },
     {
       "id": "reason",
+      "pageTitle": "Reason for removal",
       "questions": [
         {
           "id": "reason",
@@ -89,6 +90,7 @@
     },
     {
       "id": "not-on-roll",
+      "pageTitle": "On school roll 2025 to 2026",
       "nextPageId": "not-on-roll-evidence",
       "questions": [
         {
@@ -113,6 +115,7 @@
     },
     {
       "id": "not-on-roll-evidence",
+      "pageTitle": "Provide evidence for the removal",
       "type": "EvidenceUpload",
       "requireAtLeastOne": true,
       "title": "Provide evidence for the removal of {pupilName}",
@@ -137,6 +140,7 @@
     },
     {
       "id": "permanently-excluded",
+      "pageTitle": "Permanent exclusion details",
       "nextPageId" : "evidence",
       "questions": [
         {
@@ -161,6 +165,7 @@
     },
     {
       "id": "elective-home-education",
+      "pageTitle": "Date removed from school roll",
       "nextPageId" : "evidence",
       "questions": [
         {
@@ -175,6 +180,7 @@
     },
     {
       "id": "dual-registered-moved",
+      "pageTitle": "School DfE number for transfer",
       "questions": [
         {
           "id": "dual-registered-moved-dfe-number",
@@ -190,6 +196,7 @@
     },
     {
       "id": "pupil-died",
+      "pageTitle": "Date removed from school roll",
       "questions": [
         {
           "id": "date-removed-from-roll",
@@ -203,6 +210,7 @@
     },
     {
       "id": "child-missing-education",
+      "pageTitle": "Child missing education details",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -237,6 +245,7 @@
     },
     {
       "id": "english-not-first-language",
+      "pageTitle": "First language",
       "nextPageId": "english-not-first-language-details",
       "questions": [
         {
@@ -276,6 +285,7 @@
     },
     {
       "id": "english-not-first-language-details",
+      "pageTitle": "Admission and arrival dates",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -315,6 +325,7 @@
     },
     {
       "id": "permanent-exclusion",
+      "pageTitle": "Excluding school details",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -339,6 +350,7 @@
     },
     {
       "id": "permanently-left-england-questions",
+      "pageTitle": "Permanently left England details",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -362,6 +374,7 @@
     },
     {
       "id": "life-limiting-illness",
+      "pageTitle": "Health issue details",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -414,6 +427,7 @@
     },
     {
       "id": "year-group-change-higher-lower",
+      "pageTitle": "Year group change",
       "questions": [
         {
           "id": "higher-lower",
@@ -438,6 +452,7 @@
     },
     {
       "id": "year-group-change-higher",
+      "pageTitle": "Year group change details",
       "nextPageId": "year-group-change-evidence",
       "questions": [
         {
@@ -469,6 +484,7 @@
     },
     {
       "id": "year-group-change-lower",
+      "pageTitle": "Year group moved to",
       "nextPageId": "year-group-change-evidence",
       "questions": [
         {
@@ -496,6 +512,7 @@
     },
     {
       "id": "year-group-change-evidence",
+      "pageTitle": "Provide evidence for the removal",
       "type": "EvidenceUpload",
       "title": "Provide evidence for the removal of {pupilName}",
       "questions": [
@@ -519,6 +536,7 @@
     },
     {
       "id": "social-care",
+      "pageTitle": "Social care details",
       "nextPageId": "evidence",
       "questions": [
         {
@@ -565,6 +583,7 @@
     },
     {
       "id": "evidence",
+      "pageTitle": "Provide evidence for the removal",
       "type": "EvidenceUpload",
       "title": "Provide evidence for the removal of {pupilName}",
       "questions": [

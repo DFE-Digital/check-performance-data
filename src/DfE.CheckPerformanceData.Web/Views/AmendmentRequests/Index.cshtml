@@ -8,6 +8,21 @@
 
 <a class="govuk-back-link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = Model.WindowId })">Back</a>
 
+@if (TempData["DeletedMessage"] is string deletedMessage)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success"
+         role="alert"
+         aria-labelledby="deleted-banner-title"
+         data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="deleted-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@deletedMessage</p>
+        </div>
+    </div>
+}
+
 <span class="govuk-caption-l">Amendment requests</span>
 <h1 class="govuk-heading-xl">Amendment request summary</h1>
 
@@ -42,8 +57,11 @@ else
                         <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
                     </td>
                     <td class="govuk-table__cell">
+                        @{
+                            var draftDeleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
+                        }
                         <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit</a>
-                        <a class="govuk-link" href="#">Delete</a>
+                        <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
                     </td>
                 </tr>
             }
@@ -88,9 +106,13 @@ else
                             <td class="govuk-table__cell">
                                 @{
                                     var viewAction = row.RequestType == RequestType.ConfirmCorrect ? "ViewConfirmation" : "View";
+                                    var deleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
                                 }
                                 <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action(viewAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">View</a>
-                                <a class="govuk-link" href="#">Delete</a>
+                                @if (row.ShowDelete)
+                                {
+                                    <a class="govuk-link" href="@Url.Action(deleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
+                                }
                             </td>
                         </tr>
                     }

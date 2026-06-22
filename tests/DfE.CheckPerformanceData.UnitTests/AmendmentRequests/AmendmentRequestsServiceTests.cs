@@ -116,7 +116,7 @@ public class AmendmentRequestsServiceTests
         _requestRepo.GetSubmittedRequestsAsync(WindowId, 100001L).Returns(
         [
             SubmittedData("Jane", "Smith", "Remove - Permanently left England", "REF010", submitted,
-                RequestStatus.SubmittedWithdrawn)
+                RequestStatus.Withdrawn)
         ]);
 
         var result = await _sut.GetAmendmentRequestsAsync(WindowId);
@@ -125,7 +125,7 @@ public class AmendmentRequestsServiceTests
         Assert.Equal("Jane Smith", result.SubmittedRows[0].PupilName);
         Assert.Equal("Remove - Permanently left England", result.SubmittedRows[0].RequestTypeDescription);
         Assert.Equal("REF010", result.SubmittedRows[0].ReferenceNumber);
-        Assert.Equal(RequestStatus.SubmittedWithdrawn, result.SubmittedRows[0].Status);
+        Assert.Equal(RequestStatus.Withdrawn, result.SubmittedRows[0].Status);
         Assert.Equal(submitted, result.SubmittedRows[0].Submitted);
     }
 

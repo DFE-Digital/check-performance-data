@@ -1,5 +1,4 @@
 using DfE.CheckPerformanceData.Application.UncommittedRequests;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,15 +20,16 @@ public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncomm
 
         return await db.ChangeRequests
             .AsNoTracking()
-            .Where(r => r.Status == RequestStatus.SubmittedUnCommitted
-                && openWindowIds.Contains(r.WindowId))
+            .Where(r => openWindowIds.Contains(r.WindowId))
             .OrderByDescending(r => r.Submitted)
             .Select(r => new UncommittedRequestRow
             {
                 ReferenceNumber = r.ReferenceNumber,
+                OrganisationUrn = r.OrganisationUrn,
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestTypeDescription = r.RequestTypeDescription,
+                Status = r.Status,
                 SubmittedByName = r.SubmittedByName,
                 Submitted = r.Submitted,
                 Outcome = r.Outcome,

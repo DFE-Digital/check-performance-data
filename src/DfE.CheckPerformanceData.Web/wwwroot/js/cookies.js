@@ -29,6 +29,13 @@
             'ad_user_data': 'denied',
             'ad_personalization': 'denied'
         });
+        // Basic consent mode: GTM and Clarity are not loaded until consent is
+        // granted. Load them now so first-time accepters get analytics without
+        // needing a page reload.
+        if (analytics) {
+            if (typeof window.loadGtm === 'function') window.loadGtm();
+            if (typeof window.loadClarity === 'function') window.loadClarity();
+        }
     }
 
     function saveConsentCookie(analytics) {

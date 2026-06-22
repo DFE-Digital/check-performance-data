@@ -93,7 +93,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && (r.Status == RequestStatus.SubmittedUnCommitted
-                    || r.Status == RequestStatus.SubmittedWithdrawn))
+                    || r.Status == RequestStatus.Withdrawn))
             .OrderByDescending(r => r.Submitted)
             .Select(r => new SubmittedRequestData
             {
@@ -120,9 +120,25 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 RequestType = r.RequestType,
                 RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
-                ReferenceNumber = r.ReferenceNumber
+                ReferenceNumber = r.ReferenceNumber,
+                SubmittedByEmail = r.SubmittedByEmail,
+                Submitted = r.Submitted
             })
             .FirstOrDefaultAsync();
+
+    public Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
+        db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && r.ReferenceNumber == referenceNumber)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, RequestStatus.Withdrawn));
+
+    public Task DeleteAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
+        db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && r.ReferenceNumber == referenceNumber)
+            .ExecuteDeleteAsync();
 
     public async Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(
         Guid windowId, long organisationUrn, string referenceNumber) =>
@@ -133,6 +149,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Select(r => new ConfirmDataCorrectData
             {
                 RequestType = r.RequestType,
+                Status = r.Status,
                 SubmittedByEmail = r.SubmittedByEmail,
                 Submitted = r.Submitted,
                 ReferenceNumber = r.ReferenceNumber

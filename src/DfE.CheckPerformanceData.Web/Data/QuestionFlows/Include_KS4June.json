@@ -12,6 +12,7 @@
     },
     {
       "id": "evidence",
+      "pageTitle": "Provide evidence for the inclusion",
       "type": "EvidenceUpload",
       "title": "Provide evidence for the inclusion of {pupilName}",
       "questions": [

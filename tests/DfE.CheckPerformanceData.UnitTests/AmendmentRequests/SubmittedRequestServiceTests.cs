@@ -48,7 +48,7 @@ public class SubmittedRequestServiceTests
     public async Task GetAsync_MapsAnswerRowsPupilNameAndSubmittedBy()
     {
         var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
-        var journey = Journey(submittedAt: submittedAt, email: "submitter@education.gov.uk");
+        var journey = Journey();
         journey.QuestionAnswers["q1"] = new QuestionAnswer { TextValue = "left-england" };
         var page = new JourneyPage
         {
@@ -65,6 +65,7 @@ public class SubmittedRequestServiceTests
             ]
         };
         Setup(journey, page);
+        StubRow(RequestStatus.SubmittedUnCommitted, "submitter@education.gov.uk", submittedAt);
 
         var result = await _sut.GetAsync(WindowId, Reference);
 
@@ -147,6 +148,53 @@ public class SubmittedRequestServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_IncludesStatusFromChangeRequestRow()
+    {
+        var journey = Journey();
+        var page = new JourneyPage
+        {
+            Id = "reason",
+            Questions = [new Question { Id = "q1", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
+        };
+        Setup(journey, page);
+        _requestRepo.GetAmendmentRequestAsync(WindowId, 100000L, Reference).Returns(new AmendmentRequestData
+        {
+            PupilFirstname = "Jane",
+            PupilSurname = "Smith",
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove",
+            Status = RequestStatus.Withdrawn,
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.GetAsync(WindowId, Reference);
+
+        Assert.NotNull(result);
+        Assert.Equal(RequestStatus.Withdrawn, result!.Status);
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenDraftJourneyUnstamped_UsesSavedByDetailsFromRow()
+    {
+        var savedAt = new DateTime(2026, 6, 17, 14, 0, 0);
+        var journey = Journey(); // draft: no SubmittedAt / email on the blob
+        var page = new JourneyPage
+        {
+            Id = "reason",
+            Questions = [new Question { Id = "q1", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
+        };
+        Setup(journey, page);
+        StubRow(RequestStatus.InProgress, "saver@education.gov.uk", savedAt);
+
+        var result = await _sut.GetAsync(WindowId, Reference);
+
+        Assert.NotNull(result);
+        Assert.Equal(RequestStatus.InProgress, result!.Status);
+        Assert.Equal("saver@education.gov.uk", result.SubmittedByEmail);
+        Assert.Equal(savedAt, result.SubmittedAt);
+    }
+
+    [Fact]
     public async Task GetConfirmDataCorrectAsync_WhenRowMissing_ReturnsNull()
     {
         _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference)
@@ -161,6 +209,7 @@ public class SubmittedRequestServiceTests
         _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference).Returns(new ConfirmDataCorrectData
         {
             RequestType = RequestType.Amendment,
+            Status = RequestStatus.SubmittedUnCommitted,
             SubmittedByEmail = "submitter@education.gov.uk",
             Submitted = DateTime.Now,
             ReferenceNumber = Reference
@@ -176,6 +225,7 @@ public class SubmittedRequestServiceTests
         _requestRepo.GetConfirmDataCorrectAsync(WindowId, 100000L, Reference).Returns(new ConfirmDataCorrectData
         {
             RequestType = RequestType.ConfirmCorrect,
+            Status = RequestStatus.Withdrawn,
             SubmittedByEmail = "submitter@education.gov.uk",
             Submitted = submitted,
             ReferenceNumber = Reference
@@ -184,7 +234,8 @@ public class SubmittedRequestServiceTests
         var result = await _sut.GetConfirmDataCorrectAsync(WindowId, Reference);
 
         Assert.NotNull(result);
-        Assert.Equal("submitter@education.gov.uk", result!.SubmittedByEmail);
+        Assert.Equal(RequestStatus.Withdrawn, result!.Status);
+        Assert.Equal("submitter@education.gov.uk", result.SubmittedByEmail);
         Assert.Equal(submitted, result.SubmittedAt);
         Assert.Equal(Reference, result.ReferenceNumber);
     }
@@ -199,8 +250,7 @@ public class SubmittedRequestServiceTests
     private static QuestionFlowConfig Config(JourneyPage page) =>
         new() { FirstPageId = page.Id, Pages = [page] };
 
-    private static RequestState Journey(
-        List<string>? history = null, DateTime? submittedAt = null, string? email = null) => new()
+    private static RequestState Journey(List<string>? history = null) => new()
     {
         SelectedWhatToChange = WhatToChange.Remove,
         CheckingWindow = new CheckingWindowDto
@@ -224,8 +274,19 @@ public class SubmittedRequestServiceTests
             Age = 16,
             Cypmd_Id = "CYPMD123",
             Upn = "123123"
-        },
-        SubmittedAt = submittedAt,
-        SubmittedByEmail = email
+        }
     };
+
+    private void StubRow(RequestStatus status, string? email = null, DateTime? submitted = null) =>
+        _requestRepo.GetAmendmentRequestAsync(WindowId, 100000L, Reference).Returns(new AmendmentRequestData
+        {
+            PupilFirstname = "Jane",
+            PupilSurname = "Smith",
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove",
+            Status = status,
+            ReferenceNumber = Reference,
+            SubmittedByEmail = email,
+            Submitted = submitted
+        });
 }

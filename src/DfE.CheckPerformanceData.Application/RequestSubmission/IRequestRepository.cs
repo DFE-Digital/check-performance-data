@@ -11,4 +11,16 @@ public interface IRequestRepository
     Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(Guid windowId, long organisationUrn);
     Task<AmendmentRequestData?> GetAmendmentRequestAsync(Guid windowId, long organisationUrn, string referenceNumber);
     Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber);
+
+    /// <summary>
+    /// Soft-deletes a request by setting its status to <see cref="Domain.Enums.RequestStatus.Withdrawn"/>.
+    /// Scoped by window + org + reference so a school cannot withdraw another school's request.
+    /// </summary>
+    Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber);
+
+    /// <summary>
+    /// Hard-deletes a request row. Used for in-progress / ready-to-submit drafts.
+    /// Scoped by window + org + reference so a school cannot delete another school's request.
+    /// </summary>
+    Task DeleteAsync(Guid windowId, long organisationUrn, string referenceNumber);
 }

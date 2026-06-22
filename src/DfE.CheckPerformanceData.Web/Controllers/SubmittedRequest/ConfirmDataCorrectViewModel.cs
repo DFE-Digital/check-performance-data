@@ -1,8 +1,12 @@
+using DfE.CheckPerformanceData.Domain.Enums;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 
 public sealed class ConfirmDataCorrectViewModel
 {
     public required Guid WindowId { get; init; }
+    public required RequestStatus Status { get; init; }
+    public bool ConfirmingDelete { get; init; }
     public string? SubmittedByEmail { get; init; }
     public DateTime? SubmittedAt { get; init; }
     public required string ReferenceNumber { get; init; }
@@ -11,4 +15,8 @@ public sealed class ConfirmDataCorrectViewModel
 
     public string SubmittedAtText =>
         SubmittedAt is { } d ? $"{d:d MMMM yyyy} at {d.ToString("h:mmtt").ToLower()}" : "";
+
+    public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
+
+    public string ConfirmDeleteTitle => "Are you sure you want to delete the confirmation that pupil data is correct?";
 }

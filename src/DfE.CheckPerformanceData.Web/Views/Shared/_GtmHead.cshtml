@@ -3,6 +3,11 @@
 @inject IOptions<GtmSettings> GtmOptions
 @{
     var gtm = GtmOptions.Value;
+
+    // Basic consent mode: only load GTM when analytics consent has already been
+    // granted. First-time visitors who accept via the cookie banner get GTM loaded
+    // on the fly by loadGtm() in cookies.js.
+    var analyticsGranted = Context.IsAnalyticsConsentGranted();
 }
 @if (gtm.Enabled && !string.IsNullOrEmpty(gtm.ContainerId))
 {
@@ -17,27 +22,26 @@
             'ad_personalization': 'denied'
         });
 
-        (function () {
-            var match = document.cookie.match(/(?:^|;\s*)cookies_policy=([^;]*)/);
-            if (match) {
-                try {
-                    var policy = JSON.parse(decodeURIComponent(match[1]));
-                    if (policy.analytics === true) {
-                        gtag('consent', 'update', { 'analytics_storage': 'granted' });
-                    }
-                } catch (e) { }
-            }
-        })();
+        // Loads the GTM container. Guarded so it only ever runs once, regardless of
+        // whether it is called inline below (returning consented user) or from
+        // cookies.js when the user accepts via the banner / preferences page.
+        window.loadGtm = function () {
+            if (window.__gtmLoaded) return;
+            window.__gtmLoaded = true;
+            gtag('consent', 'update', { 'analytics_storage': 'granted' });
+            (function (w, d, s, l, i) {
+                w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+                var f = d.getElementsByTagName(s)[0],
+                    j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
+                j.async = true;
+                j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl +
+                    '&gtm_auth=@gtm.AuthKey&gtm_preview=@gtm.PreviewId&gtm_cookies_win=x';
+                f.parentNode.insertBefore(j, f);
+            })(window, document, 'script', 'dataLayer', '@gtm.ContainerId');
+        };
     </script>
-    <script>
-        (function (w, d, s, l, i) {
-            w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-            var f = d.getElementsByTagName(s)[0],
-                j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : '';
-            j.async = true;
-            j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl +
-                '&gtm_auth=@gtm.AuthKey&gtm_preview=@gtm.PreviewId&gtm_cookies_win=x';
-            f.parentNode.insertBefore(j, f);
-        })(window, document, 'script', 'dataLayer', '@gtm.ContainerId');
-    </script>
+    @if (analyticsGranted)
+    {
+        <script>window.loadGtm();</script>
+    }
 }

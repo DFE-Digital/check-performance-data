@@ -17,9 +17,9 @@ public sealed class RequestService(
     IOptions<NotifySettings> notifySettings,
     IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
-    IRequestQueueClient requestQueueClient,
+    //IRequestQueueClient requestQueueClient,
     IRequestBlobClient requestBlobClient,
-    RequestSubmissionOptions submissionOptions,
+    //RequestSubmissionOptions submissionOptions,
     ILogger<RequestService> logger,
     IEmailLinkGenerator emailLinkGenerator,
     IQueueService queueService) : IRequestService
@@ -59,13 +59,9 @@ public sealed class RequestService(
             BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
         var document = BuildRequestDocument(context, config, changeRequestId);
 
-        // TEMPORARY: the rules-engine queue path is paused. When the switch is on the
-        // document is written to blob storage instead of being enqueued. See
-        // RequestSubmissionOptions.
-        if (submissionOptions.WriteToBlobInsteadOfQueue)
-            await requestBlobClient.SaveRequestAsync(windowId, document);
-        else
-            await requestQueueClient.EnqueueRequestAsync(document);
+        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+        // picks it up, evaluates it and writes the decision back to the row.
+        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
         var recipients = await BuildNotificationRecipients(false);
 
@@ -82,11 +78,7 @@ public sealed class RequestService(
                 refNum,
                 notifySettings.Value.DeadlineText,
                 linkUrl);
-        }
-    
-        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
-        // picks it up, evaluates it and writes the decision back to the row.
-        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+        }  
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)

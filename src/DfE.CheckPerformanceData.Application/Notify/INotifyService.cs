@@ -40,4 +40,12 @@ public interface INotifyService
     /// <param name="deadline">Deadline for the action.</param>
     /// <param name="url">Optional dynamic URL related to the withdrawal.</param>
     Task SendWithdrawNotificationAsync(string toEmail, string refNumber, string deadline, string? url = null);
+
+    /// <summary>
+    /// Sends a dead-letter queue threshold alert.
+    /// </summary>
+    /// <param name="toEmail">Recipient email address.</param>
+    /// <param name="dlqDepth">Current depth of the dead-letter queue.</param>
+    /// <param name="threshold">Alert threshold for the dead-letter queue.</param>
+    Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold);
 }

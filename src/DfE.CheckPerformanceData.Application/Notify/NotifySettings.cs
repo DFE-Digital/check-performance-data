@@ -9,19 +9,19 @@ public class NotifySettings
     [Required]
     public string ApiKey { get; set; } = null!;
 
-    [Required]
+
     public string PupilDataCheckConfirmTemplateId { get; set; } = null!;
 
-    [Required]
+
     public string PupilDataCheckWithdrawTemplateId { get; set; } = null!;
 
-    [Required]
+
     public string SubmissionNotificationTemplateId { get; set; } = null!;
 
-    [Required]
     public string WithdrawNotificationTemplateId { get; set; } = null!;
+    public string DlqThresholdTemplateId { get; set; } = null!;
 
-    [Required]
+
     public string DeadlineText { get; set; } = null!;
 
     public string? LinkBaseUrl { get; set; }

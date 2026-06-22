@@ -118,4 +118,22 @@ public class NotifyService : INotifyService
             _settings.WithdrawNotificationTemplateId,
             personalisation: personalisation);
     }
+
+    public async Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold)
+    {
+        var personalisation = new Dictionary<string, object>
+        {
+            ["dlq_depth"] = dlqDepth,
+            ["threshold"] = threshold
+        };
+
+        _logger.LogInformation(
+            "Sending Dead-letter Queue Threshold email to {ToEmail}",
+            toEmail);
+
+        await _client.SendEmailAsync(
+            toEmail,
+            _settings.DlqThresholdTemplateId,
+            personalisation: personalisation);
+    }
 }

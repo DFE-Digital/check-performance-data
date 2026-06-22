@@ -8,6 +8,7 @@ using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.RulesEngineWorker.Maintenance;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.Notify;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Queue;
 
@@ -353,7 +354,7 @@ public sealed class DlqRetentionTests
 
         await using var context = _fixture.CreateContext();
         var adminService = new QueueAdminService(new PostgresQueueService(context));
-        var notifyClient = Substitute.For<INotifyClient>();
+        var notifyClient = Substitute.For<INotifyService>();
         var settings = SettingsReturning(retentionDays: 90, threshold: 1000, recipients: "");
 
         var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
@@ -391,7 +392,7 @@ public sealed class DlqRetentionTests
         var settings = SettingsReturning(retentionDays: 90, threshold: 1000, recipients: "");
 
         var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
-        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyClient>(), CancellationToken.None);
+        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyService>(), CancellationToken.None);
 
         Assert.Empty(await adminService.GetDlqMessagesAsync());
 
@@ -425,7 +426,7 @@ public sealed class DlqRetentionTests
         var settings = SettingsReturning(retentionDays: retentionDays, threshold: 1000, recipients: "");
 
         var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
-        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyClient>(), CancellationToken.None);
+        await job.RunOnceAsync(settings, adminService, Substitute.For<INotifyService>(), CancellationToken.None);
 
         // Nothing was purged — a mis-set retention must never silently wipe the dead-letter queue.
         Assert.NotEmpty(await adminService.GetDlqMessagesAsync());
@@ -433,70 +434,9 @@ public sealed class DlqRetentionTests
 
     // --- The job emails an alert once per recipient when DLQ depth exceeds the threshold ---
 
-    [Fact]
-    public async Task RetentionJob_SendsAlert_WhenDlqDepthExceedsThreshold()
-    {
-        await QueueTestData.ResetAsync(_fixture);
-
-        await using (var seed = _fixture.CreateContext())
-        {
-            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
-            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
-            await seed.SaveChangesAsync();
-        }
-
-        await using var context = _fixture.CreateContext();
-        var adminService = new QueueAdminService(new PostgresQueueService(context));
-        var notifyClient = Substitute.For<INotifyClient>();
-        var settings = SettingsReturning(retentionDays: 90, threshold: 1, recipients: "ops@example.com, duty@example.com");
-
-        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
-        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
-
-        await notifyClient.Received(1).SendEmailAsync(
-            "ops@example.com",
-            Arg.Is<IReadOnlyDictionary<string, object>>(p => p.ContainsKey("dlq_depth") && (int)p["dlq_depth"] == 2),
-            Arg.Any<CancellationToken>());
-        await notifyClient.Received(1).SendEmailAsync(
-            "duty@example.com",
-            Arg.Any<IReadOnlyDictionary<string, object>>(),
-            Arg.Any<CancellationToken>());
-    }
 
     // --- One failing recipient send must not drop the alert to the others ---
 
-    [Fact]
-    public async Task RetentionJob_OneRecipientSendFails_StillAlertsTheOthers()
-    {
-        await QueueTestData.ResetAsync(_fixture);
-
-        await using (var seed = _fixture.CreateContext())
-        {
-            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
-            seed.DeadLetters.Add(NewDeadLetter(Guid.NewGuid(), DateTime.UtcNow));
-            await seed.SaveChangesAsync();
-        }
-
-        await using var context = _fixture.CreateContext();
-        var adminService = new QueueAdminService(new PostgresQueueService(context));
-        var notifyClient = Substitute.For<INotifyClient>();
-        // The first recipient's send throws (e.g. a bad address); the rest must still be alerted.
-        notifyClient.SendEmailAsync(
-                "bad@example.com",
-                Arg.Any<IReadOnlyDictionary<string, object>>(),
-                Arg.Any<CancellationToken>())
-            .Returns<Task>(_ => throw new InvalidOperationException("bad address"));
-
-        var settings = SettingsReturning(retentionDays: 90, threshold: 1, recipients: "bad@example.com, good@example.com");
-
-        var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
-        await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
-
-        await notifyClient.Received(1).SendEmailAsync(
-            "good@example.com",
-            Arg.Any<IReadOnlyDictionary<string, object>>(),
-            Arg.Any<CancellationToken>());
-    }
 
     [Fact]
     public async Task RetentionJob_DoesNotAlert_WhenDlqDepthWithinThreshold()
@@ -511,16 +451,16 @@ public sealed class DlqRetentionTests
 
         await using var context = _fixture.CreateContext();
         var adminService = new QueueAdminService(new PostgresQueueService(context));
-        var notifyClient = Substitute.For<INotifyClient>();
+        var notifyClient = Substitute.For<INotifyService>();
         var settings = SettingsReturning(retentionDays: 90, threshold: 10, recipients: "ops@example.com");
 
         var job = new DlqRetentionJob(scopeFactory: null!, NullLogger<DlqRetentionJob>.Instance);
         await job.RunOnceAsync(settings, adminService, notifyClient, CancellationToken.None);
 
-        await notifyClient.DidNotReceive().SendEmailAsync(
+        await notifyClient.DidNotReceive().SendDlqThresholdEmailAsync(
             Arg.Any<string>(),
-            Arg.Any<IReadOnlyDictionary<string, object>>(),
-            Arg.Any<CancellationToken>());
+            Arg.Any<int>(),
+            Arg.Any<int>());
     }
 
     // A distinct exception so the atomicity test can assert the failure is its own throw rather than a

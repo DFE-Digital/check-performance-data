@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Notifications;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,13 +68,14 @@ public sealed class DlqRetentionJob : BackgroundService
         RunOnceAsync(
             services.GetRequiredService<ISettingService>(),
             services.GetRequiredService<IQueueAdminService>(),
-            services.GetRequiredService<INotifyClient>(),
+            services.GetRequiredService<INotifyService>(),
             cancellationToken);
 
     public async Task RunOnceAsync(
         ISettingService settings,
         IQueueAdminService queueAdmin,
-        INotifyClient notifyClient,
+        //INotifyClient notifyClient,
+        INotifyService notifyService,
         CancellationToken cancellationToken)
     {
         var retentionDays = await settings.GetIntAsync(SettingKeys.DlqRetentionDays);
@@ -132,17 +134,13 @@ public sealed class DlqRetentionJob : BackgroundService
             "Dead-letter depth {DlqDepth} crossed the alert threshold {Threshold}; alerting {RecipientCount} recipient(s).",
             dlqDepth, threshold, recipients.Count);
 
-        var personalisation = new Dictionary<string, object>
-        {
-            ["dlq_depth"] = dlqDepth,
-            ["threshold"] = threshold
-        };
+     
 
         foreach (var recipient in recipients)
         {
             try
             {
-                await notifyClient.SendEmailAsync(recipient, personalisation, cancellationToken);
+                await notifyService.SendDlqThresholdEmailAsync(recipient, dlqDepth, threshold);
             }
             catch (Exception ex)
             {

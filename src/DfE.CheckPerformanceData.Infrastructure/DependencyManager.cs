@@ -9,11 +9,10 @@ using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.Notify;
-using DfE.CheckPerformanceData.Infrastructure.Notify;
+//using DfE.CheckPerformanceData.Infrastructure.Notify;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
-using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
@@ -30,6 +29,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Notify.Client;
 using Refit;
+using DfE.CheckPerformanceData.Infrastructure.Notify;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
@@ -43,10 +43,10 @@ public static class DependencyManager
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
 
-        services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
-        // GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
-        // dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
-        services.AddSingleton<INotifyClient, NoOpNotifyClient>();
+        //services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
+        //// GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
+        //// dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
+        //services.AddSingleton<INotifyService, NotifyService>();
 
         // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
         // the Web host) because the Persistence repositories that consume it are pulled in
@@ -258,7 +258,7 @@ public static class DependencyManager
             return new NotificationClient(notifySettings.ApiKey);
         });
 
-        services.AddScoped<INotifyService, NotifyService>();
+        services.AddSingleton<INotifyService, NotifyService>();
 
         return services;
     }

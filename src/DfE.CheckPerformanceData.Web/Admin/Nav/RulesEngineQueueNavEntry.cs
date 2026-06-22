@@ -9,5 +9,5 @@ public sealed record RulesEngineQueueNavEntry : IAdminNavEntry
     public string Description => "Messages waiting for the rules engine to process.";
     public string Url => "/admin/queues/list/rules-engine";
     public bool Enabled => true;
-    public int Order => 10;
+    public int Order => 20;
 }

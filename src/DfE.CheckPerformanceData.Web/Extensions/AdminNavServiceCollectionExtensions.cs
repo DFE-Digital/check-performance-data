@@ -30,8 +30,11 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, RulesConfigNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineNavEntry>();
+        services.AddSingleton<IAdminNavEntry, SubmitStageNavEntry>();
         services.AddSingleton<IAdminNavEntry, RulesEngineQueueNavEntry>();
+        services.AddSingleton<IAdminNavEntry, RulesEngineStageNavEntry>();
         services.AddSingleton<IAdminNavEntry, ZendeskQueueNavEntry>();
+        services.AddSingleton<IAdminNavEntry, ZendeskTicketStageNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeadLetterQueueNavEntry>();
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();

@@ -17,8 +17,11 @@ public static class AdminNavKeys
 
     public const string RulesEngineGroup = "rules-engine-group";
     public const string RulesEngine = "rules-engine";
+    public const string SubmitStage = "submit-stage";
     public const string RulesEngineQueue = "rules-engine-queue";
+    public const string RulesEngineStage = "rules-engine-stage";
     public const string ZendeskQueue = "zendesk-queue";
+    public const string ZendeskTicketStage = "zendesk-ticket-stage";
     public const string DeadLetterQueue = "dead-letter-queue";
     public const string Observability = "observability";
     public const string StorageAdmin = "storage-admin";

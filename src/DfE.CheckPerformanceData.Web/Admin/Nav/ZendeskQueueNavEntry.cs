@@ -9,5 +9,5 @@ public sealed record ZendeskQueueNavEntry : IAdminNavEntry
     public string Description => "Messages waiting to be raised as Zendesk tickets.";
     public string Url => "/admin/queues/list/zendesk";
     public bool Enabled => true;
-    public int Order => 20;
+    public int Order => 40;
 }

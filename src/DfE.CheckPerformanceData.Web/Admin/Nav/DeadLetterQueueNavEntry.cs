@@ -10,5 +10,5 @@ public sealed record DeadLetterQueueNavEntry : IAdminNavEntry
     public string Description => "Inspect, redrive and purge dead-lettered messages.";
     public string Url => "/admin/queues/dlq";
     public bool Enabled => true;
-    public int Order => 30;
+    public int Order => 60;
 }

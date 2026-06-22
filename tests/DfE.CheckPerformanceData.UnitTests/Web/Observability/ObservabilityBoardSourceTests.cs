@@ -203,22 +203,38 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains(".obs-board__stack-count", css);
     }
 
-    // --- Travel transition scales with speed, so an envelope arrives before the decision recolour ---
-    // Regression: the transform transition was a fixed 600ms, but the dwell between hops is
-    // dwellFor() ≈ base·moveSpeed·jitter. Speeding the demo clock up shrank the dwell below 600ms, so
-    // the next hop — and the decision-box recolour (paintToken) — fired while the envelope was still
-    // travelling toward the rules engine: a blue envelope changed direction and colour between the
-    // rules queue and the rules engine. Pin travel to a fraction of the shortest dwell and scale it by
-    // the same moveSpeed clock so the envelope always lands at a box first.
+    // --- Per-hop travel: each glide lasts a fraction of THAT hop's dwell ---
+    // Regression: the transform transition was a fixed 600ms while the dwell between hops scales with
+    // the speed clock (dwellFor ≈ base·moveSpeed·jitter). Too long, a sped-up clock cut the glide off
+    // and recoloured an envelope between the rules queue and the rules engine; a single short fixed
+    // value instead made every hop teleport. The travel is now TRAVEL_FRACTION of the SAME dwell value
+    // used for that hop's timer, so the glide always finishes before the next hop (no mid-lane
+    // recolour) yet still reads as motion (no teleport) — slow into the long-dwell engine, brisk into
+    // Submit.
     [Fact]
-    public void BoardJs_ScalesTravelTransitionWithSpeed_SoEnvelopesArriveBeforeRecolour()
+    public void BoardJs_TravelIsAFractionOfEachHopsOwnDwell()
     {
         var js = BoardJs();
 
-        // The travel time is derived from the dwell constants and scaled by the same speed clock as
-        // the hop delay — not a hard-coded transition that a fast clock can outrun.
-        Assert.Contains("TOKEN_TRAVEL_MS", js);
-        Assert.Contains("TOKEN_TRAVEL_MS * moveSpeed", js);
+        // setGlide derives the transform duration from a dwell value times the fraction.
+        Assert.Contains("TRAVEL_FRACTION", js);
+        Assert.Contains("dwellMs * TRAVEL_FRACTION", js);
+        // A lane hop computes its dwell once and uses it for BOTH the glide and the hop timer.
+        Assert.Contains("setGlide(token, d)", js);
+        Assert.Contains("pausableTimeout(next, d)", js);
+    }
+
+    // --- An envelope flies INTO Submit rather than snapping there ---
+    // The token is placed just off Submit's left with no transition, the start frame is committed
+    // (a forced reflow), then it glides to the box — otherwise setting the transform in the same tick
+    // the token is created snaps with no animation, so the envelope just "appears" at Submit.
+    [Fact]
+    public void BoardJs_EntryGlidesIntoSubmit_NotSnaps()
+    {
+        var js = BoardJs();
+
+        Assert.Contains("void token.offsetWidth", js);              // commit the start frame
+        Assert.Contains("submitAnchor.x - 90", js);                 // start off the left of Submit
     }
 
     // --- A trickle burst must show EVERY envelope traversing every box, even when crowded ---

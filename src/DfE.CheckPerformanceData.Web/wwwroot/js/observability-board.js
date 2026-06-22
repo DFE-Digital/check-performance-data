@@ -48,20 +48,14 @@
         return base * (speed || 1) * jitter;
     }
 
-    // How long an envelope takes to TRAVEL between two boxes (the transform transition). It must be
-    // shorter than the gap before the next hop at EVERY speed, or a sped-up demo clock fires the next
-    // hop — and the decision-box recolour — while the envelope is still mid-flight, making a blue
-    // envelope change direction and colour between the rules queue and the rules engine. The gap is
-    // dwellFor() ≈ base·moveSpeed·jitter (jitter floor DWELL_JITTER_FLOOR), so pin travel to 0.7× the
-    // SHORTEST possible dwell and scale it by the same moveSpeed clock (applied in placeAt). Derived
-    // from the dwell constants so it stays correct if those bases change.
-    var TOKEN_TRAVEL_MS = (function () {
-        var min = STAGE_DWELL_MS;
-        Object.keys(STAGE_DWELL_BY_KEY).forEach(function (k) {
-            if (STAGE_DWELL_BY_KEY[k] < min) { min = STAGE_DWELL_BY_KEY[k]; }
-        });
-        return Math.round(min * DWELL_JITTER_FLOOR * 0.7); // ≈100ms at moveSpeed 1
-    })();
+    // An envelope's TRAVEL between two boxes (the transform transition) lasts this fraction of the
+    // dwell it will have at the box it is heading to. Both the glide and the hop timer derive from the
+    // SAME per-hop dwell value, so travel always finishes before the next hop fires — and so before
+    // the decision-box recolour — at every demo speed, while still reading as motion: a long-dwell
+    // stage (the rules engine) glides slowly, a short-dwell stage moves briskly. A single fixed
+    // transition could not satisfy both (too long, it gets cut off and recolours mid-lane; too short,
+    // every hop teleports).
+    var TRAVEL_FRACTION = 0.7;
 
     // When several envelopes occupy the same box at once they offset diagonally by this many px per
     // envelope so the pile is visible rather than overlapping exactly. Beyond STACK_MAX_VISIBLE the
@@ -347,22 +341,23 @@
         }
 
         // Position an envelope at an anchor point (centre of a stage box, or the DLQ marker).
-        // Under reduced motion we strip the transition so it snaps; otherwise the CSS transition
-        // (gated behind no-preference) eases the transform.
+        // Under reduced motion we strip the transition so it snaps; otherwise the transform eases over
+        // whatever travel duration setGlide last applied for this hop.
         function placeAt(token, anchor) {
-            if (reduce) {
-                token.style.transition = 'none';
-            } else {
-                // Scale the travel transition with the SAME moveSpeed clock as the hop delay, so an
-                // envelope always lands at a box before the next hop fires (and before the decision
-                // box recolours it). Overrides the CSS default, which was a fixed 600ms a fast clock
-                // could outrun. Capped well under the shortest dwell (see TOKEN_TRAVEL_MS).
-                token.style.transition =
-                    'transform ' + (TOKEN_TRAVEL_MS * moveSpeed) + 'ms ease, background-color 200ms ease';
-            }
+            if (reduce) { token.style.transition = 'none'; }
             // -50% offset is baked into the element's own translate via CSS transform-origin; here
             // we translate the top-left so the element centre lands on the anchor.
             token.style.transform = 'translate(' + (anchor.x) + 'px, ' + (anchor.y) + 'px) translate(-50%, -50%)';
+        }
+
+        // Set how long the NEXT placeAt's transform takes, as TRAVEL_FRACTION of the dwell this hop
+        // has before it moves on — so the glide fills most of the dwell (visible motion) yet always
+        // finishes before the next hop fires. Called immediately before the placeAt/restAt for a hop.
+        // No-op under reduced motion (placeAt snaps instead).
+        function setGlide(token, dwellMs) {
+            if (reduce) { return; }
+            token.style.transition =
+                'transform ' + Math.round(dwellMs * TRAVEL_FRACTION) + 'ms ease, background-color 200ms ease';
         }
 
         function accessibleName(transition) {
@@ -591,25 +586,40 @@
             else { stopIdx = destIdx; }
             for (var i = 0; i <= stopIdx; i++) { path.push(STAGE_ORDER[i]); }
 
-            placeAt(token, anchorFor('submit'));
+            // Fly INTO submit from just off its left: place there with no transition, force the
+            // browser to commit that start frame, then glide to the submit box. Without the committed
+            // start frame, setting the transform in the same tick the token was created snaps with no
+            // animation (the envelope just "appears" at submit).
+            var submitAnchor = anchorFor('submit');
+            token.style.transition = 'none';
+            placeAt(token, { x: submitAnchor.x - 90, y: submitAnchor.y });
+            void token.offsetWidth; // commit the start frame so the glide below animates
+            var submitDwell = dwellFor('submit', moveSpeed);
             moveToken(token, 'submit');
+            setGlide(token, submitDwell);
             // Stack at every lane stage too (not just the terminal boxes), so a burst piles up
             // diagonally and shows the "+N" overlay as it passes through Submit, the queues and the
             // engine. laneRelease frees the box this envelope is resting in before it hops to the next.
-            var laneRelease = restAt(token, 'stage:submit', anchorFor('submit'));
+            var laneRelease = restAt(token, 'stage:submit', submitAnchor);
             var hop = 0;
             window.requestAnimationFrame(function () {
                 function next() {
                     if (laneRelease) { laneRelease(); laneRelease = null; }
                     hop += 1;
                     if (hop < path.length) {
+                        // Each hop glides for TRAVEL_FRACTION of its own dwell, then rests the
+                        // remainder — long, slow glides into the engine; brisk ones through Submit.
+                        var d = dwellFor(path[hop], moveSpeed);
                         moveToken(token, path[hop]);
+                        setGlide(token, d);
                         laneRelease = restAt(token, 'stage:' + path[hop], anchorFor(path[hop]));
-                        pausableTimeout(next, dwellFor(path[hop], moveSpeed));
+                        pausableTimeout(next, d);
                     } else if (failed) {
                         // Terminal at the dead-letter box; reveal it and rest there. The envelope
                         // travelled blue to here and now takes the dead-letter orange.
+                        var dDlq = dwellFor('rules-engine', moveSpeed) * 2;
                         if (dlqMarker) { dlqMarker.setAttribute('data-obs-dlq-active', 'true'); }
+                        setGlide(token, dDlq);
                         var releaseDlq = restAt(token, 'dlq', dlqAnchor());
                         moveToken(token, 'dlq');
                         paintToken(token, null, true);
@@ -618,13 +628,15 @@
                             clearToken(token);
                             clearDlqIfEmpty(); // don't leave the DLQ box lit after the message leaves
                             if (token.parentNode) { token.parentNode.removeChild(token); }
-                        }, dwellFor('rules-engine', moveSpeed) * 2);
+                        }, dDlq);
                     } else if (decisionKey) {
                         // Canonical flow: Rules engine → its decision box (Auto-approved /
                         // Auto-rejected / Scrutiny) → Zendesk-queue → Zendesk ticket. The engine
                         // never feeds the Zendesk queue directly; the decision routes through its
                         // status box, the status feeds the queue, the queue produces the ticket.
+                        var dDec = dwellFor('rules-engine', moveSpeed);
                         var decId = 'decision:' + decisionKey;
+                        setGlide(token, dDec);
                         var releaseDec = restAt(token, decId, decisionAnchor(decisionKey));
                         moveToken(token, decId);
                         // Reached its status box: the outcome is now known in-world, so colour it.
@@ -635,12 +647,16 @@
                             if ((occupancy[decId] || 0) <= 0) { setDecisionActive(decisionKey, false); }
                             token.style.visibility = '';
                             // status → Zendesk-queue
+                            var dZq = dwellFor('zendesk-queue', moveSpeed);
+                            setGlide(token, dZq);
                             placeAt(token, anchorFor('zendesk-queue'));
                             moveToken(token, 'zendesk-queue');
                             var releaseZq = restAt(token, 'stage:zendesk-queue', anchorFor('zendesk-queue'));
                             pausableTimeout(function () {
                                 releaseZq();
                                 // Zendesk-queue → Zendesk ticket
+                                var dTk = dwellFor('ticket', moveSpeed) * 2;
+                                setGlide(token, dTk);
                                 placeAt(token, anchorFor('ticket'));
                                 moveToken(token, 'ticket');
                                 var releaseTicket = restAt(token, 'stage:ticket', anchorFor('ticket'));
@@ -648,21 +664,23 @@
                                     releaseTicket();
                                     clearToken(token);
                                     if (token.parentNode) { token.parentNode.removeChild(token); }
-                                }, dwellFor('ticket', moveSpeed) * 2);
-                            }, dwellFor('zendesk-queue', moveSpeed));
-                        }, dwellFor('rules-engine', moveSpeed));
+                                }, dTk);
+                            }, dZq);
+                        }, dDec);
                     } else {
                         // No decision reported: rest at the final reported box then clear.
+                        var dDest = dwellFor(destKey, moveSpeed) * 2;
+                        setGlide(token, dDest);
                         var releaseStage = restAt(token, 'stage:' + destKey, anchorFor(destKey));
                         moveToken(token, destKey);
                         pausableTimeout(function () {
                             releaseStage();
                             clearToken(token);
                             if (token.parentNode) { token.parentNode.removeChild(token); }
-                        }, dwellFor(destKey, moveSpeed) * 2);
+                        }, dDest);
                     }
                 }
-                pausableTimeout(next, dwellFor('submit', moveSpeed));
+                pausableTimeout(next, submitDwell);
             });
         }
 

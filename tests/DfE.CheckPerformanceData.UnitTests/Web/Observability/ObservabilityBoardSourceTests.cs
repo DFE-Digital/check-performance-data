@@ -203,6 +203,24 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains(".obs-board__stack-count", css);
     }
 
+    // --- A trickle burst must show EVERY envelope traversing every box, even when crowded ---
+    // Regression: restAt used to hide any envelope beyond STACK_MAX_VISIBLE (visibility:hidden), so a
+    // busy slow trickle overflowed the shared lane boxes (Submit / Rules-queue / Rules-engine) and the
+    // hidden envelopes only reappeared at the less-crowded decision boxes — reading as if a message
+    // teleported from Submit straight to a decision, skipping the queue and engine. An in-flight
+    // envelope must stay visible; the overflow piles at the clamped diagonal offset and the "+N"
+    // overlay conveys the true count instead.
+    [Fact]
+    public void BoardJs_KeepsTravellingEnvelopesVisible_DoesNotHideOverflow()
+    {
+        var js = BoardJs();
+
+        // No envelope is hidden by the stacking overflow — they stay visible as they travel.
+        Assert.DoesNotContain("visibility = 'hidden'", js);
+        // The "+N" overlay still represents a crowded box.
+        Assert.Contains("obs-board__stack-count", js);
+    }
+
     // --- An always-available Pause control + hover/focus message details ---
 
     // --- Round 3: Pause moved into the Demo panel (only shown while Demo is expanded) and is a

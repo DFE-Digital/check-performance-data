@@ -498,19 +498,19 @@
 
         // Place an envelope to rest AT an anchor, claiming a slot in that box's pile so multiple
         // envelopes fan out diagonally (and a "+N" overlay appears beyond the visible threshold).
-        // Returns a release function the caller calls when the envelope leaves/clears the box. If the
-        // pile is already past the visible threshold the envelope itself is hidden — the overlay
-        // stands in for it — so the box stays legible.
+        // Returns a release function the caller calls when the envelope leaves/clears the box.
+        //
+        // Every envelope stays VISIBLE as it travels — an in-flight message must be seen touching
+        // each box on its path. The diagonal offset is clamped at STACK_MAX_VISIBLE (in stackOffset),
+        // so once a box is crowded the overflow envelopes pile at the last visible slot (slightly
+        // overlapping) rather than vanishing, while the "+N" overlay still conveys the true count.
+        // Previously the overflow was hidden outright, which made a busy slow trickle look like
+        // envelopes teleported from Submit to a decision box, skipping the rules queue and engine.
         function restAt(token, anchorId, anchor) {
             var index = enterAnchor(anchorId, anchor);
-            if (index >= STACK_MAX_VISIBLE) {
-                token.style.visibility = 'hidden';
-            } else {
-                // Restore visibility in case this envelope was hidden behind a "+N" at a busier box.
-                token.style.visibility = '';
-                var off = stackOffset(index);
-                placeAt(token, { x: anchor.x + off.x, y: anchor.y + off.y });
-            }
+            token.style.visibility = '';
+            var off = stackOffset(index);
+            placeAt(token, { x: anchor.x + off.x, y: anchor.y + off.y });
             var released = false;
             return function release() {
                 if (released) { return; }

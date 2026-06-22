@@ -5,6 +5,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 public sealed class AmendmentRequestsViewModel
 {
     public required Guid WindowId { get; init; }
+    public required string WindowTitle { get; init; }
     public required string DeadlineText { get; init; }
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }

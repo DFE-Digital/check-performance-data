@@ -27,7 +27,7 @@
 <h1 class="govuk-heading-xl">Amendment request summary</h1>
 
 <div class="govuk-inset-text">
-    <p class="govuk-body">Submit all requests by <strong>@Model.DeadlineText</strong></p>
+    <p class="govuk-body">Submit all @Model.WindowTitle requests by <strong>@Model.DeadlineText</strong></p>
 </div>
 
 @if (Model.Rows.Count == 0)
@@ -71,8 +71,15 @@ else
 
 <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
 
+<hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible">
+
+<h2 class="govuk-heading-m">Summary of recent requests, decisions and issues</h2>
+
 <govuk-tabs>
     <govuk-tabs-item id="requests" label="Requests">
+        <div class="govuk-inset-text">
+            <p class="govuk-body">You can edit your @Model.WindowTitle requests any time before <strong>@Model.DeadlineText</strong></p>
+        </div>
         @if (Model.SubmittedRows.Count == 0)
         {
             <div class="govuk-inset-text">

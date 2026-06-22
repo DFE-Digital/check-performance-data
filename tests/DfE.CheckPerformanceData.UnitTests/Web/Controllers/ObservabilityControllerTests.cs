@@ -321,6 +321,23 @@ public sealed class ObservabilityControllerTests
     }
 
     [Fact]
+    public async Task Index_ProcessedToday_IncludesDeadLetteredMessages()
+    {
+        var query = BuildQuery();
+        // Three ticketed (the ticket throughput) plus three dead-lettered today → six processed.
+        query.GetThroughputAsync(Arg.Any<string>(), Arg.Any<ThroughputGranularity>(),
+                Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(new[] { new ThroughputBucket(DateTime.UtcNow, 3) });
+        query.GetDeadLetteredCountAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns(3);
+
+        var controller = BuildController(query);
+        var model = Assert.IsType<DashboardViewModel>(Assert.IsType<ViewResult>(await controller.Index()).Model);
+
+        Assert.Equal(6, model.ProcessedToday);
+    }
+
+    [Fact]
     public async Task Index_NonDefaultWindow_KeepsDecisionCountersOnTheLast24Hours()
     {
         var query = BuildQuery();

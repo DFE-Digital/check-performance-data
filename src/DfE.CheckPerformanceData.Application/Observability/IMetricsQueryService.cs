@@ -39,6 +39,14 @@ public interface IMetricsQueryService
         IReadOnlyList<string> references,
         CancellationToken cancellationToken = default);
 
+    // Count of messages dead-lettered across [from, to] (the DeadLettered stage events). Added to
+    // the ticket throughput to give "processed today" — every message ends either ticketed or
+    // dead-lettered, so the two counts are disjoint and sum to the messages that completed.
+    Task<int> GetDeadLetteredCountAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     // Count of events per decision status across [from, to].
     Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,

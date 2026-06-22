@@ -857,6 +857,27 @@ public sealed class MetricsQueryTests
     }
 
     [Fact]
+    public async Task GetDeadLetteredCount_CountsOnlyDeadLetteredEventsInWindow()
+    {
+        await ResetMetricsAsync();
+        var anchor = new DateTime(2026, 5, 4, 10, 0, 0, DateTimeKind.Utc);
+
+        await SeedMetricsAsync(
+            Metric(RulesEngineQueue, "Submitted", "DL-1", anchor),
+            Metric(RulesEngineQueue, "DeadLettered", "DL-1", anchor.AddSeconds(2)),
+            Metric(RulesEngineQueue, "Submitted", "DL-2", anchor.AddSeconds(1)),
+            Metric(RulesEngineQueue, "DeadLettered", "DL-2", anchor.AddSeconds(3)),
+            // A ticketed message and a dead-letter outside the window must not be counted.
+            Metric(RulesEngineQueue, "Submitted", "OK-1", anchor),
+            Metric(ZendeskQueue, "TicketCreated", "OK-1", anchor.AddSeconds(4)),
+            Metric(RulesEngineQueue, "DeadLettered", "OLD", anchor.AddDays(-1)));
+
+        var count = await CreateService().GetDeadLetteredCountAsync(anchor.AddMinutes(-1), anchor.AddMinutes(5));
+
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
     public async Task GetStageAverages_NoData_ReturnsNullComponents()
     {
         await ResetMetricsAsync();

@@ -225,6 +225,31 @@ FROM per_ref;";
         return new LoadSample(completed, new StageAverages(rulesQueue, rulesEngine, zendeskQueue, ticket));
     }
 
+    public async Task<int> GetDeadLetteredCountAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        GuardRange(fromUtc, toUtc);
+
+        var sql = $@"
+SELECT COUNT(*)
+FROM queue_metrics_events
+WHERE recorded_at_utc >= @from AND recorded_at_utc < @to AND stage = '{MetricStages.DeadLettered}';";
+
+        var count = 0;
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            count = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        return count;
+    }
+
     public async Task<IReadOnlyList<DecisionMixEntry>> GetDecisionMixAsync(
         DateTime fromUtc,
         DateTime toUtc,

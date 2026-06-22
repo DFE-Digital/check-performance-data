@@ -237,6 +237,18 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("submitAnchor.x - 90", js);                 // start off the left of Submit
     }
 
+    // --- A dead-lettered message counts toward "processed today", like a ticketed one ---
+    [Fact]
+    public void BoardJs_CountsDeadLetteredAsProcessed()
+    {
+        var js = BoardJs();
+
+        // bumpProcessed fires for every completed message, not only non-failed ones — so the old
+        // failure-excluding guards are gone from both the optimistic drive and the live SSE paths.
+        Assert.DoesNotContain("if (!failed) { bumpProcessed", js);
+        Assert.DoesNotContain("if (!state.failed) { bumpProcessed", js);
+    }
+
     // --- The Failure drive presents on the board, so its dead-letter counter bumps live ---
     [Fact]
     public void UatConsoleJs_PresentsInjectFailure_SoTheDeadLetterCounterBumpsLive()

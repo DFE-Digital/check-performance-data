@@ -162,7 +162,11 @@ public sealed class ObservabilityController : Controller
             ? dwell
             : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
-        var processedToday = headlineThroughput.Sum(b => b.Count);
+        // Processed today = messages that COMPLETED today, ticketed or dead-lettered. The ticket
+        // throughput counts the ticketed ones; add the dead-lettered count so a failure also counts
+        // as processed (the two are disjoint — a message ends one way or the other).
+        var deadLetteredToday = await _query.GetDeadLetteredCountAsync(headlineFrom, now, cancellationToken);
+        var processedToday = headlineThroughput.Sum(b => b.Count) + deadLetteredToday;
         var typicalEndToEnd = headlineDwell.Count == 0
             ? TimeSpan.Zero
             : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
@@ -261,7 +265,11 @@ public sealed class ObservabilityController : Controller
             ? dwell
             : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
-        var processedToday = headlineThroughput.Sum(b => b.Count);
+        // Processed today = messages that COMPLETED today, ticketed or dead-lettered. The ticket
+        // throughput counts the ticketed ones; add the dead-lettered count so a failure also counts
+        // as processed (the two are disjoint — a message ends one way or the other).
+        var deadLetteredToday = await _query.GetDeadLetteredCountAsync(headlineFrom, now, cancellationToken);
+        var processedToday = headlineThroughput.Sum(b => b.Count) + deadLetteredToday;
         var typicalEndToEnd = headlineDwell.Count == 0
             ? TimeSpan.Zero
             : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));
@@ -321,7 +329,11 @@ public sealed class ObservabilityController : Controller
             ? dwell
             : await _query.GetDwellByStageAsync(headlineFrom, now, cancellationToken);
 
-        var processedToday = headlineThroughput.Sum(b => b.Count);
+        // Processed today = messages that COMPLETED today, ticketed or dead-lettered. The ticket
+        // throughput counts the ticketed ones; add the dead-lettered count so a failure also counts
+        // as processed (the two are disjoint — a message ends one way or the other).
+        var deadLetteredToday = await _query.GetDeadLetteredCountAsync(headlineFrom, now, cancellationToken);
+        var processedToday = headlineThroughput.Sum(b => b.Count) + deadLetteredToday;
         var typicalEndToEnd = headlineDwell.Count == 0
             ? TimeSpan.Zero
             : TimeSpan.FromMilliseconds(headlineDwell.Sum(d => d.AverageLatencyMs));

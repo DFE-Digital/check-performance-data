@@ -383,5 +383,23 @@ public sealed class DevUatController : Controller
         var id = await _queueService.EnqueueAsync(
             QueueOptions.RulesEngineQueue, new { Reference = reference }, cancellationToken);
         await _queueService.DeadLetterAsync(id, reason, cancellationToken);
+
+        // Record the same metric journey the worker would write when a real message exhausts its
+        // retries — a Submitted then a DeadLettered event — so the injected failure is a first-class
+        // dead-letter everywhere: it shows in the recent-submissions matrix and transactions, and it
+        // counts toward "processed today" (a completed-but-failed message), not just the DLQ depth.
+        // Without this the message lives only in the dead-letter table and is invisible to the metrics.
+        if (_metricsSink is not null)
+        {
+            var now = DateTime.UtcNow;
+            await _metricsSink.RecordManyAsync(new[]
+            {
+                new QueueMetricEvent(QueueOptions.RulesEngineQueue, MetricStages.Submitted, reference, id,
+                    DecisionStatus: null, RulesVersion: null, LatencyMs: 0, RecordedAtUtc: now),
+                new QueueMetricEvent(QueueOptions.RulesEngineQueue, MetricStages.DeadLettered, reference, id,
+                    DecisionStatus: null, RulesVersion: null, LatencyMs: 5, RecordedAtUtc: now.AddMilliseconds(5),
+                    StartedAtUtc: now.AddMilliseconds(1)),
+            }, cancellationToken);
+        }
     }
 }

@@ -1029,7 +1029,7 @@
                 var state = resolveMessage(groups[ref]);
                 if (!(state.failed || state.decision || state.reachedTicket)) { return; } // still in flight
                 animatedRefs[ref] = true;
-                if (!state.failed) { bumpProcessed(); } // a decided message processed through to a ticket
+                bumpProcessed(); // a completed message — ticketed OR dead-lettered — counts as processed
                 bumpDecision(state.decision, state.failed); // tick the matching 24h decision counter
                 var synthetic = {
                     referenceNumber: ref,
@@ -1055,8 +1055,8 @@
                 : o === 'rejected' ? 'AutoRejected'
                 : o === 'scrutiny' ? 'Scrutiny' : null;
             animatedRefs[reference] = true;
-            if (!failed) { bumpProcessed(); } // an approved/rejected/scrutiny drive reaches a ticket
-            bumpDecision(decision, failed); // tick the matching 24h decision counter
+            bumpProcessed(); // a completed message — ticketed OR dead-lettered — counts as processed
+            bumpDecision(decision, failed); // tick the matching 24h decision counter (dead-letter for a failure)
             // Optimistically add a matrix row so the driven message shows immediately; the real
             // recorded events fill in the queue waits and ticket time as they arrive on the stream.
             ingestEvent({ referenceNumber: reference, stage: 'Submitted',

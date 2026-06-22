@@ -18,6 +18,7 @@ public sealed class AmendmentRequestsController(
         return View(new AmendmentRequestsViewModel
         {
             WindowId = windowId,
+            WindowTitle = result.WindowTitle,
             DeadlineText = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}",
             Rows = result.Rows.Select(r => new AmendmentRequestRowViewModel
             {

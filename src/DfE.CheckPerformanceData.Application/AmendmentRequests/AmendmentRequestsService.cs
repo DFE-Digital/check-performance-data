@@ -19,6 +19,7 @@ public sealed class AmendmentRequestsService(
         return new AmendmentRequestsResult
         {
             WindowEndDate = window.EndDate,
+            WindowTitle = window.Title,
             Rows = requests.Select(r => new AmendmentRequestDto
             {
                 PupilName = BuildPupilName(r.PupilFirstname, r.PupilSurname),

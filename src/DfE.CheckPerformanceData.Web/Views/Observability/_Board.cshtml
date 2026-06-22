@@ -54,6 +54,14 @@
         var ms = (b.Value - a.Value).TotalMilliseconds;
         return ms >= 1000 ? $"waited {(ms / 1000):0.000}s" : $"waited {ms:0}ms";
     }
+    // A bare duration (no "waited" prefix), used for the processing times — rules-engine and ticket
+    // creation — as opposed to the queue waits.
+    string Dur(DateTime? a, DateTime? b)
+    {
+        if (a is null || b is null || b < a) return "—";
+        var ms = (b.Value - a.Value).TotalMilliseconds;
+        return ms >= 1000 ? $"{(ms / 1000):0.000}s" : $"{ms:0}ms";
+    }
     string DecisionLabel(string? d) => d switch
     {
         "AutoApproved" => "Auto-approved",
@@ -101,6 +109,10 @@
         decision = r.Decision,
         latencyMs = r.RulesLatencyMs,
         deadLettered = r.DeadLettered,
+        // When each stage's consumer began processing (dequeued), so the grid can show the real
+        // queue wait and processing split rather than the whole enqueue→done span twice.
+        rulesStarted = r.RulesStartedAtUtc,
+        ticketStarted = r.TicketStartedAtUtc,
     });
     var gridSeedJson = System.Text.Json.JsonSerializer.Serialize(gridSeed);
 }
@@ -226,11 +238,21 @@
                         @foreach (var r in Model.RecentSubmissions)
                         {
                             var status = r.DeadLettered ? "Dead-letter" : DecisionLabel(r.Decision);
+                            // The rules engine is REACHED when the message is dequeued (its started
+                            // time); the rules-queue wait is submit → that dequeue, and the engine
+                            // processing is dequeue → done. When the started time is missing (legacy
+                            // rows) fall back to the old combined span + recorded latency.
+                            var engineReached = r.RulesStartedAtUtc ?? r.RulesEvaluatedAtUtc;
                             var rulesQueueDur = r.SubmittedAtUtc is null ? "—"
-                                : (r.RulesEvaluatedAtUtc is null ? "in queue" : Waited(r.SubmittedAtUtc, r.RulesEvaluatedAtUtc));
-                            var engineDur = r.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : "—";
+                                : (engineReached is null ? "in queue" : Waited(r.SubmittedAtUtc, engineReached));
+                            var engineDur = (r.RulesStartedAtUtc is { } rs && r.RulesEvaluatedAtUtc is { } re)
+                                ? Dur(rs, re)
+                                : (r.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : "—");
                             var zendeskQueueDur = (r.RulesEvaluatedAtUtc is null || r.DeadLettered) ? "—"
-                                : (r.TicketCreatedAtUtc is null ? "in queue" : Waited(r.RulesEvaluatedAtUtc, r.TicketCreatedAtUtc));
+                                : (r.TicketStartedAtUtc is { } ts ? Waited(r.RulesEvaluatedAtUtc, ts)
+                                    : (r.TicketCreatedAtUtc is null ? "in queue" : Waited(r.RulesEvaluatedAtUtc, r.TicketCreatedAtUtc)));
+                            var ticketDur = (!r.DeadLettered && r.TicketStartedAtUtc is { } ts2 && r.TicketCreatedAtUtc is { } tc2)
+                                ? Dur(ts2, tc2) : null;
                             <tr class="govuk-table__row" data-obs-grid-row="@r.ReferenceNumber">
                                 <td class="govuk-table__cell">
                                     <div class="govuk-checkboxes__item govuk-checkboxes--small govuk-!-margin-bottom-0">
@@ -249,7 +271,7 @@
                                     <span class="obs-cell-dur">@rulesQueueDur</span>
                                 </td>
                                 <td class="govuk-table__cell">
-                                    <span class="obs-cell-time">@Hms(r.RulesEvaluatedAtUtc)</span>
+                                    <span class="obs-cell-time">@Hms(engineReached)</span>
                                     <span class="obs-cell-dur">@engineDur</span>
                                 </td>
                                 <td class="govuk-table__cell">@status</td>
@@ -257,7 +279,13 @@
                                     <span class="obs-cell-time">@(r.DeadLettered ? "—" : Hms(r.RulesEvaluatedAtUtc))</span>
                                     <span class="obs-cell-dur">@zendeskQueueDur</span>
                                 </td>
-                                <td class="govuk-table__cell">@Hms(r.TicketCreatedAtUtc)</td>
+                                <td class="govuk-table__cell">
+                                    <span class="obs-cell-time">@Hms(r.TicketCreatedAtUtc)</span>
+                                    @if (ticketDur is not null)
+                                    {
+                                        <span class="obs-cell-dur">@ticketDur</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     }

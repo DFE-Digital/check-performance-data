@@ -31,6 +31,7 @@ public sealed class DbMetricsSink : IMetricsSink
             RulesVersion = metric.RulesVersion,
             LatencyMs = metric.LatencyMs,
             RecordedAtUtc = metric.RecordedAtUtc,
+            StartedAtUtc = metric.StartedAtUtc,
         });
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -51,6 +52,7 @@ public sealed class DbMetricsSink : IMetricsSink
             RulesVersion = metric.RulesVersion,
             LatencyMs = metric.LatencyMs,
             RecordedAtUtc = metric.RecordedAtUtc,
+            StartedAtUtc = metric.StartedAtUtc,
         }));
 
         await _dbContext.SaveChangesAsync(cancellationToken);

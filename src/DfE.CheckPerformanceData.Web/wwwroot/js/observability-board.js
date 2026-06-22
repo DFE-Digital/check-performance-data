@@ -759,6 +759,15 @@
             return isNaN(ms) ? null : ms;
         }
 
+        // The epoch-ms the consumer began processing this stage (dequeued), or null. Lets the grid
+        // show the real queue wait (submit/done → start) and processing (start → done) separately.
+        function startedOf(transition) {
+            var raw = transition.startedAtUtc || transition.StartedAtUtc;
+            if (!raw) { return null; }
+            var ms = Date.parse(raw);
+            return isNaN(ms) ? null : ms;
+        }
+
         function refOf(transition) {
             return transition.referenceNumber || transition.ReferenceNumber || null;
         }
@@ -810,6 +819,14 @@
             return ms >= 1000 ? ('waited ' + (ms / 1000).toFixed(3) + 's') : ('waited ' + ms + 'ms');
         }
 
+        // A bare duration (no "waited" prefix) for the processing times — rules-engine and ticket
+        // creation — as opposed to the queue waits. Mirrors _Board.cshtml's Dur().
+        function dur(fromTs, toTs) {
+            if (!fromTs || !toTs || toTs < fromTs) { return '—'; }
+            var ms = toTs - fromTs;
+            return ms >= 1000 ? ((ms / 1000).toFixed(3) + 's') : (ms + 'ms');
+        }
+
         // Fold one stage event into its message's matrix row. The recorded stages are Submitted,
         // RulesEvaluated (carries the decision + processing latency) and TicketCreated; they map onto
         // the matrix columns, from which the queue waits are derived.
@@ -819,6 +836,7 @@
             var row = gridRows[ref];
             if (!row) {
                 row = gridRows[ref] = { ref: ref, submit: null, engine: null, ticket: null,
+                    engineStart: null, ticketStart: null,
                     decision: null, latency: null, failed: false, seq: gridSeq++ };
             }
             if (isFailure(t)) { row.failed = true; }
@@ -827,10 +845,11 @@
             var l = (t.latencyMs !== undefined ? t.latencyMs : t.LatencyMs);
             if (l !== undefined && l !== null && l !== '') { row.latency = l; }
             var ts = timestampOf(t);
+            var started = startedOf(t);
             var stage = (t.stage || t.Stage || '').toLowerCase();
             if (stage.indexOf('submit') >= 0) { if (ts) { row.submit = ts; } }
-            else if (stage.indexOf('ticket') >= 0) { if (ts) { row.ticket = ts; } }
-            else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { if (ts) { row.engine = ts; } }
+            else if (stage.indexOf('ticket') >= 0) { if (ts) { row.ticket = ts; } if (started) { row.ticketStart = started; } }
+            else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { if (ts) { row.engine = ts; } if (started) { row.engineStart = started; } }
         }
 
         // One matrix stage cell: the time the submission reached the stage on top, the time spent
@@ -861,21 +880,29 @@
                 + encodeURIComponent(r.ref) + '">' + esc(r.ref) + '</a>';
             var status = r.failed ? 'Dead-letter'
                 : (r.decision ? (DECISION_LABELS[r.decision] || r.decision) : '—');
-            // The rules-engine cell's duration is its processing latency; the queue cells' is the
-            // wait (submit→engine, decision→ticket). Each cell also shows the time it reached the
-            // stage, so every column answers "when did it arrive and how long did it spend".
-            var engineDur = r.latency != null ? (Math.round(r.latency) + 'ms') : '—';
-            var rulesQueueDur = r.submit ? (r.engine ? waited(r.submit, r.engine) : 'in queue') : '—';
-            var zendeskQueueDur = (r.engine && !r.failed) ? (r.ticket ? waited(r.engine, r.ticket) : 'in queue') : '—';
+            // Real per-stage split: the rules engine is REACHED when the message is dequeued
+            // (engineStart); the rules-queue wait is submit → that dequeue and the engine processing
+            // is dequeue → done. The Zendesk queue wait runs to its dequeue (ticketStart) and the
+            // ticket processing is dequeue → created. When a started time is missing (legacy/seed)
+            // fall back to the old combined span + recorded latency. Mirrors _Board.cshtml exactly.
+            var engineReached = r.engineStart || r.engine;
+            var rulesQueueDur = r.submit ? (engineReached ? waited(r.submit, engineReached) : 'in queue') : '—';
+            var engineDur = (r.engineStart && r.engine) ? dur(r.engineStart, r.engine)
+                : (r.latency != null ? (Math.round(r.latency) + 'ms') : '—');
+            var zendeskQueueDur = (r.engine && !r.failed)
+                ? (r.ticketStart ? waited(r.engine, r.ticketStart)
+                    : (r.ticket ? waited(r.engine, r.ticket) : 'in queue'))
+                : '—';
+            var ticketDur = (!r.failed && r.ticketStart && r.ticket) ? dur(r.ticketStart, r.ticket) : null;
             return '<tr class="govuk-table__row" data-obs-grid-row="' + esc(r.ref) + '">'
                 + pickCell(r.ref)
                 + '<td class="govuk-table__cell">' + refLink + '</td>'
                 + '<td class="govuk-table__cell"><span class="obs-cell-time">' + esc(hms(r.submit)) + '</span></td>'
                 + stageCell(r.submit, rulesQueueDur)
-                + stageCell(r.engine, engineDur)
+                + stageCell(engineReached, engineDur)
                 + '<td class="govuk-table__cell">' + esc(status) + '</td>'
                 + stageCell(r.failed ? null : r.engine, zendeskQueueDur)
-                + '<td class="govuk-table__cell"><span class="obs-cell-time">' + esc(hms(r.ticket)) + '</span></td>'
+                + stageCell(r.ticket, ticketDur)
                 + '</tr>';
         }
 
@@ -945,11 +972,14 @@
                 var row = gridRows[s.ref];
                 if (!row) {
                     row = gridRows[s.ref] = { ref: s.ref, submit: null, engine: null, ticket: null,
+                        engineStart: null, ticketStart: null,
                         decision: null, latency: null, failed: false, seq: gridSeq++ };
                 }
                 if (s.submit) { row.submit = Date.parse(s.submit); }
                 if (s.rules) { row.engine = Date.parse(s.rules); }
                 if (s.ticket) { row.ticket = Date.parse(s.ticket); }
+                if (s.rulesStarted) { row.engineStart = Date.parse(s.rulesStarted); }
+                if (s.ticketStarted) { row.ticketStart = Date.parse(s.ticketStarted); }
                 if (s.decision) { row.decision = s.decision; }
                 if (s.latencyMs !== null && s.latencyMs !== undefined) { row.latency = s.latencyMs; }
                 if (s.deadLettered) { row.failed = true; }
@@ -1064,10 +1094,11 @@
             list.forEach(function (e) {
                 var stage = (e.stage || e.Stage || '').toLowerCase();
                 var when = e.recordedAtUtc || e.RecordedAtUtc;
+                var started = e.startedAtUtc || e.StartedAtUtc;
                 if (!when) { return; }
                 if (stage.indexOf('submit') >= 0) { times.submit = when; }
-                else if (stage.indexOf('ticket') >= 0) { times.ticket = when; }
-                else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { times.engine = when; }
+                else if (stage.indexOf('ticket') >= 0) { times.ticket = when; if (started) { times.ticketStarted = started; } }
+                else if (stage.indexOf('rules') >= 0 || stage.indexOf('evaluat') >= 0) { times.engine = when; if (started) { times.engineStarted = started; } }
             });
 
             // One correctly-routed envelope for the whole submission.
@@ -1090,13 +1121,14 @@
             } else {
                 pausableTimeout(function () {
                     ingestEvent({ referenceNumber: replayRef, stage: 'RulesEvaluated',
-                        recordedAtUtc: times.engine || nowIso(),
+                        recordedAtUtc: times.engine || nowIso(), startedAtUtc: times.engineStarted,
                         decisionStatus: state.decision, latencyMs: state.latency });
                     renderGrid();
                 }, unit * 2);
                 if (times.ticket) {
                     pausableTimeout(function () {
-                        ingestEvent({ referenceNumber: replayRef, stage: 'TicketCreated', recordedAtUtc: times.ticket });
+                        ingestEvent({ referenceNumber: replayRef, stage: 'TicketCreated',
+                            recordedAtUtc: times.ticket, startedAtUtc: times.ticketStarted });
                         renderGrid();
                     }, unit * 4);
                 }

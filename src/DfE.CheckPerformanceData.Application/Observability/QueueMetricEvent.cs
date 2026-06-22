@@ -13,4 +13,9 @@ public sealed record QueueMetricEvent(
     string? DecisionStatus,
     string? RulesVersion,
     double LatencyMs,
-    DateTime RecordedAtUtc);
+    DateTime RecordedAtUtc,
+    // When the consumer DEQUEUED this message and began processing it (null for the Submitted
+    // stage, which is an instantaneous enqueue with no processing). With it the read side can split
+    // a stage into its real parts — queue wait = StartedAtUtc − previous stage's RecordedAtUtc, and
+    // processing = RecordedAtUtc − StartedAtUtc — instead of treating the whole span as one figure.
+    DateTime? StartedAtUtc = null);

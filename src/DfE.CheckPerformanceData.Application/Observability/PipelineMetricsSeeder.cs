@@ -78,9 +78,13 @@ public static class PipelineMetricsSeeder
             QueueOptions.RulesEngineQueue, MetricStages.Submitted, reference, messageId,
             DecisionStatus: null, RulesVersion: null, LatencyMs: 0, RecordedAtUtc: submittedAt));
 
-        // The engine picks it up after a queue wait and spends some processing latency.
-        var rulesAt = submittedAt.AddMilliseconds(random.Next(200, 8_000));
-        var rulesLatency = random.Next(300, 5_000);
+        // The engine picks it up after a queue WAIT (the dequeue instant = rulesStartedAt), then
+        // spends some PROCESSING time before recording the decision. Modelling the two explicitly
+        // lets the matrix and stage averages show the real split; LatencyMs stays the whole span
+        // (enqueue → done) for any reader that still uses it.
+        var rulesStartedAt = submittedAt.AddMilliseconds(random.Next(200, 8_000));
+        var rulesAt = rulesStartedAt.AddMilliseconds(random.Next(300, 5_000));
+        var rulesLatency = (rulesAt - submittedAt).TotalMilliseconds;
 
         // Roughly one in ten fails and is dead-lettered (no decision, no ticket); the rest are
         // decided and reach a Zendesk ticket.
@@ -89,7 +93,8 @@ public static class PipelineMetricsSeeder
         {
             events.Add(new QueueMetricEvent(
                 QueueOptions.RulesEngineQueue, MetricStages.DeadLettered, reference, messageId,
-                DecisionStatus: null, RulesVersion: null, LatencyMs: rulesLatency, RecordedAtUtc: rulesAt));
+                DecisionStatus: null, RulesVersion: null, LatencyMs: rulesLatency, RecordedAtUtc: rulesAt,
+                StartedAtUtc: rulesStartedAt));
             return;
         }
 
@@ -99,11 +104,15 @@ public static class PipelineMetricsSeeder
 
         events.Add(new QueueMetricEvent(
             QueueOptions.RulesEngineQueue, MetricStages.RulesEvaluated, reference, messageId,
-            DecisionStatus: decision, RulesVersion: null, LatencyMs: rulesLatency, RecordedAtUtc: rulesAt));
+            DecisionStatus: decision, RulesVersion: null, LatencyMs: rulesLatency, RecordedAtUtc: rulesAt,
+            StartedAtUtc: rulesStartedAt));
 
-        var ticketAt = rulesAt.AddMilliseconds(random.Next(500, 20_000));
+        // Zendesk queue wait then ticket-creation processing, again split explicitly.
+        var ticketStartedAt = rulesAt.AddMilliseconds(random.Next(500, 20_000));
+        var ticketAt = ticketStartedAt.AddMilliseconds(random.Next(100, 2_000));
         events.Add(new QueueMetricEvent(
             QueueOptions.ZendeskQueue, MetricStages.TicketCreated, reference, messageId,
-            DecisionStatus: null, RulesVersion: null, LatencyMs: random.Next(100, 2_000), RecordedAtUtc: ticketAt));
+            DecisionStatus: null, RulesVersion: null, LatencyMs: (ticketAt - rulesAt).TotalMilliseconds,
+            RecordedAtUtc: ticketAt, StartedAtUtc: ticketStartedAt));
     }
 }

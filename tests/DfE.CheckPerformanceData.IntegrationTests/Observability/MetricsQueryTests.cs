@@ -748,8 +748,8 @@ public sealed class MetricsQueryTests
 
         await SeedMetricsAsync(
             Metric(RulesEngineQueue, "Submitted", "GRP-1", anchor.AddSeconds(0)),
-            Metric(RulesEngineQueue, "RulesEvaluated", "GRP-1", anchor.AddSeconds(10), decision: "AutoApproved", latencyMs: 12),
-            Metric(ZendeskQueue, "TicketCreated", "GRP-1", anchor.AddSeconds(20)),
+            Metric(RulesEngineQueue, "RulesEvaluated", "GRP-1", anchor.AddSeconds(10), decision: "AutoApproved", latencyMs: 12, startedAtUtc: anchor.AddSeconds(7)),
+            Metric(ZendeskQueue, "TicketCreated", "GRP-1", anchor.AddSeconds(20), startedAtUtc: anchor.AddSeconds(18)),
             Metric(RulesEngineQueue, "Submitted", "GRP-2", anchor.AddSeconds(30)),
             Metric(RulesEngineQueue, "DeadLettered", "GRP-2", anchor.AddSeconds(40)));
 
@@ -766,6 +766,9 @@ public sealed class MetricsQueryTests
         Assert.Equal("AutoApproved", g1.Decision);
         Assert.Equal(12, g1.RulesLatencyMs);
         Assert.False(g1.DeadLettered);
+        // The dequeue (started) times are surfaced so the view can split queue wait from processing.
+        Assert.Equal(anchor.AddSeconds(7), g1.RulesStartedAtUtc);
+        Assert.Equal(anchor.AddSeconds(18), g1.TicketStartedAtUtc);
 
         var g2 = page.Rows.Single(r => r.ReferenceNumber == "GRP-2");
         Assert.True(g2.DeadLettered);
@@ -803,7 +806,8 @@ public sealed class MetricsQueryTests
         Assert.Equal(new[] { "AAA", "BBB", "CCC" }, byReferenceAsc.Rows.Select(r => r.ReferenceNumber).ToArray());
     }
 
-    // --- Per-step averages: queue waits from timestamps, engine/ticket from recorded latencies ---
+    // --- Per-step averages: REAL queue wait (enqueue→dequeue) and processing (dequeue→done),
+    //     split via the recorded started_at, not the whole subsystem span double-counted ---
 
     [Fact]
     public async Task GetStageAverages_ComputesPerStepAveragesAcrossMessages()
@@ -811,21 +815,22 @@ public sealed class MetricsQueryTests
         await ResetMetricsAsync();
         var anchor = new DateTime(2026, 5, 1, 10, 0, 0, DateTimeKind.Utc);
 
-        // One fully-completed message: submitted, rules-evaluated 4s later (latency 1000ms),
-        // ticketed 6s after rules (latency 200ms).
+        // One fully-completed message. Rules: submitted at T0, DEQUEUED (started) at T0+3s, done
+        // at T0+4s → queue wait 3s, engine processing 1s. Ticket: rules done at T0+4s, dequeued at
+        // T0+9s, created at T0+10s → zendesk queue wait 5s, ticket processing 1s.
         await SeedMetricsAsync(
             Metric(RulesEngineQueue, "Submitted", "AVG-1", anchor),
-            Metric(RulesEngineQueue, "RulesEvaluated", "AVG-1", anchor.AddSeconds(4), decision: "AutoApproved", latencyMs: 1000),
-            Metric(ZendeskQueue, "TicketCreated", "AVG-1", anchor.AddSeconds(10), latencyMs: 200));
+            Metric(RulesEngineQueue, "RulesEvaluated", "AVG-1", anchor.AddSeconds(4), decision: "AutoApproved", latencyMs: 4000, startedAtUtc: anchor.AddSeconds(3)),
+            Metric(ZendeskQueue, "TicketCreated", "AVG-1", anchor.AddSeconds(10), latencyMs: 6000, startedAtUtc: anchor.AddSeconds(9)));
 
         var service = CreateService();
         var avg = await service.GetStageAveragesAsync(anchor.AddMinutes(-1), anchor.AddMinutes(5));
 
         Assert.NotNull(avg.RulesQueueMs);
-        Assert.Equal(4000, avg.RulesQueueMs!.Value, 0);   // Submitted → RulesEvaluated = 4s
-        Assert.Equal(1000, avg.RulesEngineMs!.Value, 0);  // RulesEvaluated latency
-        Assert.Equal(6000, avg.ZendeskQueueMs!.Value, 0); // RulesEvaluated → TicketCreated = 6s
-        Assert.Equal(200, avg.TicketMs!.Value, 0);        // TicketCreated latency
+        Assert.Equal(3000, avg.RulesQueueMs!.Value, 0);   // submit → rules dequeue
+        Assert.Equal(1000, avg.RulesEngineMs!.Value, 0);  // rules dequeue → done (real processing)
+        Assert.Equal(5000, avg.ZendeskQueueMs!.Value, 0); // rules done → ticket dequeue
+        Assert.Equal(1000, avg.TicketMs!.Value, 0);       // ticket dequeue → created (real processing)
     }
 
     [Fact]
@@ -853,8 +858,10 @@ public sealed class MetricsQueryTests
         // Two batch references: one fully completed (ticket), one dead-lettered — both terminal.
         await SeedMetricsAsync(
             Metric(RulesEngineQueue, "Submitted", "LOAD-1", anchor),
-            Metric(RulesEngineQueue, "RulesEvaluated", "LOAD-1", anchor.AddSeconds(2), decision: "AutoApproved", latencyMs: 500),
-            Metric(ZendeskQueue, "TicketCreated", "LOAD-1", anchor.AddSeconds(5), latencyMs: 100),
+            // Rules dequeued at +1.5s, done at +2s → processing 500ms. Ticket dequeued at +4.9s,
+            // created at +5s → processing 100ms.
+            Metric(RulesEngineQueue, "RulesEvaluated", "LOAD-1", anchor.AddSeconds(2), decision: "AutoApproved", latencyMs: 2000, startedAtUtc: anchor.AddMilliseconds(1500)),
+            Metric(ZendeskQueue, "TicketCreated", "LOAD-1", anchor.AddSeconds(5), latencyMs: 3000, startedAtUtc: anchor.AddMilliseconds(4900)),
             Metric(RulesEngineQueue, "Submitted", "LOAD-2", anchor.AddSeconds(1)),
             Metric(RulesEngineQueue, "DeadLettered", "LOAD-2", anchor.AddSeconds(3)),
             // One in-flight batch reference (submitted only — not terminal).
@@ -868,7 +875,7 @@ public sealed class MetricsQueryTests
 
         // LOAD-1 (ticket) and LOAD-2 (dead-letter) are terminal; LOAD-3 is not; OTHER is excluded.
         Assert.Equal(2, sample.Completed);
-        // Averages cover only the batch: rules engine latency = 500 (only LOAD-1 has one).
+        // Averages cover only the batch: real rules-engine processing 500ms, ticket processing 100ms.
         Assert.Equal(500, sample.Averages.RulesEngineMs!.Value, 0);
         Assert.Equal(100, sample.Averages.TicketMs!.Value, 0);
     }
@@ -890,7 +897,8 @@ public sealed class MetricsQueryTests
         string reference,
         DateTime recordedAtUtc,
         string? decision = null,
-        double latencyMs = 0) => new()
+        double latencyMs = 0,
+        DateTime? startedAtUtc = null) => new()
     {
         QueueName = queue,
         Stage = stage,
@@ -899,6 +907,7 @@ public sealed class MetricsQueryTests
         DecisionStatus = decision,
         LatencyMs = latencyMs,
         RecordedAtUtc = recordedAtUtc,
+        StartedAtUtc = startedAtUtc,
     };
 
     private async Task SeedMetricsAsync(params MetricEntity[] events)

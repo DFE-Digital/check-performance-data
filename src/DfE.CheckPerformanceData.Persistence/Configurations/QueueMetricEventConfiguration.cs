@@ -47,6 +47,10 @@ internal sealed class QueueMetricEventConfiguration : IEntityTypeConfiguration<Q
             .HasColumnName("recorded_at_utc")
             .HasColumnType("timestamp with time zone");
 
+        builder.Property(x => x.StartedAtUtc)
+            .HasColumnName("started_at_utc")
+            .HasColumnType("timestamp with time zone");
+
         // Time-window aggregation (throughput, dwell, decision-mix-over-time).
         builder.HasIndex(x => x.RecordedAtUtc)
             .HasDatabaseName("ix_queue_metrics_events_recorded_at");

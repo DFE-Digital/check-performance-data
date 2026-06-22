@@ -62,6 +62,13 @@
         var ms = (b.Value - a.Value).TotalMilliseconds;
         return ms >= 1000 ? $"waited {(ms / 1000):0.0}s" : $"waited {ms:0}ms";
     }
+    // A bare duration (no "waited" prefix) for the rules-engine processing time.
+    string Dur(DateTime? a, DateTime? b)
+    {
+        if (a is null || b is null || b < a) return "—";
+        var ms = (b.Value - a.Value).TotalMilliseconds;
+        return ms >= 1000 ? $"{(ms / 1000):0.0}s" : $"{ms:0}ms";
+    }
     string DecisionLabel(string? d) => d switch
     {
         "AutoApproved" => "Auto-approved",
@@ -170,16 +177,26 @@ else
                 @foreach (var row in Model.GroupedRows)
                 {
                     var status = row.DeadLettered ? "Dead-letter" : DecisionLabel(row.Decision);
-                    var engineCell = row.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : Hms(row.RulesEvaluatedAtUtc);
+                    // Real split (mirrors the dashboard matrix): the engine is reached at the dequeue
+                    // (started) time, so the rules-queue wait is submit → dequeue and the engine cell is
+                    // the dequeue → done processing. Falls back to the combined span + latency when the
+                    // started time is missing (legacy rows).
+                    var engineReached = row.RulesStartedAtUtc ?? row.RulesEvaluatedAtUtc;
+                    var engineCell = (row.RulesStartedAtUtc is { } rs && row.RulesEvaluatedAtUtc is { } re)
+                        ? Dur(rs, re)
+                        : (row.RulesLatencyMs is { } lat ? $"{Math.Round(lat)}ms" : Hms(row.RulesEvaluatedAtUtc));
+                    var zendeskQueueWait = row.DeadLettered ? "—"
+                        : (row.TicketStartedAtUtc is { } ts ? Waited(row.RulesEvaluatedAtUtc, ts)
+                            : Waited(row.RulesEvaluatedAtUtc, row.TicketCreatedAtUtc));
                     <tr class="govuk-table__row obs-tx-group">
                         <td class="govuk-table__cell">
                             <a class="govuk-link" href="/admin/observability/journey/@Uri.EscapeDataString(row.ReferenceNumber)">@row.ReferenceNumber</a>
                         </td>
                         <td class="govuk-table__cell">@Hms(row.SubmittedAtUtc)</td>
-                        <td class="govuk-table__cell">@Waited(row.SubmittedAtUtc, row.RulesEvaluatedAtUtc)</td>
+                        <td class="govuk-table__cell">@Waited(row.SubmittedAtUtc, engineReached)</td>
                         <td class="govuk-table__cell">@engineCell</td>
                         <td class="govuk-table__cell">@status</td>
-                        <td class="govuk-table__cell">@(row.DeadLettered ? "—" : Waited(row.RulesEvaluatedAtUtc, row.TicketCreatedAtUtc))</td>
+                        <td class="govuk-table__cell">@zendeskQueueWait</td>
                         <td class="govuk-table__cell">@Hms(row.TicketCreatedAtUtc)</td>
                     </tr>
                 }

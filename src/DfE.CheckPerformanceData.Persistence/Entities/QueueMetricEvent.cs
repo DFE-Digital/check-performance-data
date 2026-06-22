@@ -17,4 +17,9 @@ public sealed class QueueMetricEvent
     public string? RulesVersion { get; set; }
     public double LatencyMs { get; set; }
     public DateTime RecordedAtUtc { get; set; }
+
+    // The instant the consumer dequeued this message and began processing it (null for Submitted,
+    // an instantaneous enqueue). Lets the read side separate queue wait from processing time per
+    // stage rather than reporting the whole enqueue→done span twice.
+    public DateTime? StartedAtUtc { get; set; }
 }

@@ -122,29 +122,34 @@ ORDER BY stage;";
         GuardRange(fromUtc, toUtc);
 
         // Collapse each reference to its per-step figures, then average across the messages that
-        // have each step. The two queue waits are timestamp differences (Submitted→RulesEvaluated and
-        // RulesEvaluated→TicketCreated), in milliseconds; the engine and ticket figures are the
-        // recorded latencies on those stages. AVG ignores NULLs, so a message missing a step simply
-        // does not contribute to that average.
+        // have each step. Each step is a REAL span now that the consumer records when it began
+        // processing (started_at): a queue wait is enqueue→dequeue (the previous stage's recorded_at
+        // → this stage's started_at) and the processing is dequeue→done (started_at → recorded_at).
+        // This replaces the old approach that took the whole Submitted→RulesEvaluated span as the
+        // "queue" AND the recorded latency as the "engine" — they were the same span double-counted.
+        // AVG ignores NULLs, so a message missing a step (or recorded before started_at was captured)
+        // simply does not contribute to that average.
         var sql = $@"
 WITH per_ref AS (
     SELECT reference_number,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
-           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
-           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_latency
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_started,
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_started
     FROM queue_metrics_events
     WHERE recorded_at_utc >= @from AND recorded_at_utc < @to
     GROUP BY reference_number
 )
 SELECT
-    AVG(EXTRACT(EPOCH FROM (rules_at - submitted_at)) * 1000)
-        FILTER (WHERE rules_at IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
-    AVG(rules_latency) FILTER (WHERE rules_latency IS NOT NULL) AS rules_engine_ms,
-    AVG(EXTRACT(EPOCH FROM (ticket_at - rules_at)) * 1000)
-        FILTER (WHERE ticket_at IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
-    AVG(ticket_latency) FILTER (WHERE ticket_latency IS NOT NULL) AS ticket_ms
+    AVG(EXTRACT(EPOCH FROM (rules_started - submitted_at)) * 1000)
+        FILTER (WHERE rules_started IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
+    AVG(EXTRACT(EPOCH FROM (rules_at - rules_started)) * 1000)
+        FILTER (WHERE rules_at IS NOT NULL AND rules_started IS NOT NULL) AS rules_engine_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_started - rules_at)) * 1000)
+        FILTER (WHERE ticket_started IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_at - ticket_started)) * 1000)
+        FILTER (WHERE ticket_at IS NOT NULL AND ticket_started IS NOT NULL) AS ticket_ms
 FROM per_ref;";
 
         double? rulesQueue = null, rulesEngine = null, zendeskQueue = null, ticket = null;
@@ -183,8 +188,8 @@ WITH per_ref AS (
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_at,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_at,
-           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
-           MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_latency,
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_started,
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_started,
            bool_or(stage IN ('{MetricStages.TicketCreated}', '{MetricStages.DeadLettered}')) AS terminal
     FROM queue_metrics_events
     WHERE reference_number = ANY(@refs)
@@ -192,12 +197,14 @@ WITH per_ref AS (
 )
 SELECT
     COUNT(*) FILTER (WHERE terminal) AS completed,
-    AVG(EXTRACT(EPOCH FROM (rules_at - submitted_at)) * 1000)
-        FILTER (WHERE rules_at IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
-    AVG(rules_latency) FILTER (WHERE rules_latency IS NOT NULL) AS rules_engine_ms,
-    AVG(EXTRACT(EPOCH FROM (ticket_at - rules_at)) * 1000)
-        FILTER (WHERE ticket_at IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
-    AVG(ticket_latency) FILTER (WHERE ticket_latency IS NOT NULL) AS ticket_ms
+    AVG(EXTRACT(EPOCH FROM (rules_started - submitted_at)) * 1000)
+        FILTER (WHERE rules_started IS NOT NULL AND submitted_at IS NOT NULL) AS rules_queue_ms,
+    AVG(EXTRACT(EPOCH FROM (rules_at - rules_started)) * 1000)
+        FILTER (WHERE rules_at IS NOT NULL AND rules_started IS NOT NULL) AS rules_engine_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_started - rules_at)) * 1000)
+        FILTER (WHERE ticket_started IS NOT NULL AND rules_at IS NOT NULL) AS zendesk_queue_ms,
+    AVG(EXTRACT(EPOCH FROM (ticket_at - ticket_started)) * 1000)
+        FILTER (WHERE ticket_at IS NOT NULL AND ticket_started IS NOT NULL) AS ticket_ms
 FROM per_ref;";
 
         var completed = 0;
@@ -304,7 +311,7 @@ ORDER BY b.bucket, s.decision_status;";
         CancellationToken cancellationToken = default)
     {
         const string sql = @"
-SELECT stage, reference_number, queue_name, decision_status, latency_ms, recorded_at_utc
+SELECT stage, reference_number, queue_name, decision_status, latency_ms, recorded_at_utc, started_at_utc
 FROM queue_metrics_events
 WHERE reference_number = @reference
 ORDER BY recorded_at_utc;";
@@ -321,7 +328,8 @@ ORDER BY recorded_at_utc;";
                 reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 reader.GetDouble(4),
-                DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc)));
+                DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc),
+                reader.IsDBNull(6) ? null : DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc)));
         });
 
         return results;
@@ -335,7 +343,7 @@ ORDER BY recorded_at_utc;";
         GuardRange(fromUtc, toUtc);
 
         const string sql = @"
-SELECT stage, reference_number, queue_name, decision_status, latency_ms, recorded_at_utc
+SELECT stage, reference_number, queue_name, decision_status, latency_ms, recorded_at_utc, started_at_utc
 FROM queue_metrics_events
 WHERE recorded_at_utc >= @from AND recorded_at_utc < @to
 ORDER BY recorded_at_utc, id;";
@@ -353,7 +361,8 @@ ORDER BY recorded_at_utc, id;";
                 reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3),
                 reader.GetDouble(4),
-                DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc)));
+                DateTime.SpecifyKind(reader.GetDateTime(5), DateTimeKind.Utc),
+                reader.IsDBNull(6) ? null : DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc)));
         });
 
         return results;
@@ -509,7 +518,7 @@ LIMIT @limit OFFSET @offset;";
         // NULLS LAST sinks rows missing the sorted stage (not yet processed) to the bottom. Paged in
         // SQL. The default sort (last activity, newest first) preserves the original ordering.
         var pageSql = $@"
-SELECT reference_number, submitted_at, rules_at, ticket_at, decision, rules_latency, dead_lettered, last_at
+SELECT reference_number, submitted_at, rules_at, ticket_at, decision, rules_latency, dead_lettered, last_at, rules_started, ticket_started
 FROM (
     SELECT reference_number,
            MAX(recorded_at_utc) FILTER (WHERE stage = '{MetricStages.Submitted}') AS submitted_at,
@@ -518,7 +527,9 @@ FROM (
            MAX(decision_status) FILTER (WHERE decision_status IS NOT NULL) AS decision,
            MAX(latency_ms) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_latency,
            bool_or(stage = '{MetricStages.DeadLettered}') AS dead_lettered,
-           MAX(recorded_at_utc) AS last_at
+           MAX(recorded_at_utc) AS last_at,
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.RulesEvaluated}') AS rules_started,
+           MAX(started_at_utc) FILTER (WHERE stage = '{MetricStages.TicketCreated}') AS ticket_started
     FROM queue_metrics_events
     {whereClause}
     GROUP BY reference_number
@@ -561,7 +572,9 @@ LIMIT @limit OFFSET @offset;";
                 reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetDouble(5),
                 !reader.IsDBNull(6) && reader.GetBoolean(6),
-                DateTime.SpecifyKind(reader.GetDateTime(7), DateTimeKind.Utc)));
+                DateTime.SpecifyKind(reader.GetDateTime(7), DateTimeKind.Utc),
+                Utc(reader, 8),
+                Utc(reader, 9)));
         });
 
         return new GroupedTransactionsPage(rows, total, page, pageSize);
@@ -726,7 +739,8 @@ LIMIT @limit OFFSET @offset;";
                 e.QueueName,
                 e.DecisionStatus,
                 e.LatencyMs,
-                e.RecordedAtUtc))
+                e.RecordedAtUtc,
+                e.StartedAtUtc))
             .ToListAsync(cancellationToken);
 
         var decisionMix = await _dbContext.QueueMetricEvents

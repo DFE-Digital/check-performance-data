@@ -31,14 +31,17 @@ public sealed record LoadSample(int Completed, StageAverages Averages);
 // are gap-filled to zero so a chart never shows a broken time axis.
 public sealed record DecisionMixBucket(DateTime BucketStartUtc, string DecisionStatus, int Count);
 
-// One stage event in a single message's journey through the pipeline.
+// One stage event in a single message's journey through the pipeline. StartedAtUtc is when the
+// consumer began processing this stage (null for Submitted / events recorded before this was
+// captured), so the board can show the real queue wait and processing split rather than one span.
 public sealed record JourneyEvent(
     string Stage,
     string ReferenceNumber,
     string QueueName,
     string? DecisionStatus,
     double LatencyMs,
-    DateTime RecordedAtUtc);
+    DateTime RecordedAtUtc,
+    DateTime? StartedAtUtc = null);
 
 // A rules-config deploy marker drawn as a vertical annotation on the throughput / decision
 // charts. Sourced from RulesConfigVersion rows within the queried window.

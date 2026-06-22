@@ -56,6 +56,9 @@ public abstract class ConsumerBase : BackgroundService
     /// dequeue transaction.
     /// </summary>
     public async Task RecordMetricSafelyAsync(QueueMessage message, bool deadLettered, CancellationToken cancellationToken)
+        => await RecordMetricSafelyAsync(message, deadLettered, startedAtUtc: null, cancellationToken);
+
+    public async Task RecordMetricSafelyAsync(QueueMessage message, bool deadLettered, DateTime? startedAtUtc, CancellationToken cancellationToken)
     {
         if (_metricsSink is null)
         {
@@ -81,7 +84,10 @@ public abstract class ConsumerBase : BackgroundService
                 DecisionStatus: description.Value.DecisionStatus,
                 RulesVersion: description.Value.RulesVersion,
                 LatencyMs: latencyMs,
-                RecordedAtUtc: DateTime.UtcNow),
+                RecordedAtUtc: DateTime.UtcNow,
+                // The moment this message was dequeued and processing began, so the read side can show
+                // the real queue wait (start − enqueue) and processing time (now − start) separately.
+                StartedAtUtc: startedAtUtc),
                 cancellationToken);
         }
         catch (Exception ex)
@@ -168,6 +174,10 @@ public abstract class ConsumerBase : BackgroundService
             return;
         }
 
+        // The instant processing begins (right after the claim), so the metric can record how long
+        // the message waited in the queue versus how long it then took to process.
+        var startedAtUtc = DateTime.UtcNow;
+
         // In the hosting path the sink is scoped, so rebind it per message; the unit-test
         // path keeps the directly-injected instance (or none).
         if (services is not null)
@@ -182,7 +192,7 @@ public abstract class ConsumerBase : BackgroundService
 
             // Recorded after ack, outside any dequeue transaction: a sink failure must never
             // roll back the message that was just processed.
-            await RecordMetricSafelyAsync(message, deadLettered: false, stoppingToken);
+            await RecordMetricSafelyAsync(message, deadLettered: false, startedAtUtc, stoppingToken);
         }
         catch (Exception ex)
         {
@@ -198,7 +208,7 @@ public abstract class ConsumerBase : BackgroundService
                 // fixed message; the data-bearing detail stays in the logs above, behind the
                 // worker's access controls.
                 await queueService.DeadLetterAsync(message.Id, SanitiseReason(ex), stoppingToken);
-                await RecordMetricSafelyAsync(message, deadLettered: true, stoppingToken);
+                await RecordMetricSafelyAsync(message, deadLettered: true, startedAtUtc, stoppingToken);
             }
         }
     }

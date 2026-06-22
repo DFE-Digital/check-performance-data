@@ -237,6 +237,25 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("submitAnchor.x - 90", js);                 // start off the left of Submit
     }
 
+    // --- The matrix splits queue wait from processing using the recorded dequeue (started) time ---
+    // Each stage now records when the consumer began processing it, so the grid shows the real queue
+    // wait (submit/done → dequeue) and processing (dequeue → done) separately, instead of taking the
+    // whole enqueue→done span as both the "queue" and the "engine" figure (which made the Rules engine
+    // time equal the Zendesk-queue time and double-counted the duration).
+    [Fact]
+    public void BoardJs_SplitsQueueWaitFromProcessing_UsingStartedTimes()
+    {
+        var js = BoardJs();
+
+        // The per-stage dequeue time is read off the event and folded into the row...
+        Assert.Contains("startedOf", js);
+        Assert.Contains("engineStart", js);
+        Assert.Contains("ticketStart", js);
+        // ...and the rules-engine cell is reached at the dequeue, with processing = dequeue → done.
+        Assert.Contains("engineReached = r.engineStart || r.engine", js);
+        Assert.Contains("dur(r.engineStart, r.engine)", js);
+    }
+
     // --- A trickle burst must show EVERY envelope traversing every box, even when crowded ---
     // Regression: restAt used to hide any envelope beyond STACK_MAX_VISIBLE (visibility:hidden), so a
     // busy slow trickle overflowed the shared lane boxes (Submit / Rules-queue / Rules-engine) and the

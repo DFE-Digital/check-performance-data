@@ -7,6 +7,8 @@ DfeSignIn__MetadataAddress: https://test-oidc.signin.education.gov.uk/.well-know
 DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
+Clarity__Enabled: true
+Clarity__ProjectId: wjrp3ai9r0
 SeedDevelopmentData: true
 
 # Rules Engine Worker configuration

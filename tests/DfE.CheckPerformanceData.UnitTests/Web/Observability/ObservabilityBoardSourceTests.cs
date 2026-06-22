@@ -203,6 +203,24 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains(".obs-board__stack-count", css);
     }
 
+    // --- Travel transition scales with speed, so an envelope arrives before the decision recolour ---
+    // Regression: the transform transition was a fixed 600ms, but the dwell between hops is
+    // dwellFor() ≈ base·moveSpeed·jitter. Speeding the demo clock up shrank the dwell below 600ms, so
+    // the next hop — and the decision-box recolour (paintToken) — fired while the envelope was still
+    // travelling toward the rules engine: a blue envelope changed direction and colour between the
+    // rules queue and the rules engine. Pin travel to a fraction of the shortest dwell and scale it by
+    // the same moveSpeed clock so the envelope always lands at a box first.
+    [Fact]
+    public void BoardJs_ScalesTravelTransitionWithSpeed_SoEnvelopesArriveBeforeRecolour()
+    {
+        var js = BoardJs();
+
+        // The travel time is derived from the dwell constants and scaled by the same speed clock as
+        // the hop delay — not a hard-coded transition that a fast clock can outrun.
+        Assert.Contains("TOKEN_TRAVEL_MS", js);
+        Assert.Contains("TOKEN_TRAVEL_MS * moveSpeed", js);
+    }
+
     // --- A trickle burst must show EVERY envelope traversing every box, even when crowded ---
     // Regression: restAt used to hide any envelope beyond STACK_MAX_VISIBLE (visibility:hidden), so a
     // busy slow trickle overflowed the shared lane boxes (Submit / Rules-queue / Rules-engine) and the
@@ -318,7 +336,7 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("obs-board__stack-count", js);
         // B3: per-message dwell jitter + staggered burst spawns, so a batch trickles in and the
         // envelopes desync rather than marching out in one lump.
-        Assert.Contains("0.65 + Math.random()", js);
+        Assert.Contains("DWELL_JITTER_FLOOR + Math.random()", js);
         Assert.Contains("setTimeout(spawnOne", js);
     }
 

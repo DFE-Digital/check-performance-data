@@ -39,12 +39,29 @@
     // The dwell an envelope spends AT a given stage before hopping on, scaled by the slow-mo clock.
     // A per-call random jitter (±~35%) desyncs envelopes PER MESSAGE as well as per stage, so two
     // envelopes that entered a stage together don't march out in lockstep.
+    var DWELL_JITTER_FLOOR = 0.65;
+
     function dwellFor(stageKey, speed) {
         var base = STAGE_DWELL_BY_KEY[stageKey];
         if (!base) { base = STAGE_DWELL_MS; }
-        var jitter = 0.65 + Math.random() * 0.7;
+        var jitter = DWELL_JITTER_FLOOR + Math.random() * 0.7;
         return base * (speed || 1) * jitter;
     }
+
+    // How long an envelope takes to TRAVEL between two boxes (the transform transition). It must be
+    // shorter than the gap before the next hop at EVERY speed, or a sped-up demo clock fires the next
+    // hop — and the decision-box recolour — while the envelope is still mid-flight, making a blue
+    // envelope change direction and colour between the rules queue and the rules engine. The gap is
+    // dwellFor() ≈ base·moveSpeed·jitter (jitter floor DWELL_JITTER_FLOOR), so pin travel to 0.7× the
+    // SHORTEST possible dwell and scale it by the same moveSpeed clock (applied in placeAt). Derived
+    // from the dwell constants so it stays correct if those bases change.
+    var TOKEN_TRAVEL_MS = (function () {
+        var min = STAGE_DWELL_MS;
+        Object.keys(STAGE_DWELL_BY_KEY).forEach(function (k) {
+            if (STAGE_DWELL_BY_KEY[k] < min) { min = STAGE_DWELL_BY_KEY[k]; }
+        });
+        return Math.round(min * DWELL_JITTER_FLOOR * 0.7); // ≈100ms at moveSpeed 1
+    })();
 
     // When several envelopes occupy the same box at once they offset diagonally by this many px per
     // envelope so the pile is visible rather than overlapping exactly. Beyond STACK_MAX_VISIBLE the
@@ -333,7 +350,16 @@
         // Under reduced motion we strip the transition so it snaps; otherwise the CSS transition
         // (gated behind no-preference) eases the transform.
         function placeAt(token, anchor) {
-            if (reduce) { token.style.transition = 'none'; }
+            if (reduce) {
+                token.style.transition = 'none';
+            } else {
+                // Scale the travel transition with the SAME moveSpeed clock as the hop delay, so an
+                // envelope always lands at a box before the next hop fires (and before the decision
+                // box recolours it). Overrides the CSS default, which was a fixed 600ms a fast clock
+                // could outrun. Capped well under the shortest dwell (see TOKEN_TRAVEL_MS).
+                token.style.transition =
+                    'transform ' + (TOKEN_TRAVEL_MS * moveSpeed) + 'ms ease, background-color 200ms ease';
+            }
             // -50% offset is baked into the element's own translate via CSS transform-origin; here
             // we translate the top-left so the element centre lands on the anchor.
             token.style.transform = 'translate(' + (anchor.x) + 'px, ' + (anchor.y) + 'px) translate(-50%, -50%)';

@@ -6,28 +6,30 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
-public sealed class DraftBlobClient(BlobServiceClient blobServiceClient) : IDraftBlobClient
+public sealed class RequestStateBlobClient(BlobServiceClient blobServiceClient) : IRequestStateBlobClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };
 
-    public async Task SaveDraftAsync(Guid windowId, string referenceNumber, RequestState state)
+    private static string BlobName(string referenceNumber) => $"requests/{referenceNumber}.json";
+
+    public async Task SaveAsync(Guid windowId, string referenceNumber, RequestState state)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync();
 
-        var blob = container.GetBlobClient($"draft_requests/{referenceNumber}.json");
+        var blob = container.GetBlobClient(BlobName(referenceNumber));
         var json = JsonSerializer.Serialize(state, JsonOptions);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true);
     }
 
-    public async Task<RequestState?> GetDraftAsync(Guid windowId, string referenceNumber)
+    public async Task<RequestState?> GetAsync(Guid windowId, string referenceNumber)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
-        var blob = container.GetBlobClient($"draft_requests/{referenceNumber}.json");
+        var blob = container.GetBlobClient(BlobName(referenceNumber));
 
         if (!await blob.ExistsAsync())
             return null;

@@ -6,7 +6,7 @@ public sealed class FakeCurrentUserService : ICurrentUserService
 {
     public string UserId => "test-user";
     public string DisplayName => "Test User";
-    public string Email => "test@test.com";
+    public string Email => "test-user@education.gov.uk";
     public string OrganisationId => "5760D65B-1AAD-4E89-98DB-6A0ACC424042";
     public string Ukprn => "10003384";
     public string OrganisationName => "Test School";

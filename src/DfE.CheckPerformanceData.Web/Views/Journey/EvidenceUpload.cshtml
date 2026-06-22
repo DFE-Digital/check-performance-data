@@ -33,15 +33,18 @@
     </div>
 </details>
 
-@* File upload partial sits outside the continue form to avoid nested forms *@
-@foreach (var qm in Model.FileUploadModels)
-{
-    await Html.RenderPartialAsync("_FileUpload", qm);
-}
-
-<form method="post" action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
+@* One multipart form for the whole page so the file upload/remove buttons carry the text
+   fields too — otherwise text typed before an upload/remove is lost. The upload and remove
+   controls use `formaction` to post to their own actions. *@
+<form method="post" enctype="multipart/form-data"
+      action="@Url.Action("PagePost", "Journey", new { windowId = Model.WindowId, pageId = Model.Page.Id })">
     @Html.AntiForgeryToken()
     <input type="hidden" name="fromSummary" value="@Model.FromSummary.ToString().ToLower()" />
+
+    @foreach (var qm in Model.FileUploadModels)
+    {
+        await Html.RenderPartialAsync("_FileUpload", qm);
+    }
 
     @foreach (var qm in Model.NonFileUploadModels)
     {

@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
 using Notify.Client;
@@ -143,6 +144,24 @@ public static class DependencyManager
                 options.Scope.Add("profile");
                 options.Scope.Add("organisationid");
 
+                if (!settings.RequireHttpsMetadata)
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = false,
+                        ValidateIssuerSigningKey = false,
+                        RequireSignedTokens = false,
+                        SignatureValidator = delegate (string token, TokenValidationParameters _)
+                        {
+                            return new JsonWebToken(token);
+                        }
+                    };
+                    options.ProtocolValidator.RequireNonce = false;
+                    options.RequireHttpsMetadata = false;
+                }
+                
                 options.Events.OnTokenResponseReceived = ctx
                     => Task.CompletedTask;
 

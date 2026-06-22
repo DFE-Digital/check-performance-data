@@ -19,7 +19,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
-        var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Unspecified);
+        var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
 
         // ReferenceNumber is unique, so at most one row matches.
         var existingId = await db.ChangeRequests
@@ -40,7 +40,9 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.PupilSurname, data.PupilSurname)
                     .SetProperty(r => r.SubmittedById, data.SubmittedById)
                     .SetProperty(r => r.SubmittedByName, data.SubmittedByName)
-                    .SetProperty(r => r.RequestType, data.RequestType));
+                    .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
+                    .SetProperty(r => r.RequestType, data.RequestType)
+                    .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription));
             return existingId;
         }
 
@@ -57,8 +59,10 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             Submitted = timestamp,
             SubmittedById = data.SubmittedById,
             SubmittedByName = data.SubmittedByName,
+            SubmittedByEmail = data.SubmittedByEmail,
             Status = data.Status,
-            RequestType = data.RequestType
+            RequestType = data.RequestType,
+            RequestTypeDescription = data.RequestTypeDescription
         });
         await db.SaveChangesAsync();
         return id;
@@ -77,8 +81,29 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
                 ReferenceNumber = r.ReferenceNumber
+            })
+            .ToListAsync();
+
+    public async Task<IReadOnlyList<SubmittedRequestData>> GetSubmittedRequestsAsync(
+        Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && (r.Status == RequestStatus.SubmittedUnCommitted
+                    || r.Status == RequestStatus.SubmittedWithdrawn))
+            .OrderByDescending(r => r.Submitted)
+            .Select(r => new SubmittedRequestData
+            {
+                PupilFirstname = r.PupilFirstname,
+                PupilSurname = r.PupilSurname,
+                RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
             })
             .ToListAsync();
 
@@ -93,7 +118,23 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
+                ReferenceNumber = r.ReferenceNumber
+            })
+            .FirstOrDefaultAsync();
+
+    public async Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(
+        Guid windowId, long organisationUrn, string referenceNumber) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && r.ReferenceNumber == referenceNumber)
+            .Select(r => new ConfirmDataCorrectData
+            {
+                RequestType = r.RequestType,
+                SubmittedByEmail = r.SubmittedByEmail,
+                Submitted = r.Submitted,
                 ReferenceNumber = r.ReferenceNumber
             })
             .FirstOrDefaultAsync();

@@ -12,6 +12,7 @@ public sealed class WorkerCurrentUserService : ICurrentUserService
 {
     public string UserId => "rules-engine-worker";
     public string DisplayName => "Rules Engine Worker";
+    public string Email => string.Empty;
     public string OrganisationId => string.Empty;
     public string OrganisationName => string.Empty;
     public string OrganisationUrn => string.Empty;

@@ -36,13 +36,6 @@ public sealed class RequestService(
         if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Upn, urnLong, refNum))
             throw new DuplicateRequestException();
 
-        // Stamp who submitted and when, so the read-only view of a submitted request
-        // can render its "Submitted by" section from the persisted journey alone.
-        journey.SubmittedByEmail = currentUserService.Email;
-        // Local (actual) time, not UTC — the "Submitted by → When" display is a wall-clock
-        // time and must survive BST/GMT without a daylight-savings offset.
-        journey.SubmittedAt = DateTime.Now;
-
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
             throw new InvalidOperationException(
@@ -140,6 +133,25 @@ public sealed class RequestService(
 
     public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
         requestStateBlobClient.GetAsync(windowId, referenceNumber);
+
+    public async Task<RequestDeletionResult> DeleteAsync(Guid windowId, string referenceNumber)
+    {
+        var urn = OrganisationUrnLong;
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
+        var pupilName = row is null ? string.Empty : $"{row.PupilFirstname} {row.PupilSurname}".Trim();
+
+        // Drafts have never been submitted, so they are removed entirely (row + journey blob).
+        // Submitted requests are kept for audit and only marked Withdrawn.
+        if (row?.Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit)
+        {
+            await requestRepository.DeleteAsync(windowId, urn, referenceNumber);
+            await requestStateBlobClient.DeleteAsync(windowId, referenceNumber);
+            return new RequestDeletionResult(WasHardDeleted: true, pupilName);
+        }
+
+        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+        return new RequestDeletionResult(WasHardDeleted: false, pupilName);
+    }
 
     private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)
     {

@@ -42,12 +42,12 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    var configuration = builder.Configuration
-        .SetBasePath(builder.Environment.ContentRootPath)     
-        .AddJsonFile("appsettings.json", false, true)
-        .AddEnvironmentVariables()
-        .AddUserSecrets<Program>(optional: true)
-        .Build();
+    // WebApplication.CreateBuilder already configures the configuration sources in
+    // the correct precedence (last wins): appsettings.json, appsettings.{Environment}.json,
+    // user secrets (Development), environment variables, command line. Re-adding
+    // appsettings.json here previously landed it after appsettings.{Environment}.json
+    // and silently clobbered environment-specific overrides.
+    var configuration = builder.Configuration;
 
     builder.Host.UseSerilog((context, services, config) =>
     {
@@ -73,6 +73,7 @@ try
     builder.Services.AddHttpContextAccessor();
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
+    builder.Services.Configure<ClaritySettings>(builder.Configuration.GetSection("Clarity"));
     var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
     
     builder.Services

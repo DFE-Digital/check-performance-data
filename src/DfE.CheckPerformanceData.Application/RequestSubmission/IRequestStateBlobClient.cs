@@ -12,4 +12,10 @@ public interface IRequestStateBlobClient
 {
     Task SaveAsync(Guid windowId, string referenceNumber, RequestState state);
     Task<RequestState?> GetAsync(Guid windowId, string referenceNumber);
+
+    /// <summary>
+    /// Removes the persisted journey blob. Used when a draft request is hard-deleted.
+    /// No-op if the blob does not exist.
+    /// </summary>
+    Task DeleteAsync(Guid windowId, string referenceNumber);
 }

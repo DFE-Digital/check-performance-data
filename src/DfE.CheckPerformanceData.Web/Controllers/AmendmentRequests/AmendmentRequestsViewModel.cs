@@ -21,17 +21,19 @@ public sealed class SubmittedRequestRowViewModel
 
     public string TagClass => Status switch
     {
-        RequestStatus.SubmittedWithdrawn => "govuk-tag--grey",
+        RequestStatus.Withdrawn => "govuk-tag--grey",
         _ => "govuk-tag--green"
     };
 
     public string TagLabel => Status switch
     {
-        RequestStatus.SubmittedWithdrawn => "Withdrawn",
+        RequestStatus.Withdrawn => "Withdrawn",
         _ => "Submitted"
     };
 
     public string SubmittedDateText => Submitted.ToString("d MMMM yyyy");
+
+    public bool ShowDelete => Status != RequestStatus.Withdrawn;
 }
 
 public sealed class AmendmentRequestRowViewModel

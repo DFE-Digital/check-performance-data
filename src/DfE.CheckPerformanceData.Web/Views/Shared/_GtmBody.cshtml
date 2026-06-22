@@ -3,8 +3,12 @@
 @inject IOptions<GtmSettings> GtmOptions
 @{
     var gtm = GtmOptions.Value;
+
+    // No-JS fallback: only emit the GTM iframe when analytics consent has already
+    // been granted (no-JS users cannot use the cookie banner anyway).
+    var analyticsGranted = Context.IsAnalyticsConsentGranted();
 }
-@if (gtm.Enabled && !string.IsNullOrEmpty(gtm.ContainerId))
+@if (gtm.Enabled && !string.IsNullOrEmpty(gtm.ContainerId) && analyticsGranted)
 {
     <noscript>
         <iframe src="https://www.googletagmanager.com/ns.html?id=@gtm.ContainerId&gtm_auth=@gtm.AuthKey&gtm_preview=@gtm.PreviewId&gtm_cookies_win=x"

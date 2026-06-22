@@ -44,13 +44,85 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
     }
 
+    [Fact]
+    public async Task Withdraw_SetsStatusToWithdrawn_ScopedByOrg()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-WD-1", RequestStatus.SubmittedUnCommitted));
+        // A different org's row with the same reference must be left untouched.
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-WD-OTHER", RequestStatus.SubmittedUnCommitted, organisationUrn: 999999));
+
+        await new RequestRepository(_fixture.CreateContext())
+            .WithdrawAsync(windowId, 100000, "REF-WD-1");
+
+        await using var ctx = _fixture.CreateContext();
+        var withdrawn = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-1");
+        Assert.Equal(RequestStatus.Withdrawn, withdrawn.Status);
+        var other = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-OTHER");
+        Assert.Equal(RequestStatus.SubmittedUnCommitted, other.Status);
+    }
+
+    [Fact]
+    public async Task Withdraw_DoesNotAffectAnotherOrgsRowWithSameReference()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-WD-2", RequestStatus.SubmittedUnCommitted));
+
+        // Withdraw scoped to a different org should match nothing.
+        await new RequestRepository(_fixture.CreateContext())
+            .WithdrawAsync(windowId, 999999, "REF-WD-2");
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-2");
+        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+    }
+
+    [Fact]
+    public async Task Delete_RemovesRow_ScopedByOrg()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-DEL-1", RequestStatus.InProgress));
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-DEL-OTHER", RequestStatus.InProgress, organisationUrn: 999999));
+
+        await new RequestRepository(_fixture.CreateContext())
+            .DeleteAsync(windowId, 100000, "REF-DEL-1");
+
+        await using var ctx = _fixture.CreateContext();
+        Assert.False(await ctx.ChangeRequests.AnyAsync(r => r.ReferenceNumber == "REF-DEL-1"));
+        Assert.True(await ctx.ChangeRequests.AnyAsync(r => r.ReferenceNumber == "REF-DEL-OTHER"));
+    }
+
+    [Fact]
+    public async Task Delete_DoesNotRemoveAnotherOrgsRowWithSameReference()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-DEL-2", RequestStatus.InProgress));
+
+        await new RequestRepository(_fixture.CreateContext())
+            .DeleteAsync(windowId, 999999, "REF-DEL-2");
+
+        await using var ctx = _fixture.CreateContext();
+        Assert.True(await ctx.ChangeRequests.AnyAsync(r => r.ReferenceNumber == "REF-DEL-2"));
+    }
+
     private static ChangeRequestData Data(
-        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted) =>
+        Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
+        long organisationUrn = 100000) =>
         new()
         {
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
-            OrganisationUrn = 100000,
+            OrganisationUrn = organisationUrn,
             PupilUpn = "UPN1",
             PupilFirstname = "Jane",
             PupilSurname = "Smith",

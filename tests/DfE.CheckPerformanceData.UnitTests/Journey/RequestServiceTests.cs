@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
@@ -407,17 +408,19 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_StampsSubmitterEmailAndTimestampThenPersistsJourney()
+    public async Task ConfirmRequestAsync_StampsRowWithSubmitterEmailThenPersistsJourney()
     {
         _currentUser.Email.Returns("submitter@education.gov.uk");
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        Assert.Equal("submitter@education.gov.uk", journey.SubmittedByEmail);
-        Assert.NotNull(journey.SubmittedAt);
-        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey); 
+        // The ChangeRequests row is the single source of truth for the submitter email/time.
+        Assert.Equal("submitter@education.gov.uk", captured!.SubmittedByEmail);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
@@ -704,6 +707,50 @@ public class RequestServiceTests
 
         await _requestStateBlobClient.Received(1).GetAsync(WindowId, "REF001");
     }
+
+    // ── DeleteAsync ─────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(RequestStatus.InProgress)]
+    [InlineData(RequestStatus.ReadyToSubmit)]
+    public async Task DeleteAsync_WhenDraft_HardDeletesRowAndBlob(RequestStatus status)
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(status, "Jane", "Smith"));
+
+        var result = await _sut.DeleteAsync(WindowId, "REF001");
+
+        Assert.True(result.WasHardDeleted);
+        Assert.Equal("Jane Smith", result.PupilName);
+        await _requestRepository.Received(1).DeleteAsync(WindowId, 100000L, "REF001");
+        await _requestStateBlobClient.Received(1).DeleteAsync(WindowId, "REF001");
+        await _requestRepository.DidNotReceive().WithdrawAsync(WindowId, 100000L, "REF001");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenSubmitted_WithdrawsWithoutHardDelete()
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+
+        var result = await _sut.DeleteAsync(WindowId, "REF001");
+
+        Assert.False(result.WasHardDeleted);
+        await _requestRepository.Received(1).WithdrawAsync(WindowId, 100000L, "REF001");
+        await _requestRepository.DidNotReceive().DeleteAsync(WindowId, 100000L, "REF001");
+        await _requestStateBlobClient.DidNotReceive().DeleteAsync(WindowId, "REF001");
+    }
+
+    private static AmendmentRequestData AmendmentRow(RequestStatus status, string first, string surname) =>
+        new()
+        {
+            PupilFirstname = first,
+            PupilSurname = surname,
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove",
+            Status = status,
+            ReferenceNumber = "REF001"
+        };
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
@@ -40,9 +41,11 @@ public class UncommittedRequestsServiceTests
             new()
             {
                 ReferenceNumber = "ABC-123",
+                OrganisationUrn = 123456,
                 PupilFirstname = "Ada",
                 PupilSurname = "Lovelace",
                 RequestTypeDescription = "Remove pupil",
+                Status = RequestStatus.SubmittedUnCommitted,
                 SubmittedByName = "Head Teacher",
                 Submitted = new DateTime(2026, 6, 18, 14, 0, 0),
                 Outcome = DecisionStatus.Scrutiny,

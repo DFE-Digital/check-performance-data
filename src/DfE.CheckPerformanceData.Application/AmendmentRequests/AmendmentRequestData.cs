@@ -10,4 +10,6 @@ public sealed class AmendmentRequestData
     public required string RequestTypeDescription { get; init; }
     public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
+    public string? SubmittedByEmail { get; init; }
+    public DateTime? Submitted { get; init; }
 }

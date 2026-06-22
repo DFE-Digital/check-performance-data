@@ -10,6 +10,7 @@ namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 public sealed class ConfirmDataCorrectData
 {
     public required RequestType RequestType { get; init; }
+    public required RequestStatus Status { get; init; }
     public string? SubmittedByEmail { get; init; }
     public required DateTime Submitted { get; init; }
     public required string ReferenceNumber { get; init; }

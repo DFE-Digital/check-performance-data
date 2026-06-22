@@ -10,4 +10,5 @@ public sealed class DfeSigninSettings
     public string? MetadataAddress { get; init; }
     public string? ClientSecret { get; init; }
     public string? ServiceId { get; init; }
+    public bool RequireHttpsMetadata { get; set; } = true;
 }

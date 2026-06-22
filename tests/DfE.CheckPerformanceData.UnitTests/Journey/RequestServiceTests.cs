@@ -43,7 +43,7 @@ public class RequestServiceTests
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
         _notifyOptions = Options.Create(_notifySettings);
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _notifyService, _notifyOptions, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _emailLinkGenerator, _queueService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _notifyService, _notifyOptions, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _emailLinkGenerator, _queueService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -417,7 +417,7 @@ public class RequestServiceTests
 
         Assert.Equal("submitter@education.gov.uk", journey.SubmittedByEmail);
         Assert.NotNull(journey.SubmittedAt);
-        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey); 
     }
 
     // ── SaveDraftAsync ──────────────────────────────────────────────────────

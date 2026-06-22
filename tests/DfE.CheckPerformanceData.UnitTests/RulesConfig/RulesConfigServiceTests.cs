@@ -75,7 +75,6 @@ public sealed class RulesConfigServiceTests
         public string OrganisationUrn => "1";
         public string OrganisationLaestab => "1";
         public string OrganisationTypeId => "1";
-        public string Email => "alice@test.com";
         public string Ukprn => "10000000";
     }
 

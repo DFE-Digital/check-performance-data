@@ -30,7 +30,6 @@ internal sealed class PortalDbContextFactory : IDesignTimeDbContextFactory<Porta
         public string OrganisationUrn => string.Empty;
         public string OrganisationLaestab => string.Empty;
         public string OrganisationTypeId => string.Empty;
-        public string Email => string.Empty;
         public string Ukprn => string.Empty;
     }
 }

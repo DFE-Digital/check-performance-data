@@ -44,6 +44,9 @@ public sealed class SubmittedRequestViewModel
     // Drafts haven't been submitted yet, so the by-line reads "Saved by" rather than "Submitted by".
     public string ByLineTitle => IsDraft ? "Saved by" : "Submitted by";
 
+    // On the delete confirmation page a draft has no meaningful reference number to show in the by-line.
+    public bool ShowReferenceNumber => !(ConfirmingDelete && IsDraft);
+
     public string ConfirmDeleteTitle => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit
         ? $"Are you sure you want to delete {PupilName} from your saved requests"
         : $"Are you sure you want to delete {PupilName} from your submitted requests";

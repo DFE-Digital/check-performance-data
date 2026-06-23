@@ -1312,3 +1312,39 @@ body.js-enabled .rules-condition__apply {
   60%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ------------------------------------------------------------------ *
+   Guidance pages — in-page contents navigation + sections
+ * ------------------------------------------------------------------ */
+.guidance-nav {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  border-top: 2px solid #1d70b8;
+  padding-top: 15px;
+}
+.guidance-nav__heading { margin-bottom: 10px; }
+.guidance-nav__list, .guidance-nav__sublist { margin-bottom: 0; }
+.guidance-nav__sublist {
+  margin-top: 8px;
+  margin-left: 5px;
+  padding-left: 12px;
+  border-left: 2px solid #b1b4b6;
+}
+.guidance-nav__item {
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.guidance-section {
+  scroll-margin-top: 20px;
+  padding-top: 10px;
+  margin-bottom: 30px;
+}
+.guidance-section + .guidance-section { border-top: 1px solid #f3f2f1; }
+.guidance-section__top { margin-top: 10px; }
+
+@media (max-width: 40.0625em) {
+  .guidance-nav { position: static; max-height: none; overflow: visible; }
+}

@@ -1,0 +1,71 @@
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model GuidancePage
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<nav class="govuk-breadcrumbs" aria-label="Breadcrumb">
+    <ol class="govuk-breadcrumbs__list">
+        <li class="govuk-breadcrumbs__list-item">
+            <a class="govuk-breadcrumbs__link" href="/">Home</a>
+        </li>
+        <li class="govuk-breadcrumbs__list-item">
+            <a class="govuk-breadcrumbs__link" href="/guidance">Guidance</a>
+        </li>
+        <li class="govuk-breadcrumbs__list-item" aria-current="page">2026 KS4 June checking exercise</li>
+    </ol>
+</nav>
+
+<div class="govuk-grid-row" id="guidance-top">
+    <div class="govuk-grid-column-one-third">
+        @* The side navigation is a single editable content block. Its anchor links target the
+           template-owned section ids below, so it stays in step with the document structure. *@
+        <div class="guidance-side-nav">
+            @await Component.InvokeAsync("EditableContent", new
+            {
+                key = Model.NavBlockKey,
+                defaultHtml = "<nav class=\"govuk-body\" aria-label=\"Contents\"><p>Contents to be added.</p></nav>"
+            })
+        </div>
+    </div>
+
+    <div class="govuk-grid-column-two-thirds">
+        @await Component.InvokeAsync("EditableTitle", new
+        {
+            key = Model.TitleBlockKey,
+            defaultText = Model.Title,
+            headingLevel = "h1",
+            cssClass = "govuk-heading-xl"
+        })
+
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = Model.IntroBlockKey,
+            defaultHtml = "<p class=\"govuk-body\">Guidance introduction to be added.</p>"
+        })
+
+        @foreach (var sec in Model.Sections)
+        {
+            <section id="@sec.Anchor" class="guidance-section">
+                @if (sec.Level == 3)
+                {
+                    <h3 class="govuk-heading-m">@sec.NavTitle</h3>
+                }
+                else
+                {
+                    <h2 class="govuk-heading-l">@sec.NavTitle</h2>
+                }
+
+                @await Component.InvokeAsync("EditableContent", new
+                {
+                    key = sec.BlockKey,
+                    defaultHtml = "<p class=\"govuk-body\">Content to be added.</p>"
+                })
+
+                <p class="govuk-body-s guidance-section__top">
+                    <a class="govuk-link" href="#guidance-top">Back to top</a>
+                </p>
+            </section>
+        }
+    </div>
+</div>

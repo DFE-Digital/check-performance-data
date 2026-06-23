@@ -73,7 +73,6 @@ public sealed class DlqRetentionJob : BackgroundService
     public async Task RunOnceAsync(
         ISettingService settings,
         IQueueAdminService queueAdmin,
-        //INotifyClient notifyClient,
         INotifyService notifyService,
         CancellationToken cancellationToken)
     {

@@ -23,10 +23,8 @@ public class RequestServiceTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
     private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
-    //private readonly IRequestQueueClient _requestQueue = Substitute.For<IRequestQueueClient>();
     private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
     private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
-    //private readonly RequestSubmissionOptions _submissionOptions = new();
     private readonly IEmailLinkGenerator _emailLinkGenerator = Substitute.For<IEmailLinkGenerator>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly RequestService _sut;

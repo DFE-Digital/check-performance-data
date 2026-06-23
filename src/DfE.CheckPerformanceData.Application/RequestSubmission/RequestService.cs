@@ -15,9 +15,7 @@ public sealed class RequestService(
     INotifyService notifyService,
     IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
-    //IRequestQueueClient requestQueueClient,
     IRequestBlobClient requestBlobClient,
-    //RequestSubmissionOptions submissionOptions,
     ILogger<RequestService> logger,
     IEmailLinkGenerator emailLinkGenerator,
     IQueueService queueService) : IRequestService
@@ -256,7 +254,7 @@ public sealed class RequestService(
     {
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
 
-        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn); //currentUserService.OrganisationUrn);
+        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn);
         if (orgUsers?.Users != null)
             foreach (var user in orgUsers.Users)
                 recipients.Add(user.Email);

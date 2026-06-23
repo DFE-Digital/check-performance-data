@@ -15,7 +15,6 @@
     <ItemGroup>
       <PackageReference Include="Azure.Storage.Blobs" />
       <PackageReference Include="GovukNotify" />
-      <!--<PackageReference Include="Azure.Storage.Queues" />-->
       <PackageReference Include="Microsoft.AspNetCore.Authentication" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" />
       <PackageReference Include="Microsoft.AspNetCore.Authentication.Core" />

@@ -582,22 +582,23 @@ public class RequestServiceTests
     // ── ConfirmRequestAsync — recipient routing ─────────────────────────────
 
     [Fact]
-    public async Task ConfirmRequestAsync_SendsEmailToCurrentUser()
+    public async Task ConfirmRequestAsync_SendsNotificationsConsolidatedCall()
     {
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _notifyService.Received(1).SendSubmissionNotificationAsync(
-            _currentUser.Email,
+        await _notifyService.Received(1).SendNotificationsAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(_currentUser.Email)),
+            NotificationType.SubmissionConfirmed,
             Arg.Any<string?>());
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SendsEmailToOrganisationUsers()
+    public async Task ConfirmRequestAsync_SendsNotificationsToOrganisationUsers()
     {
         var orgUserEmail = "orguser@school.co.uk";
         _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
@@ -618,15 +619,16 @@ public class RequestServiceTests
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _notifyService.Received(1).SendSubmissionNotificationAsync(
-            orgUserEmail,
+        await _notifyService.Received(1).SendNotificationsAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(orgUserEmail)),
+            NotificationType.SubmissionConfirmed,
             Arg.Any<string?>());
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_SendsToAllRecipients()
+    public async Task ConfirmRequestAsync_SendsNotificationsOnceWithAllRecipients()
     {
         var orgUserEmail = "orguser@school.co.uk";
         _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
@@ -647,24 +649,29 @@ public class RequestServiceTests
 
         await _sut.ConfirmRequestAsync(WindowId, journey);
 
-        await _notifyService.Received(2).SendSubmissionNotificationAsync(
+        await _notifyService.Received(1).SendNotificationsAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
-            Arg.Any<string>(),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<NotificationType>(),
             Arg.Any<string?>());
     }
 
     // ── ConfirmDataCorrectAsync ─────────────────────────────────────────────
 
     [Fact]
-    public async Task ConfirmDataCorrectAsync_SendsPupilDataCheckConfirmEmail()
+    public async Task ConfirmDataCorrectAsync_SendsNotificationConsolidatedCall()
     {
         var refNum = "CYPMD_KS4June_ABC1234";
 
         await _sut.ConfirmDataCorrectAsync(WindowId, refNum);
 
-        await _notifyService.Received(1).SendPupilDataCheckConfirmAsync(
-            _currentUser.Email, refNum, Arg.Any<string>());
+        await _notifyService.Received(1).SendNotificationsAsync(
+            refNum,
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(_currentUser.Email)),
+            NotificationType.DataCheckConfirmed,
+            Arg.Any<string?>());
     }
 
     [Fact]

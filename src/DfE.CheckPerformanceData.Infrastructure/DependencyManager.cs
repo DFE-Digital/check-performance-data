@@ -13,6 +13,7 @@ using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -22,7 +23,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -269,10 +272,28 @@ public static class DependencyManager
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<PollySettings>()
+            .Bind(config.GetSection("NotifyPollySettings"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddSingleton<NotificationClient>(sp =>
         {
             var notifySettings = sp.GetRequiredService<IOptions<NotifySettings>>().Value;
             return new NotificationClient(notifySettings.ApiKey);
+        });
+
+        services.AddSingleton<INotifyEmailClient>(sp =>
+        {
+            var client = sp.GetRequiredService<NotificationClient>();
+            return new NotifyEmailClient(client);
+        });
+
+        services.AddSingleton<ResiliencePipeline>(sp =>
+        {
+            var settings = sp.GetRequiredService<IOptions<PollySettings>>().Value;
+            var logger = sp.GetRequiredService<ILogger<NotifyService>>();
+            return ResiliencePipelineFactory.CreateNotifyRetryPipeline(settings, logger);
         });
 
         services.AddSingleton<INotifyService, NotifyService>();

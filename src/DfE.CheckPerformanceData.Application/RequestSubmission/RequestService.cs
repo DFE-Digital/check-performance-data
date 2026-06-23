@@ -71,14 +71,12 @@ public sealed class RequestService(
 
         var linkUrl = emailLinkGenerator.GenerateLink("WhatToChange", "Index", new { windowId }, "SubmissionNotification");
 
-        foreach (var email in recipients)
-        {
-            await notifyService.SendSubmissionNotificationAsync(
-                email,
-                refNum,
-                notifySettings.Value.DeadlineText,
-                linkUrl);
-        }  
+        await notifyService.SendNotificationsAsync(
+            refNum,
+            notifySettings.Value.DeadlineText,
+            recipients,
+            NotificationType.SubmissionConfirmed,
+            linkUrl);
     
 
         // Persist the stamped journey so the read-only submitted-request view can
@@ -110,14 +108,12 @@ public sealed class RequestService(
         logger.LogInformation(
             "Sending Pupil Data Check Confirm email for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
             referenceNumber, recipients.Count, string.Join(", ", recipients));
-        
-        foreach (var email in recipients)
-        {
-            await notifyService.SendPupilDataCheckConfirmAsync(
-                email,
-                referenceNumber,
-                notifySettings.Value.DeadlineText);
-        }
+
+        await notifyService.SendNotificationsAsync(
+            referenceNumber,
+            notifySettings.Value.DeadlineText,
+            recipients,
+            NotificationType.DataCheckConfirmed);
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)

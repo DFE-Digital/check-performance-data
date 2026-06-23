@@ -18,25 +18,7 @@ public sealed class NotifyServiceTests
     private const string FallbackTemplateId = "test-template-id";
 
     [Fact]
-    public async Task SendPupilDataCheckConfirmAsync_SendsEmailWithCorrectTemplate()
-    {
-        var apiKey = Environment.GetEnvironmentVariable(NotifyApiKeyEnvVar);
-        if (string.IsNullOrEmpty(apiKey))
-            return;
-
-        var settings = CreateSettings(apiKey);
-        settings.PupilDataCheckConfirmTemplateId = Environment.GetEnvironmentVariable(ConfirmTemplateIdEnvVar) ?? FallbackTemplateId;
-
-        var service = CreateService(settings);
-
-        var exception = await Record.ExceptionAsync(() =>
-            service.SendPupilDataCheckConfirmAsync(TestEmail, TestRefNumber, DeadlineText));
-
-        Assert.Null(exception);
-    }
-
-    [Fact]
-    public async Task SendSubmissionNotificationAsync_SendsEmailWithCorrectTemplate()
+    public async Task SendNotificationsAsync_WithSubmissionConfirmed_SendsEmail()
     {
         var apiKey = Environment.GetEnvironmentVariable(NotifyApiKeyEnvVar);
         if (string.IsNullOrEmpty(apiKey))
@@ -47,8 +29,30 @@ public sealed class NotifyServiceTests
 
         var service = CreateService(settings);
 
+        var recipients = new[] { TestEmail };
+
         var exception = await Record.ExceptionAsync(() =>
-            service.SendSubmissionNotificationAsync(TestEmail, TestRefNumber, DeadlineText, "https://example.com/submit-others"));
+            service.SendNotificationsAsync(TestRefNumber, DeadlineText, recipients, NotificationType.SubmissionConfirmed, "https://example.com/submit-others"));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task SendNotificationsAsync_WithDataCheckConfirmed_SendsEmail()
+    {
+        var apiKey = Environment.GetEnvironmentVariable(NotifyApiKeyEnvVar);
+        if (string.IsNullOrEmpty(apiKey))
+            return;
+
+        var settings = CreateSettings(apiKey);
+        settings.PupilDataCheckConfirmTemplateId = Environment.GetEnvironmentVariable(ConfirmTemplateIdEnvVar) ?? FallbackTemplateId;
+
+        var service = CreateService(settings);
+
+        var recipients = new[] { TestEmail };
+
+        var exception = await Record.ExceptionAsync(() =>
+            service.SendNotificationsAsync(TestRefNumber, DeadlineText, recipients, NotificationType.DataCheckConfirmed));
 
         Assert.Null(exception);
     }
@@ -60,14 +64,16 @@ public sealed class NotifyServiceTests
         PupilDataCheckWithdrawTemplateId = FallbackTemplateId,
         SubmissionNotificationTemplateId = FallbackTemplateId,
         WithdrawNotificationTemplateId = FallbackTemplateId,
+        DlqThresholdTemplateId = FallbackTemplateId,
         DeadlineText = DeadlineText,
     };
 
     private static NotifyService CreateService(NotifySettings settings)
     {
         var client = new NotificationClient(settings.ApiKey);
+        var emailClient = new NotifyEmailClient(client);
         var options = Options.Create(settings);
         var logger = Substitute.For<ILogger<NotifyService>>();
-        return new NotifyService(client, options, logger);
+        return new NotifyService(emailClient, options, logger);
     }
 }

@@ -1,6 +1,14 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DfE.CheckPerformanceData.Application.Notify;
+
+public enum NotificationType
+{
+    SubmissionConfirmed,
+    DataCheckConfirmed,
+    Withdrawn,
+}
 
 /// <summary>
 /// Service for sending emails via GOV.UK Notify.
@@ -8,38 +16,21 @@ namespace DfE.CheckPerformanceData.Application.Notify;
 public interface INotifyService
 {
     /// <summary>
-    /// Sends a "Confirm pupil data is correct" submission notification.
+    /// Sends notification emails to all recipients for the given submission scenario.
+    /// Failures are logged but do not throw — the caller's outcome is independent
+    /// of email delivery.
     /// </summary>
-    /// <param name="toEmail">Recipient email address.</param>
-    /// <param name="refNumber">Reference number for the request.</param>
-    /// <param name="deadline">Deadline for the action.</param>
-    Task SendPupilDataCheckConfirmAsync(string toEmail, string refNumber, string deadline);
-
-    /// <summary>
-    /// Sends a "Confirm pupil data is correct" withdrawal notification.
-    /// </summary>
-    /// <param name="toEmail">Recipient email address.</param>
-    /// <param name="refNumber">Reference number for the request.</param>
-    /// <param name="deadline">Deadline for the action.</param>
-    Task SendPupilDataCheckWithdrawAsync(string toEmail, string refNumber, string deadline);
-
-    /// <summary>
-    /// Sends a Submission Notification (single request record).
-    /// </summary>
-    /// <param name="toEmail">Recipient email address.</param>
-    /// <param name="refNumber">Reference number for the request.</param>
-    /// <param name="deadline">Deadline for the action.</param>
-    /// <param name="submitOthersUrl">Optional URL to submit other requests.</param>
-    Task SendSubmissionNotificationAsync(string toEmail, string refNumber, string deadline, string? submitOthersUrl = null);
-
-    /// <summary>
-    /// Sends a Withdraw Notification (single request record).
-    /// </summary>
-    /// <param name="toEmail">Recipient email address.</param>
-    /// <param name="refNumber">Reference number for the request.</param>
-    /// <param name="deadline">Deadline for the action.</param>
-    /// <param name="url">Optional dynamic URL related to the withdrawal.</param>
-    Task SendWithdrawNotificationAsync(string toEmail, string refNumber, string deadline, string? url = null);
+    /// <param name="referenceNumber">Submission reference number.</param>
+    /// <param name="deadline">Display-friendly deadline text.</param>
+    /// <param name="recipientEmails">Deduplicated recipient email addresses.</param>
+    /// <param name="notificationType">Which notification template to use.</param>
+    /// <param name="url">Optional URL (e.g. "submit others" or withdrawal link).</param>
+    Task SendNotificationsAsync(
+        string referenceNumber,
+        string deadline,
+        IReadOnlyCollection<string> recipientEmails,
+        NotificationType notificationType,
+        string? url = null);
 
     /// <summary>
     /// Sends a dead-letter queue threshold alert.

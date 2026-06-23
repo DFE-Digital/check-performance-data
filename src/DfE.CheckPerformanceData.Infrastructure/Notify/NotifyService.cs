@@ -1,101 +1,102 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using DfE.CheckPerformanceData.Application.Notify;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Notify.Client;
+using Polly;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Notify;
 
-/// <summary>
-/// Implementation of <see cref="INotifyService"/> that sends emails via GOV.UK Notify.
-/// </summary>
 public class NotifyService : INotifyService
 {
-    private readonly NotificationClient _client;
+    private readonly INotifyEmailClient _client;
     private readonly NotifySettings _settings;
     private readonly ILogger<NotifyService> _logger;
+    private readonly ResiliencePipeline? _resiliencePipeline;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="NotifyService"/> class.
-    /// </summary>
-    /// <param name="client">The GOV.UK Notify client.</param>
-    /// <param name="settings">Notify configuration settings.</param>
-    /// <param name="logger">Logger instance.</param>
     public NotifyService(
-        NotificationClient client,
+        INotifyEmailClient client,
         IOptions<NotifySettings> settings,
-        ILogger<NotifyService> logger)
+        ILogger<NotifyService> logger,
+        ResiliencePipeline? resiliencePipeline = null)
     {
         _client = client;
         _settings = settings.Value;
         _logger = logger;
+        _resiliencePipeline = resiliencePipeline;
     }
 
-    public async Task SendPupilDataCheckConfirmAsync(string toEmail, string refNumber, string deadline)
+    public async Task SendNotificationsAsync(
+        string referenceNumber,
+        string deadline,
+        IReadOnlyCollection<string> recipientEmails,
+        NotificationType notificationType,
+        string? url = null)
     {
-        var personalisation = new Dictionary<string, object>
+        var templateId = notificationType switch
         {
-            { "email address", toEmail },
-            { "ref number", refNumber },
-            { "deadline", deadline }
+            NotificationType.SubmissionConfirmed => _settings.SubmissionNotificationTemplateId,
+            NotificationType.DataCheckConfirmed => _settings.PupilDataCheckConfirmTemplateId,
+            NotificationType.Withdrawn => _settings.WithdrawNotificationTemplateId,
+            _ => throw new ArgumentOutOfRangeException(nameof(notificationType))
         };
 
         _logger.LogInformation(
-            "Sending Pupil Data Check Confirm email to {ToEmail} with ref {RefNumber} and deadline {Deadline}",
-            toEmail, refNumber, deadline);
+            "Sending {NotificationType} notifications for ref {ReferenceNumber} to {RecipientCount} recipient(s)",
+            notificationType, referenceNumber, recipientEmails.Count);
 
-        await _client.SendEmailAsync(
-            toEmail,
-            _settings.PupilDataCheckConfirmTemplateId,
-            personalisation: personalisation);
-    }
-
-    public async Task SendPupilDataCheckWithdrawAsync(string toEmail, string refNumber, string deadline)
-    {
-        var personalisation = new Dictionary<string, object>
+        foreach (var email in recipientEmails)
         {
-            { "email address", toEmail },
-            { "ref number", refNumber },
-            { "deadline", deadline }
-        };
-
-        _logger.LogInformation(
-            "Sending Pupil Data Check Withdraw email to {ToEmail} with ref {RefNumber} and deadline {Deadline}",
-            toEmail, refNumber, deadline);
-
-        await _client.SendEmailAsync(
-            toEmail,
-            _settings.PupilDataCheckWithdrawTemplateId,
-            personalisation: personalisation);
-    }
-
-    public async Task SendSubmissionNotificationAsync(string toEmail, string refNumber, string deadline, string? submitOthersUrl = null)
-    {
-        var personalisation = new Dictionary<string, object>
-        {
-            { "email address", toEmail },
-            { "ref number", refNumber },
-            { "deadline", deadline }
-        };
-
-        if (!string.IsNullOrEmpty(submitOthersUrl))
-        {
-            personalisation["submit others url"] = submitOthersUrl;
+            try
+            {
+                await SendEmailAsync(email, referenceNumber, deadline, templateId, url);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Failed to send {NotificationType} notification to {RecipientEmail} for ref {ReferenceNumber}",
+                    notificationType, email, referenceNumber);
+            }
         }
-
-        _logger.LogInformation(
-            "Sending Submission Notification email to {ToEmail} with ref {RefNumber} and deadline {Deadline}",
-            toEmail, refNumber, deadline);
-
-        await _client.SendEmailAsync(
-            toEmail,
-            _settings.SubmissionNotificationTemplateId,
-            personalisation: personalisation);
     }
 
-    public async Task SendWithdrawNotificationAsync(string toEmail, string refNumber, string deadline, string? url = null)
+    public async Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold)
+    {
+        try
+        {
+            var personalisation = new Dictionary<string, object>
+            {
+                ["dlq_depth"] = dlqDepth,
+                ["threshold"] = threshold
+            };
+
+            _logger.LogInformation(
+                "Sending Dead-letter Queue Threshold email to {ToEmail}",
+                toEmail);
+
+            await _client.SendEmailAsync(
+                toEmail,
+                _settings.DlqThresholdTemplateId,
+                personalisation: personalisation);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to send DLQ threshold notification to {RecipientEmail}",
+                toEmail);
+        }
+    }
+
+    private async Task SendEmailAsync(
+        string toEmail,
+        string refNumber,
+        string deadline,
+        string templateId,
+        string? url)
     {
         var personalisation = new Dictionary<string, object>
         {
@@ -106,34 +107,18 @@ public class NotifyService : INotifyService
 
         if (!string.IsNullOrEmpty(url))
         {
-            personalisation["url"] = url;
+            personalisation["submit others url"] = url;
         }
 
-        _logger.LogInformation(
-            "Sending Withdraw Notification email to {ToEmail} with ref {RefNumber} and deadline {Deadline}",
-            toEmail, refNumber, deadline);
-
-        await _client.SendEmailAsync(
-            toEmail,
-            _settings.WithdrawNotificationTemplateId,
-            personalisation: personalisation);
-    }
-
-    public async Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold)
-    {
-        var personalisation = new Dictionary<string, object>
+        if (_resiliencePipeline is not null)
         {
-            ["dlq_depth"] = dlqDepth,
-            ["threshold"] = threshold
-        };
-
-        _logger.LogInformation(
-            "Sending Dead-letter Queue Threshold email to {ToEmail}",
-            toEmail);
-
-        await _client.SendEmailAsync(
-            toEmail,
-            _settings.DlqThresholdTemplateId,
-            personalisation: personalisation);
+            await _resiliencePipeline.ExecuteAsync(
+                async ct => await _client.SendEmailAsync(toEmail, templateId, personalisation),
+                CancellationToken.None);
+        }
+        else
+        {
+            await _client.SendEmailAsync(toEmail, templateId, personalisation);
+        }
     }
 }

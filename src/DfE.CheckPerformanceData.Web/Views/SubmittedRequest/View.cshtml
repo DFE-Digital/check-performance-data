@@ -1,0 +1,132 @@
+@using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest
+@model SubmittedRequestViewModel
+
+@{
+    ViewBag.Title = Model.ConfirmingDelete ? Model.ConfirmDeleteTitle : "Submitted amendment request";
+    Layout = "_Layout";
+}
+
+<a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
+
+@if (Model.ConfirmingDelete)
+{
+    <h1 class="govuk-heading-xl">@Model.ConfirmDeleteTitle</h1>
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            If you delete a request you cannot get it back again
+        </strong>
+    </div>
+}
+else
+{
+    <h1 class="govuk-heading-xl">Submitted amendment request</h1>
+    <h2 class="govuk-heading-m">Details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
+}
+
+<dl class="govuk-summary-list">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">What pupil data would you like to change?</dt>
+        <dd class="govuk-summary-list__value">@Model.WhatToChangeLabel</dd>
+    </div>
+    @if (Model.SecondRecordDisplay is not null)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">First record to merge</dt>
+            <dd class="govuk-summary-list__value">@Model.FirstRecordDisplay</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Second record to merge</dt>
+            <dd class="govuk-summary-list__value">@Model.SecondRecordDisplay</dd>
+        </div>
+    }
+    else
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Pupil name</dt>
+            <dd class="govuk-summary-list__value">@Model.PupilName</dd>
+        </div>
+    }
+    @foreach (var row in Model.Rows)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">@row.Title</dt>
+            <dd class="govuk-summary-list__value">@row.DisplayValue</dd>
+        </div>
+    }
+</dl>
+
+@if (Model.Files.Count > 0)
+{
+    <h2 class="govuk-heading-m">Uploaded documents</h2>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">File name</th>
+                <th scope="col" class="govuk-table__header">File size</th>
+                <th scope="col" class="govuk-table__header">Type</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var file in Model.Files)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link"
+                           asp-action="DownloadEvidence" asp-controller="SubmittedRequest"
+                           asp-route-windowId="@Model.WindowId"
+                           asp-route-referenceNumber="@Model.ReferenceNumber"
+                           asp-route-storedFileName="@file.StoredFileName">
+                            @file.OriginalFileName
+                        </a>
+                    </td>
+                    <td class="govuk-table__cell">@file.FormattedFileSize</td>
+                    <td class="govuk-table__cell">@file.FileType</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h2 class="govuk-heading-m">@Model.ByLineTitle</h2>
+<dl class="govuk-summary-list govuk-!-margin-bottom-9">
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">Email</dt>
+        <dd class="govuk-summary-list__value">@Model.SubmittedByEmail</dd>
+    </div>
+    <div class="govuk-summary-list__row">
+        <dt class="govuk-summary-list__key">When</dt>
+        <dd class="govuk-summary-list__value">@Model.SubmittedAtText</dd>
+    </div>
+    @if (Model.ShowReferenceNumber)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Reference Number</dt>
+            <dd class="govuk-summary-list__value">@Model.ReferenceNumber</dd>
+        </div>
+    }
+</dl>
+
+@if (Model.ConfirmingDelete)
+{
+    <form method="post" action="@Url.Action("Delete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
+        @Html.AntiForgeryToken()
+        <govuk-button type="submit" class="govuk-button--warning">Delete request</govuk-button>
+    </form>
+
+    <p class="govuk-body">
+        <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Cancel and go back to amendment requests summary</a>
+    </p>
+}
+else
+{
+    if (Model.ShowDeleteButton)
+    {
+        <a class="govuk-button govuk-button--warning" href="@Url.Action("ConfirmDelete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">Delete request</a>
+    }
+
+    <p class="govuk-body">
+        <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Go back to amendment requests summary</a>
+    </p>
+}

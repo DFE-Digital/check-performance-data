@@ -81,7 +81,8 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         SubmittedByName = "Tester",
         Status = status,
         ReferenceNumber = Guid.NewGuid().ToString("N")[..12],
-        RequestType = "Remove",
+        RequestType = RequestType.Amendment,
+        RequestTypeDescription = "Remove",
     };
 
     private async Task SeedWindowsAndRequestsAsync(IEnumerable<CheckingWindow> windows, IEnumerable<ChangeRequest> requests)

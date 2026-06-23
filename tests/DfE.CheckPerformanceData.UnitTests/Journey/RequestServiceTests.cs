@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -14,7 +15,7 @@ public class RequestServiceTests
     private static readonly Guid WindowId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
-    private readonly IDraftBlobClient _draftBlobClient = Substitute.For<IDraftBlobClient>();
+    private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
@@ -24,9 +25,10 @@ public class RequestServiceTests
     {
         _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
+        _currentUser.Email.Returns("test.user@education.gov.uk");
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _draftBlobClient, _requestRepository, _currentUser,
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
             _queueService);
     }
 
@@ -390,6 +392,22 @@ public class RequestServiceTests
         await _queueService.Received(1).EnqueueAsync(QueueOptions.RulesEngineQueue, Arg.Any<RequestDocument>());
     }
 
+    [Fact]
+    public async Task ConfirmRequestAsync_StampsRowWithSubmitterEmailThenPersistsJourney()
+    {
+        _currentUser.Email.Returns("submitter@education.gov.uk");
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d)).Returns(Guid.NewGuid());
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        // The ChangeRequests row is the single source of truth for the submitter email/time.
+        Assert.Equal("submitter@education.gov.uk", captured!.SubmittedByEmail);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
+    }
+
     // ── SaveDraftAsync ──────────────────────────────────────────────────────
 
     [Fact]
@@ -425,7 +443,7 @@ public class RequestServiceTests
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
-        await _draftBlobClient.Received(1).SaveDraftAsync(WindowId, journey.ReferenceNumber!, journey);
+        await _requestStateBlobClient.Received(1).SaveAsync(WindowId, journey.ReferenceNumber!, journey);
     }
 
     [Fact]
@@ -455,8 +473,9 @@ public class RequestServiceTests
         Assert.Equal(100000L, captured.OrganisationUrn);
         Assert.Equal("Test User", captured.SubmittedByName);
         Assert.Equal(RequestStatus.ReadyToSubmit, captured.Status);
-        // Config is null in this test so RequestType falls back to the WhatToChange prefix only
-        Assert.Equal("Remove", captured.RequestType);
+        Assert.Equal(RequestType.Amendment, captured.RequestType);
+        // Config is null in this test so the description falls back to the WhatToChange prefix only
+        Assert.Equal("Remove", captured.RequestTypeDescription);
     }
 
     [Theory]
@@ -490,7 +509,21 @@ public class RequestServiceTests
 
         await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
 
-        Assert.Equal("Remove - Permanently excluded", captured!.RequestType);
+        Assert.Equal(RequestType.Amendment, captured!.RequestType);
+        Assert.Equal("Remove - Permanently excluded", captured.RequestTypeDescription);
+    }
+
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_WritesConfirmCorrectRequestType()
+    {
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999");
+
+        Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
+        Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
+        Assert.Equal("test.user@education.gov.uk", captured.SubmittedByEmail);
     }
 
     [Fact]
@@ -498,7 +531,7 @@ public class RequestServiceTests
     {
         var journey = ValidJourney();
         var callOrder = new List<string>();
-        _draftBlobClient.SaveDraftAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
+        _requestStateBlobClient.SaveAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<RequestState>())
             .Returns(_ => { callOrder.Add("blob"); return Task.CompletedTask; });
         _requestRepository.UpsertAsync(Arg.Any<ChangeRequestData>())
             .Returns(_ => { callOrder.Add("db"); return Guid.NewGuid(); });
@@ -514,7 +547,7 @@ public class RequestServiceTests
     public async Task ResumeDraftAsync_ReturnsStateFromBlobClient()
     {
         var expected = new RequestState { ReferenceNumber = "REF001" };
-        _draftBlobClient.GetDraftAsync(WindowId, "REF001").Returns(expected);
+        _requestStateBlobClient.GetAsync(WindowId, "REF001").Returns(expected);
 
         var result = await _sut.ResumeDraftAsync(WindowId, "REF001");
 
@@ -524,7 +557,7 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_WhenDraftNotFound_ReturnsNull()
     {
-        _draftBlobClient.GetDraftAsync(WindowId, "MISSING").Returns((RequestState?)null);
+        _requestStateBlobClient.GetAsync(WindowId, "MISSING").Returns((RequestState?)null);
 
         var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
 
@@ -534,12 +567,56 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_PassesWindowIdAndReferenceNumberToBlobClient()
     {
-        _draftBlobClient.GetDraftAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
+        _requestStateBlobClient.GetAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
 
         await _sut.ResumeDraftAsync(WindowId, "REF001");
 
-        await _draftBlobClient.Received(1).GetDraftAsync(WindowId, "REF001");
+        await _requestStateBlobClient.Received(1).GetAsync(WindowId, "REF001");
     }
+
+    // ── DeleteAsync ─────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(RequestStatus.InProgress)]
+    [InlineData(RequestStatus.ReadyToSubmit)]
+    public async Task DeleteAsync_WhenDraft_HardDeletesRowAndBlob(RequestStatus status)
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(status, "Jane", "Smith"));
+
+        var result = await _sut.DeleteAsync(WindowId, "REF001");
+
+        Assert.True(result.WasHardDeleted);
+        Assert.Equal("Jane Smith", result.PupilName);
+        await _requestRepository.Received(1).DeleteAsync(WindowId, 100000L, "REF001");
+        await _requestStateBlobClient.Received(1).DeleteAsync(WindowId, "REF001");
+        await _requestRepository.DidNotReceive().WithdrawAsync(WindowId, 100000L, "REF001");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenSubmitted_WithdrawsWithoutHardDelete()
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+
+        var result = await _sut.DeleteAsync(WindowId, "REF001");
+
+        Assert.False(result.WasHardDeleted);
+        await _requestRepository.Received(1).WithdrawAsync(WindowId, 100000L, "REF001");
+        await _requestRepository.DidNotReceive().DeleteAsync(WindowId, 100000L, "REF001");
+        await _requestStateBlobClient.DidNotReceive().DeleteAsync(WindowId, "REF001");
+    }
+
+    private static AmendmentRequestData AmendmentRow(RequestStatus status, string first, string surname) =>
+        new()
+        {
+            PupilFirstname = first,
+            PupilSurname = surname,
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = "Remove",
+            Status = status,
+            ReferenceNumber = "REF001"
+        };
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

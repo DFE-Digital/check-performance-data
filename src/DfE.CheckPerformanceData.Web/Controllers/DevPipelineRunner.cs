@@ -64,7 +64,8 @@ public sealed class DevPipelineRunner
             SubmittedByName = "Dev Harness",
             Status = RequestStatus.SubmittedUnCommitted,
             ReferenceNumber = reference,
-            RequestType = "change",
+            RequestType = RequestType.Amendment, 
+            RequestTypeDescription = "Include"
         });
         await _dbContext.SaveChangesAsync(cancellationToken);
 

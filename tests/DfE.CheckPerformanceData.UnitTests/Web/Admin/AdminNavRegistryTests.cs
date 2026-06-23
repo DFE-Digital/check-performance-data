@@ -17,14 +17,14 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(17, entries.Count);
+		Assert.Equal(22, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.Contains("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.DoesNotContain("Visual regression dashboard", titles);
 		Assert.Contains("Rules Engine", titles);
-		Assert.Contains("Queues", titles);
+		Assert.Contains("Stages / Queues", titles);
 		Assert.Contains("Rules Engine Queue", titles);
 		Assert.Contains("Zendesk Queue", titles);
 		Assert.Contains("Dead Letter Queue", titles);
@@ -43,6 +43,8 @@ public sealed class AdminNavRegistryTests
 		// The standalone "Replay" submissions nav item was retired (its picker moved into the
 		// dashboard Demo panel).
 		Assert.DoesNotContain("Replay", titles);
+		Assert.Contains("Amendment requests", titles);
+		Assert.Contains("Uncommitted requests", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---
@@ -85,7 +87,10 @@ public sealed class AdminNavRegistryTests
 			.Select(e => e.Order)
 			.OrderBy(o => o)
 			.ToArray();
-		Assert.Equal(new[] { 10, 20, 30 }, queueOrders);
+		// The Rules Engine group nests the six pipeline stages in animation order: Submit (10),
+		// Rules Engine Queue (20), Rules engine (30), Zendesk Queue (40), Zendesk ticket (50),
+		// Dead Letter Queue (60).
+		Assert.Equal(new[] { 10, 20, 30, 40, 50, 60 }, queueOrders);
 	}
 
 	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---
@@ -155,7 +160,8 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal("/admin/queues/dlq", entry.Url);
 		Assert.Equal("Dead Letter Queue", entry.Title);
 		Assert.Equal("GET", entry.HttpMethod);
-		Assert.Equal(30, entry.Order);
+		// Last of the six pipeline stages (animation order), so it sorts to the bottom of the group.
+		Assert.Equal(60, entry.Order);
 		Assert.True(entry.Enabled);
 	}
 

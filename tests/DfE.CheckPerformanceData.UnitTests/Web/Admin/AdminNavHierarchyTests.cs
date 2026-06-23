@@ -96,22 +96,22 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal(AdminNavKeys.Transactions, dashboardChildren[0].Key);
     }
 
-    // --- Queues_Is_RulesEngineGroup_Child ---
+    // --- StagesQueues_Is_RulesEngineGroup_Child ---
 
     [Fact]
-    public void Queues_Is_RulesEngineGroup_Child()
+    public void StagesQueues_Is_RulesEngineGroup_Child()
     {
         var queues = Single(AdminNavKeys.RulesEngine);
 
         Assert.Equal(AdminNavKeys.RulesEngineGroup, queues.ParentKey);
-        Assert.Equal("Queues", queues.Title);
+        Assert.Equal("Stages / Queues", queues.Title);
         Assert.Equal("/admin/queues", queues.Url);
     }
 
-    // --- Three_Queue_Children_Sit_Under_Queues ---
+    // --- Six_Pipeline_Stages_Sit_Under_StagesQueues ---
 
     [Fact]
-    public void Three_Queue_Children_Sit_Under_Queues()
+    public void Six_Pipeline_Stages_Sit_Under_StagesQueues()
     {
         var entries = ResolveEntries();
 
@@ -120,19 +120,34 @@ public sealed class AdminNavHierarchyTests
             .OrderBy(e => e.Order)
             .ToList();
 
-        Assert.Equal(3, queueChildren.Count);
+        // The six pipeline stages in animation order: Submit, Rules Engine Queue, Rules engine,
+        // Zendesk Queue, Zendesk ticket, Dead Letter Queue. The three queues link to their queue
+        // pages; the three pure stages link to the filtered transactions view.
+        Assert.Equal(6, queueChildren.Count);
 
-        Assert.Equal(AdminNavKeys.RulesEngineQueue, queueChildren[0].Key);
-        Assert.Equal("Rules Engine Queue", queueChildren[0].Title);
-        Assert.Equal("/admin/queues/list/rules-engine", queueChildren[0].Url);
+        Assert.Equal(AdminNavKeys.SubmitStage, queueChildren[0].Key);
+        Assert.Equal("Submit", queueChildren[0].Title);
+        Assert.Equal("/admin/observability/transactions?stage=Submitted", queueChildren[0].Url);
 
-        Assert.Equal(AdminNavKeys.ZendeskQueue, queueChildren[1].Key);
-        Assert.Equal("Zendesk Queue", queueChildren[1].Title);
-        Assert.Equal("/admin/queues/list/zendesk", queueChildren[1].Url);
+        Assert.Equal(AdminNavKeys.RulesEngineQueue, queueChildren[1].Key);
+        Assert.Equal("Rules Engine Queue", queueChildren[1].Title);
+        Assert.Equal("/admin/queues/list/rules-engine", queueChildren[1].Url);
 
-        Assert.Equal(AdminNavKeys.DeadLetterQueue, queueChildren[2].Key);
-        Assert.Equal("Dead Letter Queue", queueChildren[2].Title);
-        Assert.Equal("/admin/queues/dlq", queueChildren[2].Url);
+        Assert.Equal(AdminNavKeys.RulesEngineStage, queueChildren[2].Key);
+        Assert.Equal("Rules engine", queueChildren[2].Title);
+        Assert.Equal("/admin/observability/transactions?stage=RulesEvaluated", queueChildren[2].Url);
+
+        Assert.Equal(AdminNavKeys.ZendeskQueue, queueChildren[3].Key);
+        Assert.Equal("Zendesk Queue", queueChildren[3].Title);
+        Assert.Equal("/admin/queues/list/zendesk", queueChildren[3].Url);
+
+        Assert.Equal(AdminNavKeys.ZendeskTicketStage, queueChildren[4].Key);
+        Assert.Equal("Zendesk ticket", queueChildren[4].Title);
+        Assert.Equal("/admin/observability/transactions?stage=TicketCreated", queueChildren[4].Url);
+
+        Assert.Equal(AdminNavKeys.DeadLetterQueue, queueChildren[5].Key);
+        Assert.Equal("Dead Letter Queue", queueChildren[5].Title);
+        Assert.Equal("/admin/queues/dlq", queueChildren[5].Url);
     }
 
     // --- RulesConfig_Is_RulesEngineGroup_Child ---

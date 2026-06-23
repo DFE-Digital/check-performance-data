@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public sealed class RequestService(
     IQuestionFlowService flowService,
-    IDraftBlobClient draftBlobClient,
+    IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
     IQueueService queueService) : IRequestService
@@ -50,6 +50,11 @@ public sealed class RequestService(
         // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+
+        // Persist the journey so the read-only submitted-request view can rebuild its
+        // summary (the enqueued RequestDocument is bound for the queue and not retained).
+        // The "Submitted by" email/time come from the ChangeRequests row, not the journey.
+        await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
@@ -59,11 +64,15 @@ public sealed class RequestService(
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
-            Timestamp = DateTime.UtcNow,
+            // Local (wall-clock) time, not UTC — the "Submitted by → When" display must
+            // survive BST/GMT without a daylight-savings offset (see ConfirmRequestAsync).
+            Timestamp = DateTime.Now,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
             Status = RequestStatus.SubmittedUnCommitted,
-            RequestType = "Confirm Pupil Data Declaration"
+            RequestType = RequestType.ConfirmCorrect,
+            RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
     }
 
@@ -73,15 +82,34 @@ public sealed class RequestService(
             || journey.ReferenceNumber is null)
             throw new InvalidOperationException("Session state is incomplete for draft submission.");
 
-        await draftBlobClient.SaveDraftAsync(windowId, journey.ReferenceNumber, journey);
+        await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber, journey);
         var draftConfig = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig));
     }
 
     public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
-        draftBlobClient.GetDraftAsync(windowId, referenceNumber);
+        requestStateBlobClient.GetAsync(windowId, referenceNumber);
 
-    private string BuildRequestType(RequestState journey, QuestionFlowConfig? config)
+    public async Task<RequestDeletionResult> DeleteAsync(Guid windowId, string referenceNumber)
+    {
+        var urn = OrganisationUrnLong;
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
+        var pupilName = row is null ? string.Empty : $"{row.PupilFirstname} {row.PupilSurname}".Trim();
+
+        // Drafts have never been submitted, so they are removed entirely (row + journey blob).
+        // Submitted requests are kept for audit and only marked Withdrawn.
+        if (row?.Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit)
+        {
+            await requestRepository.DeleteAsync(windowId, urn, referenceNumber);
+            await requestStateBlobClient.DeleteAsync(windowId, referenceNumber);
+            return new RequestDeletionResult(WasHardDeleted: true, pupilName);
+        }
+
+        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+        return new RequestDeletionResult(WasHardDeleted: false, pupilName);
+    }
+
+    private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)
     {
         var prefix = journey.SelectedWhatToChange!.Value.ToString();
         if (config is null) return prefix;
@@ -109,11 +137,15 @@ public sealed class RequestService(
             PupilUpn = journey.SelectedPupil!.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
-            Timestamp = DateTime.UtcNow,
+            // Local (wall-clock) time, not UTC — the "Submitted" timestamp must survive
+            // BST/GMT without a daylight-savings offset, matching ConfirmDataCorrectAsync.
+            Timestamp = DateTime.Now,
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
+            SubmittedByEmail = currentUserService.Email,
             Status = status,
-            RequestType = BuildRequestType(journey, config)
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = BuildRequestTypeDescription(journey, config)
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)

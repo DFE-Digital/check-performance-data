@@ -24,6 +24,7 @@ internal sealed class PortalDbContextFactory : IDesignTimeDbContextFactory<Porta
     {
         public string UserId => string.Empty;
         public string DisplayName => string.Empty;
+        public string Email => string.Empty;
         public string OrganisationId => string.Empty;
         public string OrganisationName => string.Empty;
         public string OrganisationUrn => string.Empty;

@@ -69,6 +69,7 @@ public sealed class RulesConfigServiceTests
     {
         public string UserId => "user-1";
         public string DisplayName => "Alice Admin";
+        public string Email => "alice@education.gov.uk";
         public string OrganisationId => "org";
         public string OrganisationName => "Org";
         public string OrganisationUrn => "1";

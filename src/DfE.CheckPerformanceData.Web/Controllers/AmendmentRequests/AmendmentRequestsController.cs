@@ -18,13 +18,24 @@ public sealed class AmendmentRequestsController(
         return View(new AmendmentRequestsViewModel
         {
             WindowId = windowId,
+            WindowTitle = result.WindowTitle,
             DeadlineText = $"{deadline.ToString("htt").ToLower()} on {deadline:dddd d MMMM yyyy}",
             Rows = result.Rows.Select(r => new AmendmentRequestRowViewModel
             {
                 PupilName = r.PupilName,
                 RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
                 ReferenceNumber = r.ReferenceNumber
+            }).ToList(),
+            SubmittedRows = result.SubmittedRows.Select(r => new SubmittedRequestRowViewModel
+            {
+                PupilName = r.PupilName,
+                RequestType = r.RequestType,
+                RequestTypeDescription = r.RequestTypeDescription,
+                ReferenceNumber = r.ReferenceNumber,
+                Status = r.Status,
+                Submitted = r.Submitted
             }).ToList()
         });
     }

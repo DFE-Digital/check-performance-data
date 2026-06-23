@@ -43,14 +43,12 @@ else
                 <td class="govuk-table__cell">@row.File.PageCount</td>
                 <td class="govuk-table__cell">PDF</td>
                 <td class="govuk-table__cell">
-                    <form method="post"
-                          action="@Url.Action("RemoveFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="storedFileName" value="@row.File.StoredFileName"/>
-                        <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">
-                            Remove<span class="govuk-visually-hidden"> @row.File.OriginalFileName</span>
-                        </button>
-                    </form>
+                    @* Submits the surrounding page form; carries its file via the button value. *@
+                    <button type="submit" name="storedFileName" value="@row.File.StoredFileName"
+                            formaction="@Url.Action("RemoveFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
+                            class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">
+                        Remove<span class="govuk-visually-hidden"> @row.File.OriginalFileName</span>
+                    </button>
                 </td>
             </tr>
         }
@@ -61,32 +59,30 @@ else
 
 @if (!Model.AtLimit)
 {
-    <form method="post"
-          action="@Url.Action("UploadFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
-          enctype="multipart/form-data"
-          novalidate>
-        @Html.AntiForgeryToken()
+    @* The file input and Upload button are part of the surrounding page form (which is
+       multipart). The button posts to UploadFile via formaction so the page's text fields
+       are submitted alongside the file. *@
+    var fileError = Model.UploadError ?? Model.Error;
+    <div class="govuk-form-group @(fileError is not null ? "govuk-form-group--error" : "")">
+        @if (fileError is not null)
+        {
+            <p class="govuk-error-message" id="fileUpload-error">
+                <span class="govuk-visually-hidden">Error:</span> @fileError
+            </p>
+        }
+        <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
+               id="fileUpload" name="fileUpload" type="file"
+               accept=".pdf,application/pdf"
+               aria-describedby="@Model.DescribedBy">
+    </div>
 
-        @{ var fileError = Model.UploadError ?? Model.Error; }
-        <div class="govuk-form-group @(fileError is not null ? "govuk-form-group--error" : "")">
-            @if (fileError is not null)
-            {
-                <p class="govuk-error-message" id="fileUpload-error">
-                    <span class="govuk-visually-hidden">Error:</span> @fileError
-                </p>
-            }
-            <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
-                   id="fileUpload" name="fileUpload" type="file"
-                   accept=".pdf,application/pdf"
-                   aria-describedby="@Model.DescribedBy">
-        </div>
+    <govuk-button type="submit" class="govuk-button--secondary"
+        formaction="@Url.Action("UploadFile", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId, questionId = Model.Question.Id, fromSummary = Model.FromSummary })"
+        formnovalidate="formnovalidate">Upload file</govuk-button>
 
-        <govuk-button type="submit" class="govuk-button--secondary">Upload file</govuk-button>
-
-        <p class="govuk-body govuk-!-margin-top-2">
-            @Model.UploadedFiles.Count @(Model.UploadedFiles.Count == 1 ? "file" : "files") added.
-        </p>
-    </form>
+    <p class="govuk-body govuk-!-margin-top-2">
+        @Model.UploadedFiles.Count @(Model.UploadedFiles.Count == 1 ? "file" : "files") added.
+    </p>
 }
 else
 {

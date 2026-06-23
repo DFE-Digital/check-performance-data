@@ -22,6 +22,7 @@
     },
     {
       "id": "evidence",
+      "pageTitle": "Provide evidence for merging duplicate records",
       "type": "EvidenceUpload",
       "title": "Provide evidence for merging duplicate records for {pupilName}",
       "questions": [

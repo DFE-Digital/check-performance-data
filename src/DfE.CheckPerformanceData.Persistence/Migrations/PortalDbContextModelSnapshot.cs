@@ -266,6 +266,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<string>("RequestType")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("RequestTypeDescription")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
@@ -279,6 +284,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<DateTime>("Submitted")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("SubmittedByEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<Guid>("SubmittedById")
                         .HasColumnType("uuid");
@@ -321,9 +330,32 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("IngressFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("IngressFileChecksum")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("KeyStage")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("Published")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SchemaFile")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SchemaFileChecksum")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp without time zone");
@@ -733,6 +765,38 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasForeignKey("WindowId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
+                {
+                    b.OwnsOne("DfE.CheckPerformanceData.Persistence.Entities.WindowValidated", "Validated", b1 =>
+                        {
+                            b1.Property<Guid>("CheckingWindowId")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("IngressValidationChecksum")
+                                .IsRequired()
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)");
+
+                            b1.Property<string>("SchemaValidationChecksum")
+                                .IsRequired()
+                                .HasMaxLength(256)
+                                .HasColumnType("character varying(256)");
+
+                            b1.Property<DateTime>("ValidatedAt")
+                                .HasColumnType("timestamp with time zone");
+
+                            b1.HasKey("CheckingWindowId");
+
+                            b1.ToTable("CheckingWindows");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CheckingWindowId");
+                        });
+
+                    b.Navigation("Validated");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlockVersion", b =>

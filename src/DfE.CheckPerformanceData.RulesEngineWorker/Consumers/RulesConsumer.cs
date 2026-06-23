@@ -146,8 +146,10 @@ public sealed class RulesConsumer : ConsumerBase
         }
 
         _logger.LogInformation(
-            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}",
-            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber);
+            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}{NewLine}Trace:{NewLine}{Trace}",
+            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber,
+            Environment.NewLine, Environment.NewLine,
+            decision.Trace.Count > 0 ? string.Join(Environment.NewLine, decision.Trace) : "(none)");
 
         // Capture the outcome so the post-ack metric record (DescribeMetric) can attach the
         // decision status and rules version for this reference.
@@ -158,15 +160,12 @@ public sealed class RulesConsumer : ConsumerBase
             await dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == parsed.ReferenceNumber)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.Status, RequestStatus.RulesProcessed)
                     .SetProperty(r => r.Outcome, decision.Status)
                     .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
                     .SetProperty(r => r.MatchedRuleId, decision.MatchedRuleId)
                     .SetProperty(r => r.RulesVersion, rulesVersion)
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow),
                     cancellationToken);
-
-            await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, parsed, cancellationToken);
         }, cancellationToken);
     }
 }

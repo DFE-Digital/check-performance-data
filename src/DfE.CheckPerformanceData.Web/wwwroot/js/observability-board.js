@@ -869,10 +869,9 @@
         function pickCell(ref) {
             var checked = selectedRefs[ref] ? ' checked' : '';
             return '<td class="govuk-table__cell">'
-                + '<div class="govuk-checkboxes__item govuk-checkboxes--small govuk-!-margin-bottom-0">'
-                + '<input class="govuk-checkboxes__input" type="checkbox" data-obs-grid-pick value="'
+                + '<input class="obs-grid-pick" type="checkbox" data-obs-grid-pick value="'
                 + esc(ref) + '"' + checked + ' aria-label="Select ' + esc(ref) + ' for replay" />'
-                + '</div></td>';
+                + '</td>';
         }
 
         function gridRowHtml(r) {

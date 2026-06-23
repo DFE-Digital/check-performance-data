@@ -473,6 +473,16 @@
     z-index: 1;
 }
 
+/* Per-row replay-select: a plain visible checkbox (the GDS checkbox component draws its box via a
+   label::before, which a textless row-select has no label for, so it would render invisible). */
+.obs-grid-pick {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
 .obs-board__reconnect {
     color: #d4351c;
     margin-top: 16px;

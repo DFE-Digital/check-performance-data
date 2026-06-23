@@ -746,6 +746,19 @@ public sealed class ObservabilityViewRenderTests
 	}
 
 	[Fact]
+	public void RecentSubmissionsMatrix_RowSelectIsAVisibleCheckbox()
+	{
+		var board = ReadView("_Board.cshtml");
+
+		// The row-select must be a VISIBLE checkbox. The GDS `govuk-checkboxes__input` is
+		// `opacity:0` and only renders via its `__label::before`; with no label (a row select has
+		// no visible text) the box is invisible — it looks like there is no checkbox at all. So the
+		// matrix row-select uses a plain `obs-grid-pick` checkbox, never the labelless GDS input.
+		Assert.Contains("obs-grid-pick", board);
+		Assert.DoesNotContain("govuk-checkboxes__input", board);
+	}
+
+	[Fact]
 	public void Board_NoLongerLinksToAStandaloneReplayPage()
 	{
 		var board = ReadView("_Board.cshtml");

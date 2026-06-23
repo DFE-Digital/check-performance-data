@@ -255,11 +255,9 @@
                                 ? Dur(ts2, tc2) : null;
                             <tr class="govuk-table__row" data-obs-grid-row="@r.ReferenceNumber">
                                 <td class="govuk-table__cell">
-                                    <div class="govuk-checkboxes__item govuk-checkboxes--small govuk-!-margin-bottom-0">
-                                        <input class="govuk-checkboxes__input" type="checkbox"
-                                               data-obs-grid-pick value="@r.ReferenceNumber"
-                                               aria-label="Select @r.ReferenceNumber for replay" />
-                                    </div>
+                                    <input class="obs-grid-pick" type="checkbox"
+                                           data-obs-grid-pick value="@r.ReferenceNumber"
+                                           aria-label="Select @r.ReferenceNumber for replay" />
                                 </td>
                                 <td class="govuk-table__cell">
                                     <a class="govuk-link" target="_blank" rel="noopener"

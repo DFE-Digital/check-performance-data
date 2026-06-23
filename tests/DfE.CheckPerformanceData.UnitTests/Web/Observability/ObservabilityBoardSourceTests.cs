@@ -468,6 +468,19 @@ public sealed class ObservabilityBoardSourceTests
         Assert.Contains("data-obs-grid", js);
     }
 
+    [Fact]
+    public void BoardJs_RowSelectIsAVisibleCheckbox()
+    {
+        var js = BoardJs();
+
+        // The grid re-renders live, so the JS-built rows must match the server markup: a VISIBLE
+        // `obs-grid-pick` checkbox, never the labelless `govuk-checkboxes__input` (opacity:0 — only
+        // visible via a `__label::before` that a row-select doesn't have). Otherwise the checkboxes
+        // vanish the moment the first SSE event re-renders the grid.
+        Assert.Contains("obs-grid-pick", js);
+        Assert.DoesNotContain("govuk-checkboxes__input", js);
+    }
+
     // --- Round 3: the headline tiles update live from the SSE snapshot, not only on a refresh ---
 
     [Fact]

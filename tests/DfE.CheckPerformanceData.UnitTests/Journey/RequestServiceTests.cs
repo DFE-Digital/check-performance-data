@@ -9,7 +9,6 @@ using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -24,8 +23,6 @@ public class RequestServiceTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
     private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
-    private readonly NotifySettings _notifySettings = new();
-    private readonly IOptions<NotifySettings> _notifyOptions;
     //private readonly IRequestQueueClient _requestQueue = Substitute.For<IRequestQueueClient>();
     private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
     private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
@@ -43,8 +40,7 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _notifyOptions = Options.Create(_notifySettings);
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _notifyService, _notifyOptions, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _emailLinkGenerator, _queueService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _notifyService, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _emailLinkGenerator, _queueService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -534,7 +530,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999");
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999", "5pm on Friday 26 June 2026");
 
         Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
         Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
@@ -664,11 +660,11 @@ public class RequestServiceTests
     {
         var refNum = "CYPMD_KS4June_ABC1234";
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, refNum);
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, "5pm on Friday 26 June 2026");
 
         await _notifyService.Received(1).SendNotificationsAsync(
             refNum,
-            Arg.Any<string>(),
+            "5pm on Friday 26 June 2026",
             Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(_currentUser.Email)),
             NotificationType.DataCheckConfirmed,
             Arg.Any<string?>());
@@ -679,7 +675,7 @@ public class RequestServiceTests
     {
         var refNum = "CYPMD_KS4June_ABC1234";
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, refNum);
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, "5pm on Friday 26 June 2026");
 
         _logger.Received(1).Log(
             Arg.Is<LogLevel>(l => l == LogLevel.Information),

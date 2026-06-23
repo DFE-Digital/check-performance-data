@@ -12,7 +12,6 @@ public sealed class NotifyServiceTests
     private const string NotifyApiKeyEnvVar = "NOTIFY_API_KEY";
     private const string ConfirmTemplateIdEnvVar = "NOTIFY_CONFIRM_TEMPLATE_ID";
     private const string SubmissionTemplateIdEnvVar = "NOTIFY_SUBMISSION_TEMPLATE_ID";
-    private const string DeadlineText = "28 February 2025";
     private const string TestRefNumber = "INT-TEST-REF-001";
     private const string TestEmail = "test@example.com";
     private const string FallbackTemplateId = "test-template-id";
@@ -32,7 +31,7 @@ public sealed class NotifyServiceTests
         var recipients = new[] { TestEmail };
 
         var exception = await Record.ExceptionAsync(() =>
-            service.SendNotificationsAsync(TestRefNumber, DeadlineText, recipients, NotificationType.SubmissionConfirmed, "https://example.com/submit-others"));
+            service.SendNotificationsAsync(TestRefNumber, "5pm on Friday 26 June 2026", recipients, NotificationType.SubmissionConfirmed, "https://example.com/submit-others"));
 
         Assert.Null(exception);
     }
@@ -52,7 +51,7 @@ public sealed class NotifyServiceTests
         var recipients = new[] { TestEmail };
 
         var exception = await Record.ExceptionAsync(() =>
-            service.SendNotificationsAsync(TestRefNumber, DeadlineText, recipients, NotificationType.DataCheckConfirmed));
+            service.SendNotificationsAsync(TestRefNumber, "5pm on Friday 26 June 2026", recipients, NotificationType.DataCheckConfirmed));
 
         Assert.Null(exception);
     }
@@ -65,7 +64,6 @@ public sealed class NotifyServiceTests
         SubmissionNotificationTemplateId = FallbackTemplateId,
         WithdrawNotificationTemplateId = FallbackTemplateId,
         DlqThresholdTemplateId = FallbackTemplateId,
-        DeadlineText = DeadlineText,
     };
 
     private static NotifyService CreateService(NotifySettings settings)

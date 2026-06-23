@@ -16,9 +16,9 @@ public sealed class NotifyServiceTests
         PupilDataCheckConfirmTemplateId = "confirm-template-id",
         PupilDataCheckWithdrawTemplateId = "withdraw-template-id",
         WithdrawNotificationTemplateId = "withdraw-notif-template-id",
-        DlqThresholdTemplateId = "dlq-template-id",
-        DeadlineText = "28 February 2025"
+        DlqThresholdTemplateId = "dlq-template-id"
     };
+    private const string DeadlineText = "28 February 2025";
     private readonly ILogger<Infrastructure.Notify.NotifyService> _logger =
         Substitute.For<ILogger<Infrastructure.Notify.NotifyService>>();
     private readonly Infrastructure.Notify.NotifyService _sut;
@@ -38,7 +38,7 @@ public sealed class NotifyServiceTests
 
         await _sut.SendNotificationsAsync(
             "REF001",
-            _settings.DeadlineText,
+            DeadlineText,
             recipients,
             NotificationType.SubmissionConfirmed);
 
@@ -60,7 +60,7 @@ public sealed class NotifyServiceTests
 
         await _sut.SendNotificationsAsync(
             "REF001",
-            _settings.DeadlineText,
+            DeadlineText,
             recipients,
             NotificationType.SubmissionConfirmed);
 
@@ -77,7 +77,7 @@ public sealed class NotifyServiceTests
 
         await _sut.SendNotificationsAsync(
             "REF001",
-            _settings.DeadlineText,
+            DeadlineText,
             recipients,
             NotificationType.DataCheckConfirmed);
 
@@ -95,7 +95,7 @@ public sealed class NotifyServiceTests
 
         await _sut.SendNotificationsAsync(
             "REF001",
-            _settings.DeadlineText,
+            DeadlineText,
             recipients,
             NotificationType.SubmissionConfirmed,
             url);
@@ -104,7 +104,7 @@ public sealed class NotifyServiceTests
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Is<Dictionary<string, object>>(p =>
-                p.ContainsKey("url") && p["url"].ToString() == url));
+                p.ContainsKey("submit others url") && p["submit others url"].ToString() == url));
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class NotifyServiceTests
             .Returns(x => throw new InvalidOperationException("Notify API failure"));
 
         var exception = await Record.ExceptionAsync(() =>
-            _sut.SendNotificationsAsync("REF001", _settings.DeadlineText, recipients, NotificationType.SubmissionConfirmed));
+            _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed));
 
         Assert.Null(exception);
     }
@@ -138,7 +138,7 @@ public sealed class NotifyServiceTests
         _client.SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
             .Returns(x => throw new InvalidOperationException("Notify API failure"));
 
-        await _sut.SendNotificationsAsync("REF001", _settings.DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
 
         _logger.Received(1).Log(
             Arg.Is<LogLevel>(l => l == LogLevel.Error),
@@ -157,7 +157,7 @@ public sealed class NotifyServiceTests
         _client.SendEmailAsync(recipients[1], Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
             .Returns(Task.CompletedTask);
 
-        await _sut.SendNotificationsAsync("REF001", _settings.DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
 
         await _client.Received(1).SendEmailAsync(recipients[1], Arg.Any<string>(), Arg.Any<Dictionary<string, object>>());
     }
@@ -190,7 +190,7 @@ public sealed class NotifyServiceTests
                 return Task.CompletedTask;
             });
 
-        await sut.SendNotificationsAsync("REF001", _settings.DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
 
         Assert.Equal(3, callCount);
     }
@@ -207,7 +207,7 @@ public sealed class NotifyServiceTests
                 throw new HttpRequestException("Transient network error");
             });
 
-        await _sut.SendNotificationsAsync("REF001", _settings.DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
 
         Assert.Equal(1, callCount);
     }

@@ -22,8 +22,6 @@ public class NotifySettings
     public string DlqThresholdTemplateId { get; set; } = null!;
 
 
-    public string DeadlineText { get; set; } = null!;
-
     public string? LinkBaseUrl { get; set; }
 
     public string? UtmSource { get; set; }

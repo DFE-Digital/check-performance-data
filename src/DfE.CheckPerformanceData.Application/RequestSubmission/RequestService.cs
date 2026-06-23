@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
@@ -14,7 +13,6 @@ public sealed class RequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
     INotifyService notifyService,
-    IOptions<NotifySettings> notifySettings,
     IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
     //IRequestQueueClient requestQueueClient,
@@ -71,9 +69,11 @@ public sealed class RequestService(
 
         var linkUrl = emailLinkGenerator.GenerateLink("WhatToChange", "Index", new { windowId }, "SubmissionNotification");
 
+        var deadline = $"{journey.CheckingWindow.EndDate.ToString("htt").ToLower()} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}";
+
         await notifyService.SendNotificationsAsync(
             refNum,
-            notifySettings.Value.DeadlineText,
+            deadline,
             recipients,
             NotificationType.SubmissionConfirmed,
             linkUrl);
@@ -85,7 +85,7 @@ public sealed class RequestService(
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
-    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
+    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, string deadline)
     {
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
@@ -111,7 +111,7 @@ public sealed class RequestService(
 
         await notifyService.SendNotificationsAsync(
             referenceNumber,
-            notifySettings.Value.DeadlineText,
+            deadline,
             recipients,
             NotificationType.DataCheckConfirmed);
     }

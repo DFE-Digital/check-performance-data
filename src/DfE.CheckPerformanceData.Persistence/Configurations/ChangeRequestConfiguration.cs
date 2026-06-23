@@ -91,5 +91,8 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
         builder.HasIndex(x => new { x.WindowId, x.OrganisationUrn });
 
         builder.HasIndex(x => x.Status);
+        
+        builder.Property(x => x.WorkerStatus)
+            .HasConversion<string>();
     }
 }

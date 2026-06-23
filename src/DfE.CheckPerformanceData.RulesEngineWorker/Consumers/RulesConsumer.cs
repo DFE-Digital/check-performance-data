@@ -164,7 +164,8 @@ public sealed class RulesConsumer : ConsumerBase
                     .SetProperty(r => r.OutcomeKey, decision.OutcomeKey)
                     .SetProperty(r => r.MatchedRuleId, decision.MatchedRuleId)
                     .SetProperty(r => r.RulesVersion, rulesVersion)
-                    .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow),
+                    .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow)
+                    .SetProperty(r => r.WorkerStatus, WorkerStatus.RulesProcessed),
                     cancellationToken);
         }, cancellationToken);
     }

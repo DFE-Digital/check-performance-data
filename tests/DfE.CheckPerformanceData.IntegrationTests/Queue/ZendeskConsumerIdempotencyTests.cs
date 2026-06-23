@@ -78,7 +78,7 @@ public sealed class ZendeskConsumerIdempotencyTests
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.False(string.IsNullOrEmpty(saved.CrmId));
-        Assert.Equal(RequestStatus.ZendeskTicketCreated, saved.Status);
+        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class ZendeskConsumerIdempotencyTests
         await using var verify = _fixture.CreateContext();
         var saved = await verify.ChangeRequests.SingleAsync(r => r.ReferenceNumber == Reference);
         Assert.False(string.IsNullOrEmpty(saved.CrmId));
-        Assert.Equal(RequestStatus.ZendeskTicketCreated, saved.Status);
+        Assert.Equal(WorkerStatus.ZendeskTicketCreated, saved.WorkerStatus);
     }
 
     private async Task<Guid> SeedChangeRequestAsync()
@@ -146,7 +146,8 @@ public sealed class ZendeskConsumerIdempotencyTests
             Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.NewGuid(),
             SubmittedByName = "Test User",
-            Status = RequestStatus.RulesProcessed,
+            WorkerStatus = WorkerStatus.RulesProcessed,
+            Status = RequestStatus.SubmittedCommitted,
             ReferenceNumber = Reference,
             RequestType = RequestType.Amendment,
             RequestTypeDescription = "Not on roll",

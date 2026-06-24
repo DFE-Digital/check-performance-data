@@ -18,7 +18,7 @@ public class WindowListItem
 public class WindowEditItem
 {
     public required Guid Id { get; init; }
-    private string baseEditUrl => $"/admin/windows/edit/{Id}";
+    private string baseEditUrl => $"/admin/windows/{Id}";
     public required string Title { get; set; }
     public string TitleLink
     {

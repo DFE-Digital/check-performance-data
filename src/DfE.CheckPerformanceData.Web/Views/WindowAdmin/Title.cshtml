@@ -1,0 +1,22 @@
+@using DfE.CheckPerformanceData.Web.ViewComponents
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowTitleEditItem
+
+<h1 class="govuk-heading-xl">Edit title for @Model.Title</h1>
+
+<form method="post" action="/admin/windows/@Model.WindowId/title" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+
+    @await Html.PartialAsync("_GovUkTextInput", new GovUkTextInputViewModel
+    {
+        Id = "Title",
+        Name = "Title",
+        Label = "Enter the name of the window",
+        Value = Model.Title
+    })
+
+    @await Html.PartialAsync("_SaveCancelButtonGroup", new SaveCancelButtonGroupViewModel
+    {
+        CancelHref = $"/admin/windows/summary/{Model.WindowId}"
+    })
+</form>

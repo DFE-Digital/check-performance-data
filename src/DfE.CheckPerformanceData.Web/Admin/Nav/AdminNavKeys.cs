@@ -27,4 +27,7 @@ public static class AdminNavKeys
     public const string StorageBrowser = "storage-browser";
     public const string Transactions = "transactions";
     public const string ReplaySubmissions = "replay-submissions";
+
+    public const string DangerZone = "danger-zone";
+    public const string ResetSeedData = "reset-seed-data";
 }

@@ -81,7 +81,11 @@ try
         .AddGovUkFrontend()
         .AddPersistenceDependencies(configuration, seedData)
         .AddApplicationDependencies()
-        .AddAdminNavEntries();
+        .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
+
+    // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
+    // the admin Danger zone "Reset seed data" action.
+    builder.Services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered
@@ -224,20 +228,7 @@ try
     if (seedData)
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DevDataSeeder>().SeedAsync();
-        
-        var pupilDataBlobClient = scope.ServiceProvider.GetRequiredService<IPupilDataBlobClient>();
-        await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
-    
-        var qfBlobClient = scope.ServiceProvider.GetRequiredService<IQuestionFlowBlobClient>();
-        try
-        {
-            await SeedQuestionFlows.ExecuteSeedAsync(qfBlobClient, app.Environment.ContentRootPath);
-        }
-        catch (Azure.RequestFailedException ex) when (app.Environment.IsDevelopment())
-        {
-            app.Logger.LogWarning(ex, "Blob seeding skipped: Azurite returned {Status} {ErrorCode}. Pin azurite to a tag whose API version supports the current Azure.Storage.Blobs SDK if you need flows/pupils seeded locally.", ex.Status, ex.ErrorCode);
-        }
+        await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();
     }
 
     app.UseHttpsRedirection();

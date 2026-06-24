@@ -9,7 +9,6 @@ GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true
 Clarity__ProjectId: wjrp3ai9r0
-SeedDevelopmentData: true
 
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests

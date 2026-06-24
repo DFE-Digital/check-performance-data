@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Reset seed data";
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Reset seed data?</h1>
+
+<div class="govuk-warning-text">
+    <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+    <strong class="govuk-warning-text__text">
+        <span class="govuk-warning-text__assistive">Warning</span>
+        This permanently deletes all change requests and checking windows, then reseeds the
+        database, pupil data and question flows back to the default seeded state. Any data
+        created by testers will be lost. This cannot be undone.
+    </strong>
+</div>
+
+<form method="post" action="/admin/danger-zone/reset-seed-data">
+    @Html.AntiForgeryToken()
+    <div class="govuk-button-group">
+        <button class="govuk-button govuk-button--warning" data-module="govuk-button" data-prevent-double-click="true" type="submit">Reset seed data</button>
+        <a class="govuk-link" href="/admin">Cancel</a>
+    </div>
+</form>

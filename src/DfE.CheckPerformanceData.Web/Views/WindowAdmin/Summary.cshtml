@@ -1,0 +1,50 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowEditItem
+
+<h1 class="govuk-heading-xl">@Model.Title</h1>
+
+<div class="govuk-width-container">
+  <a href="#" class="govuk-back-link">Back</a>
+  <main class="govuk-main-wrapper " id="main-content" role="main">
+    <div class="govuk-grid-row">
+      <div class="govuk-grid-column-two-thirds-from-desktop">
+        <h1 class="govuk-heading-l">Checking Window</h1>
+        <h2 class="govuk-heading-m">Window details</h2>
+        <dl class="govuk-summary-list govuk-!-margin-bottom-9">
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Title", value = @Model.Title, link = Model.TitleLink})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Is Published", value = @Model.IsPublished})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Is Open", value = @Model.IsOpen})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Start Date", value = @Model.StartDate, link = Model.StartDateLink, format = "dd/MM/yyyy"})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "End Date", value = @Model.EndDate, link = "#", format = "dd/MM/yyyy"})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Key Stage", value = @Model.KeyStage, link = "#"})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Checking Window Type", value = @Model.CheckingWindowType, link = "#"})
+        </dl>
+        <h2 class="govuk-heading-m">File details</h2>
+        <dl class="govuk-summary-list govuk-!-margin-bottom-9">
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Ingress File", value = Model.IngressFile, link = Model.IngressFileLink})
+          @await Component.InvokeAsync("SummaryListRow", new { title = "Window Schema File", value = Model.SchemaFile, link = Model.SchemaFileLink})
+        </dl>
+        @if (Model.IsPublished)
+        {
+          <p class="govuk-body">By unpublishing this application you are taking this out of view for all users.</p>
+          <form action="/form-handler" method="post" novalidate>
+            <input type="hidden" name="unpublish-window" value="true">
+            <button type="submit" class="govuk-button" data-module="govuk-button">
+              Unpublish window
+            </button>
+          </form>
+        }
+        else
+        {
+          <p class="govuk-body">If you with to publish this window you will need to start the validation process</p>
+          <form action="/form-handler" method="post" novalidate>
+            <input type="hidden" name="validate-and-publish-window" value="true">
+            <button type="submit" class="govuk-button" data-module="govuk-button">
+              Validate and publish window
+            </button>
+          </form>
+
+        }
+      </div>
+    </div>
+  </main>
+</div>

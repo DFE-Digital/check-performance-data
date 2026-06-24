@@ -1324,25 +1324,34 @@ body.js-enabled .rules-condition__apply {
   border-top: 2px solid #1d70b8;
   padding-top: 15px;
 }
-.guidance-nav__heading { margin-bottom: 10px; }
-.guidance-nav__list, .guidance-nav__sublist { margin-bottom: 0; }
-.guidance-nav__sublist {
-  margin-top: 8px;
-  margin-left: 5px;
-  padding-left: 12px;
-  border-left: 2px solid #b1b4b6;
-}
+.guidance-nav__list { margin-bottom: 0; }
 .guidance-nav__item {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   font-size: 16px;
   line-height: 1.25;
 }
+/* Contents links are not underlined (underline on hover/focus only), per the design. */
+.guidance-nav__link { text-decoration: none; }
+.guidance-nav__link:hover,
+.guidance-nav__link:focus { text-decoration: underline; }
+/* Active item (the current page / top of page) marked with a blue left border. */
+.guidance-nav__item--active {
+  border-left: 4px solid #1d70b8;
+  padding-left: 10px;
+  margin-left: -14px;
+}
+.guidance-nav__item--active .guidance-nav__link { font-weight: 700; }
+/* "Pupil removal reason" — a dark group heading within the list, not a link. */
+.guidance-nav__group {
+  margin: 22px 0 12px;
+  font-weight: 700;
+  color: #0b0c0c;
+  font-size: 16px;
+}
 .guidance-section {
   scroll-margin-top: 20px;
-  padding-top: 10px;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 }
-.guidance-section + .guidance-section { border-top: 1px solid #f3f2f1; }
 .guidance-section__top { margin-top: 10px; }
 
 @media (max-width: 40.0625em) {
@@ -1363,8 +1372,8 @@ body.js-enabled .rules-condition__apply {
 }
 .cypmd-published__heading {
   font-weight: 700;
-  font-size: 1.1875rem;
-  line-height: 1.3157894737;
+  font-size: 1.5rem;
+  line-height: 1.25;
   margin-bottom: 10px;
 }
 
@@ -1387,13 +1396,22 @@ body.js-enabled .rules-condition__apply {
   border: 1px solid #b1b4b6;
   border-bottom: 3px solid #b1b4b6;
 }
-.cypmd-card__title { margin-bottom: 10px; }
+/* Higher specificity than .govuk-heading-s so the larger card-title size wins. */
+.cypmd-card .cypmd-card__title { margin-bottom: 10px; font-size: 1.5rem; line-height: 1.0416666667; }
+.cypmd-card__title a { font-size: inherit; text-decoration: none; }
+.cypmd-card__title a:hover,
+.cypmd-card__title a:focus { text-decoration: underline; }
 .cypmd-card__updated {
   font-size: 1rem;
   line-height: 1.25;
   margin-bottom: 12px;
 }
-.cypmd-card__updated .govuk-tag { margin-left: 6px; vertical-align: baseline; }
+.cypmd-card__updated .govuk-tag {
+  margin-left: 6px;
+  vertical-align: baseline;
+  font-size: 1rem;
+  font-weight: 700;
+}
 .cypmd-card > :last-child { margin-bottom: 0; }
 
 /* The guidance-page lede sits a little tighter to the editable heading blocks. */

@@ -32,6 +32,13 @@
     <div class="govuk-grid-column-two-thirds">
         @await Component.InvokeAsync("EditableTitle", new
         {
+            key = "guidance-ks4-2026-caption",
+            defaultText = "Guidance",
+            headingLevel = "span",
+            cssClass = "govuk-caption-l"
+        })
+        @await Component.InvokeAsync("EditableTitle", new
+        {
             key = Model.TitleBlockKey,
             defaultText = Model.Title,
             headingLevel = "h1",

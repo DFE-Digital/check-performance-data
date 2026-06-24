@@ -26,6 +26,8 @@ public sealed class ClaimsEnrichmentService(IDfESignInApiClient apiClient) : ICl
         
         var newIdentity = new ClaimsIdentity(roleClaims, "DfeSignIn");
         newIdentity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
+        if(organisation!.Ukprn != null)
+            newIdentity.AddClaim(new Claim("ukprn", organisation.Ukprn, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_name", organisation!.Name, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_urn", organisation.Urn, ClaimValueTypes.String));
         newIdentity.AddClaim(new Claim("organisation_laestab", organisation.Laestab, ClaimValueTypes.String));

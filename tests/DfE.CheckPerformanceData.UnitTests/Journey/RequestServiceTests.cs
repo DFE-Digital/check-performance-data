@@ -1,11 +1,14 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -18,6 +21,11 @@ public class RequestServiceTests
     private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
+    private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
+    private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
+    private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
+    private readonly IEmailLinkGenerator _emailLinkGenerator = Substitute.For<IEmailLinkGenerator>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly RequestService _sut;
 
@@ -26,10 +34,11 @@ public class RequestServiceTests
         _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.Email.Returns("test.user@education.gov.uk");
+        _currentUser.OrganisationId.Returns("00000000-0000-0000-0000-000000000001");
         _currentUser.OrganisationUrn.Returns("100000");
+        _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
-            _queueService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _notifyService, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _emailLinkGenerator, _queueService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -519,7 +528,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999");
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999", "5pm on Friday 26 June 2026");
 
         Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
         Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
@@ -562,6 +571,132 @@ public class RequestServiceTests
         var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
 
         Assert.Null(result);
+    }
+
+    // ── ConfirmRequestAsync — recipient routing ─────────────────────────────
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SendsNotificationsConsolidatedCall()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(_currentUser.Email)),
+            NotificationType.SubmissionConfirmed,
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SendsNotificationsToOrganisationUsers()
+    {
+        var orgUserEmail = "orguser@school.co.uk";
+        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
+            .Returns(new OrganisationUsersResponseDto
+            {
+                Users =
+                [
+                    new OrganisationUserDto
+                    {
+                        FirstName = "Org",
+                        LastName = "User",
+                        Email = orgUserEmail
+                    }
+                ]
+            });
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(orgUserEmail)),
+            NotificationType.SubmissionConfirmed,
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SendsNotificationsOnceWithAllRecipients()
+    {
+        var orgUserEmail = "orguser@school.co.uk";
+        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
+            .Returns(new OrganisationUsersResponseDto
+            {
+                Users =
+                [
+                    new OrganisationUserDto
+                    {
+                        FirstName = "Org",
+                        LastName = "User",
+                        Email = orgUserEmail
+                    }
+                ]
+            });
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<IReadOnlyCollection<string>>(),
+            Arg.Any<NotificationType>(),
+            Arg.Any<string?>());
+    }
+
+    // ── ConfirmDataCorrectAsync ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_SendsNotificationConsolidatedCall()
+    {
+        var refNum = "CYPMD_KS4June_ABC1234";
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, "5pm on Friday 26 June 2026");
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            refNum,
+            "5pm on Friday 26 June 2026",
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Contains(_currentUser.Email)),
+            NotificationType.DataCheckConfirmed,
+            Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_LogsEmailSendAttempt()
+    {
+        var refNum = "CYPMD_KS4June_ABC1234";
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, "5pm on Friday 26 June 2026");
+
+        _logger.Received(1).Log(
+            Arg.Is<LogLevel>(l => l == LogLevel.Information),
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("Sending Pupil Data Check Confirm email")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_LogsSubmissionNotificationAttempt()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        _logger.Received(1).Log(
+            Arg.Is<LogLevel>(l => l == LogLevel.Information),
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o => o.ToString()!.Contains("Sending Submission Notification emails")),
+            Arg.Any<Exception?>(),
+            Arg.Any<Func<object, Exception?, string>>());
     }
 
     [Fact]

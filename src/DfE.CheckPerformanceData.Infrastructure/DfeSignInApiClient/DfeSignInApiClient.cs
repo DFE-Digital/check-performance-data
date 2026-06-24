@@ -51,7 +51,27 @@ public sealed class DfeSignInApiClient(HttpClient httpClient, IOptions<DfeSignin
 
         return userRoles.Roles;
     }
-    
+
+
+
+    public async Task<OrganisationUsersResponseDto?> GetOrganisationUsersAsync(string ukprn, string[]? roles = null)
+    {
+        var url = roles is { Length: > 0 }
+            ? $"organisations/{ukprn}/users?roles={Uri.EscapeDataString(string.Join(",", roles))}"
+            : $"organisations/{ukprn}/users";
+
+        try
+        {
+            return await httpClient.GetFromJsonAsync<OrganisationUsersResponseDto>(
+                url,
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private class DfeUserAccessResponse
     {
         public List<RoleDto> Roles { get; init; } = [];

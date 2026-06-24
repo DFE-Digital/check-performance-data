@@ -6,13 +6,13 @@ using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
-using DfE.CheckPerformanceData.Infrastructure.Notifications;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -24,10 +24,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Notify.Client;
 using Refit;
+using DfE.CheckPerformanceData.Infrastructure.Notify;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
@@ -41,10 +44,10 @@ public static class DependencyManager
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
 
-        services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
-        // GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
-        // dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
-        services.AddSingleton<INotifyClient, NoOpNotifyClient>();
+        //services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
+        //// GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
+        //// dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
+        //services.AddSingleton<INotifyService, NotifyService>();
 
         // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
         // the Web host) because the Persistence repositories that consume it are pulled in
@@ -284,6 +287,42 @@ public static class DependencyManager
             .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
             .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
             .ValidateOnStart();
+
+        return services;
+    }
+
+    public static IServiceCollection AddNotifyService(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddOptions<NotifySettings>()
+            .Bind(config.GetSection(NotifySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<PollySettings>()
+            .Bind(config.GetSection("NotifyPollySettings"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<NotificationClient>(sp =>
+        {
+            var notifySettings = sp.GetRequiredService<IOptions<NotifySettings>>().Value;
+            return new NotificationClient(notifySettings.ApiKey);
+        });
+
+        services.AddSingleton<INotifyEmailClient>(sp =>
+        {
+            var client = sp.GetRequiredService<NotificationClient>();
+            return new NotifyEmailClient(client);
+        });
+
+        services.AddSingleton<ResiliencePipeline>(sp =>
+        {
+            var settings = sp.GetRequiredService<IOptions<PollySettings>>().Value;
+            var logger = sp.GetRequiredService<ILogger<NotifyService>>();
+            return ResiliencePipelineFactory.CreateNotifyRetryPipeline(settings, logger);
+        });
+
+        services.AddSingleton<INotifyService, NotifyService>();
 
         return services;
     }

@@ -1,5 +1,19 @@
 ---
 ASPNETCORE_ENVIRONMENT: Review
+
+# Notify template IDs, deadline text, and UTM parameters
+Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2
+Notify__PupilDataCheckWithdrawTemplateId: 5e506276-2a7f-4208-8c0e-ade7ec46c457
+Notify__SubmissionNotificationTemplateId: f123aa5f-be65-4a57-8e6e-66b323337095
+Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
+Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
+Notify__LinkBaseUrl: https://check-performance-data-development.test.teacherservices.cloud/
+Notify__UtmSource: dev-check-performance-data
+Notify__UtmMedium: email
+Notify__UtmCampaigns__submission-confirm: pr-submission-confirm
+Notify__UtmCampaigns__withdraw-confirm: pr-withdraw-confirm
+Notify__UtmCampaigns__pupil-data-check: pr-pupil-data-check
+
 DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk

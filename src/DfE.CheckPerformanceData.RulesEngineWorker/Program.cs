@@ -36,6 +36,7 @@ builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalD
 
 builder.Services.AddZendeskApiClient(builder.Configuration);
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
+builder.Services.AddNotifyService(builder.Configuration);
 
 // When Zendesk:UseFake is set the real Zendesk service is replaced with a fake that captures
 // "created" tickets into the shared dev outbox table, so the rules-engine pipeline can be

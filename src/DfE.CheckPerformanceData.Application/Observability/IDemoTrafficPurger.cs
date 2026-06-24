@@ -15,7 +15,9 @@ public interface IDemoTrafficPurger
 //   SEED-      PipelineMetricsSeeder (the "Seed messages" bulk history)
 //   demo-fail- DevUat InjectFailure + DevQueueSeed InjectFailureDemo (demo-fail-{preset}-…)
 //   uat-dlq-   DevUat SeedDlq
-//   e2e-dlq-   DevQueueSeed SeedDeadLetter (also used by the E2E harness)
+//   e2e-       the E2E harness mints every seeded reference as e2e-{guid}-… (SeedHelpers),
+//              including the seeded dead-letters; the broad e2e- prefix covers them all so a
+//              purge leaves the dashboard deterministically empty for the visual-regression test
 //   load-      DevUat LoadTest (load-… drives + load-fail-… failures)
 public static class DemoTrafficPrefixes
 {
@@ -25,7 +27,7 @@ public static class DemoTrafficPrefixes
         "SEED-",
         "demo-fail-",
         "uat-dlq-",
-        "e2e-dlq-",
+        "e2e-",
         "load-",
     };
 }

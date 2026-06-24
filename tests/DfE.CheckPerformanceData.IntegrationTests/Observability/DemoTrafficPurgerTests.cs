@@ -7,7 +7,7 @@ using MetricEntity = DfE.CheckPerformance.Persistence.Entities.QueueMetricEvent;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 
-// The demo-traffic purge removes synthetic demo rows (DEV-/SEED-/demo-fail-/uat-dlq-/e2e-dlq-)
+// The demo-traffic purge removes synthetic demo rows (DEV-/SEED-/demo-fail-/uat-dlq-/e2e-/load-)
 // from queue_metrics_events, queue_dead_letters and queue_messages while leaving real submissions
 // untouched. Real Postgres so the ILIKE prefix / payload matching is exercised against the engine.
 [Collection(nameof(PostgresCollection))]

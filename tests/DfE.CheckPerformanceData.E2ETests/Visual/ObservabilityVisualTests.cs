@@ -45,8 +45,30 @@ public sealed class ObservabilityVisualTests(PlaywrightFixture fixture) : Seedin
                 }
             }
 
+            // Purge all demo / E2E-seeded traffic so the dashboard renders its deterministic empty
+            // state. Other tests in the E2E collection drive metric events and seed dead-letters
+            // (DEV-/SEED-/e2e-/… prefixes) that otherwise leave the matrix, tiles, charts and health
+            // strip in an order-dependent state and flake this full-page snapshot. The admin
+            // impersonation cookie set above is auto-attached by TestHttpClients.SendAsync.
+            using (var purge = new HttpRequestMessage(HttpMethod.Post, $"{Fixture.BaseUrl}/dev/uat/purge-demo"))
+            {
+                await TestHttpClients.SendAsync(purge);
+            }
+
             await Page.GotoAsync($"{Fixture.BaseUrl}/admin/observability");
             await Page.StabiliseAsync();
+
+            // After the purge the only volatile region is the "Refreshed at <timestamp>" hint, which
+            // changes on every render; neutralise it so the snapshot is byte-stable.
+            await Page.EvaluateAsync(@"() => {
+                document.querySelectorAll('p.govuk-hint').forEach(p => {
+                    if (p.textContent && p.textContent.indexOf('Refreshed at') === 0) {
+                        p.textContent = 'Refreshed at [stable].';
+                    }
+                });
+            }");
+            await Page.EvaluateAsync(
+                "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
 
             await Page.MatchSnapshotAsync("observability-dashboard-page.png");
         }

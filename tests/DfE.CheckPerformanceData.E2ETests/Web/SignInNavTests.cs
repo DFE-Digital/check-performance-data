@@ -23,8 +23,29 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
     [Fact]
     public async Task SignInCluster_RoundTrips_ThroughImpersonationAndSignOut()
     {
+        // This split-button cluster drives several JS toggles and two full-page reloads
+        // (impersonate, sign-out). On a loaded CI/dev host the default 5s action and assertion
+        // budgets are occasionally too tight for the post-reload nav to settle, which made this
+        // test flaky. Give the interactions a more generous, explicit budget — assertions still
+        // fail fast on a genuine regression, there is just more slack for a slow host. The expect
+        // timeout is global, so it is restored in the finally below.
+        Page.SetDefaultTimeout(20_000);
+        Page.SetDefaultNavigationTimeout(30_000);
+        Assertions.SetDefaultExpectTimeout(15_000);
         try
         {
+            // Suppress the cookie-consent banner by recording consent up front. The banner is
+            // un-hidden by JS after load and pushes the nav down; if it appears mid-interaction it
+            // shifts the sign-in cluster and the toggle click can mistarget — the source of this
+            // test's intermittent 30s timeout. cookies.js shows the banner only when
+            // getAnalyticsConsent() === null, so a present cookie keeps the layout stable.
+            await Context.AddCookiesAsync([new Cookie
+            {
+                Name = "cookies_policy",
+                Value = "{\"analytics\":false}",
+                Url = _fixture.BaseUrl
+            }]);
+
             await Page.GotoAsync($"{_fixture.BaseUrl}/");
 
             // 1. Anonymous: "Sign in" link visible, caret button visible, dropdown hidden.
@@ -69,6 +90,9 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
         }
         finally
         {
+            // Restore the global expect timeout for the rest of the (sequential) E2E collection.
+            Assertions.SetDefaultExpectTimeout(5_000);
+
             // Restore the fixture-level editor cookie so subsequent tests in the
             // collection can still seed. ImpersonateAsEditorAsync overwrites both the
             // server cookie and the shared TestHttpClients.ImpersonationCookieHeader

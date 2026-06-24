@@ -149,6 +149,13 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
                 }
             }
 
+            // Block the live SSE feed so the page's own board engine receives no snapshots. Without
+            // this, that engine and the throwaway engine this test starts both render into the same
+            // matrix DOM, and an SSE snapshot (with the page engine's empty row set) re-renders over
+            // the rows this test drove — a race that made the test flaky. With the feed blocked the
+            // test's engine is the only thing rendering the matrix, so the drive is deterministic.
+            await Page.RouteAsync("**/admin/observability/stream*", route => route.AbortAsync());
+
             await Page.GotoAsync($"{Fixture.BaseUrl}/admin/observability");
             await Page.WaitForLoadStateAsync(LoadState.Load);
 

@@ -19,4 +19,5 @@ public sealed record UncommittedRequestRow
     public DecisionStatus? Outcome { get; init; }
     public string? MatchedRule { get; init; }
     public DateTime? DecidedAtUtc { get; init; }
+    public string? CrmId { get; init; }
 }

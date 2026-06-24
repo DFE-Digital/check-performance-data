@@ -15,7 +15,7 @@ internal sealed class PortalDbContextFactory : IDesignTimeDbContextFactory<Porta
     public PortalDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<PortalDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Database=design-time-placeholder;Username=placeholder");
+        optionsBuilder.UseNpgsql("Host=localhost;Database=cypd;Username=postgres;Password=postgres");
 
         return new PortalDbContext(optionsBuilder.Options, new NullCurrentUserService());
     }

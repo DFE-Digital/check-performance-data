@@ -13,7 +13,9 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 // root.
 public static class AdminNavServiceCollectionExtensions
 {
-    public static IServiceCollection AddAdminNavEntries(this IServiceCollection services)
+    // includeDangerZone gates the destructive "Danger zone" group + tile. Program.cs passes
+    // !IsProduction() so the reset action is never registered (and so never reachable) in prod.
+    public static IServiceCollection AddAdminNavEntries(this IServiceCollection services, bool includeDangerZone = false)
     {
         // Some entries may resolve state from configuration. Provide an empty fallback so a bare
         // service collection (e.g. in registry tests) can still resolve the entries; the host's own
@@ -40,6 +42,13 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
+
+        if (includeDangerZone)
+        {
+            services.AddSingleton<IAdminNavEntry, DangerZoneGroupNavEntry>();
+            services.AddSingleton<IAdminNavEntry, ResetSeedDataNavEntry>();
+        }
+
         return services;
     }
 }

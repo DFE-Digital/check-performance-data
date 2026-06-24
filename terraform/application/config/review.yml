@@ -53,8 +53,43 @@ ZendeskSettings__Domain: zendesk
 
 # School Checking Exercise Zendesk settings
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
-SchoolCheckingExercise__GroupId: 0
-SchoolCheckingExercise__BrandId: 0
-SchoolCheckingExercise__DecisionStatusCustomFieldId: 0
-SchoolCheckingExercise__OutcomeKeyCustomFieldId: 0
-SchoolCheckingExercise__MatchedRuleIdCustomFieldId: 0
+SchoolCheckingExercise__GroupId: 16886472637330
+SchoolCheckingExercise__BrandId: 16853215883538
+ 
+# Zendesk Ticket Field IDs
+ 
+ZendeskTicketFields__UpnId: 17207966711570
+ 
+ZendeskTicketFields__TypeOfOrganisationId: 360013574700
+ 
+ZendeskTicketFields__SurnameCypmdId: 19058409672594
+ 
+ZendeskTicketFields__SexId: 19058550118802
+ 
+ZendeskTicketFields__SchoolUrnId: 17207989310226
+ 
+ZendeskTicketFields__ReasonForRemovalId: 19381440546322
+ 
+ZendeskTicketFields__LdsMatchedPupilIdId: 17207993784978
+ 
+ZendeskTicketFields__KeyStageId: 19058126549778
+ 
+ZendeskTicketFields__DfeEstablishmentNumberId: 17207944800146
+ 
+ZendeskTicketFields__DecisionStatusId: 19056253670034
+ 
+ZendeskTicketFields__DateOfBirthCypmdId: 17208002901906
+ 
+ZendeskTicketFields__CypmdId: 20433125966866
+ 
+ZendeskTicketFields__CycleYearId: 19058058434322
+ 
+ZendeskTicketFields__CycleMonthId: 19058091622546
+ 
+ZendeskTicketFields__CorrectionTypeId: 19056595594898
+ 
+ZendeskTicketFields__CorrectionReason31Id: 19058912556690
+ 
+ZendeskTicketFields__AdmissionDateId: 17208027233554
+ 
+ZendeskTicketFields__ForenameCypmdId: 19058507283218

@@ -164,7 +164,7 @@ public sealed class ZendeskConsumer : ConsumerBase
                 .Where(r => r.ReferenceNumber == message.ReferenceNumber && r.CrmId == null)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.CrmId, crmId)
-                    .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreated),
+                    .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreated),
                     cancellationToken);
         }, cancellationToken);
 
@@ -188,9 +188,9 @@ public sealed class ZendeskConsumer : ConsumerBase
             claimed = await _dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == referenceNumber
                     && r.CrmId == null
-                    && r.Status == RequestStatus.RulesProcessed)
+                    && r.WorkerStatus == WorkerStatus.RulesProcessed)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreating),
+                    .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreating),
                     cancellationToken);
         }, cancellationToken);
 

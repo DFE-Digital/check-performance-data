@@ -30,4 +30,8 @@ public static class AdminNavKeys
 
     public const string DangerZone = "danger-zone";
     public const string ResetSeedData = "reset-seed-data";
+    
+    public const string WindowAdmin = "window-admin";
+    public const string NewWindow = "new-window";
+    public const string ManageWindow = "manage-window";
 }

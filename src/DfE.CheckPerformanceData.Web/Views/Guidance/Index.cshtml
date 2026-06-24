@@ -31,11 +31,14 @@
             </div>
         </form>
 
-        @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-signin-heading", defaultText = "How to sign in to the CYPMD service", headingLevel = "h2", cssClass = "govuk-heading-m" })
-        @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-signin", defaultHtml = "<p class=\"govuk-body\">Sign-in guidance.</p>" })
+        <section class="cypmd-landing-section">
+            @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-signin-heading", defaultText = "How to sign in to the CYPMD service", headingLevel = "h2", cssClass = "govuk-heading-l" })
+            <hr class="govuk-section-break govuk-section-break--visible cypmd-landing-section__rule">
+            @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-signin", defaultHtml = "<p class=\"govuk-body\">Sign-in guidance.</p>" })
 
-        @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-alerts-heading", defaultText = "Get email alerts", headingLevel = "h2", cssClass = "govuk-heading-m" })
-        @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-alerts", defaultHtml = "<p class=\"govuk-body\">Email alerts.</p>" })
+            @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-alerts-heading", defaultText = "Get email alerts", headingLevel = "h3", cssClass = "govuk-heading-m" })
+            @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-alerts", defaultHtml = "<p class=\"govuk-body\">Email alerts.</p>" })
+        </section>
 
         @foreach (var s in new[]
         {

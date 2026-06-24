@@ -7,16 +7,14 @@
         "includes": [
           "all"
         ],
-
-        "launchBrowser": true,
-        "launchUrl": "http://localhost:8080",
-        "applicationUrl": "https://localhost:8080",
-        "environmentVariables": {
-          "ASPNETCORE_ENVIRONMENT": "Development"
+        "serviceActions": {
+          "web": "StartDebugging",
+          "rules_engine": "StartDebugging"
         }
-
-      }
+      },
+      "composeLaunchAction": "LaunchBrowser",
+      "composeLaunchServiceName": "web",
+      "composeLaunchUrl": "{Scheme}://localhost:{ServicePort}"
     }
   }
 }
-

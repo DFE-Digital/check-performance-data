@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>dotnet-DfE.CheckPerformanceData.RulesEngineWorker-65e2dd31-ae3f-4e24-b74c-33c96d50bf87</UserSecretsId>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <DockerfileContext>..</DockerfileContext>
     </PropertyGroup>
 
     <ItemGroup>
@@ -15,6 +16,7 @@
     <ItemGroup>
         <PackageReference Include="Azure.Storage.Blobs" />
         <PackageReference Include="Azure.Storage.Common" />
+        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
     </ItemGroup>
 
     <ItemGroup>

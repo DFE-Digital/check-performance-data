@@ -7,6 +7,8 @@
 .env
 .env.bak
 .env.*
+# ...but keep the committed template that documents required local vars.
+!.env.example
 
 # User-specific files
 *.rsuser

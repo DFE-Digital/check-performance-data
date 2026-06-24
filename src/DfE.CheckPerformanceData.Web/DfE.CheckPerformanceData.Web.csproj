@@ -36,4 +36,7 @@
     <None Include="..\DfE.CheckPerformanceData.RulesEngineWorker\seed\rules.json" Link="seed\rules.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\DfE.CheckPerformanceData.RulesEngineWorker\seed\country-languages.json" Link="seed\country-languages.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Controllers\WindowAdmin\" />
+  </ItemGroup>
 </Project>

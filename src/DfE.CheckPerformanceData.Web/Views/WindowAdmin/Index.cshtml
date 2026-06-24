@@ -1,0 +1,40 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowViewModel
+
+@{
+    ViewData["Title"] = "Window Admin";
+}
+
+<h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
+
+@if (Model.Windows.Count < 1)
+{
+    <p class="govuk-body">No valid windows</p>
+}
+else
+{
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-visually-hidden">Windows</caption>
+        <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th scope="col" class="govuk-table__header">Name</th>
+            <th scope="col" class="govuk-table__header">Active</th>
+            <th scope="col" class="govuk-table__header">Published</th>
+            <th scope="col" class="govuk-table__header">Actions</th>
+        </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+        @foreach (WindowListItem window in Model.Windows)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell">@window.Name</td>
+                <td class="govuk-table__cell">@window.IsOpen</td>
+                <td class="govuk-table__cell">@window.IsPublished</td>
+                <td class="govuk-table__cell">
+                    <a class="govuk-link" href="/admin/windows/edit/@window.Id">Edit</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

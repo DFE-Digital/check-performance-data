@@ -28,4 +28,7 @@ public sealed class CheckingWindowDto
     public string IngressFileChecksum { get; set; } = string.Empty;
     public string SchemaFile { get; set; } = string.Empty;
     public string SchemaFileChecksum { get; set; } = string.Empty;
+    public bool Validated { get; set; }
+    public DateTime? ValidatedAt { get; set; }
 }
+

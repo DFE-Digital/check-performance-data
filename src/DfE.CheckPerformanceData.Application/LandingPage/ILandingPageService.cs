@@ -23,15 +23,11 @@ public sealed class LandingPageResult
 public sealed class CheckingWindowDto
 {
     public Guid Id { get; init; }
-    public required string Title { get; set; }
-    public required DateTime EndDate { get; set; }
-    public required KeyStages KeyStage { get; set; }
-    public required CheckingWindowType CheckingWindowType { get; set; }
+    public required string Title { get; init; }
+    public required DateTime EndDate { get; init; }
+    public required KeyStages KeyStage { get; init; }
+    public required CheckingWindowType CheckingWindowType { get; init; }
     public bool HasPupilData { get; init; }
-    public required DateTime StartDate { get; set; }
-    public string IngressFile { get; set; } = string.Empty;
-    public string IngressFileChecksum { get; set; } = string.Empty;
-    public string SchemaFile { get; set; } = string.Empty;
-    public string SchemaFileChecksum { get; set; } = string.Empty;
+    public required DateTime StartDate { get; init; }
 }
 

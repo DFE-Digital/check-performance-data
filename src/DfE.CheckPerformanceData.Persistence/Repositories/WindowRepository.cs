@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using WindowValidated = DfE.CheckPerformanceData.Persistence.Entities.WindowValidated;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
@@ -22,7 +23,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 IngressFile = w.IngressFile,
                 IngressFileChecksum = w.IngressFileChecksum,
                 SchemaFile = w.SchemaFile,
-                SchemaFileChecksum = w.SchemaFileChecksum
+                SchemaFileChecksum = w.SchemaFileChecksum,
+                Validated = w.Validated != null,
+                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null)
             })
             .ToListAsync(cancellationToken);
     
@@ -41,7 +44,9 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 IngressFile = w.IngressFile,
                 IngressFileChecksum = w.IngressFileChecksum,
                 SchemaFile = w.SchemaFile,
-                SchemaFileChecksum = w.SchemaFileChecksum
+                SchemaFileChecksum = w.SchemaFileChecksum,
+                Validated = w.Validated != null,
+                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null)
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -58,7 +63,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             IngressFile = window.IngressFile,
             IngressFileChecksum = window.IngressFileChecksum,
             SchemaFile = window.SchemaFile,
-            SchemaFileChecksum = window.SchemaFileChecksum
+            SchemaFileChecksum = window.SchemaFileChecksum,
+            Validated =new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
         });
         return dbContext.SaveChangesAsync(cancellationToken);
     }

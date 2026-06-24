@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
@@ -32,7 +33,7 @@ public sealed class SubmittedRequestRowViewModel
         _ => "Submitted"
     };
 
-    public string SubmittedDateText => Submitted.ToString("d MMMM yyyy");
+    public string SubmittedDateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");
 
     public bool ShowDelete => Status != RequestStatus.Withdrawn;
 }

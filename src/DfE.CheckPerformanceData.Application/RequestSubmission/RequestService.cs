@@ -64,9 +64,10 @@ public sealed class RequestService(
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
-            // Local (wall-clock) time, not UTC — the "Submitted by → When" display must
-            // survive BST/GMT without a daylight-savings offset (see ConfirmRequestAsync).
-            Timestamp = DateTime.Now,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,
@@ -137,9 +138,10 @@ public sealed class RequestService(
             PupilUpn = journey.SelectedPupil!.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
-            // Local (wall-clock) time, not UTC — the "Submitted" timestamp must survive
-            // BST/GMT without a daylight-savings offset, matching ConfirmDataCorrectAsync.
-            Timestamp = DateTime.Now,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,

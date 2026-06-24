@@ -15,6 +15,9 @@ public sealed record GuidancePage
     /// <summary>Lede / introduction content block shown above the first section.</summary>
     public required string IntroBlockKey { get; init; }
 
+    /// <summary>"Published / last reviewed" blue callout block shown under the lede.</summary>
+    public required string PublishedBlockKey { get; init; }
+
     /// <summary>The single editable content block holding the in-page side navigation.</summary>
     public required string NavBlockKey { get; init; }
 
@@ -36,6 +39,7 @@ public sealed record GuidancePage
             Anchor = anchor,
             NavTitle = title,
             Level = level,
+            HeadingBlockKey = ns + anchor + "-heading",
             BlockKey = ns + anchor
         };
 
@@ -44,6 +48,7 @@ public sealed record GuidancePage
             Title = "How to check your performance measures data: KS4 June 2026",
             TitleBlockKey = ns + "title",
             IntroBlockKey = ns + "intro",
+            PublishedBlockKey = ns + "published",
             NavBlockKey = ns + "nav",
             Sections =
             [

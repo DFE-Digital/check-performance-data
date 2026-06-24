@@ -44,17 +44,24 @@
             defaultHtml = "<p class=\"govuk-body\">Guidance introduction to be added.</p>"
         })
 
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = Model.PublishedBlockKey,
+            defaultHtml = "<div class=\"cypmd-published\"><p class=\"cypmd-published__heading\">Published</p></div>"
+        })
+
         @foreach (var sec in Model.Sections)
         {
             <section id="@sec.Anchor" class="guidance-section">
-                @if (sec.Level == 3)
+                @* P1: the section heading is itself an editable Title block (not template text);
+                   the stable anchor lives on the <section> wrapper so links never drift. *@
+                @await Component.InvokeAsync("EditableTitle", new
                 {
-                    <h3 class="govuk-heading-m">@sec.NavTitle</h3>
-                }
-                else
-                {
-                    <h2 class="govuk-heading-l">@sec.NavTitle</h2>
-                }
+                    key = sec.HeadingBlockKey,
+                    defaultText = sec.NavTitle,
+                    headingLevel = sec.HeadingElement,
+                    cssClass = sec.HeadingCssClass
+                })
 
                 @await Component.InvokeAsync("EditableContent", new
                 {

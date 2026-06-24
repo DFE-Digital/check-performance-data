@@ -62,6 +62,21 @@ public sealed class GuidanceControllerTests
     }
 
     [Fact]
+    public void Ks4June2026_Page_EverySection_HasItsOwnEditableHeadingBlock()
+    {
+        var page = Assert.IsType<GuidancePage>(Assert.IsType<ViewResult>(_sut.Ks4June2026()).Model);
+
+        // P1: section headings must themselves be editable content blocks (distinct from the body).
+        var headingKeys = page.Sections.Select(s => s.HeadingBlockKey).ToList();
+        Assert.Equal(headingKeys.Count, headingKeys.Distinct().Count());
+        Assert.All(page.Sections, s =>
+        {
+            Assert.StartsWith("guidance-ks4-2026-", s.HeadingBlockKey);
+            Assert.NotEqual(s.BlockKey, s.HeadingBlockKey);
+        });
+    }
+
+    [Fact]
     public void Ks4June2026_Page_CoversTheKnownLandmarkSections()
     {
         var page = Assert.IsType<GuidancePage>(Assert.IsType<ViewResult>(_sut.Ks4June2026()).Model);
@@ -100,6 +115,7 @@ public sealed class GuidanceControllerTests
         Assert.Equal("guidance-ks4-2026-nav", page.NavBlockKey);
         Assert.Equal("guidance-ks4-2026-title", page.TitleBlockKey);
         Assert.Equal("guidance-ks4-2026-intro", page.IntroBlockKey);
+        Assert.Equal("guidance-ks4-2026-published", page.PublishedBlockKey);
     }
 
     private static string? RouteTemplateOf(string actionName)

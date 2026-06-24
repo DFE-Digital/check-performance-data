@@ -1,5 +1,5 @@
 @{
-    ViewData["Title"] = "Guidance";
+    ViewData["Title"] = "CYPMD help and support";
 }
 
 <nav class="govuk-breadcrumbs" aria-label="Breadcrumb">
@@ -7,25 +7,49 @@
         <li class="govuk-breadcrumbs__list-item">
             <a class="govuk-breadcrumbs__link" href="/">Home</a>
         </li>
-        <li class="govuk-breadcrumbs__list-item" aria-current="page">Guidance</li>
+        <li class="govuk-breadcrumbs__list-item" aria-current="page">CYPMD help and support</li>
     </ol>
 </nav>
 
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
-        <h1 class="govuk-heading-xl">Guidance</h1>
-
-        @await Component.InvokeAsync("EditableContent", new
+        <span class="govuk-caption-l">Check your performance measures data (CYPMD)</span>
+        @await Component.InvokeAsync("EditableTitle", new
         {
-            key = "guidance-home-content",
-            defaultHtml = "<p class=\"govuk-body\">Guidance for schools and colleges on how to use the check your performance measures data (CYPMD) service.</p>"
+            key = "guidance-landing-title",
+            defaultText = "CYPMD help and support",
+            headingLevel = "h1",
+            cssClass = "govuk-heading-xl"
         })
+        @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-intro", defaultHtml = "<p class=\"govuk-body\">Guidance for schools and colleges.</p>" })
 
-        <h2 class="govuk-heading-m">Checking exercises</h2>
-        <ul class="govuk-list">
-            <li>
-                <a class="govuk-link" href="/guidance/2026-ks4-june-checking-exercise">How to check your performance measures data: KS4 June 2026</a>
-            </li>
-        </ul>
+        <form class="cypmd-search" action="#" method="get" role="search">
+            <label class="govuk-label govuk-label--s" for="cypmd-search">Search CYPMD help and support</label>
+            <div class="cypmd-search__row">
+                <input class="govuk-input cypmd-search__input" id="cypmd-search" name="q" type="search">
+                <button type="submit" class="govuk-button cypmd-search__button" data-module="govuk-button">Search</button>
+            </div>
+        </form>
+
+        @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-signin-heading", defaultText = "How to sign in to the CYPMD service", headingLevel = "h2", cssClass = "govuk-heading-m" })
+        @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-signin", defaultHtml = "<p class=\"govuk-body\">Sign-in guidance.</p>" })
+
+        @await Component.InvokeAsync("EditableTitle", new { key = "guidance-landing-alerts-heading", defaultText = "Get email alerts", headingLevel = "h2", cssClass = "govuk-heading-m" })
+        @await Component.InvokeAsync("EditableContent", new { key = "guidance-landing-alerts", defaultHtml = "<p class=\"govuk-body\">Email alerts.</p>" })
+
+        @foreach (var s in new[]
+        {
+            ("ks4", "Key stage 4 data checks"),
+            ("ks2", "Key stage 2 data checks"),
+            ("1619", "16 to 19 data checks")
+        })
+        {
+            <section class="cypmd-landing-section">
+                @await Component.InvokeAsync("EditableTitle", new { key = $"guidance-landing-{s.Item1}-heading", defaultText = s.Item2, headingLevel = "h2", cssClass = "govuk-heading-l" })
+                <hr class="govuk-section-break govuk-section-break--visible cypmd-landing-section__rule">
+                @await Component.InvokeAsync("EditableContent", new { key = $"guidance-landing-{s.Item1}-intro", defaultHtml = "<p class=\"govuk-body\">Section introduction.</p>" })
+                @await Component.InvokeAsync("EditableContent", new { key = $"guidance-landing-{s.Item1}-cards", defaultHtml = "<p class=\"govuk-body\">Cards.</p>" })
+            </section>
+        }
     </div>
 </div>

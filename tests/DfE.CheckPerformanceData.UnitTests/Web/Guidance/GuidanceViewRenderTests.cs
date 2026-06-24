@@ -50,6 +50,19 @@ public sealed class GuidanceViewRenderTests
         Assert.Contains("EditableContent", src);
         Assert.Contains("Model.IntroBlockKey", src);
         Assert.Contains("Model.NavBlockKey", src);
+        // The blue "Published / last reviewed" callout (missing in the first pass).
+        Assert.Contains("Model.PublishedBlockKey", src);
+    }
+
+    [Fact]
+    public void Ks4_View_SectionHeadings_AreEditableTitleBlocks()
+    {
+        var src = Ks4View();
+        // P1: headings must be editable content blocks, not static template text.
+        Assert.Contains("EditableTitle", src);
+        Assert.Contains(".HeadingBlockKey", src);
+        // No hard-coded <h2>/<h3> heading text for sections any more.
+        Assert.DoesNotContain("<h2 class=\"govuk-heading-l\">@sec.NavTitle</h2>", src);
     }
 
     [Fact]
@@ -78,8 +91,10 @@ public sealed class GuidanceViewRenderTests
     public void Ks4_View_RendersHeadingLevelFromManifest()
     {
         var src = Ks4View();
-        // Level drives h2 vs h3 so the nested removal categories render as sub-headings.
-        Assert.Contains(".Level", src);
+        // Manifest drives h2 vs h3 (and the matching GDS class) so nested removal
+        // categories render as sub-headings.
+        Assert.Contains(".HeadingElement", src);
+        Assert.Contains(".HeadingCssClass", src);
     }
 
     [Fact]
@@ -92,19 +107,24 @@ public sealed class GuidanceViewRenderTests
     // --- Guidance landing stub ---
 
     [Fact]
-    public void Index_View_Exists_WithBreadcrumbAndLinkToKs4Page()
+    public void Index_View_Exists_WithBreadcrumbAndCaption()
     {
         var src = IndexView();
         Assert.Contains("govuk-breadcrumbs", src);
-        Assert.Contains("Guidance", src);
-        // Links through to the child page.
-        Assert.Contains("/guidance/2026-ks4-june-checking-exercise", src);
+        Assert.Contains("CYPMD help and support", src);
+        Assert.Contains("govuk-caption-l", src);
     }
 
     [Fact]
-    public void Index_View_UsesAnEditableContentBlock()
+    public void Index_View_AssemblesEditableBlocks_IncludingHeadings()
     {
         var src = IndexView();
+        // Every landing item is an editable block (P1), headings included.
+        Assert.Contains("EditableTitle", src);
         Assert.Contains("EditableContent", src);
+        Assert.Contains("guidance-landing-title", src);
+        Assert.Contains("guidance-landing-signin-heading", src);
+        // The three data-check sections (cards live in their own editable blocks).
+        Assert.Contains("-cards", src);
     }
 }

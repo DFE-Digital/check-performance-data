@@ -1403,7 +1403,7 @@ body.js-enabled .rules-condition__apply {
 
 /* Landing-page search box (input + button on one row). */
 .cypmd-search { margin: 20px 0 30px; }
-.cypmd-search__row { display: flex; max-width: 32em; }
+.cypmd-search__row { display: flex; max-width: 51em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
 .cypmd-search__button { margin-bottom: 0; margin-left: 5px; flex: 0 0 auto; }
 

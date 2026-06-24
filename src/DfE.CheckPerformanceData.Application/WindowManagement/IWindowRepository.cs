@@ -6,8 +6,8 @@ public interface IWindowRepository
 {
     Task<List<CheckingWindowDto>> GetAllWindowsAsync(DateTime now, CancellationToken cancellationToken);
     Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+    Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 }
 
 public class WindowDto

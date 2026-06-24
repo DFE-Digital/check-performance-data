@@ -52,6 +52,6 @@ public class WindowEditItem
 
 public class WindowTitleEditItem
 {
-    public required Guid WindowId { get; set; }
-    public required string Title { get; set; }
+    public Guid WindowId { get; set; }
+    public string Title { get; set; }
 }

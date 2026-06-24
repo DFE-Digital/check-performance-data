@@ -68,4 +68,40 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
         });
         return dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
+    {
+        var entity = new CheckingWindow
+        {
+            StartDate = window.StartDate,
+            EndDate = window.EndDate,
+            KeyStage = window.KeyStage,
+            CheckingWindowType = window.CheckingWindowType,
+            Title = window.Title,
+            IngressFile = window.IngressFile,
+            IngressFileChecksum = window.IngressFileChecksum,
+            SchemaFile = window.SchemaFile,
+            SchemaFileChecksum = window.SchemaFileChecksum,
+            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
+        };
+
+        await dbContext.CheckingWindows.AddAsync(entity, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CheckingWindowDto
+        {
+            Id = entity.Id,
+            StartDate = entity.StartDate,
+            EndDate = entity.EndDate,
+            KeyStage = entity.KeyStage,
+            CheckingWindowType = entity.CheckingWindowType,
+            Title = entity.Title,
+            IngressFile = entity.IngressFile,
+            IngressFileChecksum = entity.IngressFileChecksum,
+            SchemaFile = entity.SchemaFile,
+            SchemaFileChecksum = entity.SchemaFileChecksum,
+            Validated = entity.Validated != null,
+            ValidatedAt = entity.Validated?.ValidatedAt
+        };
+    }
 }

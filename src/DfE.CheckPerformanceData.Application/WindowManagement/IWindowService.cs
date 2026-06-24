@@ -8,6 +8,7 @@ public interface IWindowService
     Task<CheckingWindowDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
+    Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 }
 
 public class PageResult
@@ -32,3 +33,9 @@ public sealed class CheckingWindowDto
     public DateTime? ValidatedAt { get; set; }
 }
 
+public class CheckingWindowDraft
+{
+    public string? Title { get; set; }
+    public string? IngressFile { get; set; }
+    public string? SchemaFile { get; set; }
+}

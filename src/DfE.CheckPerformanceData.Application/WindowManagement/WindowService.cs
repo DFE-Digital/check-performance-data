@@ -18,5 +18,8 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
 
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken) =>
         await windowRepository.UpdateAsync(window, cancellationToken);
+    
+    public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken) =>
+        await windowRepository.CreateAsync(window, cancellationToken);
 
 }

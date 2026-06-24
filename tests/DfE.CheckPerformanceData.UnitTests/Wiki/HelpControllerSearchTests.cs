@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ContentBlocks;
 using System.Reflection;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
@@ -17,7 +18,7 @@ public sealed class HelpControllerSearchTests
 
     public HelpControllerSearchTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), _settingService, NullLogger<HelpController>.Instance);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), _settingService, Substitute.For<IContentBlockSearchService>(), NullLogger<HelpController>.Instance);
     }
 
     // --- Search action — page size from setting ---

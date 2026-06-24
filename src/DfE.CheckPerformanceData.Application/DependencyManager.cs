@@ -20,6 +20,7 @@ public static class DependencyManager
     {
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
+        services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();
         services.AddScoped<WikiSeeder>();

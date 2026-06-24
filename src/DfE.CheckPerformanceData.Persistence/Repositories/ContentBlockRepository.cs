@@ -17,6 +17,23 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             .ProjectToDto()
             .FirstOrDefaultAsync();
 
+    public async Task<List<ContentBlockDto>> SearchAsync(string query, int take)
+    {
+        // Escape LIKE wildcards in the user term, then case-insensitive contains. Exclude
+        // e2e seed blocks and the guidance nav block (it lists every section title).
+        var escaped = query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        var pattern = $"%{escaped}%";
+
+        return await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => !b.Key.StartsWith("e2e-") && b.Key != "guidance-ks4-2026-nav")
+            .Where(b => EF.Functions.ILike(b.Value, pattern, "\\"))
+            .OrderBy(b => b.Key)
+            .Take(take)
+            .ProjectToDto()
+            .ToListAsync();
+    }
+
     public async Task<int> GetMaxVersionNumberAsync(int contentBlockId) =>
         await context.ContentBlockVersions
             .Where(v => v.ContentBlockId == contentBlockId)

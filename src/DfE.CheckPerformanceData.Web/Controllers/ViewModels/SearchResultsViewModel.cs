@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Wiki;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -14,6 +15,11 @@ public sealed class SearchResultsViewModel
         : 0;
 
     public List<WikiPageSearchResultDto> Results { get; set; } = [];
+
+    // Content-block matches (guidance/service pages), shown alongside the wiki results.
+    public List<ContentBlockSearchResultDto> ContentResults { get; set; } = [];
+
+    public bool HasAnyResults => Results.Count > 0 || ContentResults.Count > 0;
 
     public SearchInvalidReason? InvalidReason { get; set; }
 

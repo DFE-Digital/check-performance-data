@@ -34,22 +34,41 @@ public sealed class ContentStagingService(
             return string.Join("/", segments);
         }
 
-        var wikiItems = pages
-            .Select(p =>
+        // Siblings ordered the way the wiki itself orders them (SortOrder, then Title); a
+        // pre-order walk from the roots then emits the bundle in true tree order. Children are
+        // keyed by non-nullable parent id (roots held separately) to avoid a null dictionary key.
+        static List<WikiPageDto> Ordered(IEnumerable<WikiPageDto> nodes) =>
+            nodes.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToList();
+
+        var roots = Ordered(pages.Where(p => p.ParentId is null));
+        var childrenByParent = pages
+            .Where(p => p.ParentId is not null)
+            .GroupBy(p => p.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => Ordered(g));
+
+        var wikiItems = new List<WikiPageBundleItem>();
+        var visited = new HashSet<int>();
+
+        void Walk(List<WikiPageDto> nodes)
+        {
+            foreach (var p in nodes)
             {
+                if (!visited.Add(p.Id)) continue; // guard against any parent cycle
                 var slugPath = PathOf(p);
-                return new WikiPageBundleItem
+                wikiItems.Add(new WikiPageBundleItem
                 {
                     SlugPath = slugPath,
                     ParentSlugPath = ParentPath(slugPath),
                     Slug = p.Slug,
                     Title = p.Title,
-                    Content = p.Content
-                };
-            })
-            .OrderBy(i => Depth(i.SlugPath))
-            .ThenBy(i => i.SlugPath, StringComparer.Ordinal)
-            .ToList();
+                    Content = p.Content,
+                    SortOrder = p.SortOrder
+                });
+                if (childrenByParent.TryGetValue(p.Id, out var kids)) Walk(kids);
+            }
+        }
+
+        Walk(roots);
 
         var blocks = await contentBlockRepository.GetAllAsync();
         var blockItems = blocks
@@ -69,9 +88,11 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
-        // Parent-first so a child's parent is always present (in the target or earlier in this pass).
+        // Parent-first (by depth) so a child's parent is always present (in the target or earlier
+        // in this pass); within a parent, ascending SortOrder so siblings are created in order.
         var pages = bundle.WikiPages
             .OrderBy(p => Depth(p.SlugPath))
+            .ThenBy(p => p.SortOrder)
             .ThenBy(p => p.SlugPath, StringComparer.Ordinal)
             .ToList();
 
@@ -122,7 +143,7 @@ public sealed class ContentStagingService(
             else
             {
                 var created = await wikiService.CreatePageAsync(
-                    new CreateWikiPageDto { Title = page.Title, Content = page.Content, ParentId = parentId });
+                    new CreateWikiPageDto { Title = page.Title, Content = page.Content, ParentId = parentId, SortOrder = page.SortOrder });
                 result.WikiPagesCreated++;
                 pathToId[page.SlugPath] = created.Id;
             }

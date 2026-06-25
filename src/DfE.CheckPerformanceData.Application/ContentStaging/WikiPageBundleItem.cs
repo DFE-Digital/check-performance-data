@@ -11,4 +11,8 @@ public sealed record WikiPageBundleItem
     public string Slug { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string? Content { get; init; }
+
+    // Position of this page among its siblings, preserved so the target environment reproduces
+    // the same ordering rather than appending in import order. Lower values sort first.
+    public int SortOrder { get; init; }
 }

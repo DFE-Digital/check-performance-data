@@ -219,7 +219,7 @@ public sealed partial class WikiService(
 		WikiPageDto? page = null;
 		await repository.ExecuteInTransactionAsync(async () =>
 		{
-			page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1, bodyPlainText);
+			page = await repository.AddPageAsync(dto, slug, dto.SortOrder ?? maxSortOrder + 1, bodyPlainText);
 			await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
 		});
 

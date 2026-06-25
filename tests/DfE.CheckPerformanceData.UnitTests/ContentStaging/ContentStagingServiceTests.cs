@@ -21,8 +21,8 @@ public class ContentStagingServiceTests
         _blockRepo.GetAllAsync().Returns([]);
     }
 
-    private static WikiPageDto Page(int id, string slug, string title, int? parentId, string? content) =>
-        new() { Id = id, Slug = slug, Title = title, ParentId = parentId, Content = content };
+    private static WikiPageDto Page(int id, string slug, string title, int? parentId, string? content, int sortOrder = 0) =>
+        new() { Id = id, Slug = slug, Title = title, ParentId = parentId, Content = content, SortOrder = sortOrder };
 
     private static ContentBlockDto Block(int id, string key, string type, string value) =>
         new() { Id = id, Key = key, BlockType = type, Value = value };
@@ -58,6 +58,40 @@ public class ContentStagingServiceTests
         Assert.Equal("parent/child", child.SlugPath);
         Assert.Equal("parent", child.ParentSlugPath);
         Assert.Equal("child body", child.Content);
+    }
+
+    [Fact]
+    public async Task ExportAsync_OrdersSiblingsBySortOrder_NotAlphabetically_AndCarriesSortOrder()
+    {
+        // SortOrder deliberately diverges from alphabetical slug order so the assertion proves
+        // the export honours SortOrder rather than falling back to slug sorting.
+        _wikiRepo.GetAllOrderedAsync().Returns(
+        [
+            Page(1, "alpha", "Alpha", parentId: null, content: "a", sortOrder: 2),
+            Page(2, "beta", "Beta", parentId: null, content: "b", sortOrder: 0),
+            Page(3, "gamma", "Gamma", parentId: null, content: "g", sortOrder: 1)
+        ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.Equal(["beta", "gamma", "alpha"], bundle.WikiPages.Select(p => p.SlugPath));
+        Assert.Equal([0, 1, 2], bundle.WikiPages.Select(p => p.SortOrder));
+    }
+
+    [Fact]
+    public async Task ExportAsync_WalksDepthFirst_ChildImmediatelyAfterParent()
+    {
+        _wikiRepo.GetAllOrderedAsync().Returns(
+        [
+            Page(1, "first", "First", parentId: null, content: "1", sortOrder: 0),
+            Page(2, "second", "Second", parentId: null, content: "2", sortOrder: 1),
+            Page(3, "kid", "Kid", parentId: 1, content: "k", sortOrder: 0)
+        ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        // Pre-order: first, first/kid, second — the child sits directly under its parent.
+        Assert.Equal(["first", "first/kid", "second"], bundle.WikiPages.Select(p => p.SlugPath));
     }
 
     [Fact]
@@ -102,6 +136,24 @@ public class ContentStagingServiceTests
         Assert.Equal(2, result.WikiPagesCreated);
         await _wiki.Received(1).CreatePageAsync(Arg.Is<CreateWikiPageDto>(d => d.Title == "Child" && d.ParentId == 10));
         await _wiki.Received(1).CreatePageAsync(Arg.Is<CreateWikiPageDto>(d => d.Title == "Parent" && d.ParentId == null));
+    }
+
+    [Fact]
+    public async Task ImportAsync_PassesBundleSortOrder_WhenCreatingPage()
+    {
+        var bundle = new ContentBundle
+        {
+            WikiPages =
+            [
+                new() { SlugPath = "alpha", ParentSlugPath = "", Slug = "alpha", Title = "Alpha", Content = "a", SortOrder = 5 }
+            ]
+        };
+        _wikiRepo.GetBySlugAndParentAsync("alpha", (int?)null).ReturnsNull();
+        _wiki.CreatePageAsync(Arg.Any<CreateWikiPageDto>()).Returns(new WikiPageDto { Id = 1 });
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Skip);
+
+        await _wiki.Received(1).CreatePageAsync(Arg.Is<CreateWikiPageDto>(d => d.SortOrder == 5));
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Infrastructure.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Observability;
@@ -37,6 +38,10 @@ builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalD
 builder.Services.AddZendeskApiClient(builder.Configuration);
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
 builder.Services.AddNotifyService(builder.Configuration);
+
+// When Notify:UseFake is set (defaults to true), the real Notify pipeline is replaced with
+// DevConsoleNotifyService that logs email details to console instead of sending real emails.
+NotifyServiceRegistration.ConfigureFakeNotify(builder.Services, builder.Configuration);
 
 // When Zendesk:UseFake is set the real Zendesk service is replaced with a fake that captures
 // "created" tickets into the shared dev outbox table, so the rules-engine pipeline can be

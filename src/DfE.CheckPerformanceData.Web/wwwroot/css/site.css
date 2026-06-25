@@ -1379,8 +1379,9 @@ body.js-enabled .rules-condition__apply {
   border: 1px solid #b1b4b6;
   border-bottom: 3px solid #b1b4b6;
 }
-/* Higher specificity than .govuk-heading-s so the larger card-title size wins. */
-.cypmd-card .cypmd-card__title { margin-bottom: 10px; font-size: 1.5rem; line-height: 1.0416666667; }
+/* Higher specificity than .govuk-heading-s so the larger card-title size wins.
+   Sized/spaced to the govuk-heading-m metric (1.5rem / 1.25). */
+.cypmd-card .cypmd-card__title { margin-bottom: 10px; font-size: 1.5rem; line-height: 1.25; }
 .cypmd-card__title a { font-size: inherit; text-decoration: none; }
 .cypmd-card__title a:hover,
 .cypmd-card__title a:focus { text-decoration: underline; }
@@ -1396,6 +1397,8 @@ body.js-enabled .rules-condition__apply {
   font-weight: 700;
 }
 .cypmd-card > :last-child { margin-bottom: 0; }
+/* govuk-tag is sentence case by design (changed from uppercase in govuk-frontend v5);
+   no text-transform override here so the "last updated" tags follow the GDS default. */
 
 /* The guidance-page lede sits a little tighter to the editable heading blocks. */
 .guidance-section .content-block--title { margin-bottom: 5px; }
@@ -1412,6 +1415,3 @@ body.js-enabled .rules-condition__apply {
 .cypmd-landing-section { margin-bottom: 40px; }
 .cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }
 .cypmd-landing-section .content-block--title { margin-bottom: 0; }
-
-/* Match the mockup's uppercase "last updated" tags. */
-.cypmd-card__updated .govuk-tag { text-transform: uppercase; }

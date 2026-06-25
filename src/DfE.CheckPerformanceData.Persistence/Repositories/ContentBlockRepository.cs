@@ -10,6 +10,13 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 {
     // Queries — use ProjectToDto so EF translates the mapping to SQL
 
+    public async Task<List<ContentBlockDto>> GetAllAsync() =>
+        await context.ContentBlocks
+            .AsNoTracking()
+            .OrderBy(b => b.Key)
+            .ProjectToDto()
+            .ToListAsync();
+
     public async Task<ContentBlockDto?> GetByKeyAsync(string key) =>
         await context.ContentBlocks
             .AsNoTracking()

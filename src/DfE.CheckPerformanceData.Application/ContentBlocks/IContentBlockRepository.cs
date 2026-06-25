@@ -3,6 +3,7 @@ namespace DfE.CheckPerformanceData.Application.ContentBlocks;
 public interface IContentBlockRepository
 {
     // Queries
+    Task<List<ContentBlockDto>> GetAllAsync();
     Task<ContentBlockDto?> GetByKeyAsync(string key);
     Task<int> GetMaxVersionNumberAsync(int contentBlockId);
     Task<ContentBlockVersionDto?> GetVersionByIdAsync(int versionId);

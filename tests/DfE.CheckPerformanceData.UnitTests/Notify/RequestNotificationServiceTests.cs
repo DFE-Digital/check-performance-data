@@ -165,4 +165,42 @@ public sealed class RequestNotificationServiceTests
             Arg.Any<NotificationType>(),
             Arg.Any<string?>());
     }
+
+    // ── NotifyAmendmentWithdrawnAsync ─────────────────────────────────────────
+
+    [Fact]
+    public async Task NotifyAmendmentWithdrawnAsync_SendsToCurrentUserOnly()
+    {
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber);
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            ReferenceNumber,
+            string.Empty,
+            Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(CurrentUserEmail)),
+            NotificationType.AmendmentWithdrawn,
+            Arg.Any<string?>());
+    }
+
+    // ── NotifyDataCheckWithdrawnAsync ─────────────────────────────────────────
+
+    [Fact]
+    public async Task NotifyDataCheckWithdrawnAsync_SendsToCurrentUserAndOrgUsers()
+    {
+        var orgUserEmail = "org.user@school.gov.uk";
+        _dfESignInApiClient.GetOrganisationUsersAsync("10000000")
+            .Returns(new OrganisationUsersResponseDto
+            {
+                Users = [new OrganisationUserDto { FirstName = "Org", LastName = "User", Email = orgUserEmail }]
+            });
+
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber);
+
+        await _notifyService.Received(1).SendNotificationsAsync(
+            ReferenceNumber,
+            string.Empty,
+            Arg.Is<IReadOnlyCollection<string>>(r =>
+                r.Contains(CurrentUserEmail) && r.Contains(orgUserEmail) && r.Count == 2),
+            NotificationType.DataCheckWithdrawn,
+            Arg.Any<string?>());
+    }
 }

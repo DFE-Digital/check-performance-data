@@ -30,6 +30,25 @@ public sealed class RequestNotificationService(
             referenceNumber, deadline, recipients, NotificationType.DataCheckConfirmed);
     }
 
+    public async Task NotifyAmendmentWithdrawnAsync(string referenceNumber)
+    {
+        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            currentUserService.Email
+        };
+
+        await notifyService.SendNotificationsAsync(
+            referenceNumber, string.Empty, recipients, NotificationType.AmendmentWithdrawn);
+    }
+
+    public async Task NotifyDataCheckWithdrawnAsync(string referenceNumber)
+    {
+        var recipients = await BuildNotificationRecipients();
+
+        await notifyService.SendNotificationsAsync(
+            referenceNumber, string.Empty, recipients, NotificationType.DataCheckWithdrawn);
+    }
+
     private async Task<IReadOnlyCollection<string>> BuildNotificationRecipients()
     {
         var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

@@ -1,8 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -12,8 +11,6 @@ public sealed class RequestService(
     IQuestionFlowService flowService,
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
-    INotifyService notifyService,
-    IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
     IRequestBlobClient requestBlobClient,
     ILogger<RequestService> logger,
@@ -121,33 +118,18 @@ public sealed class RequestService(
 
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
 
-        HashSet<string> recipients;
-        NotificationType notificationType;
-        string logTemplate;
-        object[] logArgs;
-
         if (row?.RequestType == RequestType.Amendment)
         {
-            recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
-            notificationType = NotificationType.AmendmentWithdrawn;
-            logTemplate = "Sending Withdrawal notification email for ref {RefNumber} to session user ({Email})";
-            logArgs = [referenceNumber, currentUserService.Email];
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber);
         }
         else if (row?.RequestType == RequestType.ConfirmCorrect)
         {
-            recipients = await BuildNotificationRecipients();
-            notificationType = NotificationType.DataCheckWithdrawn;
-            logTemplate = "Sending Withdrawal notification email for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})";
-            logArgs = [referenceNumber, recipients.Count, string.Join(", ", recipients)];
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber);
         }
         else
         {
             logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row.RequestType, referenceNumber);
-            return new RequestDeletionResult(WasHardDeleted: false, pupilName);
         }
-
-        logger.LogInformation(logTemplate, logArgs);
-        await notifyService.SendNotificationsAsync(referenceNumber, string.Empty, recipients, notificationType);
 
         return new RequestDeletionResult(WasHardDeleted: false, pupilName);
     }
@@ -254,18 +236,6 @@ public sealed class RequestService(
             } : null,
             Answers = answers
         };
-    }
-
-    private async Task<HashSet<string>> BuildNotificationRecipients()
-    {
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
-
-        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn);
-        if (orgUsers?.Users != null)
-            foreach (var user in orgUsers.Users)
-                recipients.Add(user.Email);
-
-        return recipients;
     }
 
     private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)

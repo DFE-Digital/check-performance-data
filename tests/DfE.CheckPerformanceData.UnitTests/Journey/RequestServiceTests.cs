@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -21,8 +20,6 @@ public class RequestServiceTests
     private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
-    private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
-    private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
     private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
     private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
@@ -38,7 +35,7 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _notifyService, _dfESignInApiClient, _currentUser, _requestBlobClient, _logger, _queueService, _requestNotificationService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _requestBlobClient, _logger, _queueService, _requestNotificationService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -653,6 +650,37 @@ public class RequestServiceTests
             Status = status,
             ReferenceNumber = "REF001"
         };
+
+    [Fact]
+    public async Task DeleteAsync_WhenAmendment_DelegatesAmendmentWithdrawnNotification()
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenConfirmCorrect_DelegatesDataCheckWithdrawnNotification()
+    {
+        var confirmCorrectRow = new AmendmentRequestData
+        {
+            PupilFirstname = "Jane",
+            PupilSurname = "Smith",
+            RequestType = RequestType.ConfirmCorrect,
+            RequestTypeDescription = "Confirm Pupil Data Declaration",
+            Status = RequestStatus.SubmittedUnCommitted,
+            ReferenceNumber = "REF001"
+        };
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(confirmCorrectRow);
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001");
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

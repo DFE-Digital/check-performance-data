@@ -7,7 +7,8 @@ public enum NotificationType
 {
     SubmissionConfirmed,
     DataCheckConfirmed,
-    Withdrawn,
+    AmendmentWithdrawn,
+    DataCheckWithdrawn
 }
 
 /// <summary>

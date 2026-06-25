@@ -22,6 +22,7 @@ public static class SettingKeys
 
     public const string DevToolsEnabled = "Dev:ToolsEnabled";
     public const string ZendeskUseFake = "Zendesk:UseFake";
+    public const string NotifyUseFake = "Notify:UseFake";
 }
 
 // The data type of a setting's value, used by the settings editor to choose how to render
@@ -95,7 +96,11 @@ public static class SettingDefinitions
         new(SettingKeys.HealthDlqRateRed,
             "Dead-letter queue count at which the health strip turns red (the dead-letter queue is rising).",
             "5",
-            SettingKind.Int)
+            SettingKind.Int),
+        new(SettingKeys.NotifyUseFake,
+            "When true, the Notify email service is replaced with a dev-only fake that logs email details to the console instead of sending real emails. Defaults to true when not configured.",
+            "true",
+            SettingKind.Bool)
     ];
 
     public static SettingDefinition? Find(string key) =>

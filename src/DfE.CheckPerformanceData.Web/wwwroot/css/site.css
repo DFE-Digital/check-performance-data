@@ -1316,53 +1316,30 @@ body.js-enabled .rules-condition__apply {
 /* ------------------------------------------------------------------ *
    Guidance pages — in-page contents navigation + sections
  * ------------------------------------------------------------------ */
-.guidance-nav {
-  position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  border-top: 2px solid #1d70b8;
-  padding-top: 15px;
+/* The contents nav uses the canonical MoJ side-navigation component for all its
+   styling — link colour, spacing, active state and keyboard focus. The only thing
+   layered on here is sticky positioning, scoped to the guidance column so the
+   component's default behaviour is untouched anywhere else it's used. */
+/* Theme the component to the site's govuk link colour. The MoJ component reads
+   var(--govuk-link-colour, …) and otherwise falls back to its own older #1a65a6,
+   which is inconsistent with every other link on the page (govuk #1d70b8). */
+.guidance-side-nav .moj-side-navigation {
+  --govuk-link-colour: #1d70b8;
+  --govuk-link-hover-colour: #003078;
 }
-.guidance-nav__list { margin-bottom: 0; }
-/* Child selector raises specificity above govuk-frontend's `.govuk-list > li { margin-bottom: 5px }`,
-   which otherwise wins the cascade and squashes the contents nav together. */
-.guidance-nav__list > .guidance-nav__item {
-  margin-bottom: 16px;
-  font-size: 16px;
-  line-height: 1.25;
-}
-/* Contents links use GDS blue and are not underlined (underline on hover/focus only), per the design.
-   Colour is set explicitly because these links don't carry .govuk-link, so without it they fall back
-   to the browser default link colour (#00e), which reads darker and off-brand. */
-.guidance-nav__link,
-.guidance-nav__link:link,
-.guidance-nav__link:visited { color: #1d70b8; text-decoration: none; }
-.guidance-nav__link:hover,
-.guidance-nav__link:focus { text-decoration: underline; }
-/* Active item (the current page / top of page) marked with a blue left border. */
-.guidance-nav__item--active {
-  border-left: 4px solid #1d70b8;
-  padding-left: 10px;
-  margin-left: -14px;
-}
-.guidance-nav__item--active .guidance-nav__link { font-weight: 700; }
-/* "Pupil removal reason" — a dark group heading within the list, not a link. */
-.guidance-nav__group {
-  margin: 22px 0 12px;
-  font-weight: 700;
-  color: #0b0c0c;
-  font-size: 16px;
+@media (min-width: 40.0625em) {
+  .guidance-side-nav .moj-side-navigation {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
 }
 .guidance-section {
   scroll-margin-top: 20px;
   margin-bottom: 40px;
 }
 .guidance-section__top { margin-top: 10px; }
-
-@media (max-width: 40.0625em) {
-  .guidance-nav { position: static; max-height: none; overflow: visible; }
-}
 
 /* ------------------------------------------------------------------ *
    CYPMD custom content-block components (also offered in the WYSIWYG

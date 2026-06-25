@@ -42,7 +42,7 @@ PollySettings__BaseDelayMilliseconds: 1000
 PollySettings__JitterMilliseconds: 500
 
 # Zendesk configuration (non-sensitive)
-ZendeskSettings__Subdomain: dfe
+ZendeskSettings__Subdomain: esfa
 ZendeskSettings__Domain: zendesk
 
 # School Checking Exercise Zendesk settings

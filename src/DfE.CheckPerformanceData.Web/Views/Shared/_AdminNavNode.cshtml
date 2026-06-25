@@ -39,6 +39,15 @@
         {
             <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
         }
+        else if (entry.Enabled && entry.HttpMethod == "POST")
+        {
+            @* POST action with no GET Url (e.g. Seed sample pages): a clickable antiforgery
+               form-button styled as a tree link, posting to the wiki seed endpoint. *@
+            <form asp-controller="Help" asp-action="Seed" method="post" class="tv-link-form">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="tv-link tv-link-button" data-prevent-double-click="true">@entry.Title</button>
+            </form>
+        }
         else
         {
             <span class="tv-link admin-nav-list__title--muted" aria-disabled="true">@entry.Title</span>

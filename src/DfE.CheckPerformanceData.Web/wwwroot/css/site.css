@@ -347,6 +347,19 @@
   color: #0b0c0c;
 }
 
+/* POST nav action rendered as a link-styled button (e.g. Seed sample pages) */
+.tv-link-form {
+  display: inline;
+  margin: 0;
+}
+
+.tv-link-button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
 /* Parent nodes: bold */
 .tv-link-parent {
   font-weight: 700;

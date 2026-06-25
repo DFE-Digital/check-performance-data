@@ -35,7 +35,7 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _requestBlobClient, _logger, _queueService, _requestNotificationService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────

@@ -5,6 +5,7 @@ namespace DfE.CheckPerformanceData.Application.Settings;
 public static class SettingKeys
 {
     public const string WikiPageLength = "Wiki:PageLength";
+    public const string WikiVersionRetention = "Wiki:VersionRetention";
 
     public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
@@ -50,6 +51,10 @@ public static class SettingDefinitions
     [
         new(SettingKeys.WikiPageLength,
             "Number of rows shown per page on paged lists, such as the deleted pages list.",
+            "20",
+            SettingKind.Int),
+        new(SettingKeys.WikiVersionRetention,
+            "Number of historical versions to keep per wiki page or content block. Older versions beyond this limit may be pruned.",
             "20",
             SettingKind.Int),
         new(SettingKeys.DlqFullPayloadEnabled,

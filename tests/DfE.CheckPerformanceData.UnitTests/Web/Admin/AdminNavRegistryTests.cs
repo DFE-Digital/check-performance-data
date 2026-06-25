@@ -17,10 +17,10 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(20, entries.Count);
+		Assert.Equal(19, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
-		Assert.Contains("Version retention", titles);
+		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.DoesNotContain("Visual regression dashboard", titles);
 		Assert.Contains("Rules Engine", titles);
@@ -68,7 +68,7 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		Assert.Equal(new[] { 10, 20, 30, 40 }, cmsOrders);
+		Assert.Equal(new[] { 10, 20, 30 }, cmsOrders);
 		// System administration now has two direct children: the Rules Engine sub-group (10)
 		// and System settings (20). The pipeline tiles nest one level deeper under Rules Engine.
 		Assert.Equal(new[] { 10, 20 }, systemOrders);

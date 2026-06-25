@@ -25,6 +25,7 @@ public sealed class ContentStagingController(
         var stamped = new ContentBundle
         {
             Schema = bundle.Schema,
+            SchemaVersion = bundle.SchemaVersion,
             ExportedAtUtc = DateTime.UtcNow,
             ExportedBy = currentUser.Email,
             WikiPages = bundle.WikiPages,
@@ -66,6 +67,14 @@ public sealed class ContentStagingController(
         {
             TempData["ContentStagingError"] =
                 $"The file is not a valid '{ContentBundle.CurrentSchema}' content bundle.";
+            return Redirect("/admin/content-staging");
+        }
+
+        if (parsed.SchemaVersion != ContentBundle.CurrentSchemaVersion)
+        {
+            TempData["ContentStagingError"] =
+                $"This bundle is schema version {parsed.SchemaVersion}, but this environment only " +
+                $"supports version {ContentBundle.CurrentSchemaVersion}.";
             return Redirect("/admin/content-staging");
         }
 

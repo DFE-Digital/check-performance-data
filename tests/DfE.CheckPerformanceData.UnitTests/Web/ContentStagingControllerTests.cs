@@ -65,6 +65,37 @@ public sealed class ContentStagingControllerTests
     }
 
     [Fact]
+    public async Task Export_StampsSchemaVersion()
+    {
+        _staging.ExportAsync().Returns(new ContentBundle
+        {
+            WikiPages = [new() { SlugPath = "alpha", Slug = "alpha", Title = "Alpha", Content = "a" }]
+        });
+
+        var result = await _sut.Export();
+
+        var file = Assert.IsType<FileContentResult>(result);
+        var json = Encoding.UTF8.GetString(file.FileContents);
+        Assert.Contains("schemaVersion", json);
+        var roundTripped = ContentStagingJson.Deserialize(json)!;
+        Assert.Equal(ContentBundle.CurrentSchemaVersion, roundTripped.SchemaVersion);
+    }
+
+    [Fact]
+    public async Task Import_UnsupportedSchemaVersion_SetsError_AndRedirects()
+    {
+        // Right schema name, but a future schema version the importer does not understand.
+        var futureBundle =
+            $"{{\"$schema\":\"{ContentBundle.CurrentSchema}\",\"schemaVersion\":999,\"wikiPages\":[],\"contentBlocks\":[]}}";
+
+        var result = await _sut.Import(FileFrom(futureBundle), ContentImportMode.Skip);
+
+        Assert.IsType<RedirectResult>(result);
+        Assert.NotNull(_sut.TempData["ContentStagingError"]);
+        await _staging.DidNotReceive().ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>());
+    }
+
+    [Fact]
     public async Task Import_NoFile_SetsError_AndRedirects()
     {
         var result = await _sut.Import(bundle: null, ContentImportMode.Skip);

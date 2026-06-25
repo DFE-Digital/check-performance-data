@@ -1,0 +1,118 @@
+@using DfE.CheckPerformanceData.Application.ContentStaging
+@{
+    ViewData["Title"] = "Content staging import/export";
+    var result = TempData["ContentStagingResult"] as string;
+    var error = TempData["ContentStagingError"] as string;
+    var warnings = (TempData["ContentStagingWarnings"] as string)?
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? [];
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Content staging import/export</h1>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">@error</p>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(result))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="content-staging-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="content-staging-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@result</p>
+            @if (warnings.Length > 0)
+            {
+                <details class="govuk-details">
+                    <summary class="govuk-details__summary">
+                        <span class="govuk-details__summary-text">@warnings.Length item(s) were skipped</span>
+                    </summary>
+                    <div class="govuk-details__text">
+                        <ul class="govuk-list govuk-list--bullet">
+                            @foreach (var w in warnings)
+                            {
+                                <li>@w</li>
+                            }
+                        </ul>
+                    </div>
+                </details>
+            }
+        </div>
+    </div>
+}
+
+<p class="govuk-body">
+    Move wiki pages and content blocks between environments. Export produces a JSON bundle of the
+    current content; import replays that bundle through the application, so the normal validation,
+    sanitisation and version history all apply.
+</p>
+
+<h2 class="govuk-heading-l">Export</h2>
+<p class="govuk-body">
+    Download all live wiki pages and content blocks from this environment as a
+    <code>@ContentBundle.CurrentSchema</code> bundle.
+</p>
+<a class="govuk-button" data-module="govuk-button" href="/admin/content-staging/export" role="button">
+    Export content
+</a>
+
+<h2 class="govuk-heading-l">Import</h2>
+<form method="post" action="/admin/content-staging/import" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--m" for="bundle">Content bundle file</label>
+        <div id="bundle-hint" class="govuk-hint">Select the <code>.json</code> bundle exported from another environment.</div>
+        <input class="govuk-file-upload" id="bundle" name="bundle" type="file"
+               accept="application/json,.json" aria-describedby="bundle-hint">
+    </div>
+
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                If a page or block already exists
+            </legend>
+            <div class="govuk-radios" data-module="govuk-radios">
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="mode-skip" name="mode" type="radio" value="Skip" checked
+                           aria-describedby="mode-skip-hint">
+                    <label class="govuk-label govuk-radios__label" for="mode-skip">Skip</label>
+                    <div id="mode-skip-hint" class="govuk-hint govuk-radios__hint">
+                        Leave existing content untouched; only add what is missing.
+                    </div>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="mode-replace" name="mode" type="radio" value="Replace"
+                           aria-describedby="mode-replace-hint">
+                    <label class="govuk-label govuk-radios__label" for="mode-replace">Replace</label>
+                    <div id="mode-replace-hint" class="govuk-hint govuk-radios__hint">
+                        Overwrite existing content with the bundle (a new version is recorded).
+                    </div>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="mode-fail" name="mode" type="radio" value="Fail"
+                           aria-describedby="mode-fail-hint">
+                    <label class="govuk-label govuk-radios__label" for="mode-fail">Fail</label>
+                    <div id="mode-fail-hint" class="govuk-hint govuk-radios__hint">
+                        Abort the whole import if anything in the bundle already exists.
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+
+    <button class="govuk-button" data-module="govuk-button" data-prevent-double-click="true" type="submit">
+        Import content
+    </button>
+</form>

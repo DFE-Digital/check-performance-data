@@ -1325,13 +1325,19 @@ body.js-enabled .rules-condition__apply {
   padding-top: 15px;
 }
 .guidance-nav__list { margin-bottom: 0; }
-.guidance-nav__item {
-  margin-bottom: 12px;
+/* Child selector raises specificity above govuk-frontend's `.govuk-list > li { margin-bottom: 5px }`,
+   which otherwise wins the cascade and squashes the contents nav together. */
+.guidance-nav__list > .guidance-nav__item {
+  margin-bottom: 16px;
   font-size: 16px;
   line-height: 1.25;
 }
-/* Contents links are not underlined (underline on hover/focus only), per the design. */
-.guidance-nav__link { text-decoration: none; }
+/* Contents links use GDS blue and are not underlined (underline on hover/focus only), per the design.
+   Colour is set explicitly because these links don't carry .govuk-link, so without it they fall back
+   to the browser default link colour (#00e), which reads darker and off-brand. */
+.guidance-nav__link,
+.guidance-nav__link:link,
+.guidance-nav__link:visited { color: #1d70b8; text-decoration: none; }
 .guidance-nav__link:hover,
 .guidance-nav__link:focus { text-decoration: underline; }
 /* Active item (the current page / top of page) marked with a blue left border. */

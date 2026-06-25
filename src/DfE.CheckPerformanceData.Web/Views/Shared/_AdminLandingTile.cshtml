@@ -1,0 +1,45 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model AdminLandingNodePartialModel
+@{
+    var node = Model.Node;
+    var entry = node.Entry;
+    var hasChildren = node.Children.Count > 0;
+    // A container (empty Url with children) is a non-link sub-heading we recurse into; anything
+    // with a Url is a terminal tile (a link) even if it also has descendants.
+    var isContainer = string.IsNullOrEmpty(entry.Url) && hasChildren;
+    var hOpen = $"<{Model.HeadingTag} class=\"govuk-heading-m\">";
+    var hOpenMuted = $"<{Model.HeadingTag} class=\"govuk-heading-m admin-nav-list__title--muted\">";
+    var hClose = $"</{Model.HeadingTag}>";
+}
+
+<li class="admin-nav-list__item">
+    @if (isContainer)
+    {
+        @Html.Raw(hOpen)@entry.Title@Html.Raw(hClose)
+        <p class="govuk-body">@entry.Description</p>
+        <ul class="govuk-list admin-nav-list admin-nav-list--nested">
+            @foreach (var child in node.Children)
+            {
+                @await Html.PartialAsync("_AdminLandingTile", Model.ForChild(child))
+            }
+        </ul>
+    }
+    else if (entry.Enabled && entry.HttpMethod == "POST")
+    {
+        <form asp-controller="Help" asp-action="Seed" method="post" class="admin-tile-form">
+            @Html.AntiForgeryToken()
+            @Html.Raw(hOpen)<button type="submit" class="govuk-link admin-tile-form__link" data-prevent-double-click="true">@entry.Title</button>@Html.Raw(hClose)
+        </form>
+        <p class="govuk-body">@entry.Description</p>
+    }
+    else if (entry.Enabled)
+    {
+        @Html.Raw(hOpen)<a class="govuk-link" href="@entry.Url">@entry.Title</a>@Html.Raw(hClose)
+        <p class="govuk-body">@entry.Description</p>
+    }
+    else
+    {
+        @Html.Raw(hOpenMuted)@entry.Title <strong class="govuk-tag govuk-tag--grey admin-nav-list__tag">Coming soon</strong>@Html.Raw(hClose)
+        <p class="govuk-body admin-nav-list__description--muted">@entry.Description</p>
+    }
+</li>

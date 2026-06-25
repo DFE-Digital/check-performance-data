@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminLandingViewModel
 @{
     ViewData["Title"] = "Administration";
@@ -8,43 +9,17 @@
     Administrative tools for managing the Check Performance Data service.
 </p>
 
-@foreach (var group in Model.Groups)
+@foreach (var group in Model.Roots)
 {
     <section class="admin-nav-group govuk-!-margin-bottom-8"
-             aria-labelledby="@($"group-{group.Key}")">
-        <h2 id="@($"group-{group.Key}")" class="govuk-heading-l">@group.Title</h2>
-        <p class="govuk-body">@group.Description</p>
+             aria-labelledby="@($"group-{group.Entry.Key}")">
+        <h2 id="@($"group-{group.Entry.Key}")" class="govuk-heading-l">@group.Entry.Title</h2>
+        <p class="govuk-body">@group.Entry.Description</p>
 
         <ul class="govuk-list admin-nav-list">
-            @foreach (var entry in group.Children)
+            @foreach (var child in group.Children)
             {
-                <li class="admin-nav-list__item">
-                    @if (entry.Enabled && entry.HttpMethod == "POST")
-                    {
-                        <form asp-controller="Help" asp-action="Seed" method="post" class="admin-tile-form">
-                            @Html.AntiForgeryToken()
-                            <h3 class="govuk-heading-m">
-                                <button type="submit" class="govuk-link admin-tile-form__link" data-prevent-double-click="true">@entry.Title</button>
-                            </h3>
-                        </form>
-                        <p class="govuk-body">@entry.Description</p>
-                    }
-                    else if (entry.Enabled)
-                    {
-                        <h3 class="govuk-heading-m">
-                            <a class="govuk-link" href="@entry.Url">@entry.Title</a>
-                        </h3>
-                        <p class="govuk-body">@entry.Description</p>
-                    }
-                    else
-                    {
-                        <h3 class="govuk-heading-m admin-nav-list__title--muted">
-                            @entry.Title
-                            <strong class="govuk-tag govuk-tag--grey admin-nav-list__tag">Coming soon</strong>
-                        </h3>
-                        <p class="govuk-body admin-nav-list__description--muted">@entry.Description</p>
-                    }
-                </li>
+                @await Html.PartialAsync("_AdminLandingTile", new AdminLandingNodePartialModel(child, 3))
             }
         </ul>
     </section>

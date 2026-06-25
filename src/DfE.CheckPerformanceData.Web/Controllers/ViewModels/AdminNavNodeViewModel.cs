@@ -2,10 +2,10 @@ using DfE.CheckPerformanceData.Web.Admin.Nav;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
-// Recursive node for the left-hand admin nav tree. Unlike AdminNavGroupViewModel (the
-// flat two-level model the landing page still uses), this supports arbitrary depth: each
-// node wraps a single entry and carries its own ordered child nodes, so the renderer can
-// recurse for the 3-4 level rules-engine sub-tree. Children are pre-sorted by Order.
+// Recursive node for the admin nav forest, used by both the left-hand nav tree and the
+// /admin landing page. Supports arbitrary depth: each node wraps a single entry and carries
+// its own ordered child nodes, so renderers can recurse for the 3-4 level rules-engine
+// sub-tree. Children are pre-sorted by Order.
 public sealed class AdminNavNodeViewModel
 {
     public required IAdminNavEntry Entry { get; init; }

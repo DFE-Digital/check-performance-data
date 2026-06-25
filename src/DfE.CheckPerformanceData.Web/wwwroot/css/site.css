@@ -873,6 +873,18 @@ dialog.govuk-modal-dialogue__box::backdrop {
   color: #505a5f;
 }
 
+/* Nested sub-group (e.g. Rules Engine): indented with a left rule, lighter rows. */
+.admin-nav-list--nested {
+  margin-top: 10px;
+  padding-left: 20px;
+  border-left: 4px solid #b1b4b6;
+}
+
+.admin-nav-list--nested .admin-nav-list__item {
+  padding: 10px 0;
+  border-bottom: 0;
+}
+
 /* ==========================================================================
    Admin two-column layout
    ========================================================================== */

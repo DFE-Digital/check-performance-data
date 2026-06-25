@@ -1,5 +1,6 @@
 ﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.Mappers;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -19,7 +20,7 @@ public sealed class ZendeskService : IZendeskService
         _settings = settings.Value;
         _logger = logger;
 
-        _resiliencePipeline = ResiliencePipelineHelper.CreateRetryPipeline(_settings, _logger);
+        _resiliencePipeline = ResiliencePipelineFactory.CreateRetryPipeline(_settings, _logger);
     }
 
     public async Task<ListViewsResponseDto> ListViewsAsync(int? pageSize)

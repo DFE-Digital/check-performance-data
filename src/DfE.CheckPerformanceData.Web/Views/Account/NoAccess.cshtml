@@ -1,0 +1,34 @@
+@{
+    ViewData["Title"] = "You do not have access to this service";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-xl">You do not have access to this service</h1>
+
+        <p class="govuk-body">
+            You have signed in successfully, but your DfE Sign-in account is not
+            linked to an organisation that can use this service, or you have not
+            been given permission to use it.
+        </p>
+
+        <p class="govuk-body">This can happen if:</p>
+        <ul class="govuk-list govuk-list--bullet">
+            <li>your account is not associated with a school or college</li>
+            <li>you have not been assigned access to this service by your approver</li>
+        </ul>
+
+        <h2 class="govuk-heading-m">What you can do next</h2>
+        <p class="govuk-body">
+            Contact your organisation's DfE Sign-in approver to request access to
+            this service. If you do not know who your approver is, you can find out
+            through <a class="govuk-link" href="https://services.signin.education.gov.uk/" rel="noreferrer noopener" target="_blank">DfE Sign-in (opens in new tab)</a>.
+        </p>
+
+        <p class="govuk-body">
+            If you think you are seeing this message in error, you can
+            <a class="govuk-link" href="@Url.Action("DfeSignOut", "Account")">sign out</a>
+            and try again with a different account.
+        </p>
+    </div>
+</div>

@@ -23,6 +23,25 @@
 
 <h1 class="govuk-heading-xl">Current window requests</h1>
 
+@if (TempData["ZendeskReplayMessage"] is string replayMessage)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@replayMessage</p>
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="SendToZendesk" class="govuk-!-margin-bottom-6">
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+        Process "Close Window" 
+    </button>
+</form>
+
 @if (Model.Count == 0)
 {
     <p class="govuk-body">There are no requests for the current open window.</p>
@@ -41,6 +60,7 @@ else
                 <th scope="col" class="govuk-table__header">Submitted</th>
                 <th scope="col" class="govuk-table__header">Outcome</th>
                 <th scope="col" class="govuk-table__header">Matched Rule</th>
+                <th scope="col" class="govuk-table__header">Zendesk Id</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
@@ -65,6 +85,7 @@ else
                         }
                     </td>
                     <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
+                    <td class="govuk-table__cell">@(row.CrmId ?? "—")</td>
                 </tr>
             }
         </tbody>

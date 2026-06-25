@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
@@ -10,28 +11,67 @@ public sealed class DfeSignInApiClient(HttpClient httpClient, IOptions<DfeSignin
 {
     public async Task<OrganisationDto?> GetOrganisationAsync(string userId, string organisationId)
     {
-        var userOrganisations = await httpClient.GetFromJsonAsync<List<OrganisationDto>>($"users/{userId}/organisations", 
+        using var response = await httpClient.GetAsync($"users/{userId}/organisations");
+
+        // DfE Sign-in returns 404 when the user has no organisations. Treat that
+        // as "no organisation" rather than a hard error so sign-in does not crash.
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return null;
+
+        response.EnsureSuccessStatusCode();
+
+        var userOrganisations = await response.Content.ReadFromJsonAsync<List<OrganisationDto>>(
             new JsonSerializerOptions()
             {
                 Converters = { new OrganisationDtoJsonConverter() }
             });
-        
+
         return userOrganisations?.FirstOrDefault(o => o.Id == organisationId);
     }
 
     public async Task<List<RoleDto>> GetUserRolesAsync(string orgId, string userid)
     {
         var serviceId = settings.Value.ServiceId;
-        var userRoles = await httpClient.GetFromJsonAsync<DfeUserAccessResponse>(
-            $"services/{serviceId}/organisations/{orgId}/users/{userid}",
+        using var response = await httpClient.GetAsync(
+            $"services/{serviceId}/organisations/{orgId}/users/{userid}");
+
+        // DfE Sign-in returns 404 (not an empty list) when the user has no access
+        // record for this service + organisation. That is a legitimate "no roles"
+        // state, not a transport error, so treat it as an empty role set.
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return [];
+
+        response.EnsureSuccessStatusCode();
+
+        var userRoles = await response.Content.ReadFromJsonAsync<DfeUserAccessResponse>(
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         if (userRoles == null || userRoles.Roles.Count == 0)
             return [];
-        
+
         return userRoles.Roles;
     }
-    
+
+
+
+    public async Task<OrganisationUsersResponseDto?> GetOrganisationUsersAsync(string ukprn, string[]? roles = null)
+    {
+        var url = roles is { Length: > 0 }
+            ? $"organisations/{ukprn}/users?roles={Uri.EscapeDataString(string.Join(",", roles))}"
+            : $"organisations/{ukprn}/users";
+
+        try
+        {
+            return await httpClient.GetFromJsonAsync<OrganisationUsersResponseDto>(
+                url,
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private class DfeUserAccessResponse
     {
         public List<RoleDto> Roles { get; init; } = [];

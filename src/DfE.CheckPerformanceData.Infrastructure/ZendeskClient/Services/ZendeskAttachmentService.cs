@@ -1,5 +1,6 @@
 ﻿using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.Mappers;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,7 @@ public sealed class ZendeskAttachmentService : IZendeskAttachmentService
         _api = api;
         _logger = logger;
 
-        _resiliencePipeline = ResiliencePipelineHelper.CreateRetryPipeline(settings.Value, _logger);
+        _resiliencePipeline = ResiliencePipelineFactory.CreateRetryPipeline(settings.Value, _logger);
     }
 
     /// <summary>

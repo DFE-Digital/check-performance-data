@@ -300,6 +300,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<Guid>("WindowId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("WorkerStatus")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CrmId")

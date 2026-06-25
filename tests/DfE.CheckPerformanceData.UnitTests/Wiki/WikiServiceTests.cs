@@ -259,6 +259,30 @@ public sealed class WikiServiceTests
     }
 
     [Fact]
+    public async Task UpdatePageAsync_WithSortOrder_RepositionsPage()
+    {
+        var dto = new UpdateWikiPageDto { Title = "T", Content = "c", SortOrder = 7 };
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "T", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.Received(1).SetSortOrderAsync(5, 7);
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_WithoutSortOrder_DoesNotReposition()
+    {
+        var dto = new UpdateWikiPageDto { Title = "T", Content = "c" };
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "T", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.DidNotReceive().SetSortOrderAsync(Arg.Any<int>(), Arg.Any<int>());
+    }
+
+    [Fact]
     public async Task UpdatePageAsync_WhenNoExistingVersions_BaselinesCurrentPageAsV1()
     {
         var existing = MakePage(id: 5, title: "Original Title", slug: "original-title", content: "Original content");

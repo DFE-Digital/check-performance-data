@@ -298,6 +298,17 @@ public sealed class WikiRepository(
 		entity.UpdatedAt = DateTime.UtcNow;
 	}
 
+	// Direct position set (no sibling re-sequencing): content-staging import reproduces a
+	// source ordering that is already a clean per-parent sequence, so the value is applied as-is.
+	public async Task SetSortOrderAsync(int id, int sortOrder)
+	{
+		var entity = await context.WikiPages.FindAsync(id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		entity.SortOrder = sortOrder;
+		entity.UpdatedAt = DateTime.UtcNow;
+	}
+
 	public async Task SoftDeleteRecursiveAsync(int id)
 	{
 		var entity = await context.WikiPages

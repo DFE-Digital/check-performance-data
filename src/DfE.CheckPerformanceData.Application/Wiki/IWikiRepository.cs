@@ -26,6 +26,7 @@ public interface IWikiRepository
     Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder, string bodyPlainText);
     Task AddVersionAsync(int wikiPageId, string title, string? content, int versionNumber);
     Task UpdatePageAsync(int id, string title, string? content, string slug, string bodyPlainText);
+    Task SetSortOrderAsync(int id, int sortOrder);
     Task SoftDeleteRecursiveAsync(int id);
     Task HardDeleteAsync(int id);
     Task<bool> GetIsDeletedAsync(int id);

@@ -190,6 +190,21 @@ public class ContentStagingServiceTests
     }
 
     [Fact]
+    public async Task ImportAsync_Replace_RepositionsExistingPage_ViaSortOrder()
+    {
+        var bundle = new ContentBundle
+        {
+            WikiPages = [new() { SlugPath = "parent", ParentSlugPath = "", Slug = "parent", Title = "Parent", Content = "new", SortOrder = 7 }]
+        };
+        _wikiRepo.GetBySlugAndParentAsync("parent", (int?)null).Returns(new WikiPageDto { Id = 10 });
+        _wiki.UpdatePageAsync(10, Arg.Any<UpdateWikiPageDto>()).Returns(new WikiPageDto { Id = 10 });
+
+        await _sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        await _wiki.Received(1).UpdatePageAsync(10, Arg.Is<UpdateWikiPageDto>(d => d.SortOrder == 7));
+    }
+
+    [Fact]
     public async Task ImportAsync_MissingParent_SkipsChild_WithWarning()
     {
         var bundle = new ContentBundle

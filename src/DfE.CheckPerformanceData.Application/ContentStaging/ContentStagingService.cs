@@ -136,7 +136,7 @@ public sealed class ContentStagingService(
                 }
 
                 await wikiService.UpdatePageAsync(existing.Id,
-                    new UpdateWikiPageDto { Title = page.Title, Content = page.Content });
+                    new UpdateWikiPageDto { Title = page.Title, Content = page.Content, SortOrder = page.SortOrder });
                 result.WikiPagesUpdated++;
                 pathToId[page.SlugPath] = existing.Id;
             }

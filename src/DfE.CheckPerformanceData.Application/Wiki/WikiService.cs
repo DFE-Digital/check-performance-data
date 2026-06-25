@@ -268,6 +268,9 @@ public sealed partial class WikiService(
                 await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
                 await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
             }
+
+            if (dto.SortOrder.HasValue)
+                await repository.SetSortOrderAsync(id, dto.SortOrder.Value);
         });
 
 		var page = await repository.GetByIdAsync(id)

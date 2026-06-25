@@ -12,7 +12,6 @@ public sealed class RequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
-    IRequestBlobClient requestBlobClient,
     ILogger<RequestService> logger,
     IQueueService queueService,
     IRequestNotificationService requestNotificationService) : IRequestService
@@ -128,7 +127,7 @@ public sealed class RequestService(
         }
         else
         {
-            logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row.RequestType, referenceNumber);
+            logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row?.RequestType , referenceNumber);
         }
 
         return new RequestDeletionResult(WasHardDeleted: false, pupilName);

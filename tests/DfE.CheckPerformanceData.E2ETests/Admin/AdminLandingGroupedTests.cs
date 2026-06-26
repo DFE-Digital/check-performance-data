@@ -103,11 +103,14 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
         }
     }
 
-    // --- AdminLanding_AsAdmin_Rail_Renders_DisabledTiles_With_AriaDisabled ---
+    // --- AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles ---
 
     [Fact]
-    public async Task AdminLanding_AsAdmin_Rail_Renders_DisabledTiles_With_AriaDisabled()
+    public async Task AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles()
     {
+        // Every admin nav entry is now an actionable link — the last "Coming soon"
+        // placeholder tile (version retention) became a real setting. Guard against a
+        // disabled/placeholder tile being reintroduced.
         try
         {
             await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
@@ -121,7 +124,7 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("aria-disabled=\"true\"", body);
+            Assert.DoesNotContain("aria-disabled=\"true\"", body);
         }
         finally
         {
@@ -132,10 +135,11 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
     // --- AdminLanding_Rail_ComputedCss_PinsMatchUiSpec ---
 
     // Source of truth: UI-SPEC § Snapshot Fixtures § Computed-CSS spot pins.
-    // The three runtime assertions below mirror those pins exactly:
+    // The runtime assertions below mirror those pins exactly:
     //   (a) .admin-rail flex-basis = 280px
     //   (b) second .admin-nav-group border-top-color = rgb(177, 180, 182) (#b1b4b6)
-    //   (c) disabled rail row tabindex attribute absent (not "-1", not "0")
+    // (The former disabled-row tabindex pin was dropped — no admin tile is disabled
+    // anymore, see AdminLanding_AsAdmin_Rail_HasNoDisabledPlaceholderTiles.)
     // Linux-only (Playwright VR convention; mirrors AdminLandingVisualTests).
     [SkippableFact]
     public async Task AdminLanding_Rail_ComputedCss_PinsMatchUiSpec()
@@ -179,12 +183,6 @@ public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : Seedin
                 "() => { var groups = document.querySelectorAll('.admin-nav-group');" +
                 " return groups.length >= 2 ? getComputedStyle(groups[1]).borderTopColor : null; }");
             Assert.Equal("rgb(177, 180, 182)", sepColour);
-
-            // (c) Disabled rail row not focusable — tabindex must be absent (not "-1", not "0").
-            var disabledTabindex = await Page.EvaluateAsync<string>(
-                "() => { var el = document.querySelector('.admin-nav-tree [aria-disabled=\"true\"]');" +
-                " return el ? (el.getAttribute('tabindex') ?? '') : 'NO_ELEMENT'; }");
-            Assert.Equal(string.Empty, disabledTabindex);
         }
         finally
         {

@@ -13,6 +13,20 @@
         <input class="govuk-input" id="page-title" name="Title" type="text" value="@Model.Title" required>
     </div>
 
+    @{
+        var autoSlug = WikiSlug.Generate(Model.Title);
+        var isCustomSlug = !string.IsNullOrEmpty(Model.Slug) && Model.Slug != autoSlug;
+    }
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--m" for="page-slug">URL slug</label>
+        <div class="govuk-hint">
+            Leave blank to follow the title automatically. Set a value to pin the slug for SEO —
+            it then won't change when the title changes. Current: <code>@Model.Slug</code>
+        </div>
+        <input class="govuk-input" id="page-slug" name="Slug" type="text"
+               value="@(isCustomSlug ? Model.Slug : "")" placeholder="@autoSlug">
+    </div>
+
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--m" for="page-content">Page content</label>
         <div class="govuk-hint">You can type directly, use Markdown, or paste formatted text from Word.</div>

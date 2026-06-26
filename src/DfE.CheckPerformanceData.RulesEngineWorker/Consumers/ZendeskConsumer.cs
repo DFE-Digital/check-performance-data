@@ -300,7 +300,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = decisionStatusCustomFieldId,
-                Value = decision.Status.ToString(),
+                Value = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionStatusName,decision.Status.ToString())
             });
             
             var outcomeKeyFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName);

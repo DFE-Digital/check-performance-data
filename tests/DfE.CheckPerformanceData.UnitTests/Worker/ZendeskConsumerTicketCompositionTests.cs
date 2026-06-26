@@ -108,23 +108,6 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Fact]
-    public void CustomFields_PopulatedWhenIdsConfigured()
-    {
-        _settings.DecisionStatusCustomFieldId = 100;
-        _settings.OutcomeKeyCustomFieldId = 200;
-        _settings.MatchedRuleIdCustomFieldId = 300;
-        var consumer = NewConsumer();
-        var decision = new Decision(DecisionStatus.AutoApproved, "Inclusion", "INC-ACC",
-            new[] { "inclusionFlag in [...] → true" });
-
-        var ticket = consumer.BuildTicket(NewMessage("Inclusion"), decision).Ticket;
-
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 100 && (string)f.Value == "AutoApproved");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 200 && (string)f.Value == "Inclusion");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 300 && (string)f.Value == "INC-ACC");
-    }
-
-    [Fact]
     public void PupilFields_AreMappedFromConfiguredFieldIds()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SchoolUrnName).Returns(10L);

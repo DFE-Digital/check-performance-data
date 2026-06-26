@@ -31,8 +31,6 @@ public sealed class ZendeskTicketFieldSettings
     public long? CorrectionReason31Id { get; set; }
     public long? ReasonForRemovalId { get; set; }
     public long? CypmdId { get; set; }
-    public long? RulesEngineMatchedRuleId { get; set; }
-    public long? RulesEngineOutcomeKeyId { get; set; }
 
     /// <summary>
     /// Gets the field ID by field name.
@@ -59,8 +57,6 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.CorrectionReason31Name => CorrectionReason31Id,
             ZendeskTicketFieldConstants.ReasonForRemovalName => ReasonForRemovalId,
             ZendeskTicketFieldConstants.CypmdName => CypmdId,
-            ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName => RulesEngineMatchedRuleId,
-            ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName => RulesEngineOutcomeKeyId,
             _ => null
         };
     }
@@ -89,9 +85,7 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.SexName, SexId),
             (ZendeskTicketFieldConstants.CorrectionReason31Name, CorrectionReason31Id),
             (ZendeskTicketFieldConstants.ReasonForRemovalName, ReasonForRemovalId),
-            (ZendeskTicketFieldConstants.CypmdName, CypmdId),
-            (ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName, RulesEngineMatchedRuleId),
-            (ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName, RulesEngineOutcomeKeyId)
+            (ZendeskTicketFieldConstants.CypmdName, CypmdId)
         };
     }
 }

@@ -255,7 +255,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
         };
 
-        AddEngineCustomFields(dto, decision);
+        AddDecisionCustomFields(dto, decision);
         MapPupilFields(dto, message);
         return dto;
     }
@@ -291,72 +291,25 @@ public sealed class ZendeskConsumer : ConsumerBase
         return sb.ToString();
     }
 
-    private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
+    private void AddDecisionCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
-        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-        if (_ticketFieldService != null)
+        
+        if (_ticketFieldService is null)
         {
-            var decisionStatusCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+            return;
+        }
+        
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+        var decisionStatusCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+        if (decisionStatusCustomFieldId.HasValue && decisionStatusCustomFieldId.Value > 0)
+        {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = decisionStatusCustomFieldId,
                 Value = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionStatusName,decision.Status.ToString())
             });
-            
-            var outcomeKeyFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName);
-            if(outcomeKeyFieldId.HasValue && outcomeKeyFieldId.Value > 0)
-            {
-                dto.Ticket.CustomFields.Add(new CustomFieldDto
-                {
-                    Id = outcomeKeyFieldId,
-                    Value = decision.OutcomeKey,
-                });
-            }
-
-            var matchedRuleIdCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName);
-            if (matchedRuleIdCustomFieldId.HasValue && matchedRuleIdCustomFieldId.Value > 0)
-            {
-                dto.Ticket.CustomFields.Add(new CustomFieldDto
-                {
-                    Id = matchedRuleIdCustomFieldId,
-                    Value = decision.MatchedRuleId,
-                });
-            }
         }
-
-        if (_checkingExerciseSettings is null)
-        {
-            return;
-        }
-
         
-
-        if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = _checkingExerciseSettings.DecisionStatusCustomFieldId,
-                Value = decision.Status.ToString(),
-            });
-        }
-
-        if (_checkingExerciseSettings.OutcomeKeyCustomFieldId > 0)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = _checkingExerciseSettings.OutcomeKeyCustomFieldId,
-                Value = decision.OutcomeKey,
-            });
-        }
-
-        if (_checkingExerciseSettings.MatchedRuleIdCustomFieldId > 0)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = _checkingExerciseSettings.MatchedRuleIdCustomFieldId,
-                Value = decision.MatchedRuleId,
-            });
-        }
     }
 
     private void MapPupilFields(CreateTicketRequestDto dto, RequestDocument message)

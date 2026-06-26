@@ -16,7 +16,6 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
-using DfE.CheckPerformanceData.Infrastructure.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
@@ -85,8 +84,6 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
-
-    NotifyServiceRegistration.ConfigureFakeNotify(builder.Services, builder.Configuration);
 
     // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
     // the admin Danger zone "Reset seed data" action.

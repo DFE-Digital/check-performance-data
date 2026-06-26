@@ -61,7 +61,8 @@ public sealed class HelpController(
         {
             Title = model.Title,
             Content = model.Content,
-            ParentId = model.ParentId
+            ParentId = model.ParentId,
+            Slug = model.Slug
         };
 
         try
@@ -99,7 +100,8 @@ public sealed class HelpController(
         var dto = new UpdateWikiPageDto
         {
             Title = model.Title,
-            Content = model.Content
+            Content = model.Content,
+            Slug = model.Slug
         };
 
         try

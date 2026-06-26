@@ -26,8 +26,8 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, SystemAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, AmendmentRequestsAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, UncommittedRequestsNavEntry>();
-        services.AddSingleton<IAdminNavEntry, VersionRetentionNavEntry>();
         services.AddSingleton<IAdminNavEntry, ContentStagingImportExportNavEntry>();
+        services.AddSingleton<IAdminNavEntry, ContentBlocksNavEntry>();
         services.AddSingleton<IAdminNavEntry, DeletedPagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemSettingsNavEntry>();

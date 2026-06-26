@@ -8,6 +8,16 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed partial class ContentBlockController(IContentBlockService contentBlockService) : Controller
 {
+    // The content-blocks management page: every block in one place, edited inline one after
+    // another. ?edit=<key> opens that block's editor (reusing the same save endpoint).
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpGet("admin/content-blocks")]
+    public async Task<IActionResult> Index(string? edit)
+    {
+        var blocks = await contentBlockService.GetAllAsync();
+        return View(new ContentBlocksAdminViewModel { Blocks = blocks, EditKey = edit });
+    }
+
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/save")]
     [ValidateAntiForgeryToken]

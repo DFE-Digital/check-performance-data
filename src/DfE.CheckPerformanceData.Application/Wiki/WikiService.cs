@@ -205,7 +205,7 @@ public sealed partial class WikiService(
 
 	public async Task<WikiPageDto> CreatePageAsync(CreateWikiPageDto dto)
 	{
-		var slug = GenerateSlug(dto.Title);
+		var slug = string.IsNullOrWhiteSpace(dto.Slug) ? GenerateSlug(dto.Title) : GenerateSlug(dto.Slug);
 
 		if (await repository.SlugExistsAsync(slug, dto.ParentId))
 			throw new DuplicateWikiPageException(dto.Title, dto.ParentId);
@@ -219,7 +219,7 @@ public sealed partial class WikiService(
 		WikiPageDto? page = null;
 		await repository.ExecuteInTransactionAsync(async () =>
 		{
-			page = await repository.AddPageAsync(dto, slug, maxSortOrder + 1, bodyPlainText);
+			page = await repository.AddPageAsync(dto, slug, dto.SortOrder ?? maxSortOrder + 1, bodyPlainText);
 			await repository.AddVersionAsync(page.Id, dto.Title, dto.Content, 1);
 		});
 
@@ -233,7 +233,7 @@ public sealed partial class WikiService(
 	// otherwise it is created (Created = true). Never produces "(2)" duplicate titles.
 	public async Task<WikiPageCreationResult> CreatePageIfMissingAsync(CreateWikiPageDto dto)
 	{
-		var slug = GenerateSlug(dto.Title);
+		var slug = string.IsNullOrWhiteSpace(dto.Slug) ? GenerateSlug(dto.Title) : GenerateSlug(dto.Slug);
 
 		var existing = await repository.GetBySlugAndParentAsync(slug, dto.ParentId);
 		if (existing is not null)
@@ -245,20 +245,21 @@ public sealed partial class WikiService(
 
 	public async Task<WikiPageDto> UpdatePageAsync(int id, UpdateWikiPageDto dto)
 	{
-		var slug = GenerateSlug(dto.Title);
+		var existing = await repository.GetByIdAsync(id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		var slug = ResolveUpdateSlug(dto, existing);
 
 		// XSS: sanitise → strip tags → feed Postgres's STORED SearchVector.
 		var sanitisedHtml = htmlRenderer.RenderHtml(dto.Content) ?? string.Empty;
 		var bodyPlainText = htmlRenderer.StripTagsToPlainText(sanitisedHtml);
-        
+
         await repository.ExecuteInTransactionAsync(async () =>
         {
             var maxVersion = await repository.GetMaxVersionNumberAsync(id);
 
             if (maxVersion == 0)
             {
-                var existing = await repository.GetByIdAsync(id)
-                    ?? throw new InvalidOperationException($"Wiki page {id} not found.");
                 await repository.AddVersionAsync(id, existing.Title, existing.Content, 1);
                 await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
                 await repository.AddVersionAsync(id, dto.Title, dto.Content, 2);
@@ -268,6 +269,9 @@ public sealed partial class WikiService(
                 await repository.UpdatePageAsync(id, dto.Title, dto.Content, slug, bodyPlainText);
                 await repository.AddVersionAsync(id, dto.Title, dto.Content, maxVersion + 1);
             }
+
+            if (dto.SortOrder.HasValue)
+                await repository.SetSortOrderAsync(id, dto.SortOrder.Value);
         });
 
 		var page = await repository.GetByIdAsync(id)
@@ -544,21 +548,17 @@ public sealed partial class WikiService(
 		SortOrder = page.SortOrder
 	};
 
-	private static string GenerateSlug(string title)
+	private static string GenerateSlug(string title) => WikiSlug.Generate(title);
+
+	// Decide a page's slug on update: an explicit slug wins; otherwise a slug that already differs
+	// from its title-derived form is "custom" and preserved (SEO), while an auto slug follows the
+	// new title.
+	private static string ResolveUpdateSlug(UpdateWikiPageDto dto, WikiPageDto existing)
 	{
-		var slug = title.ToLowerInvariant();
-		slug = SlugInvalidChars().Replace(slug, "");
-		slug = SlugWhitespace().Replace(slug, "-");
-		slug = SlugMultipleDashes().Replace(slug, "-");
-		return slug.Trim('-');
+		if (!string.IsNullOrWhiteSpace(dto.Slug))
+			return GenerateSlug(dto.Slug);
+		if (existing.Slug == GenerateSlug(existing.Title))
+			return GenerateSlug(dto.Title);
+		return existing.Slug;
 	}
-
-	[GeneratedRegex(@"[^a-z0-9\s-]")]
-	private static partial Regex SlugInvalidChars();
-
-	[GeneratedRegex(@"\s+")]
-	private static partial Regex SlugWhitespace();
-
-	[GeneratedRegex(@"-{2,}")]
-	private static partial Regex SlugMultipleDashes();
 }

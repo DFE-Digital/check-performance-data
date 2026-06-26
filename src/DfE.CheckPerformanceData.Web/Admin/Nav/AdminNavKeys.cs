@@ -10,8 +10,8 @@ public static class AdminNavKeys
     public const string SystemAdmin = "system-admin";
     public const string AmendmentRequestsAdmin = "amendment-requests-admin";
     public const string UncommittedRequests = "uncommitted-requests";
-    public const string VersionRetention = "version-retention";
     public const string ContentStaging = "content-staging";
+    public const string ContentBlocks = "content-blocks";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
     public const string SystemSettings = "system-settings";

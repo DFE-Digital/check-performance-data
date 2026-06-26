@@ -347,6 +347,19 @@
   color: #0b0c0c;
 }
 
+/* POST nav action rendered as a link-styled button (e.g. Seed sample pages) */
+.tv-link-form {
+  display: inline;
+  margin: 0;
+}
+
+.tv-link-button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
 /* Parent nodes: bold */
 .tv-link-parent {
   font-weight: 700;
@@ -1000,6 +1013,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   font-size: 1.3125rem;
   font-weight: 700;
   line-height: 1.2;
+}
+
+/* The "leave admin" link sits below the tree, set off by a divider. */
+.admin-nav-tree__leave {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #b1b4b6;
 }
 
 .admin-nav-group + .admin-nav-group {

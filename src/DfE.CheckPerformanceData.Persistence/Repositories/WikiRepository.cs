@@ -66,6 +66,22 @@ public sealed class WikiRepository(
 	public async Task<bool> SlugExistsAsync(string slug, int? parentId) =>
 		await context.WikiPages.AnyAsync(p => p.Slug == slug && p.ParentId == parentId && !p.IsDeleted);
 
+	public async Task<WikiPageDto?> GetByContentIdAsync(Guid contentId) =>
+		await context.WikiPages
+			.AsNoTracking()
+			.Where(p => p.ContentId == contentId)
+			.ProjectToDto()
+			.FirstOrDefaultAsync();
+
+	public async Task SetContentIdAsync(int id, Guid contentId)
+	{
+		var entity = await context.WikiPages.FindAsync(id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		entity.ContentId = contentId;
+		entity.UpdatedAt = DateTime.UtcNow;
+	}
+
 	public async Task<List<DeletedWikiPageInfo>> GetDeletedRootsAsync()
 	{
 		var deleted = await context.WikiPages
@@ -265,6 +281,10 @@ public sealed class WikiRepository(
 			UpdatedAt = DateTime.UtcNow
 		};
 
+		// Preserve a supplied cross-environment identity; otherwise the DB default generates one.
+		if (dto.ContentId is { } contentId && contentId != Guid.Empty)
+			entity.ContentId = contentId;
+
 		context.WikiPages.Add(entity);
 		await context.SaveChangesAsync();
 
@@ -295,6 +315,17 @@ public sealed class WikiRepository(
 		entity.Content = content;
 		entity.BodyPlainText = bodyPlainText;
 		entity.Slug = slug;
+		entity.UpdatedAt = DateTime.UtcNow;
+	}
+
+	// Direct position set (no sibling re-sequencing): content-staging import reproduces a
+	// source ordering that is already a clean per-parent sequence, so the value is applied as-is.
+	public async Task SetSortOrderAsync(int id, int sortOrder)
+	{
+		var entity = await context.WikiPages.FindAsync(id)
+			?? throw new InvalidOperationException($"Wiki page {id} not found.");
+
+		entity.SortOrder = sortOrder;
 		entity.UpdatedAt = DateTime.UtcNow;
 	}
 

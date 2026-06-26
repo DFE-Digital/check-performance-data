@@ -61,6 +61,18 @@ public sealed class AdminNavTreeRenderTests
 		Assert.Contains("tv-children", src);
 	}
 
+	// --- AdminNavTree_Has_LeaveAdmin_Link_To_Home_At_Bottom ---
+
+	[Fact]
+	public void AdminNavTree_Has_LeaveAdmin_Link_To_Home_At_Bottom()
+	{
+		var src = ReadAdminNavTree();
+
+		// A link at the foot of the tree that leaves the admin area for the service home page.
+		Assert.Contains("admin-nav-tree__leave", src);
+		Assert.Contains("href=\"/\"", src);
+	}
+
 	// --- AdminNavTree_Administration_Heading_Has_Distinct_Class ---
 
 	[Fact]
@@ -114,6 +126,21 @@ public sealed class AdminNavTreeRenderTests
 
 		Assert.Contains("/admin", src);
 		Assert.Contains("Administration", src);
+	}
+
+	// --- AdminNavNode_PostEntry_Renders_Antiforgery_FormButton ---
+
+	[Fact]
+	public void AdminNavNode_PostEntry_Renders_Antiforgery_FormButton()
+	{
+		// A POST nav entry (e.g. "Seed sample pages") has no GET Url, so it must render as an
+		// antiforgery-protected form-button that posts to Help/Seed — a real, clickable control
+		// in the tree — rather than falling through to the muted aria-disabled span.
+		var src = ReadAdminNavNode();
+
+		Assert.Contains("HttpMethod == \"POST\"", src);
+		Assert.Contains("AntiForgeryToken", src);
+		Assert.Contains("asp-action=\"Seed\"", src);
 	}
 
 	// --- AdminNavTree_Disabled_Child_Renders_AriaDisabled_Span_Not_Anchor ---

@@ -10,6 +10,10 @@ public sealed record WikiPageBundleItem
     public Guid Id { get; init; }
     public Guid? ParentId { get; init; }
     public string Title { get; init; } = string.Empty;
+
+    // The URL slug, carried so a custom (SEO-pinned) slug survives export/import. It is NOT used to
+    // match pages — that is still purely by Id — only to set the slug on the imported page.
+    public string Slug { get; init; } = string.Empty;
     public string? Content { get; init; }
 
     // Position of this page among its siblings, preserved so the target environment reproduces

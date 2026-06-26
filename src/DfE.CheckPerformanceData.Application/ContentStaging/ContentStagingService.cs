@@ -26,6 +26,7 @@ public sealed class ContentStagingService(
             Id = p.ContentId,
             ParentId = p.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent.ContentId : null,
             Title = p.Title,
+            Slug = p.Slug,
             Content = p.Content,
             SortOrder = p.SortOrder
         }).ToList();
@@ -160,17 +161,18 @@ public sealed class ContentStagingService(
                 else
                 {
                     await wikiService.UpdatePageAsync(existing.Id,
-                        new UpdateWikiPageDto { Title = page.Title, Content = page.Content, SortOrder = page.SortOrder });
+                        new UpdateWikiPageDto { Title = page.Title, Content = page.Content, SortOrder = page.SortOrder, Slug = page.Slug });
                     result.WikiPagesUpdated++;
                 }
                 if (page.Id != Guid.Empty) contentIdToDbId[page.Id] = existing.Id;
                 continue;
             }
 
-            // New identity. Guard the unique (parent, slug) index so a same-named sibling doesn't crash.
-            if (await wikiRepository.SlugExistsAsync(WikiSlug.Generate(page.Title), parentDbId))
+            // New identity. Guard the unique (parent, slug) index so a same-slug sibling doesn't crash.
+            var newSlug = string.IsNullOrWhiteSpace(page.Slug) ? WikiSlug.Generate(page.Title) : WikiSlug.Generate(page.Slug);
+            if (await wikiRepository.SlugExistsAsync(newSlug, parentDbId))
             {
-                result.Errors.Add($"Could not create ‘{page.Title}’ — a different page with the same name already exists under its parent.");
+                result.Errors.Add($"Could not create ‘{page.Title}’ — a different page with the slug ‘{newSlug}’ already exists under its parent.");
                 continue;
             }
 
@@ -180,7 +182,8 @@ public sealed class ContentStagingService(
                 Content = page.Content,
                 ParentId = parentDbId,
                 SortOrder = page.SortOrder,
-                ContentId = page.Id
+                ContentId = page.Id,
+                Slug = page.Slug
             });
             result.WikiPagesCreated++;
             if (page.Id != Guid.Empty) contentIdToDbId[page.Id] = created.Id;
@@ -333,7 +336,7 @@ public sealed class ContentStagingService(
         var depth = 0;
         while (cursor is not null && depth < MaxDepth)
         {
-            segments.Insert(0, WikiSlug.Generate(cursor.Title));
+            segments.Insert(0, string.IsNullOrWhiteSpace(cursor.Slug) ? WikiSlug.Generate(cursor.Title) : cursor.Slug);
             cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
             depth++;
         }

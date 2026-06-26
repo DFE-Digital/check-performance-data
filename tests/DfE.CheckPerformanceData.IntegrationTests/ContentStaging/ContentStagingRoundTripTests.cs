@@ -353,6 +353,32 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task CustomSlug_IsPreservedOnTitleChange_AndThroughExportImport()
+    {
+        await ResetAsync();
+
+        // Create with a pinned SEO slug, then rename the title.
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var svc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
+            var page = await svc.CreatePageAsync(new CreateWikiPageDto { Title = "Original Title", Slug = "seo-pinned", Content = "c" });
+            await svc.UpdatePageAsync(page.Id, new UpdateWikiPageDto { Title = "Renamed For Marketing", Content = "c2" });
+        }
+
+        // The slug did not follow the title rename.
+        await using (var v = _fixture.CreateContext())
+            Assert.Equal("seo-pinned", (await v.WikiPages.FirstAsync(p => p.Title == "Renamed For Marketing")).Slug);
+
+        // And it survives a fresh export -> import round-trip.
+        var bundle = await ExportAsync();
+        await ResetAsync();
+        await ImportAsync(bundle, ContentImportMode.Skip);
+
+        await using (var v = _fixture.CreateContext())
+            Assert.Equal("seo-pinned", (await v.WikiPages.FirstAsync(p => p.Title == "Renamed For Marketing")).Slug);
+    }
+
+    [Fact]
     public async Task Preview_ReportsNew_Collision_AndBlockedCounts()
     {
         await ResetAsync();

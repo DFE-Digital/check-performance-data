@@ -30,30 +30,36 @@ flowchart LR
 
 ## How a request flows through
 
-A request is evaluated end-to-end by the background worker (`RulesEngineWorker`):
+The background worker (`RulesEngineWorker`) runs a **two-stage queue pipeline**. The first stage evaluates the request; the second turns the decision into a support ticket. Both stages share a common dequeue loop (`ConsumerBase`): claim a message, process it, acknowledge on success, or dead-letter it once it exceeds the attempt cap — and each records a per-stage queue metric.
 
 ```mermaid
 sequenceDiagram
     participant Web
-    participant Q as Rules queue
-    participant W as RulesEngineWorker
-    participant M as RuleContextMapper
-    participant Eng as RulesEngine
+    participant RQ as Rules-engine queue
+    participant RC as RulesConsumer
+    participant Eng as Mapper + RulesEngine
     participant DB as ChangeRequests table
     participant An as Analytics
+    participant ZQ as Zendesk queue
+    participant ZC as ZendeskConsumer
+    participant Z as Zendesk
 
-    Web->>Q: RequestDocument (on submit)
-    W->>Q: dequeue message
-    W->>M: Map(RequestDocument)
-    M-->>W: RuleContext (typed fields)
-    W->>Eng: Evaluate(rules, context, lookups)
-    Eng-->>W: Decision (status + matched rule id + trace)
-    W->>DB: record Outcome, OutcomeKey, MatchedRuleId, RulesVersion
-    W->>An: emit request_decision (best-effort)
-    Note over Web,Q: This first hop is currently paused — see "Current state".
+    Web->>RQ: enqueue RequestDocument (on submit)
+    RC->>RQ: dequeue message
+    RC->>Eng: Map → Evaluate(rules, context, lookups)
+    Eng-->>RC: Decision (status + matched rule id + trace)
+    RC->>DB: record Outcome, OutcomeKey, MatchedRuleId, RulesVersion, DecidedAtUtc
+    RC->>An: emit request_decision (best-effort)
+    ZC->>ZQ: dequeue ticket message
+    ZC->>DB: read the persisted decision
+    ZC->>Z: create ticket (priority/fields by decision) + evidence
+    ZC->>DB: record CrmId, status = ZendeskTicketCreated
+    Note over RC,ZQ: The rules→Zendesk hand-off is not yet wired — see "Current state".
 ```
 
-If the mapper or the engine throws, the worker catches it and still records a **synthetic Scrutiny** decision (rule id `_mapper_error` or `_engine_error`), so a fault can never silently auto-decide. The decision and an audit trace are stored on the request's `ChangeRequest` row; creating the downstream support ticket is a separate step.
+The two stages are decoupled through the database: the `RulesConsumer` writes the decision onto the request's `ChangeRequest` row, and the `ZendeskConsumer` reads it back when it builds the ticket (so ticket creation never re-evaluates the rules). Ticket creation is idempotent — it claims the row before calling Zendesk, so a redelivery never opens a duplicate.
+
+If the mapper or the engine throws, the `RulesConsumer` catches it and still records a **synthetic Scrutiny** decision (rule id `_mapper_error` or `_engine_error`), so a fault can never silently auto-decide.
 
 ---
 
@@ -77,6 +83,7 @@ flowchart TB
     end
     subgraph Worker["RulesEngineWorker"]
         Cons[RulesConsumer]
+        ZCons[ZendeskConsumer]
     end
     Blob[("Azure Blob — rules.json + country-languages.json")]
 
@@ -92,6 +99,8 @@ flowchart TB
 ```
 
 A key boundary is `AnswerFieldMap`: it translates the **journey's question vocabulary** (what the web form calls things) into the **rules' canonical field names**. The rules never depend on the web layer, so question wording can change without touching the rules.
+
+The same worker process also hosts the downstream `ZendeskConsumer` and a handful of supporting background services — queue-metric recording, dead-letter and metrics retention jobs, and health checks — but none of those touch the evaluator, which stays a pure function of its inputs.
 
 ---
 
@@ -195,7 +204,7 @@ The mapper (`RuleContextMapper`) turns a submitted `RequestDocument` into the ty
 | **Vocabulary translation** | Journey answer values mapped to canonical values; a "believed" answer becomes `Uncertain`; anything unlisted becomes `Unknown`. | `first-language: believed-english` → `Uncertain("ENG")` |
 | **Window-resolved** | One question resolves to different fields depending on the checking window. | the SAT-exams question → `hasSatExamsAsYear11` (KS4) or `hasSatExamsAsYear6` (KS2) |
 
-Some fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
+Two fields come straight from the message **envelope** rather than an answer: `checkingWindowType` (normalised — see below) and `requestType` (the raw reason code). Other fields are calculated from the pupil record on the message, with a deliberate fail-safe guard: `pupilAge` (only when `Age > 0`), `inclusionFlag` and `isAddBack` (only when the inclusion code `Pincl > 0`). A missing or zero value is left `Unknown` rather than read as `0`.
 
 A few fields referenced by rules have **no producer at all** yet (e.g. `whereaboutsKnown`, `locatedAfterReasonableEfforts`, `illnessHasSevereProfoundEffect`). They are always `Unknown`, so any rule depending on them defers to Scrutiny — which is the intended safe behaviour until the question exists.
 
@@ -225,9 +234,9 @@ These three states map to the health check as `Healthy` → healthy, `StaleLastK
 
 ## Current state
 
-> **The queue path is paused.** In [`Web/appsettings.json`](../src/DfE.CheckPerformanceData.Web/appsettings.json) the flag `RequestSubmission:WriteToBlobInsteadOfQueue` is `true`, so submitted requests are written to blob storage **instead of** being enqueued. Nothing reads that blob, so the engine currently evaluates **no** requests.
->
-> The evaluator, provider, seeder, and worker are all fully built and tested — restoring the flow is a one-line config change (flip the flag to `false`), gated on the upstream pupil-data feed being ready.
+The queue path is **live**. On submit, `RequestService.ConfirmRequestAsync` enqueues the `RequestDocument` onto the Postgres-backed rules-engine queue; the worker's `RulesConsumer` dequeues it, evaluates it, and writes the decision (`Outcome`, `OutcomeKey`, `MatchedRuleId`, `RulesVersion`, `DecidedAtUtc`) back to the request's `ChangeRequest` row. The legacy `RequestSubmission:WriteToBlobInsteadOfQueue` flag still appears in [`Web/appsettings.json`](../src/DfE.CheckPerformanceData.Web/appsettings.json) but is **no longer read by any code** — it is dead configuration left over from the paused-path era.
+
+One gap remains downstream. The worker ships a fully-built `ZendeskConsumer` that turns a persisted decision into a Zendesk ticket (priority, status and custom fields set from the decision, plus the school's uploaded evidence as attachments), claiming the row first so a redelivery cannot double-create. But the hand-off into it — transitioning the request to `RulesProcessed` and enqueuing the Zendesk message — is not present in the current code. So today requests are evaluated and their decisions are persisted, but tickets are **not** yet created automatically.
 
 ---
 
@@ -236,5 +245,5 @@ These three states map to the health check as `Healthy` → healthy, `StaleLastK
 - **Analytics** — every decision emits a `request_decision` event. See [bigquery-analytics.md](./bigquery-analytics.md).
 - **The user journey** that produces a request — see [request-journey.md](./request-journey.md).
 - **Editing rules** locally and in real environments — see the [seed README](../src/DfE.CheckPerformanceData.RulesEngineWorker/seed/README.md).
-- **Key code**: `Application/RulesEngine/` (`RulesEngine.cs`, `Predicate.cs`, `FieldValue.cs`, `RuleContextMapper.cs`, `AnswerFieldMap.cs`, `FieldCatalogue.cs`), `Infrastructure/RulesEngine/` (`BlobRulesProvider.cs`, `RulesConfigSeeder.cs`), `RulesEngineWorker/Consumers/RulesConsumer.cs`.
+- **Key code**: `Application/RulesEngine/` (`RulesEngine.cs`, `Predicate.cs`, `FieldValue.cs`, `RuleContextMapper.cs`, `AnswerFieldMap.cs`, `FieldCatalogue.cs`), `Infrastructure/RulesEngine/` (`BlobRulesProvider.cs`, `RulesConfigSeeder.cs`), `RulesEngineWorker/Consumers/` (`ConsumerBase.cs`, `RulesConsumer.cs`, `ZendeskConsumer.cs`), and the producer enqueue in `Application/RequestSubmission/RequestService.cs`.
 - **Tests** (xUnit) live under `tests/DfE.CheckPerformanceData.UnitTests/RulesEngine/` and the end-to-end test under `tests/DfE.CheckPerformanceData.IntegrationTests/RulesEngine/`.

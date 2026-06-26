@@ -6,7 +6,6 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -16,7 +15,7 @@ namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
 /// Consumes change-request messages: parses the request, evaluates it against the
 /// current rule set, persists the decision and status to the matching
 /// <see cref="Persistence.Entities.ChangeRequest"/> and enqueues a downstream
-/// ticket message — all atomically with the dequeue. It never talks to Zendesk.
+/// ticket message — all atomically with the de-queue. It never talks to Zendesk.
 /// A mapping or evaluation failure routes to a synthetic Scrutiny decision that is
 /// still persisted, so a fault never silently auto-approves or auto-rejects.
 /// </summary>
@@ -25,7 +24,7 @@ public sealed class RulesConsumer : ConsumerBase
     private readonly IRulesProvider _rulesProvider;
     private readonly IRulesEngine _rulesEngine;
     private readonly IRuleContextMapper _contextMapper;
-    private readonly IQueueService? _queueService;
+    
     private readonly IPortalDbContext? _dbContext;
     private readonly IAnalyticsService? _analytics;
     private readonly ILogger _logger;
@@ -55,7 +54,6 @@ public sealed class RulesConsumer : ConsumerBase
         IAnalyticsService? analytics = null)
         : base(queueService, Options.Create(new QueueOptions()), NullLogger<RulesConsumer>.Instance)
     {
-        _queueService = queueService;
         _dbContext = dbContext;
         _analytics = analytics;
         _rulesProvider = rulesProvider;
@@ -85,7 +83,7 @@ public sealed class RulesConsumer : ConsumerBase
     protected override string QueueName => QueueOptions.RulesEngineQueue;
 
     // The decision and rules version are only known once ProcessAsync has evaluated the message,
-    // but the metric is recorded by the base loop afterwards via DescribeMetric. The base loop
+    // but the metric is recorded by the base loop after via DescribeMetric. The base loop
     // processes one message at a time per consumer instance and records immediately after
     // processing, so stashing the most recent outcome here and attaching it when the reference
     // matches lets the decision flow through to the metric row without reparsing or re-evaluating.
@@ -115,31 +113,30 @@ public sealed class RulesConsumer : ConsumerBase
     protected override Task ProcessMessageBodyAsync(
         string messageBody, IServiceProvider? services, CancellationToken cancellationToken)
     {
-        var queueService = services?.GetRequiredService<IQueueService>() ?? _queueService!;
         var dbContext = services?.GetRequiredService<IPortalDbContext>() ?? _dbContext!;
         // Analytics is observability, not a hard dependency: resolve optionally so a host
         // that has not registered it (or a unit test that does not care) simply skips emission.
         var analytics = services?.GetService<IAnalyticsService>() ?? _analytics;
-        return ProcessAsync(messageBody, queueService, dbContext, analytics, cancellationToken);
+        return ProcessAsync(messageBody, dbContext, analytics, cancellationToken);
     }
 
     public override Task ProcessMessageBodyAsync(string messageBody, CancellationToken cancellationToken) =>
-        ProcessAsync(messageBody, _queueService!, _dbContext!, _analytics, cancellationToken);
+        ProcessAsync(messageBody, _dbContext!, _analytics, cancellationToken);
 
     private async Task ProcessAsync(
-        string messageBody, IQueueService queueService, IPortalDbContext dbContext,
+        string messageBody, IPortalDbContext dbContext,
         IAnalyticsService? analytics, CancellationToken cancellationToken)
     {
         var parsed = RequestDocumentParser.Parse(messageBody)
             ?? throw new InvalidOperationException("Failed to parse message.");
 
         var snapshot = _rulesProvider.Current;
-        var rulesVersion = snapshot?.Version;
+        var rulesVersion = snapshot.Version;
         Decision decision;
         try
         {
             var context = _contextMapper.Map(parsed);
-            decision = _rulesEngine.Evaluate(snapshot!.Rules, context, snapshot.Lookups);
+            decision = _rulesEngine.Evaluate(snapshot.Rules, context, snapshot.Lookups);
         }
         catch (RuleContextMappingException ex)
         {
@@ -155,9 +152,14 @@ public sealed class RulesConsumer : ConsumerBase
         }
 
         _logger.LogInformation(
-            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}{NewLine}Trace:{NewLine}{Trace}",
-            decision.Status, decision.OutcomeKey, decision.MatchedRuleId, rulesVersion, parsed.ReferenceNumber,
-            Environment.NewLine, Environment.NewLine,
+            "Decision={Status} Outcome={Outcome} Rule={Rule} RulesVersion={Version} Reference={Reference}{NewLine1}Trace:{NewLine2}{Trace}",
+            decision.Status,
+            decision.OutcomeKey,
+            decision.MatchedRuleId,
+            rulesVersion,
+            parsed.ReferenceNumber,
+            Environment.NewLine,
+            Environment.NewLine,
             decision.Trace.Count > 0 ? string.Join(Environment.NewLine, decision.Trace) : "(none)");
 
         // Capture the outcome so the post-ack metric record (DescribeMetric) can attach the
@@ -192,7 +194,7 @@ public sealed class RulesConsumer : ConsumerBase
                     DecisionStatus = decision.Status.ToString(),
                     OutcomeKey = decision.OutcomeKey,
                     MatchedRuleId = decision.MatchedRuleId,
-                    RulesVersion = rulesVersion ?? string.Empty,
+                    RulesVersion = rulesVersion,
                     RequestTypeCode = parsed.RequestTypeCode,
                     CheckingWindowType = parsed.CheckingWindowType,
                     IsSyntheticFallback = decision.MatchedRuleId.StartsWith('_'),

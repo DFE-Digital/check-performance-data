@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.RulesEngineWorker.Consumers;
@@ -95,14 +94,14 @@ public abstract class ConsumerBase : BackgroundService
     protected ConsumerBase(IQueueService queueService, IOptions<QueueOptions> options, ILogger logger)
     {
         _queueService = queueService;
-        _options = options?.Value ?? new QueueOptions();
+        _options = options.Value;
         _logger = logger;
     }
 
     protected ConsumerBase(IServiceScopeFactory scopeFactory, IOptions<QueueOptions> options, ILogger logger)
     {
         _scopeFactory = scopeFactory;
-        _options = options?.Value ?? new QueueOptions();
+        _options = options.Value;
         _logger = logger;
     }
 
@@ -111,8 +110,6 @@ public abstract class ConsumerBase : BackgroundService
 
     /// <summary>
     /// Process a single message body. Throwing routes the message to retry/DLQ.
-    /// <paramref name="services"/> is the per-message scope (the hosting path) or
-    /// <c>null</c> (the unit-test path, where collaborators are injected directly).
     /// </summary>
     public abstract Task ProcessMessageBodyAsync(string messageBody, CancellationToken cancellationToken);
 

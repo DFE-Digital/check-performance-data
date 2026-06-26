@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -70,9 +71,11 @@ public sealed class ContentStagingController(
         return File(bytes, "application/json", fileName);
     }
 
-    [HttpPost("import")]
+    // Step 1 of import: read the uploaded file, analyse it against the current environment, and
+    // show the preview so the administrator can see new vs colliding content and decide per item.
+    [HttpPost("preview")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Import(IFormFile? bundle, ContentImportMode mode)
+    public async Task<IActionResult> Preview(IFormFile? bundle)
     {
         if (bundle is null || bundle.Length == 0)
         {
@@ -86,34 +89,42 @@ public sealed class ContentStagingController(
             json = await reader.ReadToEndAsync();
         }
 
-        ContentBundle? parsed;
-        try
+        if (!TryParseBundle(json, out var parsed, out var error))
         {
-            parsed = ContentStagingJson.Deserialize(json);
-        }
-        catch (JsonException)
-        {
-            parsed = null;
-        }
-
-        if (parsed is null || parsed.Schema != ContentBundle.CurrentSchema)
-        {
-            TempData["ContentStagingError"] =
-                $"The file is not a valid '{ContentBundle.CurrentSchema}' content bundle.";
+            TempData["ContentStagingError"] = error;
             return Redirect("/admin/content-staging");
         }
 
-        if (parsed.SchemaVersion != ContentBundle.CurrentSchemaVersion)
+        var preview = await staging.PreviewAsync(parsed!);
+        return View(new ImportPreviewViewModel
         {
-            TempData["ContentStagingError"] =
-                $"This bundle is schema version {parsed.SchemaVersion}, but this environment only " +
-                $"supports version {ContentBundle.CurrentSchemaVersion}.";
+            Preview = preview,
+            BundleJson = ContentStagingJson.Serialize(parsed!)
+        });
+    }
+
+    // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
+    // overrides. The bundle round-trips through a hidden field so no server-side state is needed.
+    [HttpPost("import")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(ImportConfirmFormModel model)
+    {
+        ContentBundle? parsed = null;
+        string? error = null;
+        if (string.IsNullOrEmpty(model.BundleJson) || !TryParseBundle(model.BundleJson, out parsed, out error))
+        {
+            TempData["ContentStagingError"] = error ?? "The import session expired. Upload the file again.";
             return Redirect("/admin/content-staging");
         }
 
+        var decisions = model.Decisions
+            .Where(d => d.Action.HasValue)
+            .GroupBy(d => d.Id)
+            .ToDictionary(g => g.Key, g => g.First().Action!.Value);
+
         try
         {
-            var result = await staging.ImportAsync(parsed, mode);
+            var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions);
             TempData["ContentStagingResult"] = BuildSummary(result);
             if (result.Warnings.Count > 0)
                 TempData["ContentStagingWarnings"] = string.Join("\n", result.Warnings);
@@ -124,6 +135,34 @@ public sealed class ContentStagingController(
         }
 
         return Redirect("/admin/content-staging");
+    }
+
+    private static bool TryParseBundle(string json, out ContentBundle? bundle, out string? error)
+    {
+        try
+        {
+            bundle = ContentStagingJson.Deserialize(json);
+        }
+        catch (JsonException)
+        {
+            bundle = null;
+        }
+
+        if (bundle is null || bundle.Schema != ContentBundle.CurrentSchema)
+        {
+            error = $"The file is not a valid '{ContentBundle.CurrentSchema}' content bundle.";
+            return false;
+        }
+
+        if (bundle.SchemaVersion != ContentBundle.CurrentSchemaVersion)
+        {
+            error = $"This bundle is schema version {bundle.SchemaVersion}, but this environment only " +
+                    $"supports version {ContentBundle.CurrentSchemaVersion}.";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 
     private static string BuildSummary(ContentImportResult r) =>

@@ -185,6 +185,62 @@ public class ContentStagingServiceTests
         Assert.Single(bundle.ContentBlocks);
     }
 
+    // --- Preview ---
+
+    [Fact]
+    public async Task PreviewAsync_NewItems_MarkedNotExisting()
+    {
+        var bundle = new ContentBundle
+        {
+            WikiPages = [new() { Id = GuidA, SlugPath = "alpha", Slug = "alpha", Title = "Alpha" }],
+            ContentBlocks = [new() { Id = GuidB, Key = "footer", BlockType = "Content", Value = "f" }]
+        };
+        _wikiRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _wikiRepo.GetBySlugAndParentAsync(Arg.Any<string>(), Arg.Any<int?>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        Assert.False(preview.Pages.Single().Exists);
+        Assert.False(preview.Blocks.Single().Exists);
+        Assert.Equal(2, preview.NewCount);
+        Assert.Equal(0, preview.CollisionCount);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_GuidCollision_ShowsRenameInDescription()
+    {
+        var bundle = new ContentBundle
+        {
+            WikiPages = [new() { Id = GuidA, SlugPath = "b", Slug = "b", Title = "B" }]
+        };
+        _wikiRepo.GetByContentIdAsync(GuidA).Returns(new WikiPageDto { Id = 99, ContentId = GuidA, Title = "C" });
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        var item = preview.Pages.Single();
+        Assert.True(item.Exists);
+        Assert.Equal("B", item.Title);
+        Assert.Contains("C", item.ExistingDescription);   // names the target's current title
+        Assert.Equal(1, preview.CollisionCount);
+    }
+
+    [Fact]
+    public async Task PreviewAsync_BlockKeyCollision_MarkedExisting()
+    {
+        var bundle = new ContentBundle
+        {
+            ContentBlocks = [new() { Id = GuidB, Key = "footer", BlockType = "Content", Value = "f" }]
+        };
+        _blockRepo.GetByContentIdAsync(GuidB).ReturnsNull();
+        _blockRepo.GetByKeyAsync("footer").Returns(new ContentBlockDto { Id = 1, ContentId = GuidA, Key = "footer" });
+
+        var preview = await _sut.PreviewAsync(bundle);
+
+        Assert.True(preview.Blocks.Single().Exists);
+    }
+
     // --- Import: wiki create / skip / replace, parentage by GUID ---
 
     [Fact]
@@ -335,6 +391,71 @@ public class ContentStagingServiceTests
         Assert.Equal(1, result.WikiPagesSkipped);
         Assert.Single(result.Warnings);
         await _wiki.DidNotReceive().CreatePageAsync(Arg.Any<CreateWikiPageDto>());
+    }
+
+    [Fact]
+    public async Task ImportAsync_PerItemDecision_OverridesGlobalMode()
+    {
+        // Two colliding pages; global default is Skip, but page A is overridden to Overwrite.
+        var bundle = new ContentBundle
+        {
+            WikiPages =
+            [
+                new() { Id = GuidA, SlugPath = "a", Slug = "a", Title = "A", Content = "a" },
+                new() { Id = GuidB, SlugPath = "b", Slug = "b", Title = "B", Content = "b" }
+            ]
+        };
+        _wikiRepo.GetByContentIdAsync(GuidA).Returns(new WikiPageDto { Id = 10, ContentId = GuidA });
+        _wikiRepo.GetByContentIdAsync(GuidB).Returns(new WikiPageDto { Id = 11, ContentId = GuidB });
+        _wiki.UpdatePageAsync(Arg.Any<int>(), Arg.Any<UpdateWikiPageDto>()).Returns(new WikiPageDto());
+
+        var decisions = new Dictionary<Guid, ContentImportMode> { [GuidA] = ContentImportMode.Replace };
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Skip, decisions);
+
+        Assert.Equal(1, result.WikiPagesUpdated);   // A overwritten
+        Assert.Equal(1, result.WikiPagesSkipped);   // B skipped (global default)
+        await _wiki.Received(1).UpdatePageAsync(10, Arg.Any<UpdateWikiPageDto>());
+        await _wiki.DidNotReceive().UpdatePageAsync(11, Arg.Any<UpdateWikiPageDto>());
+    }
+
+    [Fact]
+    public async Task ImportAsync_GlobalFail_ButItemResolved_DoesNotAbort()
+    {
+        // Global Fail would normally abort on a collision, but an explicit decision resolves it.
+        var bundle = new ContentBundle
+        {
+            WikiPages = [new() { Id = GuidA, SlugPath = "a", Slug = "a", Title = "A", Content = "a" }]
+        };
+        _wikiRepo.GetByContentIdAsync(GuidA).Returns(new WikiPageDto { Id = 10, ContentId = GuidA });
+        _wiki.UpdatePageAsync(10, Arg.Any<UpdateWikiPageDto>()).Returns(new WikiPageDto { Id = 10 });
+
+        var decisions = new Dictionary<Guid, ContentImportMode> { [GuidA] = ContentImportMode.Replace };
+        var result = await _sut.ImportAsync(bundle, ContentImportMode.Fail, decisions);
+
+        Assert.Equal(1, result.WikiPagesUpdated);
+    }
+
+    [Fact]
+    public async Task ImportAsync_GlobalFail_UnresolvedCollision_Aborts()
+    {
+        var bundle = new ContentBundle
+        {
+            WikiPages =
+            [
+                new() { Id = GuidA, SlugPath = "a", Slug = "a", Title = "A" },
+                new() { Id = GuidB, SlugPath = "b", Slug = "b", Title = "B" }
+            ]
+        };
+        _wikiRepo.GetByContentIdAsync(GuidA).Returns(new WikiPageDto { Id = 10, ContentId = GuidA });
+        _wikiRepo.GetByContentIdAsync(GuidB).Returns(new WikiPageDto { Id = 11, ContentId = GuidB });
+
+        // A is resolved, B is left at the Fail default -> the whole import aborts.
+        var decisions = new Dictionary<Guid, ContentImportMode> { [GuidA] = ContentImportMode.Replace };
+
+        await Assert.ThrowsAsync<ContentImportConflictException>(
+            () => _sut.ImportAsync(bundle, ContentImportMode.Fail, decisions));
+
+        await _wiki.DidNotReceive().UpdatePageAsync(Arg.Any<int>(), Arg.Any<UpdateWikiPageDto>());
     }
 
     // --- Import: Fail mode ---

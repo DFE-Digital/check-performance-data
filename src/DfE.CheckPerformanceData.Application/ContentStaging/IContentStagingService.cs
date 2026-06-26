@@ -10,8 +10,16 @@ public interface IContentStagingService
     // The catalogue of exportable content (pages + blocks with metadata) for the selection UI.
     Task<ContentCatalog> GetCatalogAsync();
 
-    // Replays a bundle through the normal application services (no raw SQL). Existing content
-    // is handled per the chosen mode; children whose parent is absent are skipped and reported.
-    // Throws ContentImportConflictException in Fail mode if anything in the bundle already exists.
-    Task<ContentImportResult> ImportAsync(ContentBundle bundle, ContentImportMode mode);
+    // A dry-run analysis of a bundle against the current environment: which items are new and
+    // which collide with existing content. Shown on the import preview page; makes no changes.
+    Task<ContentImportPreview> PreviewAsync(ContentBundle bundle);
+
+    // Replays a bundle through the normal application services (no raw SQL). Each existing item is
+    // handled by its per-collision decision (keyed by stable GUID) if given, otherwise the global
+    // mode; children whose parent is absent are skipped and reported. Throws
+    // ContentImportConflictException if a collision is left at the Fail mode.
+    Task<ContentImportResult> ImportAsync(
+        ContentBundle bundle,
+        ContentImportMode mode,
+        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null);
 }

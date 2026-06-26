@@ -1,0 +1,129 @@
+@using DfE.CheckPerformanceData.Application.ContentStaging
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ImportPreviewViewModel
+@{
+    ViewData["Title"] = "Review import";
+    var pages = Model.Preview.Pages;
+    var blocks = Model.Preview.Blocks;
+
+    var newItems = pages.Where(p => !p.Exists).Select(p => ("Page", p))
+        .Concat(blocks.Where(b => !b.Exists).Select(b => ("Block", b))).ToList();
+    var collisions = pages.Where(p => p.Exists).Select(p => ("Page", p))
+        .Concat(blocks.Where(b => b.Exists).Select(b => ("Block", b))).ToList();
+}
+
+<a href="/admin/content-staging" class="govuk-back-link">Back to content staging</a>
+
+<h1 class="govuk-heading-xl">Review import</h1>
+
+<p class="govuk-body">
+    <strong>@Model.Preview.NewCount</strong> item@(Model.Preview.NewCount == 1 ? "" : "s") will be added.
+    <strong>@Model.Preview.CollisionCount</strong> already exist@(Model.Preview.CollisionCount == 1 ? "s" : "") in this environment.
+    Nothing changes until you confirm.
+</p>
+
+<form method="post" action="/admin/content-staging/import">
+    @Html.AntiForgeryToken()
+    @* The bundle round-trips through a hidden textarea (faithful for multi-line JSON) so the
+       confirm step needs no re-upload or server-side state. *@
+    <textarea name="BundleJson" hidden aria-hidden="true" tabindex="-1">@Model.BundleJson</textarea>
+
+    @if (collisions.Count > 0)
+    {
+        <div class="govuk-form-group">
+            <fieldset class="govuk-fieldset">
+                <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Default for collisions</legend>
+                <div id="global-hint" class="govuk-hint">Applies to any collision below left on “Use default”.</div>
+                <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="g-skip" name="GlobalMode" type="radio" value="Skip" checked>
+                        <label class="govuk-label govuk-radios__label" for="g-skip">Skip</label>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="g-replace" name="GlobalMode" type="radio" value="Replace">
+                        <label class="govuk-label govuk-radios__label" for="g-replace">Overwrite</label>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="g-fail" name="GlobalMode" type="radio" value="Fail">
+                        <label class="govuk-label govuk-radios__label" for="g-fail">Fail</label>
+                    </div>
+                </div>
+            </fieldset>
+        </div>
+
+        <h2 class="govuk-heading-l">Collisions (@collisions.Count)</h2>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Type</th>
+                    <th scope="col" class="govuk-table__header">Item</th>
+                    <th scope="col" class="govuk-table__header">What happens now</th>
+                    <th scope="col" class="govuk-table__header">Action</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @for (var i = 0; i < collisions.Count; i++)
+                {
+                    var (type, item) = collisions[i];
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@type</td>
+                        <td class="govuk-table__cell">
+                            <strong>@item.Title</strong>
+                            <span class="govuk-hint govuk-!-margin-0">@item.Detail</span>
+                        </td>
+                        <td class="govuk-table__cell">@item.ExistingDescription</td>
+                        <td class="govuk-table__cell">
+                            <input type="hidden" name="Decisions[@i].Id" value="@item.Id" />
+                            <div class="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-default" name="Decisions[@i].Action" type="radio" value="" checked>
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-default">Use default</label>
+                                </div>
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-replace" name="Decisions[@i].Action" type="radio" value="Replace">
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-replace">Overwrite</label>
+                                </div>
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-skip" name="Decisions[@i].Action" type="radio" value="Skip">
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-skip">Skip</label>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (newItems.Count > 0)
+    {
+        <h2 class="govuk-heading-l">New content (@newItems.Count)</h2>
+        <p class="govuk-body">These items don't exist here yet and will be added.</p>
+        <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">Type</th>
+                    <th scope="col" class="govuk-table__header">Item</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var (type, item) in newItems)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@type</td>
+                        <td class="govuk-table__cell">
+                            <strong>@item.Title</strong>
+                            <span class="govuk-hint govuk-!-margin-0">@item.Detail</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" data-prevent-double-click="true" type="submit">
+            Confirm import
+        </button>
+        <a class="govuk-link" href="/admin/content-staging">Cancel</a>
+    </div>
+</form>

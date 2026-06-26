@@ -145,22 +145,80 @@ public sealed class ContentStagingService(
         return included;
     }
 
-    public async Task<ContentImportResult> ImportAsync(ContentBundle bundle, ContentImportMode mode)
+    public async Task<ContentImportPreview> PreviewAsync(ContentBundle bundle)
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
-        // Parent-first (by depth) so a child's parent is always present (in the target or earlier
-        // in this pass); within a parent, ascending SortOrder so siblings are created in order.
-        var pages = bundle.WikiPages
-            .OrderBy(p => Depth(p.SlugPath))
-            .ThenBy(p => p.SortOrder)
-            .ThenBy(p => p.SlugPath, StringComparer.Ordinal)
-            .ToList();
-
-        if (mode == ContentImportMode.Fail)
+        var pages = OrderForImport(bundle.WikiPages);
+        var pageItems = new List<PreviewItem>();
+        foreach (var page in pages)
         {
-            await GuardNoConflictsAsync(pages, bundle.ContentBlocks);
+            var existing = await PreviewMatchPageAsync(page);
+            var description = existing is null
+                ? null
+                : existing.ContentId == page.Id
+                    ? existing.Title == page.Title
+                        ? "Overwrites the existing page."
+                        : $"Overwrites the existing page (currently titled ‘{existing.Title}’)."
+                    : "A different page already exists at this location.";
+            pageItems.Add(new PreviewItem(page.Id, page.Title, page.SlugPath, existing is not null, description));
         }
+
+        var blockItems = new List<PreviewItem>();
+        foreach (var block in bundle.ContentBlocks)
+        {
+            var existing = await PreviewMatchBlockAsync(block);
+            var description = existing is null
+                ? null
+                : existing.ContentId == block.Id
+                    ? existing.Key == block.Key
+                        ? "Overwrites the existing block."
+                        : $"Overwrites the existing block (currently keyed ‘{existing.Key}’)."
+                    : "A different block already uses this key.";
+            blockItems.Add(new PreviewItem(block.Id, block.Key, block.BlockType, existing is not null, description));
+        }
+
+        return new ContentImportPreview(pageItems, blockItems);
+    }
+
+    // Preview matching resolves parents against the target only (nothing has been created yet):
+    // a page whose parent is not in the target cannot collide at its real location, so it is new.
+    private async Task<WikiPageDto?> PreviewMatchPageAsync(WikiPageBundleItem page)
+    {
+        if (page.Id != Guid.Empty && await wikiRepository.GetByContentIdAsync(page.Id) is { } byGuid)
+            return byGuid;
+
+        int? parentDbId = null;
+        if (page.ParentId is { } parentGuid)
+        {
+            var parent = await wikiRepository.GetByContentIdAsync(parentGuid);
+            if (parent is null) return null;
+            parentDbId = parent.Id;
+        }
+
+        return await wikiRepository.GetBySlugAndParentAsync(LeafSlug(page.SlugPath), parentDbId);
+    }
+
+    private async Task<ContentBlockDto?> PreviewMatchBlockAsync(ContentBlockBundleItem block) =>
+        (block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null)
+        ?? await contentBlockRepository.GetByKeyAsync(block.Key);
+
+    public async Task<ContentImportResult> ImportAsync(
+        ContentBundle bundle,
+        ContentImportMode mode,
+        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null)
+    {
+        ArgumentNullException.ThrowIfNull(bundle);
+
+        // Each item's effective mode is its per-collision decision, falling back to the global mode.
+        ContentImportMode ModeFor(Guid id) =>
+            decisions is not null && decisions.TryGetValue(id, out var m) ? m : mode;
+
+        var pages = OrderForImport(bundle.WikiPages);
+
+        // Abort up front if any collision is left at the Fail default; a per-item Skip/Overwrite
+        // resolves that item and keeps the import going.
+        await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, ModeFor);
 
         var result = new ContentImportResult();
 
@@ -188,7 +246,7 @@ public sealed class ContentStagingService(
 
             if (existing is not null)
             {
-                if (mode == ContentImportMode.Skip)
+                if (ModeFor(page.Id) == ContentImportMode.Skip)
                 {
                     result.WikiPagesSkipped++;
                 }
@@ -228,7 +286,7 @@ public sealed class ContentStagingService(
 
             if (existing is not null)
             {
-                if (mode == ContentImportMode.Skip)
+                if (ModeFor(block.Id) == ContentImportMode.Skip)
                 {
                     result.ContentBlocksSkipped++;
                     continue;
@@ -270,30 +328,23 @@ public sealed class ContentStagingService(
         (block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null)
         ?? await contentBlockRepository.GetByKeyAsync(block.Key);
 
-    // Fail mode is all-or-nothing: refuse before making any change if the bundle would touch
-    // content that already exists (by identity or by a slug/key clash). A parent present only in
-    // the bundle resolves to null, so its child cannot clash and is skipped here.
-    private async Task GuardNoConflictsAsync(
-        List<WikiPageBundleItem> pages, List<ContentBlockBundleItem> blocks)
+    // Refuse before making any change if a collision is left at the Fail mode (no per-item
+    // Skip/Overwrite decision resolves it). Items with an explicit decision are not blocked.
+    private async Task GuardFailCollisionsAsync(
+        List<WikiPageBundleItem> pages,
+        List<ContentBlockBundleItem> blocks,
+        Func<Guid, ContentImportMode> modeFor)
     {
         foreach (var page in pages)
         {
-            int? parentDbId = null;
-            if (page.ParentId is { } parentGuid)
-            {
-                var parent = await wikiRepository.GetByContentIdAsync(parentGuid);
-                if (parent is null) continue;
-                parentDbId = parent.Id;
-            }
-
-            if (await MatchPageAsync(page, parentDbId) is not null)
+            if (modeFor(page.Id) == ContentImportMode.Fail && await PreviewMatchPageAsync(page) is not null)
                 throw new ContentImportConflictException(
                     $"Import aborted — wiki page '{page.SlugPath}' already exists in the target environment.");
         }
 
         foreach (var block in blocks)
         {
-            if (await MatchBlockAsync(block) is not null)
+            if (modeFor(block.Id) == ContentImportMode.Fail && await PreviewMatchBlockAsync(block) is not null)
                 throw new ContentImportConflictException(
                     $"Import aborted — content block '{block.Key}' already exists in the target environment.");
         }
@@ -305,6 +356,15 @@ public sealed class ContentStagingService(
         var parent = await wikiRepository.GetByContentIdAsync(parentGuid);
         return parent?.Id;
     }
+
+    // Parent-first (by depth) so a child's parent is resolvable; within a parent, ascending
+    // SortOrder so siblings are created in order. Depth comes from the informational slug path.
+    private static List<WikiPageBundleItem> OrderForImport(IEnumerable<WikiPageBundleItem> pages) =>
+        pages
+            .OrderBy(p => Depth(p.SlugPath))
+            .ThenBy(p => p.SortOrder)
+            .ThenBy(p => p.SlugPath, StringComparer.Ordinal)
+            .ToList();
 
     private static int Depth(string slugPath) => slugPath.Count(c => c == '/');
 

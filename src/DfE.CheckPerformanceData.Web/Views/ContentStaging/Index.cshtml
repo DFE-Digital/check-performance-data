@@ -71,7 +71,11 @@
 </a>
 
 <h2 class="govuk-heading-l">Import</h2>
-<form method="post" action="/admin/content-staging/import" enctype="multipart/form-data">
+<p class="govuk-body">
+    Upload a bundle to preview it first: you'll see exactly what will be added and which items
+    already exist, and can choose what to do with each collision before anything changes.
+</p>
+<form method="post" action="/admin/content-staging/preview" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
 
     <div class="govuk-form-group">
@@ -81,41 +85,7 @@
                accept="application/json,.json" aria-describedby="bundle-hint">
     </div>
 
-    <div class="govuk-form-group">
-        <fieldset class="govuk-fieldset">
-            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
-                If a page or block already exists
-            </legend>
-            <div class="govuk-radios" data-module="govuk-radios">
-                <div class="govuk-radios__item">
-                    <input class="govuk-radios__input" id="mode-skip" name="mode" type="radio" value="Skip" checked
-                           aria-describedby="mode-skip-hint">
-                    <label class="govuk-label govuk-radios__label" for="mode-skip">Skip</label>
-                    <div id="mode-skip-hint" class="govuk-hint govuk-radios__hint">
-                        Leave existing content untouched; only add what is missing.
-                    </div>
-                </div>
-                <div class="govuk-radios__item">
-                    <input class="govuk-radios__input" id="mode-replace" name="mode" type="radio" value="Replace"
-                           aria-describedby="mode-replace-hint">
-                    <label class="govuk-label govuk-radios__label" for="mode-replace">Replace</label>
-                    <div id="mode-replace-hint" class="govuk-hint govuk-radios__hint">
-                        Overwrite existing content with the bundle (a new version is recorded).
-                    </div>
-                </div>
-                <div class="govuk-radios__item">
-                    <input class="govuk-radios__input" id="mode-fail" name="mode" type="radio" value="Fail"
-                           aria-describedby="mode-fail-hint">
-                    <label class="govuk-label govuk-radios__label" for="mode-fail">Fail</label>
-                    <div id="mode-fail-hint" class="govuk-hint govuk-radios__hint">
-                        Abort the whole import if anything in the bundle already exists.
-                    </div>
-                </div>
-            </div>
-        </fieldset>
-    </div>
-
     <button class="govuk-button" data-module="govuk-button" data-prevent-double-click="true" type="submit">
-        Import content
+        Preview import
     </button>
 </form>

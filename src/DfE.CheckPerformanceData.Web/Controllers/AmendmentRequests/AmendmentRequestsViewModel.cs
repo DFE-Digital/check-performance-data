@@ -1,10 +1,12 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
 public sealed class AmendmentRequestsViewModel
 {
     public required Guid WindowId { get; init; }
+    public required string WindowTitle { get; init; }
     public required string DeadlineText { get; init; }
     public required IReadOnlyList<AmendmentRequestRowViewModel> Rows { get; init; }
     public required IReadOnlyList<SubmittedRequestRowViewModel> SubmittedRows { get; init; }
@@ -21,17 +23,19 @@ public sealed class SubmittedRequestRowViewModel
 
     public string TagClass => Status switch
     {
-        RequestStatus.SubmittedWithdrawn => "govuk-tag--grey",
+        RequestStatus.Withdrawn => "govuk-tag--grey",
         _ => "govuk-tag--green"
     };
 
     public string TagLabel => Status switch
     {
-        RequestStatus.SubmittedWithdrawn => "Withdrawn",
+        RequestStatus.Withdrawn => "Withdrawn",
         _ => "Submitted"
     };
 
-    public string SubmittedDateText => Submitted.ToString("d MMMM yyyy");
+    public string SubmittedDateText => LondonTime.ToLondon(Submitted).ToString("d MMMM yyyy");
+
+    public bool ShowDelete => Status != RequestStatus.Withdrawn;
 }
 
 public sealed class AmendmentRequestRowViewModel

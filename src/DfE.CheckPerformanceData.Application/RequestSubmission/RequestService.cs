@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
@@ -10,7 +12,9 @@ public sealed class RequestService(
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
     ICurrentUserService currentUserService,
-    IQueueService queueService) : IRequestService
+    ILogger<RequestService> logger,
+    IQueueService queueService,
+    IRequestNotificationService requestNotificationService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -23,13 +27,6 @@ public sealed class RequestService(
         var refNum = journey.ReferenceNumber ?? string.Empty;
         if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Upn, urnLong, refNum))
             throw new DuplicateRequestException();
-
-        // Stamp who submitted and when, so the read-only view of a submitted request
-        // can render its "Submitted by" section from the persisted journey alone.
-        journey.SubmittedByEmail = currentUserService.Email;
-        // Local (actual) time, not UTC — the "Submitted by → When" display is a wall-clock
-        // time and must survive BST/GMT without a daylight-savings offset.
-        journey.SubmittedAt = DateTime.Now;
 
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
@@ -58,22 +55,26 @@ public sealed class RequestService(
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
+        await requestNotificationService.NotifySubmissionConfirmedAsync(
+            windowId, journey.CheckingWindow.EndDate, refNum);
+
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
         // the enqueued RequestDocument is bound for the queue and not retained.
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
-    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber)
+    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)
     {
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = OrganisationUrnLong,
-            // Local (wall-clock) time, not UTC — the "Submitted by → When" display must
-            // survive BST/GMT without a daylight-savings offset (see ConfirmRequestAsync).
-            Timestamp = DateTime.Now,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,
@@ -81,6 +82,8 @@ public sealed class RequestService(
             RequestType = RequestType.ConfirmCorrect,
             RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
+
+        await requestNotificationService.NotifyDataCheckConfirmedAsync(endDate, referenceNumber);
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
@@ -96,6 +99,39 @@ public sealed class RequestService(
 
     public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
         requestStateBlobClient.GetAsync(windowId, referenceNumber);
+
+    public async Task<RequestDeletionResult> DeleteAsync(Guid windowId, string referenceNumber)
+    {
+        var urn = OrganisationUrnLong;
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
+        var pupilName = row is null ? string.Empty : $"{row.PupilFirstname} {row.PupilSurname}".Trim();
+
+        // Drafts have never been submitted, so they are removed entirely (row + journey blob).
+        // Submitted requests are kept for audit and only marked Withdrawn.
+        if (row?.Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit)
+        {
+            await requestRepository.DeleteAsync(windowId, urn, referenceNumber);
+            await requestStateBlobClient.DeleteAsync(windowId, referenceNumber);
+            return new RequestDeletionResult(WasHardDeleted: true, pupilName);
+        }
+
+        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+
+        if (row?.RequestType == RequestType.Amendment)
+        {
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber);
+        }
+        else if (row?.RequestType == RequestType.ConfirmCorrect)
+        {
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber);
+        }
+        else
+        {
+            logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row?.RequestType , referenceNumber);
+        }
+
+        return new RequestDeletionResult(WasHardDeleted: false, pupilName);
+    }
 
     private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)
     {
@@ -125,9 +161,10 @@ public sealed class RequestService(
             PupilUpn = journey.SelectedPupil!.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
-            // Local (wall-clock) time, not UTC — the "Submitted" timestamp must survive
-            // BST/GMT without a daylight-savings offset, matching ConfirmDataCorrectAsync.
-            Timestamp = DateTime.Now,
+            // Stored as UTC and converted to London time at display. The column is
+            // `timestamp without time zone`, so the value carries an Unspecified kind
+            // (Npgsql rejects a Utc kind here); the instant it holds is UTC.
+            Timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
             SubmittedById = Guid.Parse(currentUserService.UserId),
             SubmittedByName = currentUserService.DisplayName,
             SubmittedByEmail = currentUserService.Email,

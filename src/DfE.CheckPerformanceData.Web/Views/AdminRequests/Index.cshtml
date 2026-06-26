@@ -2,7 +2,7 @@
 @using DfE.CheckPerformanceData.Application.UncommittedRequests
 @model IReadOnlyList<UncommittedRequestRow>
 @{
-    ViewData["Title"] = "Uncommitted requests";
+    ViewData["Title"] = "Current window requests";
 
     string TagClass(DecisionStatus s) => s switch
     {
@@ -21,15 +21,30 @@
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
 
-<h1 class="govuk-heading-xl">Uncommitted requests</h1>
-<p class="govuk-body-l">
-    Submitted requests for the current open checking window that have not yet been committed,
-    and their rules-engine outcome.
-</p>
+<h1 class="govuk-heading-xl">Current window requests</h1>
+
+@if (TempData["ZendeskReplayMessage"] is string replayMessage)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="govuk-notification-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@replayMessage</p>
+        </div>
+    </div>
+}
+
+<form method="post" asp-action="SendToZendesk" class="govuk-!-margin-bottom-6">
+    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+        Process "Close Window" 
+    </button>
+</form>
 
 @if (Model.Count == 0)
 {
-    <p class="govuk-body">There are no uncommitted requests for the current open window.</p>
+    <p class="govuk-body">There are no requests for the current open window.</p>
 }
 else
 {
@@ -37,12 +52,15 @@ else
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Reference</th>
+                <th scope="col" class="govuk-table__header">Organisation URN</th>
                 <th scope="col" class="govuk-table__header">Pupil</th>
                 <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Status</th>
                 <th scope="col" class="govuk-table__header">Submitted by</th>
                 <th scope="col" class="govuk-table__header">Submitted</th>
                 <th scope="col" class="govuk-table__header">Outcome</th>
                 <th scope="col" class="govuk-table__header">Matched Rule</th>
+                <th scope="col" class="govuk-table__header">Zendesk Id</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">
@@ -50,8 +68,10 @@ else
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@row.ReferenceNumber</td>
-                    <td class="govuk-table__cell">@($"{row.PupilSurname}, {row.PupilFirstname}".Trim(',', ' '))</td>
+                    <td class="govuk-table__cell">@row.OrganisationUrn</td>
+                    <td class="govuk-table__cell">@($"{row.PupilFirstname} {row.PupilSurname}".Trim())</td>
                     <td class="govuk-table__cell">@row.RequestTypeDescription</td>
+                    <td class="govuk-table__cell">@row.Status</td>
                     <td class="govuk-table__cell">@row.SubmittedByName</td>
                     <td class="govuk-table__cell">@row.Submitted.ToString("dd MMM yyyy HH:mm")</td>
                     <td class="govuk-table__cell">
@@ -65,6 +85,7 @@ else
                         }
                     </td>
                     <td class="govuk-table__cell">@(row.MatchedRule ?? "—")</td>
+                    <td class="govuk-table__cell">@(row.CrmId ?? "—")</td>
                 </tr>
             }
         </tbody>

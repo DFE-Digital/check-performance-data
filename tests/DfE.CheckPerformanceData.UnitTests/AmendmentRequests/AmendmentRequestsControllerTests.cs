@@ -68,6 +68,7 @@ public class AmendmentRequestsControllerTests
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             WindowEndDate = endDate,
+            WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows = []
         });
@@ -84,6 +85,7 @@ public class AmendmentRequestsControllerTests
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             WindowEndDate = DateTime.UtcNow,
+            WindowTitle = "Key stage 4",
             Rows =
             [
                 new AmendmentRequestDto
@@ -116,6 +118,7 @@ public class AmendmentRequestsControllerTests
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             WindowEndDate = DateTime.UtcNow,
+            WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows =
             [
@@ -149,6 +152,7 @@ public class AmendmentRequestsControllerTests
         _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
         {
             WindowEndDate = DateTime.UtcNow,
+            WindowTitle = "Key stage 4",
             Rows = [],
             SubmittedRows =
             [
@@ -158,7 +162,7 @@ public class AmendmentRequestsControllerTests
                     RequestType = RequestType.Amendment,
                     RequestTypeDescription = "Remove - Permanently left England",
                     ReferenceNumber = "REF011",
-                    Status = RequestStatus.SubmittedWithdrawn,
+                    Status = RequestStatus.Withdrawn,
                     Submitted = DateTime.UtcNow
                 }
             ]
@@ -306,6 +310,7 @@ public class AmendmentRequestsControllerTests
     private static AmendmentRequestsResult EmptyResult() => new()
     {
         WindowEndDate = new DateTime(2026, 6, 26, 17, 0, 0),
+        WindowTitle = "Key stage 4",
         Rows = [],
         SubmittedRows = []
     };

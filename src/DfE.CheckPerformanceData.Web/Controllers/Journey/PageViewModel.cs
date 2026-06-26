@@ -18,7 +18,14 @@ public sealed class PageViewModel
 
     public string? ResolvedTitle => string.IsNullOrEmpty(Page.Title) ? null : ResolveTemplate(Page.Title);
     public bool IsSingleQuestion => Page.Questions.Count == 1;
-    public string PageTitle => ResolvedTitle ?? (QuestionModels.Count > 0 ? QuestionModels[0].ResolvedTitle : string.Empty);
+
+    // The browser <title> (and therefore analytics) must never contain the pupil name.
+    // Prefer the author-supplied sanitised PageTitle; otherwise fall back to a
+    // pupil-name-free version of the page title, then the single question's title.
+    public string PageTitle =>
+        Page.PageTitle
+        ?? (string.IsNullOrEmpty(Page.Title) ? null : JourneyTemplate.Strip(Page.Title))
+        ?? (Page.Questions.Count > 0 ? JourneyTemplate.Strip(Page.Questions[0].Title) : string.Empty);
     public bool HasErrors => QuestionModels.Any(q => q.Error is not null) || UploadError is not null || AtLeastOneError is not null;
 
     public IReadOnlyList<QuestionPartialModel> FileUploadModels =>

@@ -28,4 +28,5 @@ public class ChangeRequest
     public string? MatchedRuleId { get; set; }
     public string? RulesVersion { get; set; }
     public DateTime? DecidedAtUtc { get; set; }
+    public WorkerStatus? WorkerStatus { get; set; }
 }

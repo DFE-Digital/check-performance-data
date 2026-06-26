@@ -1,20 +1,31 @@
+using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.UncommittedRequests;
+using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.UncommittedRequests;
 
-public class UncommittedRequestsServiceTests
+public class AdminRequestsServiceTests
 {
     private static readonly DateTimeOffset Now = new(2026, 6, 19, 9, 0, 0, TimeSpan.Zero);
 
     private readonly IUncommittedRequestsRepository _repository =
         Substitute.For<IUncommittedRequestsRepository>();
-    private readonly UncommittedRequestsService _sut;
+    private readonly IRequestStateBlobClient _requestStateBlobClient =
+        Substitute.For<IRequestStateBlobClient>();
+    private readonly IQuestionFlowService _flowService =
+        Substitute.For<IQuestionFlowService>();
+    private readonly IQueueService _queueService =
+        Substitute.For<IQueueService>();
+    private readonly AdminRequestsService _sut;
 
-    public UncommittedRequestsServiceTests()
+    public AdminRequestsServiceTests()
     {
-        _sut = new UncommittedRequestsService(_repository, new FakeTimeProvider(Now));
+        _sut = new AdminRequestsService(
+            _repository, _requestStateBlobClient, _flowService, _queueService, new FakeTimeProvider(Now));
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider
@@ -40,9 +51,11 @@ public class UncommittedRequestsServiceTests
             new()
             {
                 ReferenceNumber = "ABC-123",
+                OrganisationUrn = 123456,
                 PupilFirstname = "Ada",
                 PupilSurname = "Lovelace",
                 RequestTypeDescription = "Remove pupil",
+                Status = RequestStatus.SubmittedUnCommitted,
                 SubmittedByName = "Head Teacher",
                 Submitted = new DateTime(2026, 6, 18, 14, 0, 0),
                 Outcome = DecisionStatus.Scrutiny,

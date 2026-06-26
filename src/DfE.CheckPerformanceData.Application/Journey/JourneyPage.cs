@@ -8,6 +8,15 @@ public sealed class JourneyPage
     public required string Id { get; init; }
     public PageType Type { get; init; } = PageType.Question;
     public string? Title { get; init; }
+
+    /// <summary>
+    /// Sanitised title for the browser &lt;title&gt; element (and therefore analytics).
+    /// Set this when <see cref="Title"/> embeds the pupil name so the name does not
+    /// leak into the page title. When unset the browser title falls back to a
+    /// pupil-name-free version of <see cref="Title"/> (see <see cref="JourneyTemplate.Strip"/>).
+    /// </summary>
+    public string? PageTitle { get; init; }
+
     public string? Subheading { get; init; }
     public string? Content { get; init; }
     public bool RequireAtLeastOne { get; init; }

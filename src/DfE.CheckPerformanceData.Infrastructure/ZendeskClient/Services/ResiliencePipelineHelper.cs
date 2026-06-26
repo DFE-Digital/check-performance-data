@@ -37,6 +37,8 @@ public static class ResiliencePipelineHelper
         }
         catch (Exception ex) when (!IsZendeskApiException(ex))
         {
+            LogApiResponseBody(ex, operationName, logger);
+
             var message = $"Error during Zendesk operation: {operationName}";
 
             if (logger != null)
@@ -77,6 +79,8 @@ public static class ResiliencePipelineHelper
         }
         catch (Exception ex) when (!IsZendeskApiException(ex))
         {
+            LogApiResponseBody(ex, operationName, logger);
+
             var message = $"Error during Zendesk operation: {operationName}";
 
             if (logger != null)
@@ -96,5 +100,30 @@ public static class ResiliencePipelineHelper
     public static bool IsZendeskApiException(Exception ex)
     {
         return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
+    }
+
+    /// <summary>
+    /// When the failure is a Refit <see cref="ApiException"/> (e.g. a 422 from Zendesk), logs the
+    /// response body. Zendesk returns a JSON payload naming the exact field that failed validation,
+    /// which the status line alone does not reveal.
+    /// </summary>
+    private static void LogApiResponseBody(Exception ex, string operationName, ILogger? logger)
+    {
+        if (logger == null)
+            return;
+
+        for (var current = ex; current != null; current = current.InnerException)
+        {
+            if (current is ApiException apiException)
+            {
+                logger.LogError(
+                    "Zendesk operation {OperationName} failed with {StatusCode} ({ReasonPhrase}). Response body: {ResponseBody}",
+                    operationName,
+                    (int)apiException.StatusCode,
+                    apiException.ReasonPhrase,
+                    apiException.Content ?? "(no body)");
+                return;
+            }
+        }
     }
 }

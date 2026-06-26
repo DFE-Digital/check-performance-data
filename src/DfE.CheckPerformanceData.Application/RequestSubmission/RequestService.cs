@@ -1,8 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 
@@ -12,13 +11,10 @@ public sealed class RequestService(
     IQuestionFlowService flowService,
     IRequestStateBlobClient requestStateBlobClient,
     IRequestRepository requestRepository,
-    INotifyService notifyService,
-    IDfESignInApiClient dfESignInApiClient,
     ICurrentUserService currentUserService,
-    IRequestBlobClient requestBlobClient,
     ILogger<RequestService> logger,
-    IEmailLinkGenerator emailLinkGenerator,
-    IQueueService queueService) : IRequestService
+    IQueueService queueService,
+    IRequestNotificationService requestNotificationService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -59,23 +55,8 @@ public sealed class RequestService(
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
-        var recipients = await BuildNotificationRecipients();
-
-        logger.LogInformation(
-            "Sending Submission Notification emails for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
-            refNum, recipients.Count, string.Join(", ", recipients));
-
-        var linkUrl = emailLinkGenerator.GenerateLink("WhatToChange", "Index", new { windowId }, "SubmissionNotification");
-
-        var deadline = $"{journey.CheckingWindow.EndDate.ToString("htt").ToLower()} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}";
-
-        await notifyService.SendNotificationsAsync(
-            refNum,
-            deadline,
-            recipients,
-            NotificationType.SubmissionConfirmed,
-            linkUrl);
-    
+        await requestNotificationService.NotifySubmissionConfirmedAsync(
+            windowId, journey.CheckingWindow.EndDate, refNum);
 
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
@@ -83,7 +64,7 @@ public sealed class RequestService(
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
     }
 
-    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, string deadline)
+    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)
     {
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
@@ -102,17 +83,7 @@ public sealed class RequestService(
             RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
 
-        var recipients = await BuildNotificationRecipients();
-
-        logger.LogInformation(
-            "Sending Pupil Data Check Confirm email for ref {RefNumber} to {RecipientCount} recipient(s) ({Recipients})",
-            referenceNumber, recipients.Count, string.Join(", ", recipients));
-
-        await notifyService.SendNotificationsAsync(
-            referenceNumber,
-            deadline,
-            recipients,
-            NotificationType.DataCheckConfirmed);
+        await requestNotificationService.NotifyDataCheckConfirmedAsync(endDate, referenceNumber);
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
@@ -145,6 +116,20 @@ public sealed class RequestService(
         }
 
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+
+        if (row?.RequestType == RequestType.Amendment)
+        {
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber);
+        }
+        else if (row?.RequestType == RequestType.ConfirmCorrect)
+        {
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber);
+        }
+        else
+        {
+            logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row?.RequestType , referenceNumber);
+        }
+
         return new RequestDeletionResult(WasHardDeleted: false, pupilName);
     }
 
@@ -250,18 +235,6 @@ public sealed class RequestService(
             } : null,
             Answers = answers
         };
-    }
-
-    private async Task<HashSet<string>> BuildNotificationRecipients()
-    {
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { currentUserService.Email };
-
-        var orgUsers = await dfESignInApiClient.GetOrganisationUsersAsync(currentUserService.Ukprn);
-        if (orgUsers?.Users != null)
-            foreach (var user in orgUsers.Users)
-                recipients.Add(user.Email);
-
-        return recipients;
     }
 
     private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)

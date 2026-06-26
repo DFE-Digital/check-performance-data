@@ -133,6 +133,7 @@ try
         builder.Services.AddScoped<IClaimsTransformation, DevImpersonationClaimsTransformer>();
     }
 
+    builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();

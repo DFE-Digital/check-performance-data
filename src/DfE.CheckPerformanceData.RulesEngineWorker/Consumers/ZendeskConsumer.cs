@@ -293,12 +293,43 @@ public sealed class ZendeskConsumer : ConsumerBase
 
     private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+        if (_ticketFieldService != null)
+        {
+            var decisionStatusCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = decisionStatusCustomFieldId,
+                Value = decision.Status.ToString(),
+            });
+            
+            var outcomeKeyFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineOutcomeKeyName);
+            if(outcomeKeyFieldId.HasValue && outcomeKeyFieldId.Value > 0)
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = outcomeKeyFieldId,
+                    Value = decision.OutcomeKey,
+                });
+            }
+
+            var matchedRuleIdCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.RulesEngineMatchedRuleIdName);
+            if (matchedRuleIdCustomFieldId.HasValue && matchedRuleIdCustomFieldId.Value > 0)
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = matchedRuleIdCustomFieldId,
+                    Value = decision.MatchedRuleId,
+                });
+            }
+        }
+
         if (_checkingExerciseSettings is null)
         {
             return;
         }
 
-        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+        
 
         if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
         {

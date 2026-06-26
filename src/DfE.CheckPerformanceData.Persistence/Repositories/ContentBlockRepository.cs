@@ -24,6 +24,13 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             .ProjectToDto()
             .FirstOrDefaultAsync();
 
+    public async Task<ContentBlockDto?> GetByContentIdAsync(Guid contentId) =>
+        await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => b.ContentId == contentId)
+            .ProjectToDto()
+            .FirstOrDefaultAsync();
+
     public async Task<int> GetMaxVersionNumberAsync(int contentBlockId) =>
         await context.ContentBlockVersions
             .Where(v => v.ContentBlockId == contentBlockId)
@@ -46,7 +53,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     // Commands — work with tracked entities internally
 
-    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value)
+    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value, Guid? contentId = null)
     {
         var entity = new ContentBlock
         {
@@ -57,10 +64,29 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             UpdatedAt = DateTime.UtcNow
         };
 
+        // Preserve a supplied cross-environment identity; otherwise the DB default generates one.
+        if (contentId is { } id && id != Guid.Empty)
+            entity.ContentId = id;
+
         context.ContentBlocks.Add(entity);
         await context.SaveChangesAsync();
 
         return ContentBlockMapper.ToDto(entity);
+    }
+
+    // Content-staging Replace: overwrite an existing block in place — including a Key/type change
+    // (a "rename") and reconciling its cross-environment identity — matched by row id.
+    public async Task UpdateForStagingAsync(int id, string key, string blockType, string value, Guid contentId)
+    {
+        var entity = await context.ContentBlocks.FindAsync(id)
+            ?? throw new InvalidOperationException($"Content block {id} not found.");
+
+        entity.Key = key;
+        entity.BlockType = blockType;
+        entity.Value = value;
+        if (contentId != Guid.Empty)
+            entity.ContentId = contentId;
+        entity.UpdatedAt = DateTime.UtcNow;
     }
 
     public async Task AddVersionAsync(int contentBlockId, string value, int versionNumber)

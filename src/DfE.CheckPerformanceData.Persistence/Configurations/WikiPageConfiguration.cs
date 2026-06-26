@@ -17,6 +17,16 @@ internal sealed class WikiPageConfiguration : IEntityTypeConfiguration<WikiPage>
             .HasConstraintName("FK_WikiPage_WikiPage_ParentId")
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Stable cross-environment identity. New rows get a server-generated uuid by default;
+        // content-staging import may supply an explicit value to preserve identity across envs.
+        builder.Property(w => w.ContentId)
+            .HasDefaultValueSql("gen_random_uuid()")
+            .ValueGeneratedOnAdd();
+
+        builder
+            .HasIndex(w => w.ContentId)
+            .IsUnique();
+
         builder
             .HasIndex(w => new { w.ParentId, w.Slug })
             .IsUnique()

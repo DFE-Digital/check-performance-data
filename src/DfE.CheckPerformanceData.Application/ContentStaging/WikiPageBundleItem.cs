@@ -1,11 +1,14 @@
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
-// A single wiki page in an export bundle. Parentage is carried by slug path, not by the
-// database id (which differs between environments): SlugPath is the full path of slugs from
-// the root, ParentSlugPath is that path with the final segment removed (empty for a root page).
-// Only the current content is exported — version history is not part of the v1 bundle.
+// A single wiki page in an export bundle. Identity and parentage are carried by stable GUIDs,
+// not by the database id (environment-specific) or the slug/title (which an editor may change):
+// Id is the page's cross-environment identity, ParentId its parent's (null for a root). The
+// SlugPath/ParentSlugPath/Slug fields are informational (human-readable hierarchy + the URL slug)
+// and are not used to match pages. Only the current content is exported — no version history.
 public sealed record WikiPageBundleItem
 {
+    public Guid Id { get; init; }
+    public Guid? ParentId { get; init; }
     public string SlugPath { get; init; } = string.Empty;
     public string ParentSlugPath { get; init; } = string.Empty;
     public string Slug { get; init; } = string.Empty;

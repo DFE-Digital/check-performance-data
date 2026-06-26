@@ -6,6 +6,10 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 public sealed class WikiPage
 {
     public int Id { get; set; }
+    // Stable cross-environment identity. The integer Id is environment-specific; ContentId is
+    // preserved through content-staging export/import so the same page is recognised across
+    // environments even after its title/slug changes.
+    public Guid ContentId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
     public string? Content { get; set; }

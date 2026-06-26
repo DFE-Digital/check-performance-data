@@ -3,6 +3,9 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 public sealed class ContentBlock
 {
     public int Id { get; set; }
+    // Stable cross-environment identity, preserved through content-staging export/import so the
+    // same block is recognised across environments even if its Key changes.
+    public Guid ContentId { get; set; }
     public string Key { get; set; } = string.Empty;
     public string BlockType { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;

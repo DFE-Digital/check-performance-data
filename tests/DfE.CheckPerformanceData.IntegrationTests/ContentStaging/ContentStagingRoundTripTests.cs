@@ -23,8 +23,7 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         var wikiRepo = new WikiRepository(ctx, user);
         var blockRepo = new ContentBlockRepository(ctx);
         var wikiSvc = new WikiService(wikiRepo, Html);
-        var blockSvc = new ContentBlockService(blockRepo, Html);
-        return new ContentStagingService(wikiSvc, wikiRepo, blockSvc, blockRepo);
+        return new ContentStagingService(wikiSvc, wikiRepo, blockRepo);
     }
 
     private async Task ResetAsync()
@@ -143,6 +142,53 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         await using var __ = ctx2;
         await Assert.ThrowsAsync<ContentImportConflictException>(
             () => staging2.ImportAsync(bundle, ContentImportMode.Fail));
+    }
+
+    [Fact]
+    public async Task Import_Replace_MatchesRenamedPageByGuid_NotSlug()
+    {
+        // Lance's case: source has A + B. Target also had A + B, but B was renamed to C (the row
+        // keeps its GUID). Pushing source -> target with Replace must overwrite C (same GUID as B),
+        // restoring the title to "B" — proving identity is the GUID, not the slug/title.
+        await ResetAsync();
+
+        // Source environment: A + B. Capture the bundle.
+        ContentBundle bundle;
+        {
+            var staging = NewStaging(out var ctx);
+            await using var _ = ctx;
+            var wikiSvc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
+            await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "A doc", Content = "a" });
+            await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "B doc", Content = "b-source" });
+            bundle = await staging.ExportAsync();
+        }
+        var bGuid = bundle.WikiPages.Single(p => p.Title == "B doc").Id;
+
+        // Target environment: same DB, but "B doc" gets renamed to "C doc" (GUID unchanged).
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var wikiSvc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
+            var bRow = await ctx.WikiPages.FirstAsync(p => p.ContentId == bGuid);
+            await wikiSvc.UpdatePageAsync(bRow.Id, new UpdateWikiPageDto { Title = "C doc", Content = "c-edited" });
+        }
+
+        // Push source -> target with Replace.
+        {
+            var staging = NewStaging(out var ctx);
+            await using var _ = ctx;
+            var result = await staging.ImportAsync(bundle, ContentImportMode.Replace);
+            Assert.Equal(2, result.WikiPagesUpdated);   // both matched by GUID, none created
+            Assert.Equal(0, result.WikiPagesCreated);
+        }
+
+        // The renamed row was matched by GUID and restored to the source's title/content.
+        await using (var verify = _fixture.CreateContext())
+        {
+            Assert.Equal(2, await verify.WikiPages.CountAsync());          // no duplicate created
+            var restored = await verify.WikiPages.FirstAsync(p => p.ContentId == bGuid);
+            Assert.Equal("B doc", restored.Title);
+            Assert.Equal("b-source", restored.Content);
+        }
     }
 
     [Fact]

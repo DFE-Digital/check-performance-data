@@ -11,5 +11,14 @@ internal sealed class ContentBlockConfiguration : IEntityTypeConfiguration<Conte
         builder
             .HasIndex(b => b.Key)
             .IsUnique();
+
+        // Stable cross-environment identity (see ContentBlock.ContentId).
+        builder.Property(b => b.ContentId)
+            .HasDefaultValueSql("gen_random_uuid()")
+            .ValueGeneratedOnAdd();
+
+        builder
+            .HasIndex(b => b.ContentId)
+            .IsUnique();
     }
 }

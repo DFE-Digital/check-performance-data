@@ -24,7 +24,7 @@ public sealed class ConfirmCorrectController(
     {
         var window = await service.GetCheckingWindowAsync(windowId);
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
-        await requestService.ConfirmDataCorrectAsync(windowId, reference);
+        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate);
         var confirmedVw = new ConfirmedCorrectViewModel(window.EndDate.ToString("htt 'on' dddd d MMMM"), reference);
         return View(confirmedVw);
     }

@@ -30,6 +30,7 @@ public static class ZendeskTicketFieldConstants
     public const string ReasonForRemovalName = "Reason for removal";
     public const string CypmdName = "CYPMD_ID";
 
+
     /// <summary>
     /// Gets all field names as a list.
     /// </summary>

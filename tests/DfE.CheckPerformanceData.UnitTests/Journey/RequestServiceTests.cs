@@ -4,8 +4,10 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -18,7 +20,10 @@ public class RequestServiceTests
     private readonly IRequestStateBlobClient _requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
     private readonly IRequestRepository _requestRepository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IRequestBlobClient _requestBlobClient = Substitute.For<IRequestBlobClient>();
+    private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IRequestNotificationService _requestNotificationService = Substitute.For<IRequestNotificationService>();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -26,10 +31,11 @@ public class RequestServiceTests
         _currentUser.UserId.Returns("11111111-1111-1111-1111-111111111111");
         _currentUser.DisplayName.Returns("Test User");
         _currentUser.Email.Returns("test.user@education.gov.uk");
+        _currentUser.OrganisationId.Returns("00000000-0000-0000-0000-000000000001");
         _currentUser.OrganisationUrn.Returns("100000");
+        _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser,
-            _queueService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -519,7 +525,7 @@ public class RequestServiceTests
         ChangeRequestData? captured = null;
         _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
 
-        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999");
+        await _sut.ConfirmDataCorrectAsync(WindowId, "REF999", new DateTime(2026, 6, 26, 17, 0, 0));
 
         Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
         Assert.Equal("Confirm Pupil Data Declaration", captured.RequestTypeDescription);
@@ -562,6 +568,33 @@ public class RequestServiceTests
         var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
 
         Assert.Null(result);
+    }
+
+    // ── ConfirmRequestAsync — recipient routing ─────────────────────────────
+
+    [Fact]
+    public async Task ConfirmRequestAsync_DelegatesSubmissionNotification()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        await _requestNotificationService.Received(1).NotifySubmissionConfirmedAsync(
+            WindowId, journey.CheckingWindow.EndDate, journey.ReferenceNumber);
+    }
+
+    // ── ConfirmDataCorrectAsync ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_DelegatesNotification()
+    {
+        var refNum = "CYPMD_KS4June_ABC1234";
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, refNum, endDate);
+
+        await _requestNotificationService.Received(1).NotifyDataCheckConfirmedAsync(endDate, refNum);
     }
 
     [Fact]
@@ -617,6 +650,37 @@ public class RequestServiceTests
             Status = status,
             ReferenceNumber = "REF001"
         };
+
+    [Fact]
+    public async Task DeleteAsync_WhenAmendment_DelegatesAmendmentWithdrawnNotification()
+    {
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenConfirmCorrect_DelegatesDataCheckWithdrawnNotification()
+    {
+        var confirmCorrectRow = new AmendmentRequestData
+        {
+            PupilFirstname = "Jane",
+            PupilSurname = "Smith",
+            RequestType = RequestType.ConfirmCorrect,
+            RequestTypeDescription = "Confirm Pupil Data Declaration",
+            Status = RequestStatus.SubmittedUnCommitted,
+            ReferenceNumber = "REF001"
+        };
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(confirmCorrectRow);
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001");
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

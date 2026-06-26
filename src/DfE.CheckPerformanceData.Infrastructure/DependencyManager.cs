@@ -6,13 +6,13 @@ using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
-using DfE.CheckPerformanceData.Application.Notifications;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
-using DfE.CheckPerformanceData.Infrastructure.Notifications;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -22,11 +22,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Polly;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using Notify.Client;
 using Refit;
+using DfE.CheckPerformanceData.Infrastructure.Notify;
 
 namespace DfE.CheckPerformanceData.Infrastructure;
 
@@ -40,10 +44,10 @@ public static class DependencyManager
             services.AddSingleton<BlobServiceClient>(new BlobServiceClient(conn));
         }
 
-        services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
-        // GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
-        // dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
-        services.AddSingleton<INotifyClient, NoOpNotifyClient>();
+        //services.Configure<NotifySettings>(config.GetSection(NotifySettings.SectionName));
+        //// GOV.UK Notify is delivered under a separate ticket; until then a no-op keeps the
+        //// dead-letter alerting pipeline wired without taking a dependency on the Notify SDK.
+        //services.AddSingleton<INotifyService, NotifyService>();
 
         // Pupil data lives in per-school JSON blobs. Registered here (rather than only in
         // the Web host) because the Persistence repositories that consume it are pulled in
@@ -170,14 +174,41 @@ public static class DependencyManager
                         .GetRequiredService<IClaimsEnrichmentService>();
 
                     var rolesIdentity = await enrichmentService.EnrichAsync(ctx.Principal!);
-                    if (rolesIdentity != null)
-                        ctx.Principal!.AddIdentity(rolesIdentity);
+                    if (rolesIdentity == null)
+                    {
+                        // The user authenticated but has no organisation or no role/access
+                        // for this service. Abort the sign-in (no auth cookie is issued) and
+                        // send them to a friendly page rather than letting them into the app
+                        // with no permissions.
+                        ctx.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("DfeSignIn")
+                            .LogInformation("DfE Sign-in user has no usable organisation or role; redirecting to no-access page.");
+                        ctx.HandleResponse();
+                        ctx.Response.Redirect("/Account/NoAccess");
+                        return;
+                    }
+
+                    ctx.Principal!.AddIdentity(rolesIdentity);
 
                     // Clear any prior dev-impersonation marker on a fresh real sign-in so
                     // the user's effective role reflects their true DfE claims, not a
                     // stale overlay from before. The impersonation header link can be
                     // clicked again any time after sign-in to re-impersonate.
                     ctx.HttpContext.Response.Cookies.Delete("cypd-dev-impersonation");
+                };
+
+                // Safety net: any exception thrown during the remote handshake (including
+                // from claims enrichment) lands here. Without this the user sees a raw 500.
+                options.Events.OnRemoteFailure = ctx =>
+                {
+                    ctx.HttpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("DfeSignIn")
+                        .LogError(ctx.Failure, "DfE Sign-in remote authentication failed.");
+                    ctx.HandleResponse();
+                    ctx.Response.Redirect("/Account/NoAccess");
+                    return Task.CompletedTask;
                 };
             });
 
@@ -256,6 +287,48 @@ public static class DependencyManager
             .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
             .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
             .ValidateOnStart();
+
+        return services;
+    }
+
+    public static IServiceCollection AddNotifyService(this IServiceCollection services, IConfiguration config)
+    {
+        if (NotifyServiceRegistration.ShouldUseFake(config))
+        {
+            services.AddSingleton<INotifyService, DevConsoleNotifyService>();
+            return services;
+        }
+
+        services.AddOptions<NotifySettings>()
+            .Bind(config.GetSection(NotifySettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddOptions<PollySettings>()
+            .Bind(config.GetSection("NotifyPollySettings"))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        services.AddSingleton<NotificationClient>(sp =>
+        {
+            var notifySettings = sp.GetRequiredService<IOptions<NotifySettings>>().Value;
+            return new NotificationClient(notifySettings.ApiKey);
+        });
+
+        services.AddSingleton<INotifyEmailClient>(sp =>
+        {
+            var client = sp.GetRequiredService<NotificationClient>();
+            return new NotifyEmailClient(client);
+        });
+
+        services.AddSingleton<ResiliencePipeline>(sp =>
+        {
+            var settings = sp.GetRequiredService<IOptions<PollySettings>>().Value;
+            var logger = sp.GetRequiredService<ILogger<NotifyService>>();
+            return ResiliencePipelineFactory.CreateNotifyRetryPipeline(settings, logger);
+        });
+
+        services.AddSingleton<INotifyService, NotifyService>();
 
         return services;
     }

@@ -10,6 +10,20 @@ GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true
 Clarity__ProjectId: wjs4rw6fei
 
+# Notify template IDs, deadline text, and UTM parameters
+Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2
+Notify__PupilDataCheckWithdrawTemplateId: 5e506276-2a7f-4208-8c0e-ade7ec46c457
+Notify__SubmissionNotificationTemplateId: f123aa5f-be65-4a57-8e6e-66b323337095
+Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
+Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
+Notify__LinkBaseUrl: https://check-performance-data-development.prod.teacherservices.cloud/
+Notify__UtmSource: prod-check-performance-data
+Notify__UtmMedium: email
+Notify__UtmCampaigns__submission-confirm: prod-submission-confirm
+Notify__UtmCampaigns__withdraw-confirm: prod-withdraw-confirm
+Notify__UtmCampaigns__pupil-data-check: prod-pupil-data-check
+
+
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests
 RulesEngineOptions__RetryDelayMs: 5000
@@ -28,13 +42,48 @@ PollySettings__BaseDelayMilliseconds: 1000
 PollySettings__JitterMilliseconds: 500
 
 # Zendesk configuration (non-sensitive)
-ZendeskSettings__Subdomain: dfe
+ZendeskSettings__Subdomain: esfa
 ZendeskSettings__Domain: zendesk
 
 # School Checking Exercise Zendesk settings
 SchoolCheckingExercise__TargetViewTitle: School Performance Checks
 SchoolCheckingExercise__GroupId: 0
 SchoolCheckingExercise__BrandId: 0
-SchoolCheckingExercise__DecisionStatusCustomFieldId: 0
-SchoolCheckingExercise__OutcomeKeyCustomFieldId: 0
-SchoolCheckingExercise__MatchedRuleIdCustomFieldId: 0
+ 
+# Zendesk Ticket Field IDs
+ 
+ZendeskTicketFields__UpnId: 0
+ 
+ZendeskTicketFields__TypeOfOrganisationId: 0
+ 
+ZendeskTicketFields__SurnameCypmdId: 0
+ 
+ZendeskTicketFields__SexId: 0
+ 
+ZendeskTicketFields__SchoolUrnId: 0
+ 
+ZendeskTicketFields__ReasonForRemovalId: 0
+ 
+ZendeskTicketFields__LdsMatchedPupilIdId: 0
+ 
+ZendeskTicketFields__KeyStageId: 0
+ 
+ZendeskTicketFields__DfeEstablishmentNumberId: 0
+ 
+ZendeskTicketFields__DecisionStatusId: 0
+ 
+ZendeskTicketFields__DateOfBirthCypmdId: 0
+ 
+ZendeskTicketFields__CypmdId: 0
+ 
+ZendeskTicketFields__CycleYearId: 0
+ 
+ZendeskTicketFields__CycleMonthId: 0
+ 
+ZendeskTicketFields__CorrectionTypeId: 0
+ 
+ZendeskTicketFields__CorrectionReason31Id: 0
+ 
+ZendeskTicketFields__AdmissionDateId: 0
+ 
+ZendeskTicketFields__ForenameCypmdId: 0

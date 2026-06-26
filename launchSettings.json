@@ -5,18 +5,16 @@
       "commandVersion": "1.0",
       "composeProfile": {
         "includes": [
-          "all"
+          "all",
+          "e2e"
         ],
-
         "launchBrowser": true,
         "launchUrl": "http://localhost:8080",
         "applicationUrl": "https://localhost:8080",
         "environmentVariables": {
           "ASPNETCORE_ENVIRONMENT": "Development"
         }
-
       }
     }
   }
 }
-

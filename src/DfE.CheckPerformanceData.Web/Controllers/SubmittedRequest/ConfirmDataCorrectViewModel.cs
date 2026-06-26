@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 
@@ -13,8 +14,7 @@ public sealed class ConfirmDataCorrectViewModel
 
     public string RequestTypeDisplay => "Confirm pupil data is correct";
 
-    public string SubmittedAtText =>
-        SubmittedAt is { } d ? $"{d:d MMMM yyyy} at {d.ToString("h:mmtt").ToLower()}" : "";
+    public string SubmittedAtText => LondonTime.ToSubmittedAtText(SubmittedAt);
 
     public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
 

@@ -1,7 +1,7 @@
 using DfE.CheckPerformanceData.Application.ZendeskClient;
+using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using Microsoft.Extensions.Logging;
 using Polly;
-using Polly.Retry;
 using Refit;
 
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient.Services;
@@ -37,6 +37,8 @@ public static class ResiliencePipelineHelper
         }
         catch (Exception ex) when (!IsZendeskApiException(ex))
         {
+            LogApiResponseBody(ex, operationName, logger);
+
             var message = $"Error during Zendesk operation: {operationName}";
 
             if (logger != null)
@@ -77,6 +79,8 @@ public static class ResiliencePipelineHelper
         }
         catch (Exception ex) when (!IsZendeskApiException(ex))
         {
+            LogApiResponseBody(ex, operationName, logger);
+
             var message = $"Error during Zendesk operation: {operationName}";
 
             if (logger != null)
@@ -98,50 +102,28 @@ public static class ResiliencePipelineHelper
         return ex is ZendeskApiException || (ex.InnerException != null && IsZendeskApiException(ex.InnerException));
     }
 
-    public static ResiliencePipeline CreateRetryPipeline(PollySettings settings, ILogger logger)
+    /// <summary>
+    /// When the failure is a Refit <see cref="ApiException"/> (e.g. a 422 from Zendesk), logs the
+    /// response body. Zendesk returns a JSON payload naming the exact field that failed validation,
+    /// which the status line alone does not reveal.
+    /// </summary>
+    private static void LogApiResponseBody(Exception ex, string operationName, ILogger? logger)
     {
-        var builder = new ResiliencePipelineBuilder();
+        if (logger == null)
+            return;
 
-        // Exclude client error status codes from retry since they represent non-transient failures:
-        // - 400 Bad Request: malformed request, retrying won't fix it
-        // - 401 Unauthorized: authentication failure, retrying won't fix it
-        // - 403 Forbidden: permission denied, retrying won't fix it
-        // - 404 Not Found: resource doesn't exist, retrying won't fix it
-        // - 422 Unprocessable Entity: semantic/business validation error, retrying won't fix it
-        int[] nonRetryStatusCodes = { 400, 401, 403, 404, 422 };
-
-        builder.AddRetry(new RetryStrategyOptions
+        for (var current = ex; current != null; current = current.InnerException)
         {
-            DelayGenerator = (args) =>
+            if (current is ApiException apiException)
             {
-                var delay = Math.Pow(2, args.AttemptNumber - 1) * settings.BaseDelayMilliseconds;
-                var jitter = Random.Shared.Next(0, settings.JitterMilliseconds);
-                return ValueTask.FromResult<TimeSpan?>(TimeSpan.FromMilliseconds(delay + jitter));
-            },
-            MaxRetryAttempts = settings.MaxRetryAttempts,
-            ShouldHandle = new PredicateBuilder()
-                .Handle<HttpRequestException>()
-                .Handle<ApiException>(ex => !nonRetryStatusCodes.Contains((int)ex.StatusCode))
-                .Handle<Exception>(ex =>
-                {
-                    // For other exceptions, check if they wrap an ApiException as an inner exception
-                    if (ex.InnerException is ApiException apiEx)
-                    {
-                        return !nonRetryStatusCodes.Contains((int)apiEx.StatusCode);
-                    }
-                    return false;
-                }),
-            OnRetry = args =>
-            {
-                logger.LogWarning(
-                    args.Outcome.Exception,
-                    "Zendesk API request failed. Retry attempt {RetryAttempt}",
-                    args.AttemptNumber);
-
-                return ValueTask.CompletedTask;
+                logger.LogError(
+                    "Zendesk operation {OperationName} failed with {StatusCode} ({ReasonPhrase}). Response body: {ResponseBody}",
+                    operationName,
+                    (int)apiException.StatusCode,
+                    apiException.ReasonPhrase,
+                    apiException.Content ?? "(no body)");
+                return;
             }
-        });
-
-        return builder.Build();
+        }
     }
 }

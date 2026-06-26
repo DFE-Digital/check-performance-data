@@ -148,7 +148,8 @@ public sealed class JourneyController(
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/Journey/{windowId}/page/{pageId}")]
-    public async Task<IActionResult> PagePost(Guid windowId, string pageId, bool fromSummary)
+    public async Task<IActionResult> PagePost(Guid windowId, string pageId, bool fromSummary,
+        IFormFile? fileUpload = null)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
@@ -163,13 +164,26 @@ public sealed class JourneyController(
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
 
+        // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
+        // Continue with a file staged should attach it rather than report "upload a file".
+        string? pendingUploadError = null;
+        var fileQuestion = page.Questions.FirstOrDefault(q => q.Type == QuestionType.FileUpload);
+        if (fileUpload is { Length: > 0 } && fileQuestion is not null)
+        {
+            pendingUploadError = await CommitUploadedFileAsync(windowId, fileQuestion.Id, journey, fileUpload);
+            if (pendingUploadError is not null) isValid = false;
+        }
+
         foreach (var question in page.Questions)
         {
             if (question.Type == QuestionType.FileUpload)
             {
                 journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
                 var files = existing?.FileValues ?? [];
-                if (files.Count == 0 && !question.Optional)
+                // When a staged file failed validation the upload error already explains the
+                // problem — don't also tell the user to upload a file for the same field.
+                var explainedByUploadError = pendingUploadError is not null && question.Id == fileQuestion?.Id;
+                if (files.Count == 0 && !question.Optional && !explainedByUploadError)
                 {
                     ModelState.AddModelError(question.Id, "Upload at least one file before continuing");
                     isValid = false;
@@ -221,7 +235,7 @@ public sealed class JourneyController(
             var invalidViewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
             return View(invalidViewName, viewModelBuilder.BuildPageVm(windowId, page, displayAnswers,
                 journey, fromSummary, ModelState, config,
-                uploadError: TempData["UploadError"] as string,
+                uploadError: pendingUploadError ?? TempData["UploadError"] as string,
                 atLeastOneError: atLeastOne?.SummaryMessage));
         }
 
@@ -280,52 +294,57 @@ public sealed class JourneyController(
         // be lost on the post-redirect re-render (even when the upload itself fails).
         await PersistPageTextAnswersAsync(windowId, pageId, journey);
 
-        journey.QuestionAnswers.TryGetValue(questionId, out var existing);
-        var currentFiles = existing?.FileValues?.ToList() ?? [];
-
         if (fileUpload is null || fileUpload.Length == 0)
         {
             TempData["UploadError"] = "Select a file to upload";
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
-        if (fileUpload.Length > MaxUploadBytes)
-        {
-            TempData["UploadError"] = $"'{fileUpload.FileName}' must be 10 MB or less";
-            return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
-        }
+        var error = await CommitUploadedFileAsync(windowId, questionId, journey, fileUpload);
+        if (error is not null)
+            TempData["UploadError"] = error;
+
+        return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
+    }
+
+    // Validates and stores a single uploaded file against the given question, updating both the
+    // session and the in-memory `journey` so callers in the same request see the new file.
+    // Returns null on success, or a user-facing error message on failure. Assumes a non-empty file.
+    private async Task<string?> CommitUploadedFileAsync(
+        Guid windowId, string questionId, RequestState journey, IFormFile file)
+    {
+        if (file.Length > MaxUploadBytes)
+            return $"'{file.FileName}' must be 10 MB or less";
 
         using var ms = new MemoryStream();
-        await fileUpload.CopyToAsync(ms);
+        await file.CopyToAsync(ms);
         var bytes = ms.ToArray();
 
         var pageCount = PdfPageCounter.GetPageCount(bytes);
         if (pageCount is null)
-        {
-            TempData["UploadError"] = $"'{fileUpload.FileName}' could not be read as a PDF. Check the file and try again.";
-            return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
-        }
+            return $"'{file.FileName}' could not be read as a PDF. Check the file and try again.";
 
-        var uploadError = journeyService.ValidateFileUpload(fileUpload.FileName, pageCount.Value, currentFiles);
+        journey.QuestionAnswers.TryGetValue(questionId, out var existing);
+        var currentFiles = existing?.FileValues?.ToList() ?? [];
+
+        var uploadError = journeyService.ValidateFileUpload(file.FileName, pageCount.Value, currentFiles);
         if (uploadError is not null)
-        {
-            TempData["UploadError"] = uploadError;
-            return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
-        }
+            return uploadError;
 
         var storedName = await fileStorageService.SaveAsync(windowId, bytes);
         currentFiles.Add(new FileAnswer
         {
             StoredFileName = storedName,
-            OriginalFileName = fileUpload.FileName,
+            OriginalFileName = file.FileName,
             PageCount = pageCount.Value,
             FileSizeBytes = bytes.LongLength
         });
 
-        HttpContext.Session.SaveRequestState(windowId, s =>
-            s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
+        var updated = new QuestionAnswer { FileValues = currentFiles };
+        journey.QuestionAnswers[questionId] = updated;
+        HttpContext.Session.SaveRequestState(windowId, s => s.QuestionAnswers[questionId] = updated);
 
-        return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
+        return null;
     }
 
     // ── File remove (POST) ─────────────────────────────────────────────────

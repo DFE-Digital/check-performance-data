@@ -36,7 +36,7 @@ public static class DependencyManager
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
-        services.AddScoped<UncommittedRequests.IUncommittedRequestsService, UncommittedRequests.UncommittedRequestsService>();
+        services.AddScoped<UncommittedRequests.IAdminRequestsService, UncommittedRequests.AdminRequestsService>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();

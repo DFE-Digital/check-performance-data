@@ -1,5 +1,19 @@
 ---
 ASPNETCORE_ENVIRONMENT: Development
+
+# Notify template IDs, deadline text, and UTM parameters
+Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2
+Notify__PupilDataCheckWithdrawTemplateId: 5e506276-2a7f-4208-8c0e-ade7ec46c457
+Notify__SubmissionNotificationTemplateId: f123aa5f-be65-4a57-8e6e-66b323337095
+Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
+Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
+Notify__LinkBaseUrl: https://check-performance-data-development.test.teacherservices.cloud/
+Notify__UtmSource: dev-check-performance-data
+Notify__UtmMedium: email
+Notify__UtmCampaigns__submission-confirm: dev-submission-confirm
+Notify__UtmCampaigns__withdraw-confirm: dev-withdraw-confirm
+Notify__UtmCampaigns__pupil-data-check: dev-pupil-data-check
+
 DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk
@@ -29,13 +43,48 @@ PollySettings__BaseDelayMilliseconds: 1000
 PollySettings__JitterMilliseconds: 500
 
 # Zendesk configuration (non-sensitive)
-ZendeskSettings__Subdomain: dfe
+ZendeskSettings__Subdomain: esfa-preprod
 ZendeskSettings__Domain: zendesk
 
 # School Checking Exercise Zendesk settings
-SchoolCheckingExercise__TargetViewTitle: School Performance Checks
-SchoolCheckingExercise__GroupId: 0
-SchoolCheckingExercise__BrandId: 0
-SchoolCheckingExercise__DecisionStatusCustomFieldId: 0
-SchoolCheckingExercise__OutcomeKeyCustomFieldId: 0
-SchoolCheckingExercise__MatchedRuleIdCustomFieldId: 0
+SchoolCheckingExercise__TargetViewTitle: Schools checking exercise View
+SchoolCheckingExercise__GroupId: 16886472637330
+SchoolCheckingExercise__BrandId: 16853215883538
+ 
+# Zendesk Ticket Field IDs
+ 
+ZendeskTicketFields__UpnId: 17207966711570
+ 
+ZendeskTicketFields__TypeOfOrganisationId: 360013574700
+ 
+ZendeskTicketFields__SurnameCypmdId: 19058409672594
+ 
+ZendeskTicketFields__SexId: 19058550118802
+ 
+ZendeskTicketFields__SchoolUrnId: 17207989310226
+ 
+ZendeskTicketFields__ReasonForRemovalId: 19381440546322
+ 
+ZendeskTicketFields__LdsMatchedPupilIdId: 17207993784978
+ 
+ZendeskTicketFields__KeyStageId: 19058126549778
+ 
+ZendeskTicketFields__DfeEstablishmentNumberId: 17207944800146
+ 
+ZendeskTicketFields__DecisionStatusId: 19056253670034
+ 
+ZendeskTicketFields__DateOfBirthCypmdId: 17208002901906
+ 
+ZendeskTicketFields__CypmdId: 20433125966866
+ 
+ZendeskTicketFields__CycleYearId: 19058058434322
+ 
+ZendeskTicketFields__CycleMonthId: 19058091622546
+ 
+ZendeskTicketFields__CorrectionTypeId: 19056595594898
+ 
+ZendeskTicketFields__CorrectionReason31Id: 19058912556690
+ 
+ZendeskTicketFields__AdmissionDateId: 17208027233554
+ 
+ZendeskTicketFields__ForenameCypmdId: 19058507283218

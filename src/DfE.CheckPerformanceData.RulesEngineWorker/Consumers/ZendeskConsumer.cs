@@ -164,7 +164,7 @@ public sealed class ZendeskConsumer : ConsumerBase
                 .Where(r => r.ReferenceNumber == message.ReferenceNumber && r.CrmId == null)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.CrmId, crmId)
-                    .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreated),
+                    .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreated),
                     cancellationToken);
         }, cancellationToken);
 
@@ -188,9 +188,9 @@ public sealed class ZendeskConsumer : ConsumerBase
             claimed = await _dbContext.ChangeRequests
                 .Where(r => r.ReferenceNumber == referenceNumber
                     && r.CrmId == null
-                    && r.Status == RequestStatus.RulesProcessed)
+                    && r.WorkerStatus == WorkerStatus.RulesProcessed)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(r => r.Status, RequestStatus.ZendeskTicketCreating),
+                    .SetProperty(r => r.WorkerStatus, WorkerStatus.ZendeskTicketCreating),
                     cancellationToken);
         }, cancellationToken);
 
@@ -255,7 +255,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
         };
 
-        AddEngineCustomFields(dto, decision);
+        AddDecisionCustomFields(dto, decision);
         MapPupilFields(dto, message);
         return dto;
     }
@@ -291,41 +291,25 @@ public sealed class ZendeskConsumer : ConsumerBase
         return sb.ToString();
     }
 
-    private void AddEngineCustomFields(CreateTicketRequestDto dto, Decision decision)
+    private void AddDecisionCustomFields(CreateTicketRequestDto dto, Decision decision)
     {
-        if (_checkingExerciseSettings is null)
+        
+        if (_ticketFieldService is null)
         {
             return;
         }
-
+        
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-
-        if (_checkingExerciseSettings.DecisionStatusCustomFieldId > 0)
+        var decisionStatusCustomFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionStatusName);
+        if (decisionStatusCustomFieldId.HasValue && decisionStatusCustomFieldId.Value > 0)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                Id = _checkingExerciseSettings.DecisionStatusCustomFieldId,
-                Value = decision.Status.ToString(),
+                Id = decisionStatusCustomFieldId,
+                Value = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionStatusName,decision.Status.ToString())
             });
         }
-
-        if (_checkingExerciseSettings.OutcomeKeyCustomFieldId > 0)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = _checkingExerciseSettings.OutcomeKeyCustomFieldId,
-                Value = decision.OutcomeKey,
-            });
-        }
-
-        if (_checkingExerciseSettings.MatchedRuleIdCustomFieldId > 0)
-        {
-            dto.Ticket.CustomFields.Add(new CustomFieldDto
-            {
-                Id = _checkingExerciseSettings.MatchedRuleIdCustomFieldId,
-                Value = decision.MatchedRuleId,
-            });
-        }
+        
     }
 
     private void MapPupilFields(CreateTicketRequestDto dto, RequestDocument message)

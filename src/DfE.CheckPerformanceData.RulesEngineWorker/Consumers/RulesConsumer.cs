@@ -167,8 +167,6 @@ public sealed class RulesConsumer : ConsumerBase
                     .SetProperty(r => r.DecidedAtUtc, DateTime.UtcNow)
                     .SetProperty(r => r.WorkerStatus, WorkerStatus.RulesProcessed),
                     cancellationToken);
-            
-            await queueService.EnqueueAsync(QueueOptions.ZendeskQueue, parsed, cancellationToken);
         }, cancellationToken);
     }
 }

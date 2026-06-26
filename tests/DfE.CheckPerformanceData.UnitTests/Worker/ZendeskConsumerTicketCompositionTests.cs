@@ -104,7 +104,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(NewMessage("Deceased"), decision).Ticket;
 
-        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value == "AutoApproved");
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => (string)f.Value! == "AutoApproved");
     }
 
     [Fact]

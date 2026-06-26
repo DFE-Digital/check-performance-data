@@ -34,7 +34,7 @@ public sealed class ContentStagingControllerTests
 
     private static string ValidBundleJson() => ContentStagingJson.Serialize(new ContentBundle
     {
-        WikiPages = [new() { SlugPath = "alpha", ParentSlugPath = "", Slug = "alpha", Title = "Alpha", Content = "a" }]
+        WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
     });
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class ContentStagingControllerTests
     {
         _staging.ExportAsync().Returns(new ContentBundle
         {
-            WikiPages = [new() { SlugPath = "alpha", Slug = "alpha", Title = "Alpha", Content = "a" }]
+            WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
         });
 
         var result = await _sut.Export();
@@ -70,7 +70,7 @@ public sealed class ContentStagingControllerTests
     {
         _staging.ExportAsync().Returns(new ContentBundle
         {
-            WikiPages = [new() { SlugPath = "alpha", Slug = "alpha", Title = "Alpha", Content = "a" }]
+            WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
         });
 
         var result = await _sut.Export();
@@ -117,7 +117,7 @@ public sealed class ContentStagingControllerTests
         var blockId = Guid.NewGuid();
         _staging.ExportAsync(Arg.Any<ContentExportSelection>()).Returns(new ContentBundle
         {
-            WikiPages = [new() { Id = pageId, Slug = "alpha", Title = "Alpha" }]
+            WikiPages = [new() { Id = pageId, Title = "Alpha" }]
         });
 
         var result = await _sut.ExportSelected([pageId], [blockId]);

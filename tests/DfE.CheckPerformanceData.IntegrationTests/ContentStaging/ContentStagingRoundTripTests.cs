@@ -60,10 +60,11 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
             firstExport = await staging.ExportAsync();
         }
 
-        // Sanity: the bundle actually carries the seeded content with slug-path parentage.
+        // Sanity: the bundle carries the seeded content with GUID parentage (Beta's parent is Alpha).
         Assert.Equal(3, firstExport.WikiPages.Count);
         Assert.Equal(2, firstExport.ContentBlocks.Count);
-        Assert.Contains(firstExport.WikiPages, p => p.SlugPath == "alpha/beta" && p.ParentSlugPath == "alpha");
+        var alphaId = firstExport.WikiPages.Single(p => p.Title == "Alpha").Id;
+        Assert.Contains(firstExport.WikiPages, p => p.Title == "Beta" && p.ParentId == alphaId);
 
         // Fresh environment: wipe everything, replay the bundle through the app layer.
         await ResetAsync();

@@ -547,21 +547,5 @@ public sealed partial class WikiService(
 		SortOrder = page.SortOrder
 	};
 
-	private static string GenerateSlug(string title)
-	{
-		var slug = title.ToLowerInvariant();
-		slug = SlugInvalidChars().Replace(slug, "");
-		slug = SlugWhitespace().Replace(slug, "-");
-		slug = SlugMultipleDashes().Replace(slug, "-");
-		return slug.Trim('-');
-	}
-
-	[GeneratedRegex(@"[^a-z0-9\s-]")]
-	private static partial Regex SlugInvalidChars();
-
-	[GeneratedRegex(@"\s+")]
-	private static partial Regex SlugWhitespace();
-
-	[GeneratedRegex(@"-{2,}")]
-	private static partial Regex SlugMultipleDashes();
+	private static string GenerateSlug(string title) => WikiSlug.Generate(title);
 }

@@ -12,6 +12,10 @@ public sealed class ContentImportResult
     public int ContentBlocksUpdated { get; set; }
     public int ContentBlocksSkipped { get; set; }
 
-    // Human-readable notes about items that were skipped or could not be applied.
+    // Human-readable notes about items that were skipped.
     public List<string> Warnings { get; } = [];
+
+    // Items that could not be applied at all — e.g. a child whose parent GUID is unknown, so no
+    // orphan is created. Surfaced prominently rather than as a passing note.
+    public List<string> Errors { get; } = [];
 }

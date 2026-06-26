@@ -5,7 +5,8 @@
     var pages = Model.Preview.Pages;
     var blocks = Model.Preview.Blocks;
 
-    var newItems = pages.Where(p => !p.Exists).Select(p => ("Page", p))
+    var blocked = pages.Where(p => p.ParentMissing).ToList();
+    var newItems = pages.Where(p => !p.Exists && !p.ParentMissing).Select(p => ("Page", p))
         .Concat(blocks.Where(b => !b.Exists).Select(b => ("Block", b))).ToList();
     var collisions = pages.Where(p => p.Exists).Select(p => ("Page", p))
         .Concat(blocks.Where(b => b.Exists).Select(b => ("Block", b))).ToList();
@@ -18,8 +19,30 @@
 <p class="govuk-body">
     <strong>@Model.Preview.NewCount</strong> item@(Model.Preview.NewCount == 1 ? "" : "s") will be added.
     <strong>@Model.Preview.CollisionCount</strong> already exist@(Model.Preview.CollisionCount == 1 ? "s" : "") in this environment.
+    @if (blocked.Count > 0)
+    {
+        <text><strong>@blocked.Count</strong> cannot be imported.</text>
+    }
     Nothing changes until you confirm.
 </p>
+
+@if (blocked.Count > 0)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">These items cannot be imported</h2>
+            <div class="govuk-error-summary__body">
+                <p class="govuk-body">Their parent page was not found in this environment or the bundle, so they will be skipped (no blank parent is created).</p>
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var item in blocked)
+                    {
+                        <li><strong>@item.Title</strong> <span class="govuk-hint govuk-!-margin-0">@item.Detail</span></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
 
 <form method="post" action="/admin/content-staging/import">
     @Html.AntiForgeryToken()

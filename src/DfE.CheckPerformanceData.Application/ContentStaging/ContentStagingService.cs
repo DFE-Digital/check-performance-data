@@ -3,11 +3,12 @@ using DfE.CheckPerformanceData.Application.Wiki;
 
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
-// Moves CMS content between environments. Export reads the current wiki pages + content blocks
-// and emits a bundle whose identity and parentage are carried by stable GUIDs (database ids are
-// environment-specific; slugs/keys may be edited). Import replays the bundle through the normal
-// application layer — never raw SQL — matching existing content by GUID so the same document is
-// recognised across environments even after a rename, and handling it per ContentImportMode.
+// Moves CMS content between environments. Identity and parentage are carried purely by stable
+// GUIDs: a page/block is recognised across environments only by its Id, and a page's parent only
+// by its ParentId. Slugs/keys are content, never match keys; the display slug path is rebuilt
+// virtually by walking the ParentId chain. Import replays the bundle through the normal
+// application layer (never raw SQL): an unknown Id means "create new"; an unknown ParentId is an
+// error (no orphan is created).
 public sealed class ContentStagingService(
     IWikiService wikiService,
     IWikiRepository wikiRepository,
@@ -19,24 +20,14 @@ public sealed class ContentStagingService(
     {
         var pages = await wikiRepository.GetAllOrderedAsync();
         var byId = pages.ToDictionary(p => p.Id);
-        var orderedPages = OrderPreOrder(pages);
 
-        var wikiItems = orderedPages.Select(p =>
+        var wikiItems = OrderPreOrder(pages).Select(p => new WikiPageBundleItem
         {
-            var slugPath = PathOf(p, byId);
-            return new WikiPageBundleItem
-            {
-                Id = p.ContentId,
-                ParentId = p.ParentId is { } pid && byId.TryGetValue(pid, out var parent)
-                    ? parent.ContentId
-                    : null,
-                SlugPath = slugPath,
-                ParentSlugPath = ParentPath(slugPath),
-                Slug = p.Slug,
-                Title = p.Title,
-                Content = p.Content,
-                SortOrder = p.SortOrder
-            };
+            Id = p.ContentId,
+            ParentId = p.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent.ContentId : null,
+            Title = p.Title,
+            Content = p.Content,
+            SortOrder = p.SortOrder
         }).ToList();
 
         var blocks = await contentBlockRepository.GetAllAsync();
@@ -47,7 +38,7 @@ public sealed class ContentStagingService(
 
         if (selection is not null)
         {
-            var included = ExpandWithAncestors(selection.WikiPageIds, orderedPages, byId);
+            var included = ExpandWithAncestors(selection.WikiPageIds, pages, byId);
             wikiItems = wikiItems.Where(i => included.Contains(i.Id)).ToList();
             blockItems = blockItems.Where(i => selection.ContentBlockIds.Contains(i.Id)).ToList();
         }
@@ -68,7 +59,7 @@ public sealed class ContentStagingService(
         var catalogPages = OrderPreOrder(pages).Select(p =>
         {
             var slugPath = PathOf(p, byId);
-            return new CatalogPage(p.ContentId, p.Title, slugPath, Depth(slugPath), p.CreatedAt, p.UpdatedAt);
+            return new CatalogPage(p.ContentId, p.Title, slugPath, slugPath.Count(c => c == '/'), p.CreatedAt, p.UpdatedAt);
         }).ToList();
 
         var blocks = await contentBlockRepository.GetAllAsync();
@@ -80,128 +71,46 @@ public sealed class ContentStagingService(
         return new ContentCatalog(catalogPages, catalogBlocks);
     }
 
-    // Pre-order walk from the roots, siblings ordered the way the wiki orders them (SortOrder,
-    // then Title), so a parent is always immediately followed by its subtree.
-    private static List<WikiPageDto> OrderPreOrder(List<WikiPageDto> pages)
-    {
-        static List<WikiPageDto> Ordered(IEnumerable<WikiPageDto> nodes) =>
-            nodes.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToList();
-
-        var childrenByParent = pages
-            .Where(p => p.ParentId is not null)
-            .GroupBy(p => p.ParentId!.Value)
-            .ToDictionary(g => g.Key, g => Ordered(g));
-
-        var ordered = new List<WikiPageDto>();
-        var visited = new HashSet<int>();
-
-        void Walk(List<WikiPageDto> nodes)
-        {
-            foreach (var p in nodes)
-            {
-                if (!visited.Add(p.Id)) continue; // guard against any parent cycle
-                ordered.Add(p);
-                if (childrenByParent.TryGetValue(p.Id, out var kids)) Walk(kids);
-            }
-        }
-
-        Walk(Ordered(pages.Where(p => p.ParentId is null)));
-        return ordered;
-    }
-
-    private static string PathOf(WikiPageDto page, Dictionary<int, WikiPageDto> byId)
-    {
-        var segments = new List<string>();
-        int? cursor = page.Id;
-        var depth = 0;
-        while (cursor.HasValue && depth < MaxDepth && byId.TryGetValue(cursor.Value, out var node))
-        {
-            segments.Insert(0, node.Slug);
-            cursor = node.ParentId;
-            depth++;
-        }
-        return string.Join("/", segments);
-    }
-
-    // A selected page drags in its ancestor chain so the exported hierarchy is never orphaned.
-    private static HashSet<Guid> ExpandWithAncestors(
-        IReadOnlySet<Guid> selected, List<WikiPageDto> pages, Dictionary<int, WikiPageDto> byId)
-    {
-        var byContentId = pages.ToDictionary(p => p.ContentId);
-        var included = new HashSet<Guid>();
-
-        foreach (var guid in selected)
-        {
-            var cursor = byContentId.GetValueOrDefault(guid);
-            var depth = 0;
-            while (cursor is not null && depth < MaxDepth)
-            {
-                included.Add(cursor.ContentId);
-                cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
-                depth++;
-            }
-        }
-
-        return included;
-    }
-
     public async Task<ContentImportPreview> PreviewAsync(ContentBundle bundle)
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
-        var pages = OrderForImport(bundle.WikiPages);
+        var byId = BundleById(bundle.WikiPages);
+        var resolvable = await ResolveableParentsAsync(bundle.WikiPages, byId);
+
         var pageItems = new List<PreviewItem>();
-        foreach (var page in pages)
+        foreach (var page in OrderForImport(bundle.WikiPages))
         {
-            var existing = await PreviewMatchPageAsync(page);
+            var path = VirtualSlugPath(page, byId);
+            if (!resolvable.Contains(page.Id))
+            {
+                pageItems.Add(new PreviewItem(page.Id, page.Title, path, false, null, ParentMissing: true));
+                continue;
+            }
+
+            var existing = page.Id != Guid.Empty ? await wikiRepository.GetByContentIdAsync(page.Id) : null;
             var description = existing is null
                 ? null
-                : existing.ContentId == page.Id
-                    ? existing.Title == page.Title
-                        ? "Overwrites the existing page."
-                        : $"Overwrites the existing page (currently titled ‘{existing.Title}’)."
-                    : "A different page already exists at this location.";
-            pageItems.Add(new PreviewItem(page.Id, page.Title, page.SlugPath, existing is not null, description));
+                : existing.Title == page.Title
+                    ? "Overwrites the existing page."
+                    : $"Overwrites the existing page (currently titled ‘{existing.Title}’).";
+            pageItems.Add(new PreviewItem(page.Id, page.Title, path, existing is not null, description));
         }
 
         var blockItems = new List<PreviewItem>();
         foreach (var block in bundle.ContentBlocks)
         {
-            var existing = await PreviewMatchBlockAsync(block);
+            var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
             var description = existing is null
                 ? null
-                : existing.ContentId == block.Id
-                    ? existing.Key == block.Key
-                        ? "Overwrites the existing block."
-                        : $"Overwrites the existing block (currently keyed ‘{existing.Key}’)."
-                    : "A different block already uses this key.";
+                : existing.Key == block.Key
+                    ? "Overwrites the existing block."
+                    : $"Overwrites the existing block (currently keyed ‘{existing.Key}’).";
             blockItems.Add(new PreviewItem(block.Id, block.Key, block.BlockType, existing is not null, description));
         }
 
         return new ContentImportPreview(pageItems, blockItems);
     }
-
-    // Preview matching resolves parents against the target only (nothing has been created yet):
-    // a page whose parent is not in the target cannot collide at its real location, so it is new.
-    private async Task<WikiPageDto?> PreviewMatchPageAsync(WikiPageBundleItem page)
-    {
-        if (page.Id != Guid.Empty && await wikiRepository.GetByContentIdAsync(page.Id) is { } byGuid)
-            return byGuid;
-
-        int? parentDbId = null;
-        if (page.ParentId is { } parentGuid)
-        {
-            var parent = await wikiRepository.GetByContentIdAsync(parentGuid);
-            if (parent is null) return null;
-            parentDbId = parent.Id;
-        }
-
-        return await wikiRepository.GetBySlugAndParentAsync(LeafSlug(page.SlugPath), parentDbId);
-    }
-
-    private async Task<ContentBlockDto?> PreviewMatchBlockAsync(ContentBlockBundleItem block) =>
-        (block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null)
-        ?? await contentBlockRepository.GetByKeyAsync(block.Key);
 
     public async Task<ContentImportResult> ImportAsync(
         ContentBundle bundle,
@@ -233,16 +142,14 @@ public sealed class ContentStagingService(
                 parentDbId = await ResolveParentDbIdAsync(parentGuid, contentIdToDbId);
                 if (parentDbId is null)
                 {
-                    result.WikiPagesSkipped++;
-                    result.Warnings.Add(
-                        $"Skipped '{page.SlugPath}' — its parent was not found in the bundle or target.");
+                    // Unknown parent: never create an orphan under a blank/guessed parent.
+                    result.Errors.Add($"Could not import ‘{page.Title}’ — its parent was not found in the bundle or this environment.");
                     continue;
                 }
             }
 
-            // Identity is the GUID; fall back to a slug+parent clash so a page created
-            // independently in the target is recognised rather than colliding on the unique index.
-            var existing = await MatchPageAsync(page, parentDbId);
+            // Match purely by stable identity.
+            var existing = page.Id != Guid.Empty ? await wikiRepository.GetByContentIdAsync(page.Id) : null;
 
             if (existing is not null)
             {
@@ -254,35 +161,34 @@ public sealed class ContentStagingService(
                 {
                     await wikiService.UpdatePageAsync(existing.Id,
                         new UpdateWikiPageDto { Title = page.Title, Content = page.Content, SortOrder = page.SortOrder });
-
-                    // Matched on a slug clash rather than identity: adopt the bundle's identity so
-                    // future syncs recognise this as the same page.
-                    if (page.Id != Guid.Empty && existing.ContentId != page.Id)
-                        await wikiRepository.SetContentIdAsync(existing.Id, page.Id);
-
                     result.WikiPagesUpdated++;
                 }
-
                 if (page.Id != Guid.Empty) contentIdToDbId[page.Id] = existing.Id;
+                continue;
             }
-            else
+
+            // New identity. Guard the unique (parent, slug) index so a same-named sibling doesn't crash.
+            if (await wikiRepository.SlugExistsAsync(WikiSlug.Generate(page.Title), parentDbId))
             {
-                var created = await wikiService.CreatePageAsync(new CreateWikiPageDto
-                {
-                    Title = page.Title,
-                    Content = page.Content,
-                    ParentId = parentDbId,
-                    SortOrder = page.SortOrder,
-                    ContentId = page.Id
-                });
-                result.WikiPagesCreated++;
-                if (page.Id != Guid.Empty) contentIdToDbId[page.Id] = created.Id;
+                result.Errors.Add($"Could not create ‘{page.Title}’ — a different page with the same name already exists under its parent.");
+                continue;
             }
+
+            var created = await wikiService.CreatePageAsync(new CreateWikiPageDto
+            {
+                Title = page.Title,
+                Content = page.Content,
+                ParentId = parentDbId,
+                SortOrder = page.SortOrder,
+                ContentId = page.Id
+            });
+            result.WikiPagesCreated++;
+            if (page.Id != Guid.Empty) contentIdToDbId[page.Id] = created.Id;
         }
 
         foreach (var block in bundle.ContentBlocks)
         {
-            var existing = await MatchBlockAsync(block);
+            var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
 
             if (existing is not null)
             {
@@ -300,33 +206,27 @@ public sealed class ContentStagingService(
                     await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
                 });
                 result.ContentBlocksUpdated++;
+                continue;
             }
-            else
+
+            // New identity. Guard the unique Key so a same-keyed block doesn't crash the create.
+            if (await contentBlockRepository.GetByKeyAsync(block.Key) is not null)
             {
-                await contentBlockRepository.ExecuteInTransactionAsync(async () =>
-                {
-                    var created = await contentBlockRepository.AddBlockAsync(
-                        block.Key, block.BlockType, block.Value, block.Id);
-                    await contentBlockRepository.AddVersionAsync(created.Id, block.Value, 1);
-                });
-                result.ContentBlocksCreated++;
+                result.Errors.Add($"Could not create block ‘{block.Key}’ — a different block already uses that key.");
+                continue;
             }
+
+            await contentBlockRepository.ExecuteInTransactionAsync(async () =>
+            {
+                var created = await contentBlockRepository.AddBlockAsync(
+                    block.Key, block.BlockType, block.Value, block.Id);
+                await contentBlockRepository.AddVersionAsync(created.Id, block.Value, 1);
+            });
+            result.ContentBlocksCreated++;
         }
 
         return result;
     }
-
-    // Match a bundle page to an existing target page: by stable identity (GUID) first, then by a
-    // slug+parent clash (a page independently created at the same slot under a different identity).
-    private async Task<WikiPageDto?> MatchPageAsync(WikiPageBundleItem page, int? parentDbId) =>
-        (page.Id != Guid.Empty ? await wikiRepository.GetByContentIdAsync(page.Id) : null)
-        ?? await wikiRepository.GetBySlugAndParentAsync(LeafSlug(page.SlugPath), parentDbId);
-
-    // Match a bundle block to an existing target block: by stable identity (GUID) first, then by
-    // its Key (a block independently created with the same Key under a different identity).
-    private async Task<ContentBlockDto?> MatchBlockAsync(ContentBlockBundleItem block) =>
-        (block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null)
-        ?? await contentBlockRepository.GetByKeyAsync(block.Key);
 
     // Refuse before making any change if a collision is left at the Fail mode (no per-item
     // Skip/Overwrite decision resolves it). Items with an explicit decision are not blocked.
@@ -337,16 +237,20 @@ public sealed class ContentStagingService(
     {
         foreach (var page in pages)
         {
-            if (modeFor(page.Id) == ContentImportMode.Fail && await PreviewMatchPageAsync(page) is not null)
+            if (modeFor(page.Id) == ContentImportMode.Fail
+                && page.Id != Guid.Empty
+                && await wikiRepository.GetByContentIdAsync(page.Id) is not null)
                 throw new ContentImportConflictException(
-                    $"Import aborted — wiki page '{page.SlugPath}' already exists in the target environment.");
+                    $"Import aborted — wiki page ‘{page.Title}’ already exists in the target environment.");
         }
 
         foreach (var block in blocks)
         {
-            if (modeFor(block.Id) == ContentImportMode.Fail && await PreviewMatchBlockAsync(block) is not null)
+            if (modeFor(block.Id) == ContentImportMode.Fail
+                && block.Id != Guid.Empty
+                && await contentBlockRepository.GetByContentIdAsync(block.Id) is not null)
                 throw new ContentImportConflictException(
-                    $"Import aborted — content block '{block.Key}' already exists in the target environment.");
+                    $"Import aborted — content block ‘{block.Key}’ already exists in the target environment.");
         }
     }
 
@@ -357,26 +261,146 @@ public sealed class ContentStagingService(
         return parent?.Id;
     }
 
-    // Parent-first (by depth) so a child's parent is resolvable; within a parent, ascending
-    // SortOrder so siblings are created in order. Depth comes from the informational slug path.
-    private static List<WikiPageBundleItem> OrderForImport(IEnumerable<WikiPageBundleItem> pages) =>
-        pages
-            .OrderBy(p => Depth(p.SlugPath))
-            .ThenBy(p => p.SortOrder)
-            .ThenBy(p => p.SlugPath, StringComparer.Ordinal)
-            .ToList();
-
-    private static int Depth(string slugPath) => slugPath.Count(c => c == '/');
-
-    private static string ParentPath(string slugPath)
+    // The set of bundle page GUIDs whose parent chain bottoms out at a root or a parent that exists
+    // in the target. Anything else has an unknown parent and cannot be imported.
+    private async Task<HashSet<Guid>> ResolveableParentsAsync(
+        IReadOnlyList<WikiPageBundleItem> pages, Dictionary<Guid, WikiPageBundleItem> byId)
     {
-        var idx = slugPath.LastIndexOf('/');
-        return idx < 0 ? string.Empty : slugPath[..idx];
+        // External parents (referenced but not in the bundle): resolvable only if present in target.
+        var externalResolvable = new Dictionary<Guid, bool>();
+        foreach (var parentGuid in pages
+            .Where(p => p.ParentId is { } pid && !byId.ContainsKey(pid))
+            .Select(p => p.ParentId!.Value)
+            .Distinct())
+        {
+            externalResolvable[parentGuid] = await wikiRepository.GetByContentIdAsync(parentGuid) is not null;
+        }
+
+        var resolvable = new HashSet<Guid>();
+        bool changed = true;
+        while (changed)
+        {
+            changed = false;
+            foreach (var p in pages)
+            {
+                if (resolvable.Contains(p.Id)) continue;
+                var ok = p.ParentId is not { } parent
+                    || (byId.ContainsKey(parent) ? resolvable.Contains(parent) : externalResolvable.GetValueOrDefault(parent));
+                if (ok && resolvable.Add(p.Id)) changed = true;
+            }
+        }
+
+        return resolvable;
     }
 
-    private static string LeafSlug(string slugPath)
+    // ---- ordering & paths -------------------------------------------------------------------
+
+    private static Dictionary<Guid, WikiPageBundleItem> BundleById(IEnumerable<WikiPageBundleItem> pages) =>
+        pages.Where(p => p.Id != Guid.Empty)
+            .GroupBy(p => p.Id)
+            .ToDictionary(g => g.Key, g => g.First());
+
+    // Parent-first (by depth through the GUID chain) so a child's parent is created first; within a
+    // depth, ascending SortOrder so siblings keep their order.
+    private static List<WikiPageBundleItem> OrderForImport(IReadOnlyList<WikiPageBundleItem> pages)
     {
-        var idx = slugPath.LastIndexOf('/');
-        return idx < 0 ? slugPath : slugPath[(idx + 1)..];
+        var byId = BundleById(pages);
+
+        int DepthOf(WikiPageBundleItem page)
+        {
+            var depth = 0;
+            var cursor = page;
+            while (cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) && depth < MaxDepth)
+            {
+                depth++;
+                cursor = parent;
+            }
+            return depth;
+        }
+
+        return pages
+            .OrderBy(DepthOf)
+            .ThenBy(p => p.SortOrder)
+            .ThenBy(p => p.Title, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    // The display slug path, rebuilt by walking the ParentId chain and slugging each title.
+    private static string VirtualSlugPath(WikiPageBundleItem page, IReadOnlyDictionary<Guid, WikiPageBundleItem> byId)
+    {
+        var segments = new List<string>();
+        WikiPageBundleItem? cursor = page;
+        var depth = 0;
+        while (cursor is not null && depth < MaxDepth)
+        {
+            segments.Insert(0, WikiSlug.Generate(cursor.Title));
+            cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
+            depth++;
+        }
+        return string.Join("/", segments);
+    }
+
+    // ---- export-side helpers (operate on live DB pages, real slugs) -------------------------
+
+    private static List<WikiPageDto> OrderPreOrder(List<WikiPageDto> pages)
+    {
+        static List<WikiPageDto> Ordered(IEnumerable<WikiPageDto> nodes) =>
+            nodes.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToList();
+
+        var childrenByParent = pages
+            .Where(p => p.ParentId is not null)
+            .GroupBy(p => p.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => Ordered(g));
+
+        var ordered = new List<WikiPageDto>();
+        var visited = new HashSet<int>();
+
+        void Walk(List<WikiPageDto> nodes)
+        {
+            foreach (var p in nodes)
+            {
+                if (!visited.Add(p.Id)) continue;
+                ordered.Add(p);
+                if (childrenByParent.TryGetValue(p.Id, out var kids)) Walk(kids);
+            }
+        }
+
+        Walk(Ordered(pages.Where(p => p.ParentId is null)));
+        return ordered;
+    }
+
+    private static string PathOf(WikiPageDto page, Dictionary<int, WikiPageDto> byId)
+    {
+        var segments = new List<string>();
+        int? cursor = page.Id;
+        var depth = 0;
+        while (cursor.HasValue && depth < MaxDepth && byId.TryGetValue(cursor.Value, out var node))
+        {
+            segments.Insert(0, node.Slug);
+            cursor = node.ParentId;
+            depth++;
+        }
+        return string.Join("/", segments);
+    }
+
+    private static HashSet<Guid> ExpandWithAncestors(
+        IReadOnlySet<Guid> selected, List<WikiPageDto> pages, Dictionary<int, WikiPageDto> byId)
+    {
+        var byContentId = pages.ToDictionary(p => p.ContentId);
+        var included = new HashSet<Guid>();
+
+        foreach (var guid in selected)
+        {
+            var cursor = byContentId.GetValueOrDefault(guid);
+            var depth = 0;
+            while (cursor is not null && depth < MaxDepth)
+            {
+                included.Add(cursor.ContentId);
+                cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
+                depth++;
+            }
+        }
+
+        return included;
     }
 }

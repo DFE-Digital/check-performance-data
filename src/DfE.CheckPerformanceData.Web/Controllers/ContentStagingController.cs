@@ -126,6 +126,8 @@ public sealed class ContentStagingController(
         {
             var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions);
             TempData["ContentStagingResult"] = BuildSummary(result);
+            if (result.Errors.Count > 0)
+                TempData["ContentStagingError"] = string.Join("\n", result.Errors);
             if (result.Warnings.Count > 0)
                 TempData["ContentStagingWarnings"] = string.Join("\n", result.Warnings);
         }

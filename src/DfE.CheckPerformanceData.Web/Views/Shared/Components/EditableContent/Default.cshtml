@@ -43,7 +43,7 @@
                 height: 400,
                 menubar: true,
                 plugins: 'lists link table code wordcount searchreplace fullscreen',
-                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | code fullscreen',
+                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | warningtext | code fullscreen',
                 style_formats: [
                     { title: 'Heading 2 (section)', block: 'h2', classes: 'govuk-heading-l' },
                     { title: 'Heading 3 (sub-section)', block: 'h3', classes: 'govuk-heading-m' },
@@ -55,9 +55,7 @@
                     { title: 'Link', inline: 'a', classes: 'govuk-link' },
                     { title: 'Inset text (grey)', block: 'div', classes: 'govuk-inset-text', wrapper: true },
                     { title: 'Published / review callout (blue)', block: 'div', classes: 'cypmd-published', wrapper: true },
-                    { title: 'Information callout (blue)', block: 'div', classes: 'cypmd-notice', wrapper: true },
-                    { title: 'Warning text', block: 'div', classes: 'govuk-warning-text', wrapper: true },
-                    { title: 'Last updated tag', inline: 'strong', classes: 'govuk-tag govuk-tag--blue' }
+                    { title: 'Information callout (blue)', block: 'div', classes: 'cypmd-notice', wrapper: true }
                 ],
                 style_formats_merge: false,
                 paste_as_text: false,
@@ -68,6 +66,24 @@
                 promotion: false,
                 license_key: 'gpl',
                 setup: function (editor) {
+                    // GDS warning text can't be expressed as a style_formats wrapper — it needs
+                    // the "!" icon span and a visually-hidden "Warning" prefix for screen readers.
+                    // A dedicated button wraps the selection in the canonical component markup.
+                    editor.ui.registry.addButton('warningtext', {
+                        text: 'Warning',
+                        tooltip: 'Insert GDS warning text',
+                        onAction: function () {
+                            var selected = editor.selection.getContent({ format: 'text' });
+                            var body = selected && selected.trim() ? selected : 'Warning text';
+                            editor.insertContent(
+                                '<div class="govuk-warning-text">' +
+                                '<span class="govuk-warning-text__icon" aria-hidden="true">!</span>' +
+                                '<strong class="govuk-warning-text__text">' +
+                                '<span class="govuk-visually-hidden">Warning</span> ' +
+                                body +
+                                '</strong></div>');
+                        }
+                    });
                     editor.on('change', function () {
                         editor.save();
                     });

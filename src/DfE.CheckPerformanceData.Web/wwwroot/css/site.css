@@ -1368,37 +1368,20 @@ body.js-enabled .rules-condition__apply {
   margin-bottom: 30px;
 }
 
-/* Guidance card (landing page): bordered box with title link, "last updated"
-   tag and a short description. Used in a govuk-grid-row of one-third columns. */
-.cypmd-card {
-  display: block;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 1px solid #b1b4b6;
-  border-bottom: 3px solid #b1b4b6;
-}
-/* Higher specificity than .govuk-heading-s so the larger card-title size wins.
-   Sized/spaced to the govuk-heading-m metric (1.5rem / 1.25). */
-.cypmd-card .cypmd-card__title { margin-bottom: 10px; font-size: 1.5rem; line-height: 1.25; }
-.cypmd-card__title a { font-size: inherit; text-decoration: none; }
-.cypmd-card__title a:hover,
-.cypmd-card__title a:focus { text-decoration: underline; }
-.cypmd-card__updated {
-  font-size: 1rem;
-  line-height: 1.25;
-  margin-bottom: 12px;
-}
-.cypmd-card__updated .govuk-tag {
-  margin-left: 6px;
-  vertical-align: baseline;
-  font-size: 1rem;
-  font-weight: 700;
-}
-.cypmd-card > :last-child { margin-bottom: 0; }
-/* govuk-tag is sentence case by design (changed from uppercase in govuk-frontend v5);
-   no text-transform override here so the "last updated" tags follow the GDS default. */
+/* Guidance cards use the canonical dfe-card component (whole-card link, hover/focus
+   states) from dfefrontend — no bespoke card CSS here. */
+
+/* GDS "Dos and don'ts": colour-coded top rule + tick/cross icon, no background fill.
+   Colour is never the only signal — the "Do"/"Do not" heading text and the icon carry
+   the meaning too (WCAG 2.2 SC 1.4.1, use of colour). */
+.cypmd-do,
+.cypmd-dont { border-top: 4px solid; padding-top: 15px; }
+.cypmd-do { border-top-color: #00703c; }
+.cypmd-dont { border-top-color: #d4351c; }
+.cypmd-do__title,
+.cypmd-dont__title { display: flex; gap: 8px; align-items: baseline; }
+.cypmd-do__icon { color: #00703c; }
+.cypmd-dont__icon { color: #d4351c; }
 
 /* The guidance-page lede sits a little tighter to the editable heading blocks. */
 .guidance-section .content-block--title { margin-bottom: 5px; }

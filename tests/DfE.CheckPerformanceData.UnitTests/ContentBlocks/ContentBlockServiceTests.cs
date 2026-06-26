@@ -19,6 +19,16 @@ public class ContentBlockServiceTests
             .Returns(ci => ((Func<Task>)ci[0])());
     }
 
+    // --- RecordLastSeenAsync ---
+
+    [Fact]
+    public async Task RecordLastSeenAsync_RecordsKeyAndPath()
+    {
+        await _sut.RecordLastSeenAsync("home-content", "/home");
+
+        await _repository.Received(1).SetLastSeenAsync("home-content", "/home", Arg.Any<DateTime>());
+    }
+
     // --- GetByKeyAsync ---
 
     [Fact]

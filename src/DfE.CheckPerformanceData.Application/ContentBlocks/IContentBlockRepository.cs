@@ -15,6 +15,7 @@ public interface IContentBlockRepository
     Task AddVersionAsync(int contentBlockId, string value, int versionNumber);
     Task UpdateValueAsync(int id, string newValue);
     Task UpdateForStagingAsync(int id, string key, string blockType, string value, Guid contentId);
+    Task SetLastSeenAsync(string key, string path, DateTime seenAt);
 
     Task SaveChangesAsync();
     Task ExecuteInTransactionAsync(Func<Task> work);

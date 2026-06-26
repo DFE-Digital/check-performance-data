@@ -11,4 +11,6 @@ public sealed class WikiPageDto
     public string? ContentHtml { get; init; }
     public int? ParentId { get; init; }
     public int SortOrder { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
 }

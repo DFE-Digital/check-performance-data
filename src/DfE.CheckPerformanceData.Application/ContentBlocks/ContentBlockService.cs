@@ -12,6 +12,9 @@ public sealed class ContentBlockService(
         return block == null ? null : EnrichDto(block);
     }
 
+    public Task RecordLastSeenAsync(string key, string path) =>
+        repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
+
     public async Task<ContentBlockDto> SaveAsync(SaveContentBlockDto dto)
     {
         var existing = await repository.GetByKeyAsync(dto.Key);

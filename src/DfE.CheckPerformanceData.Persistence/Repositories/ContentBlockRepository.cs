@@ -103,6 +103,19 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         await context.SaveChangesAsync();
     }
 
+    // Records where a block was last rendered. Called from the editable view components only when
+    // the path actually changed, so this rarely writes; matched by Key (a no-op if the block has
+    // no saved row yet).
+    public async Task SetLastSeenAsync(string key, string path, DateTime seenAt)
+    {
+        var entity = await context.ContentBlocks.FirstOrDefaultAsync(b => b.Key == key);
+        if (entity is null) return;
+
+        entity.LastSeenPath = path;
+        entity.LastSeenAt = seenAt;
+        await context.SaveChangesAsync();
+    }
+
     public async Task UpdateValueAsync(int id, string newValue)
     {
         var entity = await context.ContentBlocks.FindAsync(id)

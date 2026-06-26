@@ -8,4 +8,8 @@ public sealed class ContentBlockDto
     public string BlockType { get; init; } = string.Empty;
     public string Value { get; init; } = string.Empty;
     public string? ValueHtml { get; init; }
+    public string? LastSeenPath { get; init; }
+    public DateTime? LastSeenAt { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
 }

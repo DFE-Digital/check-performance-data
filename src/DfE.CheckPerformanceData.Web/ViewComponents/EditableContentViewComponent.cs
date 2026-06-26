@@ -13,6 +13,12 @@ public sealed class EditableContentViewComponent(IContentBlockService contentBlo
         var isEditing = HttpContext.Request.Query["edit"].ToString() == key;
         var block = await contentBlockService.GetByKeyAsync(key);
 
+        // Record which page this block currently sits on (path only, no query). Writes only when
+        // the path changed, so repeat views of an unchanged block don't touch the database.
+        var path = HttpContext.Request.Path.ToString();
+        if (block is not null && block.LastSeenPath != path)
+            await contentBlockService.RecordLastSeenAsync(key, path);
+
         var model = new EditableContentViewModel
         {
             Key = key,

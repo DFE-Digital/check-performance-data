@@ -122,14 +122,14 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(NewMessage("Other"), decision).Ticket;
 
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 10 && (string)f.Value == "123456");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 11 && (string)f.Value == "c1");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value == "p1");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 10 && (string)f.Value! == "123456");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 11 && (string)f.Value! == "c1");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value! == "p1");
         // Surname/forename are upper-cased before mapping.
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 13 && (string)f.Value == "SMITH");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 14 && (string)f.Value == "BOB");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 13 && (string)f.Value! == "SMITH");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 14 && (string)f.Value! == "BOB");
         // dd/MM/yyyy is normalised to ISO yyyy-MM-dd.
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 15 && (string)f.Value == "2010-01-01");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 15 && (string)f.Value! == "2010-01-01");
     }
 
     // --- helpers ---

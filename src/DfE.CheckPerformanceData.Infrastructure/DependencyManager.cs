@@ -293,6 +293,12 @@ public static class DependencyManager
 
     public static IServiceCollection AddNotifyService(this IServiceCollection services, IConfiguration config)
     {
+        if (NotifyServiceRegistration.ShouldUseFake(config))
+        {
+            services.AddSingleton<INotifyService, DevConsoleNotifyService>();
+            return services;
+        }
+
         services.AddOptions<NotifySettings>()
             .Bind(config.GetSection(NotifySettings.SectionName))
             .ValidateDataAnnotations()

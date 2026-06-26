@@ -4,6 +4,7 @@ public interface IContentBlockRepository
 {
     // Queries
     Task<ContentBlockDto?> GetByKeyAsync(string key);
+    Task<List<ContentBlockDto>> SearchAsync(string query, int take);
     Task<int> GetMaxVersionNumberAsync(int contentBlockId);
     Task<ContentBlockVersionDto?> GetVersionByIdAsync(int versionId);
     Task<List<ContentBlockVersionDto>> GetVersionsByKeyAsync(string key);

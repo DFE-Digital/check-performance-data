@@ -74,6 +74,49 @@ public sealed class ContentBlockControllerTests
         await _service.DidNotReceive().SaveAsync(Arg.Any<SaveContentBlockDto>());
     }
 
+    // --- Save: scroll-restore via Anchor fragment ---
+
+    [Fact]
+    public async Task Save_WhenAnchorProvided_AppendsFragmentToRedirect()
+    {
+        var model = new SaveContentBlockFormModel
+        {
+            Key = "k",
+            BlockType = "Content",
+            Value = "v",
+            ReturnUrl = "/guidance/2026-ks4-june-checking-exercise?edit=k",
+            Anchor = "block-k"
+        };
+
+        var result = await _sut.Save(model);
+
+        // edit param stripped, the editing location preserved as a fragment so the
+        // post-save redirect lands the editor back where they were working.
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/guidance/2026-ks4-june-checking-exercise#block-k", redirect.Url);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("foo bar")]
+    [InlineData("a/b")]
+    public async Task Save_WhenAnchorUnsafe_OmitsFragment(string anchor)
+    {
+        var model = new SaveContentBlockFormModel
+        {
+            Key = "k",
+            BlockType = "Content",
+            Value = "v",
+            ReturnUrl = "/guidance/x",
+            Anchor = anchor
+        };
+
+        var result = await _sut.Save(model);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/guidance/x", redirect.Url);
+    }
+
     // --- Revert: open-redirect protection on returnUrl ---
 
     [Theory]

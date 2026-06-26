@@ -1312,3 +1312,106 @@ body.js-enabled .rules-condition__apply {
   60%  { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* ------------------------------------------------------------------ *
+   Guidance pages — in-page contents navigation + sections
+ * ------------------------------------------------------------------ */
+/* The contents nav uses the canonical MoJ side-navigation component for all its
+   styling — link colour, spacing, active state and keyboard focus. The only thing
+   layered on here is sticky positioning, scoped to the guidance column so the
+   component's default behaviour is untouched anywhere else it's used. */
+/* Theme the component to the site's govuk link colour. The MoJ component reads
+   var(--govuk-link-colour, …) and otherwise falls back to its own older #1a65a6,
+   which is inconsistent with every other link on the page (govuk #1d70b8). */
+.guidance-side-nav .moj-side-navigation {
+  --govuk-link-colour: #1d70b8;
+  --govuk-link-hover-colour: #003078;
+}
+@media (min-width: 40.0625em) {
+  .guidance-side-nav .moj-side-navigation {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+}
+.guidance-section {
+  scroll-margin-top: 20px;
+  margin-bottom: 40px;
+}
+.guidance-section__top { margin-top: 10px; }
+
+/* ------------------------------------------------------------------ *
+   CYPMD custom content-block components (also offered in the WYSIWYG
+   style menu so editors can apply them — see EditableContent config)
+ * ------------------------------------------------------------------ */
+
+/* Blue "Published / last reviewed" callout (blue left border + light-blue fill). */
+.cypmd-published {
+  background: #e8f1f8;
+  border-left: 5px solid #1d70b8;
+  padding: 20px 20px 5px;
+  margin-bottom: 30px;
+}
+.cypmd-published__heading {
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+
+/* Information callout (no border) — a darker blue than the published callout,
+   per the design — e.g. "the next exercise opens…". */
+.cypmd-notice {
+  background: #d2e2f1;
+  padding: 20px 20px 5px;
+  margin-bottom: 30px;
+}
+
+/* Guidance card (landing page): bordered box with title link, "last updated"
+   tag and a short description. Used in a govuk-grid-row of one-third columns. */
+.cypmd-card {
+  display: block;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid #b1b4b6;
+  border-bottom: 3px solid #b1b4b6;
+}
+/* Higher specificity than .govuk-heading-s so the larger card-title size wins.
+   Sized/spaced to the govuk-heading-m metric (1.5rem / 1.25). */
+.cypmd-card .cypmd-card__title { margin-bottom: 10px; font-size: 1.5rem; line-height: 1.25; }
+.cypmd-card__title a { font-size: inherit; text-decoration: none; }
+.cypmd-card__title a:hover,
+.cypmd-card__title a:focus { text-decoration: underline; }
+.cypmd-card__updated {
+  font-size: 1rem;
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+.cypmd-card__updated .govuk-tag {
+  margin-left: 6px;
+  vertical-align: baseline;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.cypmd-card > :last-child { margin-bottom: 0; }
+/* govuk-tag is sentence case by design (changed from uppercase in govuk-frontend v5);
+   no text-transform override here so the "last updated" tags follow the GDS default. */
+
+/* The guidance-page lede sits a little tighter to the editable heading blocks. */
+.guidance-section .content-block--title { margin-bottom: 5px; }
+.guidance-section .content-block--title h2,
+.guidance-section .content-block--title h3 { margin-bottom: 0; }
+
+/* Landing-page search box (input + button on one row). */
+.cypmd-search { margin: 20px 0 30px; }
+.cypmd-search__row { display: flex; max-width: 51em; }
+.cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
+.cypmd-search__button { margin-bottom: 0; margin-left: 5px; flex: 0 0 auto; }
+
+/* Landing-page data-check sections: visible rule directly under the heading. */
+.cypmd-landing-section { margin-bottom: 40px; }
+.cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }
+.cypmd-landing-section .content-block--title { margin-bottom: 0; }

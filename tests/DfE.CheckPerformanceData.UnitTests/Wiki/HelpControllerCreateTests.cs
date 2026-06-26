@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ContentBlocks;
 using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
@@ -20,7 +21,7 @@ public sealed class HelpControllerCreateTests
 
     public HelpControllerCreateTests()
     {
-        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), Substitute.For<ISettingService>(), NullLogger<HelpController>.Instance);
+        _sut = new HelpController(_wikiService, new WikiSeeder(_wikiService), Substitute.For<ISettingService>(), Substitute.For<IContentBlockSearchService>(), NullLogger<HelpController>.Instance);
 
         var httpContext = new DefaultHttpContext();
         _tempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());

@@ -599,6 +599,110 @@ public class JourneyControllerTests
         Assert.Empty(saved["evidence"].FileValues!);
     }
 
+    // ── PagePost — commit a pending file selection on Continue ───────────────
+
+    [Fact]
+    public async Task PagePost_WithPendingFile_CommitsItAndAdvances()
+    {
+        // The reported defect: a user selects a file in Browse, types text, and clicks
+        // Continue without clicking "Upload file". Continue must now commit the selected
+        // file rather than reporting "upload a file".
+        SetupSession(ValidSession(history: ["evidence-page"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+        _fileStorageService.SaveAsync(WindowId, Arg.Any<byte[]>()).Returns("stored-123.pdf");
+        // NSubstitute returns string.Empty (not null) by default — the real service returns null
+        // for "no error", so stub it to match.
+        _journeyService.ValidateFileUpload(Arg.Any<string>(), Arg.Any<int>(), Arg.Any<IReadOnlyList<FileAnswer>>())
+            .Returns((string?)null);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false,
+            fileUpload: FakePdfFile(ValidPdfBytes(), "evidence.pdf"));
+
+        await _fileStorageService.Received(1).SaveAsync(WindowId, Arg.Any<byte[]>());
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["evidence"].FileValues!;
+        Assert.Single(saved);
+        Assert.Equal("evidence.pdf", saved[0].OriginalFileName);
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task PagePost_WithInvalidPendingFile_ReRendersAndDoesNotAdvance()
+    {
+        // A pending file that is not a readable PDF must surface an error and keep the user
+        // on the page — the same validation the "Upload file" button applies.
+        SetupSession(ValidSession(history: ["evidence-page"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false,
+            fileUpload: FakePdfFile(Encoding.UTF8.GetBytes("not a pdf"), "junk.pdf"));
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EvidenceUpload", view.ViewName);
+    }
+
+    [Fact]
+    public async Task PagePost_NoPendingFileButFileAlreadyUploaded_Advances()
+    {
+        // Regression: existing uploaded files still satisfy the page without a pending file.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new() { FileValues = [new FileAnswer { StoredFileName = "f.pdf", OriginalFileName = "e.pdf", PageCount = 1, FileSizeBytes = 10 }] }
+        };
+        SetupSession(ValidSession(history: ["evidence-page"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false, fileUpload: null);
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task PagePost_NoPendingFileAndNothingUploaded_ShowsUploadError()
+    {
+        // Regression: the original "upload at least one file" guard still fires when there is
+        // genuinely no file (neither pending nor previously uploaded).
+        SetupSession(ValidSession(history: ["evidence-page"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false, fileUpload: null);
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EvidenceUpload", view.ViewName);
+        Assert.True(_sut.ModelState.ContainsKey("evidence"));
+    }
+
+    [Fact]
+    public async Task PagePost_StrayFileOnPageWithoutFileUpload_IsIgnored()
+    {
+        // A page with no FileUpload question must ignore any stray file field and behave normally.
+        SetupSession(ValidSession(history: ["page-2"]));
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_q2"] = "My explanation"
+        });
+
+        var result = await _sut.PagePost(WindowId, "page-2", fromSummary: false,
+            fileUpload: FakePdfFile(ValidPdfBytes(), "evidence.pdf"));
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
     // ── DownloadEvidence ─────────────────────────────────────────────────────
 
     [Fact]
@@ -684,6 +788,24 @@ public class JourneyControllerTests
             Upn = "123123"
         };
         return state;
+    }
+
+    // A minimal real one-page PDF, so PdfPageCounter (a static parser, not mockable) accepts it.
+    private static byte[] ValidPdfBytes()
+    {
+        var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder();
+        builder.AddPage(UglyToad.PdfPig.Content.PageSize.A4);
+        return builder.Build();
+    }
+
+    private static IFormFile FakePdfFile(byte[] bytes, string fileName)
+    {
+        var file = Substitute.For<IFormFile>();
+        file.Length.Returns(bytes.LongLength);
+        file.FileName.Returns(fileName);
+        file.When(f => f.CopyToAsync(Arg.Any<Stream>(), Arg.Any<CancellationToken>()))
+            .Do(ci => ((Stream)ci[0]).Write(bytes, 0, bytes.Length));
+        return file;
     }
 
     private static void AssertRedirectToCheckYourData(IActionResult result)

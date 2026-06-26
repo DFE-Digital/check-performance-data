@@ -16,6 +16,38 @@ public sealed class ContentBlockControllerTests
         _sut = new ContentBlockController(_service);
     }
 
+    // --- Index: content-blocks management page ---
+
+    [Fact]
+    public async Task Index_ReturnsAllBlocks_FromService()
+    {
+        var blocks = new List<ContentBlockDto>
+        {
+            new() { Id = 1, Key = "home-content", BlockType = "Content", Value = "a" },
+            new() { Id = 2, Key = "guidance-landing-intro", BlockType = "Content", Value = "b" }
+        };
+        _service.GetAllAsync().Returns(blocks);
+
+        var result = await _sut.Index(edit: null);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<ContentBlocksAdminViewModel>(view.Model);
+        Assert.Equal(blocks, model.Blocks);
+        Assert.Null(model.EditKey);
+    }
+
+    [Fact]
+    public async Task Index_PassesEditKeyThrough_SoTheViewOpensThatEditor()
+    {
+        _service.GetAllAsync().Returns([]);
+
+        var result = await _sut.Index(edit: "home-content");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<ContentBlocksAdminViewModel>(view.Model);
+        Assert.Equal("home-content", model.EditKey);
+    }
+
     // --- Save: open-redirect protection on ReturnUrl ---
 
     [Theory]

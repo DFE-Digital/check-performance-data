@@ -38,6 +38,16 @@ public sealed class ContentBlockLocationsTests
     }
 
     [Theory]
+    [InlineData("home-content", "Home")]
+    [InlineData("guidance-landing-ks4-cards", "CYPMD help and support")]
+    [InlineData("guidance-ks4-2026-key-dates", "How to check your performance measures data: KS4 June 2026")]
+    public void Resolve_SetsThePageTitle(string key, string expectedTitle)
+    {
+        var loc = ContentBlockLocations.Resolve(key);
+        Assert.Equal(expectedTitle, loc!.PageTitle);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("e2e-abc-block")]
     [InlineData("some-unknown-key")]

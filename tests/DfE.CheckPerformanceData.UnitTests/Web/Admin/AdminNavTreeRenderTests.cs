@@ -61,6 +61,18 @@ public sealed class AdminNavTreeRenderTests
 		Assert.Contains("tv-children", src);
 	}
 
+	// --- AdminNavTree_Has_LeaveAdmin_Link_To_Home_At_Bottom ---
+
+	[Fact]
+	public void AdminNavTree_Has_LeaveAdmin_Link_To_Home_At_Bottom()
+	{
+		var src = ReadAdminNavTree();
+
+		// A link at the foot of the tree that leaves the admin area for the service home page.
+		Assert.Contains("admin-nav-tree__leave", src);
+		Assert.Contains("href=\"/\"", src);
+	}
+
 	// --- AdminNavTree_Administration_Heading_Has_Distinct_Class ---
 
 	[Fact]

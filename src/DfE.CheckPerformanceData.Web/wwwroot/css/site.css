@@ -1015,6 +1015,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   line-height: 1.2;
 }
 
+/* The "leave admin" link sits below the tree, set off by a divider. */
+.admin-nav-tree__leave {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #b1b4b6;
+}
+
 .admin-nav-group + .admin-nav-group {
   border-top: 1px solid #b1b4b6;
   padding-top: 20px;

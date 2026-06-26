@@ -204,4 +204,170 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
 
         Assert.Equal(["banner", "footer"], all.Select(b => b.Key));
     }
+
+    // ---- export/import scenarios verifying the resulting state -------------------------------
+
+    private async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
+    {
+        var staging = NewStaging(out var ctx);
+        await using var _ = ctx;
+        return await staging.ExportAsync(selection);
+    }
+
+    private async Task<ContentImportResult> ImportAsync(
+        ContentBundle bundle, ContentImportMode mode, IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null)
+    {
+        var staging = NewStaging(out var ctx);
+        await using var _ = ctx;
+        return await staging.ImportAsync(bundle, mode, decisions);
+    }
+
+    [Fact]
+    public async Task Export_ThenImportFresh_ReproducesTree_Parentage_Order_AndContent()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var bundle = await ExportAsync();
+
+        await ResetAsync();
+        var result = await ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Equal(3, result.WikiPagesCreated);
+        Assert.Empty(result.Errors);
+
+        await using var verify = _fixture.CreateContext();
+        var pages = await verify.WikiPages.OrderBy(p => p.Id).ToListAsync();
+        Assert.Equal(3, pages.Count);
+
+        var alpha = pages.Single(p => p.Title == "Alpha");
+        var beta = pages.Single(p => p.Title == "Beta");
+        Assert.Null(alpha.ParentId);
+        Assert.Equal(alpha.Id, beta.ParentId);              // parentage reproduced via GUID
+        Assert.Equal("## Beta body", beta.Content);         // content reproduced
+        Assert.Equal("alpha", alpha.Slug);                  // slug regenerated from title
+    }
+
+    [Fact]
+    public async Task Export_SelectOnlyOneBlock_BundleHasNoPagesAndThatBlock()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var full = await ExportAsync();
+        var footerId = full.ContentBlocks.Single(b => b.Key == "footer").Id;
+
+        var bundle = await ExportAsync(new ContentExportSelection(new HashSet<Guid>(), new HashSet<Guid> { footerId }));
+
+        Assert.Empty(bundle.WikiPages);
+        Assert.Equal(["footer"], bundle.ContentBlocks.Select(b => b.Key));
+    }
+
+    [Fact]
+    public async Task Import_Replace_RestoresEditedContent()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var bundle = await ExportAsync();
+
+        // Drift the live content away from the bundle.
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var alpha = await ctx.WikiPages.FirstAsync(p => p.Title == "Alpha");
+            alpha.Content = "DRIFTED";
+            await ctx.SaveChangesAsync();
+        }
+
+        var result = await ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Equal(3, result.WikiPagesUpdated);
+        await using var verify = _fixture.CreateContext();
+        var alphaAfter = await verify.WikiPages.FirstAsync(p => p.Title == "Alpha");
+        Assert.Equal("## Alpha body", alphaAfter.Content);   // restored from the bundle
+    }
+
+    [Fact]
+    public async Task Import_PerItemDecisions_OverwriteOneSkipAnother()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var bundle = await ExportAsync();
+
+        Guid alphaId, gammaId;
+        await using (var ctx = _fixture.CreateContext())
+        {
+            var alpha = await ctx.WikiPages.FirstAsync(p => p.Title == "Alpha");
+            var gamma = await ctx.WikiPages.FirstAsync(p => p.Title == "Gamma");
+            alphaId = alpha.ContentId;
+            gammaId = gamma.ContentId;
+            alpha.Content = "DRIFTED-A";
+            gamma.Content = "DRIFTED-G";
+            await ctx.SaveChangesAsync();
+        }
+
+        // Global Skip, but overwrite Alpha specifically.
+        var decisions = new Dictionary<Guid, ContentImportMode> { [alphaId] = ContentImportMode.Replace };
+        await ImportAsync(bundle, ContentImportMode.Skip, decisions);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal("## Alpha body", (await verify.WikiPages.FirstAsync(p => p.Title == "Alpha")).Content); // overwritten
+        Assert.Equal("DRIFTED-G", (await verify.WikiPages.FirstAsync(p => p.Title == "Gamma")).Content);     // skipped
+    }
+
+    [Fact]
+    public async Task Import_UnknownParent_ReportsError_AndCreatesNoOrphan()
+    {
+        await ResetAsync();
+        await SeedAsync();
+
+        var bundle = new ContentBundle
+        {
+            WikiPages = [new() { Id = Guid.NewGuid(), ParentId = Guid.NewGuid(), Title = "Orphan", Content = "x" }]
+        };
+
+        var result = await ImportAsync(bundle, ContentImportMode.Skip);
+
+        Assert.Single(result.Errors);
+        Assert.Equal(0, result.WikiPagesCreated);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(3, await verify.WikiPages.CountAsync());        // no orphan added
+        Assert.False(await verify.WikiPages.AnyAsync(p => p.Title == "Orphan"));
+    }
+
+    [Fact]
+    public async Task Import_NewBlock_WithExistingKey_ReportsError_AndDoesNotOverwrite()
+    {
+        await ResetAsync();
+        await SeedAsync();
+
+        // New identity, but a Key that already exists (independently seeded) — must not merge.
+        var bundle = new ContentBundle
+        {
+            ContentBlocks = [new() { Id = Guid.NewGuid(), Key = "footer", BlockType = "Content", Value = "HIJACK" }]
+        };
+
+        var result = await ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.Single(result.Errors);
+        Assert.Equal(0, result.ContentBlocksUpdated);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal("## footer", (await verify.ContentBlocks.FirstAsync(b => b.Key == "footer")).Value); // untouched
+    }
+
+    [Fact]
+    public async Task Preview_ReportsNew_Collision_AndBlockedCounts()
+    {
+        await ResetAsync();
+        await SeedAsync();
+        var bundle = await ExportAsync();   // 3 pages + 2 blocks, all will collide
+
+        bundle.WikiPages.Add(new() { Id = Guid.NewGuid(), Title = "Brand New" });                               // new
+        bundle.WikiPages.Add(new() { Id = Guid.NewGuid(), ParentId = Guid.NewGuid(), Title = "Orphan" });       // blocked
+
+        var staging = NewStaging(out var ctx);
+        await using var _ = ctx;
+        var preview = await staging.PreviewAsync(bundle);
+
+        Assert.Equal(5, preview.CollisionCount);     // 3 pages + 2 blocks
+        Assert.Equal(1, preview.NewCount);           // Brand New
+        Assert.Equal(1, preview.BlockedCount);       // Orphan
+    }
 }

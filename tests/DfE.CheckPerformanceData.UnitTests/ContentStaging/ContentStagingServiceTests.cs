@@ -134,6 +134,57 @@ public class ContentStagingServiceTests
         Assert.Equal(GuidB, bundle.ContentBlocks[0].Id);   // identity carried
     }
 
+    [Fact]
+    public async Task ExportAsync_WithSelection_IncludesOnlySelectedPagesAndBlocks()
+    {
+        _wikiRepo.GetAllOrderedAsync().Returns(
+        [
+            Page(1, "alpha", "Alpha", parentId: null, content: "a", contentId: GuidA),
+            Page(2, "beta", "Beta", parentId: null, content: "b", contentId: GuidB)
+        ]);
+        _blockRepo.GetAllAsync().Returns(
+        [
+            Block(1, "footer", "Content", "f", contentId: GuidParent)
+        ]);
+
+        var selection = new ContentExportSelection(new HashSet<Guid> { GuidA }, new HashSet<Guid>());
+        var bundle = await _sut.ExportAsync(selection);
+
+        Assert.Equal([GuidA], bundle.WikiPages.Select(p => p.Id));
+        Assert.Empty(bundle.ContentBlocks);
+    }
+
+    [Fact]
+    public async Task ExportAsync_WithSelection_IncludesAncestorsOfSelectedPage()
+    {
+        _wikiRepo.GetAllOrderedAsync().Returns(
+        [
+            Page(1, "parent", "Parent", parentId: null, content: "p", contentId: GuidParent),
+            Page(2, "child", "Child", parentId: 1, content: "c", contentId: GuidA)
+        ]);
+
+        // Selecting only the child must pull in its parent so the hierarchy is intact on import.
+        var selection = new ContentExportSelection(new HashSet<Guid> { GuidA }, new HashSet<Guid>());
+        var bundle = await _sut.ExportAsync(selection);
+
+        Assert.Equal([GuidParent, GuidA], bundle.WikiPages.Select(p => p.Id));
+    }
+
+    [Fact]
+    public async Task ExportAsync_NullSelection_ExportsEverything()
+    {
+        _wikiRepo.GetAllOrderedAsync().Returns(
+        [
+            Page(1, "alpha", "Alpha", parentId: null, content: "a", contentId: GuidA)
+        ]);
+        _blockRepo.GetAllAsync().Returns([Block(1, "footer", "Content", "f", contentId: GuidB)]);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.Single(bundle.WikiPages);
+        Assert.Single(bundle.ContentBlocks);
+    }
+
     // --- Import: wiki create / skip / replace, parentage by GUID ---
 
     [Fact]

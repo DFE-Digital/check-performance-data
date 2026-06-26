@@ -15,64 +15,29 @@ public sealed class ContentStagingService(
 {
     private const int MaxDepth = 10;
 
-    public async Task<ContentBundle> ExportAsync()
+    public async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
     {
         var pages = await wikiRepository.GetAllOrderedAsync();
         var byId = pages.ToDictionary(p => p.Id);
+        var orderedPages = OrderPreOrder(pages);
 
-        string PathOf(WikiPageDto page)
+        var wikiItems = orderedPages.Select(p =>
         {
-            var segments = new List<string>();
-            int? cursor = page.Id;
-            var depth = 0;
-            while (cursor.HasValue && depth < MaxDepth && byId.TryGetValue(cursor.Value, out var node))
+            var slugPath = PathOf(p, byId);
+            return new WikiPageBundleItem
             {
-                segments.Insert(0, node.Slug);
-                cursor = node.ParentId;
-                depth++;
-            }
-            return string.Join("/", segments);
-        }
-
-        // Siblings ordered the way the wiki itself orders them (SortOrder, then Title); a
-        // pre-order walk from the roots then emits the bundle in true tree order. Children are
-        // keyed by non-nullable parent id (roots held separately) to avoid a null dictionary key.
-        static List<WikiPageDto> Ordered(IEnumerable<WikiPageDto> nodes) =>
-            nodes.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToList();
-
-        var roots = Ordered(pages.Where(p => p.ParentId is null));
-        var childrenByParent = pages
-            .Where(p => p.ParentId is not null)
-            .GroupBy(p => p.ParentId!.Value)
-            .ToDictionary(g => g.Key, g => Ordered(g));
-
-        var wikiItems = new List<WikiPageBundleItem>();
-        var visited = new HashSet<int>();
-
-        void Walk(List<WikiPageDto> nodes)
-        {
-            foreach (var p in nodes)
-            {
-                if (!visited.Add(p.Id)) continue; // guard against any parent cycle
-                var slugPath = PathOf(p);
-                wikiItems.Add(new WikiPageBundleItem
-                {
-                    Id = p.ContentId,
-                    ParentId = p.ParentId is { } pid && byId.TryGetValue(pid, out var parent)
-                        ? parent.ContentId
-                        : null,
-                    SlugPath = slugPath,
-                    ParentSlugPath = ParentPath(slugPath),
-                    Slug = p.Slug,
-                    Title = p.Title,
-                    Content = p.Content,
-                    SortOrder = p.SortOrder
-                });
-                if (childrenByParent.TryGetValue(p.Id, out var kids)) Walk(kids);
-            }
-        }
-
-        Walk(roots);
+                Id = p.ContentId,
+                ParentId = p.ParentId is { } pid && byId.TryGetValue(pid, out var parent)
+                    ? parent.ContentId
+                    : null,
+                SlugPath = slugPath,
+                ParentSlugPath = ParentPath(slugPath),
+                Slug = p.Slug,
+                Title = p.Title,
+                Content = p.Content,
+                SortOrder = p.SortOrder
+            };
+        }).ToList();
 
         var blocks = await contentBlockRepository.GetAllAsync();
         var blockItems = blocks
@@ -80,12 +45,104 @@ public sealed class ContentStagingService(
             .OrderBy(b => b.Key, StringComparer.Ordinal)
             .ToList();
 
+        if (selection is not null)
+        {
+            var included = ExpandWithAncestors(selection.WikiPageIds, orderedPages, byId);
+            wikiItems = wikiItems.Where(i => included.Contains(i.Id)).ToList();
+            blockItems = blockItems.Where(i => selection.ContentBlockIds.Contains(i.Id)).ToList();
+        }
+
         return new ContentBundle
         {
             Schema = ContentBundle.CurrentSchema,
             WikiPages = wikiItems,
             ContentBlocks = blockItems
         };
+    }
+
+    public async Task<ContentCatalog> GetCatalogAsync()
+    {
+        var pages = await wikiRepository.GetAllOrderedAsync();
+        var byId = pages.ToDictionary(p => p.Id);
+
+        var catalogPages = OrderPreOrder(pages).Select(p =>
+        {
+            var slugPath = PathOf(p, byId);
+            return new CatalogPage(p.ContentId, p.Title, slugPath, Depth(slugPath), p.CreatedAt, p.UpdatedAt);
+        }).ToList();
+
+        var blocks = await contentBlockRepository.GetAllAsync();
+        var catalogBlocks = blocks
+            .OrderBy(b => b.Key, StringComparer.Ordinal)
+            .Select(b => new CatalogBlock(b.ContentId, b.Key, b.BlockType, b.LastSeenPath, b.CreatedAt, b.UpdatedAt))
+            .ToList();
+
+        return new ContentCatalog(catalogPages, catalogBlocks);
+    }
+
+    // Pre-order walk from the roots, siblings ordered the way the wiki orders them (SortOrder,
+    // then Title), so a parent is always immediately followed by its subtree.
+    private static List<WikiPageDto> OrderPreOrder(List<WikiPageDto> pages)
+    {
+        static List<WikiPageDto> Ordered(IEnumerable<WikiPageDto> nodes) =>
+            nodes.OrderBy(p => p.SortOrder).ThenBy(p => p.Title).ToList();
+
+        var childrenByParent = pages
+            .Where(p => p.ParentId is not null)
+            .GroupBy(p => p.ParentId!.Value)
+            .ToDictionary(g => g.Key, g => Ordered(g));
+
+        var ordered = new List<WikiPageDto>();
+        var visited = new HashSet<int>();
+
+        void Walk(List<WikiPageDto> nodes)
+        {
+            foreach (var p in nodes)
+            {
+                if (!visited.Add(p.Id)) continue; // guard against any parent cycle
+                ordered.Add(p);
+                if (childrenByParent.TryGetValue(p.Id, out var kids)) Walk(kids);
+            }
+        }
+
+        Walk(Ordered(pages.Where(p => p.ParentId is null)));
+        return ordered;
+    }
+
+    private static string PathOf(WikiPageDto page, Dictionary<int, WikiPageDto> byId)
+    {
+        var segments = new List<string>();
+        int? cursor = page.Id;
+        var depth = 0;
+        while (cursor.HasValue && depth < MaxDepth && byId.TryGetValue(cursor.Value, out var node))
+        {
+            segments.Insert(0, node.Slug);
+            cursor = node.ParentId;
+            depth++;
+        }
+        return string.Join("/", segments);
+    }
+
+    // A selected page drags in its ancestor chain so the exported hierarchy is never orphaned.
+    private static HashSet<Guid> ExpandWithAncestors(
+        IReadOnlySet<Guid> selected, List<WikiPageDto> pages, Dictionary<int, WikiPageDto> byId)
+    {
+        var byContentId = pages.ToDictionary(p => p.ContentId);
+        var included = new HashSet<Guid>();
+
+        foreach (var guid in selected)
+        {
+            var cursor = byContentId.GetValueOrDefault(guid);
+            var depth = 0;
+            while (cursor is not null && depth < MaxDepth)
+            {
+                included.Add(cursor.ContentId);
+                cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
+                depth++;
+            }
+        }
+
+        return included;
     }
 
     public async Task<ContentImportResult> ImportAsync(ContentBundle bundle, ContentImportMode mode)

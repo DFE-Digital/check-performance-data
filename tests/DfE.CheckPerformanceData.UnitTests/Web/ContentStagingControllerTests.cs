@@ -96,6 +96,48 @@ public sealed class ContentStagingControllerTests
     }
 
     [Fact]
+    public async Task Select_ReturnsCatalogView()
+    {
+        var catalog = new ContentCatalog(
+            [new(Guid.NewGuid(), "Alpha", "alpha", 0, default, default)],
+            [new(Guid.NewGuid(), "footer", "Content", "/home", default, default)]);
+        _staging.GetCatalogAsync().Returns(catalog);
+
+        var result = await _sut.Select();
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Same(catalog, view.Model);
+    }
+
+    [Fact]
+    public async Task ExportSelected_WithSelection_ReturnsJsonFile_PassingChosenIds()
+    {
+        var pageId = Guid.NewGuid();
+        var blockId = Guid.NewGuid();
+        _staging.ExportAsync(Arg.Any<ContentExportSelection>()).Returns(new ContentBundle
+        {
+            WikiPages = [new() { Id = pageId, Slug = "alpha", Title = "Alpha" }]
+        });
+
+        var result = await _sut.ExportSelected([pageId], [blockId]);
+
+        Assert.IsType<FileContentResult>(result);
+        await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection>(
+            s => s.WikiPageIds.Contains(pageId) && s.ContentBlockIds.Contains(blockId)));
+    }
+
+    [Fact]
+    public async Task ExportSelected_NothingChosen_SetsError_AndRedirects()
+    {
+        var result = await _sut.ExportSelected(null, null);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging/select", redirect.Url);
+        Assert.NotNull(_sut.TempData["ContentStagingError"]);
+        await _staging.DidNotReceive().ExportAsync(Arg.Any<ContentExportSelection>());
+    }
+
+    [Fact]
     public async Task Import_NoFile_SetsError_AndRedirects()
     {
         var result = await _sut.Import(bundle: null, ContentImportMode.Skip);

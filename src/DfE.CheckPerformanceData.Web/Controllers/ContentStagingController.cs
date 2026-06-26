@@ -18,10 +18,43 @@ public sealed class ContentStagingController(
     [HttpGet("")]
     public IActionResult Index() => View();
 
+    // Whole-environment export (the "export everything" convenience button).
     [HttpGet("export")]
     public async Task<IActionResult> Export()
     {
         var bundle = await staging.ExportAsync();
+        return ExportFile(bundle);
+    }
+
+    // The selection page: choose which pages and blocks to export.
+    [HttpGet("select")]
+    public async Task<IActionResult> Select()
+    {
+        var catalog = await staging.GetCatalogAsync();
+        return View(catalog);
+    }
+
+    // Export only the ticked pages/blocks (ancestors of selected pages are added by the service).
+    [HttpPost("export")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExportSelected(List<Guid>? wikiPageIds, List<Guid>? contentBlockIds)
+    {
+        var selection = new ContentExportSelection(
+            wikiPageIds?.ToHashSet() ?? [],
+            contentBlockIds?.ToHashSet() ?? []);
+
+        if (selection.WikiPageIds.Count == 0 && selection.ContentBlockIds.Count == 0)
+        {
+            TempData["ContentStagingError"] = "Select at least one page or content block to export.";
+            return Redirect("/admin/content-staging/select");
+        }
+
+        var bundle = await staging.ExportAsync(selection);
+        return ExportFile(bundle);
+    }
+
+    private FileContentResult ExportFile(ContentBundle bundle)
+    {
         var stamped = new ContentBundle
         {
             Schema = bundle.Schema,

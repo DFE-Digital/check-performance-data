@@ -39,7 +39,8 @@ public class NotifyService : INotifyService
         {
             NotificationType.SubmissionConfirmed => _settings.SubmissionNotificationTemplateId,
             NotificationType.DataCheckConfirmed => _settings.PupilDataCheckConfirmTemplateId,
-            NotificationType.Withdrawn => _settings.WithdrawNotificationTemplateId,
+            NotificationType.AmendmentWithdrawn => _settings.WithdrawNotificationTemplateId,
+            NotificationType.DataCheckWithdrawn => _settings.PupilDataCheckWithdrawTemplateId,
             _ => throw new ArgumentOutOfRangeException(nameof(notificationType))
         };
 

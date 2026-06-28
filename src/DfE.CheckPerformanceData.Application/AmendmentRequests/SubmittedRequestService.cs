@@ -14,6 +14,15 @@ public sealed class SubmittedRequestService(
 {
     public async Task<SubmittedRequestView?> GetAsync(Guid windowId, string referenceNumber)
     {
+        // Org-scoping gate: the journey blob is keyed only by windowId + referenceNumber,
+        // neither of which is secret to the owning school. Verify the caller's organisation
+        // owns a ChangeRequests row for this reference *before* touching the blob, so PII for
+        // another school's request is never read or returned (fail closed on a missing row).
+        var urn = long.Parse(currentUserService.OrganisationUrn);
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
+        if (row is null)
+            return null;
+
         var journey = await requestStateBlobClient.GetAsync(windowId, referenceNumber);
         if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null)
             return null;
@@ -61,13 +70,10 @@ public sealed class SubmittedRequestService(
 
         var (firstRecord, secondRecord) = BuildMergeDisplays(journey);
 
-        var urn = long.Parse(currentUserService.OrganisationUrn);
-        var row = await requestRepository.GetAmendmentRequestAsync(windowId, urn, referenceNumber);
-
         return new SubmittedRequestView
         {
             WhatToChange = journey.SelectedWhatToChange.Value,
-            Status = row?.Status ?? RequestStatus.SubmittedUnCommitted,
+            Status = row.Status,
             PupilName = pupilName,
             FirstRecordDisplay = firstRecord,
             SecondRecordDisplay = secondRecord,
@@ -76,8 +82,8 @@ public sealed class SubmittedRequestService(
             ReferenceNumber = journey.ReferenceNumber ?? referenceNumber,
             // The ChangeRequests row is the single source of truth for who saved/submitted
             // the request and when (set for both drafts and submissions).
-            SubmittedByEmail = row?.SubmittedByEmail,
-            SubmittedAt = row?.Submitted
+            SubmittedByEmail = row.SubmittedByEmail,
+            SubmittedAt = row.Submitted
         };
     }
 

@@ -1347,6 +1347,13 @@ body.js-enabled .rules-condition__apply {
   --govuk-link-colour: #1d70b8;
   --govuk-link-hover-colour: #003078;
 }
+/* Nested H3 sub-sections: indent under their parent H2 so the contents nav mirrors
+   the page's heading hierarchy (H2s listed, H3s nested beneath their H2). */
+.guidance-side-nav .guidance-nav__sub {
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #b1b4b6;
+}
 @media (min-width: 40.0625em) {
   .guidance-side-nav .moj-side-navigation {
     position: sticky;

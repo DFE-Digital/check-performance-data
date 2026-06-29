@@ -97,8 +97,18 @@ public sealed class RequestService(
         await requestRepository.UpsertAsync(BuildChangeRequestData(windowId, journey, status, draftConfig));
     }
 
-    public Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber) =>
-        requestStateBlobClient.GetAsync(windowId, referenceNumber);
+    public async Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber)
+    {
+        // Org-scoping gate: the draft blob is keyed only by windowId + referenceNumber, so
+        // verify the caller's organisation owns a ChangeRequests row for this reference before
+        // reading the blob. Otherwise another school's draft PII would be disclosed and loaded
+        // into the attacker's session. Fail closed on a missing row.
+        var row = await requestRepository.GetAmendmentRequestAsync(windowId, OrganisationUrnLong, referenceNumber);
+        if (row is null)
+            return null;
+
+        return await requestStateBlobClient.GetAsync(windowId, referenceNumber);
+    }
 
     public async Task<RequestDeletionResult> DeleteAsync(Guid windowId, string referenceNumber)
     {

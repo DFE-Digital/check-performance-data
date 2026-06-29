@@ -29,6 +29,7 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_WhenNoJourneyStored_ReturnsNull()
     {
+        StubRow(RequestStatus.SubmittedUnCommitted);
         _blob.GetAsync(WindowId, Reference).Returns((RequestState?)null);
 
         Assert.Null(await _sut.GetAsync(WindowId, Reference));
@@ -37,11 +38,23 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_WhenConfigNotFound_ReturnsNull()
     {
+        StubRow(RequestStatus.SubmittedUnCommitted);
         _blob.GetAsync(WindowId, Reference).Returns(Journey());
         _flow.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
             .Returns((QuestionFlowConfig?)null);
 
         Assert.Null(await _sut.GetAsync(WindowId, Reference));
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenCallerOrgDoesNotOwnRequest_ReturnsNullWithoutReadingBlob()
+    {
+        // No ChangeRequests row for this org/reference → cross-tenant access attempt.
+        _requestRepo.GetAmendmentRequestAsync(WindowId, 100000L, Reference)
+            .Returns((AmendmentRequestData?)null);
+
+        Assert.Null(await _sut.GetAsync(WindowId, Reference));
+        await _blob.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
     }
 
     [Fact]
@@ -118,6 +131,7 @@ public class SubmittedRequestServiceTests
     [Fact]
     public async Task GetAsync_SkipsContentAndPupilSearchPages()
     {
+        StubRow(RequestStatus.SubmittedUnCommitted);
         var journey = Journey(history: ["intro", "select-pupil", "reason"]);
         journey.QuestionAnswers["q1"] = new QuestionAnswer { TextValue = "left-england" };
         var reasonPage = new JourneyPage
@@ -245,6 +259,9 @@ public class SubmittedRequestServiceTests
         _blob.GetAsync(WindowId, Reference).Returns(journey);
         _flow.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Config(page));
         _flow.GetPage(Arg.Any<QuestionFlowConfig>(), page.Id).Returns(page);
+        // Default to an owning row so the org-scoping gate passes; individual tests
+        // override via StubRow when they assert on specific row metadata.
+        StubRow(RequestStatus.SubmittedUnCommitted);
     }
 
     private static QuestionFlowConfig Config(JourneyPage page) =>

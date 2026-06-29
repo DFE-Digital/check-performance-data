@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
@@ -93,9 +94,14 @@ try
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered
-    // ONLY when not in Production so prod can never serve these routes or carry the
-    // marker cookie. Don't move this block outside the IsProduction() guard.
-    if (!builder.Environment.IsProduction())
+    // ONLY where the dev tooling surface is enabled (Dev:ToolsEnabled) — i.e. local dev
+    // and ephemeral PR/review apps — AND never in Production. This matches the gate used
+    // by the sibling /dev/* controllers (DevQueueSeed, DevPipeline, DevUat), so deployed
+    // DEV/QA/Preproduction (which never set Dev:ToolsEnabled) cannot serve these routes or
+    // carry the marker cookie. The IsProduction() guard is belt-and-braces on top of the
+    // flag. Don't move this block outside either condition.
+    if (!builder.Environment.IsProduction()
+        && configuration.GetValue<bool>(SettingKeys.DevToolsEnabled))
     {
         const string DevAwareScheme = "DevAware";
 

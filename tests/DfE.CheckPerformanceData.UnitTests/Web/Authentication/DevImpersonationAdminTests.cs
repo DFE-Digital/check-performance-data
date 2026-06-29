@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
@@ -25,12 +27,19 @@ public sealed class DevImpersonationAdminTests
 		_httpContextAccessor.HttpContext.Returns(context);
 	}
 
-	private static DevImpersonationController CreateControllerSut(string environmentName)
+	private static DevImpersonationController CreateControllerSut(
+		string environmentName, bool devToolsEnabled = true)
 	{
 		var env = Substitute.For<IHostEnvironment>();
 		env.EnvironmentName.Returns(environmentName);
+		var config = new ConfigurationBuilder()
+			.AddInMemoryCollection(new Dictionary<string, string?>
+			{
+				[SettingKeys.DevToolsEnabled] = devToolsEnabled ? "true" : "false"
+			})
+			.Build();
 		var http = new DefaultHttpContext();
-		return new DevImpersonationController(env)
+		return new DevImpersonationController(config, env)
 		{
 			ControllerContext = new ControllerContext { HttpContext = http }
 		};
@@ -126,6 +135,20 @@ public sealed class DevImpersonationAdminTests
 		// Mirrors the existing Editor/User/Clear guards — the new admin action must
 		// 404 in Production so the dev-impersonation path is impossible to invoke.
 		var sut = CreateControllerSut(Environments.Production);
+
+		var result = sut.Admin();
+
+		Assert.IsType<NotFoundResult>(result);
+	}
+
+	// --- Admin 404s in a non-production env when the dev tooling surface is disabled ---
+
+	[Fact]
+	public void DevImpersonationController_Admin_Returns_NotFound_When_DevToolsDisabled()
+	{
+		// Deployed DEV/QA/Preproduction never set Dev:ToolsEnabled, so even the highest-
+		// privilege impersonation action is unreachable there.
+		var sut = CreateControllerSut("QA", devToolsEnabled: false);
 
 		var result = sut.Admin();
 

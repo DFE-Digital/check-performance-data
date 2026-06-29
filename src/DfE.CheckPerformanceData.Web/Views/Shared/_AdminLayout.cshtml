@@ -1,9 +1,11 @@
 @using System.Security.Claims
+@using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
 @*
     Admin chrome — black-banded header and "Administration" wordmark
@@ -43,7 +45,10 @@
     else if (hasEditorImpersonation) parens.Add("impersonating CMS editor");
     var signOutLabel = parens.Count > 0 ? $"Sign out ({string.Join(", ", parens)})" : "Sign out";
 
-    var showImpersonateDropdown = !HostEnvironment.IsProduction() && !showSignOut;
+    // Only offer the impersonation dropdown where the dev tooling surface is enabled
+    // (local dev + PR/review apps), matching the controller and DI gate.
+    var devToolsEnabled = Configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
+    var showImpersonateDropdown = devToolsEnabled && !HostEnvironment.IsProduction() && !showSignOut;
 
     var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
 

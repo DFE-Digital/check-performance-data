@@ -1351,8 +1351,6 @@ body.js-enabled .rules-condition__apply {
   .guidance-side-nav .moj-side-navigation {
     position: sticky;
     top: 20px;
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
   }
 }
 .guidance-section {

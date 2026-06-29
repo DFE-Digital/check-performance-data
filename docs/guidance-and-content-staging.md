@@ -78,6 +78,9 @@ The guidance pages render their **structure** from the manifest, but their **con
 
 (Separately, the admin **rules editor** gets its data from the `rules-config` blobs, which the web app self-seeds on startup — see [E2E-Playwright.md](E2E-Playwright.md) under "Test data isolation".)
 
+### Check the data directory 
+For an example file to import to populate the CMS
+
 ---
 
 ## Testing

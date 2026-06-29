@@ -1416,3 +1416,18 @@ body.js-enabled .rules-condition__apply {
 .cypmd-landing-section { margin-bottom: 40px; }
 .cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }
 .cypmd-landing-section .content-block--title { margin-bottom: 0; }
+
+/* Equal-height cards: make each card row a flex row so every column — and the
+   dfe-card inside it — stretches to the height of the tallest card in the row,
+   instead of each card sizing to its own (variable) amount of text. Scoped to the
+   landing card sections so the global govuk-grid-row is untouched elsewhere. */
+.cypmd-landing-section .govuk-grid-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"] {
+  display: flex;
+}
+.cypmd-landing-section .dfe-card {
+  width: 100%;
+}

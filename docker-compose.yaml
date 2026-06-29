@@ -103,10 +103,7 @@ services:
   # container if missing, and uploads seed/rules.json + seed/country-languages.json.
   # Idempotent: re-runs are a no-op if the blobs already exist.
   azurite_init:
-    # e2e is included so the rules-config blob is seeded for the E2E run — the admin
-    # rules-editor tests read rules from that blob, and without it they render an empty
-    # editor and fail. e2e-tests waits on this completing (service_completed_successfully).
-    profiles: [rules_engine, all, e2e]
+    profiles: [rules_engine, all]
     container_name: cypd_azurite_init
     image: mcr.microsoft.com/azure-cli:latest
     depends_on:
@@ -217,17 +214,14 @@ services:
     volumes:
       - ./:/work
       - cpd-nuget-cache:/root/.nuget/packages
-    # web uses default condition (service_started). PlaywrightFixture polls
-    # $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before any test
-    # exercises the web app — that is the authoritative readiness gate. (web has no
-    # compose-level healthcheck today.) azurite_init must COMPLETE first so the
-    # rules-config blob exists before the admin rules-editor tests query it; the web
-    # reads rules from the blob per-request, so no web restart is needed once seeded.
+    # depends_on uses default condition (service_started). PlaywrightFixture
+    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
+    # any test exercises the web app — that is the authoritative readiness
+    # gate. (web service has no compose-level healthcheck today.) The web app
+    # self-seeds the rules-config blobs during its startup seeding (so the admin
+    # rules editor works in E2E without the rules_engine/azurite_init container).
     depends_on:
-      web:
-        condition: service_started
-      azurite_init:
-        condition: service_completed_successfully
+      - web
     networks:
       - cypd
     command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]

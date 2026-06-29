@@ -4,7 +4,7 @@ DfeSignIn__BaseUrl: https://pp-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk
 DfeSignIn__MetadataAddress: https://pp-oidc.signin.education.gov.uk/.well-known/openid-configuration
-DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
+DfeSignIn__ServiceId: A25B3003-D7EA-40E6-B736-1D9372DB1F2D
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true

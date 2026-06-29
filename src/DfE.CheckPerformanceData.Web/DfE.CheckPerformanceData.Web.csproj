@@ -29,4 +29,11 @@
     <_ContentIncludedByDefault Remove="Views\RemovePupil\Index.cshtml" />
     <_ContentIncludedByDefault Remove="Views\Secret\Index.cshtml" />
   </ItemGroup>
+  <!-- Rules-config seed JSON, linked from the rules-engine worker so there is one source of
+       truth. RulesConfigSeeder (run from the dev-data seeding orchestrator in dev/E2E) reads
+       these from the "seed" folder next to the binary to self-seed the rules-config blobs. -->
+  <ItemGroup>
+    <None Include="..\DfE.CheckPerformanceData.RulesEngineWorker\seed\rules.json" Link="seed\rules.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\DfE.CheckPerformanceData.RulesEngineWorker\seed\country-languages.json" Link="seed\country-languages.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

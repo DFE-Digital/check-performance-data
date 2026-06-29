@@ -11,6 +11,10 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      # Local-only dev tooling surface (impersonation + /dev/* seed endpoints). The
+      # E2E suite drives /dev/impersonate/* against this container, so it must be on
+      # here. Deployed DEV/QA/Preproduction never set this; Production is hard-guarded.
+      - Dev__ToolsEnabled=${DEV_TOOLS_ENABLED:-true}
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__Postgres=${POSTGRES_CONNECTION_STRING:-Host=db;Database=cypd;Username=postgres;Password=postgres}
       - ConnectionStrings__AzureStorage=${AZURE_STORAGE_CONNECTION_STRING:-DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;}

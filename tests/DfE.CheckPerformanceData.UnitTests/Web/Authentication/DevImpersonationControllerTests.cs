@@ -1,7 +1,9 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 
@@ -9,10 +11,21 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Authentication;
 
 public sealed class DevImpersonationControllerTests
 {
-	private static DevImpersonationController CreateSut(string environmentName, string? referrer = null)
+	// The surface is gated on Dev:ToolsEnabled AND not-Production. Tests default the flag
+	// on so the cookie/redirect assertions exercise the happy path; flag-off and Production
+	// cases are asserted explicitly below.
+	private static DevImpersonationController CreateSut(
+		string environmentName, string? referrer = null, bool devToolsEnabled = true)
 	{
 		var env = Substitute.For<IHostEnvironment>();
 		env.EnvironmentName.Returns(environmentName);
+
+		var config = new ConfigurationBuilder()
+			.AddInMemoryCollection(new Dictionary<string, string?>
+			{
+				[SettingKeys.DevToolsEnabled] = devToolsEnabled ? "true" : "false"
+			})
+			.Build();
 
 		var http = new DefaultHttpContext();
 		if (referrer is not null)
@@ -20,7 +33,7 @@ public sealed class DevImpersonationControllerTests
 			http.Request.Headers["Referer"] = referrer;
 		}
 
-		return new DevImpersonationController(env)
+		return new DevImpersonationController(config, env)
 		{
 			ControllerContext = new ControllerContext { HttpContext = http }
 		};
@@ -114,21 +127,51 @@ public sealed class DevImpersonationControllerTests
 		Assert.Null(GetSetCookieHeader(sut));
 	}
 
-	// --- Non-prod deployed environments (QA, preprod) are allowed ---
+	// --- Allowed in non-production environments only when Dev:ToolsEnabled is set ---
+	// (local dev + ephemeral PR/review apps set the flag; deployed DEV/QA/Preproduction
+	// do not, so the surface is hidden there).
 
 	[Theory]
 	[InlineData("Development")]
-	[InlineData("Staging")]
-	[InlineData("QA")]
-	[InlineData("Preproduction")]
-	public void Editor_IsAllowed_InAnyNonProductionEnvironment(string environmentName)
+	[InlineData("Review")]
+	public void Editor_IsAllowed_WhenDevToolsEnabled_AndNotProduction(string environmentName)
 	{
-		var sut = CreateSut(environmentName);
+		var sut = CreateSut(environmentName, devToolsEnabled: true);
 
 		var result = sut.Editor();
 
 		Assert.IsType<RedirectResult>(result);
 		Assert.NotNull(GetSetCookieHeader(sut));
+	}
+
+	// --- 404 in non-production environments that do NOT enable the dev tooling surface ---
+
+	[Theory]
+	[InlineData("Development")]
+	[InlineData("QA")]
+	[InlineData("Preproduction")]
+	[InlineData("Staging")]
+	public void Editor_Returns404_WhenDevToolsDisabled(string environmentName)
+	{
+		var sut = CreateSut(environmentName, devToolsEnabled: false);
+
+		var result = sut.Editor();
+
+		Assert.IsType<NotFoundResult>(result);
+		Assert.Null(GetSetCookieHeader(sut));
+	}
+
+	// --- Production 404s even if the flag is left on (hard guard on top of the flag) ---
+
+	[Fact]
+	public void Editor_Returns404_InProduction_EvenWhenDevToolsEnabled()
+	{
+		var sut = CreateSut(Environments.Production, devToolsEnabled: true);
+
+		var result = sut.Editor();
+
+		Assert.IsType<NotFoundResult>(result);
+		Assert.Null(GetSetCookieHeader(sut));
 	}
 
 	// --- Clear deletes the cookie (distinct from User which keeps a synthetic principal) ---
@@ -174,16 +217,25 @@ public sealed class DevImpersonationControllerTests
 
 	[Theory]
 	[InlineData("Development")]
-	[InlineData("Staging")]
-	[InlineData("QA")]
-	[InlineData("Preproduction")]
-	public void Clear_IsAllowed_InAnyNonProductionEnvironment(string environmentName)
+	[InlineData("Review")]
+	public void Clear_IsAllowed_WhenDevToolsEnabled_AndNotProduction(string environmentName)
 	{
-		var sut = CreateSut(environmentName);
+		var sut = CreateSut(environmentName, devToolsEnabled: true);
 
 		var result = sut.Clear();
 
 		Assert.IsType<RedirectResult>(result);
 		Assert.NotNull(GetSetCookieHeader(sut));
+	}
+
+	[Fact]
+	public void Clear_Returns404_WhenDevToolsDisabled()
+	{
+		var sut = CreateSut("QA", devToolsEnabled: false);
+
+		var result = sut.Clear();
+
+		Assert.IsType<NotFoundResult>(result);
+		Assert.Null(GetSetCookieHeader(sut));
 	}
 }

@@ -64,7 +64,15 @@ public sealed class RulesConfigSeeder : IHostedService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken) => SeedAsync(cancellationToken);
+
+    /// <summary>
+    /// Seeds (or version-upgrades / self-heals) the rules-config blobs from the image-bundled
+    /// seed JSON. Invoked by <see cref="StartAsync"/> on rules-engine-worker startup, and called
+    /// directly by the Web app's dev-data seeding orchestrator so a local/E2E web stack — which
+    /// does not run the worker — still self-seeds the rules config the admin editor reads.
+    /// </summary>
+    public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         if (!_options.SeedOnStartup)
         {

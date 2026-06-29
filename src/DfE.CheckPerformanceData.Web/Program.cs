@@ -172,6 +172,10 @@ try
     builder.Services.AddScoped<
         DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
         DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
+    // Lets the dev-data seeding orchestrator self-seed the rules-config blobs in dev/E2E. In
+    // deployed environments the rules-engine worker seeds them; that worker isn't part of the
+    // local web stack, so without this the admin rules editor 404s on a fresh environment.
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Infrastructure.RulesEngine.RulesConfigSeeder>();
     // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
     //if (builder.Environment.IsDevelopment())
         builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();

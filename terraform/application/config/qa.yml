@@ -13,6 +13,7 @@ Notify__UtmMedium: email
 Notify__UtmCampaigns__submission-confirm: qa-submission-confirm
 Notify__UtmCampaigns__withdraw-confirm: qa-withdraw-confirm
 Notify__UtmCampaigns__pupil-data-check: qa-pupil-data-check
+Notify__UseFake: false
 
 DfeSignIn__BaseUrl: https://test-api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData

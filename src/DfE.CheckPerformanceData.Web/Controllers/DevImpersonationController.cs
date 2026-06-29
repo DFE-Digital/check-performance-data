@@ -74,7 +74,10 @@ public sealed class DevImpersonationController(IConfiguration configuration, IHo
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
             Secure = Request.IsHttps,
-            MaxAge = TimeSpan.FromHours(1)
+            // A full working day so a manual testing session doesn't lapse mid-way and bounce the
+            // tester to DfE Sign-In (which can't complete on a non-registered local port). Dev-only:
+            // this controller 404s in production and E2E sets the cookie fresh each run.
+            MaxAge = TimeSpan.FromHours(12)
         });
     }
 

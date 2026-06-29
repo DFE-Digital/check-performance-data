@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -5,8 +6,18 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed class ContentBlockController(IContentBlockService contentBlockService) : Controller
+public sealed partial class ContentBlockController(IContentBlockService contentBlockService) : Controller
 {
+    // The content-blocks management page: every block in one place, edited inline one after
+    // another. ?edit=<key> opens that block's editor (reusing the same save endpoint).
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpGet("admin/content-blocks")]
+    public async Task<IActionResult> Index(string? edit)
+    {
+        var blocks = await contentBlockService.GetAllAsync();
+        return View(new ContentBlocksAdminViewModel { Blocks = blocks, EditKey = edit });
+    }
+
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/save")]
     [ValidateAntiForgeryToken]
@@ -24,8 +35,22 @@ public sealed class ContentBlockController(IContentBlockService contentBlockServ
         });
 
         var returnUrl = RemoveEditParam(SafeLocalUrl(model.ReturnUrl));
-        return Redirect(returnUrl);
+        return Redirect(AppendAnchor(returnUrl, model.Anchor));
     }
+
+    private static string AppendAnchor(string url, string? anchor)
+    {
+        // Only a simple, self-referential fragment id — never user-controlled markup or a
+        // second URL. Keeps the editor's scroll position without opening a redirect vector.
+        if (!string.IsNullOrEmpty(anchor) && SafeAnchor().IsMatch(anchor))
+        {
+            return $"{url}#{anchor}";
+        }
+        return url;
+    }
+
+    [GeneratedRegex("^[A-Za-z0-9_-]+$")]
+    private static partial Regex SafeAnchor();
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("content-block/versions/{key}")]

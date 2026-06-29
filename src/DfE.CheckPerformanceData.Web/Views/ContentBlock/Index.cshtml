@@ -1,0 +1,149 @@
+@using DfE.CheckPerformanceData.Web.Controllers
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ContentBlocksAdminViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Content blocks";
+    string SortDate(DateTime d) => d.ToString("yyyyMMddHHmmss");
+    string ShowDate(DateTime d) => d.ToString("d MMM yyyy, HH:mm");
+    string Preview(string? value)
+    {
+        var text = (value ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+        return text.Length > 90 ? text[..90] + "…" : text;
+    }
+    var returnUrl = "/admin/content-blocks";
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Content blocks</h1>
+<p class="govuk-body">
+    Every content block in one place. Click <strong>Edit</strong> to change a block inline, save,
+    then move on to the next — no need to visit each page. The “On page” column shows where a
+    block was last displayed.
+</p>
+
+<div class="govuk-form-group">
+    <label class="govuk-label govuk-label--s" for="cs-filter">Filter</label>
+    <div id="cs-filter-hint" class="govuk-hint">Type to filter by key, page or content text.</div>
+    <input class="govuk-input govuk-input--width-20" id="cs-filter" type="text" aria-describedby="cs-filter-hint" autocomplete="off">
+</div>
+
+@if (Model.Blocks.Count == 0)
+{
+    <p class="govuk-body">No content blocks yet.</p>
+}
+else
+{
+    <table class="govuk-table" id="cs-blocks">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" data-sort>Key</th>
+                <th scope="col" class="govuk-table__header" data-sort>On page</th>
+                <th scope="col" class="govuk-table__header" data-sort>Type</th>
+                <th scope="col" class="govuk-table__header">Content</th>
+                <th scope="col" class="govuk-table__header" aria-sort="ascending" data-sort>Last updated</th>
+                <th scope="col" class="govuk-table__header" data-sort>Created</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var b in Model.Blocks)
+            {
+                var isEditing = Model.EditKey == b.Key;
+                <tr class="govuk-table__row" data-filter="@($"{b.Key} {b.LastSeenPath} {b.Value}".ToLowerInvariant())">
+                    <td class="govuk-table__cell"><code>@b.Key</code></td>
+                    <td class="govuk-table__cell" data-sort-value="@(b.LastSeenPath ?? "")">
+                        @if (!string.IsNullOrEmpty(b.LastSeenPath))
+                        {
+                            <a class="govuk-link" href="@b.LastSeenPath">@b.LastSeenPath</a>
+                        }
+                        else
+                        {
+                            <span class="govuk-hint govuk-!-margin-0">Not seen yet</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">@b.BlockType</td>
+                    <td class="govuk-table__cell">@Preview(b.Value)</td>
+                    <td class="govuk-table__cell" data-sort-value="@SortDate(b.UpdatedAt)">@ShowDate(b.UpdatedAt)</td>
+                    <td class="govuk-table__cell" data-sort-value="@SortDate(b.CreatedAt)">@ShowDate(b.CreatedAt)</td>
+                    <td class="govuk-table__cell">
+                        @if (!isEditing)
+                        {
+                            <a class="govuk-link" href="/admin/content-blocks?edit=@b.Key#edit-@b.Key">Edit</a>
+                        }
+                        else
+                        {
+                            <a class="govuk-link" href="/admin/content-blocks">Close</a>
+                        }
+                    </td>
+                </tr>
+                @if (isEditing)
+                {
+                    <tr class="govuk-table__row" id="edit-@b.Key">
+                        <td class="govuk-table__cell" colspan="7">
+                            <form action="/content-block/save" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="Key" value="@b.Key" />
+                                <input type="hidden" name="BlockType" value="@b.BlockType" />
+                                <input type="hidden" name="ReturnUrl" value="@returnUrl" />
+
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label govuk-label--m" for="cb-@b.Key">Editing <code>@b.Key</code></label>
+                                    @if (b.BlockType == "Content")
+                                    {
+                                        <div class="govuk-hint">You can type directly, use Markdown, or paste formatted text from Word.</div>
+                                        <textarea class="govuk-textarea" id="cb-@b.Key" name="Value" rows="12">@b.Value</textarea>
+                                    }
+                                    else
+                                    {
+                                        <input class="govuk-input" id="cb-@b.Key" name="Value" type="text" value="@b.Value" />
+                                    }
+                                </div>
+
+                                <div class="govuk-button-group">
+                                    <button type="submit" class="govuk-button" data-module="govuk-button">Save</button>
+                                    <a href="/admin/content-blocks" class="govuk-link">Cancel</a>
+                                    <a href="/content-block/versions/@b.Key" class="govuk-link">Version history</a>
+                                </div>
+                            </form>
+
+                            @if (b.BlockType == "Content")
+                            {
+                                <script src="~/lib/tinymce/tinymce.min.js"></script>
+                                <script>
+                                    (function () {
+                                        'use strict';
+                                        if (typeof tinymce === 'undefined') return;
+                                        tinymce.init({
+                                            selector: '#cb-@b.Key',
+                                            height: 360,
+                                            menubar: true,
+                                            plugins: 'lists link table code wordcount searchreplace fullscreen',
+                                            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | code fullscreen',
+                                            style_formats: [
+                                                { title: 'Heading 2', block: 'h2' },
+                                                { title: 'Heading 3', block: 'h3' },
+                                                { title: 'Heading 4', block: 'h4' },
+                                                { title: 'Paragraph', block: 'p' }
+                                            ],
+                                            branding: false,
+                                            promotion: false,
+                                            license_key: 'gpl',
+                                            setup: function (editor) {
+                                                editor.on('change', function () { editor.save(); });
+                                            }
+                                        });
+                                    })();
+                                </script>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@section Scripts {
+    <script src="~/js/cms-content-list.js" asp-append-version="true"></script>
+}

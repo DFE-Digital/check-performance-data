@@ -21,5 +21,12 @@
             var isLast = node == Model.Last();
             @await Html.PartialAsync("_AdminNavNode", new AdminNavNodePartialModel(node, isLast, activeKey))
         }
+
+        <li class="tv-item tv-item-last admin-nav-tree__leave">
+            <div class="tv-row">
+                <span class="tv-connector"></span>
+                <a href="/" class="tv-link">Leave admin and go to the home page</a>
+            </div>
+        </li>
     </ul>
 </nav>

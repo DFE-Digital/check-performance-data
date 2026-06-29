@@ -19,6 +19,16 @@ public class ContentBlockServiceTests
             .Returns(ci => ((Func<Task>)ci[0])());
     }
 
+    // --- RecordLastSeenAsync ---
+
+    [Fact]
+    public async Task RecordLastSeenAsync_RecordsKeyAndPath()
+    {
+        await _sut.RecordLastSeenAsync("home-content", "/home");
+
+        await _repository.Received(1).SetLastSeenAsync("home-content", "/home", Arg.Any<DateTime>());
+    }
+
     // --- GetByKeyAsync ---
 
     [Fact]
@@ -56,6 +66,36 @@ public class ContentBlockServiceTests
         Assert.NotNull(result);
         Assert.Null(result.ValueHtml);
         _htmlRenderer.DidNotReceive().RenderHtml(Arg.Any<string?>());
+    }
+
+    // --- GetAllAsync ---
+
+    [Fact]
+    public async Task GetAllAsync_EnrichesEachBlock_RenderingOnlyContentTypes()
+    {
+        _repository.GetAllAsync().Returns(
+        [
+            MakeBlock(id: 1, key: "a", blockType: "Content", value: "# A"),
+            MakeBlock(id: 2, key: "b", blockType: "Title", value: "Plain title")
+        ]);
+        _htmlRenderer.RenderHtml("# A").Returns("<h1>A</h1>");
+
+        var result = await _sut.GetAllAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("<h1>A</h1>", result[0].ValueHtml);
+        Assert.Null(result[1].ValueHtml); // non-Content block is not rendered
+        _htmlRenderer.DidNotReceive().RenderHtml("Plain title");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WhenNoBlocks_ReturnsEmptyList()
+    {
+        _repository.GetAllAsync().Returns([]);
+
+        var result = await _sut.GetAllAsync();
+
+        Assert.Empty(result);
     }
 
     // --- SaveAsync ---

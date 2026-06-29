@@ -113,25 +113,31 @@ services:
     environment:
       - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      set -eu
-      echo "Waiting for Azurite to respond..."
-      for i in $$(seq 1 60); do
-        if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
-          break
-        fi
-        sleep 1
-      done
-      echo "Ensuring rules-config container..."
-      az storage container create --name rules-config --only-show-errors >/dev/null
-      echo "Uploading seed JSON..."
-      az storage blob upload-batch \
-        --destination rules-config \
-        --source /seed \
-        --pattern '*.json' \
-        --overwrite \
-        --only-show-errors
-      echo "Seed upload complete."
+    # command MUST be a single-element list, not a `|` block scalar (a YAML string).
+    # With an exec-form entrypoint, Compose word-splits a string command into separate
+    # argv entries, so `sh -c` would receive only the first token ("set") as its script
+    # and the rest as positional parameters — the whole seed script silently became a
+    # no-op env dump. A one-element list passes the entire script as a single argument.
+    command:
+      - |
+        set -eu
+        echo "Waiting for Azurite to respond..."
+        for i in $$(seq 1 60); do
+          if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+        done
+        echo "Ensuring rules-config container..."
+        az storage container create --name rules-config --only-show-errors >/dev/null
+        echo "Uploading seed JSON..."
+        az storage blob upload-batch \
+          --destination rules-config \
+          --source /seed \
+          --pattern '*.json' \
+          --overwrite \
+          --only-show-errors
+        echo "Seed upload complete."
     networks:
       - cypd
 
@@ -211,7 +217,9 @@ services:
     # depends_on uses default condition (service_started). PlaywrightFixture
     # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
     # any test exercises the web app — that is the authoritative readiness
-    # gate. (web service has no compose-level healthcheck today.)
+    # gate. (web service has no compose-level healthcheck today.) The web app
+    # self-seeds the rules-config blobs during its startup seeding (so the admin
+    # rules editor works in E2E without the rules_engine/azurite_init container).
     depends_on:
       - web
     networks:

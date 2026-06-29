@@ -258,6 +258,80 @@ public sealed class WikiServiceTests
         await _repository.Received(1).AddVersionAsync(5, "Updated Title", "Updated content", 4);
     }
 
+    // --- Custom slug (SEO) ---
+
+    [Fact]
+    public async Task CreatePageAsync_WithExplicitSlug_UsesIt_NotTheTitle()
+    {
+        var dto = new CreateWikiPageDto { Title = "Some Long Marketing Title", Slug = "seo-slug" };
+        _repository.GetMaxSortOrderAsync(null).Returns(0);
+        _repository.AddPageAsync(Arg.Any<CreateWikiPageDto>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string>())
+            .Returns(MakePage(id: 1, title: "Some Long Marketing Title", slug: "seo-slug"));
+
+        await _sut.CreatePageAsync(dto);
+
+        await _repository.Received(1).AddPageAsync(Arg.Any<CreateWikiPageDto>(), "seo-slug", Arg.Any<int>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_NoSlug_AutoSlug_FollowsTheNewTitle()
+    {
+        // The existing slug equals its title-derived slug, so it is auto and follows the rename.
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "Old Title", slug: "old-title"));
+
+        await _sut.UpdatePageAsync(5, new UpdateWikiPageDto { Title = "New Title", Content = "c" });
+
+        await _repository.Received(1).UpdatePageAsync(5, "New Title", "c", "new-title", Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_NoSlug_CustomSlug_IsPreservedOnTitleChange()
+    {
+        // The existing slug differs from its title-derived slug, so it is custom and is kept.
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "Old Title", slug: "pinned-seo-slug"));
+
+        await _sut.UpdatePageAsync(5, new UpdateWikiPageDto { Title = "New Title", Content = "c" });
+
+        await _repository.Received(1).UpdatePageAsync(5, "New Title", "c", "pinned-seo-slug", Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_ExplicitSlug_OverridesEverything()
+    {
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "Old Title", slug: "old-title"));
+
+        await _sut.UpdatePageAsync(5, new UpdateWikiPageDto { Title = "New Title", Content = "c", Slug = "Brand New Slug" });
+
+        await _repository.Received(1).UpdatePageAsync(5, "New Title", "c", "brand-new-slug", Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_WithSortOrder_RepositionsPage()
+    {
+        var dto = new UpdateWikiPageDto { Title = "T", Content = "c", SortOrder = 7 };
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "T", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.Received(1).SetSortOrderAsync(5, 7);
+    }
+
+    [Fact]
+    public async Task UpdatePageAsync_WithoutSortOrder_DoesNotReposition()
+    {
+        var dto = new UpdateWikiPageDto { Title = "T", Content = "c" };
+        _repository.GetMaxVersionNumberAsync(5).Returns(1);
+        _repository.GetByIdAsync(5).Returns(MakePage(id: 5, title: "T", slug: "t"));
+
+        await _sut.UpdatePageAsync(5, dto);
+
+        await _repository.DidNotReceive().SetSortOrderAsync(Arg.Any<int>(), Arg.Any<int>());
+    }
+
     [Fact]
     public async Task UpdatePageAsync_WhenNoExistingVersions_BaselinesCurrentPageAsV1()
     {

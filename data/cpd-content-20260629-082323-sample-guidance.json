@@ -1,0 +1,507 @@
+{
+  "$schema": "cpd-content-v1",
+  "schemaVersion": 1,
+  "exportedAtUtc": "2026-06-29T08:23:23.3179465Z",
+  "exportedBy": "dev-impersonation-user@education.gov.uk",
+  "wikiPages": [],
+  "contentBlocks": [
+    {
+      "id": "035f28d0-b879-4dca-b666-b96057331d59",
+      "key": "guidance-ks4-2026-about-this-guidance",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EThis is non-statutory guidance from the Department for Education (DfE). It helps state-funded secondary schools, special schools, independent schools, and FE colleges with 14 to 16 provision understand their responsibilities for checking their performance data.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EWhat we mean in this guidance\u003C/h3\u003E\n\u003Cdl class=\u0027govuk-summary-list\u0027\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003ESchool\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003Eany organisation eligible to take part in the KS4 June checking exercise\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003Epupil\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003Eincludes students in FE colleges with 14 to 16 provision\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003Eexam period\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003E7 May to 23 June 2026 \u2013 see \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EOfqual guidance for further information\u003C/a\u003E\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003ESpring census day 2026\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003E15 January 2026 \u2013 see \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Ecensus dates guidance for further information\u003C/a\u003E\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003Echecking exercise\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003Ethe KS4 June checking exercise\u003C/dd\u003E\n  \u003C/div\u003E\n\u003C/dl\u003E"
+    },
+    {
+      "id": "5c5bd0c7-f612-4b73-8e76-9088108998df",
+      "key": "guidance-ks4-2026-about-this-guidance-heading",
+      "blockType": "Title",
+      "value": "About this guidance"
+    },
+    {
+      "id": "2426dc78-79e6-4a18-a190-c79a95782ecf",
+      "key": "guidance-ks4-2026-adding-an-unlisted-pupil",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to add a pupil \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Eusing the CYPMD service\u003C/a\u003E during the June checking exercise.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E before you do this, check your school\u2019s pupil CSV files to make sure the pupil is not already listed.\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EOnly request to add a pupil if they:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eare at the end of KS4 (year 11)\u003C/li\u003E\n  \u003Cli\u003Esat exams this year\u003C/li\u003E\n  \u003Cli\u003Eare a pupil you want your school to be accountable for in this year\u2019s published performance measures\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EDo not request to add a pupil who does not meet these criteria.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EInformation you must provide\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIt is important you provide enough information about the pupil. If you do not, we cannot add them to your school. You must provide:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003EFirst name\u003C/li\u003E\n  \u003Cli\u003ELast name\u003C/li\u003E\n  \u003Cli\u003EDate of birth\u003C/li\u003E\n  \u003Cli\u003ESex\u003C/li\u003E\n  \u003Cli\u003EUnique Pupil Number (UPN)\u003C/li\u003E\n  \u003Cli\u003EAdmission date\u003C/li\u003E\n  \u003Cli\u003ESpecial educational needs (SEN) status\u003C/li\u003E\n  \u003Cli\u003EYear group\u003C/li\u003E\n  \u003Cli\u003EAn explanation of why the pupil should be included in your school\u2019s performance measures data\u003C/li\u003E\n\u003C/ul\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EAdditional evidence you can provide if available\u003C/h3\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eeducation history before arriving in England\u003C/li\u003E\n  \u003Cli\u003Eeducation history since arriving \u2013 names and dates of schools\u003C/li\u003E\n  \u003Cli\u003Eimmigration or resettlement documents \u2013 for example, Afghan Citizens Resettlement Scheme\u003C/li\u003E\n  \u003Cli\u003Eany other supporting information\u003C/li\u003E\n\u003C/ul\u003E"
+    },
+    {
+      "id": "8db313a1-1098-4ddc-8ff5-5f2e42ec6dd3",
+      "key": "guidance-ks4-2026-adding-an-unlisted-pupil-heading",
+      "blockType": "Title",
+      "value": "Adding an unlisted pupil"
+    },
+    {
+      "id": "e534e92d-99c2-4d5b-b0fa-25cabd97068b",
+      "key": "guidance-ks4-2026-admitted-following-permanent-exclusion",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf you admit a pupil who was permanently excluded from another state-funded school after 1 September 2024, you can request for them to be removed from your school\u2019s performance measures. Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E do not submit a request for a pupil who was permanently excluded before 1 September 2024, as it will be rejected.\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide all the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003EDfE number of the excluding school\u003C/li\u003E\n    \u003Cli\u003Edate of exclusion (must be after 1 September 2024)\u003C/li\u003E\n    \u003Cli\u003Eevidence to support your request, such as a letter from the headteacher notifying the parent or guardian of the permanent exclusion\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "45766d2c-56e9-41cd-8230-180f89583e1d",
+      "key": "guidance-ks4-2026-admitted-following-permanent-exclusion-heading",
+      "blockType": "Title",
+      "value": "Admitted following permanent exclusion"
+    },
+    {
+      "id": "68ccf9e6-1ece-462f-9e79-e71ec176d083",
+      "key": "guidance-ks4-2026-admitted-from-abroad-english-not-first-language",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil from your school\u2019s performance measures if:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003EEnglish is not their first language\u003C/li\u003E\n  \u003Cli\u003EEnglish is not an official language of their country of origin\u003C/li\u003E\n  \u003Cli\u003Ethey first joined a school in England on or after 1 September 2023\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYour request will be rejected if the pupil\u2019s country of origin has English as an official language, or if the 2026 spring census (15 January 2026) records English as their first language.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003ECheck the countries list\u003C/a\u003E to see if your request is likely to be accepted or rejected (if all other conditions are met). Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E we may still consider your request in exceptional cases if the pupil arrived from abroad but first joined a school in England before 1 September 2023, or has attended more than one school in England.\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide all the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Epupil\u2019s first language\u003C/li\u003E\n    \u003Cli\u003Epupil\u2019s country of origin\u003C/li\u003E\n    \u003Cli\u003Epupil\u2019s date of admission to your school\u003C/li\u003E\n    \u003Cli\u003Edate they first joined a school in England\u003C/li\u003E\n    \u003Cli\u003Edate they arrived in England\u003C/li\u003E\n  \u003C/ul\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EIf you want us to consider exceptional circumstances, you must also provide the following additional evidence, where applicable:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ebrief details of the pupil\u2019s education before they arrived in England, including school names and dates (if known)\u003C/li\u003E\n    \u003Cli\u003Edetails of their education in England, including school names and dates (if known)\u003C/li\u003E\n    \u003Cli\u003Eany relevant documents from an external organisation, such as asylum, immigration or resettlement schemes (for example, the Afghan Citizens Resettlement Scheme)\u003C/li\u003E\n    \u003Cli\u003Eany other information or evidence to support your request\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "47a8454a-37ef-40fd-a4cf-ab7c968e15a3",
+      "key": "guidance-ks4-2026-admitted-from-abroad-english-not-first-language-heading",
+      "blockType": "Title",
+      "value": "Admitted from abroad with English not first language"
+    },
+    {
+      "id": "f333fad7-f0df-450f-88c2-f5bad4f274ba",
+      "key": "guidance-ks4-2026-caption",
+      "blockType": "Title",
+      "value": "Guidance"
+    },
+    {
+      "id": "4999b2c7-99a0-43f0-bfc0-e26305d04d2f",
+      "key": "guidance-ks4-2026-change-a-pupils-year-group",
+      "blockType": "Content",
+      "value": "\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EImportant\u003C/strong\u003E\u003C/p\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYear 11 is the end of KS4. If you request to change a pupil\u2019s year group to anything other than Year 11, they will no longer count as being at the end of KS4. This means they will be left out of your school\u2019s 2025 to 2026 performance measures. If you record a pupil aged 15 or over as being in Year 10, they will not count as being at the end of KS4 for your school\u2019s 2025 to 2026 performance measures. However, they will be reported against your school\u2019s results the following year under the \u2018add-back\u2019 rule. If you request to change a pupil from Year 11 to Year 12 or above, we will check the records where they were previously counted as being at the end of KS4. This is because pupils cannot skip Year 11.\u003C/p\u003E\n\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EIf the year group changes to below Year 11, you must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe year group the pupil should be moved to\u003C/li\u003E\n    \u003Cli\u003Ean explanation of why the year group needs to be changed\u003C/li\u003E\n  \u003C/ul\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EIf the year group changes to above Year 11, you must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe year group the pupil should be moved to\u003C/li\u003E\n    \u003Cli\u003Ethe DfE establishment number of the school where the pupil was last recorded at the end of KS4\u003C/li\u003E\n    \u003Cli\u003Eany other evidence to support your request\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "d5ff6461-181c-469c-8365-00148daa3789",
+      "key": "guidance-ks4-2026-change-a-pupils-year-group-heading",
+      "blockType": "Title",
+      "value": "Change a pupil\u2019s year group"
+    },
+    {
+      "id": "6e601201-43a2-4bac-9140-a91470e028b3",
+      "key": "guidance-ks4-2026-changes-since-2025",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EWe\u2019ve made the following updates to the CYPMD service since last year:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eyou can now \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Erequest to add a pupil\u003C/a\u003E in the service, instead of using an online form\u003C/li\u003E\n  \u003Cli\u003Ewe\u2019ve improved the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Emerge duplicate pupil records option\u003C/a\u003E\u003C/li\u003E\n  \u003Cli\u003Ewe\u2019ve updated the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Echild missing education option\u003C/a\u003E to reflect current legislation\u003C/li\u003E\n  \u003Cli\u003Ewe\u2019ve enhanced the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Eadd back removal options\u003C/a\u003E\u003C/li\u003E\n  \u003Cli\u003Ethe service now includes information to help you understand when and how to submit amendment requests\u003C/li\u003E\n  \u003Cli\u003ECSV files are now sorted alphabetically by surname\u003C/li\u003E\n\u003C/ul\u003E"
+    },
+    {
+      "id": "9c1c240a-b6c1-4370-a87b-9c1e01777e12",
+      "key": "guidance-ks4-2026-changes-since-2025-heading",
+      "blockType": "Title",
+      "value": "Changes to the CYPMD service since 2025"
+    },
+    {
+      "id": "ca421125-5252-4994-a0b5-631f66de7815",
+      "key": "guidance-ks4-2026-child-has-died",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil has sadly died, please provide the date you removed them from your school roll.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe date the pupil was removed from your school roll\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "26b3bb89-7890-4b86-939b-f49c0319f1fc",
+      "key": "guidance-ks4-2026-child-has-died-heading",
+      "blockType": "Title",
+      "value": "Child has died"
+    },
+    {
+      "id": "38be2db9-5eff-45b7-9c9f-f6014514dac7",
+      "key": "guidance-ks4-2026-child-missing-education",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EA child missing education is a child of compulsory school age who is not registered at a school and is not receiving suitable education otherwise than at a school. A child reaches compulsory school age on or after their fifth birthday.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf they turn 5 between:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003E1 January and 31 March, they reach school age on 31 March\u003C/li\u003E\n  \u003Cli\u003E1 April and 31 August, they reach school age on 31 August\u003C/li\u003E\n  \u003Cli\u003E1 September and 31 December, they reach school age on 31 December\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EA child continues to be of compulsory school age until the last Friday of June in the school year they turn 16.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E if a pupil is registered at a school but is often or severely absent, they are not classed as a child missing education. This is non-attendance and is not a reason for removal. A pupil\u2019s name can only be deleted for a reason set out in \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003ERegulation 9 of the School Attendance (Pupil Registration) (England) Regulations 2024\u003C/a\u003E. Deleting a pupil\u2019s name for any other reason is unlawful. There are no set timescales, as each case is different.\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil from your school\u2019s performance measures if they:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003E\u003Cstrong\u003Edid not return after a leave of absence\u003C/strong\u003E, and the school and local authority have checked but cannot find them, or agree they are unlikely to return, and the pupil was removed from the school roll under Ground H of the school attendance regulations after the 2026 Spring census\u003C/li\u003E\n  \u003Cli\u003E\u003Cstrong\u003Ehas been continually absent for 20 school days\u003C/strong\u003E, and the school and local authority have checked but cannot find them, or agree they are unlikely to return, and the pupil was removed from the school roll under Ground I of the school attendance regulations\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide all the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe date the pupil was removed from your school roll\u003C/li\u003E\n    \u003Cli\u003Eevidence from the school and local authority showing they worked together to try to find the pupil and confirm their circumstances, including the date the local authority was told, as outlined in the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Echildren missing education guidance for schools and local authorities\u003C/a\u003E\u003C/li\u003E\n    \u003Cli\u003Ethis could include a completed joint school and local authority CME checklist\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "79e8ee8f-56b9-43a7-a604-1c8687b51d6a",
+      "key": "guidance-ks4-2026-child-missing-education-heading",
+      "blockType": "Title",
+      "value": "Child missing education"
+    },
+    {
+      "id": "06ec83a9-2245-4932-8d29-a264284ae91e",
+      "key": "guidance-ks4-2026-data-you-can-check",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EThe June checking exercise is the only opportunity to check that we have assigned the correct KS4 pupils for 2025 to 2026 provisional performance measures. All school types should take part. There will be a separate KS4 Autumn checking exercise in October. This will run for 2 weeks and you can only request to:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eremove a pupil who was not on your June checking exercise list\u003C/li\u003E\n  \u003Cli\u003Emerge 2 duplicate pupil records\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou will not be able to request any other amendments in the Autumn exercise. You must request all other amendments during the June exercise. You cannot ask to remove a pupil in the Autumn exercise if you have already asked for their removal in the June exercise.\u003C/p\u003E"
+    },
+    {
+      "id": "092dbcdb-d5a8-4a9a-b07b-82acd74352a4",
+      "key": "guidance-ks4-2026-data-you-can-check-heading",
+      "blockType": "Title",
+      "value": "Data you can check in the June and Autumn checking exercises"
+    },
+    {
+      "id": "4c88609d-7ec1-48b1-9358-feca74e8b31b",
+      "key": "guidance-ks4-2026-dual-registered-or-moved-school",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EDual registration means a pupil is registered at more than one setting for some or all of their education. You can also ask to remove a pupil if they have left your school to attend another school. If a dual-registered pupil appears in your pupil included CSV file, and you think the other school should be responsible, you can ask to request them from your school\u2019s performance measures. Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples. In some cases, the local authority may have asked you to add a pupil to your roll to release funding for a place at another setting, such as a specialist or alternative provision. If the pupil has never attended your school, you must provide evidence from the local authority to confirm this.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EBefore you submit a request, check these rules for dual registered pupils:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eif a pupil is dual registered at two state-funded schools, their results are counted at the main school\u003C/li\u003E\n  \u003Cli\u003Ea dual-registered pupil is only included in performance measures once, as shown in the table below\u003C/li\u003E\n\u003C/ul\u003E\n\u003Ctable class=\u0027govuk-table\u0027\u003E\n  \u003Cthead class=\u0027govuk-table__head\u0027\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003EMainstream School\u003C/th\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003EAlternative Provision (AP)\u003C/th\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003ENon-Hospital Special School\u003C/th\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003EHospital Special School\u003C/th\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003EAssign pupil to\u003C/th\u003E\n      \u003Cth scope=\u0027col\u0027 class=\u0027govuk-table__header\u0027\u003EReason\u003C/th\u003E\n    \u003C/tr\u003E\n  \u003C/thead\u003E\n  \u003Ctbody class=\u0027govuk-table__body\u0027\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EMainstream school\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EAP performance measures are not published\u003C/td\u003E\n    \u003C/tr\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003ESchool of main registration\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EBoth schools\u2019 performance measures are published\u003C/td\u003E\n    \u003C/tr\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EMainstream school\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EAP performance measures are not published\u003C/td\u003E\n    \u003C/tr\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003ENon-hospital special school\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EAP performance measures are not published\u003C/td\u003E\n    \u003C/tr\u003E\n    \u003Ctr class=\u0027govuk-table__row\u0027\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003E\u003Cspan class=\u0027govuk-visually-hidden\u0027\u003EYes\u003C/span\u003E\u2713\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003ENon-hospital special school\u003C/td\u003E\n      \u003Ctd class=\u0027govuk-table__cell\u0027\u003EHospital school performance measures are not published\u003C/td\u003E\n    \u003C/tr\u003E\n  \u003C/tbody\u003E\n\u003C/table\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EImportant\u003C/strong\u003E\u003C/p\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EBefore you submit a request for a dual-registered or moved pupil:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ework with the other school, as they must submit an \u2018add or include pupil\u2019 request during the June checking exercise, requests made after this will be rejected\u003C/li\u003E\n    \u003Cli\u003Ethe school you ask to transfer accountability to must be published at KS4, requests for pupils who moved to a non-published KS4 school will be rejected\u003C/li\u003E\n    \u003Cli\u003Ewe will reject your request if the pupil is not added or included at another school during the June checking exercise\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EAlternative provision (AP) settings, such as pupil referral units, AP academies and some independent schools, do not have performance measures published. A pupil\u2019s results will instead count towards the mainstream or non-hospital special school they were on roll at the time of the 2026 Spring census on 15 January 2026.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe DfE number of the school where accountability for the pupil should be transferred to\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "64dd9c6b-56ad-430b-8cde-45796fced038",
+      "key": "guidance-ks4-2026-dual-registered-or-moved-school-heading",
+      "blockType": "Title",
+      "value": "Dual registered or moved school"
+    },
+    {
+      "id": "638cd670-2465-4ee8-bdc7-af1999f17faf",
+      "key": "guidance-ks4-2026-elective-home-education",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EGuidance content for this removal category has not yet been supplied. It appears in the page contents in the approved design, but the design did not include body copy for it. Replace this placeholder with the agreed guidance before publishing.\u003C/p\u003E"
+    },
+    {
+      "id": "26c599ff-e391-487c-acbe-15e49af61a09",
+      "key": "guidance-ks4-2026-elective-home-education-heading",
+      "blockType": "Title",
+      "value": "Elective home education"
+    },
+    {
+      "id": "2ccd6218-2592-41ad-96e7-aa9ee4f9bbe0",
+      "key": "guidance-ks4-2026-get-support",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf you have a question about pupil data, or a technical problem with the service such as an issue with a CSV file, you can \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Esend us a message\u003C/a\u003E or call us on 0300 131 2762. If you have problems creating a DfE Sign-in account or have forgotten your sign in details, \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Euse the DfE Sign-in contact form\u003C/a\u003E.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EAdditional guidance\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can find more information about school performance measures and accountability in \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Esecondary accountability measures\u003C/a\u003E.\u003C/p\u003E"
+    },
+    {
+      "id": "ab75cdd3-49a1-485b-9b8f-368787a6de42",
+      "key": "guidance-ks4-2026-get-support-heading",
+      "blockType": "Title",
+      "value": "Get support"
+    },
+    {
+      "id": "5f9e4cbc-d394-4cc4-8a20-b8e3550ee061",
+      "key": "guidance-ks4-2026-how-pupil-mobility-calculated",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EPupil mobility is only calculated for state funded schools:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Ea mobile pupil is a child who joined the school after the start of year 10\u003C/li\u003E\n  \u003Cli\u003Ea non-mobile pupil is a child who was at the school for all of year 10 and Year 11\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou cannot change admission dates during the checking exercise. If a school has a high percentage of mobile pupils with an earlier admission date provided in a previous census, we use that earlier date instead. This means those pupils will no longer be counted as mobile. If there is no earlier admission date on record, the pupils will still be counted as mobile when the school\u2019s mobility figures are calculated later in the year.\u003C/p\u003E"
+    },
+    {
+      "id": "958826b4-c8e3-4c4c-bcab-6ca88caa8693",
+      "key": "guidance-ks4-2026-how-pupil-mobility-calculated-heading",
+      "blockType": "Title",
+      "value": "How pupil mobility is calculated"
+    },
+    {
+      "id": "014e66ac-f81b-4eab-b599-41deb540b3f4",
+      "key": "guidance-ks4-2026-how-to-check-pupil-data",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EUse the CYPMD service to download pupil data for your school in a CSV format and check it. If there is no data for your school, you will not see any files to download.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou may see up to 2 CSV files:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003E\u003Cstrong\u003EPupils included\u003C/strong\u003E \u2013 in the calculation of your school\u2019s performance measure\u003C/li\u003E\n  \u003Cli\u003E\u003Cstrong\u003EPupils non-included\u003C/strong\u003E \u2013 in the calculation, for example:\n    \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n      \u003Cli\u003Ethose who joined your school roll after the 2026 Spring Census day (15 January 2026)\u003C/li\u003E\n      \u003Cli\u003E15 year olds who are not in Year 11\u003C/li\u003E\n    \u003C/ul\u003E\n  \u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf you do not have any pupils in the non-included group, you will only see the pupils included file.\u003C/p\u003E"
+    },
+    {
+      "id": "6ccbafe0-63ae-4174-b1cc-38bc742d20f4",
+      "key": "guidance-ks4-2026-how-to-check-pupil-data-heading",
+      "blockType": "Title",
+      "value": "How to check your pupil data"
+    },
+    {
+      "id": "3ee53da2-a620-4e0e-a8bb-4790a615f2e7",
+      "key": "guidance-ks4-2026-how-to-check-your-data",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou can check your data using the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Echeck your performance measures data service\u003C/a\u003E from \u003Cstrong\u003EMonday 15 June to 5pm on Friday 26 June 2026\u003C/strong\u003E. This is the only chance for you to check that we have assigned the right KS4 pupils to your school to calculate the provisional performance measures. We recommend you sign in to the service and check your data as soon as you can, in case you need any additional support.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003ESteps you need to take\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EHere are the steps you need to take when reviewing your data:\u003C/p\u003E\n\u003Col class=\u0027govuk-list govuk-list--number\u0027\u003E\n  \u003Cli\u003Efamiliarise yourself with this guidance, including \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Ewhat evidence you need to provide when requesting to remove a pupil\u003C/a\u003E\u003C/li\u003E\n  \u003Cli\u003Esign in to the service and download your school\u2019s CSV file(s) and check we have listed the correct pupils at the end of KS4\u003C/li\u003E\n  \u003Cli\u003Euse the service to request any changes to incorrect data such as add, include or remove a pupil (this is important to ensure the accuracy of the data we publish in October 2026 and revised data published in early 2027)\u003C/li\u003E\n  \u003Cli\u003Emore than 1 user can request amendments and edit them during the 2-week checking window\u003C/li\u003E\n\u003C/ol\u003E"
+    },
+    {
+      "id": "dd55e9d3-44cb-47cd-bc14-df645bdbce62",
+      "key": "guidance-ks4-2026-how-to-check-your-data-heading",
+      "blockType": "Title",
+      "value": "How to check your data"
+    },
+    {
+      "id": "b048cb5c-8599-4da3-9bf3-23d15aa3018c",
+      "key": "guidance-ks4-2026-how-to-remove-a-pupil",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EFor each pupil removal category, you must provide specific information or evidence to support your request.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe review these requirements every year to make sure they are:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eappropriate for each category\u003C/li\u003E\n  \u003Cli\u003Ereasonable for schools to provide\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EFor 2026, we have published some new guidance which focuses on categories:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Ewith low acceptance rates\u003C/li\u003E\n  \u003Cli\u003Ewhere schools need clearer guidance on evidence\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf you want to request to remove a pupil, we recommend that you read \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June Pupil Removal Requests: Tips for schools and colleges\u003C/a\u003E before submitting any requests.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EMake sure you submit the correct information and evidence\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou must submit all requests and supporting information or evidence by 5pm on Friday 26 June 2026. To improve the chances of your request being accepted, follow the best practice examples below when providing information or evidence, if applicable.\u003C/p\u003E\n\u003Cdiv class=\u0027cypmd-do\u0027\u003E\n  \u003Ch4 class=\u0027govuk-heading-s cypmd-do__title\u0027\u003E\u003Cspan class=\u0027cypmd-do__icon\u0027 aria-hidden=\u0027true\u0027\u003E\u0026#10004;\u003C/span\u003E Do\u003C/h4\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eupload your information or evidence in PDF format only\u003C/li\u003E\n    \u003Cli\u003Euse the free text box in the service, when available, to briefly explain the pupil\u2019s situation\u003C/li\u003E\n    \u003Cli\u003Eensure your evidence supports what you have written in the free text box\u003C/li\u003E\n    \u003Cli\u003Emake sure your information or evidence is clear, concise and relevant to the removal category\u003C/li\u003E\n    \u003Cli\u003Echeck that any evidence meets the required dates for that category, if applicable\u003C/li\u003E\n    \u003Cli\u003Einclude supporting documents from external sources, where appropriate, for example, social workers, local authorities, medical professionals and the police\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Cdiv class=\u0027cypmd-dont govuk-!-margin-top-6\u0027\u003E\n  \u003Ch4 class=\u0027govuk-heading-s cypmd-dont__title\u0027\u003E\u003Cspan class=\u0027cypmd-dont__icon\u0027 aria-hidden=\u0027true\u0027\u003E\u0026#10008;\u003C/span\u003E Do not\u003C/h4\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Erequest a pupil amendment unless the pupil\u2019s circumstances meet the criteria for an amendment category, this helps avoid unnecessary work\u003C/li\u003E\n    \u003Cli\u003Eprovide more than 6 pages of information or evidence, we will not read anything over this limit\u003C/li\u003E\n    \u003Cli\u003Ecompare decisions about one pupil amendment request with another, as each request is considered individually\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EHow we make decisions\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe have a comprehensive moderation process in place to make sure all decisions are fair and consistent.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe review:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eeach pupil amendment request\u003C/li\u003E\n  \u003Cli\u003Ethe supporting information or evidence (up to 6 pages)\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe may also carry out internal data checks as part of this process. The DfE decision is final. We cannot give individual feedback on decisions due to the high number of requests we receive.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EWhen requests to remove a pupil will not be accepted\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EDo not make a pupil removal request if:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Ethe pupil had a short-term illness (for example, a virus and was absent from school for up to a month)\u003C/li\u003E\n  \u003Cli\u003Ethe pupil had a short-term illness and missed some or all exams\u003C/li\u003E\n  \u003Cli\u003Ethe pupil is still on roll and receiving home tuition or remote learning\u003C/li\u003E\n  \u003Cli\u003Ethe request is based solely on the pupil\u2019s special educational needs and disabilities (SEND)\u003C/li\u003E\n  \u003Cli\u003Eyour school was affected by RAAC and now has arrangements so pupils can access education and sit exams\u003C/li\u003E\n  \u003Cli\u003Ethe pupil is a non-attender (includes any absence unless for reasons of long term illness)\u003C/li\u003E\n  \u003Cli\u003Ethe pupil is from a traveller family\u003C/li\u003E\n  \u003Cli\u003Ethe pupil has left to re-sit exams at an FE college (except those with 14 to 16 provision)\u003C/li\u003E\n  \u003Cli\u003Ethe pupil attends an FE college full or part time, unless their main registration is at an FE college with 14 to 16 provision\u003C/li\u003E\n\u003C/ul\u003E"
+    },
+    {
+      "id": "a052ae9a-f9dc-4209-aa10-4d19e5ff8d62",
+      "key": "guidance-ks4-2026-how-to-remove-a-pupil-heading",
+      "blockType": "Title",
+      "value": "How to remove a pupil from your school\u2019s performance data"
+    },
+    {
+      "id": "f6ab5805-e959-4335-b720-5d6c04679007",
+      "key": "guidance-ks4-2026-intro",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EGuidance for schools and colleges on how to use the check your performance measures data (CYPMD) service.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EThis guidance will help you check your key stage 4 (KS4) data and request any changes during the June checking exercise.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EDownload KS4 June 2026 guidance as a PDF\u003C/a\u003E\u003C/p\u003E"
+    },
+    {
+      "id": "fb808e6b-8e21-4849-858f-00bb5c5c6578",
+      "key": "guidance-ks4-2026-key-dates",
+      "blockType": "Content",
+      "value": "\u003Cdl class=\u0027govuk-summary-list\u0027\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003E15 June 2026\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003EKS4 June checking exercise opens in the CYPMD service.\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003E26 June 2026\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003EChecking exercise closes at 5pm. You must submit all requests and supporting evidence before this deadline.\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003EOctober 2026\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003EAutumn checking exercise opens.\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003EOctober 2026\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003EProvisional 2025 to 2026 secondary school performance measures are published. A national statistics release will be published on the same day, showing headline measures for England and key pupil groups.\u003C/dd\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-summary-list__row\u0027\u003E\n    \u003Cdt class=\u0027govuk-summary-list__key\u0027\u003EEarly 2027\u003C/dt\u003E\n    \u003Cdd class=\u0027govuk-summary-list__value\u0027\u003ERevised 2025 to 2026 secondary school performance measures are published.\u003C/dd\u003E\n  \u003C/div\u003E\n\u003C/dl\u003E"
+    },
+    {
+      "id": "757bb9c4-87e4-48d3-9f8f-0cbf4ae2250e",
+      "key": "guidance-ks4-2026-key-dates-heading",
+      "blockType": "Title",
+      "value": "Key dates"
+    },
+    {
+      "id": "8b1ae0e2-9bd6-4abe-8e13-fb44b60d5e74",
+      "key": "guidance-ks4-2026-life-limiting-or-critical-illness",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou must provide third party external medical evidence from a health professional. A school or college\u2019s own account is not enough. We will reject requests that are only based on a pupil\u2019s SEND status. The evidence must meet the date requirements. If it does not, we will reject your request. Your evidence must clearly show how the illness or injury affected the pupil and their ability to access education (in person or online). Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples.\u003C/p\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003ELife-limiting illness\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil from your performance measures if they have a life-limiting illness.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eevidence from a medical professional confirming that the illness is life-limiting\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003ECritical illness\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can ask us to remove a pupil from your school\u2019s performance measures if they have a critical illness or condition that:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Ehas lasted, or is being investigated, for at least 12 months before KS4 exams start on 7 May 2026\u003C/li\u003E\n  \u003Cli\u003Ehas seriously affected their ability to access education and/or sit all their exams\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EThis could include needing an organ transplant or a severe and ongoing mental illness, such as psychosis or a condition requiring long-term in-patient care.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eevidence from a medical professional, dated in 2026 and before exams start on 7 May 2026, showing that the pupil has been unable to access education (in person or online) for prolonged periods or sit all their exams\u003C/li\u003E\n    \u003Cli\u003Eevidence from a medical professional confirming the pupil has had, or been under investigation for, a critical illness or condition for at least 12 months before KS4 exams start on 7 May 2026\u003C/li\u003E\n  \u003C/ul\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EIn some cases, one piece of medical evidence may be enough if it includes all the information needed for points 1 and 2.\u003C/p\u003E\n\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003ERecent life changing illness or injury\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can ask us to remove a pupil if they have a recent diagnosis of a life-changing illness or injury that has seriously affected their ability to access education (in person or online) or sit all their exams. For example, this could include a cancer diagnosis or a limb amputation.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following evidence or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eevidence from a medical professional, dated in 2026 and before exams start on 7 May 2026, showing that the pupil has been unable to access education (in person or online) and/or sit all their exams\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003EPupil is pregnant or given birth\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil is pregnant or has recently given birth, you must provide confirmation, for example a \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EMAT B1 maternity certificate\u003C/a\u003E. You must also provide a statement explaining how the pregnancy or birth affected the pupil\u2019s ability to access education (in person or online) and/or sit all their exams.\u003C/p\u003E"
+    },
+    {
+      "id": "884237e3-a07b-4c7c-9229-32f3e98fe6f9",
+      "key": "guidance-ks4-2026-life-limiting-or-critical-illness-heading",
+      "blockType": "Title",
+      "value": "Life-limiting or critical illness"
+    },
+    {
+      "id": "c6c00bf9-3691-4127-8635-0e3a6e14fa6f",
+      "key": "guidance-ks4-2026-merge-pupils",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EAll schools can now request to merge an included pupil\u2019s record with another pupil\u2019s record, whether that pupil is included or not, in their performance measures data. If we\u2019ve created duplicate pupil records by mistake, for example because names or dates of birth are different, you can ask to merge them into one record.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe CYPMD ID of the pupil record you want to delete and merge (this is in the pupil CSV file)\u003C/li\u003E\n    \u003Cli\u003Efurther details explaining why the pupil records should be merged\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "9358e65b-f69e-455d-a8db-603a33d5dd98",
+      "key": "guidance-ks4-2026-merge-pupils-heading",
+      "blockType": "Title",
+      "value": "Merge pupils"
+    },
+    {
+      "id": "ab4cb7d2-62a9-4852-9e52-79f6e3942554",
+      "key": "guidance-ks4-2026-nav",
+      "blockType": "Content",
+      "value": "\u003Cnav class=\u0027moj-side-navigation\u0027 aria-label=\u0027Contents\u0027\u003E\n  \u003Cul class=\u0027moj-side-navigation__list\u0027\u003E\n    \u003Cli class=\u0027moj-side-navigation__item moj-side-navigation__item--active\u0027\u003E\u003Ca aria-current=\u0027location\u0027 href=\u0027#guidance-top\u0027\u003EHow to check your performance measures data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#changes-since-2025\u0027\u003EChanges to the CYPMD service since 2025\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#key-dates\u0027\u003EKey dates\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#about-this-guidance\u0027\u003EAbout this guidance\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#who-this-guidance-is-for\u0027\u003EWho this guidance is for\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#what-ks4-measures-cover\u0027\u003EWhat the KS4 performance measures cover in the 2025 to 2026 academic year\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#how-to-check-your-data\u0027\u003EHow to check your data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#data-you-can-check\u0027\u003EData you can check in the June and Autumn checking exercises\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#school-closes-and-reopens\u0027\u003EWhat if your school closes and reopens\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#pupils-included\u0027\u003EPupils included in KS4 performance data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#remove-added-back-pupil\u0027\u003ERemove a pupil that has been added back to the data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#how-to-check-pupil-data\u0027\u003EHow to check your pupil data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#how-pupil-mobility-calculated\u0027\u003EHow pupil mobility is calculated\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#request-to-include-a-pupil\u0027\u003ERequest to include a pupil\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#adding-an-unlisted-pupil\u0027\u003EAdding an unlisted pupil\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#how-to-remove-a-pupil\u0027\u003EHow to remove a pupil from your school\u2019s performance data\u003C/a\u003E\u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\n      \u003Ca href=\u0027#pupil-removal-reason\u0027\u003EPupil removal reason\u003C/a\u003E\n      \u003Cul class=\u0027moj-side-navigation__list guidance-nav__sub\u0027\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#admitted-following-permanent-exclusion\u0027\u003EAdmitted following permanent exclusion\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#admitted-from-abroad-english-not-first-language\u0027\u003EAdmitted from abroad with English not first language\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#child-missing-education\u0027\u003EChild missing education\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#child-has-died\u0027\u003EChild has died\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#dual-registered-or-moved-school\u0027\u003EDual registered or moved school\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#elective-home-education\u0027\u003EElective home education\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#merge-pupils\u0027\u003EMerge pupils\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#not-on-roll-january-census\u0027\u003ENot on roll at the time of January census\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#permanently-excluded-from-current-school\u0027\u003EPermanently excluded from current school\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#permanently-left-england\u0027\u003EPermanently left England\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#social-care-involvement\u0027\u003ESocial care involvement \u2013 including police or prison\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#life-limiting-or-critical-illness\u0027\u003ELife-limiting or critical illness\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#change-a-pupils-year-group\u0027\u003EChange a pupil\u2019s year group\u003C/a\u003E\u003C/li\u003E\n        \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#remove-a-pupil-added-back\u0027\u003ERemove a pupil who has been added back\u003C/a\u003E\u003C/li\u003E\n      \u003C/ul\u003E\n    \u003C/li\u003E\n    \u003Cli class=\u0027moj-side-navigation__item\u0027\u003E\u003Ca href=\u0027#get-support\u0027\u003EGet support\u003C/a\u003E\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/nav\u003E"
+    },
+    {
+      "id": "16b12491-a917-4892-b6d5-600d5c8617b4",
+      "key": "guidance-ks4-2026-not-on-roll-january-census",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EFor independent schools and FE colleges with 14 to 16 provision, we allocate pupils to a school or college using exam data from awarding organisations and information from the Individualised Learner Record (ILR). If we have incorrectly included pupils who are not on your roll, you can request to remove them from your school or college\u2019s performance measures.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following evidence or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eevidence that the pupil was not on roll, for example if they were a private candidate\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "91cebc4b-56aa-4195-b66b-648c22339935",
+      "key": "guidance-ks4-2026-not-on-roll-january-census-heading",
+      "blockType": "Title",
+      "value": "Not on roll at the time of January census"
+    },
+    {
+      "id": "b3ccd55d-b74e-4ffc-affa-a11dc2f3019c",
+      "key": "guidance-ks4-2026-permanently-excluded-from-current-school",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil was permanently excluded before the Spring census day on 15 January 2026, you can request to remove them from your school\u2019s performance measures.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E if a pupil was permanently excluded after the Spring census day on 15 January 2026, we will reject your request to remove them from your performance measures. You cannot use suspensions as a reason to remove a pupil from your school\u2019s performance measures. In the legislation, a suspension is described as a fixed-term exclusion.\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following evidence or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eproof of permanent exclusion\u003C/li\u003E\n    \u003Cli\u003Edate of permanent exclusion\u003C/li\u003E\n    \u003Cli\u003EDfE number of the school the pupil went on to (if this is not known please use \u20180000000\u2019 for the DfE number when requesting the pupil removal within the checking exercise portal)\u003C/li\u003E\n    \u003Cli\u003Eexplanation detailing why the pupil was recorded on 2026 spring census day (15 January 2026), and, if applicable\u003C/li\u003E\n    \u003Cli\u003Eevidence of exclusion review outcome\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "f1b2fbcd-e03a-4e40-bb29-f1fe7c13254d",
+      "key": "guidance-ks4-2026-permanently-excluded-from-current-school-heading",
+      "blockType": "Title",
+      "value": "Permanently excluded from current school"
+    },
+    {
+      "id": "a128ca06-4444-47a1-b230-f65e304af9d1",
+      "key": "guidance-ks4-2026-permanently-left-england",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil has permanently left England and was removed from your school roll before the exam period, you can ask for them to be removed from your performance measures. Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E you cannot request to remove a pupil if they permanently left England and were removed from your school roll on or after 7 May 2026 (the start of the exam period).\u003C/div\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide all the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe country the pupil moved to\u003C/li\u003E\n    \u003Cli\u003Ethe date they were taken off your roll (this must be before 7 May 2026)\u003C/li\u003E\n    \u003Cli\u003Ea copy of the notification you sent to the local authority confirming the pupil was removed from your roll\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "1b2e2dc6-bf80-4083-b2c6-979673c6e773",
+      "key": "guidance-ks4-2026-permanently-left-england-heading",
+      "blockType": "Title",
+      "value": "Permanently left England"
+    },
+    {
+      "id": "009aea2a-d63f-4648-ab2e-4917494821cd",
+      "key": "guidance-ks4-2026-published",
+      "blockType": "Content",
+      "value": "\u003Cdiv class=\u0027cypmd-published\u0027\u003E\n  \u003Cp class=\u0027cypmd-published__heading\u0027\u003EPublished: May 2026\u003C/p\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EThis guidance will be reviewed and updated before the KS4 June checking exercise 2027.\u003C/p\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "78c8219d-6297-4518-b2ce-7010db54cccf",
+      "key": "guidance-ks4-2026-pupil-removal-reason",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou can ask to remove certain pupils from your school\u2019s performance measures if they meet specific criteria.\u003C/p\u003E"
+    },
+    {
+      "id": "0468ad79-4881-4729-9388-5d7404f2f0a7",
+      "key": "guidance-ks4-2026-pupil-removal-reason-heading",
+      "blockType": "Title",
+      "value": "Pupil removal reason"
+    },
+    {
+      "id": "bcf669d0-df79-4add-aa0d-102e844ee550",
+      "key": "guidance-ks4-2026-pupils-included",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EWe will publish KS4 provisional performance measures and national statistics in October 2026. We will publish updates later, including changes from the 2026 KS4 Autumn checking exercise, in early 2027. The statistics cover pupils\u2019 attainment, entry and destination measures at the end of KS4. For these measures, we treat a pupil as being at the end of KS4 when they complete their GCSEs, or equivalent qualifications, regardless of their age.\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EState funded schools\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe treat a pupil as being at the end of KS4 if they were on the school roll in year 11 at the time of the January 2026 Spring census (15 January 2026).\u003C/p\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EIndependent schools\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe do not get pupil-level data from the school level annual school census (SLASC) for independent schools. Instead, we use exam entry data from awarding organisations.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EThis means we may include:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eexternal candidates taking exams at your school\u003C/li\u003E\n  \u003Cli\u003Epupils who have already been counted at the end of KS4 and are resitting exams\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe usually use the SLASC total for pupils at the end of KS4 as your school\u2019s number on roll (NOR). We use this figure to calculate percentage-based performance measures. If exam entry data shows more pupils than your school reported in the SLASC return, we will update your number on roll (NOR). We will set your NOR based on the number of pupils with exam entries linked to your school. You can check your current NOR in your SLASC return.\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003EYou cannot correct errors in your SLASC return during the KS4 June checking exercise. For more information, see the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Eschool level annual school census: registered independent schools guidance (page 10)\u003C/a\u003E.\u003C/div\u003E\n\u003Ch3 class=\u0027govuk-heading-s\u0027\u003EFE colleges with 14 to 16 provision\u003C/h3\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe use exam entries data and Individualised Learner Record (ILR) information to attribute KS4 students to your college.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EThis may include:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eexternal candidates taking exams at your college\u003C/li\u003E\n  \u003Cli\u003Estudents who have been previously reported at KS4 and are resitting exams\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf your KS4 student list is inaccurate, you can ask to remove a student using the \u2018Not on roll at the time of the January census\u2019 removal category.\u003C/p\u003E"
+    },
+    {
+      "id": "32c0c80d-23ea-441d-8b82-b58746d87290",
+      "key": "guidance-ks4-2026-pupils-included-heading",
+      "blockType": "Title",
+      "value": "Pupils included in KS4 performance data"
+    },
+    {
+      "id": "4fc9ce31-0c8a-4497-92eb-fc979bee90d3",
+      "key": "guidance-ks4-2026-remove-a-pupil-added-back",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil has been added back to your school (with inclusion status code 403), you can request for them to be removed from your performance measures due to the following circumstances:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003EAdmitted from abroad with English not first language\u003C/li\u003E\n  \u003Cli\u003EPupil has died\u003C/li\u003E\n  \u003Cli\u003EPermanently left England\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil has been added back to your school for the \u2018admitted from abroad with English not first language\u2019 reason, their first admission to a school in England can be on or after 1 September 2022.\u003C/p\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003ECompleted KS4 studies this academic year in Year 11 at another school\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf a pupil left your school and finished year 11 at another school, you can ask for them to be removed from your performance measures.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ethe DfE number of the school where accountability for the pupil should be transferred to\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E the school you request to move the pupil to must have published KS4 results. You cannot request this if the pupil moved to a school without published KS4 results. Alternative provision (AP) settings, such as pupil referral units, AP academies and some independent schools, do not have published performance measures. This means the pupil\u2019s results will count towards the last mainstream or non-hospital special school they were on roll at the Spring census on 15 January 2026.\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003EOther\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EFrom 2026, you can use a new option to request for a pupil added back to your school this year to be removed.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EOnly use this option if:\u003C/p\u003E\n\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Ethe pupil\u2019s situation is not covered by the options above\u003C/li\u003E\n  \u003Cli\u003Eyour school did not ask to change their year group during the June 2025 KS4 checking exercise\u003C/li\u003E\n\u003C/ul\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EWe will check our data to make sure this is correct before we decide on your request.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ean explanation why you want to remove the pupil who has been added back to your school\u003C/li\u003E\n    \u003Cli\u003Eevidence to support your request, such as a permanent exclusion letter sent to the parent or carer, or a notification to the local authority confirming the pupil was removed from your roll\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "45b11689-c0e5-49ad-ac1a-7fe5d2c9501e",
+      "key": "guidance-ks4-2026-remove-a-pupil-added-back-heading",
+      "blockType": "Title",
+      "value": "Remove a pupil who has been added back"
+    },
+    {
+      "id": "df467518-6435-4da5-b089-0a562ece9333",
+      "key": "guidance-ks4-2026-remove-added-back-pupil",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EIf your school asked to change a pupil from year 11 to year 10 during the 2025 KS4 June checking exercise, we have added that pupil back this year. This means the pupil will be included in your 2025 to 2026 performance measures, even if they are no longer on your roll. In some cases, you can ask to remove an added-back pupil. See the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Eguidance on add-back removals\u003C/a\u003E for more information. If you asked to remove a pupil for any other reason in the 2025 June checking exercise and this was approved, that pupil will not be added back this year. If you ask to record a pupil aged 15 or over as year 10 in this checking exercise, they will be counted in your performance measures next year.\u003C/p\u003E"
+    },
+    {
+      "id": "f7fc8437-de29-4c22-a3db-53ae1e2a76fb",
+      "key": "guidance-ks4-2026-remove-added-back-pupil-heading",
+      "blockType": "Title",
+      "value": "Remove a pupil that has been added back to the data"
+    },
+    {
+      "id": "267309ec-75f7-43c2-b6e4-97d39dc75eea",
+      "key": "guidance-ks4-2026-request-to-include-a-pupil",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003ECheck your school\u2019s pupil non-included CSV file. If you find a pupil who should be included in your performance measures data, you must submit a request to include a pupil using the service. You do not have to provide evidence or additional information. You can add optional information or evidence to support your request if you want. You cannot ask to include a pupil whose year group has been changed to year 12. This is because a pupil cannot appear twice in published performance measures data.\u003C/p\u003E"
+    },
+    {
+      "id": "2a028e06-e034-4b40-9b62-7c07fa3a9020",
+      "key": "guidance-ks4-2026-request-to-include-a-pupil-heading",
+      "blockType": "Title",
+      "value": "Request to include a pupil"
+    },
+    {
+      "id": "21879d04-03d2-45ad-833b-e54075779c02",
+      "key": "guidance-ks4-2026-school-closes-and-reopens",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003ETo make sure the right school is held responsible for each year\u2019s performance measures, we assign results to the school as it was at the start of the academic year. We treat this date as 12 September, to take account of differing start term dates. If a school closes and reopens with the same 7-digit local authority establishment (LAESTAB) number, we usually treat it as the same school. If a school closes and reopens with a new establishment number, we treat it as a new school for accountability purposes.\u003C/p\u003E"
+    },
+    {
+      "id": "35e80432-3bcd-4be6-b04d-ff044aace409",
+      "key": "guidance-ks4-2026-school-closes-and-reopens-heading",
+      "blockType": "Title",
+      "value": "What if your school closes and reopens"
+    },
+    {
+      "id": "c93fc367-266c-4131-9962-d417f7b5340d",
+      "key": "guidance-ks4-2026-social-care-involvement",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou can ask us to remove a pupil from your school\u2019s performance measures if their circumstances meet one or more of the situations below and you provide the required evidence. Read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EKS4 June pupil removal requests guidance\u003C/a\u003E for tips and examples.\u003C/p\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003ESocial care involvement\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil if they have been involved in a recent or ongoing situation requiring social care support, and this has seriously affected their ability to access education (in person or online) or sit all their exams. Reports from your school\u2019s internal systems (for example, CPOMS) do not count as third party external evidence. Evidence from social services or another relevant external agency must be dated in 2026 and before exams start. It must clearly show the pupil\u2019s circumstances and how social services involvement affected their education (in school or online).\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide all the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eexternal third party evidence from social services that shows how the situation seriously affected the pupil\u2019s ability to access education (in person or online) or sit all their exams\u003C/li\u003E\n    \u003Cli\u003Ethe evidence must be dated in 2026 before exams started on 7 May 2026\u003C/li\u003E\n    \u003Cli\u003Ethis could include a social worker\u2019s report or multi-agency meeting minutes\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E you must provide third party external evidence. A school or college\u2019s narrative on its own will be rejected.\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003EPolice involvement\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil if they have been involved in a recent police situation and any restrictions have affected their ability to access education (in person or online), or to sit all their exams.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Ea police report that shows what restrictions were put in place and how they prevented the pupil from accessing education (in person or online) or sitting all their exams\u003C/li\u003E\n    \u003Cli\u003Eany other evidence to support your request, for example how the situation affected the pupil, if applicable\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\u003Cstrong\u003EImportant:\u003C/strong\u003E you must provide a police report or your request will be rejected.\u003C/div\u003E\n\u003Ch4 class=\u0027govuk-heading-s\u0027\u003EPrison, remand or secure unit\u003C/h4\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EYou can request to remove a pupil if they have been detained in a prison, remand centre or secure unit for at least 4 months. If the pupil was sectioned under the Mental Health Act, you must use the \u2018life-limiting or critical illness\u2019 category when you submit your request.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003EEvidence you must provide\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027govuk-inset-text\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EYou must provide the following information and evidence, or your request will be rejected:\u003C/p\u003E\n  \u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n    \u003Cli\u003Eexternal evidence from a prison, remand centre, secure unit, the Ministry of Justice or the police showing the dates the pupil was detained (these must total at least 4 months)\u003C/li\u003E\n    \u003Cli\u003Eif applicable, any other evidence to support your request, including details of restrictions put in place that prevented the pupil from accessing education (in person or online)\u003C/li\u003E\n  \u003C/ul\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "2dabe266-15df-452b-8b47-bcb6283055e9",
+      "key": "guidance-ks4-2026-social-care-involvement-heading",
+      "blockType": "Title",
+      "value": "Social care involvement \u2013 including police or prison"
+    },
+    {
+      "id": "23e0895d-c823-4b20-8f0c-b2fc41290f7b",
+      "key": "guidance-ks4-2026-title",
+      "blockType": "Title",
+      "value": "How to check your performance measures data: KS4 June 2026"
+    },
+    {
+      "id": "ac865391-3035-4297-b0ce-9e0897b81ec4",
+      "key": "guidance-ks4-2026-what-ks4-measures-cover",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EThe DfE publishes school performance measures every year. These measures help compare how well schools support pupils\u2019 attainment and progress. The 2025 to 2026 KS4 performance measures will cover pupils who completed their KS4 studies in that academic year. This may include some qualifications achieved in earlier years, such as 2024 to 2025. Progress 8 will not be included for 2025 to 2026. This is because there is no Key Stage 2 (KS2) prior attainment data available from COVID-affected years, which is needed to calculate Progress 8. There will be no replacement measure. English Baccalaureate (EBacc) headline and additional measures will also be removed from 2025 to 2026, following \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Eour response\u003C/a\u003E to the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003ECurriculum and Assessment Review\u003C/a\u003E. You can find more information about how KS4 performance measures are calculated in the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003Esecondary accountability measures guidance\u003C/a\u003E.\u003C/p\u003E"
+    },
+    {
+      "id": "d27d2eea-57f7-440d-9ee5-3947ae7fc3f3",
+      "key": "guidance-ks4-2026-what-ks4-measures-cover-heading",
+      "blockType": "Title",
+      "value": "What the KS4 performance measures cover in the 2025 to 2026 academic year"
+    },
+    {
+      "id": "cacd53fc-56bc-456e-88c3-c796c71ebd37",
+      "key": "guidance-ks4-2026-who-this-guidance-is-for",
+      "blockType": "Content",
+      "value": "\u003Cul class=\u0027govuk-list govuk-list--bullet\u0027\u003E\n  \u003Cli\u003Eschool leaders, school staff and governing bodies in all state funded secondary schools (maintained schools, academies, free schools, studio schools and university technical colleges)\u003C/li\u003E\n  \u003Cli\u003Especial schools (maintained schools, academies and free schools)\u003C/li\u003E\n  \u003Cli\u003Eregistered independent schools\u003C/li\u003E\n  \u003Cli\u003Efurther education colleges with 14 to 16 provision\u003C/li\u003E\n\u003C/ul\u003E"
+    },
+    {
+      "id": "7cdd506c-7fc1-4be7-91f7-9a36cc8e584f",
+      "key": "guidance-ks4-2026-who-this-guidance-is-for-heading",
+      "blockType": "Title",
+      "value": "Who this guidance is for"
+    },
+    {
+      "id": "b4b7c17d-878e-4211-9c8b-90efd75f91a9",
+      "key": "guidance-landing-1619-cards",
+      "blockType": "Content",
+      "value": "\u003Cdiv class=\u0027govuk-grid-row\u0027\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#request-to-include-a-pupil\u0027\u003ERequest to include a pupil\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EAsk for a pupil to be added to your KS4 performance data.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#how-to-remove-a-pupil\u0027\u003EHow to remove a pupil\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003ESubmit a request to remove a pupil from your school\u0026#39;s performance data.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#pupil-removal-reason\u0027\u003EPupil removal reasons\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EThe reasons we accept for removing a pupil, and the evidence required.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "1c1858ff-bb77-491b-b44f-04c8a02ea49f",
+      "key": "guidance-landing-1619-heading",
+      "blockType": "Title",
+      "value": "Add or remove a pupil"
+    },
+    {
+      "id": "7cec43c0-0413-4ee9-8f04-362929150118",
+      "key": "guidance-landing-1619-intro",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003ERequest changes to the pupils included in your KS4 performance data.\u003C/p\u003E"
+    },
+    {
+      "id": "035fa703-d3d8-478a-bb80-ee5bfab9a30b",
+      "key": "guidance-landing-alerts",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EMake sure your headteacher or principal details are correct in \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EGet information about schools\u003C/a\u003E.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003E\u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003ESign up to receive email updates\u003C/a\u003E about the service, including key dates and reminders, if you haven\u2019t done so already.\u003C/p\u003E"
+    },
+    {
+      "id": "ca95fe70-24d9-470c-a72b-42cf95228048",
+      "key": "guidance-landing-alerts-heading",
+      "blockType": "Title",
+      "value": "Get email alerts"
+    },
+    {
+      "id": "d336db9c-1d01-4374-b40c-24761fc3949c",
+      "key": "guidance-landing-caption",
+      "blockType": "Title",
+      "value": "Check your performance measures data (CYPMD)"
+    },
+    {
+      "id": "96631747-25f3-47f6-8204-e8950c569292",
+      "key": "guidance-landing-intro",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EGuidance and support for schools and colleges on how to use the check your performance measures data (CYPMD) service. This guidance will help you check your data and request any changes during the key stage 2, key stage 4 and 16 to 19 data checking exercises.\u003C/p\u003E"
+    },
+    {
+      "id": "1fa64d76-9644-4d5b-83e3-c3ab040a53c0",
+      "key": "guidance-landing-ks2-cards",
+      "blockType": "Content",
+      "value": "\u003Cdiv class=\u0027govuk-grid-row\u0027\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#pupils-included\u0027\u003EPupils included in KS4 data\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EWhich pupils count towards your KS4 performance measures this year.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#how-to-check-pupil-data\u0027\u003EHow to check your pupil data\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EReview your pupil-level data and identify anything that needs changing.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#how-pupil-mobility-calculated\u0027\u003EHow pupil mobility is calculated\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EHow a pupil moving school affects whether they count in your data.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "a2fadb3d-1182-446e-81b6-a339818bec10",
+      "key": "guidance-landing-ks2-heading",
+      "blockType": "Title",
+      "value": "Check your pupil data"
+    },
+    {
+      "id": "cb2416f1-0f7e-492c-84d7-841b15bf9b8e",
+      "key": "guidance-landing-ks2-intro",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EFind out which pupils are included in your KS4 performance data and how to check it.\u003C/p\u003E"
+    },
+    {
+      "id": "999e72c5-91d8-4e26-9359-b27eb824e9f2",
+      "key": "guidance-landing-ks4-cards",
+      "blockType": "Content",
+      "value": "\u003Cdiv class=\u0027govuk-grid-row\u0027\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise\u0027\u003ECheck KS4 June data\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body-s\u0027\u003ELast updated: May 2026\u003C/p\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EThis guidance will help you check your KS4 data and request any changes.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#key-dates\u0027\u003EKey dates\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EWhen the June 2026 checking exercise opens and the deadline for requests.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#what-ks4-measures-cover\u0027\u003EWhat the measures cover\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EWhat the KS4 performance measures include for the 2025 to 2026 academic year.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n  \u003Cdiv class=\u0027govuk-grid-column-one-third\u0027\u003E\n    \u003Cdiv class=\u0027dfe-card govuk-!-margin-bottom-6\u0027\u003E\n      \u003Cdiv class=\u0027dfe-card-container\u0027\u003E\n        \u003Ch3 class=\u0027govuk-heading-m\u0027\u003E\u003Ca class=\u0027dfe-card-link--header\u0027 href=\u0027/guidance/2026-ks4-june-checking-exercise#how-to-check-your-data\u0027\u003EHow to check your data\u003C/a\u003E\u003C/h3\u003E\n        \u003Cp class=\u0027govuk-body\u0027\u003EStep-by-step guidance for the June and Autumn checking exercises.\u003C/p\u003E\n      \u003C/div\u003E\n    \u003C/div\u003E\n  \u003C/div\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "f10e54af-b9d6-458c-b412-cd6b010e01bd",
+      "key": "guidance-landing-ks4-heading",
+      "blockType": "Title",
+      "value": "Key stage 4 data checks"
+    },
+    {
+      "id": "8346a5f9-b77c-4ead-8231-3dfdead9ae12",
+      "key": "guidance-landing-ks4-intro",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003E\u003Cstrong\u003ERead our guidance before you request any amendments to pupil data.\u003C/strong\u003E\u003C/p\u003E\n\u003Cdiv class=\u0027cypmd-published\u0027\u003E\n  \u003Cp class=\u0027cypmd-published__heading\u0027\u003EPublished: May 2026\u003C/p\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EThis guidance will be reviewed and updated before the KS4 June checking exercise 2027.\u003C/p\u003E\n\u003C/div\u003E\n\u003Cdiv class=\u0027cypmd-notice\u0027\u003E\n  \u003Cp class=\u0027govuk-body\u0027\u003EThe next KS4 June checking exercise opens on Monday 15 June and closes at 5pm on Friday 26 June 2026. \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003ESign up to receive email updates\u003C/a\u003E.\u003C/p\u003E\n\u003C/div\u003E"
+    },
+    {
+      "id": "496dfaa5-81e2-455b-bf18-b1b2192c9054",
+      "key": "guidance-landing-signin",
+      "blockType": "Content",
+      "value": "\u003Cp class=\u0027govuk-body\u0027\u003EYou need a \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EDfE Sign-in\u003C/a\u003E account to use the CYPMD service.\u003C/p\u003E\n\u003Cp class=\u0027govuk-body\u0027\u003EIf you do not have an account, or need to reset your sign in details, read the \u003Ca class=\u0027govuk-link\u0027 href=\u0027#\u0027\u003EDfE Sign-in guidance\u003C/a\u003E.\u003C/p\u003E"
+    },
+    {
+      "id": "0def1393-e35f-4232-8433-74c236e4695d",
+      "key": "guidance-landing-signin-heading",
+      "blockType": "Title",
+      "value": "How to sign in to the CYPMD service"
+    },
+    {
+      "id": "c4addc6a-dae2-4e58-81c0-a8c90678c653",
+      "key": "guidance-landing-title",
+      "blockType": "Title",
+      "value": "CYPMD help and support"
+    }
+  ]
+}

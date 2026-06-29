@@ -301,6 +301,8 @@ The suite seeds wiki pages and content blocks via direct HTTP POST against the c
 - Each seeded entity uses an `e2e-{Guid:N}-` prefix on its slug or key. UUID prefix means tests across runs and across parallel CI shards never collide.
 - Cleanup is `IAsyncLifetime.DisposeAsync` per test class — wiki pages get soft-deleted; content blocks leak (no DELETE route exists for them, by design). The leak is harmless: the UUID prefix prevents test-run cross-contamination, and content-block volume is small.
 
+The admin **rules-editor** tests are the one exception to per-test seeding. The rules they render come from the `rules-config` blobs (`rules.json` / `country-languages.json`), not from an HTTP seed. The web app self-seeds these from its image-bundled seed copies during startup seeding (it runs as `Development` in the harness), so bringing up `web` is enough — no per-test or extra compose step is needed. (When the rules-engine worker is also run locally, the `azurite_init` one-shot seeds the same blobs for it; the E2E stack doesn't run the worker.)
+
 ## Auth state in tests
 
 Real DfE Sign-In isn't in the harness — the OIDC handshake against the external test IdP is too slow and flaky to run on every pipeline. Instead, `Helpers/AuthHelpers.cs` drives the dev-only impersonation endpoints in `DevImpersonationController`, which set a `cypd-dev-impersonation` cookie that `DevImpersonationClaimsTransformer` reads on every request to overlay the editor role onto the principal.

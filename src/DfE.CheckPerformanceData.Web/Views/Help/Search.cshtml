@@ -9,13 +9,13 @@
 
     var heading = Model.InvalidReason is not null
         ? "Search the help pages"
-        : Model.TotalCount == 0
+        : !Model.HasAnyResults
             ? $"No results for \"{displayQuery}\""
             : $"Search results for \"{displayQuery}\"";
 
     ViewData["Title"] = Model.InvalidReason is not null
         ? "Search"
-        : Model.TotalCount == 0
+        : !Model.HasAnyResults
             ? $"No results for \"{displayQuery}\""
             : $"Search results for \"{displayQuery}\"";
 }
@@ -84,7 +84,29 @@
                 }
             </ul>
         }
-        else if (Model.InvalidReason is null && Model.TotalCount == 0)
+
+        @if (Model.InvalidReason is null && Model.ContentResults.Count > 0)
+        {
+            <h2 class="govuk-heading-m">Guidance and service pages</h2>
+            <ul class="govuk-list govuk-!-margin-bottom-6">
+                @foreach (var r in Model.ContentResults)
+                {
+                    <li class="govuk-!-margin-bottom-4">
+                        <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
+                            <a class="govuk-link" href="@r.Url">@r.PageTitle</a>
+                        </h3>
+                        <p class="govuk-body-s govuk-!-margin-top-0 govuk-!-margin-bottom-2">
+                            Page: <code>@r.Url</code>
+                        </p>
+                        @* SnippetHtml is built safely in ContentBlockSearchService: all text is
+                           HTML-encoded and only the matched term is wrapped in a <mark>. *@
+                        <p class="govuk-body govuk-!-margin-bottom-0">@Html.Raw(r.SnippetHtml)</p>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.InvalidReason is null && !Model.HasAnyResults)
         {
             <p class="govuk-body">
                 Try a different search term, or <a asp-controller="Help" asp-action="Index" class="govuk-link">browse all help pages</a>.

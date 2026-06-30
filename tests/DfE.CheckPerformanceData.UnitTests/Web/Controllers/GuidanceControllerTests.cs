@@ -1,13 +1,16 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.Guidance;
 using Microsoft.AspNetCore.Mvc;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 public sealed class GuidanceControllerTests
 {
-    private readonly GuidanceController _sut = new();
+    // The literal-route actions under test don't touch the content-page service.
+    private readonly GuidanceController _sut = new(Substitute.For<IContentPageService>());
 
     // --- Routing ---
 

@@ -1,0 +1,35 @@
+@model DfE.CheckPerformanceData.Web.Models.Guidance.ContentPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var navContent = Model.Layout == "nav-content";
+}
+
+@if (navContent)
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-third">
+            @await Html.PartialAsync("ContentPages/_SideNav", Model.Nav)
+        </div>
+        <div class="govuk-grid-column-two-thirds">
+            <h1 class="govuk-heading-xl">@Model.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Caption))
+            {
+                <p class="govuk-body-l">@Model.Caption</p>
+            }
+            @await Html.PartialAsync("ContentPages/_ContentNodes", Model.Content)
+        </div>
+    </div>
+}
+else
+{
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-full">
+            <h1 class="govuk-heading-xl">@Model.Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Model.Caption))
+            {
+                <p class="govuk-body-l">@Model.Caption</p>
+            }
+            @await Html.PartialAsync("ContentPages/_ContentNodes", Model.Content)
+        </div>
+    </div>
+}

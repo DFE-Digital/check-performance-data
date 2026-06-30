@@ -3,7 +3,7 @@ namespace DfE.CheckPerformanceData.Application.ContentPages;
 // Orchestrates content-page editing and versioning. The draft tree is always editable and autosaves
 // with no version churn; publishing snapshots the draft as the next integer version and marks it the
 // published one; restoring re-publishes an old snapshot as a brand-new version so history only grows.
-public sealed class ContentPageService(IContentPageRepository repository)
+public sealed class ContentPageService(IContentPageRepository repository) : IContentPageService
 {
     private const string EmptyTree = "[]";
 

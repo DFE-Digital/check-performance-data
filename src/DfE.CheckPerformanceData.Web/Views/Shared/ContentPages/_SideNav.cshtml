@@ -1,0 +1,30 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model IReadOnlyList<ContentNavItem>
+@*
+    Auto-generated page contents, built from the page's Heading widgets (H2 top level, H3 nested).
+    Editors never hand-maintain this — it always matches the content.
+*@
+@if (Model.Count > 0)
+{
+    <nav class="moj-side-navigation" aria-label="Page contents">
+        <ul class="moj-side-navigation__list">
+            @foreach (var item in Model)
+            {
+                <li class="moj-side-navigation__item">
+                    <a href="@item.Href">@item.Text</a>
+                    @if (item.Children.Count > 0)
+                    {
+                        <ul class="moj-side-navigation__list">
+                            @foreach (var child in item.Children)
+                            {
+                                <li class="moj-side-navigation__item">
+                                    <a href="@child.Href">@child.Text</a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </li>
+            }
+        </ul>
+    </nav>
+}

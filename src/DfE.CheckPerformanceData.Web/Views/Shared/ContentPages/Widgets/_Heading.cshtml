@@ -1,0 +1,18 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    var level = Model.GetInt("level") ?? 2;
+    var text = Model.GetString("text") ?? string.Empty;
+}
+@switch (level)
+{
+    case 3:
+        <h3 id="@Model.Anchor" class="govuk-heading-m">@text</h3>
+        break;
+    case 4:
+        <h4 id="@Model.Anchor" class="govuk-heading-s">@text</h4>
+        break;
+    default:
+        <h2 id="@Model.Anchor" class="govuk-heading-l">@text</h2>
+        break;
+}

@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    var title = Model.GetString("title") ?? string.Empty;
+    var body = Model.GetString("body") ?? string.Empty;
+    var href = Model.GetString("href");
+}
+<div class="dfe-card">
+    <div class="dfe-card-container">
+        <h3 class="dfe-card-heading govuk-heading-m">
+            @if (!string.IsNullOrWhiteSpace(href))
+            {
+                <a class="govuk-link dfe-card-link" href="@href">@title</a>
+            }
+            else
+            {
+                @title
+            }
+        </h3>
+        @if (!string.IsNullOrWhiteSpace(body))
+        {
+            <p class="govuk-body">@body</p>
+        }
+    </div>
+</div>

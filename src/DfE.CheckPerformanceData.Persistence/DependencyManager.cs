@@ -44,6 +44,7 @@ public static class DependencyManager
         services.AddScoped<IWikiRepository, WikiRepository>();
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
+        services.AddScoped<Application.ContentPages.IContentPageRepository, Repositories.ContentPageRepository>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();

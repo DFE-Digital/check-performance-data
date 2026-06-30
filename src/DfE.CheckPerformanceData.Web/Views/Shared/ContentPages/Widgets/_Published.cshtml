@@ -1,0 +1,13 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    var text = Model.GetString("text") ?? string.Empty;
+}
+<div class="govuk-notification-banner" role="region" aria-label="Published">
+    <div class="govuk-notification-banner__header">
+        <h2 class="govuk-notification-banner__title">Published</h2>
+    </div>
+    <div class="govuk-notification-banner__content">
+        <p class="govuk-notification-banner__heading">@text</p>
+    </div>
+</div>

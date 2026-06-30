@@ -1191,6 +1191,24 @@ body.js-enabled .rules-condition__apply {
   fill: #aa2a16;
 }
 
+/* Move (Up/Down): directional arrow in GOV.UK link blue, darkening to the link-hover blue on
+   hover/focus like Edit. :not(:disabled) so the end-of-list disabled state isn't overridden. */
+.rules-action--move {
+  color: #1d70b8;
+}
+
+.rules-action--move:not(:disabled):hover,
+.rules-action--move:not(:disabled):focus-visible {
+  color: #003078;
+}
+
+/* Disabled move control at the list ends (Up on the first branch, Down on the last): greyed and
+   non-interactive, with no pointer affordance. */
+.rules-action:disabled {
+  color: #b1b4b6;
+  cursor: default;
+}
+
 /* ==========================================================================
    Rules branch editor — collapsible groups
    ========================================================================== */

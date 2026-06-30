@@ -15,7 +15,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             r.WindowId == windowId &&
             r.PupilUpn == pupilUpn &&
             r.OrganisationUrn == organisationUrn &&
-            r.ReferenceNumber != currentReferenceNumber);
+            r.ReferenceNumber != currentReferenceNumber &&
+            r.Status != RequestStatus.Withdrawn);
 
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {

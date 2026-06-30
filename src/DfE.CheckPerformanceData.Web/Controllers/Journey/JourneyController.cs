@@ -439,23 +439,16 @@ public sealed class JourneyController(
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
         }
+        
+        HttpContext.Session.ClearRequestState(windowId);
 
-        HttpContext.Session.SaveRequestState(windowId, s =>
-        {
-            s.SelectedWhatToChange = null;
-            s.SelectedPupil = null;
-            s.SelectedPupilId = null;
-            s.SelectedPupilLabel = null;
-            s.SelectedNextStep = null;
-            s.MatchedPupil = null;
-            s.MatchedPupilId = null;
-            s.MatchedPupilLabel = null;
-            s.QuestionAnswers = new();
-            s.QuestionHistory = new();
-            // ReferenceNumber and CheckingWindow preserved for the Confirmation page
-        });
-
-        return RedirectToAction(nameof(Confirmation), new { windowId });
+        return RedirectToAction(nameof(Confirmation), 
+            new  ConfirmationViewModel 
+            { 
+                WindowId = windowId, 
+                ReferenceNumber  = journey.ReferenceNumber, 
+                WindowCloseLabel  = $"{journey!.CheckingWindow!.EndDate .ToString("htt").ToLower()} on {journey!.CheckingWindow!.EndDate :dddd d MMMM yyyy}" //journey!.CheckingWindow!.EndDate 
+            });
     }
 
     // ── Save draft ─────────────────────────────────────────────────────────
@@ -518,20 +511,12 @@ public sealed class JourneyController(
     // ── Confirmation ───────────────────────────────────────────────────────
 
     [Route("/Journey/{windowId}/confirmation")]
-    public IActionResult Confirmation(Guid windowId)
+    public IActionResult Confirmation(ConfirmationViewModel model) //Guid windowId, string referenceNumber, DateTime endDate)
     {
-        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (string.IsNullOrEmpty(model.ReferenceNumber) ||  (model.WindowId == Guid.Empty) || string.IsNullOrEmpty(model.WindowCloseLabel)) 
+            return RedirectToCheckYourData(model.WindowId);
 
-        if (journey.ReferenceNumber is null || journey.CheckingWindow is null)
-            return RedirectToCheckYourData(windowId);
-
-        var window = journey.CheckingWindow;
-        return View(new ConfirmationViewModel
-        {
-            WindowId = windowId,
-            ReferenceNumber = journey.ReferenceNumber,
-            WindowCloseLabel = $"{window.EndDate.ToString("htt").ToLower()} on {window.EndDate:dddd d MMMM yyyy}"
-        });
+        return View(model);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────

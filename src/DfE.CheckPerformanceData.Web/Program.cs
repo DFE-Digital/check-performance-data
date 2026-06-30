@@ -81,7 +81,7 @@ try
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
-        .AddPersistenceDependencies(configuration, seedData)
+        .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());

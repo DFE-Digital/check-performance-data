@@ -6,6 +6,8 @@ public interface IContentPageService
 {
     Task<ContentPageDto> CreateAsync(string slug, string title, string? caption, string layout);
 
+    Task<List<ContentPageSummaryDto>> GetAllAsync();
+
     Task<ContentPageDto?> GetBySlugAsync(string slug);
 
     Task SaveDraftAsync(string slug, string draftContent);

@@ -28,6 +28,19 @@ public sealed class ContentPageControllerTests
     }
 
     [Fact]
+    public async Task Index_ReturnsView_WithAllPageSummaries()
+    {
+        _pages.GetAllAsync().Returns([
+            new ContentPageSummaryDto { Slug = "a", Title = "Alpha", Layout = "nav-content", PublishedVersionNumber = 2 },
+            new ContentPageSummaryDto { Slug = "b", Title = "Beta", Layout = "full" }
+        ]);
+
+        var view = Assert.IsType<ViewResult>(await Sut().Index());
+        var model = Assert.IsType<List<ContentPageSummaryDto>>(view.Model);
+        Assert.Equal(2, model.Count);
+    }
+
+    [Fact]
     public async Task Create_CreatesPage_AndRedirectsToEditor()
     {
         var result = await Sut().Create(new NewContentPageModel { Title = "KS4 checking", Layout = "nav-content" });

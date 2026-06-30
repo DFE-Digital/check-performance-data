@@ -12,6 +12,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [Authorize(Roles = WikiConstants.EditorRole)]
 public sealed class ContentPageController(IContentPageService pages, IContentPageEditor editor) : Controller
 {
+    [HttpGet("/admin/content-pages")]
+    public async Task<IActionResult> Index() => View(await pages.GetAllAsync());
+
     [HttpGet("/guidance/new")]
     public IActionResult New() => View(new NewContentPageModel());
 

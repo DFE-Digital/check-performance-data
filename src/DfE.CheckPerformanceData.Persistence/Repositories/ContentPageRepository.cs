@@ -32,6 +32,20 @@ public sealed class ContentPageRepository(IPortalDbContext context) : IContentPa
         return ToDto(entity);
     }
 
+    public Task<List<ContentPageSummaryDto>> GetAllAsync() =>
+        context.ContentPages
+            .AsNoTracking()
+            .OrderBy(p => p.Title)
+            .Select(p => new ContentPageSummaryDto
+            {
+                Slug = p.Slug,
+                Title = p.Title,
+                Layout = p.Layout,
+                PublishedVersionNumber = p.PublishedVersionNumber,
+                UpdatedAt = p.UpdatedAt
+            })
+            .ToListAsync();
+
     public Task<ContentPageDto?> GetBySlugAsync(string slug) =>
         context.ContentPages
             .AsNoTracking()

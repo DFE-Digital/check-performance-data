@@ -6,6 +6,8 @@ public interface IContentPageRepository
 {
     Task<ContentPageDto> CreateAsync(string slug, string title, string? caption, string layout, string draftContent, Guid? contentId = null);
 
+    Task<List<ContentPageSummaryDto>> GetAllAsync();
+
     Task<ContentPageDto?> GetBySlugAsync(string slug);
 
     Task UpdateDraftAsync(int id, string draftContent);

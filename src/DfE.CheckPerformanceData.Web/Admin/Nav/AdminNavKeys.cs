@@ -11,6 +11,7 @@ public static class AdminNavKeys
     public const string AmendmentRequestsAdmin = "amendment-requests-admin";
     public const string UncommittedRequests = "uncommitted-requests";
     public const string ContentStaging = "content-staging";
+    public const string ContentPages = "content-pages";
     public const string ContentBlocks = "content-blocks";
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";

@@ -10,6 +10,9 @@ public sealed class ContentPageService(IContentPageRepository repository) : ICon
     public Task<ContentPageDto> CreateAsync(string slug, string title, string? caption, string layout) =>
         repository.CreateAsync(slug, title, caption, layout, EmptyTree);
 
+    public Task<List<ContentPageSummaryDto>> GetAllAsync() =>
+        repository.GetAllAsync();
+
     public Task<ContentPageDto?> GetBySlugAsync(string slug) =>
         repository.GetBySlugAsync(slug);
 

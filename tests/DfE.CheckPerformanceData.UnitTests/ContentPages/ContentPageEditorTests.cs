@@ -116,6 +116,7 @@ public class ContentPageEditorTests
         }
 
         public Task<ContentPageDto> CreateAsync(string slug, string title, string? caption, string layout, string draftContent, Guid? contentId = null) => throw new NotSupportedException();
+        public Task<List<ContentPageSummaryDto>> GetAllAsync() => throw new NotSupportedException();
         public Task<int> GetMaxVersionNumberAsync(int contentPageId) => throw new NotSupportedException();
         public Task AddVersionAsync(int contentPageId, int versionNumber, string snapshot, string title) => throw new NotSupportedException();
         public Task SetPublishedVersionAsync(int id, int versionNumber) => throw new NotSupportedException();

@@ -16,6 +16,8 @@ public sealed class PortalDbContext(
     public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
+    public DbSet<ContentPage> ContentPages => Set<ContentPage>();
+    public DbSet<ContentPageVersion> ContentPageVersions => Set<ContentPageVersion>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<WikiPage> WikiPages => Set<WikiPage>();
     public DbSet<WikiPageVersion> WikiPageVersions => Set<WikiPageVersion>();
@@ -34,6 +36,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new CheckingWindowConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new ContentPageConfiguration());
+        modelBuilder.ApplyConfiguration(new ContentPageVersionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());
         modelBuilder.ApplyConfiguration(new WikiPageConfiguration());
         modelBuilder.ApplyConfiguration(new WikiPageVersionConfiguration());

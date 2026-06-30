@@ -1,0 +1,44 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model ContentPageEditViewModel
+@{
+    ViewData["Title"] = $"Edit: {Model.Title}";
+}
+
+<style>
+    .cpb-node { border: 1px solid #b1b4b6; border-left: 4px solid #1d70b8; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+    .cpb-region > .govuk-grid-row { border-top: 1px dashed #b1b4b6; margin-top: 6px; padding-top: 6px; }
+    .cpb-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+    .cpb-inline { display: inline; }
+    .cpb-btn { margin-bottom: 0; }
+    .cpb-preview { background: #f3f2f1; padding: 8px 12px; }
+    .cpb-add { margin-top: 4px; }
+</style>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <span class="govuk-caption-l">Content page editor</span>
+        <h1 class="govuk-heading-l">@Model.Title</h1>
+
+        <p class="govuk-body">
+            <a class="govuk-link" href="/guidance/@Model.Slug" target="_blank" rel="noopener">Preview public page</a>
+            &nbsp;
+            @if (Model.PublishedVersionNumber is { } version)
+            {
+                <span class="govuk-tag govuk-tag--green">Published — version @version</span>
+            }
+            else
+            {
+                <span class="govuk-tag govuk-tag--grey">Draft only — not published</span>
+            }
+        </p>
+
+        @await Html.PartialAsync("ContentPages/_EditColumn",
+            new EditColumnModel(Model.Slug, Model.Content, Array.Empty<TreeStep>(), 0))
+
+        <form method="post" action="/content-page/@Model.Slug/publish" class="govuk-!-margin-top-6">
+            @Html.AntiForgeryToken()
+            <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
+        </form>
+    </div>
+</div>

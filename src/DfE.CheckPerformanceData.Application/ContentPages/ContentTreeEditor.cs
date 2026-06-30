@@ -39,6 +39,13 @@ public static class ContentTreeEditor
             (column[index], column[index + 1]) = (column[index + 1], column[index]);
     }
 
+    // The node the path addresses (without removing it).
+    public static ContentNode NodeAt(List<ContentNode> root, IReadOnlyList<TreeStep> path)
+    {
+        var (column, index) = Resolve(root, path);
+        return column[index];
+    }
+
     // Walks the path, returning the column that contains the addressed position and the index
     // within it. Each step after the first descends into the previously-addressed region's column.
     private static (List<ContentNode> Column, int Index) Resolve(List<ContentNode> root, IReadOnlyList<TreeStep> path)

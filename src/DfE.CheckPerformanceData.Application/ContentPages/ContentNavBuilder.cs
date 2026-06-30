@@ -32,25 +32,9 @@ public static class ContentNavBuilder
         return top.Select(Freeze).ToList();
     }
 
-    // Heading widgets in document order, descending into regions and their columns (nested regions
-    // included).
-    private static IEnumerable<WidgetNode> Walk(IReadOnlyList<ContentNode> nodes)
-    {
-        foreach (var node in nodes)
-        {
-            switch (node)
-            {
-                case WidgetNode { Type: "heading" } widget:
-                    yield return widget;
-                    break;
-                case RegionNode region:
-                    foreach (var column in region.Columns)
-                        foreach (var descendant in Walk(column))
-                            yield return descendant;
-                    break;
-            }
-        }
-    }
+    // Heading widgets in document order (descending into nested regions).
+    private static IEnumerable<WidgetNode> Walk(IReadOnlyList<ContentNode> nodes) =>
+        ContentTreeWalker.AllWidgets(nodes).Where(w => w.Type == "heading");
 
     private static (int? Level, string? Text) HeadingProps(WidgetNode heading)
     {

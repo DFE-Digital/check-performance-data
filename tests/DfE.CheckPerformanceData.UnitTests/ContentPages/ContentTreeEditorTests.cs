@@ -140,4 +140,25 @@ public class ContentTreeEditorTests
 
         Assert.Equal("b", Id(removed));
     }
+
+    [Fact]
+    public void NodeAt_ReturnsTheTopLevelNode()
+    {
+        var root = new List<ContentNode> { W("a"), W("b"), W("c") };
+
+        Assert.Equal("b", Id(ContentTreeEditor.NodeAt(root, [new TreeStep(0, 1)])));
+    }
+
+    [Fact]
+    public void NodeAt_ReturnsANestedNode()
+    {
+        var region = new RegionNode
+        {
+            Layout = RegionLayout.Halves,
+            Columns = [[W("a")], [W("b"), W("c")]]
+        };
+        var root = new List<ContentNode> { region };
+
+        Assert.Equal("c", Id(ContentTreeEditor.NodeAt(root, [new TreeStep(0, 0), new TreeStep(1, 1)])));
+    }
 }

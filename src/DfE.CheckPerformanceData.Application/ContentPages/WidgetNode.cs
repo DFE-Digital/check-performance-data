@@ -8,6 +8,8 @@ namespace DfE.CheckPerformanceData.Application.ContentPages;
 public sealed class WidgetNode : ContentNode
 {
     public required string Type { get; init; }
-    public string? Anchor { get; init; }
-    public JsonObject? Props { get; init; }
+    // Anchor and Props are settable: the editor re-anchors headings and replaces props in place after
+    // an edit. Type never changes (a widget is replaced, not retyped), so it stays init-only.
+    public string? Anchor { get; set; }
+    public JsonObject? Props { get; set; }
 }

@@ -52,8 +52,8 @@
 
                         case "richtext":
                             <div class="govuk-form-group">
-                                <label class="govuk-label" for="html-@Model.Path">Content (HTML)</label>
-                                <textarea class="govuk-textarea" id="html-@Model.Path" name="props[html]" rows="6">@w.GetString("html")</textarea>
+                                <label class="govuk-label" for="html-@Model.Path">Content</label>
+                                <textarea class="govuk-textarea cpb-richtext" id="html-@Model.Path" name="props[html]" rows="8">@w.GetString("html")</textarea>
                             </div>
                             break;
 

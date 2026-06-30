@@ -42,3 +42,83 @@
         </form>
     </div>
 </div>
+
+@* Rich-text widgets use the same TinyMCE editor as content blocks. They live inside collapsed
+   <details>, and TinyMCE renders incorrectly when initialised on a hidden element, so each editor
+   is initialised lazily the first time its disclosure opens. @editor.save() syncs HTML back to the
+   textarea on every change so a normal form post submits the edited content. *@
+<script src="~/lib/tinymce/tinymce.min.js"></script>
+<script>
+    (function () {
+        'use strict';
+        if (typeof tinymce === 'undefined') return;
+
+        var started = new WeakSet();
+
+        function initEditor(textarea) {
+            if (started.has(textarea)) return;
+            started.add(textarea);
+
+            tinymce.init({
+                target: textarea,
+                height: 360,
+                menubar: true,
+                plugins: 'lists link table code wordcount searchreplace fullscreen',
+                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | warningtext | code fullscreen',
+                style_formats: [
+                    { title: 'Heading 2 (section)', block: 'h2', classes: 'govuk-heading-l' },
+                    { title: 'Heading 3 (sub-section)', block: 'h3', classes: 'govuk-heading-m' },
+                    { title: 'Heading 4 (minor)', block: 'h4', classes: 'govuk-heading-s' },
+                    { title: 'Paragraph', block: 'p', classes: 'govuk-body' },
+                    { title: 'Lead paragraph', block: 'p', classes: 'govuk-body-l' },
+                    { title: 'Bulleted list', selector: 'ul', classes: 'govuk-list govuk-list--bullet' },
+                    { title: 'Numbered list', selector: 'ol', classes: 'govuk-list govuk-list--number' },
+                    { title: 'Link', inline: 'a', classes: 'govuk-link' },
+                    { title: 'Inset text (grey)', block: 'div', classes: 'govuk-inset-text', wrapper: true },
+                    { title: 'Published / review callout (blue)', block: 'div', classes: 'cypmd-published', wrapper: true },
+                    { title: 'Information callout (blue)', block: 'div', classes: 'cypmd-notice', wrapper: true }
+                ],
+                style_formats_merge: false,
+                paste_as_text: false,
+                paste_merge_formats: true,
+                paste_tab_spaces: 4,
+                content_css: ['/css/dfefrontend-2.0.0.min.css', '/css/site.css'],
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                setup: function (editor) {
+                    // GDS warning text needs the "!" icon and a visually-hidden "Warning" prefix, which
+                    // a style_formats wrapper can't express — a dedicated button inserts the markup.
+                    editor.ui.registry.addButton('warningtext', {
+                        text: 'Warning',
+                        tooltip: 'Insert GDS warning text',
+                        onAction: function () {
+                            var selected = editor.selection.getContent({ format: 'text' });
+                            var body = selected && selected.trim() ? selected : 'Warning text';
+                            editor.insertContent(
+                                '<div class="govuk-warning-text">' +
+                                '<span class="govuk-warning-text__icon" aria-hidden="true">!</span>' +
+                                '<strong class="govuk-warning-text__text">' +
+                                '<span class="govuk-visually-hidden">Warning</span> ' +
+                                body +
+                                '</strong></div>');
+                        }
+                    });
+                    editor.on('change', function () { editor.save(); });
+                }
+            });
+        }
+
+        // Lazy-init each rich-text editor the first time its disclosure is opened.
+        document.querySelectorAll('details').forEach(function (details) {
+            var textarea = details.querySelector('textarea.cpb-richtext');
+            if (!textarea) return;
+            details.addEventListener('toggle', function () {
+                if (details.open) initEditor(textarea);
+            });
+        });
+
+        // Belt and braces: flush every active editor to its textarea before any submit.
+        document.addEventListener('submit', function () { tinymce.triggerSave(); }, true);
+    })();
+</script>

@@ -140,6 +140,17 @@ try
     }
 
     builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
+
+    // Email sending is fire-and-forget: the request thread enqueues onto an in-process channel
+    // (ChannelNotificationDispatcher, a singleton shared with the background worker) and returns;
+    // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
+    // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
+    builder.Services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
+    builder.Services.AddSingleton<INotificationDispatcher>(sp =>
+        sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();

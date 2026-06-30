@@ -150,23 +150,25 @@ public class JourneyControllerTests
     [Fact]
     public void Confirmation_WhenNoReferenceNumber_RedirectsToCheckYourData()
     {
-        var state = ValidSession();
-        state.ReferenceNumber = null;
-        SetupSession(state);
-
-        var result = _sut.Confirmation(WindowId);
+        var result = _sut.Confirmation(new ConfirmationViewModel
+        {
+            WindowId = WindowId,
+            ReferenceNumber = null,
+            WindowCloseLabel = "any label"
+        });
 
         AssertRedirectToCheckYourData(result);
     }
 
     [Fact]
-    public void Confirmation_WhenNoCheckingWindow_RedirectsToCheckYourData()
+    public void Confirmation_WhenNoWindowCloseLabel_RedirectsToCheckYourData()
     {
-        var state = ValidSession();
-        state.CheckingWindow = null;
-        SetupSession(state);
-
-        var result = _sut.Confirmation(WindowId);
+        var result = _sut.Confirmation(new ConfirmationViewModel
+        {
+            WindowId = WindowId,
+            ReferenceNumber = "CYPMD_KS4June_ABC1234",
+            WindowCloseLabel = null
+        });
 
         AssertRedirectToCheckYourData(result);
     }
@@ -309,7 +311,7 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task SummaryConfirm_AfterSuccess_ClearsJourneyButPreservesConfirmationData()
+    public async Task SummaryConfirm_AfterSuccess_ClearsJourney()
     {
         SetupSession(ValidSession(history: ["page-1"]));
 
@@ -320,8 +322,8 @@ public class JourneyControllerTests
         Assert.Null(remaining.SelectedWhatToChange);
         Assert.Empty(remaining.QuestionAnswers);
         Assert.Empty(remaining.QuestionHistory);
-        Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
-        Assert.NotNull(remaining.CheckingWindow);
+        Assert.Null( remaining.ReferenceNumber);
+        Assert.Null(remaining.CheckingWindow);
     }
 
     [Fact]

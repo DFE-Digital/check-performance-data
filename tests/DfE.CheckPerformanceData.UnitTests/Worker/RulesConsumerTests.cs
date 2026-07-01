@@ -46,6 +46,9 @@ public sealed class RulesConsumerTests
     [Fact]
     public async Task ProcessMessage_DoesNotCallZendesk()
     {
+        // A non-null rules snapshot + decision are prerequisites for processing to run at all
+        // (the consumer reads snapshot.Version unconditionally); the decision content is irrelevant here.
+        StubDecision(new Decision(DecisionStatus.AutoApproved, "AutoApproved-outcome", "R-1", []));
         var consumer = CreateConsumer();
 
         await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
@@ -59,6 +62,7 @@ public sealed class RulesConsumerTests
     [Fact]
     public async Task ProcessMessage_PersistsDecisionInTransaction()
     {
+        StubDecision(new Decision(DecisionStatus.AutoApproved, "AutoApproved-outcome", "R-1", []));
         var consumer = CreateConsumer();
 
         await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);

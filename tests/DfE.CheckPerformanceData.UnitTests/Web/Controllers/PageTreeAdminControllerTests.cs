@@ -445,9 +445,13 @@ public sealed class PageTreeAdminControllerTests
     public async Task Save_ValidPost_CallsSaveWorkingContentAndRedirects()
     {
         var id = Guid.NewGuid();
-        const string rawHtml = "<p>Hello world</p>";
-        _renderer.RenderHtml(rawHtml).Returns(rawHtml);
-        _renderer.StripTagsToPlainText(rawHtml).Returns("Hello world");
+        const string rawHtml   = "<p>Hello <script>x</script>world</p>";
+        const string sanitised = "<p>Hello world</p>";   // distinct from rawHtml
+        _renderer.RenderHtml(rawHtml).Returns(sanitised);
+        _renderer.StripTagsToPlainText(sanitised).Returns("Hello world");
+        // StripTagsToPlainText(rawHtml) is intentionally NOT stubbed: if the controller
+        // wrongly passed raw content instead of the sanitised output, NSubstitute would
+        // return null and the SaveWorkingContentAsync assertion below would fail.
 
         var result = await Sut().Save(id, rawHtml);
 

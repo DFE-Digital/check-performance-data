@@ -25,6 +25,7 @@ else
             </tr>
         </thead>
         <tbody class="govuk-table__body">
+            @{ var now = DateTime.UtcNow; }
             @foreach (var v in Model.Versions)
             {
                 string tagClass;
@@ -34,12 +35,12 @@ else
                     tagClass = "govuk-tag--green";
                     tagText = "Live";
                 }
-                else if (v.PublishFrom != null && v.PublishFrom > DateTime.UtcNow)
+                else if (v.PublishFrom != null && v.PublishFrom > now)
                 {
                     tagClass = "govuk-tag--blue";
                     tagText = "Scheduled";
                 }
-                else if (v.PublishTo != null && v.PublishTo <= DateTime.UtcNow)
+                else if (v.PublishTo != null && v.PublishTo <= now)
                 {
                     tagClass = "govuk-tag--grey";
                     tagText = "Past";

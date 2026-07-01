@@ -57,4 +57,11 @@ public interface IPageNodeService
     /// delete or reparent children first).
     /// </summary>
     Task DeleteAsync(Guid nodeId, string? userId);
+
+    /// <summary>
+    /// Moves the node up or down among its siblings by swapping <c>SortOrder</c> with the
+    /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").
+    /// No-ops silently when the node is already at the end of the list.
+    /// </summary>
+    Task MoveAsync(Guid nodeId, string direction, string? userId);
 }

@@ -91,6 +91,29 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         await repository.SoftDeleteAsync(nodeId, userId);
     }
 
+    public async Task MoveAsync(Guid nodeId, string direction, string? userId)
+    {
+        var node = await repository.GetByIdAsync(nodeId);
+        if (node is null) return; // node does not exist; caller should have validated
+
+        var all = await repository.GetTreeAsync();
+        var siblings = all
+            .Where(n => n.ParentId == node.ParentId)
+            .OrderBy(n => n.SortOrder)
+            .ToList();
+
+        var idx = siblings.FindIndex(n => n.Id == nodeId);
+        if (idx < 0) return; // unexpected: node not in tree
+
+        PageNodeTreeItemDto? sibling = direction == "up"
+            ? (idx > 0 ? siblings[idx - 1] : null)
+            : (idx < siblings.Count - 1 ? siblings[idx + 1] : null);
+
+        if (sibling is null) return; // already at the end in that direction
+
+        await repository.SwapSortOrderAsync(nodeId, sibling.Id);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private async Task<string> ComputePathAsync(Guid? parentId, string segment)

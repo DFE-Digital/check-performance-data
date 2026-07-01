@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
@@ -93,5 +94,39 @@ public sealed class PageNodeRepositoryTests(PostgresFixture fixture)
         var faq = await Repo().GetByPathAsync("support/faq");
         await Repo().SoftDeleteAsync(faq!.Id, "u1");
         Assert.Null(await Repo().GetByPathAsync("support/faq"));
+    }
+
+    [Fact]
+    public async Task SwapSortOrder_ExchangesSortOrderOfTwoSiblings()
+    {
+        await TruncateAsync();
+
+        var parent = await Repo().CreateNodeAsync(null, "parent", "parent", "Parent", "folder", "u1");
+        var nodeA   = await Repo().CreateNodeAsync(parent.Id, "a", "parent/a", "A", "content", "u1");
+        var nodeB   = await Repo().CreateNodeAsync(parent.Id, "b", "parent/b", "B", "content", "u1");
+
+        // Give the siblings distinct SortOrder values via direct SQL so the swap is observable.
+        await using (var conn = new NpgsqlConnection(_fixture.ConnectionString))
+        {
+            await conn.OpenAsync();
+            await using var cmd1 = conn.CreateCommand();
+            cmd1.CommandText = @"UPDATE ""PageNodes"" SET ""SortOrder"" = 10 WHERE ""Id"" = @id";
+            cmd1.Parameters.AddWithValue("id", nodeA.Id);
+            await cmd1.ExecuteNonQueryAsync();
+
+            await using var cmd2 = conn.CreateCommand();
+            cmd2.CommandText = @"UPDATE ""PageNodes"" SET ""SortOrder"" = 20 WHERE ""Id"" = @id";
+            cmd2.Parameters.AddWithValue("id", nodeB.Id);
+            await cmd2.ExecuteNonQueryAsync();
+        }
+
+        await Repo().SwapSortOrderAsync(nodeA.Id, nodeB.Id);
+
+        // Verify via GetTreeAsync: A should now have 20, B should have 10.
+        var tree = await Repo().GetTreeAsync();
+        var rowA = tree.First(n => n.Id == nodeA.Id);
+        var rowB = tree.First(n => n.Id == nodeB.Id);
+        Assert.Equal(20, rowA.SortOrder);
+        Assert.Equal(10, rowB.SortOrder);
     }
 }

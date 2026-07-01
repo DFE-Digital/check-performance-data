@@ -35,5 +35,11 @@ public interface IPageNodeRepository
 
     Task SoftDeleteAsync(Guid nodeId, string? userId);
 
+    /// <summary>
+    /// Swaps the <see cref="PageNodeTreeItemDto.SortOrder"/> values of two nodes in a single
+    /// SaveChanges call, so siblings exchange their position in the tree.
+    /// </summary>
+    Task SwapSortOrderAsync(Guid nodeId, Guid otherNodeId);
+
     Task ExecuteInTransactionAsync(Func<Task> work);
 }

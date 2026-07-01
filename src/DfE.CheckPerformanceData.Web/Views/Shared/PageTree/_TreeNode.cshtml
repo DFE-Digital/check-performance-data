@@ -28,6 +28,16 @@
         <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/edit">Edit<span class="govuk-visually-hidden"> @Model.Title</span></a>
         <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/versions">Versions<span class="govuk-visually-hidden"> @Model.Title</span></a>
         <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/new?parentId=@Model.Id">New child page<span class="govuk-visually-hidden"> @Model.Title</span></a>
+        <form method="post" action="/admin/pages/@Model.Id/move" class="admin-tile-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="direction" value="up" />
+            <button type="submit" class="admin-tile-form__link govuk-!-margin-right-2">Move up<span class="govuk-visually-hidden"> @Model.Title</span></button>
+        </form>
+        <form method="post" action="/admin/pages/@Model.Id/move" class="admin-tile-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="direction" value="down" />
+            <button type="submit" class="admin-tile-form__link govuk-!-margin-right-2">Move down<span class="govuk-visually-hidden"> @Model.Title</span></button>
+        </form>
         <a class="govuk-link" href="/admin/pages/@Model.Id/delete">Delete<span class="govuk-visually-hidden"> @Model.Title</span></a>
     </span>
     @if (Model.Children.Count > 0)

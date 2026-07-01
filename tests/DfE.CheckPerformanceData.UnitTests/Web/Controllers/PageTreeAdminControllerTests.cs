@@ -612,6 +612,238 @@ public sealed class PageTreeAdminControllerTests
         Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
     }
 
+    // ── GET /admin/pages/{id}/delete ─────────────────────────────────────────
+
+    [Fact]
+    public async Task DeleteConfirm_UnknownId_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().DeleteConfirm(id);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_LeafNode_ReturnsDeleteView_WithoutChildrenBlock()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "leaf", Path = "leaf", Title = "Leaf Page", PageType = "content"
+        });
+        // No children in the tree
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = id, Segment = "leaf", Path = "leaf", Title = "Leaf Page", PageType = "content", SortOrder = 1 }
+        });
+
+        var result = await Sut().DeleteConfirm(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Delete", view.ViewName);
+        var vm = Assert.IsType<PageNodeDeleteViewModel>(view.Model);
+        Assert.Equal(id, vm.Id);
+        Assert.Equal("Leaf Page", vm.Title);
+        Assert.False(vm.HasChildren);
+        Assert.Null(vm.Error);
+    }
+
+    [Fact]
+    public async Task DeleteConfirm_NodeWithChildren_ReturnsDeleteView_WithChildrenBlock()
+    {
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "parent", Path = "parent", Title = "Parent", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = parentId, Segment = "parent", Path = "parent", Title = "Parent", PageType = "folder", SortOrder = 1 },
+            new() { Id = childId, ParentId = parentId, Segment = "child", Path = "parent/child", Title = "Child", PageType = "content", SortOrder = 1 }
+        });
+
+        var result = await Sut().DeleteConfirm(parentId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PageNodeDeleteViewModel>(view.Model);
+        Assert.True(vm.HasChildren);
+    }
+
+    // ── POST /admin/pages/{id}/delete ────────────────────────────────────────
+
+    [Fact]
+    public async Task DeletePost_UnknownId_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().DeletePost(id);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task DeletePost_Success_CallsDeleteAsync_AndRedirectsToTree()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "leaf", Path = "leaf", Title = "Leaf", PageType = "content"
+        });
+        _service.DeleteAsync(id, Arg.Any<string?>()).Returns(Task.CompletedTask);
+
+        var result = await Sut().DeletePost(id);
+
+        await _service.Received(1).DeleteAsync(id, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/pages", redirect.Url);
+    }
+
+    [Fact]
+    public async Task DeletePost_WithChildren_CatchesException_RerendersDeleteView_WithError()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "parent", Path = "parent", Title = "Parent", PageType = "folder"
+        });
+        _service.DeleteAsync(id, Arg.Any<string?>())
+            .Returns(Task.FromException(new InvalidOperationException("has children")));
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = id, Segment = "parent", Path = "parent", Title = "Parent", PageType = "folder", SortOrder = 1 },
+            new() { Id = Guid.NewGuid(), ParentId = id, Segment = "child", Path = "parent/child", Title = "Child", PageType = "content", SortOrder = 1 }
+        });
+
+        var result = await Sut().DeletePost(id);
+
+        // Must NOT redirect to success — must re-render the confirm page with error
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Delete", view.ViewName);
+        var vm = Assert.IsType<PageNodeDeleteViewModel>(view.Model);
+        Assert.NotNull(vm.Error);
+        Assert.True(vm.HasChildren);
+    }
+
+    [Fact]
+    public void DeletePost_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.DeletePost));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/move ───────────────────────────────────────────
+
+    [Fact]
+    public async Task Move_UnknownId_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().Move(id, "up");
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Move_KnownId_Up_CallsMoveAsyncAndRedirects()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
+        });
+        _service.MoveAsync(id, "up", Arg.Any<string?>()).Returns(Task.CompletedTask);
+
+        var result = await Sut().Move(id, "up");
+
+        await _service.Received(1).MoveAsync(id, "up", Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/pages", redirect.Url);
+    }
+
+    [Fact]
+    public async Task Move_KnownId_Down_CallsMoveAsyncWithDownAndRedirects()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
+        });
+        _service.MoveAsync(id, "down", Arg.Any<string?>()).Returns(Task.CompletedTask);
+
+        var result = await Sut().Move(id, "down");
+
+        await _service.Received(1).MoveAsync(id, "down", Arg.Any<string?>());
+        Assert.Equal("/admin/pages", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    [Fact]
+    public void Move_Action_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Move));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── M-01: content-mutation unknown-node guard ─────────────────────────────
+
+    [Fact]
+    public async Task ContentAdd_UnknownNode_ReturnsNotFound_DoesNotCallEditor()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentAdd(id, "0.0", "heading", null);
+
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().AddWidgetAsync(
+            Arg.Any<Guid>(), Arg.Any<IReadOnlyList<TreeStep>>(), Arg.Any<string>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ContentMove_UnknownNode_ReturnsNotFound_DoesNotCallEditor()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentMove(id, "0.0", "up");
+
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().MoveUpAsync(
+            Arg.Any<Guid>(), Arg.Any<IReadOnlyList<TreeStep>>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ContentDelete_UnknownNode_ReturnsNotFound_DoesNotCallEditor()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentDelete(id, "0.0");
+
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().DeleteAsync(
+            Arg.Any<Guid>(), Arg.Any<IReadOnlyList<TreeStep>>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task ContentWidget_UnknownNode_ReturnsNotFound_DoesNotCallEditor()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentWidget(id, "0.0", "heading", new Dictionary<string, string?>());
+
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().UpdateWidgetAsync(
+            Arg.Any<Guid>(), Arg.Any<IReadOnlyList<TreeStep>>(), Arg.Any<System.Text.Json.Nodes.JsonObject>(), Arg.Any<string?>());
+    }
+
     // ── Antiforgery contract ─────────────────────────────────────────────────
 
     [Theory]
@@ -631,8 +863,8 @@ public sealed class PageTreeAdminControllerTests
     [Fact]
     public void ContentDelete_RouteTemplate_ContainsContentSlash_NotJustDelete()
     {
-        // Widget-delete sits under /content/delete so it cannot collide with the future
-        // node-level page-delete at /admin/pages/{id}/delete (built in the next task).
+        // Widget-delete sits under /content/delete so it cannot collide with the
+        // node-level page-delete at /admin/pages/{id}/delete.
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.ContentDelete))!;
         var httpPost = method.GetCustomAttribute<HttpPostAttribute>();
         Assert.NotNull(httpPost);

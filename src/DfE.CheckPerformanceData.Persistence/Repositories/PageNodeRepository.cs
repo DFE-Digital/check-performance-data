@@ -178,6 +178,19 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public async Task SwapSortOrderAsync(Guid nodeId, Guid otherNodeId)
+    {
+        // FindAsync bypasses the global query filter — that is intentional here, since the
+        // controller has already confirmed both nodes are live before calling this method.
+        var nodeA = await context.PageNodes.FindAsync(nodeId)
+            ?? throw new InvalidOperationException($"Page node {nodeId} not found.");
+        var nodeB = await context.PageNodes.FindAsync(otherNodeId)
+            ?? throw new InvalidOperationException($"Page node {otherNodeId} not found.");
+
+        (nodeA.SortOrder, nodeB.SortOrder) = (nodeB.SortOrder, nodeA.SortOrder);
+        await context.SaveChangesAsync();
+    }
+
     public Task ExecuteInTransactionAsync(Func<Task> work) =>
         context.ExecuteInTransactionAsync(work);
 

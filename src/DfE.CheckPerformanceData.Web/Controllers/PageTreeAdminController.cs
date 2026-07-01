@@ -129,15 +129,74 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/edit");
     }
 
+    // ── Node delete ───────────────────────────────────────────────────────────
+
+    [HttpGet("/admin/pages/{id:guid}/delete")]
+    public async Task<IActionResult> DeleteConfirm(Guid id)
+    {
+        var node = await pageNodeService.GetNodeByIdAsync(id);
+        if (node is null) return NotFound();
+
+        var tree = await pageNodeService.GetTreeAsync();
+        var hasChildren = tree.Any(n => n.ParentId == id);
+
+        return View("Delete", new PageNodeDeleteViewModel
+        {
+            Id = id,
+            Title = node.Title,
+            HasChildren = hasChildren
+        });
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePost(Guid id)
+    {
+        var node = await pageNodeService.GetNodeByIdAsync(id);
+        if (node is null) return NotFound();
+
+        try
+        {
+            await pageNodeService.DeleteAsync(id, User?.Identity?.Name);
+            return Redirect("/admin/pages");
+        }
+        catch (InvalidOperationException)
+        {
+            var tree = await pageNodeService.GetTreeAsync();
+            var hasChildren = tree.Any(n => n.ParentId == id);
+            return View("Delete", new PageNodeDeleteViewModel
+            {
+                Id = id,
+                Title = node.Title,
+                HasChildren = hasChildren,
+                Error = "Cannot delete: remove or move its child pages first."
+            });
+        }
+    }
+
+    // ── Node reorder ──────────────────────────────────────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/move")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Move(Guid id, string direction)
+    {
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+        await pageNodeService.MoveAsync(id, direction, User?.Identity?.Name);
+        return Redirect("/admin/pages");
+    }
+
     // ── Content widget-editor mutation routes ─────────────────────────────────
     // All four routes are namespaced under /content/ so they cannot collide with
-    // the node-level page-delete route /admin/pages/{id}/delete (next task).
+    // the node-level page-delete route /admin/pages/{id}/delete.
     // ActionBase for the node editor = /admin/pages/{id}/content.
 
     [HttpPost("/admin/pages/{id:guid}/content/add")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentAdd(Guid id, string path, string? widgetType, string? regionLayout)
     {
+        // M-01: guard against fabricated GUIDs reaching the content editor
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+
         var steps = TreePath.Parse(path);
 
         if (!string.IsNullOrEmpty(widgetType))
@@ -152,6 +211,9 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentMove(Guid id, string path, string direction)
     {
+        // M-01: guard against fabricated GUIDs reaching the content editor
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+
         var steps = TreePath.Parse(path);
 
         if (direction == "up")
@@ -166,6 +228,9 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentDelete(Guid id, string path)
     {
+        // M-01: guard against fabricated GUIDs reaching the content editor
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+
         await nodeContentEditor.DeleteAsync(id, TreePath.Parse(path), User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
     }
@@ -174,6 +239,9 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentWidget(Guid id, string path, string type, [FromForm] Dictionary<string, string?>? props)
     {
+        // M-01: guard against fabricated GUIDs reaching the content editor
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+
         var built = WidgetPropsBuilder.Build(type, props ?? new Dictionary<string, string?>());
         await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");

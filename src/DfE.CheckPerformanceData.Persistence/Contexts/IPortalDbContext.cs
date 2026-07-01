@@ -1,5 +1,6 @@
 ﻿using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Entities;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -14,8 +15,6 @@ public interface IPortalDbContext
     DbSet<CheckingWindow> CheckingWindows { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
-    DbSet<ContentPage> ContentPages { get; }
-    DbSet<ContentPageVersion> ContentPageVersions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<WikiPage> WikiPages { get; }
     DbSet<WikiPageVersion> WikiPageVersions { get; }

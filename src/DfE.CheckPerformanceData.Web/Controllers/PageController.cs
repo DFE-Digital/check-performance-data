@@ -55,8 +55,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         });
     }
 
-    // Deserialises the content tree and builds the in-page heading nav, mirroring
-    // GuidanceController.Show which does the same from a ContentPage payload.
+    // Deserialises the content tree and builds the in-page heading nav.
     private IActionResult BuildContentView(LivePageResult result)
     {
         var tree = ContentPageJson.Deserialize(result.Version.Content) ?? [];

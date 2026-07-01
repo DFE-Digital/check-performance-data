@@ -285,6 +285,59 @@ public class PageNodeServiceTests
         Assert.True(versions[0].VersionId > versions[1].VersionId); // descending
     }
 
+    // ── GetWorkingOrLatestContentAsync ───────────────────────────────────────
+
+    [Fact]
+    public async Task GetWorkingOrLatest_WithDraft_ReturnsDraftContent()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        await Sut().SaveWorkingContentAsync(node.Id, "[{\"draft\":true}]", "", null);
+
+        var content = await Sut().GetWorkingOrLatestContentAsync(node.Id);
+
+        Assert.Equal("[{\"draft\":true}]", content);
+    }
+
+    [Fact]
+    public async Task GetWorkingOrLatest_NoVersions_ReturnsNull()
+    {
+        // Folder nodes are never versioned.
+        var node = await Sut().CreatePageAsync(null, "section", "Section", "folder", "u1");
+
+        var content = await Sut().GetWorkingOrLatestContentAsync(node.Id);
+
+        Assert.Null(content);
+    }
+
+    [Fact]
+    public async Task GetWorkingOrLatest_NoDraft_ReturnsLatestPublishedContent()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versions = await _repo.GetVersionsAsync(node.Id);
+        // Publish the seeded draft so no draft remains.
+        await _repo.UpdateVersionWindowAsync(node.Id, versions[0].VersionId, Now.AddDays(-1), null, null);
+
+        var content = await Sut().GetWorkingOrLatestContentAsync(node.Id);
+
+        Assert.Equal("[]", content); // seeded empty content tree
+    }
+
+    [Fact]
+    public async Task GetWorkingOrLatest_DraftAndPublished_ReturnsDraftNotPublished()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versions = await _repo.GetVersionsAsync(node.Id);
+        // Publish the seeded draft.
+        await _repo.UpdateVersionWindowAsync(node.Id, versions[0].VersionId, Now.AddDays(-2), null, null);
+        // Create a new working draft.
+        await Sut().SaveWorkingContentAsync(node.Id, "[{\"draft\":true}]", "", null);
+
+        var content = await Sut().GetWorkingOrLatestContentAsync(node.Id);
+
+        // Draft wins over the published version.
+        Assert.Equal("[{\"draft\":true}]", content);
+    }
+
     // ── DeleteAsync ──────────────────────────────────────────────────────────
 
     [Fact]

@@ -393,10 +393,7 @@ public sealed class PageTreeAdminControllerTests
             Id = id, Segment = "wiki-page", Path = "wiki-page",
             Title = "Wiki Page", PageType = "wiki"
         });
-        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
-        {
-            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = true, Content = "<p>Hello</p>" }
-        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("<p>Hello</p>");
 
         var result = await Sut().Edit(id);
 
@@ -406,6 +403,26 @@ public sealed class PageTreeAdminControllerTests
         Assert.Equal(id, vm.NodeId);
         Assert.Equal("Wiki Page", vm.NodeTitle);
         Assert.Equal("<p>Hello</p>", vm.Content);
+    }
+
+    [Fact]
+    public async Task Edit_WikiNode_AfterPublish_ShowsPublishedContent()
+    {
+        // After publish there is no draft; GetWorkingOrLatestContentAsync returns the
+        // published version's content so the editor starts from current state, not blank.
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki-page", Path = "wiki-page",
+            Title = "Wiki Page", PageType = "wiki"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("<p>Published content</p>");
+
+        var result = await Sut().Edit(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(view.Model);
+        Assert.Equal("<p>Published content</p>", vm.Content);
     }
 
     [Fact]

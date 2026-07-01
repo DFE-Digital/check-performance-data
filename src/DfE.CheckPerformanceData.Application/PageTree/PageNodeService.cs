@@ -69,6 +69,18 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId) =>
         repository.GetVersionsAsync(nodeId);
 
+    public async Task<string?> GetWorkingOrLatestContentAsync(Guid nodeId)
+    {
+        var versions = await GetVersionsAsync(nodeId);
+        // Draft = highest-VersionId version with no publish window (unscheduled).
+        // GetVersionsAsync returns versions ordered descending by VersionId.
+        var draft = versions.FirstOrDefault(v => v.PublishFrom is null);
+        if (draft is not null)
+            return draft.Content;
+        // No draft: return the latest published version's content (first in desc-ordered list).
+        return versions.FirstOrDefault()?.Content;
+    }
+
     public async Task DeleteAsync(Guid nodeId, string? userId)
     {
         if (await repository.HasChildrenAsync(nodeId))

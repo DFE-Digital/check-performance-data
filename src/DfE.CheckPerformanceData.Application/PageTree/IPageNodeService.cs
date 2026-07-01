@@ -46,6 +46,13 @@ public interface IPageNodeService
     Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId);
 
     /// <summary>
+    /// Returns the working draft's content if a draft exists (PublishFrom is null),
+    /// otherwise returns the latest published version's content.
+    /// Returns null if the node has no versions at all.
+    /// </summary>
+    Task<string?> GetWorkingOrLatestContentAsync(Guid nodeId);
+
+    /// <summary>
     /// Soft-deletes the node. Throws if the node has children (safe default; caller must
     /// delete or reparent children first).
     /// </summary>

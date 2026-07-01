@@ -102,6 +102,28 @@ public class PageNodeContentEditorTests
         Assert.Equal("divider", widget.Type);
     }
 
+    // ── Edit-after-publish regression ────────────────────────────────────────
+
+    [Fact]
+    public async Task AddWidget_AfterPublish_ContinuesFromPublishedContent()
+    {
+        // Simulate the published state: add a widget and capture the serialised tree.
+        await Sut().AddWidgetAsync(_nodeId, [new TreeStep(0, 0)], "heading", null);
+        var publishedContent = _service.ReadContent(_nodeId);
+
+        // Re-seed to represent the "published-only, no draft" state the service returns
+        // via GetWorkingOrLatestContentAsync when PublishAsync has consumed the draft.
+        _service.Seed(_nodeId, publishedContent);
+
+        // Edit again — must build on the published content, not a blank document.
+        await Sut().AddWidgetAsync(_nodeId, [new TreeStep(0, 1)], "divider", null);
+
+        var tree = CurrentTree().Cast<WidgetNode>().ToList();
+        Assert.Equal(2, tree.Count);
+        Assert.Equal("heading", tree[0].Type);
+        Assert.Equal("divider", tree[1].Type);
+    }
+
     // ── UpdateWidget ─────────────────────────────────────────────────────────
 
     [Fact]
@@ -147,8 +169,10 @@ public class PageNodeContentEditorTests
     // Fakes
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Hand-fake IPageNodeService: stores one working-draft content string per nodeId and returns it
-    // as a single unscheduled (PublishFrom=null) version — exactly what the editor expects.
+    // Hand-fake IPageNodeService: stores content per nodeId and exposes it via
+    // GetWorkingOrLatestContentAsync. Simulates both "has working draft" and
+    // "published-only, no draft" states: in both cases the fake returns whatever was last
+    // stored, mirroring the real service's draft-or-latest fallback.
     private sealed class FakePageNodeService : IPageNodeService
     {
         private readonly Dictionary<Guid, string> _content = new();
@@ -160,24 +184,8 @@ public class PageNodeContentEditorTests
         public string ReadContent(Guid nodeId) =>
             _content.TryGetValue(nodeId, out var c) ? c : "[]";
 
-        public Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId)
-        {
-            var content = ReadContent(nodeId);
-            return Task.FromResult(new List<PageNodeVersionDto>
-            {
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    VersionId = 1,
-                    IsCurrent = false,
-                    PublishFrom = null,  // always a working draft
-                    PublishTo = null,
-                    Content = content,
-                    CreatedDate = DateTime.UtcNow,
-                    UpdatedDate = DateTime.UtcNow
-                }
-            });
-        }
+        public Task<string?> GetWorkingOrLatestContentAsync(Guid nodeId) =>
+            Task.FromResult<string?>(ReadContent(nodeId));
 
         public Task SaveWorkingContentAsync(
             Guid nodeId, string content, string bodyPlainText, string? userId)
@@ -187,6 +195,7 @@ public class PageNodeContentEditorTests
         }
 
         // Not called by PageNodeContentEditor — throw to catch accidental usage.
+        public Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId) => throw new NotSupportedException();
         public Task<PageNodeDto> CreatePageAsync(
             Guid? parentId, string segment, string title, string pageType, string? userId) =>
             throw new NotSupportedException();

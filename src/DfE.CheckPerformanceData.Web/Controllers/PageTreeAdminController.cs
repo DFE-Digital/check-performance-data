@@ -130,13 +130,14 @@ public sealed class PageTreeAdminController(
 
     private async Task<IActionResult> WikiEditViewAsync(Guid id, PageNodeDto node)
     {
-        var versions = await pageNodeService.GetVersionsAsync(id);
-        var working = versions.FirstOrDefault(v => v.PublishFrom is null);
+        // Load draft if one exists, else the latest published version's content.
+        // Avoids editing a blank document after a wiki page has been published (no draft remains).
+        var content = await pageNodeService.GetWorkingOrLatestContentAsync(id);
         var vm = new PageTreeAdminWikiEditViewModel
         {
             NodeId    = id,
             NodeTitle = node.Title,
-            Content   = working?.Content ?? string.Empty
+            Content   = content ?? string.Empty
         };
         return View("WikiEdit", vm);
     }

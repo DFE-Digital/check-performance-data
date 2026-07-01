@@ -44,12 +44,9 @@ public sealed class PageNodeContentEditor(
 
     private async Task MutateAsync(Guid nodeId, string? userId, Action<List<ContentNode>> edit)
     {
-        var versions = await pageNodes.GetVersionsAsync(nodeId);
-
-        // Working version = first version with no PublishFrom (unscheduled draft).
-        // GetVersionsAsync returns versions ordered descending by VersionId.
-        var working = versions.FirstOrDefault(v => v.PublishFrom is null);
-        var json = working?.Content ?? "[]";
+        // Load draft if one exists, else the latest published version's content.
+        // Avoids editing a blank document after a page has been published (no draft remains).
+        var json = await pageNodes.GetWorkingOrLatestContentAsync(nodeId) ?? "[]";
 
         var tree = (ContentPageJson.Deserialize(json) ?? []).ToList();
         edit(tree);

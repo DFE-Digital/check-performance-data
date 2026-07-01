@@ -36,6 +36,6 @@ public sealed class CheckingWindowDto
 public class CheckingWindowDraft
 {
     public string? Title { get; set; }
-    public string? IngressFile { get; set; }
-    public string? SchemaFile { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
 }

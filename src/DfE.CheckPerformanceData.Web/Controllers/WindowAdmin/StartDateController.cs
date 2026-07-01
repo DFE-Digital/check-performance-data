@@ -1,6 +1,6 @@
-using System.Runtime.InteropServices.JavaScript;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -10,7 +10,8 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
     private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
 
 
-    [HttpGet("admin/windows/{id:guid}/start-date")]
+    [ActionName("EditWindow")]
+    [HttpGet("admin/windows/{id:guid}/start-date", Name =  "EditWindow")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
         var window = await windowService.GetByIdAsync(id, cancellationToken);
@@ -28,6 +29,51 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
 
         return View(PageView, model);
     }
+    
+    [ActionName("NewWindow")]
+    [HttpGet("admin/windows/start-date")]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
+
+        if (draft == null)
+        {
+            return BadRequest("No draft data");
+        }
+        
+        WindowStartDateEditItem model = new WindowStartDateEditItem()
+        {
+            WindowId = Guid.Empty,
+            StartDate = DateTime.UtcNow.AddMonths(1)
+        };
+
+        return View(PageView, model);
+    }
+    
+    [HttpPost("admin/windows/start-date")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Index(WindowStartDateEditItem model, CancellationToken cancellationToken)
+    {
+        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
+
+        if (draft == null)
+        {
+            return BadRequest("No draft data");
+        }
+
+        DateValidation(model, null);
+        
+        if (ModelState.ErrorCount > 0)
+        {
+            return View(PageView, model);
+        }
+
+        draft.StartDate = model.StartDate;
+        HttpContext.Session.SetObject("CheckingWindowDraft", draft);
+
+        throw new NotImplementedException("pass to end date controller");
+        return RedirectToAction();
+    }
 
     [HttpPost("admin/windows/{id:guid}/start-date")]
     [ValidateAntiForgeryToken]
@@ -35,7 +81,7 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
-        DateValidation(model, window, cancellationToken);
+        DateValidation(model, window);
         
         if (ModelState.ErrorCount > 0)
         {
@@ -53,7 +99,7 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
         return Redirect($"/admin/windows/summary/{id}");
     }
 
-    public void DateValidation(WindowStartDateEditItem model, CheckingWindowDto? windowDto, CancellationToken cancellationToken)
+    public void DateValidation(WindowStartDateEditItem model, CheckingWindowDto? windowDto)
     {
         if (model.StartDate < DateTime.UtcNow)
         {

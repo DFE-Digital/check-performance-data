@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
@@ -9,13 +10,16 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
 {
     private const string PageView = "~/Views/WindowAdmin/Title.cshtml";
 
+    [ActionName("NewTitle")]
     [HttpGet("admin/windows/title")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        WindowTitleEditItem model = new WindowTitleEditItem() { Title = "New window" };
+        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");        
+        WindowTitleEditItem model = new WindowTitleEditItem() { Title = draft?.Title ?? "New window" };
         return View(PageView, model);
     }
 
+    [ActionName("EditTitle")]
     [HttpGet("admin/windows/{id:guid}/title")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
@@ -38,20 +42,17 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
     [HttpPost("admin/windows/title")]
     public async Task<IActionResult> Index(WindowTitleEditItem model, CancellationToken cancellationToken)
     {
+        CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft") ?? new CheckingWindowDraft();        
         if (ModelState.ErrorCount > 0)
         {
             return View(PageView, model);
         }
+
+        draft?.Title = model.Title;
         
-        CheckingWindowDraft draft = new CheckingWindowDraft
-        {
-            Title = model.Title
-        };
-        HttpContext.Session.SetString(
-            "CheckingWindowDraft",
-            JsonSerializer.Serialize(draft));
-            
-        throw new NotImplementedException("Will redirect to required controllers");
+        HttpContext.Session.SetObject("CheckingWindowDraft", draft);
+        
+        return RedirectToAction("NewWindow", "StartDate");
     }
 
     [HttpPost("admin/windows/{id:guid}/title")]

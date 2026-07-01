@@ -1,4 +1,3 @@
-@using System.Runtime.InteropServices.JavaScript
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowStartDateEditItem
 
 @{
@@ -12,7 +11,7 @@
 <form method="post" action="@postUrl" novalidate>
     @Html.AntiForgeryToken()
     
-    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+    <input type="hidden" asp-for="@Model.WindowId" />
     
     <govuk-date-input for="@Model.StartDate">
         <govuk-date-input-fieldset>

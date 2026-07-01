@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -71,5 +72,4 @@ public class WindowStartDateEditItem
     public Guid WindowId { get; init; }
     [Required(ErrorMessage = "Start date can not be empty")]
     public DateTime StartDate { get; init; }
-    
 }

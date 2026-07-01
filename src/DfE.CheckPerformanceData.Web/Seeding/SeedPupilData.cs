@@ -17,6 +17,7 @@ public static class SeedPupilData
         new("101243", "301/4023", AddIncluded: false, AddNonIncluded: true),   // Eastbrook School
         new("116234", "850/2729", AddIncluded: true,  AddNonIncluded: false),  // Alderwood School
         new("142313", "860/4070", AddIncluded: true,  AddNonIncluded: true),   // Kingsmead School
+        new("123312", "931/6095", AddIncluded: true,  AddNonIncluded: true),   // Abingdon School (Independent)
     ];
 
     private static readonly Guid[] WindowIds =

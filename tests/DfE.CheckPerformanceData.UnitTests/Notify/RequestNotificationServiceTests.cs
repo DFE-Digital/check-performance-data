@@ -105,13 +105,13 @@ public sealed class RequestNotificationServiceTests
     [Fact]
     public async Task NotifyAmendmentWithdrawnAsync_EnqueuesOriginatorOnlyMessage()
     {
-        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
 
         var msg = Captured();
         Assert.NotNull(msg);
         Assert.Equal(NotificationType.AmendmentWithdrawn, msg!.Type);
         Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
-        Assert.Equal(string.Empty, msg.Deadline);
+        Assert.Equal("5pm on Friday 26 June 2026", msg.Deadline);
         Assert.Equal(CurrentUserEmail, msg.OriginatorEmail);
         Assert.False(msg.IncludeOrganisationUsers);
     }
@@ -121,13 +121,13 @@ public sealed class RequestNotificationServiceTests
     [Fact]
     public async Task NotifyDataCheckWithdrawnAsync_EnqueuesMessageWithOrgUsers()
     {
-        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber);
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
 
         var msg = Captured();
         Assert.NotNull(msg);
         Assert.Equal(NotificationType.DataCheckWithdrawn, msg!.Type);
         Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
-        Assert.Equal(string.Empty, msg.Deadline);
+        Assert.Equal("5pm on Friday 26 June 2026", msg.Deadline);
         Assert.True(msg.IncludeOrganisationUsers);
     }
 
@@ -137,8 +137,8 @@ public sealed class RequestNotificationServiceTests
     public async Task Notify_DoesNotResolveLinkForNonSubmissionNotifications()
     {
         await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber);
-        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber);
-        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
 
         _emailLinkGenerator.DidNotReceive().GenerateLink(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>());

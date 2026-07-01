@@ -24,6 +24,7 @@ public class RequestServiceTests
     private readonly ILogger<RequestService> _logger = Substitute.For<ILogger<RequestService>>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
     private readonly IRequestNotificationService _requestNotificationService = Substitute.For<IRequestNotificationService>();
+    private readonly ICheckYourPupilDataService _checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly RequestService _sut;
 
     public RequestServiceTests()
@@ -35,7 +36,7 @@ public class RequestServiceTests
         _currentUser.OrganisationUrn.Returns("100000");
         _currentUser.Ukprn.Returns("10000000");
         _currentUser.OrganisationName.Returns("Test School");
-        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService);
+        _sut = new RequestService(_flowService, _requestStateBlobClient, _requestRepository, _currentUser, _logger, _queueService, _requestNotificationService, _checkYourPupilDataService);
     }
 
     // ── ConfirmRequestAsync — guard checks ──────────────────────────────────
@@ -686,10 +687,12 @@ public class RequestServiceTests
     {
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
             .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
+            .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
         await _sut.DeleteAsync(WindowId, "REF001");
 
-        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001");
+        await _requestNotificationService.Received(1).NotifyAmendmentWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0));
     }
 
     [Fact]
@@ -706,10 +709,12 @@ public class RequestServiceTests
         };
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
             .Returns(confirmCorrectRow);
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
+            .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
         await _sut.DeleteAsync(WindowId, "REF001");
 
-        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001");
+        await _requestNotificationService.Received(1).NotifyDataCheckWithdrawnAsync("REF001", new(2026, 6, 26, 17, 0, 0));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

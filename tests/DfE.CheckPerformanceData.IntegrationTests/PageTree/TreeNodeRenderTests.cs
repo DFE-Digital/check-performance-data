@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
+using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -103,6 +104,9 @@ public sealed class TreeNodeRenderTests
                 {
                     services.AddControllersWithViews()
                         .AddApplicationPart(typeof(GuidanceController).Assembly);
+                    // _TreeNode.cshtml renders GovUk form tag helpers (move up/down),
+                    // which resolve IComponentGenerator from the GovUk.Frontend services.
+                    services.AddGovUkFrontend();
                 });
                 web.Configure(_ => { });
             })

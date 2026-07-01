@@ -206,6 +206,7 @@ public class PageNodeContentEditorTests
         public Task<LivePageResult?> GetLivePageAsync(string path, DateTime nowUtc) => throw new NotSupportedException();
         public Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to, string? userId) => throw new NotSupportedException();
         public Task DeleteAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
+        public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
     }
 
     // Minimal IHtmlRenderingService stub: passes text through unchanged. Sufficient for unit-testing

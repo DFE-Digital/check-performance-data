@@ -374,7 +374,7 @@ public class PageNodeServiceTests
         var orderBBefore = _repo.GetSortOrder(childB.Id);
         Assert.True(orderABefore < orderBBefore); // sanity check
 
-        await Sut().MoveAsync(childB.Id, "up", null);
+        await Sut().MoveAsync(childB.Id, "up");
 
         // After moving B up, B should have A's original SortOrder and vice-versa.
         Assert.Equal(orderABefore, _repo.GetSortOrder(childB.Id));
@@ -391,7 +391,7 @@ public class PageNodeServiceTests
         var orderABefore = _repo.GetSortOrder(childA.Id);
         var orderBBefore = _repo.GetSortOrder(childB.Id);
 
-        await Sut().MoveAsync(childA.Id, "down", null);
+        await Sut().MoveAsync(childA.Id, "down");
 
         Assert.Equal(orderBBefore, _repo.GetSortOrder(childA.Id));
         Assert.Equal(orderABefore, _repo.GetSortOrder(childB.Id));
@@ -406,7 +406,7 @@ public class PageNodeServiceTests
 
         var orderBefore = _repo.GetSortOrder(childA.Id);
 
-        await Sut().MoveAsync(childA.Id, "up", null); // already first
+        await Sut().MoveAsync(childA.Id, "up"); // already first
 
         Assert.Equal(orderBefore, _repo.GetSortOrder(childA.Id)); // unchanged
     }
@@ -420,7 +420,7 @@ public class PageNodeServiceTests
 
         var orderBefore = _repo.GetSortOrder(childB.Id);
 
-        await Sut().MoveAsync(childB.Id, "down", null); // already last
+        await Sut().MoveAsync(childB.Id, "down"); // already last
 
         Assert.Equal(orderBefore, _repo.GetSortOrder(childB.Id)); // unchanged
     }

@@ -180,8 +180,10 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Move(Guid id, string direction)
     {
+        if (direction is not ("up" or "down"))
+            return BadRequest();
         if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
-        await pageNodeService.MoveAsync(id, direction, User?.Identity?.Name);
+        await pageNodeService.MoveAsync(id, direction);
         return Redirect("/admin/pages");
     }
 

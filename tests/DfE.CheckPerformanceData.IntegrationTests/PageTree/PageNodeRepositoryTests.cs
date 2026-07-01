@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Repositories;
-using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;

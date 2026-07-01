@@ -519,6 +519,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentAdd_Widget_CallsAddWidgetAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentAdd(id, "0.0", widgetType: "heading", regionLayout: null);
 
@@ -535,6 +537,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentAdd_Region_CallsAddRegionAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentAdd(id, "0.1", widgetType: null, regionLayout: "Halves");
 
@@ -553,6 +557,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentMove_Up_CallsMoveUpAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentMove(id, "0.2", "up");
 
@@ -567,6 +573,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentMove_Down_CallsMoveDownAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentMove(id, "0.0", "down");
 
@@ -583,6 +591,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentDelete_CallsDeleteAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentDelete(id, "0.0");
 
@@ -599,6 +609,8 @@ public sealed class PageTreeAdminControllerTests
     public async Task ContentWidget_BuildsPropsAndCallsUpdateWidgetAsync_AndRedirects()
     {
         var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var result = await Sut().ContentWidget(
             id, "0.0", "heading",
@@ -750,6 +762,17 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
+    public async Task Move_InvalidDirection_ReturnsBadRequest_DoesNotCallService()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().Move(id, "sideways");
+
+        Assert.IsType<BadRequestResult>(result);
+        await _service.DidNotReceive().MoveAsync(Arg.Any<Guid>(), Arg.Any<string>());
+    }
+
+    [Fact]
     public async Task Move_KnownId_Up_CallsMoveAsyncAndRedirects()
     {
         var id = Guid.NewGuid();
@@ -757,11 +780,11 @@ public sealed class PageTreeAdminControllerTests
         {
             Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
         });
-        _service.MoveAsync(id, "up", Arg.Any<string?>()).Returns(Task.CompletedTask);
+        _service.MoveAsync(id, "up").Returns(Task.CompletedTask);
 
         var result = await Sut().Move(id, "up");
 
-        await _service.Received(1).MoveAsync(id, "up", Arg.Any<string?>());
+        await _service.Received(1).MoveAsync(id, "up");
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/admin/pages", redirect.Url);
     }
@@ -774,11 +797,11 @@ public sealed class PageTreeAdminControllerTests
         {
             Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
         });
-        _service.MoveAsync(id, "down", Arg.Any<string?>()).Returns(Task.CompletedTask);
+        _service.MoveAsync(id, "down").Returns(Task.CompletedTask);
 
         var result = await Sut().Move(id, "down");
 
-        await _service.Received(1).MoveAsync(id, "down", Arg.Any<string?>());
+        await _service.Received(1).MoveAsync(id, "down");
         Assert.Equal("/admin/pages", Assert.IsType<RedirectResult>(result).Url);
     }
 

@@ -63,5 +63,5 @@ public interface IPageNodeService
     /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").
     /// No-ops silently when the node is already at the end of the list.
     /// </summary>
-    Task MoveAsync(Guid nodeId, string direction, string? userId);
+    Task MoveAsync(Guid nodeId, string direction);
 }

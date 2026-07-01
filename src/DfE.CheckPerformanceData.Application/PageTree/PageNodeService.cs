@@ -91,7 +91,7 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         await repository.SoftDeleteAsync(nodeId, userId);
     }
 
-    public async Task MoveAsync(Guid nodeId, string direction, string? userId)
+    public async Task MoveAsync(Guid nodeId, string direction)
     {
         var node = await repository.GetByIdAsync(nodeId);
         if (node is null) return; // node does not exist; caller should have validated

@@ -10,10 +10,41 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 {
     // Queries — use ProjectToDto so EF translates the mapping to SQL
 
+    public async Task<List<ContentBlockDto>> GetAllAsync() =>
+        await context.ContentBlocks
+            .AsNoTracking()
+            .OrderBy(b => b.Key)
+            .ProjectToDto()
+            .ToListAsync();
+
     public async Task<ContentBlockDto?> GetByKeyAsync(string key) =>
         await context.ContentBlocks
             .AsNoTracking()
             .Where(b => b.Key == key)
+            .ProjectToDto()
+            .FirstOrDefaultAsync();
+
+    public async Task<List<ContentBlockDto>> SearchAsync(string query, int take)
+    {
+        // Escape LIKE wildcards in the user term, then case-insensitive contains. Exclude
+        // e2e seed blocks and the guidance nav block (it lists every section title).
+        var escaped = query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
+        var pattern = $"%{escaped}%";
+
+        return await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => !b.Key.StartsWith("e2e-") && b.Key != "guidance-ks4-2026-nav")
+            .Where(b => EF.Functions.ILike(b.Value, pattern, "\\"))
+            .OrderBy(b => b.Key)
+            .Take(take)
+            .ProjectToDto()
+            .ToListAsync();
+    }
+
+    public async Task<ContentBlockDto?> GetByContentIdAsync(Guid contentId) =>
+        await context.ContentBlocks
+            .AsNoTracking()
+            .Where(b => b.ContentId == contentId)
             .ProjectToDto()
             .FirstOrDefaultAsync();
 
@@ -39,7 +70,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     // Commands — work with tracked entities internally
 
-    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value)
+    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value, Guid? contentId = null)
     {
         var entity = new ContentBlock
         {
@@ -50,10 +81,29 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             UpdatedAt = DateTime.UtcNow
         };
 
+        // Preserve a supplied cross-environment identity; otherwise the DB default generates one.
+        if (contentId is { } id && id != Guid.Empty)
+            entity.ContentId = id;
+
         context.ContentBlocks.Add(entity);
         await context.SaveChangesAsync();
 
         return ContentBlockMapper.ToDto(entity);
+    }
+
+    // Content-staging Replace: overwrite an existing block in place — including a Key/type change
+    // (a "rename") and reconciling its cross-environment identity — matched by row id.
+    public async Task UpdateForStagingAsync(int id, string key, string blockType, string value, Guid contentId)
+    {
+        var entity = await context.ContentBlocks.FindAsync(id)
+            ?? throw new InvalidOperationException($"Content block {id} not found.");
+
+        entity.Key = key;
+        entity.BlockType = blockType;
+        entity.Value = value;
+        if (contentId != Guid.Empty)
+            entity.ContentId = contentId;
+        entity.UpdatedAt = DateTime.UtcNow;
     }
 
     public async Task AddVersionAsync(int contentBlockId, string value, int versionNumber)
@@ -67,6 +117,19 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         };
 
         context.ContentBlockVersions.Add(version);
+        await context.SaveChangesAsync();
+    }
+
+    // Records where a block was last rendered. Called from the editable view components only when
+    // the path actually changed, so this rarely writes; matched by Key (a no-op if the block has
+    // no saved row yet).
+    public async Task SetLastSeenAsync(string key, string path, DateTime seenAt)
+    {
+        var entity = await context.ContentBlocks.FirstOrDefaultAsync(b => b.Key == key);
+        if (entity is null) return;
+
+        entity.LastSeenPath = path;
+        entity.LastSeenAt = seenAt;
         await context.SaveChangesAsync();
     }
 

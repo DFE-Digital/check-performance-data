@@ -381,6 +381,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid>("ContentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -389,6 +394,12 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.Property<string>("Key")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastSeenPath")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -402,6 +413,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContentId")
+                        .IsUnique();
 
                     b.HasIndex("Key")
                         .IsUnique();
@@ -689,6 +703,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<string>("Content")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("ContentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -731,6 +750,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ContentId")
+                        .IsUnique();
 
                     b.HasIndex("IsDeleted");
 

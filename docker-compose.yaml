@@ -13,6 +13,10 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      # Local-only dev tooling surface (impersonation + /dev/* seed endpoints). The
+      # E2E suite drives /dev/impersonate/* against this container, so it must be on
+      # here. Deployed DEV/QA/Preproduction never set this; Production is hard-guarded.
+      - Dev__ToolsEnabled=${DEV_TOOLS_ENABLED:-true}
       - ASPNETCORE_URLS=http://+:8080
       # Local dev has no GOV.UK Notify secret, so use the console fake (logs emails
       # instead of sending). Set NOTIFY_USEFAKE=false + supply Notify__ApiKey to send real emails.
@@ -114,25 +118,31 @@ services:
     environment:
       - AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      set -eu
-      echo "Waiting for Azurite to respond..."
-      for i in $$(seq 1 60); do
-        if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
-          break
-        fi
-        sleep 1
-      done
-      echo "Ensuring rules-config container..."
-      az storage container create --name rules-config --only-show-errors >/dev/null
-      echo "Uploading seed JSON..."
-      az storage blob upload-batch \
-        --destination rules-config \
-        --source /seed \
-        --pattern '*.json' \
-        --overwrite \
-        --only-show-errors
-      echo "Seed upload complete."
+    # command MUST be a single-element list, not a `|` block scalar (a YAML string).
+    # With an exec-form entrypoint, Compose word-splits a string command into separate
+    # argv entries, so `sh -c` would receive only the first token ("set") as its script
+    # and the rest as positional parameters — the whole seed script silently became a
+    # no-op env dump. A one-element list passes the entire script as a single argument.
+    command:
+      - |
+        set -eu
+        echo "Waiting for Azurite to respond..."
+        for i in $$(seq 1 60); do
+          if az storage container exists --name rules-config --only-show-errors >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+        done
+        echo "Ensuring rules-config container..."
+        az storage container create --name rules-config --only-show-errors >/dev/null
+        echo "Uploading seed JSON..."
+        az storage blob upload-batch \
+          --destination rules-config \
+          --source /seed \
+          --pattern '*.json' \
+          --overwrite \
+          --only-show-errors
+        echo "Seed upload complete."
     networks:
       - cypd
 
@@ -184,6 +194,42 @@ services:
     command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log --skipApiVersionCheck
     networks:
       - cypd
+
+  e2e-tests:
+    profiles: [e2e]
+    container_name: cypd_e2e_tests
+    # Image tag is pinned in tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    # (FROM line) — must move in lockstep with the Microsoft.Playwright NuGet
+    # version in src/Directory.Packages.props. Drift surfaces via
+    # `bash scripts/check-playwright-pin.sh`.
+    build:
+      context: .
+      dockerfile: tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    image: cypd_e2e_tests:latest
+    working_dir: /work
+    environment:
+      - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
+      - NUGET_PACKAGES=/root/.nuget/packages
+      - DOTNET_NOLOGO=1
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+    # The bind-mount lets dotnet test see the full source tree and write
+    # diff PNGs back to the host on visual-regression failure. The named
+    # cpd-nuget-cache volume persists package restore across --rm runs so
+    # subsequent invocations start in seconds, not minutes.
+    volumes:
+      - ./:/work
+      - cpd-nuget-cache:/root/.nuget/packages
+    # depends_on uses default condition (service_started). PlaywrightFixture
+    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
+    # any test exercises the web app — that is the authoritative readiness
+    # gate. (web service has no compose-level healthcheck today.) The web app
+    # self-seeds the rules-config blobs during its startup seeding (so the admin
+    # rules editor works in E2E without the rules_engine/azurite_init container).
+    depends_on:
+      - web
+    networks:
+      - cypd
+    command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]
 
 volumes:
   postgres_data:

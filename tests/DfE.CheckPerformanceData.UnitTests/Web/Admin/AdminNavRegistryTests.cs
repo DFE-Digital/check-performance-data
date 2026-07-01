@@ -20,8 +20,9 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal(20, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
-		Assert.Contains("Version retention", titles);
+		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
+		Assert.Contains("Content blocks", titles);
 		Assert.DoesNotContain("Visual regression dashboard", titles);
 		Assert.Contains("Rules Engine", titles);
 		Assert.Contains("Queues", titles);

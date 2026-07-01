@@ -6,6 +6,7 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Journey.Conditions;
+using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
@@ -20,6 +21,8 @@ public static class DependencyManager
     {
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
+        services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();
         services.AddScoped<WikiSeeder>();
@@ -32,6 +35,7 @@ public static class DependencyManager
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+        services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();

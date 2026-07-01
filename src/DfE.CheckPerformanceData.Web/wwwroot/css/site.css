@@ -347,6 +347,19 @@
   color: #0b0c0c;
 }
 
+/* POST nav action rendered as a link-styled button (e.g. Seed sample pages) */
+.tv-link-form {
+  display: inline;
+  margin: 0;
+}
+
+.tv-link-button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
 /* Parent nodes: bold */
 .tv-link-parent {
   font-weight: 700;
@@ -1014,6 +1027,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   line-height: 1.2;
 }
 
+/* The "leave admin" link sits below the tree, set off by a divider. */
+.admin-nav-tree__leave {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #b1b4b6;
+}
+
 .admin-nav-group + .admin-nav-group {
   border-top: 1px solid #b1b4b6;
   padding-top: 20px;
@@ -1341,4 +1361,110 @@ body.js-enabled .rules-condition__apply {
   0%   { opacity: 1; }
   60%  { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ------------------------------------------------------------------ *
+   Guidance pages — in-page contents navigation + sections
+ * ------------------------------------------------------------------ */
+/* The contents nav uses the canonical MoJ side-navigation component for all its
+   styling — link colour, spacing, active state and keyboard focus. The only thing
+   layered on here is sticky positioning, scoped to the guidance column so the
+   component's default behaviour is untouched anywhere else it's used. */
+/* Theme the component to the site's govuk link colour. The MoJ component reads
+   var(--govuk-link-colour, …) and otherwise falls back to its own older #1a65a6,
+   which is inconsistent with every other link on the page (govuk #1d70b8). */
+.guidance-side-nav .moj-side-navigation {
+  --govuk-link-colour: #1d70b8;
+  --govuk-link-hover-colour: #003078;
+}
+/* Nested H3 sub-sections: indent under their parent H2 so the contents nav mirrors
+   the page's heading hierarchy (H2s listed, H3s nested beneath their H2). */
+.guidance-side-nav .guidance-nav__sub {
+  margin-left: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #b1b4b6;
+}
+@media (min-width: 40.0625em) {
+  .guidance-side-nav .moj-side-navigation {
+    position: sticky;
+    top: 20px;
+  }
+}
+.guidance-section {
+  scroll-margin-top: 20px;
+  margin-bottom: 40px;
+}
+.guidance-section__top { margin-top: 10px; }
+
+/* ------------------------------------------------------------------ *
+   CYPMD custom content-block components (also offered in the WYSIWYG
+   style menu so editors can apply them — see EditableContent config)
+ * ------------------------------------------------------------------ */
+
+/* Blue "Published / last reviewed" callout (blue left border + light-blue fill). */
+.cypmd-published {
+  background: #e8f1f8;
+  border-left: 5px solid #1d70b8;
+  padding: 20px 20px 5px;
+  margin-bottom: 30px;
+}
+.cypmd-published__heading {
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+
+/* Information callout (no border) — a darker blue than the published callout,
+   per the design — e.g. "the next exercise opens…". */
+.cypmd-notice {
+  background: #d2e2f1;
+  padding: 20px 20px 5px;
+  margin-bottom: 30px;
+}
+
+/* Guidance cards use the canonical dfe-card component (whole-card link, hover/focus
+   states) from dfefrontend — no bespoke card CSS here. */
+
+/* GDS "Dos and don'ts": colour-coded top rule + tick/cross icon, no background fill.
+   Colour is never the only signal — the "Do"/"Do not" heading text and the icon carry
+   the meaning too (WCAG 2.2 SC 1.4.1, use of colour). */
+.cypmd-do,
+.cypmd-dont { border-top: 4px solid; padding-top: 15px; }
+.cypmd-do { border-top-color: #00703c; }
+.cypmd-dont { border-top-color: #d4351c; }
+.cypmd-do__title,
+.cypmd-dont__title { display: flex; gap: 8px; align-items: baseline; }
+.cypmd-do__icon { color: #00703c; }
+.cypmd-dont__icon { color: #d4351c; }
+
+/* The guidance-page lede sits a little tighter to the editable heading blocks. */
+.guidance-section .content-block--title { margin-bottom: 5px; }
+.guidance-section .content-block--title h2,
+.guidance-section .content-block--title h3 { margin-bottom: 0; }
+
+/* Landing-page search box (input + button on one row). */
+.cypmd-search { margin: 20px 0 30px; }
+.cypmd-search__row { display: flex; max-width: 51em; }
+.cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
+.cypmd-search__button { margin-bottom: 0; margin-left: 5px; flex: 0 0 auto; }
+
+/* Landing-page data-check sections: visible rule directly under the heading. */
+.cypmd-landing-section { margin-bottom: 40px; }
+.cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }
+.cypmd-landing-section .content-block--title { margin-bottom: 0; }
+
+/* Equal-height cards: make each card row a flex row so every column — and the
+   dfe-card inside it — stretches to the height of the tallest card in the row,
+   instead of each card sizing to its own (variable) amount of text. Scoped to the
+   landing card sections so the global govuk-grid-row is untouched elsewhere. */
+.cypmd-landing-section .govuk-grid-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"] {
+  display: flex;
+}
+.cypmd-landing-section .dfe-card {
+  width: 100%;
 }

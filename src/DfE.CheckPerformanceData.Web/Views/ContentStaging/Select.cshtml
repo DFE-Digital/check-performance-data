@@ -1,0 +1,139 @@
+@using DfE.CheckPerformanceData.Application.ContentStaging
+@model ContentCatalog
+@{
+    ViewData["Title"] = "Choose content to export";
+    var error = TempData["ContentStagingError"] as string;
+    string SortDate(DateTime d) => d.ToString("yyyyMMddHHmmss");
+    string ShowDate(DateTime d) => d.ToString("d MMM yyyy, HH:mm");
+}
+
+<a href="/admin/content-staging" class="govuk-back-link">Back to content staging</a>
+
+<h1 class="govuk-heading-xl">Choose content to export</h1>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body"><p class="govuk-body">@error</p></div>
+        </div>
+    </div>
+}
+
+<p class="govuk-body">
+    Tick the wiki pages and content blocks to include, then export them as a single bundle.
+    Selecting a page automatically includes its parent pages so the structure stays intact.
+</p>
+
+<div class="govuk-form-group">
+    <label class="govuk-label govuk-label--s" for="cs-filter">Filter</label>
+    <div id="cs-filter-hint" class="govuk-hint">Type to filter by title, key or page across both lists.</div>
+    <input class="govuk-input govuk-input--width-20" id="cs-filter" type="text" aria-describedby="cs-filter-hint" autocomplete="off">
+</div>
+
+<form method="post" action="/admin/content-staging/export">
+    @Html.AntiForgeryToken()
+
+    <h2 class="govuk-heading-l">Wiki pages</h2>
+    @if (Model.Pages.Count == 0)
+    {
+        <p class="govuk-body">No wiki pages.</p>
+    }
+    else
+    {
+        <table class="govuk-table" id="cs-pages">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">
+                        <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                            <input class="govuk-checkboxes__input" type="checkbox" id="cs-pages-all" data-select-all="cs-pages">
+                            <label class="govuk-label govuk-checkboxes__label" for="cs-pages-all"><span class="govuk-visually-hidden">Select all pages</span></label>
+                        </div>
+                    </th>
+                    <th scope="col" class="govuk-table__header" data-sort>Title</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Created</th>
+                    <th scope="col" class="govuk-table__header" aria-sort="ascending" data-sort>Last updated</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var p in Model.Pages)
+                {
+                    <tr class="govuk-table__row" data-filter="@($"{p.Title} {p.SlugPath}".ToLowerInvariant())">
+                        <td class="govuk-table__cell">
+                            <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                                <input class="govuk-checkboxes__input" type="checkbox" name="wikiPageIds" value="@p.Id" id="cs-page-@p.Id">
+                                <label class="govuk-label govuk-checkboxes__label" for="cs-page-@p.Id"><span class="govuk-visually-hidden">Select @p.Title</span></label>
+                            </div>
+                        </td>
+                        <td class="govuk-table__cell" data-sort-value="@p.SlugPath">
+                            <span style="display:inline-block;width:@(p.Depth * 20)px"></span>@p.Title
+                            <span class="govuk-!-colour-secondary govuk-body-s">/@p.SlugPath</span>
+                        </td>
+                        <td class="govuk-table__cell" data-sort-value="@SortDate(p.CreatedAt)">@ShowDate(p.CreatedAt)</td>
+                        <td class="govuk-table__cell" data-sort-value="@SortDate(p.UpdatedAt)">@ShowDate(p.UpdatedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h2 class="govuk-heading-l">Content blocks</h2>
+    @if (Model.Blocks.Count == 0)
+    {
+        <p class="govuk-body">No content blocks.</p>
+    }
+    else
+    {
+        <table class="govuk-table" id="cs-blocks">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">
+                        <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                            <input class="govuk-checkboxes__input" type="checkbox" id="cs-blocks-all" data-select-all="cs-blocks">
+                            <label class="govuk-label govuk-checkboxes__label" for="cs-blocks-all"><span class="govuk-visually-hidden">Select all blocks</span></label>
+                        </div>
+                    </th>
+                    <th scope="col" class="govuk-table__header" data-sort>Key</th>
+                    <th scope="col" class="govuk-table__header" data-sort>On page</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Type</th>
+                    <th scope="col" class="govuk-table__header" data-sort>Created</th>
+                    <th scope="col" class="govuk-table__header" aria-sort="ascending" data-sort>Last updated</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var b in Model.Blocks)
+                {
+                    <tr class="govuk-table__row" data-filter="@($"{b.Key} {b.LastSeenPath}".ToLowerInvariant())">
+                        <td class="govuk-table__cell">
+                            <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                                <input class="govuk-checkboxes__input" type="checkbox" name="contentBlockIds" value="@b.Id" id="cs-block-@b.Id">
+                                <label class="govuk-label govuk-checkboxes__label" for="cs-block-@b.Id"><span class="govuk-visually-hidden">Select @b.Key</span></label>
+                            </div>
+                        </td>
+                        <td class="govuk-table__cell"><code>@b.Key</code></td>
+                        <td class="govuk-table__cell" data-sort-value="@(b.LastSeenPath ?? "")">
+                            @if (!string.IsNullOrEmpty(b.LastSeenPath))
+                            {
+                                <a class="govuk-link" href="@b.LastSeenPath">@b.LastSeenPath</a>
+                            }
+                            else
+                            {
+                                <span class="govuk-hint govuk-!-margin-0">Not seen yet</span>
+                            }
+                        </td>
+                        <td class="govuk-table__cell">@b.BlockType</td>
+                        <td class="govuk-table__cell" data-sort-value="@SortDate(b.CreatedAt)">@ShowDate(b.CreatedAt)</td>
+                        <td class="govuk-table__cell" data-sort-value="@SortDate(b.UpdatedAt)">@ShowDate(b.UpdatedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <button class="govuk-button" data-module="govuk-button" type="submit">Export selected</button>
+</form>
+
+@section Scripts {
+    <script src="~/js/cms-content-list.js" asp-append-version="true"></script>
+}

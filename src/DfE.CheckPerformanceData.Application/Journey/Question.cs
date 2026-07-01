@@ -16,4 +16,11 @@ public sealed class Question
     public string? QuestionHelpTitle { get; init; }
     public string? QuestionHelpText { get; init; }
     public string? ValidationFailure { get; init; }
+
+    /// <summary>
+    /// Optional name of an <c>IFormatValidator</c> applied to this question's
+    /// answer once it is non-empty (e.g. <c>"DfeNumber"</c>). An unregistered
+    /// name is ignored. See CLAUDE.md → Question Flow.
+    /// </summary>
+    public string? Validator { get; init; }
 }

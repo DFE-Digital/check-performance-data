@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -88,7 +89,10 @@ public sealed class CheckYourPupilDataRepository(
         var urnLong = long.Parse(urn);
         var excludedUpns = (await dbContext.ChangeRequests
                 .AsNoTracking()
-                .Where(r => r.WindowId == windowId && r.OrganisationUrn == urnLong && r.PupilUpn != null)
+                .Where(r => r.WindowId == windowId &&
+                            r.OrganisationUrn == urnLong &&
+                            r.PupilUpn != null &&
+                            r.Status != RequestStatus.Withdrawn)
                 .Select(r => r.PupilUpn!)
                 .ToListAsync())
             .ToHashSet(StringComparer.Ordinal);

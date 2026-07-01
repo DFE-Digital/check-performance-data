@@ -18,6 +18,17 @@ public sealed class SettingDefinitionsTests
     }
 
     [Fact]
+    public void All_ContainsWikiVersionRetention_DefaultingTo20_AsInt()
+    {
+        var definition = SettingDefinitions.Find(SettingKeys.WikiVersionRetention);
+
+        Assert.NotNull(definition);
+        Assert.Equal("Wiki:VersionRetention", definition!.Key);
+        Assert.Equal("20", definition.DefaultValue);
+        Assert.Equal(SettingKind.Int, definition.Kind);
+    }
+
+    [Fact]
     public void All_KeysAreUnique()
     {
         var keys = SettingDefinitions.All.Select(d => d.Key).ToList();

@@ -1,0 +1,85 @@
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model GuidancePage
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<nav class="govuk-breadcrumbs" aria-label="Breadcrumb">
+    <ol class="govuk-breadcrumbs__list">
+        <li class="govuk-breadcrumbs__list-item">
+            <a class="govuk-breadcrumbs__link" href="/">Home</a>
+        </li>
+        <li class="govuk-breadcrumbs__list-item">
+            <a class="govuk-breadcrumbs__link" href="/guidance">Guidance</a>
+        </li>
+        <li class="govuk-breadcrumbs__list-item" aria-current="page">2026 KS4 June checking exercise</li>
+    </ol>
+</nav>
+
+<div class="govuk-grid-row" id="guidance-top">
+    <div class="govuk-grid-column-one-third">
+        @* The side navigation is a single editable content block. Its anchor links target the
+           template-owned section ids below, so it stays in step with the document structure. *@
+        <div class="guidance-side-nav">
+            @await Component.InvokeAsync("EditableContent", new
+            {
+                key = Model.NavBlockKey,
+                defaultHtml = "<nav class=\"govuk-body\" aria-label=\"Contents\"><p>Contents to be added.</p></nav>"
+            })
+        </div>
+    </div>
+
+    <div class="govuk-grid-column-two-thirds">
+        @await Component.InvokeAsync("EditableTitle", new
+        {
+            key = "guidance-ks4-2026-caption",
+            defaultText = "Guidance",
+            headingLevel = "span",
+            cssClass = "govuk-caption-l"
+        })
+        @await Component.InvokeAsync("EditableTitle", new
+        {
+            key = Model.TitleBlockKey,
+            defaultText = Model.Title,
+            headingLevel = "h1",
+            cssClass = "govuk-heading-xl"
+        })
+
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = Model.IntroBlockKey,
+            defaultHtml = "<p class=\"govuk-body\">Guidance introduction to be added.</p>"
+        })
+
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = Model.PublishedBlockKey,
+            defaultHtml = "<div class=\"cypmd-published\"><p class=\"cypmd-published__heading\">Published</p></div>"
+        })
+
+        @foreach (var sec in Model.Sections)
+        {
+            <section id="@sec.Anchor" class="guidance-section">
+                @* P1: the section heading is itself an editable Title block (not template text);
+                   the stable anchor lives on the <section> wrapper so links never drift. *@
+                @await Component.InvokeAsync("EditableTitle", new
+                {
+                    key = sec.HeadingBlockKey,
+                    defaultText = sec.NavTitle,
+                    headingLevel = sec.HeadingElement,
+                    cssClass = sec.HeadingCssClass
+                })
+
+                @await Component.InvokeAsync("EditableContent", new
+                {
+                    key = sec.BlockKey,
+                    defaultHtml = "<p class=\"govuk-body\">Content to be added.</p>"
+                })
+
+                <p class="govuk-body-s guidance-section__top">
+                    <a class="govuk-link" href="#guidance-top">Back to top</a>
+                </p>
+            </section>
+        }
+    </div>
+</div>

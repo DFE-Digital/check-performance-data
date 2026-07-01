@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -10,6 +11,7 @@ public sealed class HelpController(
     IWikiService wikiService,
     WikiSeeder wikiSeeder,
     ISettingService settingService,
+    IContentBlockSearchService contentBlockSearchService,
     ILogger<HelpController> logger) : Controller
 {
     private bool IsEditMode =>
@@ -58,7 +60,8 @@ public sealed class HelpController(
         {
             Title = model.Title,
             Content = model.Content,
-            ParentId = model.ParentId
+            ParentId = model.ParentId,
+            Slug = model.Slug
         };
 
         try
@@ -96,7 +99,8 @@ public sealed class HelpController(
         var dto = new UpdateWikiPageDto
         {
             Title = model.Title,
-            Content = model.Content
+            Content = model.Content,
+            Slug = model.Slug
         };
 
         try
@@ -144,7 +148,8 @@ public sealed class HelpController(
         var safePage = page < 1 ? 1 : page;
         var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
         var result = await wikiService.SearchAsync(q ?? string.Empty, safePage, pageSize);
-        var tree = await wikiService.GetNavigationTreeAsync();
+        var contentResults = await contentBlockSearchService.SearchAsync(q);
+        var tree = await wikiService.GetNavigationTreeAsync() ?? [];
 
         var errors = result.InvalidReason switch
         {
@@ -160,6 +165,7 @@ public sealed class HelpController(
             PageSize = result.PageSize,
             TotalCount = result.TotalCount,
             Results = result.Items,
+            ContentResults = contentResults,
             InvalidReason = result.InvalidReason,
             ErrorMessages = errors,
             InputId = "search-q",

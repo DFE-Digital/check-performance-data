@@ -1,10 +1,16 @@
+using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
 // Pass maxEvidencePages > 0 to the DI registration to re-enable the page-count limit.
-public sealed class JourneyValidationService(int maxEvidencePages = 0) : IJourneyValidationService
+public sealed class JourneyValidationService(
+    IEnumerable<IFormatValidator>? formatValidators = null,
+    int maxEvidencePages = 0) : IJourneyValidationService
 {
+    private readonly IReadOnlyList<IFormatValidator> _formatValidators =
+        formatValidators?.ToList() ?? [];
+
     public int MaxEvidencePages => maxEvidencePages;
 
     public bool IsAnswered(Question question, QuestionAnswer? answer) =>
@@ -33,8 +39,9 @@ public sealed class JourneyValidationService(int maxEvidencePages = 0) : IJourne
         return new RequireAtLeastOneResult("You must answer at least one of these questions", fieldErrors);
     }
 
-    public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null) =>
-        question.Type switch
+    public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)
+    {
+        var baseError = question.Type switch
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
@@ -49,6 +56,22 @@ public sealed class JourneyValidationService(int maxEvidencePages = 0) : IJourne
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             _ => null
         };
+
+        return baseError ?? ValidateFormat(question, answer.TextValue);
+    }
+
+    // Runs a named IFormatValidator against a present text value. Skips when the
+    // question has no validator, the value is empty (emptiness is the required
+    // rule's concern), or the named validator is not registered (fail open — a
+    // bad config name must not block every submission).
+    private string? ValidateFormat(Question question, string? textValue)
+    {
+        if (string.IsNullOrWhiteSpace(question.Validator) || string.IsNullOrWhiteSpace(textValue))
+            return null;
+
+        var validator = _formatValidators.FirstOrDefault(v => v.Name == question.Validator);
+        return validator is not null && !validator.IsValid(textValue) ? validator.FailureMessage : null;
+    }
 
     private static bool IsValidDate(DateAnswer d) =>
         d.Month is >= 1 and <= 12 &&

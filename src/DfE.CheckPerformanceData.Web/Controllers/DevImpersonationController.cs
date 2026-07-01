@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,15 +8,18 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Dev-only endpoints that flip the cypd-dev-impersonation cookie so manual testers and
 // E2E tests can adopt or shed the editor role without going near the real DfE Sign-In
-// flow. Every action returns 404 when the host environment is Production — belt-and-
-// braces alongside Program.cs's gated DI registration. NEVER allow this controller's
-// routes to reach production. [AllowAnonymous] is required because the global
-// FallbackPolicy demands authentication; E2E callers reach these endpoints before they
-// have any auth cookie.
+// flow. The surface is gated on the Dev:ToolsEnabled flag AND a hard production guard —
+// mirroring the sibling /dev/* controllers — so it only exists on local dev and ephemeral
+// PR/review apps (where the flag is set), never on deployed DEV/QA/Preproduction (where it
+// is not) and never in Production. NEVER allow this controller's routes to reach
+// production. [AllowAnonymous] is required because the global FallbackPolicy demands
+// authentication; E2E callers reach these endpoints before they have any auth cookie.
 [AllowAnonymous]
-public sealed class DevImpersonationController(IHostEnvironment env) : Controller
+public sealed class DevImpersonationController(IConfiguration configuration, IHostEnvironment env) : Controller
 {
-    private bool IsAllowed => !env.IsProduction();
+    private bool IsAllowed =>
+        configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
+        && !env.IsProduction();
 
     // Accept both verbs so the header link can be a plain <a href> and an E2E client
     // (which would otherwise need to scrape an antiforgery token first) can POST. These
@@ -70,7 +74,10 @@ public sealed class DevImpersonationController(IHostEnvironment env) : Controlle
             HttpOnly = true,
             SameSite = SameSiteMode.Strict,
             Secure = Request.IsHttps,
-            MaxAge = TimeSpan.FromHours(1)
+            // A full working day so a manual testing session doesn't lapse mid-way and bounce the
+            // tester to DfE Sign-In (which can't complete on a non-registered local port). Dev-only:
+            // this controller 404s in production and E2E sets the cookie fresh each run.
+            MaxAge = TimeSpan.FromHours(12)
         });
     }
 

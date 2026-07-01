@@ -103,9 +103,7 @@ public sealed class AdminAuthTests(PlaywrightFixture fixture)
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Version retention", body);
             Assert.Contains("Content staging import/export", body);
-            Assert.Contains("Coming soon", body);
 
             // New shape after the grouped admin landing rebuild.
             Assert.Contains("CMS administration", body);

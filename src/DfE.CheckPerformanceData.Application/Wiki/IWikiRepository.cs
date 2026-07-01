@@ -9,6 +9,7 @@ public interface IWikiRepository
     Task<WikiPageDto?> GetByIdIgnoringFiltersAsync(int id);
     Task<WikiPageDto?> GetByIdIncludingDeletedAsync(int id);
     Task<WikiPageDto?> GetBySlugAndParentAsync(string slug, int? parentId);
+    Task<WikiPageDto?> GetByContentIdAsync(Guid contentId);
     Task<bool> SlugExistsAsync(string slug, int? parentId);
     Task<int> GetMaxSortOrderAsync(int? parentId);
     Task<List<WikiPageDto>> GetChildrenIgnoringFiltersAsync(int parentId);
@@ -26,6 +27,8 @@ public interface IWikiRepository
     Task<WikiPageDto> AddPageAsync(CreateWikiPageDto dto, string slug, int sortOrder, string bodyPlainText);
     Task AddVersionAsync(int wikiPageId, string title, string? content, int versionNumber);
     Task UpdatePageAsync(int id, string title, string? content, string slug, string bodyPlainText);
+    Task SetSortOrderAsync(int id, int sortOrder);
+    Task SetContentIdAsync(int id, Guid contentId);
     Task SoftDeleteRecursiveAsync(int id);
     Task HardDeleteAsync(int id);
     Task<bool> GetIsDeletedAsync(int id);

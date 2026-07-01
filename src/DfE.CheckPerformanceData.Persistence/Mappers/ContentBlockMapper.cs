@@ -17,9 +17,7 @@ internal static partial class ContentBlockMapper
 
     // In-memory mapping — for entities already loaded (e.g. after Add/SaveChanges)
 
-    [MapperIgnoreSource(nameof(ContentBlock.CreatedAt))]
     [MapperIgnoreSource(nameof(ContentBlock.CreatedBy))]
-    [MapperIgnoreSource(nameof(ContentBlock.UpdatedAt))]
     [MapperIgnoreSource(nameof(ContentBlock.UpdatedBy))]
     [MapperIgnoreSource(nameof(ContentBlock.Versions))]
     [MapperIgnoreTarget(nameof(ContentBlockDto.ValueHtml))]

@@ -552,6 +552,7 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_ReturnsStateFromBlobClient()
     {
+        StubOwningRow("REF001");
         var expected = new RequestState { ReferenceNumber = "REF001" };
         _requestStateBlobClient.GetAsync(WindowId, "REF001").Returns(expected);
 
@@ -563,11 +564,25 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_WhenDraftNotFound_ReturnsNull()
     {
+        StubOwningRow("MISSING");
         _requestStateBlobClient.GetAsync(WindowId, "MISSING").Returns((RequestState?)null);
 
         var result = await _sut.ResumeDraftAsync(WindowId, "MISSING");
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task ResumeDraftAsync_WhenCallerOrgDoesNotOwnDraft_ReturnsNullWithoutReadingBlob()
+    {
+        // No ChangeRequests row for this org/reference → cross-tenant access attempt.
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns((AmendmentRequestData?)null);
+
+        var result = await _sut.ResumeDraftAsync(WindowId, "REF001");
+
+        Assert.Null(result);
+        await _requestStateBlobClient.DidNotReceive().GetAsync(Arg.Any<Guid>(), Arg.Any<string>());
     }
 
     // ── ConfirmRequestAsync — recipient routing ─────────────────────────────
@@ -600,12 +615,27 @@ public class RequestServiceTests
     [Fact]
     public async Task ResumeDraftAsync_PassesWindowIdAndReferenceNumberToBlobClient()
     {
+        StubOwningRow("REF001");
         _requestStateBlobClient.GetAsync(Arg.Any<Guid>(), Arg.Any<string>()).Returns((RequestState?)null);
 
         await _sut.ResumeDraftAsync(WindowId, "REF001");
 
         await _requestStateBlobClient.Received(1).GetAsync(WindowId, "REF001");
     }
+
+    // Stubs a ChangeRequests row owned by the test's organisation (URN 100000) so the
+    // org-scoping gate in ResumeDraftAsync passes and the blob read is reached.
+    private void StubOwningRow(string referenceNumber) =>
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, referenceNumber)
+            .Returns(new AmendmentRequestData
+            {
+                PupilFirstname = "Jane",
+                PupilSurname = "Smith",
+                RequestType = RequestType.Amendment,
+                RequestTypeDescription = "Remove",
+                Status = RequestStatus.InProgress,
+                ReferenceNumber = referenceNumber
+            });
 
     // ── DeleteAsync ─────────────────────────────────────────────────────────
 

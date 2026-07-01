@@ -13,6 +13,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
@@ -81,7 +82,7 @@ try
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
-        .AddPersistenceDependencies(configuration, seedData)
+        .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
@@ -94,9 +95,14 @@ try
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered
-    // ONLY when not in Production so prod can never serve these routes or carry the
-    // marker cookie. Don't move this block outside the IsProduction() guard.
-    if (!builder.Environment.IsProduction())
+    // ONLY where the dev tooling surface is enabled (Dev:ToolsEnabled) — i.e. local dev
+    // and ephemeral PR/review apps — AND never in Production. This matches the gate used
+    // by the sibling /dev/* controllers (DevQueueSeed, DevPipeline, DevUat), so deployed
+    // DEV/QA/Preproduction (which never set Dev:ToolsEnabled) cannot serve these routes or
+    // carry the marker cookie. The IsProduction() guard is belt-and-braces on top of the
+    // flag. Don't move this block outside either condition.
+    if (!builder.Environment.IsProduction()
+        && configuration.GetValue<bool>(SettingKeys.DevToolsEnabled))
     {
         const string DevAwareScheme = "DevAware";
 
@@ -135,6 +141,17 @@ try
     }
 
     builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
+
+    // Email sending is fire-and-forget: the request thread enqueues onto an in-process channel
+    // (ChannelNotificationDispatcher, a singleton shared with the background worker) and returns;
+    // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
+    // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
+    builder.Services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
+    builder.Services.AddSingleton<INotificationDispatcher>(sp =>
+        sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();
@@ -167,6 +184,10 @@ try
     builder.Services.AddScoped<
         DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
         DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
+    // Lets the dev-data seeding orchestrator self-seed the rules-config blobs in dev/E2E. In
+    // deployed environments the rules-engine worker seeds them; that worker isn't part of the
+    // local web stack, so without this the admin rules editor 404s on a fresh environment.
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Infrastructure.RulesEngine.RulesConfigSeeder>();
     // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
     //if (builder.Environment.IsDevelopment())
         builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();

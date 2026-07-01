@@ -30,6 +30,8 @@ public sealed class PortalDbContext(
     public DbSet<DevZendeskTicket> DevZendeskTickets => Set<DevZendeskTicket>();
     public DbSet<QueueMetricEvent> QueueMetricEvents => Set<QueueMetricEvent>();
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
+    public DbSet<PageNode> PageNodes => Set<PageNode>();
+    public DbSet<PageNodeVersion> PageNodeVersions => Set<PageNodeVersion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +52,8 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new DevZendeskTicketConfiguration());
         modelBuilder.ApplyConfiguration(new QueueMetricEventConfiguration());
         modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
+        modelBuilder.ApplyConfiguration(new PageNodeConfiguration());
+        modelBuilder.ApplyConfiguration(new PageNodeVersionConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

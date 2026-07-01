@@ -26,6 +26,8 @@ public interface IPortalDbContext
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
     DbSet<QueueMetricEvent> QueueMetricEvents { get; }
     DbSet<ShareToken> ShareTokens { get; }
+    DbSet<PageNode> PageNodes { get; }
+    DbSet<PageNodeVersion> PageNodeVersions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

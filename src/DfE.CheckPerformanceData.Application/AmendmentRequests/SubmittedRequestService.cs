@@ -105,8 +105,7 @@ public sealed class SubmittedRequestService(
 
     private static string DisplayValue(Question question, QuestionAnswer? answer) => question.Type switch
     {
-        QuestionType.Date when answer?.DateValue is { } d =>
-            $"{d.Day} {new DateTime(d.Year, d.Month, d.Day):MMMM yyyy}",
+        QuestionType.Date when answer?.DateValue is { } d => d.ToDisplayString(),
         QuestionType.Radio when answer?.TextValue is { } v =>
             question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
         _ => answer?.TextValue ?? string.Empty

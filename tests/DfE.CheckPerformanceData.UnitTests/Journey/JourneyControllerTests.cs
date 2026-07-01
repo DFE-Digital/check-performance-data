@@ -648,7 +648,7 @@ public class JourneyControllerTests
         // message — otherwise a rejected upload (e.g. a non-PDF) silently shows nothing.
         SetupSession(ValidSession(history: ["evidence-page"]));
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
-        const string message = "'photo.png' could not be read as a PDF. Check the file and try again.";
+        const string message = "Evidence must be in a PDF format.";
         _sut.TempData["UploadError"] = message;
 
         var result = await _sut.Page(WindowId, "evidence-page");

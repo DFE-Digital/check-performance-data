@@ -381,7 +381,7 @@ public sealed class JourneyController(
         if (pageCount is null)
         {
             await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "not_a_pdf", FileSizeBytes = bytes.LongLength });
-            return $"'{file.FileName}' could not be read as a PDF. Check the file and try again.";
+            return $"Evidence must be in a PDF format.";
         }
 
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);

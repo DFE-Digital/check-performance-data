@@ -44,8 +44,11 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
         var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+        // Surface an upload error stashed by UploadFile before its PRG redirect here — otherwise
+        // a rejected upload (e.g. a non-PDF) would silently show no validation message.
         return View(viewName, viewModelBuilder.BuildPageVm(windowId, page, journey.QuestionAnswers,
-            journey, fromSummary, ModelState, config));
+            journey, fromSummary, ModelState, config,
+            uploadError: TempData["UploadError"] as string));
     }
 
     // ── PupilSearchPage (GET) ───────────────────────────────────────────────
@@ -322,7 +325,7 @@ public sealed class JourneyController(
 
         var pageCount = PdfPageCounter.GetPageCount(bytes);
         if (pageCount is null)
-            return $"'{file.FileName}' could not be read as a PDF. Check the file and try again.";
+            return $"Evidence must be in a PDF format.";
 
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];

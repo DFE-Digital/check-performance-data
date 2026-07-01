@@ -8,10 +8,11 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 // Verifies the catch-all page resolver:
-//   - unknown path or path with no live version → 404
+//   - unknown path → 404 (GetNodeByPathAsync returns null)
+//   - content/wiki with no live version → 404 (GetLivePageAsync returns null)
 //   - content node → View("Content", RenderedPageViewModel) with deserialised tree + auto nav
 //   - wiki node   → View("Wiki",    RenderedPageViewModel) with raw HTML
-//   - folder node → View("Folder",  RenderedPageViewModel)
+//   - folder node → View("Folder",  RenderedPageViewModel) with Nav = ordered children
 //   - [HttpGet("/{*path}", Order = int.MaxValue)] enforced via reflection
 public sealed class PageControllerTests
 {
@@ -19,25 +20,28 @@ public sealed class PageControllerTests
 
     private PageController CreateSut() => new(_pageNodes);
 
-    private static PageNodeDto Node(string pageType, string title = "Test Page") => new()
+    private static PageNodeDto Node(
+        string pageType, string title = "Test Page", string path = "test",
+        Guid? id = null, Guid? parentId = null) => new()
     {
-        Segment = "test",
-        Path = "test",
-        Title = title,
+        Id       = id ?? Guid.Empty,
+        ParentId = parentId,
+        Segment  = path.Split('/').Last(),
+        Path     = path,
+        Title    = title,
         PageType = pageType
     };
 
     private static LivePageResult Live(string pageType, string content, string title = "Test Page") => new()
     {
-        Node = Node(pageType, title),
+        Node    = Node(pageType, title),
         Version = new PageNodeVersionDto { Content = content }
     };
 
     [Fact]
     public async Task Show_ReturnsNotFound_WhenPathDoesNotExist()
     {
-        _pageNodes.GetLivePageAsync("unknown", Arg.Any<DateTime>())
-            .Returns((LivePageResult?)null);
+        _pageNodes.GetNodeByPathAsync("unknown").Returns((PageNodeDto?)null);
 
         var result = await CreateSut().Show("unknown");
 
@@ -47,8 +51,9 @@ public sealed class PageControllerTests
     [Fact]
     public async Task Show_ReturnsNotFound_WhenNodeHasNoLiveVersion()
     {
-        // IPageNodeService returns null when no version is currently live (same code path as
-        // path-not-found — the controller simply sees null and returns 404 in both cases).
+        // Node exists (content type) but no version is currently live.
+        _pageNodes.GetNodeByPathAsync("unpublished")
+            .Returns(Node("content", "Unpublished", "unpublished"));
         _pageNodes.GetLivePageAsync("unpublished", Arg.Any<DateTime>())
             .Returns((LivePageResult?)null);
 
@@ -66,6 +71,8 @@ public sealed class PageControllerTests
               {"kind":"widget","type":"heading","anchor":"summary","props":{"level":2,"text":"Summary"}}
             ]
             """;
+        _pageNodes.GetNodeByPathAsync("my-page")
+            .Returns(Node("content", "My Page", "my-page"));
         _pageNodes.GetLivePageAsync("my-page", Arg.Any<DateTime>())
             .Returns(Live("content", json, "My Page"));
 
@@ -85,6 +92,8 @@ public sealed class PageControllerTests
     [Fact]
     public async Task Show_ReturnsWikiView_WithRawHtml()
     {
+        _pageNodes.GetNodeByPathAsync("wiki-page")
+            .Returns(Node("wiki", "Wiki Page", "wiki-page"));
         _pageNodes.GetLivePageAsync("wiki-page", Arg.Any<DateTime>())
             .Returns(Live("wiki", "<p>Hello world</p>", "Wiki Page"));
 
@@ -99,10 +108,20 @@ public sealed class PageControllerTests
     }
 
     [Fact]
-    public async Task Show_ReturnsFolderView_WithTitle()
+    public async Task Show_ReturnsFolderView_WithChildNav_OrderedBySortOrder()
     {
-        _pageNodes.GetLivePageAsync("support", Arg.Any<DateTime>())
-            .Returns(Live("folder", string.Empty, "Support"));
+        var folderId = Guid.NewGuid();
+        _pageNodes.GetNodeByPathAsync("support")
+            .Returns(Node("folder", "Support", "support", id: folderId));
+        _pageNodes.GetTreeAsync()
+            .Returns(new List<PageNodeTreeItemDto>
+            {
+                // intentionally out of SortOrder to verify ordering
+                new() { Id = Guid.NewGuid(), ParentId = folderId, Segment = "contact", Path = "support/contact", SortOrder = 1, Title = "Contact", PageType = "content" },
+                new() { Id = Guid.NewGuid(), ParentId = folderId, Segment = "faq",     Path = "support/faq",     SortOrder = 0, Title = "FAQ",     PageType = "content" },
+                // unrelated root node — must be excluded
+                new() { Id = Guid.NewGuid(), ParentId = null,     Segment = "other",   Path = "other",           SortOrder = 0, Title = "Other",   PageType = "content" }
+            });
 
         var result = await CreateSut().Show("support");
 
@@ -111,6 +130,30 @@ public sealed class PageControllerTests
         var model = Assert.IsType<RenderedPageViewModel>(view.Model);
         Assert.Equal("Support", model.Title);
         Assert.Equal("folder", model.PageType);
+        Assert.NotNull(model.Nav);
+        Assert.Equal(2, model.Nav!.Count);
+        // FAQ first (SortOrder 0), Contact second (SortOrder 1)
+        Assert.Equal("FAQ",     model.Nav[0].Text);
+        Assert.Equal("/support/faq",     model.Nav[0].Href);
+        Assert.Equal("Contact", model.Nav[1].Text);
+        Assert.Equal("/support/contact", model.Nav[1].Href);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsFolderView_WithEmptyNav_WhenNoChildren()
+    {
+        var folderId = Guid.NewGuid();
+        _pageNodes.GetNodeByPathAsync("empty-folder")
+            .Returns(Node("folder", "Empty Folder", "empty-folder", id: folderId));
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSut().Show("empty-folder");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Folder", view.ViewName);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.NotNull(model.Nav);
+        Assert.Empty(model.Nav!);
     }
 
     [Fact]
@@ -119,18 +162,21 @@ public sealed class PageControllerTests
         var parentId = Guid.NewGuid();
         var nodeId   = Guid.NewGuid();
 
+        var wikiNode = new PageNodeDto
+        {
+            Id       = nodeId,
+            ParentId = parentId,
+            Segment  = "wiki-page",
+            Path     = "section/wiki-page",
+            Title    = "Wiki Page",
+            PageType = "wiki"
+        };
+
+        _pageNodes.GetNodeByPathAsync("section/wiki-page").Returns(wikiNode);
         _pageNodes.GetLivePageAsync("section/wiki-page", Arg.Any<DateTime>())
             .Returns(new LivePageResult
             {
-                Node = new PageNodeDto
-                {
-                    Id       = nodeId,
-                    ParentId = parentId,
-                    Segment  = "wiki-page",
-                    Path     = "section/wiki-page",
-                    Title    = "Wiki Page",
-                    PageType = "wiki"
-                },
+                Node    = wikiNode,
                 Version = new PageNodeVersionDto { Content = "<p>Body</p>" }
             });
 
@@ -155,9 +201,9 @@ public sealed class PageControllerTests
         Assert.Equal(2, model.Nav!.Count);
 
         // Ordered by SortOrder ascending.
-        Assert.Equal("First",     model.Nav[0].Text);
+        Assert.Equal("First",              model.Nav[0].Text);
         Assert.Equal("/section/first",     model.Nav[0].Href);
-        Assert.Equal("Wiki Page", model.Nav[1].Text);
+        Assert.Equal("Wiki Page",          model.Nav[1].Text);
         Assert.Equal("/section/wiki-page", model.Nav[1].Href);
     }
 

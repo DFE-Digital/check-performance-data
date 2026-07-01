@@ -88,6 +88,43 @@ public class PageNodeServiceTests
         Assert.Equal(2, tree.Count);
     }
 
+    // ── GetNodeByPathAsync ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetNodeByPath_Returns_Null_When_Path_Not_Found()
+    {
+        var result = await Sut().GetNodeByPathAsync("nonexistent");
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetNodeByPath_Returns_Node_When_Path_Exists()
+    {
+        var node = await Sut().CreatePageAsync(null, "guidance", "Guidance", "folder", "u1");
+
+        var result = await Sut().GetNodeByPathAsync("guidance");
+
+        Assert.NotNull(result);
+        Assert.Equal(node.Id, result!.Id);
+        Assert.Equal("guidance", result.Path);
+        Assert.Equal("folder", result.PageType);
+    }
+
+    [Fact]
+    public async Task GetNodeByPath_Returns_Folder_Node_Without_Live_Version()
+    {
+        // Folder nodes are never versioned; GetNodeByPathAsync must still return them.
+        var node = await Sut().CreatePageAsync(null, "support", "Support", "folder", "u1");
+        var versions = await _repo.GetVersionsAsync(node.Id);
+        Assert.Empty(versions); // confirm no version was seeded
+
+        var result = await Sut().GetNodeByPathAsync("support");
+
+        Assert.NotNull(result);
+        Assert.Equal("folder", result!.PageType);
+    }
+
     // ── GetLivePageAsync ─────────────────────────────────────────────────────
 
     [Fact]

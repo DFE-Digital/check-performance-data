@@ -15,6 +15,13 @@ public interface IPageNodeService
     Task<List<PageNodeTreeItemDto>> GetTreeAsync();
 
     /// <summary>
+    /// Returns the node at <paramref name="path"/>, or null if not found.
+    /// Unlike <see cref="GetLivePageAsync"/>, this does NOT require a live version,
+    /// so it can resolve folder nodes (which are never versioned).
+    /// </summary>
+    Task<PageNodeDto?> GetNodeByPathAsync(string path);
+
+    /// <summary>
     /// Resolves the node at <paramref name="path"/> and its currently-live version.
     /// Returns null if the path is not found or no version is live at <paramref name="nowUtc"/>.
     /// </summary>

@@ -25,6 +25,9 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public Task<List<PageNodeTreeItemDto>> GetTreeAsync() =>
         repository.GetTreeAsync();
 
+    public Task<PageNodeDto?> GetNodeByPathAsync(string path) =>
+        repository.GetByPathAsync(path);
+
     public async Task<LivePageResult?> GetLivePageAsync(string path, DateTime nowUtc)
     {
         var node = await repository.GetByPathAsync(path);

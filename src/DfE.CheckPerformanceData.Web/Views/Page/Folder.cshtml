@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model DfE.CheckPerformanceData.Web.Models.PageTree.RenderedPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    IReadOnlyList<ContentNavItem> children = Model.Nav ?? [];
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <h1 class="govuk-heading-xl">@Model.Title</h1>
+        @if (children.Count > 0)
+        {
+            <ul class="govuk-list">
+                @foreach (var item in children)
+                {
+                    <li><a class="govuk-link" href="@item.Href">@item.Text</a></li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="govuk-body">This section has no pages yet.</p>
+        }
+    </div>
+</div>

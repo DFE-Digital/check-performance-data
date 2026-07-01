@@ -15,6 +15,14 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
     [HttpGet("/{*path}", Order = int.MaxValue)]
     public async Task<IActionResult> Show(string path)
     {
+        var node = await pageNodes.GetNodeByPathAsync(path);
+        if (node is null)
+            return NotFound();
+
+        if (node.PageType == "folder")
+            return await BuildFolderViewAsync(node);
+
+        // content / wiki: require a live version
         var result = await pageNodes.GetLivePageAsync(path, DateTime.UtcNow);
         if (result is null)
             return NotFound();
@@ -23,13 +31,28 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         {
             "content" => BuildContentView(result),
             "wiki"    => await BuildWikiViewAsync(result),
-            "folder"  => View("Folder", new RenderedPageViewModel
-            {
-                Title    = result.Node.Title,
-                PageType = "folder"
-            }),
-            _ => NotFound()
+            _         => NotFound()
         };
+    }
+
+    // Builds a child index for a folder node: direct children ordered by SortOrder,
+    // rendered as a GDS list of links. Nav carries the child items (same member as
+    // used for heading nav in content pages and sibling nav in wiki pages).
+    private async Task<IActionResult> BuildFolderViewAsync(PageNodeDto folder)
+    {
+        var tree     = await pageNodes.GetTreeAsync() ?? [];
+        var children = tree
+            .Where(n => n.ParentId == folder.Id)
+            .OrderBy(n => n.SortOrder)
+            .Select(n => new ContentNavItem(n.Title, "/" + n.Path, []))
+            .ToList();
+
+        return View("Folder", new RenderedPageViewModel
+        {
+            Title    = folder.Title,
+            PageType = "folder",
+            Nav      = children
+        });
     }
 
     // Deserialises the content tree and builds the in-page heading nav, mirroring

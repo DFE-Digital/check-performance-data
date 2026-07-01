@@ -69,7 +69,11 @@
     // nav never tracked location.
     var adminCurrentPath = Context.Request.Path.Value ?? string.Empty;
     ViewData["AdminCurrentPath"] = adminCurrentPath;
-    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(adminCurrentPath, AdminNavEntries);
+    // Collect all entries from the (possibly grafted) forest so /admin/pages/{id} matches the
+    // synthetic page-{id} entry rather than the parent content-pages entry. If grafting failed
+    // the forest contains only DI-registered entries, giving identical behaviour to before.
+    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(
+        adminCurrentPath, AdminNavNodeViewModel.CollectEntries(adminNavTreeModel));
 
     // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
     // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and

@@ -102,6 +102,54 @@ public sealed class AdminNavActiveTrackingTests
         Assert.True(key is null || entries.Single(e => e.Key == key).Url.StartsWith("/admin"));
     }
 
+    // --- Synthetic page-tree entries beat the parent /admin/pages entry on longest-prefix ---
+
+    [Fact]
+    public void ResolveActiveKey_WithSyntheticPageEntry_ResolvesToSpecificPageKey()
+    {
+        var pageId = Guid.NewGuid();
+        var pageEntry = new PageTreeNavEntry(pageId, "Test Page", "content", "/test-page", true, AdminNavKeys.ContentPages);
+        var entries = new List<IAdminNavEntry>
+        {
+            new ContentPagesNavEntry(),  // Url = /admin/pages
+            pageEntry,                    // Url = /admin/pages/{pageId}
+        };
+
+        var key = AdminNavActive.ResolveActiveKey($"/admin/pages/{pageId}", entries);
+
+        // The synthetic page-{id} entry has a longer URL than /admin/pages, so it wins.
+        Assert.Equal($"page-{pageId}", key);
+    }
+
+    [Fact]
+    public void ResolveActiveKey_WithSyntheticPageEntry_RootPageListResolvesToContentPages()
+    {
+        var pageId = Guid.NewGuid();
+        var pageEntry = new PageTreeNavEntry(pageId, "Test Page", "content", "/test-page", true, AdminNavKeys.ContentPages);
+        var entries = new List<IAdminNavEntry>
+        {
+            new ContentPagesNavEntry(),  // Url = /admin/pages
+            pageEntry,                    // Url = /admin/pages/{pageId}
+        };
+
+        var key = AdminNavActive.ResolveActiveKey("/admin/pages", entries);
+
+        // /admin/pages exactly matches content-pages, not page-{id}.
+        Assert.Equal(AdminNavKeys.ContentPages, key);
+    }
+
+    // --- Layout passes all forest entries (incl. synthetic) to ResolveActiveKey ---
+
+    [Fact]
+    public void AdminLayout_PassesCollectedForestEntries_ToResolveActiveKey()
+    {
+        var src = ReadAdminLayout();
+
+        // The layout must use CollectEntries(adminNavTreeModel) rather than the raw DI list,
+        // so synthetic page-tree entries are included in active-key resolution.
+        Assert.Contains("CollectEntries(adminNavTreeModel)", src);
+    }
+
     private static IReadOnlyList<IAdminNavEntry> BuildEntries()
     {
         var config = new Microsoft.Extensions.Configuration.ConfigurationBuilder()

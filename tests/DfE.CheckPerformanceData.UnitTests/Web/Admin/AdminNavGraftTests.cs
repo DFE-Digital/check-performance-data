@@ -134,4 +134,40 @@ public sealed class AdminNavGraftTests
         Assert.Equal("other-root", result[0].Entry.Key);
         Assert.Empty(result[0].Children);
     }
+
+    // --- CollectEntries_YieldsAllEntries_IncludingNestedPageNodes ---
+
+    [Fact]
+    public void CollectEntries_YieldsAllEntries_IncludingNestedPageNodes()
+    {
+        var forest = BuildForestWithContentPages();
+        var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
+        var pageTree = new List<PageTreeNode>
+        {
+            new(parentId, "Parent", "/parent", "folder", false, new List<PageTreeNode>
+            {
+                new(childId, "Child", "/parent/child", "content", true, Array.Empty<PageTreeNode>()),
+            }),
+        };
+        var grafted = AdminNavNodeViewModel.GraftPageTree(forest, pageTree);
+
+        var keys = AdminNavNodeViewModel.CollectEntries(grafted).Select(e => e.Key).ToList();
+
+        // Must include the DI-registered roots and every synthetic page node.
+        Assert.Contains(AdminNavKeys.CmsAdmin, keys);
+        Assert.Contains(AdminNavKeys.ContentPages, keys);
+        Assert.Contains($"page-{parentId}", keys);
+        Assert.Contains($"page-{childId}", keys);
+    }
+
+    [Fact]
+    public void CollectEntries_OnUngraftedForest_YieldsOnlyDiEntries()
+    {
+        var forest = BuildForestWithContentPages();
+
+        var keys = AdminNavNodeViewModel.CollectEntries(forest).Select(e => e.Key).ToList();
+
+        Assert.Equal(new[] { AdminNavKeys.CmsAdmin, AdminNavKeys.ContentPages }, keys);
+    }
 }

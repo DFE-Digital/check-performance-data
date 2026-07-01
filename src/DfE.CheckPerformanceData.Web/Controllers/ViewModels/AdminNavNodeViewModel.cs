@@ -104,4 +104,20 @@ public sealed class AdminNavNodeViewModel
 
         return nodes.Select(n => MapPageNode(n, parentNavKey)).ToList();
     }
+
+    // Walks the forest depth-first and yields every entry it contains — both DI-registered
+    // nodes and synthetic page-tree nodes grafted at render time. The layout passes this to
+    // ResolveActiveKey so /admin/pages/{id} matches the synthetic page-{id} entry (whose Url
+    // is longer than /admin/pages) rather than the parent content-pages entry. When grafting
+    // failed (exception) the forest contains only DI-registered entries, giving the same
+    // result as passing AdminNavEntries directly.
+    public static IEnumerable<IAdminNavEntry> CollectEntries(IReadOnlyList<AdminNavNodeViewModel> forest)
+    {
+        foreach (var node in forest)
+        {
+            yield return node.Entry;
+            foreach (var entry in CollectEntries(node.Children))
+                yield return entry;
+        }
+    }
 }

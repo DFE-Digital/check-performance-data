@@ -9,9 +9,10 @@
     var hasChildren = node.Children.Count > 0;
     var isActive = entry.Key == activeKey;
     var enabled = entry.Enabled && !string.IsNullOrEmpty(entry.Url);
-    // Expand a branch when nothing is active yet (first paint) or when it contains the
-    // active page. site.js re-collapses inactive branches once it binds.
-    var expandedInitial = activeKey == null || Model.SubtreeContainsActive;
+    // Expand a branch when nothing is active yet (first paint), when it contains the active
+    // page, or when the node ITSELF is the active page (so a selected folder shows its children).
+    // site.js re-collapses inactive branches once it binds, but respects the same rule.
+    var expandedInitial = activeKey == null || Model.SubtreeContainsActive || isActive;
     // Page-type icon: present only for page-tree nodes (PageTreeNavEntry).
     var pte = entry as PageTreeNavEntry;
     var pageIconType = pte?.PageType;

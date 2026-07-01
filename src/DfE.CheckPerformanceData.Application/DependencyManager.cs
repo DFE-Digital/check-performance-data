@@ -25,6 +25,7 @@ public static class DependencyManager
         services.AddScoped<IPageNodeService, PageNodeService>();
         services.AddScoped<ContentPages.IContentPageService, ContentPages.ContentPageService>();
         services.AddScoped<ContentPages.IContentPageEditor, ContentPages.ContentPageEditor>();
+        services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
         services.AddScoped<IWikiService, WikiService>();

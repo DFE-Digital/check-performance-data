@@ -1,0 +1,18 @@
+@using DfE.CheckPerformanceData.Application.Common
+@using DfE.CheckPerformanceData.Application.ContentPages
+@inject IHtmlRenderingService Renderer
+@model DfE.CheckPerformanceData.Web.Models.PageTree.RenderedPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    IReadOnlyList<ContentNavItem> nav = Model.Nav ?? [];
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-third">
+        @await Html.PartialAsync("ContentPages/_SideNav", nav)
+    </div>
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-xl">@Model.Title</h1>
+        @Html.Raw(Renderer.RenderHtml(Model.WikiHtml))
+    </div>
+</div>

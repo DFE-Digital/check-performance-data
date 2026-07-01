@@ -22,13 +22,8 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         return result.Node.PageType switch
         {
             "content" => BuildContentView(result),
-            "wiki" => View("Wiki", new RenderedPageViewModel
-            {
-                Title    = result.Node.Title,
-                PageType = "wiki",
-                WikiHtml = result.Version.Content
-            }),
-            "folder" => View("Folder", new RenderedPageViewModel
+            "wiki"    => await BuildWikiViewAsync(result),
+            "folder"  => View("Folder", new RenderedPageViewModel
             {
                 Title    = result.Node.Title,
                 PageType = "folder"
@@ -48,6 +43,26 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             PageType = "content",
             Content  = tree,
             Nav      = ContentNavBuilder.Build(tree)
+        });
+    }
+
+    // Builds the section side-nav from the tree: siblings of the current node
+    // (same ParentId, including the current page itself), ordered by SortOrder.
+    private async Task<IActionResult> BuildWikiViewAsync(LivePageResult result)
+    {
+        var tree = await pageNodes.GetTreeAsync() ?? [];
+        var siblings = tree
+            .Where(n => n.ParentId == result.Node.ParentId)
+            .OrderBy(n => n.SortOrder)
+            .Select(n => new ContentNavItem(n.Title, "/" + n.Path, []))
+            .ToList();
+
+        return View("Wiki", new RenderedPageViewModel
+        {
+            Title    = result.Node.Title,
+            PageType = "wiki",
+            WikiHtml = result.Version.Content,
+            Nav      = siblings
         });
     }
 }

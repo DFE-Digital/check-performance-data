@@ -124,7 +124,7 @@
           "id": "evidence",
           "type": "FileUpload",
           "title": "Upload files",
-          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "hint": "Evidence must be in a PDF format",
           "optional": true
         },
         {
@@ -524,7 +524,7 @@
           "id": "evidence",
           "type": "FileUpload",
           "title": "Upload files",
-          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)",
+          "hint": "Evidence must be in a PDF format",
           "optional": true
         },
         {
@@ -595,7 +595,7 @@
           "id": "evidence",
           "type": "FileUpload",
           "title": "Upload files",
-          "hint": "Evidence must be in a PDF format and no more than 6 pages (either as 1 or multiple files)"
+          "hint": "Evidence must be in a PDF format"
         },
         {
           "id": "how-evidence-supports",

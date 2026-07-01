@@ -579,6 +579,24 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task Page_WhenUploadErrorInTempData_SurfacesItInViewModel()
+    {
+        // The "Upload file" button posts to UploadFile, which on a rejected file stores the
+        // message in TempData and redirects (PRG) to Page GET. Page GET must surface that
+        // message — otherwise a rejected upload (e.g. a non-PDF) silently shows nothing.
+        SetupSession(ValidSession(history: ["evidence-page"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        const string message = "'photo.png' could not be read as a PDF. Check the file and try again.";
+        _sut.TempData["UploadError"] = message;
+
+        var result = await _sut.Page(WindowId, "evidence-page");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PageViewModel>(view.Model);
+        Assert.Equal(message, model.UploadError);
+    }
+
+    [Fact]
     public async Task RemoveFile_PreservesSubmittedTextAnswers()
     {
         var answers = new Dictionary<string, QuestionAnswer>

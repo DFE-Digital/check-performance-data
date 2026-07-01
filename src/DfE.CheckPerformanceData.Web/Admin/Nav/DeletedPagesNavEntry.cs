@@ -11,5 +11,5 @@ public sealed record DeletedPagesNavEntry : IAdminNavEntry
     public string Description => "Review, restore or permanently delete pages removed from the wiki.";
     public string Url => "/help/deleted";
     public bool Enabled => true;
-    public int Order => 20;
+    public int Order => 30;
 }

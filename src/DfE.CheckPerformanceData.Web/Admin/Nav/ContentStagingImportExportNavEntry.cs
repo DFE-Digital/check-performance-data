@@ -10,5 +10,5 @@ public sealed record ContentStagingImportExportNavEntry : IAdminNavEntry
     public string Description => "Import and export wiki pages and content blocks across environments.";
     public string Url => "/admin/content-staging";
     public bool Enabled => true;
-    public int Order => 10;
+    public int Order => 40;
 }

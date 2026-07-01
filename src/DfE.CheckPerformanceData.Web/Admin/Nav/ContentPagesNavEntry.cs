@@ -10,5 +10,5 @@ public sealed record ContentPagesNavEntry : IAdminNavEntry
     public string Description => "Browse and manage all pages in the site tree — content, wiki, and folder nodes.";
     public string Url => "/admin/pages";
     public bool Enabled => true;
-    public int Order => 35;
+    public int Order => 10;
 }

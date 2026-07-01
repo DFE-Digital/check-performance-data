@@ -10,5 +10,5 @@ public sealed record ContentBlocksNavEntry : IAdminNavEntry
     public string Description => "View and edit all content blocks in one place, with the page each one appears on.";
     public string Url => "/admin/content-blocks";
     public bool Enabled => true;
-    public int Order => 40;
+    public int Order => 20;
 }

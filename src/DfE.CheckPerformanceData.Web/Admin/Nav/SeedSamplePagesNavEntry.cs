@@ -13,5 +13,5 @@ public sealed record SeedSamplePagesNavEntry : IAdminNavEntry
     public string Url => string.Empty;
     public string HttpMethod => "POST";
     public bool Enabled => true;
-    public int Order => 30;
+    public int Order => 50;
 }

@@ -70,7 +70,7 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		Assert.Equal(new[] { 10, 20, 30, 35, 40 }, cmsOrders);
+		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
 		// System administration now has two direct children: the Rules Engine sub-group (10)
 		// and System settings (20). The pipeline tiles nest one level deeper under Rules Engine.
 		Assert.Equal(new[] { 10, 20 }, systemOrders);

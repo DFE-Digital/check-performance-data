@@ -41,5 +41,12 @@ public interface IPageNodeRepository
     /// </summary>
     Task SwapSortOrderAsync(Guid nodeId, Guid otherNodeId);
 
+    /// <summary>
+    /// Reassigns the SortOrder on each listed node in a single transaction, persisting all at once.
+    /// All listed nodes should be siblings (same ParentId). Used by MoveAsync to produce a stable
+    /// zero-based ordering even when existing SortOrders are all equal.
+    /// </summary>
+    Task SetSiblingOrderAsync(IReadOnlyList<(Guid Id, int SortOrder)> orders);
+
     Task ExecuteInTransactionAsync(Func<Task> work);
 }

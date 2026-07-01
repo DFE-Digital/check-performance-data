@@ -2,7 +2,7 @@ These icons are from Google Material Symbols (Outlined variant), licensed under 
 Apache License, Version 2.0.
 
 Source: https://github.com/google/material-design-icons
-Icons used: widgets, menu_book, folder
+Icons used: widgets, menu_book, folder, edit, history, add, arrow_upward, arrow_downward, delete, open_in_new
 
 Copyright 2024 Google LLC
 

@@ -45,6 +45,7 @@ public sealed class PageTreeGridRenderTests
             TotalPages    = 1,
             TotalCount    = 2,
             PageSize      = 20,
+            // Breadcrumb defaults to [] — no ancestors between "Pages" and "My Section".
             Children      = new List<PageTreeGridRowViewModel>
             {
                 new()
@@ -70,7 +71,7 @@ public sealed class PageTreeGridRenderTests
 
         var html = await RenderIndexAsync(vm);
 
-        // ── Icons ──────────────────────────────────────────────────────────────
+        // ── Page-type icons (title column) ────────────────────────────────────
         // content → data-icon="widgets"
         Assert.Contains("data-icon=\"widgets\"", html);
         // wiki → data-icon="menu_book"
@@ -80,11 +81,19 @@ public sealed class PageTreeGridRenderTests
         Assert.Contains($"/admin/pages/{liveId}\"", html);
         Assert.Contains($"/admin/pages/{draftId}\"", html);
 
-        // ── Action links ───────────────────────────────────────────────────────
+        // ── Action icon hrefs ─────────────────────────────────────────────────
         Assert.Contains($"/admin/pages/{liveId}/edit",     html);
         Assert.Contains($"/admin/pages/{liveId}/versions", html);
         Assert.Contains($"/admin/pages/{liveId}/delete",   html);
         Assert.Contains($"/admin/pages/new?parentId={liveId}", html);
+
+        // ── Action icon title attributes (hover tooltips) ─────────────────────
+        Assert.Contains("title=\"Edit Live child\"",          html);
+        Assert.Contains("title=\"Versions of Live child\"",   html);
+        Assert.Contains("title=\"Delete Live child\"",        html);
+        Assert.Contains("title=\"Move Live child up\"",       html);
+        Assert.Contains("title=\"Move Live child down\"",     html);
+        Assert.Contains("title=\"View Live child (opens in new tab)\"", html);
 
         // ── Move forms ────────────────────────────────────────────────────────
         Assert.Contains($"action=\"/admin/pages/{liveId}/move\"", html);
@@ -92,12 +101,91 @@ public sealed class PageTreeGridRenderTests
         Assert.Contains("name=\"direction\" value=\"down\"", html);
 
         // ── View link: present for live, absent for draft ─────────────────────
-        // href="/{path}" only renders when HasLiveVersion=true
-        Assert.Contains($"href=\"/my-section/live-child\"",  html);
-        Assert.DoesNotContain($"href=\"/my-section/draft-child\"", html);
+        Assert.Contains($"href=\"/my-section/live-child\"",          html);
+        Assert.DoesNotContain($"href=\"/my-section/draft-child\"",   html);
+        Assert.DoesNotContain("title=\"View Draft child",             html);
 
         // ── Search input ──────────────────────────────────────────────────────
         Assert.Contains("name=\"q\"", html);
+
+        // ── Breadcrumb ────────────────────────────────────────────────────────
+        // When SelectedId is set: "Pages" is a clickable link, current node is aria-current=page.
+        Assert.Contains("govuk-breadcrumbs", html);
+        Assert.Contains("href=\"/admin/pages\">Pages</a>", html);
+        Assert.Contains("aria-current=\"page\">My Section", html);
+
+        // ── No green Create-page button in the grid header ────────────────────
+        // With children present the only green govuk-button would be the empty-state one
+        // (which is not rendered here). Verify the header area has no govuk-button.
+        Assert.DoesNotContain("data-module=\"govuk-button\"", html);
+    }
+
+    [Fact]
+    public async Task RendersBreadcrumb_WithAncestorLinks_AndCurrentAsPlainText()
+    {
+        var rootId    = Guid.NewGuid();
+        var sectionId = Guid.NewGuid();
+        var childId   = Guid.NewGuid();
+
+        var vm = new PageTreeGridViewModel
+        {
+            SelectedId    = sectionId,
+            SelectedTitle = "My Section",
+            SelectedPath  = "root/my-section",
+            SelectedPageType  = "folder",
+            SelectedParentId  = rootId,
+            SelectedHasLiveVersion = false,
+            SearchQuery   = null,
+            CurrentPage   = 1,
+            TotalPages    = 1,
+            TotalCount    = 1,
+            PageSize      = 20,
+            // One ancestor: the root node.
+            Breadcrumb    = new List<(Guid Id, string Title)> { (rootId, "Root section") },
+            Children      = new List<PageTreeGridRowViewModel>
+            {
+                new() { Id = childId, Title = "Child page", Segment = "child", Path = "root/my-section/child", PageType = "content", HasLiveVersion = false }
+            }
+        };
+
+        var html = await RenderIndexAsync(vm);
+
+        // "Pages" → clickable link to /admin/pages
+        Assert.Contains("href=\"/admin/pages\">Pages</a>", html);
+        // "Root section" → clickable link to /admin/pages/{rootId}
+        Assert.Contains($"href=\"/admin/pages/{rootId}\">Root section</a>", html);
+        // "My Section" → plain text current crumb (aria-current=page)
+        Assert.Contains("aria-current=\"page\">My Section", html);
+        // "My Section" must NOT itself be an anchor
+        Assert.DoesNotContain($"href=\"/admin/pages/{sectionId}\">My Section", html);
+    }
+
+    [Fact]
+    public async Task RendersRootBreadcrumb_AsCurrentPlainText_WhenNoIdSelected()
+    {
+        var vm = new PageTreeGridViewModel
+        {
+            SelectedId    = null,
+            SelectedTitle = "All pages",
+            SelectedPath  = null,
+            SelectedPageType  = null,
+            SelectedParentId  = null,
+            SelectedHasLiveVersion = false,
+            SearchQuery   = null,
+            CurrentPage   = 1,
+            TotalPages    = 1,
+            TotalCount    = 0,
+            PageSize      = 20,
+            Children      = Array.Empty<PageTreeGridRowViewModel>()
+        };
+
+        var html = await RenderIndexAsync(vm);
+
+        // At root: "Pages" is the only crumb, rendered as plain text (aria-current=page).
+        Assert.Contains("govuk-breadcrumbs", html);
+        Assert.Contains("aria-current=\"page\">Pages", html);
+        // "Pages" must NOT be an anchor (it is the current page at root).
+        Assert.DoesNotContain("href=\"/admin/pages\">Pages</a>", html);
     }
 
     [Fact]

@@ -74,6 +74,8 @@ public sealed class PageTreeAdminController(
             ? allItems.FirstOrDefault(n => n.Id == id.Value)
             : null;
 
+        var breadcrumb = BuildBreadcrumb(allItems, selected?.ParentId);
+
         var vm = new PageTreeGridViewModel
         {
             SelectedId             = id,
@@ -87,7 +89,8 @@ public sealed class PageTreeAdminController(
             CurrentPage            = safePage,
             TotalPages             = totalPages,
             TotalCount             = totalCount,
-            PageSize               = pageSize
+            PageSize               = pageSize,
+            Breadcrumb             = breadcrumb
         };
 
         return View(vm);
@@ -252,9 +255,13 @@ public sealed class PageTreeAdminController(
     {
         if (direction is not ("up" or "down"))
             return BadRequest();
-        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+        var node = await pageNodeService.GetNodeByIdAsync(id);
+        if (node is null) return NotFound();
         await pageNodeService.MoveAsync(id, direction);
-        return Redirect("/admin/pages");
+        // Redirect back to the parent's grid so the new order is immediately visible.
+        return node.ParentId.HasValue
+            ? Redirect($"/admin/pages/{node.ParentId.Value}")
+            : Redirect("/admin/pages");
     }
 
     // ── Content widget-editor mutation routes ─────────────────────────────────
@@ -346,6 +353,28 @@ public sealed class PageTreeAdminController(
             Content = tree,
             ShowInlinePublish = false
         });
+    }
+
+    // ── breadcrumb helper ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Builds the ancestor chain for the GDS breadcrumb: from root down to the selected node's
+    /// immediate parent (ordered root → parent). The selected node itself is rendered as the
+    /// plain-text current crumb in the view; this list contains only the clickable links before it.
+    /// </summary>
+    private static IReadOnlyList<(Guid Id, string Title)> BuildBreadcrumb(
+        List<PageNodeTreeItemDto> allItems, Guid? startParentId)
+    {
+        var chain = new List<(Guid Id, string Title)>();
+        var parentId = startParentId;
+        while (parentId.HasValue)
+        {
+            var ancestor = allItems.FirstOrDefault(n => n.Id == parentId.Value);
+            if (ancestor is null) break;
+            chain.Insert(0, (ancestor.Id, ancestor.Title));
+            parentId = ancestor.ParentId;
+        }
+        return chain;
     }
 
     // ── form helpers ─────────────────────────────────────────────────────────

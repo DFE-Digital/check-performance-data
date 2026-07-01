@@ -97,21 +97,34 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         if (node is null) return; // node does not exist; caller should have validated
 
         var all = await repository.GetTreeAsync();
+
+        // Use (SortOrder, CreatedDate) as the visible order so equal-SortOrder siblings
+        // (common in seeded/legacy data where everything was 0) are still reorderable.
         var siblings = all
             .Where(n => n.ParentId == node.ParentId)
             .OrderBy(n => n.SortOrder)
+            .ThenBy(n => n.CreatedDate)
             .ToList();
 
         var idx = siblings.FindIndex(n => n.Id == nodeId);
         if (idx < 0) return; // unexpected: node not in tree
 
-        PageNodeTreeItemDto? sibling = direction == "up"
-            ? (idx > 0 ? siblings[idx - 1] : null)
-            : (idx < siblings.Count - 1 ? siblings[idx + 1] : null);
+        var targetIdx = direction == "up" ? idx - 1 : idx + 1;
 
-        if (sibling is null) return; // already at the end in that direction
+        // Already at the end in that direction → no-op.
+        if (targetIdx < 0 || targetIdx >= siblings.Count) return;
 
-        await repository.SwapSortOrderAsync(nodeId, sibling.Id);
+        // Reorder the sibling list then assign zero-based SortOrders to all siblings so
+        // the operation is idempotent and robust even when current SortOrders are all equal.
+        var item = siblings[idx];
+        siblings.RemoveAt(idx);
+        siblings.Insert(targetIdx, item);
+
+        var orders = siblings
+            .Select((s, i) => (s.Id, SortOrder: i))
+            .ToList();
+
+        await repository.SetSiblingOrderAsync(orders);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

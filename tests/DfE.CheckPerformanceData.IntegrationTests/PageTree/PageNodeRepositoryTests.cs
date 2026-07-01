@@ -96,6 +96,34 @@ public sealed class PageNodeRepositoryTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task SetSiblingOrderAsync_PersistsNewOrdersForAllSiblings()
+    {
+        await TruncateAsync();
+
+        var parent = await Repo().CreateNodeAsync(null, "parent", "parent", "Parent", "folder", "u1");
+        var nodeA  = await Repo().CreateNodeAsync(parent.Id, "a", "parent/a", "A", "content", "u1");
+        var nodeB  = await Repo().CreateNodeAsync(parent.Id, "b", "parent/b", "B", "content", "u1");
+        var nodeC  = await Repo().CreateNodeAsync(parent.Id, "c", "parent/c", "C", "content", "u1");
+
+        // Reverse the order: A→2, B→1, C→0.
+        await Repo().SetSiblingOrderAsync(new[]
+        {
+            (nodeA.Id, 2),
+            (nodeB.Id, 1),
+            (nodeC.Id, 0)
+        });
+
+        var tree = await Repo().GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate)
+            .ToList();
+
+        Assert.Equal(nodeC.Id, siblings[0].Id);
+        Assert.Equal(nodeB.Id, siblings[1].Id);
+        Assert.Equal(nodeA.Id, siblings[2].Id);
+    }
+
+    [Fact]
     public async Task SwapSortOrder_ExchangesSortOrderOfTwoSiblings()
     {
         await TruncateAsync();

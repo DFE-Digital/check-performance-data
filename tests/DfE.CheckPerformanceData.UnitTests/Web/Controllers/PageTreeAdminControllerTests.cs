@@ -921,6 +921,114 @@ public sealed class PageTreeAdminControllerTests
 
     // ── POST /admin/pages/{id}/move ───────────────────────────────────────────
 
+    // ── Breadcrumb (controller builds ancestor chain) ────────────────────────
+
+    [Fact]
+    public async Task Index_Root_HasEmptyBreadcrumb()
+    {
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(null, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Empty(vm.Breadcrumb);
+    }
+
+    [Fact]
+    public async Task Index_DirectRootChild_HasEmptyBreadcrumb()
+    {
+        // A node whose parent is null (i.e., it is itself a root node) has no ancestors.
+        var nodeId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(nodeId).Returns(new PageNodeDto
+        {
+            Id = nodeId, Segment = "support", Path = "support", Title = "Support",
+            PageType = "folder", ParentId = null
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = nodeId, Segment = "support", Path = "support", Title = "Support",
+                    PageType = "folder", SortOrder = 1 }
+        });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(nodeId, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        // Support is a root node — no ancestors between "Pages" and "Support".
+        Assert.Empty(vm.Breadcrumb);
+    }
+
+    [Fact]
+    public async Task Index_NestedNode_HasAncestorChainRootFirst()
+    {
+        var rootId    = Guid.NewGuid();
+        var sectionId = Guid.NewGuid();
+        var faqId     = Guid.NewGuid();
+
+        _service.GetNodeByIdAsync(faqId).Returns(new PageNodeDto
+        {
+            Id = faqId, Segment = "faq", Path = "support/section/faq", Title = "FAQ",
+            PageType = "wiki", ParentId = sectionId
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = rootId,    Segment = "support",  Path = "support",              Title = "Support", PageType = "folder",  SortOrder = 1 },
+            new() { Id = sectionId, ParentId = rootId,    Segment = "section", Path = "support/section", Title = "Section", PageType = "folder",  SortOrder = 1 },
+            new() { Id = faqId,     ParentId = sectionId, Segment = "faq",     Path = "support/section/faq", Title = "FAQ",     PageType = "wiki",    SortOrder = 1 }
+        });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(faqId, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        // Breadcrumb: Support (root) → Section (FAQ's parent); FAQ itself is the plain current crumb.
+        Assert.Equal(2, vm.Breadcrumb.Count);
+        Assert.Equal(rootId,    vm.Breadcrumb[0].Id);
+        Assert.Equal("Support", vm.Breadcrumb[0].Title);
+        Assert.Equal(sectionId, vm.Breadcrumb[1].Id);
+        Assert.Equal("Section", vm.Breadcrumb[1].Title);
+    }
+
+    // ── Move redirect ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Move_WithParentId_RedirectsToParentGrid()
+    {
+        var parentId = Guid.NewGuid();
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "parent/page", Title = "Page",
+            PageType = "content", ParentId = parentId
+        });
+        _service.MoveAsync(id, "up").Returns(Task.CompletedTask);
+
+        var result = await Sut().Move(id, "up");
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{parentId}", redirect.Url);
+    }
+
+    [Fact]
+    public async Task Move_WithNoParent_RedirectsToRoot()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "root-page", Path = "root-page", Title = "Root page",
+            PageType = "content", ParentId = null
+        });
+        _service.MoveAsync(id, "down").Returns(Task.CompletedTask);
+
+        var result = await Sut().Move(id, "down");
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/pages", redirect.Url);
+    }
+
+    // ── POST /admin/pages/{id}/move (original tests retained) ────────────────
+
     [Fact]
     public async Task Move_UnknownId_ReturnsNotFound()
     {

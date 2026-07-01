@@ -11,4 +11,6 @@ public sealed class PageNodeTreeItemDto
     public required string Title { get; init; }
     public required string PageType { get; init; }
     public bool HasLiveVersion { get; init; }
+    /// <summary>Used as a secondary sort key when SortOrder values are equal (e.g. legacy data all-zero).</summary>
+    public DateTime CreatedDate { get; init; }
 }

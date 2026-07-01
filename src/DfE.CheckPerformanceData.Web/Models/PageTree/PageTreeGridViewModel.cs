@@ -41,6 +41,13 @@ public sealed class PageTreeGridViewModel
     public int TotalCount { get; init; }
 
     public int PageSize { get; init; }
+
+    /// <summary>
+    /// Ancestor chain from root down to the selected node's immediate parent (ordered root → parent).
+    /// Each item renders as a clickable breadcrumb link before the selected node's plain-text crumb.
+    /// Empty when at root or when the selected node is itself a direct child of root.
+    /// </summary>
+    public IReadOnlyList<(Guid Id, string Title)> Breadcrumb { get; init; } = [];
 }
 
 /// <summary>One row in the page-tree admin grid.</summary>

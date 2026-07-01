@@ -12,6 +12,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .AsNoTracking()
             .OrderBy(n => n.ParentId)
             .ThenBy(n => n.SortOrder)
+            .ThenBy(n => n.CreatedDate)
             .Select(n => new PageNodeTreeItemDto
             {
                 Id = n.Id,
@@ -19,6 +20,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 Segment = n.Segment,
                 Path = n.Path,
                 SortOrder = n.SortOrder,
+                CreatedDate = n.CreatedDate,
                 Title = n.Title,
                 PageType = n.PageType,
                 HasLiveVersion = n.Versions.Any(v => v.IsCurrent)
@@ -43,13 +45,21 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         Guid? parentId, string segment, string path, string title, string pageType, string? userId)
     {
         var now = DateTime.UtcNow;
+
+        // New sibling gets max(existing sibling SortOrder) + 1, so siblings always have distinct
+        // increasing orders and swap/position-reassign operations produce visible changes.
+        var maxOrder = await context.PageNodes
+            .Where(n => n.ParentId == parentId)
+            .Select(n => (int?)n.SortOrder)
+            .MaxAsync() ?? -1;
+
         var entity = new PageNode
         {
             Id = Guid.NewGuid(),
             ParentId = parentId,
             Segment = segment,
             Path = path,
-            SortOrder = 0,
+            SortOrder = maxOrder + 1,
             Title = title,
             PageType = pageType,
             CreatedDate = now,
@@ -189,6 +199,20 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
 
         (nodeA.SortOrder, nodeB.SortOrder) = (nodeB.SortOrder, nodeA.SortOrder);
         await context.SaveChangesAsync();
+    }
+
+    public async Task SetSiblingOrderAsync(IReadOnlyList<(Guid Id, int SortOrder)> orders)
+    {
+        await context.ExecuteInTransactionAsync(async () =>
+        {
+            foreach (var (id, sortOrder) in orders)
+            {
+                var node = await context.PageNodes.FindAsync(id)
+                    ?? throw new InvalidOperationException($"Page node {id} not found.");
+                node.SortOrder = sortOrder;
+            }
+            await context.SaveChangesAsync();
+        });
     }
 
     public Task ExecuteInTransactionAsync(Func<Task> work) =>

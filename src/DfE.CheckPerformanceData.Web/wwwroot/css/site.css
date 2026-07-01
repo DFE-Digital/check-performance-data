@@ -1049,6 +1049,84 @@ dialog.govuk-modal-dialogue__box::backdrop {
 }
 
 /* ==========================================================================
+   Page tree grid — action icon buttons + inline search
+   ========================================================================== */
+
+/* Icon link/button for GET actions (Edit, Versions, Add child, View) */
+.app-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d70b8;
+  text-decoration: none;
+  padding: 3px;
+  border-radius: 2px;
+  margin-right: 2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.app-action-icon:hover {
+  color: #003078;
+  background: #f3f2f1;
+}
+.app-action-icon:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 2px 0 #0b0c0c;
+  color: #0b0c0c;
+}
+.app-action-icon--delete {
+  color: #d4351c;
+}
+.app-action-icon--delete:hover {
+  color: #942514;
+  background: #fce5e1;
+}
+
+/* Wrapper form for POST icon actions (Move up / Move down) */
+.app-action-icon-form {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+}
+
+/* Button inside the form that renders like an icon link */
+.app-action-icon-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d70b8;
+  vertical-align: middle;
+  border-radius: 2px;
+  margin-right: 2px;
+  font: inherit;
+}
+.app-action-icon-btn:hover {
+  color: #003078;
+  background: #f3f2f1;
+}
+.app-action-icon-btn:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 2px 0 #0b0c0c;
+  color: #0b0c0c;
+}
+
+/* Inline search: input + Search button + Clear link on one row */
+.app-page-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.app-page-search-row .govuk-button {
+  margin-bottom: 0;
+}
+
+/* ==========================================================================
    Rules engine configuration — landing cards
    ========================================================================== */
 

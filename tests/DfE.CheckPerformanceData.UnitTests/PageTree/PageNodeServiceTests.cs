@@ -363,38 +363,44 @@ public class PageNodeServiceTests
     // ── MoveAsync ────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Move_Up_Swaps_With_Previous_Sibling()
+    public async Task Move_Up_PlacesNode_BeforePreviousSibling()
     {
         var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
         var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
         var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
 
-        // childA has the lower SortOrder (created first), childB has the higher.
-        var orderABefore = _repo.GetSortOrder(childA.Id);
-        var orderBBefore = _repo.GetSortOrder(childB.Id);
-        Assert.True(orderABefore < orderBBefore); // sanity check
+        // Sanity: A comes before B initially (lower sort order, created first).
+        var tree0 = await _repo.GetTreeAsync();
+        var s0 = tree0.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childA.Id, s0[0].Id);
+        Assert.Equal(childB.Id, s0[1].Id);
 
         await Sut().MoveAsync(childB.Id, "up");
 
-        // After moving B up, B should have A's original SortOrder and vice-versa.
-        Assert.Equal(orderABefore, _repo.GetSortOrder(childB.Id));
-        Assert.Equal(orderBBefore, _repo.GetSortOrder(childA.Id));
+        // After moving B up, B should precede A.
+        var tree1 = await _repo.GetTreeAsync();
+        var s1 = tree1.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childB.Id, s1[0].Id);
+        Assert.Equal(childA.Id, s1[1].Id);
     }
 
     [Fact]
-    public async Task Move_Down_Swaps_With_Next_Sibling()
+    public async Task Move_Down_PlacesNode_AfterNextSibling()
     {
         var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
         var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
         var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
 
-        var orderABefore = _repo.GetSortOrder(childA.Id);
-        var orderBBefore = _repo.GetSortOrder(childB.Id);
-
         await Sut().MoveAsync(childA.Id, "down");
 
-        Assert.Equal(orderBBefore, _repo.GetSortOrder(childA.Id));
-        Assert.Equal(orderABefore, _repo.GetSortOrder(childB.Id));
+        // After moving A down, B should precede A.
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childB.Id, siblings[0].Id);
+        Assert.Equal(childA.Id, siblings[1].Id);
     }
 
     [Fact]
@@ -402,27 +408,106 @@ public class PageNodeServiceTests
     {
         var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
         var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
-        await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
+        var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
 
-        var orderBefore = _repo.GetSortOrder(childA.Id);
+        await Sut().MoveAsync(childA.Id, "up"); // already first — should be a no-op
 
-        await Sut().MoveAsync(childA.Id, "up"); // already first
-
-        Assert.Equal(orderBefore, _repo.GetSortOrder(childA.Id)); // unchanged
+        // A must still precede B.
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childA.Id, siblings[0].Id);
+        Assert.Equal(childB.Id, siblings[1].Id);
     }
 
     [Fact]
     public async Task Move_Down_On_Last_Sibling_IsNoOp()
     {
         var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
-        await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
+        var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
         var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
 
-        var orderBefore = _repo.GetSortOrder(childB.Id);
+        await Sut().MoveAsync(childB.Id, "down"); // already last — should be a no-op
 
-        await Sut().MoveAsync(childB.Id, "down"); // already last
+        // A must still precede B.
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childA.Id, siblings[0].Id);
+        Assert.Equal(childB.Id, siblings[1].Id);
+    }
 
-        Assert.Equal(orderBefore, _repo.GetSortOrder(childB.Id)); // unchanged
+    // ── MoveAsync with equal SortOrders (legacy / seeded data) ──────────────
+
+    [Fact]
+    public async Task Move_EqualOrders_Up_MiddleToFirst()
+    {
+        var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
+        var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
+        var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
+        var childC = await Sut().CreatePageAsync(parent.Id, "c", "C", "content", null);
+
+        // Simulate legacy data where all siblings share SortOrder=0.
+        _repo.SetSortOrder(childA.Id, 0);
+        _repo.SetSortOrder(childB.Id, 0);
+        _repo.SetSortOrder(childC.Id, 0);
+
+        // Initial visible order by (SortOrder=0, CreatedDate): A, B, C.
+        // Move B (index 1) up → expected order: B, A, C.
+        await Sut().MoveAsync(childB.Id, "up");
+
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childB.Id, siblings[0].Id);
+        Assert.Equal(childA.Id, siblings[1].Id);
+        Assert.Equal(childC.Id, siblings[2].Id);
+    }
+
+    [Fact]
+    public async Task Move_EqualOrders_FirstUp_IsNoOp()
+    {
+        var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
+        var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
+        var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
+        var childC = await Sut().CreatePageAsync(parent.Id, "c", "C", "content", null);
+
+        _repo.SetSortOrder(childA.Id, 0);
+        _repo.SetSortOrder(childB.Id, 0);
+        _repo.SetSortOrder(childC.Id, 0);
+
+        // A is first — moving it up is a no-op, order stays A, B, C.
+        await Sut().MoveAsync(childA.Id, "up");
+
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childA.Id, siblings[0].Id);
+        Assert.Equal(childB.Id, siblings[1].Id);
+        Assert.Equal(childC.Id, siblings[2].Id);
+    }
+
+    [Fact]
+    public async Task Move_EqualOrders_LastDown_IsNoOp()
+    {
+        var parent = await Sut().CreatePageAsync(null, "parent", "Parent", "folder", null);
+        var childA = await Sut().CreatePageAsync(parent.Id, "a", "A", "content", null);
+        var childB = await Sut().CreatePageAsync(parent.Id, "b", "B", "content", null);
+        var childC = await Sut().CreatePageAsync(parent.Id, "c", "C", "content", null);
+
+        _repo.SetSortOrder(childA.Id, 0);
+        _repo.SetSortOrder(childB.Id, 0);
+        _repo.SetSortOrder(childC.Id, 0);
+
+        // C is last — moving it down is a no-op, order stays A, B, C.
+        await Sut().MoveAsync(childC.Id, "down");
+
+        var tree = await _repo.GetTreeAsync();
+        var siblings = tree.Where(n => n.ParentId == parent.Id)
+            .OrderBy(n => n.SortOrder).ThenBy(n => n.CreatedDate).ToList();
+        Assert.Equal(childA.Id, siblings[0].Id);
+        Assert.Equal(childB.Id, siblings[1].Id);
+        Assert.Equal(childC.Id, siblings[2].Id);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -434,6 +519,7 @@ public class PageNodeServiceTests
         private readonly List<FakeNode> _nodes = [];
         private readonly List<FakeVersion> _versions = [];
         private int _nextSortOrder;
+        private int _creationSeq; // monotonically increasing; feeds CreatedDate for stable ordering
 
         // Synchronous accessor for assertion convenience (avoids async in test body)
         public List<PageNodeVersionDto> GetVersionsSync(Guid nodeId) =>
@@ -448,6 +534,10 @@ public class PageNodeServiceTests
 
         public int GetSortOrder(Guid nodeId) =>
             _nodes.First(n => n.Id == nodeId).SortOrder;
+
+        /// <summary>Directly overrides SortOrder for testing equal-order scenarios.</summary>
+        public void SetSortOrder(Guid nodeId, int sortOrder) =>
+            _nodes.First(n => n.Id == nodeId).SortOrder = sortOrder;
 
         /// <summary>Records the userId passed to the most recent UpdateVersionWindowAsync call.</summary>
         public string? LastWindowUserId { get; private set; }
@@ -465,6 +555,7 @@ public class PageNodeServiceTests
                         Segment = n.Segment,
                         Path = n.Path,
                         SortOrder = n.SortOrder,
+                        CreatedDate = n.CreatedDate,
                         Title = n.Title,
                         PageType = n.PageType,
                         HasLiveVersion = _versions.Any(v => v.NodeId == n.Id && v.IsCurrent)
@@ -488,6 +579,7 @@ public class PageNodeServiceTests
         public Task<PageNodeDto> CreateNodeAsync(
             Guid? parentId, string segment, string path, string title, string pageType, string? userId)
         {
+            var seq = _creationSeq++;
             var node = new FakeNode
             {
                 Id = Guid.NewGuid(),
@@ -496,7 +588,8 @@ public class PageNodeServiceTests
                 Path = path,
                 Title = title,
                 PageType = pageType,
-                SortOrder = _nextSortOrder++
+                SortOrder = _nextSortOrder++,
+                CreatedDate = DateTime.UtcNow.AddSeconds(seq) // monotonically increasing
             };
             _nodes.Add(node);
             return Task.FromResult(ToNodeDto(node));
@@ -594,6 +687,13 @@ public class PageNodeServiceTests
             return Task.CompletedTask;
         }
 
+        public Task SetSiblingOrderAsync(IReadOnlyList<(Guid Id, int SortOrder)> orders)
+        {
+            foreach (var (id, sortOrder) in orders)
+                _nodes.First(n => n.Id == id).SortOrder = sortOrder;
+            return Task.CompletedTask;
+        }
+
         public Task ExecuteInTransactionAsync(Func<Task> work) => work();
 
         // ── helpers ──────────────────────────────────────────────────────────
@@ -643,6 +743,7 @@ public class PageNodeServiceTests
             public required string PageType { get; init; }
             public int SortOrder { get; set; }
             public bool IsDeleted { get; set; }
+            public DateTime CreatedDate { get; init; }
         }
 
         private sealed class FakeVersion

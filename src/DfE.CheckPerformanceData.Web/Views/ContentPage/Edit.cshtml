@@ -1,5 +1,6 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
 @using DfE.CheckPerformanceData.Web.Models.Guidance
+@using DfE.CheckPerformanceData.Web.Models.PageTree
 @model ContentPageEditViewModel
 @{
     ViewData["Title"] = $"Edit: {Model.Title}";
@@ -26,11 +27,11 @@
         <p class="govuk-body">
             @if (Model.IsPublished)
             {
-                <span class="govuk-tag govuk-tag--green">Published</span>
+                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionId</span>
             }
-            else
+            @if (Model.DraftVersionId is not null)
             {
-                <span class="govuk-tag govuk-tag--grey">Draft only — not published</span>
+                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionId</span>
             }
         </p>
 
@@ -54,7 +55,14 @@
                 @if (Model.IsPublished)
                 {
                     <p class="govuk-body govuk-!-margin-bottom-2">
-                        <strong class="govuk-tag govuk-tag--green">Published</strong>
+                        @if (Model.IsPublished)
+                        {
+                            <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionId</span>
+                        }
+                        @if (Model.DraftVersionId is not null)
+                        {
+                            <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionId</span>
+                        }
                     </p>
                     <div class="govuk-button-group">
                         <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
@@ -69,6 +77,9 @@
                     <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
                     <p class="govuk-hint">Make this page live.</p>
                 }
+
+                @await Html.PartialAsync("~/Views/PageTreeAdmin/_VersionHistoryList.cshtml",
+                    new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
             </div>
         }
 

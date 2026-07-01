@@ -1,0 +1,68 @@
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model PageTreeAdminVersionHistoryModel
+
+<hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
+<h2 class="govuk-heading-m">Version history</h2>
+
+@if (Model.Versions.Count == 0)
+{
+    <p class="govuk-body">No versions yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Version</th>
+                <th scope="col" class="govuk-table__header">Modified</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @{ var now = DateTime.UtcNow; }
+            @foreach (var v in Model.Versions)
+            {
+                string tagClass;
+                string tagText;
+                if (v.IsCurrent)
+                {
+                    tagClass = "govuk-tag--green";
+                    tagText  = "Live";
+                }
+                else if (v.PublishFrom != null && v.PublishFrom > now)
+                {
+                    tagClass = "govuk-tag--blue";
+                    tagText  = "Scheduled";
+                }
+                else if (v.PublishTo != null && v.PublishTo <= now)
+                {
+                    tagClass = "govuk-tag--grey";
+                    tagText  = "Past";
+                }
+                else
+                {
+                    tagClass = "govuk-tag--grey";
+                    tagText  = "Draft";
+                }
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@v.VersionId</td>
+                    <td class="govuk-table__cell">@v.UpdatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @tagClass">@tagText</strong>
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (!v.IsCurrent)
+                        {
+                            <form method="post" action="/admin/pages/@Model.NodeId/versions/publish-now">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="versionId" value="@v.VersionId" />
+                                <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">Publish</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

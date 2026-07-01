@@ -267,6 +267,73 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("govuk-button--secondary", src);
     }
 
+    // ── Version numbers on status tags ───────────────────────────────────────
+
+    [Fact]
+    public void ContentEdit_StatusTag_ShowsPublishedVersion()
+    {
+        var src = ContentEdit();
+        Assert.Contains("Published — version", src);
+    }
+
+    [Fact]
+    public void ContentEdit_StatusTag_ShowsDraftVersion()
+    {
+        var src = ContentEdit();
+        Assert.Contains("Draft — version", src);
+    }
+
+    [Fact]
+    public void WikiEdit_StatusTag_ShowsPublishedVersion()
+    {
+        var src = WikiEdit();
+        Assert.Contains("Published — version", src);
+    }
+
+    [Fact]
+    public void WikiEdit_StatusTag_ShowsDraftVersion()
+    {
+        var src = WikiEdit();
+        Assert.Contains("Draft — version", src);
+    }
+
+    // ── Inline version-history list partial ───────────────────────────────────
+
+    [Fact]
+    public void ContentEdit_IncludesVersionHistoryListPartial()
+    {
+        var src = ContentEdit();
+        Assert.Contains("_VersionHistoryList", src);
+    }
+
+    [Fact]
+    public void WikiEdit_IncludesVersionHistoryListPartial()
+    {
+        var src = WikiEdit();
+        Assert.Contains("_VersionHistoryList", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasVersionHistoryHeading()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("Version history", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasPublishNowAction()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("/versions/publish-now", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasVersionIdHiddenInput()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("versionId", src);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static int CountOccurrences(string text, string value)

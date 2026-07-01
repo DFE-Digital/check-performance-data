@@ -407,13 +407,15 @@ public sealed class PageTreeAdminController(
         // Avoids editing a blank document after a wiki page has been published (no draft remains).
         var content = await pageNodeService.GetWorkingOrLatestContentAsync(id);
         var isPublished = await pageNodeService.IsPublishedAsync(id);
+        var versions = await pageNodeService.GetVersionsAsync(id);
         var vm = new PageTreeAdminWikiEditViewModel
         {
             NodeId      = id,
             NodeTitle   = node.Title,
             Content     = content ?? string.Empty,
             PagePath    = node.Path,
-            IsPublished = isPublished
+            IsPublished = isPublished,
+            Versions    = versions
         };
         return View("WikiEdit", vm);
     }
@@ -423,6 +425,7 @@ public sealed class PageTreeAdminController(
         var json = await pageNodeService.GetWorkingOrLatestContentAsync(id) ?? "[]";
         var tree = ContentPageJson.Deserialize(json) ?? [];
         var isPublished = await pageNodeService.IsPublishedAsync(id);
+        var versions = await pageNodeService.GetVersionsAsync(id);
         return View("~/Views/ContentPage/Edit.cshtml", new ContentPageEditViewModel
         {
             ActionBase        = $"/admin/pages/{id}/content",
@@ -431,7 +434,8 @@ public sealed class PageTreeAdminController(
             Content           = tree,
             PagePath          = node.Path,
             ShowInlinePublish = false,
-            IsPublished       = isPublished
+            IsPublished       = isPublished,
+            Versions          = versions
         });
     }
 

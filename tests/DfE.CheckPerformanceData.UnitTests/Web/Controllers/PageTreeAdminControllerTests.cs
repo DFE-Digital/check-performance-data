@@ -1467,4 +1467,49 @@ public sealed class PageTreeAdminControllerTests
         Assert.NotNull(method);
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
     }
+
+    // ── Edit populates Versions on VM ─────────────────────────────────────────
+
+    [Fact]
+    public async Task Edit_ContentNode_PopulatesVersions_OnViewModel()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("[]");
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 2, IsCurrent = true,  Content = "" },
+            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = false, Content = "" }
+        });
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<ContentPageEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(2, vm.Versions.Count);
+    }
+
+    [Fact]
+    public async Task Edit_WikiNode_PopulatesVersions_OnViewModel()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki", Path = "wiki", Title = "Wiki", PageType = "wiki"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("<p>Hello</p>");
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 3, IsCurrent = false, Content = "" },
+            new() { Id = Guid.NewGuid(), VersionId = 2, IsCurrent = true,  Content = "" },
+            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = false, Content = "" }
+        });
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(3, vm.Versions.Count);
+    }
 }

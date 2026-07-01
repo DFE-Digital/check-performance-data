@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.PageTree
 @using DfE.CheckPerformanceData.Web.Models.PageTree
 @model PageTreeAdminWikiEditViewModel
 @{
@@ -35,7 +36,14 @@
     @if (Model.IsPublished)
     {
         <p class="govuk-body govuk-!-margin-bottom-2">
-            <strong class="govuk-tag govuk-tag--green">Published</strong>
+            @if (Model.IsPublished)
+            {
+                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionId</span>
+            }
+            @if (Model.DraftVersionId is not null)
+            {
+                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionId</span>
+            }
         </p>
         <div class="govuk-button-group">
             <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
@@ -50,6 +58,9 @@
         <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
         <p class="govuk-hint">Make this page live.</p>
     }
+
+    @await Html.PartialAsync("_VersionHistoryList",
+        new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
 </div>
 
 <script src="~/lib/tinymce/tinymce.min.js"></script>

@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
@@ -52,6 +54,7 @@ public class WindowEditItem
 
 public class WindowTitleEditItem
 {
-    public Guid WindowId { get; set; }
-    public string Title { get; set; }
+    public Guid WindowId { get; init; }
+    [Required(ErrorMessage = "Title can not be empty"), MaxLength(200, ErrorMessage = "Title must be 200 characters or less")]
+    public string Title { get; init; }
 }

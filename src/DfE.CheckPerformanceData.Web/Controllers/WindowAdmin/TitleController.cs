@@ -7,18 +7,18 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
 public class TitleController(ILogger<TitleController> logger, IWindowService windowService): Controller
 {
+    private const string PageView = "~/Views/WindowAdmin/Title.cshtml";
+
     [HttpGet("admin/windows/title")]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        WindowTitleEditItem model = new WindowTitleEditItem() { Title = "New window" };
+        return View(PageView, model);
+    }
+
     [HttpGet("admin/windows/{id:guid}/title")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
-        WindowTitleEditItem model = new WindowTitleEditItem();
-        
-        if (id == Guid.Empty)
-        {
-            model.Title = "New window";
-            return View("~/Views/WindowAdmin/Title.cshtml", model);
-        }
-
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
         if (window is null)
@@ -26,46 +26,47 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
             return NotFound();
         }
 
-        model = new WindowTitleEditItem
+        WindowTitleEditItem model = new WindowTitleEditItem
         {
             WindowId = window.Id,
             Title = window.Title
         };
 
-        return View("~/Views/WindowAdmin/Title.cshtml", model);
+        return View(PageView, model);
     }
-    
+
     [HttpPost("admin/windows/title")]
+    public async Task<IActionResult> Index(WindowTitleEditItem model, CancellationToken cancellationToken)
+    {
+        if (ModelState.ErrorCount > 0)
+        {
+            return View(PageView, model);
+        }
+        
+        CheckingWindowDraft draft = new CheckingWindowDraft
+        {
+            Title = model.Title
+        };
+        HttpContext.Session.SetString(
+            "CheckingWindowDraft",
+            JsonSerializer.Serialize(draft));
+            
+        throw new NotImplementedException("Will redirect to required controllers");
+    }
+
     [HttpPost("admin/windows/{id:guid}/title")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(Guid id, WindowTitleEditItem model, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(model.Title))
+        if (ModelState.ErrorCount > 0)
         {
-            ModelState.AddModelError(nameof(model.Title), "Enter a title");
-            return View("~/Views/WindowAdmin/Title.cshtml", model);
-        }
-        
-        if (id == Guid.Empty)
-        {
-            CheckingWindowDraft draft = new CheckingWindowDraft
-            {
-                Title = model.Title
-            };
-            HttpContext.Session.SetString(
-                "CheckingWindowDraft",
-                JsonSerializer.Serialize(draft));
-            
-            throw new NotImplementedException("Will redirect to required controllers"); 
-            
+            return View(PageView, model);
         }
         
         if (id != model.WindowId)
         {
             return BadRequest();
         }
-
-        
 
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
         window.Title = model.Title;

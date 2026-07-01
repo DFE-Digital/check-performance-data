@@ -60,6 +60,12 @@ public sealed class TreeNodeRenderTests
         // Child's title and path appear — recursion rendered the child node.
         Assert.Contains("Child page",    html);
         Assert.Contains("parent/child",  html);
+
+        // Child's action links carry the child's own id, not the parent's.
+        Assert.Contains($"/admin/pages/{childId}/edit",         html);
+        Assert.Contains($"/admin/pages/{childId}/versions",     html);
+        Assert.Contains($"/admin/pages/{childId}/delete",       html);
+        Assert.Contains($"/admin/pages/new?parentId={childId}", html);
     }
 
     // HasLiveVersion=true → title is a link; false → title is plain text (no href to a missing page).

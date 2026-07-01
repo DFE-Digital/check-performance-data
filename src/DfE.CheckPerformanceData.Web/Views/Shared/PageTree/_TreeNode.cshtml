@@ -25,10 +25,10 @@
     </span>
     <span class="app-page-tree__type govuk-body-s govuk-!-colour-secondary">(@Model.PageType)</span>
     <span class="app-page-tree__actions govuk-body-s">
-        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/edit">Edit</a>
-        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/versions">Versions</a>
-        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/new?parentId=@Model.Id">New child page</a>
-        <a class="govuk-link" href="/admin/pages/@Model.Id/delete">Delete</a>
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/edit">Edit<span class="govuk-visually-hidden"> @Model.Title</span></a>
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/versions">Versions<span class="govuk-visually-hidden"> @Model.Title</span></a>
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/new?parentId=@Model.Id">New child page<span class="govuk-visually-hidden"> @Model.Title</span></a>
+        <a class="govuk-link" href="/admin/pages/@Model.Id/delete">Delete<span class="govuk-visually-hidden"> @Model.Title</span></a>
     </span>
     @if (Model.Children.Count > 0)
     {

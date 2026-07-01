@@ -26,9 +26,9 @@
                 <a class="govuk-link" href="/guidance/@Model.Slug" target="_blank" rel="noopener">Preview public page</a>
                 @:&nbsp;
             }
-            @if (Model.PublishedVersionNumber is { } version)
+            @if (Model.IsPublished)
             {
-                <span class="govuk-tag govuk-tag--green">Published — version @version</span>
+                <span class="govuk-tag govuk-tag--green">Published</span>
             }
             else
             {

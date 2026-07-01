@@ -164,6 +164,19 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("Model.NodeId/versions", src);
     }
 
+    // The top-of-page status tag must share the same source of truth as the publish block
+    // (Model.IsPublished). The old PublishedVersionNumber field is never populated for page-tree
+    // content pages, so a tag bound to it stays permanently "Draft only" and contradicts the
+    // green "Published" tag once a draft is published. Guard against reintroducing that split.
+    [Fact]
+    public void ContentEdit_TopStatusTag_DrivenByIsPublished_NotDeadPublishedVersionNumber()
+    {
+        var src = ContentEdit();
+        Assert.DoesNotContain("PublishedVersionNumber", src);
+        // Both the top status tag and the publish block read Model.IsPublished.
+        Assert.True(CountOccurrences(src, "Model.IsPublished") >= 2);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static int CountOccurrences(string text, string value)

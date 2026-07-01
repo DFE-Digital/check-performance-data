@@ -15,7 +15,6 @@ public sealed class ContentPageEditViewModel
     public required string Title { get; init; }
     public string Layout { get; init; } = string.Empty;
     public required IReadOnlyList<ContentNode> Content { get; init; }
-    public int? PublishedVersionNumber { get; init; }
 
     // True for the old slug-keyed content-page editor (shows the inline "Save and publish" form).
     // False for the node-tree editor, where publishing is done on the Versions page.

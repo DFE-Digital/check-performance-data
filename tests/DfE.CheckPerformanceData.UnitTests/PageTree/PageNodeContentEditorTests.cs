@@ -205,6 +205,9 @@ public class PageNodeContentEditorTests
         public Task<PageNodeDto?> GetNodeByPathAsync(string path) => throw new NotSupportedException();
         public Task<LivePageResult?> GetLivePageAsync(string path, DateTime nowUtc) => throw new NotSupportedException();
         public Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to, string? userId) => throw new NotSupportedException();
+        public Task PublishDraftAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
+        public Task UnpublishAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
+        public Task<bool> IsPublishedAsync(Guid nodeId) => throw new NotSupportedException();
         public Task DeleteAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
     }

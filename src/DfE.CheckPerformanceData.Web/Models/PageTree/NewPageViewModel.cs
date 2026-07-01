@@ -6,7 +6,7 @@ public sealed class NewPageViewModel
 {
     public Guid? ParentId { get; init; }
     public string? ParentTitle { get; init; }
-    public string PageType { get; init; } = string.Empty;
+    public string PageType { get; init; } = "content";
     public string Segment { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string? Error { get; init; }

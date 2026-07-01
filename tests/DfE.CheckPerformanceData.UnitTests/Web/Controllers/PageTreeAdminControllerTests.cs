@@ -207,6 +207,34 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
+    public async Task Create_ValidContentUnderParent_ComputesCompositePath_AndRedirectsToEdit()
+    {
+        var parentId = Guid.NewGuid();
+        var nodeId   = Guid.NewGuid();
+
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "section", Path = "section",
+            Title = "Section", PageType = "folder"
+        });
+        _service.GetNodeByPathAsync("section/child-page").Returns((PageNodeDto?)null);
+        _service.CreatePageAsync(parentId, "child-page", "Child Page", "content", Arg.Any<string?>())
+            .Returns(new PageNodeDto
+            {
+                Id = nodeId, Segment = "child-page", Path = "section/child-page",
+                Title = "Child Page", PageType = "content"
+            });
+
+        var result = await Sut().Create(parentId, "content", "child-page", "Child Page");
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{nodeId}/edit", redirect.Url);
+        await _service.Received(1).GetNodeByPathAsync("section/child-page");
+        await _service.Received(1).CreatePageAsync(
+            parentId, "child-page", "Child Page", "content", Arg.Any<string?>());
+    }
+
+    [Fact]
     public async Task Create_InvalidPath_ReturnsFormWithError_AndDoesNotCreate()
     {
         // Segment with spaces fails the path regex — no reserved-routes setup needed.

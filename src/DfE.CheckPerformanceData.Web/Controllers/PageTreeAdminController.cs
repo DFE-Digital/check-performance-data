@@ -357,6 +357,7 @@ public sealed class PageTreeAdminController(
             NodeId      = id,
             NodeTitle   = node.Title,
             Content     = content ?? string.Empty,
+            PagePath    = node.Path,
             IsPublished = isPublished
         };
         return View("WikiEdit", vm);
@@ -373,6 +374,7 @@ public sealed class PageTreeAdminController(
             NodeId            = id,
             Title             = node.Title,
             Content           = tree,
+            PagePath          = node.Path,
             ShowInlinePublish = false,
             IsPublished       = isPublished
         });

@@ -177,6 +177,26 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.True(CountOccurrences(src, "Model.IsPublished") >= 2);
     }
 
+    // Both editors must expose a "View page" affordance that opens the rendered public page
+    // (the node's slug path) in a new tab, so editors can see the output without the edit controls.
+    [Fact]
+    public void ContentEdit_HasViewPageLink_OpeningPagePathInNewTab()
+    {
+        var src = ContentEdit();
+        Assert.Contains("View page", src);
+        Assert.Contains("/@Model.PagePath", src);
+        Assert.Contains("target=\"_blank\"", src);
+    }
+
+    [Fact]
+    public void WikiEdit_HasViewPageLink_OpeningPagePathInNewTab()
+    {
+        var src = WikiEdit();
+        Assert.Contains("View page", src);
+        Assert.Contains("/@Model.PagePath", src);
+        Assert.Contains("target=\"_blank\"", src);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static int CountOccurrences(string text, string value)

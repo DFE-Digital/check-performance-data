@@ -21,11 +21,9 @@
         <h1 class="govuk-heading-l">@Model.Title</h1>
 
         <p class="govuk-body">
-            @if (Model.Slug is not null)
-            {
-                <a class="govuk-link" href="/guidance/@Model.Slug" target="_blank" rel="noopener">Preview public page</a>
-                @:&nbsp;
-            }
+            <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
+        </p>
+        <p class="govuk-body">
             @if (Model.IsPublished)
             {
                 <span class="govuk-tag govuk-tag--green">Published</span>

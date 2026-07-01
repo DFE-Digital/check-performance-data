@@ -6,6 +6,10 @@
 
 <h1 class="govuk-heading-l">Edit: @Model.NodeTitle</h1>
 
+<p class="govuk-body">
+    <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
+</p>
+
 <form action="/admin/pages/@Model.NodeId/save" method="post">
     @Html.AntiForgeryToken()
 

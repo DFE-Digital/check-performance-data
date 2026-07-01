@@ -74,6 +74,42 @@ public sealed class ContentTemplateRenderTests
         Assert.DoesNotContain("<script", html);
     }
 
+    [Fact]
+    public async Task RendersPreviewBanner_WhenIsPreviewTrue()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title    = "Draft Page",
+            PageType = "content",
+            Content  = [],
+            Nav      = [],
+            IsPreview = true
+        };
+
+        var html = await RenderContentViewAsync(model);
+
+        Assert.Contains("govuk-notification-banner", html);
+        Assert.Contains("not published", html);
+    }
+
+    [Fact]
+    public async Task DoesNotRenderPreviewBanner_WhenIsPreviewFalse()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title    = "Published Page",
+            PageType = "content",
+            Content  = [],
+            Nav      = [],
+            IsPreview = false
+        };
+
+        var html = await RenderContentViewAsync(model);
+
+        Assert.DoesNotContain("govuk-notification-banner", html);
+        Assert.DoesNotContain("not published", html);
+    }
+
     // Spins up a minimal MVC host to obtain a wired view engine, then renders
     // Views/Page/Content.cshtml with isMainPage:false (bypasses _ViewStart / layout lookup).
     private static async Task<string> RenderContentViewAsync(RenderedPageViewModel model)

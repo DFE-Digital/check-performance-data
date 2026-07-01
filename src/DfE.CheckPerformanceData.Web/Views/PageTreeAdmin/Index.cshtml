@@ -148,18 +148,15 @@
                                     @ActionSvg("delete")
                                     <span class="govuk-visually-hidden">Delete @child.Title</span>
                                 </a>
-                                @* View — only when the page has a live published version *@
-                                @if (child.HasLiveVersion)
-                                {
-                                    <a class="app-action-icon"
-                                       href="/@child.Path"
-                                       target="_blank"
-                                       rel="noopener"
-                                       title="View @child.Title (opens in new tab)">
-                                        @ActionSvg("open_in_new")
-                                        <span class="govuk-visually-hidden">View @child.Title (opens in new tab)</span>
-                                    </a>
-                                }
+                                @* View — always available; editors can preview unpublished pages *@
+                                <a class="app-action-icon"
+                                   href="/@child.Path"
+                                   target="_blank"
+                                   rel="noopener"
+                                   title="View @child.Title (opens in new tab)">
+                                    @ActionSvg("open_in_new")
+                                    <span class="govuk-visually-hidden">View @child.Title (opens in new tab)</span>
+                                </a>
                             </td>
                         </tr>
                     }

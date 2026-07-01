@@ -22,15 +22,26 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         if (node.PageType == "folder")
             return await BuildFolderViewAsync(node);
 
-        // content / wiki: require a live version
+        // content / wiki: try to get the live (published) version first.
         var result = await pageNodes.GetLivePageAsync(path, DateTime.UtcNow);
-        if (result is null)
+        if (result is not null)
+        {
+            return result.Node.PageType switch
+            {
+                "content" => BuildContentView(result),
+                "wiki"    => await BuildWikiViewAsync(result),
+                _         => NotFound()
+            };
+        }
+
+        // No live version: editors see a draft preview; everyone else gets 404.
+        if (!User.IsInRole(WikiConstants.EditorRole))
             return NotFound();
 
-        return result.Node.PageType switch
+        return node.PageType switch
         {
-            "content" => BuildContentView(result),
-            "wiki"    => await BuildWikiViewAsync(result),
+            "content" => await BuildPreviewContentViewAsync(node),
+            "wiki"    => await BuildPreviewWikiViewAsync(node),
             _         => NotFound()
         };
     }
@@ -85,6 +96,43 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             PageType = "wiki",
             WikiHtml = result.Version.Content,
             Nav      = siblings
+        });
+    }
+
+    // Preview: editor views a content page with no live version — renders the working/latest draft.
+    private async Task<IActionResult> BuildPreviewContentViewAsync(PageNodeDto node)
+    {
+        var content = await pageNodes.GetWorkingOrLatestContentAsync(node.Id) ?? "[]";
+        var tree = ContentPageJson.Deserialize(content) ?? [];
+        return View("Content", new RenderedPageViewModel
+        {
+            Title     = node.Title,
+            PageType  = "content",
+            Content   = tree,
+            Nav       = ContentNavBuilder.Build(tree),
+            IsPreview = true
+        });
+    }
+
+    // Preview: editor views a wiki page with no live version — renders the working/latest draft.
+    // WikiHtml is stored raw; sanitisation happens in Wiki.cshtml via IHtmlRenderingService.
+    private async Task<IActionResult> BuildPreviewWikiViewAsync(PageNodeDto node)
+    {
+        var content = await pageNodes.GetWorkingOrLatestContentAsync(node.Id);
+        var tree = await pageNodes.GetTreeAsync() ?? [];
+        var siblings = tree
+            .Where(n => n.ParentId == node.ParentId)
+            .OrderBy(n => n.SortOrder)
+            .Select(n => new ContentNavItem(n.Title, "/" + n.Path, []))
+            .ToList();
+
+        return View("Wiki", new RenderedPageViewModel
+        {
+            Title     = node.Title,
+            PageType  = "wiki",
+            WikiHtml  = content,
+            Nav       = siblings,
+            IsPreview = true
         });
     }
 }

@@ -7,6 +7,18 @@
     IReadOnlyList<ContentNavItem> nav = Model.Nav ?? [];
 }
 
+@if (Model.IsPreview)
+{
+    <div class="govuk-notification-banner govuk-notification-banner--important" role="region" aria-labelledby="preview-notice-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="preview-notice-title">Preview</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-body">This page is not published. Only editors can see this preview.</p>
+        </div>
+    </div>
+}
+
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-one-third">
         @await Html.PartialAsync("ContentPages/_SideNav", nav)

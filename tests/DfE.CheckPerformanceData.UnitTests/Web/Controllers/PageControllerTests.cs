@@ -1,7 +1,9 @@
 using System.Reflection;
+using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -9,7 +11,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 // Verifies the catch-all page resolver:
 //   - unknown path → 404 (GetNodeByPathAsync returns null)
-//   - content/wiki with no live version → 404 (GetLivePageAsync returns null)
+//   - content/wiki with no live version + non-editor → 404
+//   - content/wiki with no live version + editor → View with IsPreview=true
 //   - content node → View("Content", RenderedPageViewModel) with deserialised tree + auto nav
 //   - wiki node   → View("Wiki",    RenderedPageViewModel) with raw HTML
 //   - folder node → View("Folder",  RenderedPageViewModel) with Nav = ordered children
@@ -18,7 +21,22 @@ public sealed class PageControllerTests
 {
     private readonly IPageNodeService _pageNodes = Substitute.For<IPageNodeService>();
 
-    private PageController CreateSut() => new(_pageNodes);
+    // Anonymous user (no roles) — exercises the "not an editor" path.
+    private PageController CreateSut() => CreateSutWithRole(null);
+
+    private PageController CreateSutWithRole(string? role)
+    {
+        var sut = new PageController(_pageNodes);
+        var claims = new List<Claim>();
+        if (role is not null)
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        var identity = new ClaimsIdentity(claims, role is not null ? "test" : null);
+        sut.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+        };
+        return sut;
+    }
 
     private static PageNodeDto Node(
         string pageType, string title = "Test Page", string path = "test",
@@ -49,15 +67,83 @@ public sealed class PageControllerTests
     }
 
     [Fact]
-    public async Task Show_ReturnsNotFound_WhenNodeHasNoLiveVersion()
+    public async Task Show_ReturnsNotFound_WhenNodeHasNoLiveVersion_AndUserIsNotEditor()
     {
-        // Node exists (content type) but no version is currently live.
+        // Node exists (content type) but no version is currently live; anonymous user → 404.
         _pageNodes.GetNodeByPathAsync("unpublished")
             .Returns(Node("content", "Unpublished", "unpublished"));
         _pageNodes.GetLivePageAsync("unpublished", Arg.Any<DateTime>())
             .Returns((LivePageResult?)null);
 
         var result = await CreateSut().Show("unpublished");
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsContentPreview_WhenNoLiveVersion_AndUserIsEditor()
+    {
+        const string draftJson = """[{"kind":"widget","type":"heading","anchor":"h1","props":{"level":2,"text":"Draft"}}]""";
+        var nodeId = Guid.NewGuid();
+        _pageNodes.GetNodeByPathAsync("draft-content")
+            .Returns(Node("content", "Draft Page", "draft-content", id: nodeId));
+        _pageNodes.GetLivePageAsync("draft-content", Arg.Any<DateTime>())
+            .Returns((LivePageResult?)null);
+        _pageNodes.GetWorkingOrLatestContentAsync(nodeId)
+            .Returns(draftJson);
+
+        var result = await CreateSutWithRole(WikiConstants.EditorRole).Show("draft-content");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Content", view.ViewName);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.True(model.IsPreview);
+        Assert.Equal("Draft Page", model.Title);
+        Assert.NotNull(model.Content);
+        await _pageNodes.Received(1).GetWorkingOrLatestContentAsync(nodeId);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsWikiPreview_WhenNoLiveVersion_AndUserIsEditor()
+    {
+        var nodeId   = Guid.NewGuid();
+        var parentId = Guid.NewGuid();
+        var wikiNode = new PageNodeDto
+        {
+            Id       = nodeId,
+            ParentId = parentId,
+            Segment  = "draft-wiki",
+            Path     = "draft-wiki",
+            Title    = "Draft Wiki",
+            PageType = "wiki"
+        };
+        _pageNodes.GetNodeByPathAsync("draft-wiki").Returns(wikiNode);
+        _pageNodes.GetLivePageAsync("draft-wiki", Arg.Any<DateTime>())
+            .Returns((LivePageResult?)null);
+        _pageNodes.GetWorkingOrLatestContentAsync(nodeId)
+            .Returns("<p>Draft body</p>");
+        _pageNodes.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await CreateSutWithRole(WikiConstants.EditorRole).Show("draft-wiki");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Wiki", view.ViewName);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.True(model.IsPreview);
+        Assert.Equal("Draft Wiki", model.Title);
+        Assert.Equal("<p>Draft body</p>", model.WikiHtml);
+        await _pageNodes.Received(1).GetWorkingOrLatestContentAsync(nodeId);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsNotFound_ForWikiWithNoLiveVersion_WhenUserIsNotEditor()
+    {
+        _pageNodes.GetNodeByPathAsync("draft-wiki")
+            .Returns(Node("wiki", "Draft Wiki", "draft-wiki"));
+        _pageNodes.GetLivePageAsync("draft-wiki", Arg.Any<DateTime>())
+            .Returns((LivePageResult?)null);
+
+        var result = await CreateSut().Show("draft-wiki");
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -105,6 +191,38 @@ public sealed class PageControllerTests
         Assert.Equal("Wiki Page", model.Title);
         Assert.Equal("wiki", model.PageType);
         Assert.Equal("<p>Hello world</p>", model.WikiHtml);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsContentView_WithIsPreviewFalse_WhenPageIsLive()
+    {
+        const string json = """[{"kind":"widget","type":"heading","anchor":"a","props":{"level":2,"text":"A"}}]""";
+        _pageNodes.GetNodeByPathAsync("live-content")
+            .Returns(Node("content", "Live Content", "live-content"));
+        _pageNodes.GetLivePageAsync("live-content", Arg.Any<DateTime>())
+            .Returns(Live("content", json, "Live Content"));
+
+        // Even an editor viewing a published page should get IsPreview=false.
+        var result = await CreateSutWithRole(WikiConstants.EditorRole).Show("live-content");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.False(model.IsPreview);
+    }
+
+    [Fact]
+    public async Task Show_ReturnsWikiView_WithIsPreviewFalse_WhenPageIsLive()
+    {
+        _pageNodes.GetNodeByPathAsync("live-wiki")
+            .Returns(Node("wiki", "Live Wiki", "live-wiki"));
+        _pageNodes.GetLivePageAsync("live-wiki", Arg.Any<DateTime>())
+            .Returns(Live("wiki", "<p>Published</p>", "Live Wiki"));
+
+        var result = await CreateSutWithRole(WikiConstants.EditorRole).Show("live-wiki");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.False(model.IsPreview);
     }
 
     [Fact]

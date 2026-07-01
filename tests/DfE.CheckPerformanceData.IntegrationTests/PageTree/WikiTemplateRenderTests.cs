@@ -57,6 +57,42 @@ public sealed class WikiTemplateRenderTests
         Assert.Contains("Sibling Page", html);
     }
 
+    [Fact]
+    public async Task RendersPreviewBanner_WhenIsPreviewTrue()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title    = "Draft Wiki",
+            PageType = "wiki",
+            WikiHtml = "<p>Body</p>",
+            Nav      = [],
+            IsPreview = true
+        };
+
+        var html = await RenderWikiViewAsync(model);
+
+        Assert.Contains("govuk-notification-banner", html);
+        Assert.Contains("not published", html);
+    }
+
+    [Fact]
+    public async Task DoesNotRenderPreviewBanner_WhenIsPreviewFalse()
+    {
+        var model = new RenderedPageViewModel
+        {
+            Title    = "Published Wiki",
+            PageType = "wiki",
+            WikiHtml = "<p>Body</p>",
+            Nav      = [],
+            IsPreview = false
+        };
+
+        var html = await RenderWikiViewAsync(model);
+
+        Assert.DoesNotContain("govuk-notification-banner", html);
+        Assert.DoesNotContain("not published", html);
+    }
+
     // Spins up a minimal MVC host to obtain a wired view engine, then renders
     // Views/Page/Wiki.cshtml with isMainPage:false (bypasses _ViewStart / layout lookup).
     private static async Task<string> RenderWikiViewAsync(RenderedPageViewModel model)

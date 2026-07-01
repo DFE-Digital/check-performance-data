@@ -79,19 +79,17 @@
         addItem('New child page', function () { navigate('/admin/pages/new'); });
     }
 
-    function buildMenuForPage(pageId, pagePath, hasLive) {
+    function buildMenuForPage(pageId, pagePath) {
         addItem('New child page', function () { navigate('/admin/pages/new?parentId=' + pageId); });
         addItem('Edit', function () { navigate('/admin/pages/' + pageId + '/edit'); });
         addItem('Versions', function () { navigate('/admin/pages/' + pageId + '/versions'); });
         addItem('Move up', function () { postMove(pageId, 'up'); });
         addItem('Move down', function () { postMove(pageId, 'down'); });
         addItem('Delete', function () { navigate('/admin/pages/' + pageId + '/delete'); }, true);
-        if (hasLive) {
-            addItem('View', function () {
-                var path = pagePath.replace(/^\//, '');
-                window.open('/' + path, '_blank', 'noopener');
-            });
-        }
+        addItem('View', function () {
+            var path = pagePath.replace(/^\//, '');
+            window.open('/' + path, '_blank', 'noopener');
+        });
     }
 
     function positionMenu(x, y) {
@@ -129,8 +127,7 @@
         } else {
             var pageId = target.getAttribute('data-page-id');
             var pagePath = target.getAttribute('data-page-path') || '';
-            var hasLive = target.getAttribute('data-page-has-live') === 'true';
-            buildMenuForPage(pageId, pagePath, hasLive);
+            buildMenuForPage(pageId, pagePath);
         }
 
         positionMenu(e.clientX, e.clientY);

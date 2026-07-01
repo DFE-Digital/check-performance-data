@@ -100,10 +100,10 @@ public sealed class PageTreeGridRenderTests
         Assert.Contains("name=\"direction\" value=\"up\"",   html);
         Assert.Contains("name=\"direction\" value=\"down\"", html);
 
-        // ── View link: present for live, absent for draft ─────────────────────
-        Assert.Contains($"href=\"/my-section/live-child\"",          html);
-        Assert.DoesNotContain($"href=\"/my-section/draft-child\"",   html);
-        Assert.DoesNotContain("title=\"View Draft child",             html);
+        // ── View link: present for BOTH live and draft (editors can preview unpublished) ──
+        Assert.Contains($"href=\"/my-section/live-child\"",   html);
+        Assert.Contains($"href=\"/my-section/draft-child\"",  html);
+        Assert.Contains("title=\"View Draft child (opens in new tab)\"", html);
 
         // ── Search input ──────────────────────────────────────────────────────
         Assert.Contains("name=\"q\"", html);

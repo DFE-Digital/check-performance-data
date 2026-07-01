@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
@@ -14,13 +15,82 @@ public sealed class PageTreeAdminController(
     IPageNodeService pageNodeService,
     PageNodePathValidator pathValidator,
     IHtmlRenderingService htmlRenderingService,
-    IPageNodeContentEditor nodeContentEditor) : Controller
+    IPageNodeContentEditor nodeContentEditor,
+    ISettingService settingService) : Controller
 {
+    private const int DefaultPageLength = 20;
+
     [HttpGet("/admin/pages")]
-    public async Task<IActionResult> Index()
+    [HttpGet("/admin/pages/{id:guid}")]
+    public async Task<IActionResult> Index(Guid? id, string? q, int page = 1)
     {
-        var tree = PageTreeBuilder.Build(await pageNodeService.GetTreeAsync());
-        return View(tree);
+        // Resolve the selected node (null = root).
+        PageNodeDto? selected = null;
+        if (id.HasValue)
+        {
+            selected = await pageNodeService.GetNodeByIdAsync(id.Value);
+            if (selected is null) return NotFound();
+        }
+
+        // Direct children of the selected node, ordered by SortOrder.
+        var allItems = await pageNodeService.GetTreeAsync();
+        IEnumerable<PageNodeTreeItemDto> children = allItems
+            .Where(n => n.ParentId == id)
+            .OrderBy(n => n.SortOrder);
+
+        // Optional search filter on Title or Segment (case-insensitive).
+        var trimmedQ = q?.Trim();
+        if (!string.IsNullOrEmpty(trimmedQ))
+        {
+            children = children.Where(n =>
+                n.Title.Contains(trimmedQ, StringComparison.OrdinalIgnoreCase) ||
+                n.Segment.Contains(trimmedQ, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var filtered = children.ToList();
+        var totalCount = filtered.Count;
+
+        // Paging.
+        var rawSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var pageSize = rawSize > 0 ? rawSize : DefaultPageLength;
+        var safePage = page < 1 ? 1 : page;
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling((double)totalCount / pageSize);
+
+        var pageRows = filtered
+            .Skip((safePage - 1) * pageSize)
+            .Take(pageSize)
+            .Select(n => new PageTreeGridRowViewModel
+            {
+                Id             = n.Id,
+                Title          = n.Title,
+                Segment        = n.Segment,
+                Path           = n.Path,
+                PageType       = n.PageType,
+                HasLiveVersion = n.HasLiveVersion
+            })
+            .ToList();
+
+        var selectedItem = id.HasValue
+            ? allItems.FirstOrDefault(n => n.Id == id.Value)
+            : null;
+
+        var vm = new PageTreeGridViewModel
+        {
+            SelectedId             = id,
+            SelectedTitle          = selected?.Title ?? "All pages",
+            SelectedPath           = selected?.Path,
+            SelectedPageType       = selected?.PageType,
+            SelectedParentId       = selected?.ParentId,
+            SelectedHasLiveVersion = selectedItem?.HasLiveVersion ?? false,
+            Children               = pageRows,
+            SearchQuery            = trimmedQ,
+            CurrentPage            = safePage,
+            TotalPages             = totalPages,
+            TotalCount             = totalCount,
+            PageSize               = pageSize
+        };
+
+        return View(vm);
     }
 
     [HttpGet("/admin/pages/new")]

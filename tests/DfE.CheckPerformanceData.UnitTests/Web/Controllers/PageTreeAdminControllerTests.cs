@@ -2,6 +2,7 @@ using System.Reflection;
 using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
@@ -22,11 +23,12 @@ public sealed class PageTreeAdminControllerTests
     private readonly IPageNodeService _service = Substitute.For<IPageNodeService>();
     private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
     private readonly IPageNodeContentEditor _contentEditor = Substitute.For<IPageNodeContentEditor>();
+    private readonly ISettingService _settings = Substitute.For<ISettingService>();
 
     private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
     {
         var controller = new PageTreeAdminController(
-            _service, validator ?? OpenValidator(), _renderer, _contentEditor);
+            _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -43,76 +45,245 @@ public sealed class PageTreeAdminControllerTests
         return new PageNodePathValidator(provider);
     }
 
-    // ── Index ────────────────────────────────────────────────────────────────
+    // ── Index (grid) ─────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task Index_ReturnsView_WithBuiltTree()
+    public async Task Index_Root_ReturnsView_WithRootChildren_AndAllPagesTitle()
     {
-        var rootId = Guid.NewGuid();
+        var rootId1 = Guid.NewGuid();
+        var rootId2 = Guid.NewGuid();
+        var childId = Guid.NewGuid();
         _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
         {
-            new() { Id = rootId, Segment = "home", Path = "home", Title = "Home", PageType = "folder", SortOrder = 1 }
+            new() { Id = rootId1, Segment = "home",   Path = "home",   Title = "Home",    PageType = "folder",  SortOrder = 1 },
+            new() { Id = rootId2, Segment = "help",   Path = "help",   Title = "Help",    PageType = "wiki",    SortOrder = 2 },
+            // child of rootId1 — must NOT appear at root level
+            new() { Id = childId, ParentId = rootId1, Segment = "sub", Path = "home/sub", Title = "Sub", PageType = "content", SortOrder = 1 }
         });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
 
-        var result = await Sut().Index();
+        var result = await Sut().Index(null, null, 1);
 
-        var view  = Assert.IsType<ViewResult>(result);
-        var model = Assert.IsAssignableFrom<IReadOnlyList<PageTreeNode>>(view.Model);
-        Assert.Single(model);
-        Assert.Equal("Home", model[0].Title);
-        Assert.Equal("home", model[0].Path);
+        var view = Assert.IsType<ViewResult>(result);
+        var vm   = Assert.IsType<PageTreeGridViewModel>(view.Model);
+        Assert.Equal("All pages", vm.SelectedTitle);
+        Assert.Null(vm.SelectedId);
+        // Only the two root nodes; the deeper child must be excluded.
+        Assert.Equal(2, vm.TotalCount);
+        Assert.Equal(2, vm.Children.Count);
+        Assert.Contains(vm.Children, r => r.Title == "Home");
+        Assert.Contains(vm.Children, r => r.Title == "Help");
+        Assert.DoesNotContain(vm.Children, r => r.Title == "Sub");
     }
 
     [Fact]
-    public async Task Index_BuildsNestedTree_WhenChildRowsProvided()
+    public async Task Index_WithId_ReturnsView_WithDirectChildrenOnly()
     {
         var parentId = Guid.NewGuid();
-        var childId  = Guid.NewGuid();
+        var childId1 = Guid.NewGuid();
+        var childId2 = Guid.NewGuid();
+        var grandId  = Guid.NewGuid();
 
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "section", Path = "section", Title = "Section", PageType = "folder"
+        });
         _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
         {
-            new()
-            {
-                Id       = parentId,
-                Segment  = "parent",
-                Path     = "parent",
-                Title    = "Parent",
-                PageType = "folder",
-                SortOrder = 1
-            },
-            new()
-            {
-                Id            = childId,
-                ParentId      = parentId,
-                Segment       = "child",
-                Path          = "parent/child",
-                Title         = "Child",
-                PageType      = "content",
-                SortOrder     = 1,
-                HasLiveVersion = true
-            }
+            new() { Id = parentId, Segment = "section",  Path = "section",        Title = "Section",  PageType = "folder",  SortOrder = 1 },
+            new() { Id = childId1, ParentId = parentId,  Segment = "page-a", Path = "section/page-a", Title = "Page A",   PageType = "content", SortOrder = 1 },
+            new() { Id = childId2, ParentId = parentId,  Segment = "page-b", Path = "section/page-b", Title = "Page B",   PageType = "wiki",    SortOrder = 2 },
+            // grandchild of parentId — must NOT appear in the direct-children listing
+            new() { Id = grandId,  ParentId = childId1,  Segment = "grand",  Path = "section/page-a/grand", Title = "Grand", PageType = "content", SortOrder = 1 }
         });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
 
-        var result = await Sut().Index();
+        var result = await Sut().Index(parentId, null, 1);
 
-        var view  = Assert.IsType<ViewResult>(result);
-        var model = Assert.IsAssignableFrom<IReadOnlyList<PageTreeNode>>(view.Model);
-        Assert.Single(model);                        // one root
-        Assert.Single(model[0].Children);            // one nested child
-        Assert.Equal("Child", model[0].Children[0].Title);
-        Assert.True(model[0].Children[0].HasLiveVersion);
+        var view = Assert.IsType<ViewResult>(result);
+        var vm   = Assert.IsType<PageTreeGridViewModel>(view.Model);
+        Assert.Equal(parentId, vm.SelectedId);
+        Assert.Equal("Section", vm.SelectedTitle);
+        Assert.Equal(2, vm.TotalCount);
+        Assert.Equal(2, vm.Children.Count);
+        Assert.Contains(vm.Children, r => r.Title == "Page A");
+        Assert.Contains(vm.Children, r => r.Title == "Page B");
+        Assert.DoesNotContain(vm.Children, r => r.Title == "Grand");
     }
 
     [Fact]
-    public async Task Index_ReturnsEmptyList_WhenNoRows()
+    public async Task Index_WithUnknownId_ReturnsNotFound()
     {
-        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+        var badId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(badId).Returns((PageNodeDto?)null);
 
-        var result = await Sut().Index();
+        var result = await Sut().Index(badId, null, 1);
 
-        var view  = Assert.IsType<ViewResult>(result);
-        var model = Assert.IsAssignableFrom<IReadOnlyList<PageTreeNode>>(view.Model);
-        Assert.Empty(model);
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Index_Search_FiltersChildren_ByTitleAndSegment_CaseInsensitive()
+    {
+        var parentId = Guid.NewGuid();
+        var matchId1 = Guid.NewGuid();
+        var matchId2 = Guid.NewGuid();
+        var noMatchId = Guid.NewGuid();
+
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "parent", Path = "parent", Title = "Parent", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = parentId,  Segment = "parent",         Path = "parent",              Title = "Parent",         PageType = "folder",  SortOrder = 0 },
+            // matches by Title (case-insensitive "ks4")
+            new() { Id = matchId1,  ParentId = parentId, Segment = "ks4-dates",  Path = "parent/ks4-dates",  Title = "KS4 Dates",  PageType = "content", SortOrder = 1 },
+            // matches by Segment ("check")
+            new() { Id = matchId2,  ParentId = parentId, Segment = "check-data", Path = "parent/check-data", Title = "Data check", PageType = "content", SortOrder = 2 },
+            // does NOT match
+            new() { Id = noMatchId, ParentId = parentId, Segment = "about",      Path = "parent/about",      Title = "About us",   PageType = "wiki",    SortOrder = 3 }
+        });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(parentId, "ks4", 1);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm   = Assert.IsType<PageTreeGridViewModel>(view.Model);
+        Assert.Equal("ks4", vm.SearchQuery);
+        Assert.Equal(1, vm.TotalCount);
+        Assert.Single(vm.Children);
+        Assert.Equal("KS4 Dates", vm.Children[0].Title);
+
+        // Search on segment — "check" hits the second row
+        var result2 = await Sut().Index(parentId, "CHECK", 1);
+        var vm2 = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result2).Model);
+        Assert.Equal(1, vm2.TotalCount);
+        Assert.Equal("Data check", vm2.Children[0].Title);
+    }
+
+    [Fact]
+    public async Task Index_Paging_Page1_ReturnsFirstItems_AndComputesTotalPages()
+    {
+        var parentId = Guid.NewGuid();
+        var ids = Enumerable.Range(1, 5).Select(_ => Guid.NewGuid()).ToList();
+
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "root", Path = "root", Title = "Root", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(ids.Select((id, i) => new PageNodeTreeItemDto
+        {
+            Id = id, ParentId = parentId, Segment = $"page-{i + 1}", Path = $"root/page-{i + 1}",
+            Title = $"Page {i + 1}", PageType = "content", SortOrder = i + 1
+        }).ToList());
+        // Stub page size = 2
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(2);
+
+        var result = await Sut().Index(parentId, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(5, vm.TotalCount);
+        Assert.Equal(2, vm.PageSize);
+        Assert.Equal(3, vm.TotalPages);  // ceil(5/2)
+        Assert.Equal(1, vm.CurrentPage);
+        Assert.Equal(2, vm.Children.Count);
+        Assert.Equal("Page 1", vm.Children[0].Title);
+        Assert.Equal("Page 2", vm.Children[1].Title);
+    }
+
+    [Fact]
+    public async Task Index_Paging_Page2_ReturnsNextItems()
+    {
+        var parentId = Guid.NewGuid();
+        var ids = Enumerable.Range(1, 5).Select(_ => Guid.NewGuid()).ToList();
+
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "root", Path = "root", Title = "Root", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(ids.Select((id, i) => new PageNodeTreeItemDto
+        {
+            Id = id, ParentId = parentId, Segment = $"page-{i + 1}", Path = $"root/page-{i + 1}",
+            Title = $"Page {i + 1}", PageType = "content", SortOrder = i + 1
+        }).ToList());
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(2);
+
+        var result = await Sut().Index(parentId, null, 2);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(2, vm.CurrentPage);
+        Assert.Equal(2, vm.Children.Count);
+        Assert.Equal("Page 3", vm.Children[0].Title);
+        Assert.Equal("Page 4", vm.Children[1].Title);
+    }
+
+    [Fact]
+    public async Task Index_Paging_NegativeOrZeroPage_ClampsToOne()
+    {
+        var parentId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "root", Path = "root", Title = "Root", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = Guid.NewGuid(), ParentId = parentId, Segment = "a", Path = "root/a", Title = "A", PageType = "content", SortOrder = 1 }
+        });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(parentId, null, -5);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(1, vm.CurrentPage);
+    }
+
+    [Fact]
+    public async Task Index_ChildRows_CarryHasLiveVersion()
+    {
+        var parentId = Guid.NewGuid();
+        var liveId   = Guid.NewGuid();
+        var draftId  = Guid.NewGuid();
+
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "root", Path = "root", Title = "Root", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = liveId,  ParentId = parentId, Segment = "live",  Path = "root/live",  Title = "Live",  PageType = "content", SortOrder = 1, HasLiveVersion = true },
+            new() { Id = draftId, ParentId = parentId, Segment = "draft", Path = "root/draft", Title = "Draft", PageType = "content", SortOrder = 2, HasLiveVersion = false }
+        });
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+
+        var result = await Sut().Index(parentId, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        var live  = Assert.Single(vm.Children, r => r.Title == "Live");
+        var draft = Assert.Single(vm.Children, r => r.Title == "Draft");
+        Assert.True(live.HasLiveVersion);
+        Assert.False(draft.HasLiveVersion);
+    }
+
+    [Fact]
+    public async Task Index_FallsBackToDefaultPageSize_WhenSettingReturnsZero()
+    {
+        var parentId = Guid.NewGuid();
+        _service.GetNodeByIdAsync(parentId).Returns(new PageNodeDto
+        {
+            Id = parentId, Segment = "root", Path = "root", Title = "Root", PageType = "folder"
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>
+        {
+            new() { Id = Guid.NewGuid(), ParentId = parentId, Segment = "a", Path = "root/a", Title = "A", PageType = "content", SortOrder = 1 }
+        });
+        // Setting service returns 0 → should fall back to DefaultPageLength (20)
+        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(0);
+
+        var result = await Sut().Index(parentId, null, 1);
+
+        var vm = Assert.IsType<PageTreeGridViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.Equal(20, vm.PageSize);
     }
 
     // ── GET /admin/pages/new ─────────────────────────────────────────────────

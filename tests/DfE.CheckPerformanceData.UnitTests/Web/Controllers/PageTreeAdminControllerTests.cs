@@ -529,11 +529,16 @@ public sealed class PageTreeAdminControllerTests
     public async Task Publish_ValidPost_CallsPublishAsyncAndRedirects()
     {
         var id = Guid.NewGuid();
-        var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var result = await Sut().Publish(id, 3, from, null);
+        // datetime-local form values arrive as strings; the action parses them invariantly to UTC.
+        var result = await Sut().Publish(id, 3, "2026-08-01T09:30", null);
 
-        await _service.Received(1).PublishAsync(id, 3, from, null, Arg.Any<string?>());
+        await _service.Received(1).PublishAsync(id, 3,
+            Arg.Is<DateTime?>(d => d.HasValue
+                && d.Value.Kind == DateTimeKind.Utc
+                && d.Value == new DateTime(2026, 8, 1, 9, 30, 0)),
+            Arg.Is<DateTime?>(d => d == null),
+            Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
     }
@@ -544,6 +549,30 @@ public sealed class PageTreeAdminControllerTests
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Publish));
         Assert.NotNull(method);
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    [Fact]
+    public async Task Save_NullContent_SavesEmptyString_NotNull()
+    {
+        var id = Guid.NewGuid();
+
+        await Sut().Save(id, null!);
+
+        // Content column is NOT NULL; a null form value must be coalesced to empty, not passed through.
+        await _service.Received(1).SaveWorkingContentAsync(
+            id, string.Empty, Arg.Any<string>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task SaveAndPublish_NullContent_SavesEmptyString_ThenPublishes()
+    {
+        var id = Guid.NewGuid();
+
+        await Sut().SaveAndPublish(id, null!);
+
+        await _service.Received(1).SaveWorkingContentAsync(
+            id, string.Empty, Arg.Any<string>(), Arg.Any<string?>());
+        await _service.Received(1).PublishDraftAsync(id, Arg.Any<string?>());
     }
 
     // ── POST /admin/pages/{id}/publish-draft ─────────────────────────────────
@@ -1391,13 +1420,14 @@ public sealed class PageTreeAdminControllerTests
     public async Task PublishNow_ExplicitFrom_PassesThroughSameFrom_AndRedirectsToVersions()
     {
         var id = Guid.NewGuid();
-        var from = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var result = await Sut().PublishNow(id, 3, from, null);
+        var result = await Sut().PublishNow(id, 3, "2026-09-01T00:00", null);
 
         await _service.Received(1).PublishAsync(
             id, 3,
-            Arg.Is<DateTime?>(d => d == from),
+            Arg.Is<DateTime?>(d => d.HasValue
+                && d.Value.Kind == DateTimeKind.Utc
+                && d.Value == new DateTime(2026, 9, 1, 0, 0, 0)),
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);

@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -170,11 +171,20 @@ public sealed class PageTreeAdminController(
 
     [HttpPost("/admin/pages/{id:guid}/publish")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Publish(Guid id, int versionId, DateTime? from, DateTime? to)
+    public async Task<IActionResult> Publish(Guid id, int versionId, string? from, string? to)
     {
-        await pageNodeService.PublishAsync(id, versionId, from, to, User?.Identity?.Name);
+        await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from), ParseWindowUtc(to), User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/versions");
     }
+
+    // datetime-local form fields post an unzoned string (e.g. "2027-01-01T09:00"). The default
+    // model binder does not bind these to DateTime? in this app, so parse them explicitly with the
+    // invariant culture and treat the wall-clock value as UTC (the rest of the scheduling code
+    // compares against DateTime.UtcNow and persists to a timestamptz column that requires UTC kind).
+    private static DateTime? ParseWindowUtc(string? value) =>
+        DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)
+            ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+            : null;
 
     // ── Publish draft / Unpublish ─────────────────────────────────────────────
 
@@ -200,6 +210,7 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveAndPublish(Guid id, string content)
     {
+        content ??= string.Empty; // Content column is NOT NULL; a missing form value must not reach the DB as null.
         var rendered = htmlRenderingService.RenderHtml(content) ?? string.Empty;
         var plain = htmlRenderingService.StripTagsToPlainText(rendered);
         await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);
@@ -223,9 +234,9 @@ public sealed class PageTreeAdminController(
 
     [HttpPost("/admin/pages/{id:guid}/versions/publish-now")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PublishNow(Guid id, int versionId, DateTime? from, DateTime? to)
+    public async Task<IActionResult> PublishNow(Guid id, int versionId, string? from, string? to)
     {
-        await pageNodeService.PublishAsync(id, versionId, from ?? DateTime.UtcNow, to, User?.Identity?.Name);
+        await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from) ?? DateTime.UtcNow, ParseWindowUtc(to), User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/versions");
     }
 
@@ -257,6 +268,7 @@ public sealed class PageTreeAdminController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(Guid id, string content)
     {
+        content ??= string.Empty; // Content column is NOT NULL; a missing form value must not reach the DB as null.
         var rendered = htmlRenderingService.RenderHtml(content) ?? string.Empty;
         var plain = htmlRenderingService.StripTagsToPlainText(rendered);
         await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
@@ -9,7 +10,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [Authorize(Roles = WikiConstants.EditorRole)]
 public sealed class PageTreeAdminController(
     IPageNodeService pageNodeService,
-    PageNodePathValidator pathValidator) : Controller
+    PageNodePathValidator pathValidator,
+    IHtmlRenderingService htmlRenderingService) : Controller
 {
     [HttpGet("/admin/pages")]
     public async Task<IActionResult> Index()
@@ -69,7 +71,77 @@ public sealed class PageTreeAdminController(
             : Redirect("/admin/pages");
     }
 
+    // ── Versions ─────────────────────────────────────────────────────────────
+
+    [HttpGet("/admin/pages/{id:guid}/versions")]
+    public async Task<IActionResult> Versions(Guid id)
+    {
+        var node = await pageNodeService.GetNodeByIdAsync(id);
+        if (node is null) return NotFound();
+
+        var versions = await pageNodeService.GetVersionsAsync(id);
+        var vm = new PageTreeAdminVersionsViewModel
+        {
+            NodeId = id,
+            NodeTitle = node.Title,
+            Versions = versions
+        };
+
+        return View("Versions", vm);
+    }
+
+    // ── Publish ───────────────────────────────────────────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/publish")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Publish(Guid id, int versionId, DateTime? from, DateTime? to)
+    {
+        await pageNodeService.PublishAsync(id, versionId, from, to, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/versions");
+    }
+
+    // ── Edit / Save ───────────────────────────────────────────────────────────
+
+    [HttpGet("/admin/pages/{id:guid}/edit")]
+    public async Task<IActionResult> Edit(Guid id)
+    {
+        var node = await pageNodeService.GetNodeByIdAsync(id);
+        if (node is null) return NotFound();
+
+        return node.PageType switch
+        {
+            "wiki"    => await WikiEditViewAsync(id, node),
+            "content" => NotFound(), // TODO: content widget editor — next task
+            _         => Redirect("/admin/pages")
+        };
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/save")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Save(Guid id, string content)
+    {
+        var rendered = htmlRenderingService.RenderHtml(content) ?? string.Empty;
+        var plain = htmlRenderingService.StripTagsToPlainText(rendered);
+        await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private async Task<IActionResult> WikiEditViewAsync(Guid id, PageNodeDto node)
+    {
+        var versions = await pageNodeService.GetVersionsAsync(id);
+        var working = versions.FirstOrDefault(v => v.PublishFrom is null);
+        var vm = new PageTreeAdminWikiEditViewModel
+        {
+            NodeId    = id,
+            NodeTitle = node.Title,
+            Content   = working?.Content ?? string.Empty
+        };
+        return View("WikiEdit", vm);
+    }
+
+    // ── form helpers ─────────────────────────────────────────────────────────
 
     private async Task<ViewResult> FormWithError(
         Guid? parentId, string pageType, string segment, string title, string error)

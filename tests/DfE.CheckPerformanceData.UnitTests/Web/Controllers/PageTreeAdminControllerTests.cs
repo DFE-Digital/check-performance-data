@@ -1,4 +1,5 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
@@ -12,14 +13,16 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 // Pins the controller's thin wiring: GetTreeAsync rows are handed to PageTreeBuilder, the
 // resulting tree is passed as view model, and the security contract (editor-role gate) holds.
-// Also covers GET /admin/pages/new and POST /admin/pages/create.
+// Also covers GET /admin/pages/new, POST /admin/pages/create, version history, publish,
+// and wiki edit/save actions.
 public sealed class PageTreeAdminControllerTests
 {
     private readonly IPageNodeService _service = Substitute.For<IPageNodeService>();
+    private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
 
     private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
     {
-        var controller = new PageTreeAdminController(_service, validator ?? OpenValidator());
+        var controller = new PageTreeAdminController(_service, validator ?? OpenValidator(), _renderer);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -303,6 +306,160 @@ public sealed class PageTreeAdminControllerTests
     public void Create_Has_ValidateAntiForgeryToken()
     {
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Create));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── GET /admin/pages/{id}/versions ───────────────────────────────────────
+
+    [Fact]
+    public async Task Versions_UnknownId_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().Versions(id);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Versions_KnownId_ReturnsViewWithVersions()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "my-page", Path = "my-page",
+            Title = "My Page", PageType = "wiki"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 2, IsCurrent = true, Content = "<p>v2</p>" },
+            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = false, Content = "<p>v1</p>" }
+        });
+
+        var result = await Sut().Versions(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Versions", view.ViewName);
+        var vm = Assert.IsType<PageTreeAdminVersionsViewModel>(view.Model);
+        Assert.Equal(id, vm.NodeId);
+        Assert.Equal("My Page", vm.NodeTitle);
+        Assert.Equal(2, vm.Versions.Count);
+    }
+
+    // ── POST /admin/pages/{id}/publish ───────────────────────────────────────
+
+    [Fact]
+    public async Task Publish_ValidPost_CallsPublishAsyncAndRedirects()
+    {
+        var id = Guid.NewGuid();
+        var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await Sut().Publish(id, 3, from, null);
+
+        await _service.Received(1).PublishAsync(id, 3, from, null, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+    }
+
+    [Fact]
+    public void Publish_Action_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Publish));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── GET /admin/pages/{id}/edit ───────────────────────────────────────────
+
+    [Fact]
+    public async Task Edit_UnknownId_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().Edit(id);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Edit_WikiNode_ReturnsWikiEditView()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki-page", Path = "wiki-page",
+            Title = "Wiki Page", PageType = "wiki"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = true, Content = "<p>Hello</p>" }
+        });
+
+        var result = await Sut().Edit(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("WikiEdit", view.ViewName);
+        var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(view.Model);
+        Assert.Equal(id, vm.NodeId);
+        Assert.Equal("Wiki Page", vm.NodeTitle);
+        Assert.Equal("<p>Hello</p>", vm.Content);
+    }
+
+    [Fact]
+    public async Task Edit_ContentNode_ReturnsNotFound()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "content-page", Path = "content-page",
+            Title = "Content Page", PageType = "content"
+        });
+
+        var result = await Sut().Edit(id);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Edit_FolderNode_RedirectsToAdminPages()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "section", Path = "section",
+            Title = "Section", PageType = "folder"
+        });
+
+        var result = await Sut().Edit(id);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/pages", redirect.Url);
+    }
+
+    // ── POST /admin/pages/{id}/save ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Save_ValidPost_CallsSaveWorkingContentAndRedirects()
+    {
+        var id = Guid.NewGuid();
+        const string rawHtml = "<p>Hello world</p>";
+        _renderer.RenderHtml(rawHtml).Returns(rawHtml);
+        _renderer.StripTagsToPlainText(rawHtml).Returns("Hello world");
+
+        var result = await Sut().Save(id, rawHtml);
+
+        await _service.Received(1).SaveWorkingContentAsync(id, rawHtml, "Hello world", Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public void Save_Action_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Save));
         Assert.NotNull(method);
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
     }

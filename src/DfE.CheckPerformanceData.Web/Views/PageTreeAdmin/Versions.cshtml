@@ -1,0 +1,88 @@
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model PageTreeAdminVersionsViewModel
+@{
+    ViewData["Title"] = "Version history — " + Model.NodeTitle;
+}
+
+<a href="/admin/pages" class="govuk-back-link">Back to pages</a>
+
+<h1 class="govuk-heading-l">Version history: @Model.NodeTitle</h1>
+
+@if (Model.Versions.Count == 0)
+{
+    <p class="govuk-body">No versions found.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Version</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Publish from</th>
+                <th scope="col" class="govuk-table__header">Publish to</th>
+                <th scope="col" class="govuk-table__header">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var v in Model.Versions)
+            {
+                string tagClass;
+                string tagText;
+                if (v.IsCurrent)
+                {
+                    tagClass = "govuk-tag--green";
+                    tagText = "Live";
+                }
+                else if (v.PublishFrom != null && v.PublishFrom > DateTime.UtcNow)
+                {
+                    tagClass = "govuk-tag--blue";
+                    tagText = "Scheduled";
+                }
+                else if (v.PublishTo != null && v.PublishTo <= DateTime.UtcNow)
+                {
+                    tagClass = "govuk-tag--grey";
+                    tagText = "Past";
+                }
+                else
+                {
+                    tagClass = "govuk-tag--grey";
+                    tagText = "Draft";
+                }
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@v.VersionId</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @tagClass">@tagText</strong>
+                    </td>
+                    <td class="govuk-table__cell">@(v.PublishFrom?.ToString("dd MMM yyyy HH:mm") ?? "—")</td>
+                    <td class="govuk-table__cell">@(v.PublishTo?.ToString("dd MMM yyyy HH:mm") ?? "—")</td>
+                    <td class="govuk-table__cell">
+                        <form method="post" action="/admin/pages/@Model.NodeId/publish">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="versionId" value="@v.VersionId" />
+                            <div class="govuk-form-group">
+                                <label class="govuk-label govuk-label--s" for="from-@v.VersionId">From</label>
+                                <input class="govuk-input govuk-input--width-20"
+                                       type="datetime-local"
+                                       id="from-@v.VersionId"
+                                       name="from"
+                                       value="@v.PublishFrom?.ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label govuk-label--s" for="to-@v.VersionId">To</label>
+                                <input class="govuk-input govuk-input--width-20"
+                                       type="datetime-local"
+                                       id="to-@v.VersionId"
+                                       name="to"
+                                       value="@v.PublishTo?.ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+                            <button type="submit" class="govuk-button govuk-button--secondary">
+                                Publish
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

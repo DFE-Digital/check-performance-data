@@ -662,6 +662,8 @@ public class RequestServiceTests
     {
         _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
             .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
+            .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
 
         var result = await _sut.DeleteAsync(WindowId, "REF001");
 

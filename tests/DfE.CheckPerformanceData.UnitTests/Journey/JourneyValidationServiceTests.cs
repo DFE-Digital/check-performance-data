@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
@@ -107,6 +108,52 @@ public class JourneyValidationServiceTests
         var answer = new QuestionAnswer { DateValue = null };
 
         Assert.Equal("Date of birth is required", _sut.ValidateAnswer(question, answer, "Date of birth"));
+    }
+
+    // ── ValidateAnswer with a named format validator ────────────────────────
+
+    [Fact]
+    public void ValidateAnswer_WhenNamedValidatorRejectsPresentValue_ReturnsFailureMessage()
+    {
+        var sut = new JourneyValidationService([new DfeNumberFormatValidator()]);
+        var question = MakeQuestion(QuestionType.FreeText, validator: "DfeNumber");
+        var answer = new QuestionAnswer { TextValue = "not-a-dfe-number" };
+
+        Assert.Equal("Enter a DfE number in the format 123/4567 or 1234567",
+            sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_WhenNamedValidatorAcceptsPresentValue_ReturnsNull()
+    {
+        var sut = new JourneyValidationService([new DfeNumberFormatValidator()]);
+        var question = MakeQuestion(QuestionType.FreeText, validator: "DfeNumber");
+        var answer = new QuestionAnswer { TextValue = "123/4567" };
+
+        Assert.Null(sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_WhenValidatorSetButValueEmpty_SkipsFormatCheckAndReturnsRequiredMessage()
+    {
+        // The format validator would reject "" (IsValid("") is false); proving the
+        // returned message is the required rule's, not the DfE format message,
+        // confirms the format check is skipped on an empty value.
+        var sut = new JourneyValidationService([new DfeNumberFormatValidator()]);
+        var question = MakeQuestion(QuestionType.FreeText, validator: "DfeNumber");
+        var answer = new QuestionAnswer { TextValue = "" };
+
+        Assert.Equal("My question is required", sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_WhenValidatorNameIsUnregistered_SkipsFormatCheck()
+    {
+        var sut = new JourneyValidationService([new DfeNumberFormatValidator()]);
+        var question = MakeQuestion(QuestionType.FreeText, validator: "NoSuchValidator");
+        var answer = new QuestionAnswer { TextValue = "anything goes" };
+
+        Assert.Null(sut.ValidateAnswer(question, answer, "My question"));
     }
 
     // ── IsAnswered ──────────────────────────────────────────────────────────
@@ -425,8 +472,9 @@ public class JourneyValidationServiceTests
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
-    private static Question MakeQuestion(QuestionType type, string id = "q1", int? characterLimit = null) =>
-        new() { Id = id, Type = type, Title = "My question", CharacterLimit = characterLimit };
+    private static Question MakeQuestion(QuestionType type, string id = "q1", int? characterLimit = null,
+        string? validator = null, bool optional = false) =>
+        new() { Id = id, Type = type, Title = "My question", CharacterLimit = characterLimit, Validator = validator, Optional = optional };
 
     private static JourneyPage MakeEvidencePage(bool requireAtLeastOne) =>
         new()

@@ -157,7 +157,8 @@
           "type": "FreeText",
           "title": "What is the DfE number of the school {pupilName} went to?",
           "summaryTitle": "School DfE number pupil went to",
-          "hint" : "For example, 502135326",
+          "hint" : "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
@@ -187,7 +188,8 @@
           "type": "FreeText",
           "title": "What is the DfE number of the school {pupilName}'s exam results should be transferred to?",
           "summaryTitle": "School DfE number",
-          "hint" : "For example, 502135326",
+          "hint" : "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school {pupilName}'s exam results should be transferred to",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
@@ -333,7 +335,8 @@
           "type": "FreeText",
           "title": "What is the DfE number of the school which excluded {pupilName}?",
           "summaryTitle": "DfE number of the excluding school",
-          "hint" : "For example, 502135326",
+          "hint" : "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school which excluded {pupilName}",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
@@ -477,7 +480,8 @@
           "type": "FreeText",
           "title": "What is the DfE number of the school {pupilName} was previously reported at the year of KS4?",
           "summaryTitle": "DfE number of school at KS4",
-          "hint" : "For example, 123456789",
+          "hint" : "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school {pupilName} was previously reported at in the year of KS4"
         }
       ]

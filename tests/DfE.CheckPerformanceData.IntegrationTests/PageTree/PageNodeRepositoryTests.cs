@@ -64,6 +64,24 @@ public sealed class PageNodeRepositoryTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task UpdateVersionWindow_WritesPublishFromAndPublishTo()
+    {
+        await TruncateAsync();
+        var n = await Repo().CreateNodeAsync(null, "p", "p", "P", "content", "u1");
+        var versionId = await Repo().AddVersionAsync(n.Id, "[]", "", null, null, "u1");
+
+        var from = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        var to   = new DateTime(2026, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+
+        await Repo().UpdateVersionWindowAsync(n.Id, versionId, from, to, "publisher-1");
+
+        var versions = await Repo().GetVersionsAsync(n.Id);
+        Assert.Single(versions);
+        Assert.Equal(from, versions[0].PublishFrom);
+        Assert.Equal(to, versions[0].PublishTo);
+    }
+
+    [Fact]
     public async Task SoftDelete_HidesFromTree_ButKeepsChildrenGuard()
     {
         await TruncateAsync();

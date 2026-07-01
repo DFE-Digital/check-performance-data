@@ -51,11 +51,11 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
             await repository.AddVersionAsync(nodeId, content, bodyPlainText, null, null, userId);
     }
 
-    public async Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to)
+    public async Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to, string? userId)
     {
         await repository.ExecuteInTransactionAsync(async () =>
         {
-            await repository.UpdateVersionWindowAsync(nodeId, versionId, from, to, null);
+            await repository.UpdateVersionWindowAsync(nodeId, versionId, from, to, userId);
             await repository.RecomputeCurrentAsync(nodeId, DateTime.UtcNow);
         });
     }

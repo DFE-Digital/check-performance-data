@@ -166,7 +166,7 @@ public class PageNodeServiceTests
         var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
         var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
 
-        await Sut().PublishAsync(node.Id, versionId, Now.AddDays(-1), null);
+        await Sut().PublishAsync(node.Id, versionId, Now.AddDays(-1), null, null);
 
         var versions = await _repo.GetVersionsAsync(node.Id);
         Assert.Equal(Now.AddDays(-1), versions[0].PublishFrom);
@@ -181,9 +181,20 @@ public class PageNodeServiceTests
         // Before publish: draft has no window → resolver picks nothing → IsCurrent = false
         Assert.False(_repo.GetVersionsSync(node.Id)[0].IsCurrent);
 
-        await Sut().PublishAsync(node.Id, versionId, Now.AddDays(-1), null);
+        await Sut().PublishAsync(node.Id, versionId, Now.AddDays(-1), null, null);
 
         Assert.True(_repo.GetVersionsSync(node.Id)[0].IsCurrent);
+    }
+
+    [Fact]
+    public async Task Publish_Threads_UserId_To_Repository()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
+
+        await Sut().PublishAsync(node.Id, versionId, Now.AddDays(-1), null, "publisher-1");
+
+        Assert.Equal("publisher-1", _repo.LastWindowUserId);
     }
 
     // ── GetVersionsAsync ─────────────────────────────────────────────────────
@@ -244,6 +255,9 @@ public class PageNodeServiceTests
 
         public bool IsDeleted(Guid nodeId) =>
             _nodes.Any(n => n.Id == nodeId && n.IsDeleted);
+
+        /// <summary>Records the userId passed to the most recent UpdateVersionWindowAsync call.</summary>
+        public string? LastWindowUserId { get; private set; }
 
         // ── IPageNodeRepository ──────────────────────────────────────────────
 
@@ -333,6 +347,7 @@ public class PageNodeServiceTests
             v.PublishFrom = publishFrom;
             v.PublishTo = publishTo;
             v.UpdatedDate = DateTime.UtcNow;
+            LastWindowUserId = userId;
             return Task.CompletedTask;
         }
 

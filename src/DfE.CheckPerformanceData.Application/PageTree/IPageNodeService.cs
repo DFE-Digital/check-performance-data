@@ -29,8 +29,9 @@ public interface IPageNodeService
 
     /// <summary>
     /// Sets the publish window on version <paramref name="versionId"/> and recomputes IsCurrent.
+    /// <paramref name="userId"/> is recorded as the publisher on the version row.
     /// </summary>
-    Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to);
+    Task PublishAsync(Guid nodeId, int versionId, DateTime? from, DateTime? to, string? userId);
 
     Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId);
 

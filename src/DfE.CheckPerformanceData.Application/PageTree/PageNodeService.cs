@@ -130,11 +130,13 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public async Task PublishDraftAsync(Guid nodeId, string? userId)
     {
         var versions = await GetVersionsAsync(nodeId);
-        // Draft = highest-VersionId version with no publish window.
-        // GetVersionsAsync returns versions ordered descending by VersionId.
-        var draft = versions.FirstOrDefault(v => v.PublishFrom is null);
-        if (draft is null) return;
-        await PublishAsync(nodeId, draft.VersionId, DateTime.UtcNow, null, userId);
+        // "Publish draft" publishes the version currently being edited live now. That version is the
+        // working draft (highest-VersionId with no window) if one exists, otherwise the latest version
+        // — which covers pages whose only version is scheduled or expired (no null-window draft).
+        // GetVersionsAsync returns versions ordered descending by VersionId, so FirstOrDefault = latest.
+        var target = versions.FirstOrDefault(v => v.PublishFrom is null) ?? versions.FirstOrDefault();
+        if (target is null) return; // no versions (e.g. a folder node)
+        await PublishAsync(nodeId, target.VersionId, DateTime.UtcNow, null, userId);
     }
 
     public async Task UnpublishAsync(Guid nodeId, string? userId)

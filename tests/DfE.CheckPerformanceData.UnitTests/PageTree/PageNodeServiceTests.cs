@@ -401,19 +401,20 @@ public class PageNodeServiceTests
     }
 
     [Fact]
-    public async Task PublishDraft_WhenAllVersionsAreScheduled_IsNoOp()
+    public async Task PublishDraft_WhenLatestVersionScheduledFuture_PublishesItNow()
     {
+        // Repro of the "Publish draft does nothing" bug: a page whose only version is scheduled for
+        // the future has no null-window draft and is not yet live. "Publish draft" must publish the
+        // version being edited (the latest) live NOW, overriding the future schedule.
         var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
         var versions = await _repo.GetVersionsAsync(node.Id);
-        // Schedule the only version so there is no draft.
-        await _repo.UpdateVersionWindowAsync(node.Id, versions[0].VersionId, Now.AddDays(-1), null, null);
+        await _repo.UpdateVersionWindowAsync(node.Id, versions[0].VersionId, Now.AddDays(10), null, null);
 
-        // No draft remains — should be a no-op, not throw.
         await Sut().PublishDraftAsync(node.Id, "u1");
 
-        // The already-scheduled version must be unchanged.
         var after = _repo.GetVersionsSync(node.Id);
-        Assert.Equal(Now.AddDays(-1), after[0].PublishFrom);
+        Assert.True(after[0].IsCurrent);                        // now live
+        Assert.NotEqual(Now.AddDays(10), after[0].PublishFrom); // future schedule overridden to now
     }
 
     // ── UnpublishAsync ────────────────────────────────────────────────────────

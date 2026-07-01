@@ -1,7 +1,9 @@
 using System.Reflection;
 using DfE.CheckPerformanceData.Application.Common;
+using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Authorization;
@@ -14,15 +16,17 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 // Pins the controller's thin wiring: GetTreeAsync rows are handed to PageTreeBuilder, the
 // resulting tree is passed as view model, and the security contract (editor-role gate) holds.
 // Also covers GET /admin/pages/new, POST /admin/pages/create, version history, publish,
-// and wiki edit/save actions.
+// wiki edit/save, and content widget-editor (GET + mutation POSTs).
 public sealed class PageTreeAdminControllerTests
 {
     private readonly IPageNodeService _service = Substitute.For<IPageNodeService>();
     private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
+    private readonly IPageNodeContentEditor _contentEditor = Substitute.For<IPageNodeContentEditor>();
 
     private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
     {
-        var controller = new PageTreeAdminController(_service, validator ?? OpenValidator(), _renderer);
+        var controller = new PageTreeAdminController(
+            _service, validator ?? OpenValidator(), _renderer, _contentEditor);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -426,18 +430,42 @@ public sealed class PageTreeAdminControllerTests
     }
 
     [Fact]
-    public async Task Edit_ContentNode_ReturnsNotFound()
+    public async Task Edit_ContentNode_ReturnsContentEditView_WithCorrectActionBaseAndTree()
     {
         var id = Guid.NewGuid();
         _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
         {
             Id = id, Segment = "content-page", Path = "content-page",
-            Title = "Content Page", PageType = "content"
+            Title = "My Content Page", PageType = "content"
         });
+        _service.GetWorkingOrLatestContentAsync(id).Returns(
+            """[{"kind":"widget","type":"divider"}]""");
 
         var result = await Sut().Edit(id);
 
-        Assert.IsType<NotFoundResult>(result);
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<ContentPageEditViewModel>(view.Model);
+        Assert.Equal($"/admin/pages/{id}/content", vm.ActionBase);
+        Assert.False(vm.ShowInlinePublish);
+        Assert.Single(vm.Content);
+    }
+
+    [Fact]
+    public async Task Edit_ContentNode_NullContent_DeserializesEmptyTree()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "content-page", Path = "content-page",
+            Title = "Empty Page", PageType = "content"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns((string?)null);
+
+        var result = await Sut().Edit(id);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<ContentPageEditViewModel>(view.Model);
+        Assert.Empty(vm.Content);
     }
 
     [Fact]
@@ -483,5 +511,132 @@ public sealed class PageTreeAdminControllerTests
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Save));
         Assert.NotNull(method);
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/content/add ───────────────────────────────────
+
+    [Fact]
+    public async Task ContentAdd_Widget_CallsAddWidgetAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentAdd(id, "0.0", widgetType: "heading", regionLayout: null);
+
+        await _contentEditor.Received(1).AddWidgetAsync(
+            id,
+            Arg.Is<IReadOnlyList<TreeStep>>(p => p.SequenceEqual(new[] { new TreeStep(0, 0) })),
+            "heading",
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public async Task ContentAdd_Region_CallsAddRegionAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentAdd(id, "0.1", widgetType: null, regionLayout: "Halves");
+
+        await _contentEditor.Received(1).AddRegionAsync(
+            id,
+            Arg.Is<IReadOnlyList<TreeStep>>(p => p.SequenceEqual(new[] { new TreeStep(0, 1) })),
+            RegionLayout.Halves,
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    // ── POST /admin/pages/{id}/content/move ──────────────────────────────────
+
+    [Fact]
+    public async Task ContentMove_Up_CallsMoveUpAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentMove(id, "0.2", "up");
+
+        await _contentEditor.Received(1).MoveUpAsync(
+            id,
+            Arg.Is<IReadOnlyList<TreeStep>>(p => p.SequenceEqual(new[] { new TreeStep(0, 2) })),
+            Arg.Any<string?>());
+        Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    [Fact]
+    public async Task ContentMove_Down_CallsMoveDownAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentMove(id, "0.0", "down");
+
+        await _contentEditor.Received(1).MoveDownAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Any<string?>());
+        Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    // ── POST /admin/pages/{id}/content/delete ────────────────────────────────
+
+    [Fact]
+    public async Task ContentDelete_CallsDeleteAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentDelete(id, "0.0");
+
+        await _contentEditor.Received(1).DeleteAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Any<string?>());
+        Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    // ── POST /admin/pages/{id}/content/widget ────────────────────────────────
+
+    [Fact]
+    public async Task ContentWidget_BuildsPropsAndCallsUpdateWidgetAsync_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().ContentWidget(
+            id, "0.0", "heading",
+            new Dictionary<string, string?> { ["level"] = "2", ["text"] = "KS4 dates" });
+
+        await _contentEditor.Received(1).UpdateWidgetAsync(
+            id,
+            Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Is<System.Text.Json.Nodes.JsonObject>(p => (string)p["text"]! == "KS4 dates"),
+            Arg.Any<string?>());
+        Assert.Equal($"/admin/pages/{id}/edit", Assert.IsType<RedirectResult>(result).Url);
+    }
+
+    // ── Antiforgery contract ─────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData(nameof(PageTreeAdminController.ContentAdd))]
+    [InlineData(nameof(PageTreeAdminController.ContentMove))]
+    [InlineData(nameof(PageTreeAdminController.ContentDelete))]
+    [InlineData(nameof(PageTreeAdminController.ContentWidget))]
+    public void ContentMutationPosts_HaveValidateAntiForgeryTokenAndHttpPost(string actionName)
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(actionName)!;
+        Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+        Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
+    }
+
+    // ── Route non-collision ───────────────────────────────────────────────────
+
+    [Fact]
+    public void ContentDelete_RouteTemplate_ContainsContentSlash_NotJustDelete()
+    {
+        // Widget-delete sits under /content/delete so it cannot collide with the future
+        // node-level page-delete at /admin/pages/{id}/delete (built in the next task).
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.ContentDelete))!;
+        var httpPost = method.GetCustomAttribute<HttpPostAttribute>();
+        Assert.NotNull(httpPost);
+        Assert.Contains("/content/delete", httpPost!.Template, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("{id:guid}/delete\"", httpPost.Template + "\"", StringComparison.OrdinalIgnoreCase);
     }
 }

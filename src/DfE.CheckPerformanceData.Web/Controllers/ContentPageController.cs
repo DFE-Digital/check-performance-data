@@ -47,10 +47,12 @@ public sealed class ContentPageController(IContentPageService pages, IContentPag
         return View(new ContentPageEditViewModel
         {
             Slug = page.Slug,
+            ActionBase = $"/content-page/{page.Slug}",
             Title = page.Title,
             Layout = page.Layout,
             Content = ContentPageJson.Deserialize(page.DraftContent) ?? [],
-            PublishedVersionNumber = page.PublishedVersionNumber
+            PublishedVersionNumber = page.PublishedVersionNumber,
+            ShowInlinePublish = true
         });
     }
 

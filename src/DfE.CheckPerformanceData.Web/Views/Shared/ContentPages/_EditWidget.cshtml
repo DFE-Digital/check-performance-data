@@ -27,7 +27,7 @@
                 <span class="govuk-details__summary-text">Edit @label.ToLowerInvariant()</span>
             </summary>
             <div class="govuk-details__text">
-                <form method="post" action="/content-page/@Model.Slug/widget">
+                <form method="post" action="@Model.ActionBase/widget">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="path" value="@Model.Path" />
                     <input type="hidden" name="type" value="@w.Type" />

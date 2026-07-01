@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.Common;
+using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +13,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class PageTreeAdminController(
     IPageNodeService pageNodeService,
     PageNodePathValidator pathValidator,
-    IHtmlRenderingService htmlRenderingService) : Controller
+    IHtmlRenderingService htmlRenderingService,
+    IPageNodeContentEditor nodeContentEditor) : Controller
 {
     [HttpGet("/admin/pages")]
     public async Task<IActionResult> Index()
@@ -111,7 +114,7 @@ public sealed class PageTreeAdminController(
         return node.PageType switch
         {
             "wiki"    => await WikiEditViewAsync(id, node),
-            "content" => NotFound(), // TODO: content widget editor — next task
+            "content" => await ContentEditViewAsync(id, node),
             _         => Redirect("/admin/pages")
         };
     }
@@ -123,6 +126,56 @@ public sealed class PageTreeAdminController(
         var rendered = htmlRenderingService.RenderHtml(content) ?? string.Empty;
         var plain = htmlRenderingService.StripTagsToPlainText(rendered);
         await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    // ── Content widget-editor mutation routes ─────────────────────────────────
+    // All four routes are namespaced under /content/ so they cannot collide with
+    // the node-level page-delete route /admin/pages/{id}/delete (next task).
+    // ActionBase for the node editor = /admin/pages/{id}/content.
+
+    [HttpPost("/admin/pages/{id:guid}/content/add")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentAdd(Guid id, string path, string? widgetType, string? regionLayout)
+    {
+        var steps = TreePath.Parse(path);
+
+        if (!string.IsNullOrEmpty(widgetType))
+            await nodeContentEditor.AddWidgetAsync(id, steps, widgetType, User?.Identity?.Name);
+        else if (Enum.TryParse<RegionLayout>(regionLayout, out var layout))
+            await nodeContentEditor.AddRegionAsync(id, steps, layout, User?.Identity?.Name);
+
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/content/move")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentMove(Guid id, string path, string direction)
+    {
+        var steps = TreePath.Parse(path);
+
+        if (direction == "up")
+            await nodeContentEditor.MoveUpAsync(id, steps, User?.Identity?.Name);
+        else
+            await nodeContentEditor.MoveDownAsync(id, steps, User?.Identity?.Name);
+
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/content/delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentDelete(Guid id, string path)
+    {
+        await nodeContentEditor.DeleteAsync(id, TreePath.Parse(path), User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/content/widget")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentWidget(Guid id, string path, string type, [FromForm] Dictionary<string, string?>? props)
+    {
+        var built = WidgetPropsBuilder.Build(type, props ?? new Dictionary<string, string?>());
+        await nodeContentEditor.UpdateWidgetAsync(id, TreePath.Parse(path), built, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
     }
 
@@ -140,6 +193,19 @@ public sealed class PageTreeAdminController(
             Content   = content ?? string.Empty
         };
         return View("WikiEdit", vm);
+    }
+
+    private async Task<IActionResult> ContentEditViewAsync(Guid id, PageNodeDto node)
+    {
+        var json = await pageNodeService.GetWorkingOrLatestContentAsync(id) ?? "[]";
+        var tree = ContentPageJson.Deserialize(json) ?? [];
+        return View("~/Views/ContentPage/Edit.cshtml", new ContentPageEditViewModel
+        {
+            ActionBase = $"/admin/pages/{id}/content",
+            Title = node.Title,
+            Content = tree,
+            ShowInlinePublish = false
+        });
     }
 
     // ── form helpers ─────────────────────────────────────────────────────────

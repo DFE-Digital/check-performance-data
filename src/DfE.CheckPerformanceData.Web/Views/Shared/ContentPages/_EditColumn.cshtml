@@ -10,13 +10,13 @@
     var path = TreePath.Format(Model.PathOf(i));
     <div class="cpb-node">
         <div class="cpb-toolbar">
-            <form method="post" action="/content-page/@Model.Slug/move" class="cpb-inline">
+            <form method="post" action="@Model.ActionBase/move" class="cpb-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="path" value="@path" />
                 <button class="govuk-button govuk-button--secondary cpb-btn" name="direction" value="up" title="Move up">↑</button>
                 <button class="govuk-button govuk-button--secondary cpb-btn" name="direction" value="down" title="Move down">↓</button>
             </form>
-            <form method="post" action="/content-page/@Model.Slug/delete" class="cpb-inline">
+            <form method="post" action="@Model.ActionBase/delete" class="cpb-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="path" value="@path" />
                 <button class="govuk-button govuk-button--warning cpb-btn" title="Delete">Delete</button>
@@ -33,7 +33,7 @@
                     {
                         <div class="@(c < classes.Count ? classes[c] : "govuk-grid-column-full")">
                             @await Html.PartialAsync("ContentPages/_EditColumn",
-                                new EditColumnModel(Model.Slug, region.Columns[c], Model.PathOf(i), c))
+                                new EditColumnModel(Model.ActionBase, region.Columns[c], Model.PathOf(i), c))
                         </div>
                     }
                 </div>
@@ -41,7 +41,7 @@
         }
         else if (node is WidgetNode widget)
         {
-            @await Html.PartialAsync("ContentPages/_EditWidget", new EditWidgetModel(Model.Slug, path, widget))
+            @await Html.PartialAsync("ContentPages/_EditWidget", new EditWidgetModel(Model.ActionBase, path, widget))
         }
     </div>
 }
@@ -51,7 +51,7 @@
         <span class="govuk-details__summary-text">Add content here</span>
     </summary>
     <div class="govuk-details__text">
-        <form method="post" action="/content-page/@Model.Slug/add" class="cpb-inline govuk-!-margin-right-3">
+        <form method="post" action="@Model.ActionBase/add" class="cpb-inline govuk-!-margin-right-3">
             @Html.AntiForgeryToken()
             <input type="hidden" name="path" value="@addPath" />
             <select class="govuk-select" name="widgetType" aria-label="Widget type">
@@ -62,7 +62,7 @@
             </select>
             <button class="govuk-button cpb-btn" type="submit">Add widget</button>
         </form>
-        <form method="post" action="/content-page/@Model.Slug/add" class="cpb-inline">
+        <form method="post" action="@Model.ActionBase/add" class="cpb-inline">
             @Html.AntiForgeryToken()
             <input type="hidden" name="path" value="@addPath" />
             <select class="govuk-select" name="regionLayout" aria-label="Region layout">

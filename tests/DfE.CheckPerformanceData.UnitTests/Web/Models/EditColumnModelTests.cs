@@ -13,7 +13,7 @@ public class EditColumnModelTests
     [Fact]
     public void Root_PathOf_IsIndexInColumnZero()
     {
-        var model = new EditColumnModel("ks4", [W(), W(), W()], [], 0);
+        var model = new EditColumnModel("/content-page/ks4", [W(), W(), W()], [], 0);
 
         Assert.Equal("0.2", TreePath.Format(model.PathOf(2)));
     }
@@ -21,7 +21,7 @@ public class EditColumnModelTests
     [Fact]
     public void Root_AppendPath_TargetsEndOfColumn()
     {
-        var model = new EditColumnModel("ks4", [W(), W(), W()], [], 0);
+        var model = new EditColumnModel("/content-page/ks4", [W(), W(), W()], [], 0);
 
         Assert.Equal("0.3", TreePath.Format(model.AppendPath()));
     }
@@ -30,7 +30,7 @@ public class EditColumnModelTests
     public void Nested_PathOf_IsRegionPathPlusColumnAndIndex()
     {
         // This column is column 2 of a region that itself sits at root index 1.
-        var model = new EditColumnModel("ks4", [W(), W()], [new TreeStep(0, 1)], 2);
+        var model = new EditColumnModel("/content-page/ks4", [W(), W()], [new TreeStep(0, 1)], 2);
 
         Assert.Equal("0.1-2.0", TreePath.Format(model.PathOf(0)));
         Assert.Equal("0.1-2.1", TreePath.Format(model.PathOf(1)));
@@ -39,7 +39,7 @@ public class EditColumnModelTests
     [Fact]
     public void Nested_AppendPath_TargetsEndOfTheNestedColumn()
     {
-        var model = new EditColumnModel("ks4", [W(), W()], [new TreeStep(0, 1)], 2);
+        var model = new EditColumnModel("/content-page/ks4", [W(), W()], [new TreeStep(0, 1)], 2);
 
         Assert.Equal("0.1-2.2", TreePath.Format(model.AppendPath()));
     }

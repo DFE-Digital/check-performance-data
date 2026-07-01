@@ -21,8 +21,11 @@
         <h1 class="govuk-heading-l">@Model.Title</h1>
 
         <p class="govuk-body">
-            <a class="govuk-link" href="/guidance/@Model.Slug" target="_blank" rel="noopener">Preview public page</a>
-            &nbsp;
+            @if (Model.Slug is not null)
+            {
+                <a class="govuk-link" href="/guidance/@Model.Slug" target="_blank" rel="noopener">Preview public page</a>
+                @:&nbsp;
+            }
             @if (Model.PublishedVersionNumber is { } version)
             {
                 <span class="govuk-tag govuk-tag--green">Published — version @version</span>
@@ -34,12 +37,15 @@
         </p>
 
         @await Html.PartialAsync("ContentPages/_EditColumn",
-            new EditColumnModel(Model.Slug, Model.Content, Array.Empty<TreeStep>(), 0))
+            new EditColumnModel(Model.ActionBase, Model.Content, Array.Empty<TreeStep>(), 0))
 
-        <form method="post" action="/content-page/@Model.Slug/publish" class="govuk-!-margin-top-6">
-            @Html.AntiForgeryToken()
-            <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
-        </form>
+        @if (Model.ShowInlinePublish)
+        {
+            <form method="post" action="@Model.ActionBase/publish" class="govuk-!-margin-top-6">
+                @Html.AntiForgeryToken()
+                <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
+            </form>
+        }
     </div>
 </div>
 

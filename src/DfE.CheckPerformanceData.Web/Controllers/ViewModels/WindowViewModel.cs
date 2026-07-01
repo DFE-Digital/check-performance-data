@@ -65,3 +65,11 @@ public class WindowTitleEditItem
     [Required(ErrorMessage = "Title can not be empty"), MaxLength(200, ErrorMessage = "Title must be 200 characters or less")]
     public string Title { get; init; }
 }
+
+public class WindowStartDateEditItem
+{
+    public Guid WindowId { get; init; }
+    [Required(ErrorMessage = "Start date can not be empty")]
+    public DateTime StartDate { get; init; }
+    
+}

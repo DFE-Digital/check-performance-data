@@ -1,0 +1,33 @@
+@using System.Runtime.InteropServices.JavaScript
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowStartDateEditItem
+
+@{
+    var postUrl = Model.WindowId == Guid.Empty
+        ? "/admin/windows/start-date"
+        : $"/admin/windows/{Model.WindowId}/start-date";
+
+    var exampleDate = DateTime.UtcNow.AddMonths(4).ToString("dd MM yyyy");
+}
+
+<form method="post" action="@postUrl" novalidate>
+    @Html.AntiForgeryToken()
+    
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+    
+    <govuk-date-input for="@Model.StartDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                When will the window open?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>
+                For example, @exampleDate
+            </govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="Title" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+    
+
+    
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <govuk-button class="govuk-button--secondary">Cancel</govuk-button>
+</form>

@@ -1,6 +1,12 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowTitleEditItem
 
-<form method="post" action="/admin/windows/@Model.WindowId/title" novalidate>
+@{
+    var postUrl = Model.WindowId == Guid.Empty
+        ? "/admin/windows/title"
+        : $"/admin/windows/{Model.WindowId}/title";
+}
+
+<form method="post" action="@postUrl" novalidate>
     @Html.AntiForgeryToken()
     <input type="hidden" name="WindowId" value="@Model.WindowId" />
     

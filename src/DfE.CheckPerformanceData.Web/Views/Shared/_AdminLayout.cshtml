@@ -186,11 +186,13 @@ else
 }
 
 @section BodyEnd {
+    <form id="cms-tree-antiforgery" hidden>@Html.AntiForgeryToken()</form>
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
     @if (adminWide)
     {
         <script src="~/js/admin-nav-collapse.js"></script>
     }
+    <script src="~/js/admin-page-tree-context-menu.js" asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

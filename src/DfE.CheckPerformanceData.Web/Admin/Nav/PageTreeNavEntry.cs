@@ -7,6 +7,7 @@ public sealed record PageTreeNavEntry(
     Guid PageId,
     string PageTitle,
     string PageType,
+    string PagePath,
     bool HasLiveVersion,
     string ParentNavKey) : IAdminNavEntry
 {

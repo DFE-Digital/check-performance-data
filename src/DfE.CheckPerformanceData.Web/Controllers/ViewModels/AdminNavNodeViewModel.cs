@@ -87,7 +87,7 @@ public sealed class AdminNavNodeViewModel
 
     private static AdminNavNodeViewModel MapPageNode(PageTreeNode node, string parentNavKey)
     {
-        var entry = new PageTreeNavEntry(node.Id, node.Title, node.PageType, node.HasLiveVersion, parentNavKey);
+        var entry = new PageTreeNavEntry(node.Id, node.Title, node.PageType, node.Path, node.HasLiveVersion, parentNavKey);
         return new AdminNavNodeViewModel
         {
             Entry = entry,

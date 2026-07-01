@@ -1,5 +1,6 @@
 @using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@using Microsoft.AspNetCore.Html
 @model AdminNavNodePartialModel
 @{
     var node = Model.Node;
@@ -12,7 +13,24 @@
     // active page. site.js re-collapses inactive branches once it binds.
     var expandedInitial = activeKey == null || Model.SubtreeContainsActive;
     // Page-type icon: present only for page-tree nodes (PageTreeNavEntry).
-    var pageIconType = entry is PageTreeNavEntry pte ? pte.PageType : null;
+    var pte = entry as PageTreeNavEntry;
+    var pageIconType = pte?.PageType;
+    // Context-menu data attributes: page-tree leaf/branch nodes carry page-node attrs;
+    // the ContentPages root carries data-page-root.
+    var isPageRoot = entry.Key == AdminNavKeys.ContentPages;
+    IHtmlContent pageContextAttrs;
+    if (pte is not null)
+    {
+        pageContextAttrs = Html.Raw($" data-page-node data-page-id=\"{pte.PageId}\" data-page-path=\"{Html.Encode(pte.PagePath)}\" data-page-type=\"{Html.Encode(pte.PageType)}\" data-page-has-live=\"{(pte.HasLiveVersion ? "true" : "false")}\"");
+    }
+    else if (isPageRoot)
+    {
+        pageContextAttrs = Html.Raw(" data-page-root");
+    }
+    else
+    {
+        pageContextAttrs = HtmlString.Empty;
+    }
 }
 
 <li class="tv-item @(Model.IsLast ? "tv-item-last" : "")">
@@ -31,7 +49,7 @@
         @if (hasChildren && enabled)
         {
             @* Branch node that is also navigable (e.g. Queues, Pipeline dashboard): a bold link. *@
-            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>
+            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")@pageContextAttrs>
                 @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
                 @entry.Title
             </a>
@@ -39,14 +57,14 @@
         else if (hasChildren)
         {
             @* Pure container (e.g. Rules Engine sub-group): a bold non-link label. *@
-            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")">
+            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")"@pageContextAttrs>
                 @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
                 @entry.Title
             </span>
         }
         else if (enabled)
         {
-            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>
+            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")@pageContextAttrs>
                 @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
                 @entry.Title
             </a>

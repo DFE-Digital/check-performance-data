@@ -1,0 +1,61 @@
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model NewPageViewModel
+@{
+    ViewData["Title"] = "Create page";
+}
+
+<a href="/admin/pages" class="govuk-back-link">Back to pages</a>
+
+@if (Model.Error is not null)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    <li>@Model.Error</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
+<h1 class="govuk-heading-xl">Create page</h1>
+
+@if (Model.ParentTitle is not null)
+{
+    <p class="govuk-body">Creating a page under: <strong>@Model.ParentTitle</strong></p>
+}
+
+<form method="post" action="/admin/pages/create">
+    @Html.AntiForgeryToken()
+    @if (Model.ParentId.HasValue)
+    {
+        <input type="hidden" name="parentId" value="@Model.ParentId" />
+    }
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="PageType">Page type</label>
+        <select class="govuk-select" id="PageType" name="pageType">
+            <option value="content" selected="@(Model.PageType == "content" ? "selected" : null)">Content</option>
+            <option value="wiki" selected="@(Model.PageType == "wiki" ? "selected" : null)">Wiki</option>
+            <option value="folder" selected="@(Model.PageType == "folder" ? "selected" : null)">Folder</option>
+        </select>
+    </div>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Segment">URL segment</label>
+        <div id="Segment-hint" class="govuk-hint">Lowercase letters, digits and hyphens only (e.g. <code>my-page</code>).</div>
+        <input class="govuk-input" id="Segment" name="segment" value="@Model.Segment" aria-describedby="Segment-hint" />
+    </div>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="Title">Title</label>
+        <input class="govuk-input" id="Title" name="title" value="@Model.Title" />
+    </div>
+
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" type="submit">Create page</button>
+        <a class="govuk-link" href="/admin/pages">Cancel</a>
+    </div>
+</form>

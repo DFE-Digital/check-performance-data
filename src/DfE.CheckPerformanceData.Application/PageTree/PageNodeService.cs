@@ -22,6 +22,9 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         return node;
     }
 
+    public Task<PageNodeDto?> GetNodeByIdAsync(Guid id) =>
+        repository.GetByIdAsync(id);
+
     public Task<List<PageNodeTreeItemDto>> GetTreeAsync() =>
         repository.GetTreeAsync();
 

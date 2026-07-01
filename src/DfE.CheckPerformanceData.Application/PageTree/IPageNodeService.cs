@@ -11,6 +11,9 @@ public interface IPageNodeService
     Task<PageNodeDto> CreatePageAsync(
         Guid? parentId, string segment, string title, string pageType, string? userId);
 
+    /// <summary>Returns the node with <paramref name="id"/>, or null if not found or deleted.</summary>
+    Task<PageNodeDto?> GetNodeByIdAsync(Guid id);
+
     /// <summary>All live (non-deleted) nodes. Caller assembles into a tree via ParentId links.</summary>
     Task<List<PageNodeTreeItemDto>> GetTreeAsync();
 

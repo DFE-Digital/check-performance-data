@@ -88,6 +88,40 @@ public class PageNodeServiceTests
         Assert.Equal(2, tree.Count);
     }
 
+    // ── GetNodeByIdAsync ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetNodeById_Returns_Null_When_Not_Found()
+    {
+        var result = await Sut().GetNodeByIdAsync(Guid.NewGuid());
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetNodeById_Returns_Node_When_Found()
+    {
+        var node = await Sut().CreatePageAsync(null, "guidance", "Guidance", "folder", "u1");
+
+        var result = await Sut().GetNodeByIdAsync(node.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(node.Id, result!.Id);
+        Assert.Equal("guidance", result.Path);
+        Assert.Equal("folder", result.PageType);
+    }
+
+    [Fact]
+    public async Task GetNodeById_Returns_Null_After_SoftDelete()
+    {
+        var node = await Sut().CreatePageAsync(null, "leaf", "Leaf", "content", null);
+        await Sut().DeleteAsync(node.Id, "u1");
+
+        var result = await Sut().GetNodeByIdAsync(node.Id);
+
+        Assert.Null(result);
+    }
+
     // ── GetNodeByPathAsync ───────────────────────────────────────────────────
 
     [Fact]

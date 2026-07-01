@@ -64,4 +64,19 @@ public interface IPageNodeService
     /// No-ops silently when the node is already at the end of the list.
     /// </summary>
     Task MoveAsync(Guid nodeId, string direction);
+
+    /// <summary>
+    /// Publishes the working draft (the highest-VersionId version with no PublishFrom)
+    /// by setting its publish window to now–open-ended. No-op if no draft exists.
+    /// </summary>
+    Task PublishDraftAsync(Guid nodeId, string? userId);
+
+    /// <summary>
+    /// Unpublishes the currently-live version by clearing its publish window so it becomes
+    /// an unscheduled draft again. No-op if no version is currently live.
+    /// </summary>
+    Task UnpublishAsync(Guid nodeId, string? userId);
+
+    /// <summary>Returns true if any version is currently marked as live (IsCurrent).</summary>
+    Task<bool> IsPublishedAsync(Guid nodeId);
 }

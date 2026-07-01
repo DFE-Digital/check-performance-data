@@ -176,6 +176,24 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/versions");
     }
 
+    // ── Publish draft / Unpublish ─────────────────────────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/publish-draft")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PublishDraft(Guid id)
+    {
+        await pageNodeService.PublishDraftAsync(id, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/unpublish")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Unpublish(Guid id)
+    {
+        await pageNodeService.UnpublishAsync(id, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
     // ── Edit / Save ───────────────────────────────────────────────────────────
 
     [HttpGet("/admin/pages/{id:guid}/edit")]
@@ -333,11 +351,13 @@ public sealed class PageTreeAdminController(
         // Load draft if one exists, else the latest published version's content.
         // Avoids editing a blank document after a wiki page has been published (no draft remains).
         var content = await pageNodeService.GetWorkingOrLatestContentAsync(id);
+        var isPublished = await pageNodeService.IsPublishedAsync(id);
         var vm = new PageTreeAdminWikiEditViewModel
         {
-            NodeId    = id,
-            NodeTitle = node.Title,
-            Content   = content ?? string.Empty
+            NodeId      = id,
+            NodeTitle   = node.Title,
+            Content     = content ?? string.Empty,
+            IsPublished = isPublished
         };
         return View("WikiEdit", vm);
     }
@@ -346,12 +366,15 @@ public sealed class PageTreeAdminController(
     {
         var json = await pageNodeService.GetWorkingOrLatestContentAsync(id) ?? "[]";
         var tree = ContentPageJson.Deserialize(json) ?? [];
+        var isPublished = await pageNodeService.IsPublishedAsync(id);
         return View("~/Views/ContentPage/Edit.cshtml", new ContentPageEditViewModel
         {
-            ActionBase = $"/admin/pages/{id}/content",
-            Title = node.Title,
-            Content = tree,
-            ShowInlinePublish = false
+            ActionBase        = $"/admin/pages/{id}/content",
+            NodeId            = id,
+            Title             = node.Title,
+            Content           = tree,
+            ShowInlinePublish = false,
+            IsPublished       = isPublished
         });
     }
 

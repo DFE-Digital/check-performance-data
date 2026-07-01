@@ -546,6 +546,50 @@ public sealed class PageTreeAdminControllerTests
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
     }
 
+    // ── POST /admin/pages/{id}/publish-draft ─────────────────────────────────
+
+    [Fact]
+    public async Task PublishDraft_Post_CallsPublishDraftAsyncAndRedirectsToEdit()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().PublishDraft(id);
+
+        await _service.Received(1).PublishDraftAsync(id, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public void PublishDraft_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.PublishDraft));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/unpublish ─────────────────────────────────────
+
+    [Fact]
+    public async Task Unpublish_Post_CallsUnpublishAsyncAndRedirectsToEdit()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().Unpublish(id);
+
+        await _service.Received(1).UnpublishAsync(id, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public void Unpublish_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Unpublish));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
     // ── GET /admin/pages/{id}/edit ───────────────────────────────────────────
 
     [Fact]
@@ -637,6 +681,75 @@ public sealed class PageTreeAdminControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<ContentPageEditViewModel>(view.Model);
         Assert.Empty(vm.Content);
+    }
+
+    [Fact]
+    public async Task Edit_WikiNode_SetsIsPublished_True_WhenNodeIsLive()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki", Path = "wiki", Title = "Wiki", PageType = "wiki"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("<p>Content</p>");
+        _service.IsPublishedAsync(id).Returns(true);
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(vm.IsPublished);
+    }
+
+    [Fact]
+    public async Task Edit_WikiNode_SetsIsPublished_False_WhenNodeIsDraft()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki", Path = "wiki", Title = "Wiki", PageType = "wiki"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("<p>Draft</p>");
+        _service.IsPublishedAsync(id).Returns(false);
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(vm.IsPublished);
+    }
+
+    [Fact]
+    public async Task Edit_ContentNode_SetsIsPublished_True_WhenNodeIsLive()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("[]");
+        _service.IsPublishedAsync(id).Returns(true);
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<ContentPageEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.True(vm.IsPublished);
+        Assert.Equal(id, vm.NodeId);
+    }
+
+    [Fact]
+    public async Task Edit_ContentNode_SetsIsPublished_False_WhenNodeIsDraft()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
+        });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("[]");
+        _service.IsPublishedAsync(id).Returns(false);
+
+        var result = await Sut().Edit(id);
+
+        var vm = Assert.IsType<ContentPageEditViewModel>(Assert.IsType<ViewResult>(result).Model);
+        Assert.False(vm.IsPublished);
     }
 
     [Fact]

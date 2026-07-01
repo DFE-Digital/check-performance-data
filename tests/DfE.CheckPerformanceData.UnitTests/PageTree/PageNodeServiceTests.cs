@@ -360,6 +360,148 @@ public class PageNodeServiceTests
         Assert.True(_repo.IsDeleted(node.Id));
     }
 
+    // ── PublishDraftAsync ─────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task PublishDraft_WithDraft_PublishesDraft_And_SetsCurrent()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        // Seeded version is an unscheduled draft.
+        Assert.False(_repo.GetVersionsSync(node.Id)[0].IsCurrent);
+
+        await Sut().PublishDraftAsync(node.Id, "publisher");
+
+        var versions = _repo.GetVersionsSync(node.Id);
+        Assert.NotNull(versions[0].PublishFrom);
+        Assert.True(versions[0].IsCurrent);
+    }
+
+    [Fact]
+    public async Task PublishDraft_ThreadsUserIdToRepository()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+
+        await Sut().PublishDraftAsync(node.Id, "pub-user");
+
+        Assert.Equal("pub-user", _repo.LastWindowUserId);
+    }
+
+    [Fact]
+    public async Task PublishDraft_WhenNoDraftExists_IsNoOp()
+    {
+        // A folder node has no versions — PublishDraftAsync must not throw.
+        var node = await Sut().CreatePageAsync(null, "folder", "Folder", "folder", "u1");
+        var before = _repo.GetVersionsSync(node.Id);
+        Assert.Empty(before);
+
+        // Should not throw.
+        await Sut().PublishDraftAsync(node.Id, "u1");
+
+        Assert.Empty(_repo.GetVersionsSync(node.Id));
+    }
+
+    [Fact]
+    public async Task PublishDraft_WhenAllVersionsAreScheduled_IsNoOp()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versions = await _repo.GetVersionsAsync(node.Id);
+        // Schedule the only version so there is no draft.
+        await _repo.UpdateVersionWindowAsync(node.Id, versions[0].VersionId, Now.AddDays(-1), null, null);
+
+        // No draft remains — should be a no-op, not throw.
+        await Sut().PublishDraftAsync(node.Id, "u1");
+
+        // The already-scheduled version must be unchanged.
+        var after = _repo.GetVersionsSync(node.Id);
+        Assert.Equal(Now.AddDays(-1), after[0].PublishFrom);
+    }
+
+    // ── UnpublishAsync ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Unpublish_ClearsPublishWindow_And_MakesVersionNotCurrent()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
+        // Make the version live.
+        await _repo.UpdateVersionWindowAsync(node.Id, versionId, Now.AddDays(-1), null, null);
+        await _repo.RecomputeCurrentAsync(node.Id, Now);
+        Assert.True(_repo.GetVersionsSync(node.Id)[0].IsCurrent);
+
+        await Sut().UnpublishAsync(node.Id, "u1");
+
+        var versions = _repo.GetVersionsSync(node.Id);
+        Assert.Null(versions[0].PublishFrom);
+        Assert.False(versions[0].IsCurrent);
+    }
+
+    [Fact]
+    public async Task Unpublish_ThreadsUserIdToRepository()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
+        await _repo.UpdateVersionWindowAsync(node.Id, versionId, Now.AddDays(-1), null, null);
+        await _repo.RecomputeCurrentAsync(node.Id, Now);
+
+        await Sut().UnpublishAsync(node.Id, "unpub-user");
+
+        Assert.Equal("unpub-user", _repo.LastWindowUserId);
+    }
+
+    [Fact]
+    public async Task Unpublish_WhenNoVersionIsLive_IsNoOp()
+    {
+        // Draft page (never published) — should not throw.
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        Assert.False(_repo.GetVersionsSync(node.Id)[0].IsCurrent);
+
+        await Sut().UnpublishAsync(node.Id, "u1");
+
+        // Draft version must be unchanged.
+        var after = _repo.GetVersionsSync(node.Id);
+        Assert.Null(after[0].PublishFrom);
+        Assert.False(after[0].IsCurrent);
+    }
+
+    // ── IsPublishedAsync ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task IsPublished_ReturnsFalse_WhenDraftOnly()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+
+        var result = await Sut().IsPublishedAsync(node.Id);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public async Task IsPublished_ReturnsTrue_WhenVersionIsLive()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
+        await _repo.UpdateVersionWindowAsync(node.Id, versionId, Now.AddDays(-1), null, null);
+        await _repo.RecomputeCurrentAsync(node.Id, Now);
+
+        var result = await Sut().IsPublishedAsync(node.Id);
+
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task IsPublished_ReturnsFalse_AfterUnpublish()
+    {
+        var node = await Sut().CreatePageAsync(null, "page", "Page", "content", "u1");
+        var versionId = (await _repo.GetVersionsAsync(node.Id))[0].VersionId;
+        await _repo.UpdateVersionWindowAsync(node.Id, versionId, Now.AddDays(-1), null, null);
+        await _repo.RecomputeCurrentAsync(node.Id, Now);
+        Assert.True(await Sut().IsPublishedAsync(node.Id)); // sanity
+
+        await Sut().UnpublishAsync(node.Id, "u1");
+
+        Assert.False(await Sut().IsPublishedAsync(node.Id));
+    }
+
     // ── MoveAsync ────────────────────────────────────────────────────────────
 
     [Fact]

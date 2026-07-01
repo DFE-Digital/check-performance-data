@@ -127,6 +127,31 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         await repository.SetSiblingOrderAsync(orders);
     }
 
+    public async Task PublishDraftAsync(Guid nodeId, string? userId)
+    {
+        var versions = await GetVersionsAsync(nodeId);
+        // Draft = highest-VersionId version with no publish window.
+        // GetVersionsAsync returns versions ordered descending by VersionId.
+        var draft = versions.FirstOrDefault(v => v.PublishFrom is null);
+        if (draft is null) return;
+        await PublishAsync(nodeId, draft.VersionId, DateTime.UtcNow, null, userId);
+    }
+
+    public async Task UnpublishAsync(Guid nodeId, string? userId)
+    {
+        var versions = await GetVersionsAsync(nodeId);
+        var live = versions.FirstOrDefault(v => v.IsCurrent);
+        if (live is null) return;
+        // Clear the publish window — the version becomes an unscheduled draft again.
+        await PublishAsync(nodeId, live.VersionId, null, null, userId);
+    }
+
+    public async Task<bool> IsPublishedAsync(Guid nodeId)
+    {
+        var versions = await GetVersionsAsync(nodeId);
+        return versions.Any(v => v.IsCurrent);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private async Task<string> ComputePathAsync(Guid? parentId, string segment)

@@ -39,6 +39,36 @@
         @await Html.PartialAsync("ContentPages/_EditColumn",
             new EditColumnModel(Model.ActionBase, Model.Content, Array.Empty<TreeStep>(), 0))
 
+        @if (Model.NodeId != Guid.Empty)
+        {
+            <div class="govuk-!-margin-top-6">
+                @if (Model.IsPublished)
+                {
+                    <p class="govuk-body govuk-!-margin-bottom-2">
+                        <strong class="govuk-tag govuk-tag--green">Published</strong>
+                    </p>
+                    <div class="govuk-button-group">
+                        <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
+                        </form>
+                        <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="govuk-button-group">
+                        <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="govuk-button">Publish draft</button>
+                        </form>
+                        <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
+                    </div>
+                    <p class="govuk-hint">Make this page live.</p>
+                }
+            </div>
+        }
+
         @if (Model.ShowInlinePublish)
         {
             <form method="post" action="@Model.ActionBase/publish" class="govuk-!-margin-top-6">

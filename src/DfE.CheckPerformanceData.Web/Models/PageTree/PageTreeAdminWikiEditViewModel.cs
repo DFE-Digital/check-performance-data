@@ -5,4 +5,7 @@ public sealed class PageTreeAdminWikiEditViewModel
     public Guid NodeId { get; init; }
     public required string NodeTitle { get; init; }
     public string Content { get; init; } = string.Empty;
+
+    /// <summary>True when the page node currently has a live (IsCurrent) version.</summary>
+    public bool IsPublished { get; init; }
 }

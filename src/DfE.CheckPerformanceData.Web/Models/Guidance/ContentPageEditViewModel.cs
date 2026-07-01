@@ -20,4 +20,12 @@ public sealed class ContentPageEditViewModel
     // True for the old slug-keyed content-page editor (shows the inline "Save and publish" form).
     // False for the node-tree editor, where publishing is done on the Versions page.
     public bool ShowInlinePublish { get; init; } = true;
+
+    // Node-tree editor: carries the page node id so the view can POST to
+    // /admin/pages/{NodeId}/publish-draft and /admin/pages/{NodeId}/unpublish.
+    // Empty (Guid.Empty) when the old slug-keyed content-page editor is in use (retired).
+    public Guid NodeId { get; init; }
+
+    /// <summary>True when the page node currently has a live (IsCurrent) version.</summary>
+    public bool IsPublished { get; init; }
 }

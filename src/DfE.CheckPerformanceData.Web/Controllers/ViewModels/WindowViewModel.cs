@@ -32,8 +32,15 @@ public class WindowEditItem
         get => $"{baseEditUrl}/start-date";
     }
     public required DateTime EndDate { get; set; }
+    public string EndDateLink {
+        get => $"{baseEditUrl}/end-date";
+    }
+
     public required KeyStages KeyStage { get; set; }
     public required CheckingWindowType CheckingWindowType { get; set; }
+    public string CheckingWindowTypeLink {
+        get => $"{baseEditUrl}/checking-window-type";
+    }
     //data
     public string IngressFile { get; set; }
     public string IngressFileLink

@@ -5,6 +5,8 @@
     ViewData["Title"] = "Window Admin";
 }
 
+<govuk-back-link asp-controller="Admin" asp-action="Index" />
+
 <h1 class="govuk-heading-xl">@ViewData["Title"]</h1>
 
 @if (Model.Windows.Count < 1)

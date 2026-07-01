@@ -77,9 +77,19 @@ else
                                        name="to"
                                        value="@v.PublishTo?.ToString("yyyy-MM-ddTHH:mm")" />
                             </div>
-                            <button type="submit" class="govuk-button govuk-button--secondary">
-                                Publish
-                            </button>
+                            <div class="govuk-button-group">
+                                <button type="submit" class="govuk-button">
+                                    Save
+                                </button>
+                                <button type="submit" class="govuk-button govuk-button--secondary"
+                                        formaction="/admin/pages/@Model.NodeId/versions/publish-now">
+                                    Publish
+                                </button>
+                                <button type="submit" class="govuk-button govuk-button--warning"
+                                        formaction="/admin/pages/@Model.NodeId/versions/unpublish">
+                                    Unpublish
+                                </button>
+                            </div>
                         </form>
                     </td>
                 </tr>

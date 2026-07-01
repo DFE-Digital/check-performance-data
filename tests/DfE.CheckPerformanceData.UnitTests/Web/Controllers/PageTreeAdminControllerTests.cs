@@ -1286,4 +1286,155 @@ public sealed class PageTreeAdminControllerTests
         Assert.Contains("/content/delete", httpPost!.Template, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("{id:guid}/delete\"", httpPost.Template + "\"", StringComparison.OrdinalIgnoreCase);
     }
+
+    // ── POST /admin/pages/{id}/save-and-publish ──────────────────────────────
+
+    [Fact]
+    public async Task SaveAndPublish_CallsSaveWorkingContentThenPublishDraftAsync_AndRedirectsToEdit()
+    {
+        var id = Guid.NewGuid();
+        const string rawHtml = "<p>Hello</p>";
+        _renderer.RenderHtml(rawHtml).Returns(rawHtml);
+        _renderer.StripTagsToPlainText(rawHtml).Returns("Hello");
+
+        var result = await Sut().SaveAndPublish(id, rawHtml);
+
+        await _service.Received(1).SaveWorkingContentAsync(id, rawHtml, "Hello", Arg.Any<string?>());
+        await _service.Received(1).PublishDraftAsync(id, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public void SaveAndPublish_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.SaveAndPublish));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/content/save-draft ────────────────────────────
+
+    [Fact]
+    public async Task ContentSaveDraft_KnownNode_CallsSaveWorkingContentAsync_AndRedirectsToEdit()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        _service.GetWorkingOrLatestContentAsync(id).Returns("[{\"kind\":\"widget\"}]");
+
+        var result = await Sut().ContentSaveDraft(id);
+
+        await _service.Received(1).SaveWorkingContentAsync(
+            id, "[{\"kind\":\"widget\"}]", string.Empty, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public async Task ContentSaveDraft_NullContent_SavesEmptyArray_AndRedirectsToEdit()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+        _service.GetWorkingOrLatestContentAsync(id).Returns((string?)null);
+
+        var result = await Sut().ContentSaveDraft(id);
+
+        await _service.Received(1).SaveWorkingContentAsync(
+            id, "[]", string.Empty, Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public async Task ContentSaveDraft_UnknownNode_ReturnsNotFound_DoesNotCallSave()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentSaveDraft(id);
+
+        Assert.IsType<NotFoundResult>(result);
+        await _service.DidNotReceive().SaveWorkingContentAsync(
+            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public void ContentSaveDraft_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.ContentSaveDraft));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/versions/publish-now ──────────────────────────
+
+    [Fact]
+    public async Task PublishNow_NullFrom_CallsPublishAsync_WithNonNullDateTime_AndRedirectsToVersions()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().PublishNow(id, 3, null, null);
+
+        // NSubstitute: when any DateTime? uses Arg.Is<>, all DateTime? args must use matchers.
+        await _service.Received(1).PublishAsync(
+            id, 3,
+            Arg.Is<DateTime?>(d => d != null),
+            Arg.Is<DateTime?>(d => d == null),
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+    }
+
+    [Fact]
+    public async Task PublishNow_ExplicitFrom_PassesThroughSameFrom_AndRedirectsToVersions()
+    {
+        var id = Guid.NewGuid();
+        var from = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var result = await Sut().PublishNow(id, 3, from, null);
+
+        await _service.Received(1).PublishAsync(
+            id, 3,
+            Arg.Is<DateTime?>(d => d == from),
+            Arg.Is<DateTime?>(d => d == null),
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+    }
+
+    [Fact]
+    public void PublishNow_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.PublishNow));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/versions/unpublish ────────────────────────────
+
+    [Fact]
+    public async Task UnpublishVersion_CallsPublishAsync_WithNullWindow_AndRedirectsToVersions()
+    {
+        var id = Guid.NewGuid();
+
+        var result = await Sut().UnpublishVersion(id, 2);
+
+        await _service.Received(1).PublishAsync(
+            id, 2,
+            Arg.Is<DateTime?>(d => d == null),
+            Arg.Is<DateTime?>(d => d == null),
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+    }
+
+    [Fact]
+    public void UnpublishVersion_HasValidateAntiForgeryTokenAttribute()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.UnpublishVersion));
+        Assert.NotNull(method);
+        Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+    }
 }

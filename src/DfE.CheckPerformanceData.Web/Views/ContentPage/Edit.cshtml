@@ -40,6 +40,17 @@
         @if (Model.NodeId != Guid.Empty)
         {
             <div class="govuk-!-margin-top-6">
+                <div class="govuk-button-group">
+                    <form method="post" action="/admin/pages/@Model.NodeId/content/save-draft">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="govuk-button govuk-button--secondary">Save</button>
+                    </form>
+                    <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="govuk-button">Publish draft</button>
+                    </form>
+                </div>
+
                 @if (Model.IsPublished)
                 {
                     <p class="govuk-body govuk-!-margin-bottom-2">
@@ -55,13 +66,7 @@
                 }
                 else
                 {
-                    <div class="govuk-button-group">
-                        <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="govuk-button">Publish draft</button>
-                        </form>
-                        <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
-                    </div>
+                    <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
                     <p class="govuk-hint">Make this page live.</p>
                 }
             </div>

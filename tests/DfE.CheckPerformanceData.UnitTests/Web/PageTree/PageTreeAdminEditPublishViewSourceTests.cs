@@ -97,9 +97,10 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     [Fact]
     public void WikiEdit_HasPublishDraft_Button_InUnpublishedBranch()
     {
+        // The publish action is now a formaction="…/save-and-publish" button in the main form.
         var src = WikiEdit();
-        Assert.Contains("Publish draft", src);
-        Assert.Contains("/publish-draft", src);
+        Assert.Contains("/save-and-publish", src);
+        Assert.Contains("formaction", src);
     }
 
     [Fact]
@@ -159,7 +160,7 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     public void WikiEdit_ActionUrls_ReferenceNodeId()
     {
         var src = WikiEdit();
-        Assert.Contains("Model.NodeId/publish-draft", src);
+        Assert.Contains("Model.NodeId/save-and-publish", src);
         Assert.Contains("Model.NodeId/unpublish", src);
         Assert.Contains("Model.NodeId/versions", src);
     }
@@ -195,6 +196,75 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("View page", src);
         Assert.Contains("/@Model.PagePath", src);
         Assert.Contains("target=\"_blank\"", src);
+    }
+
+    // ── Wiki editor — save-and-publish ───────────────────────────────────────
+
+    [Fact]
+    public void WikiEdit_HasSaveAndPublish_FormAction()
+    {
+        var src = WikiEdit();
+        Assert.Contains("/save-and-publish", src);
+        Assert.Contains("formaction", src);
+    }
+
+    [Fact]
+    public void WikiEdit_Save_Button_SubmitsToSaveAction()
+    {
+        var src = WikiEdit();
+        Assert.Contains("/admin/pages/@Model.NodeId/save", src);
+    }
+
+    // ── Content editor — save-draft + publish-draft button group ─────────────
+
+    [Fact]
+    public void ContentEdit_HasContentSaveDraft_Action()
+    {
+        var src = ContentEdit();
+        Assert.Contains("/content/save-draft", src);
+    }
+
+    [Fact]
+    public void ContentEdit_HasSaveAndPublishButtonGroup_WithBothForms()
+    {
+        var src = ContentEdit();
+        Assert.Contains("/content/save-draft", src);
+        Assert.Contains("/publish-draft", src);
+        Assert.Contains("govuk-button-group", src);
+    }
+
+    // ── Versions page — publish-now and per-version unpublish ────────────────
+
+    private static string VersionsView() => ReadView("PageTreeAdmin", "Versions.cshtml");
+
+    [Fact]
+    public void Versions_HasPublishNow_Action()
+    {
+        var src = VersionsView();
+        Assert.Contains("/versions/publish-now", src);
+    }
+
+    [Fact]
+    public void Versions_HasUnpublishVersion_Action()
+    {
+        var src = VersionsView();
+        Assert.Contains("/versions/unpublish", src);
+    }
+
+    [Fact]
+    public void Versions_StillHasPublish_Action()
+    {
+        var src = VersionsView();
+        Assert.Contains("/publish", src);
+    }
+
+    [Fact]
+    public void Versions_ButtonGroup_HasThreeButtons()
+    {
+        var src = VersionsView();
+        Assert.Contains("govuk-button-group", src);
+        Assert.Contains("govuk-button--warning", src);
+        Assert.Contains("govuk-button--secondary", src);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

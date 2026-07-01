@@ -23,6 +23,10 @@
         <button type="submit" class="govuk-button" data-module="govuk-button">
             Save page
         </button>
+        <button type="submit" class="govuk-button govuk-button--secondary"
+                formaction="/admin/pages/@Model.NodeId/save-and-publish">
+            Publish
+        </button>
         <a href="/admin/pages" class="govuk-link">Cancel</a>
     </div>
 </form>
@@ -43,13 +47,7 @@
     }
     else
     {
-        <div class="govuk-button-group">
-            <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="govuk-button">Publish draft</button>
-            </form>
-            <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
-        </div>
+        <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
         <p class="govuk-hint">Make this page live.</p>
     }
 </div>

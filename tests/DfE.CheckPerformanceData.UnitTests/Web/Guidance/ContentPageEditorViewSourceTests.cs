@@ -113,10 +113,12 @@ public sealed class ContentPageEditorViewSourceTests
     }
 
     [Fact]
-    public void Edit_PreviewLink_IsGuardedBySlugNotNull()
+    public void Edit_PreviewLink_UsesPagePath()
     {
         var src = ReadContentPage("Edit.cshtml");
-        // The preview anchor must be inside a null-check on Model.Slug.
-        Assert.Contains("Model.Slug is not null", src);
+        // The preview anchor links to the public page via PagePath (PagePath is non-nullable
+        // for all page-tree nodes, so a null guard is not required here).
+        Assert.Contains("/@Model.PagePath", src);
+        Assert.Contains("View page", src);
     }
 }

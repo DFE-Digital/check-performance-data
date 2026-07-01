@@ -194,6 +194,49 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/edit");
     }
 
+    // ── Save and publish (wiki editor) ────────────────────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/save-and-publish")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAndPublish(Guid id, string content)
+    {
+        var rendered = htmlRenderingService.RenderHtml(content) ?? string.Empty;
+        var plain = htmlRenderingService.StripTagsToPlainText(rendered);
+        await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);
+        await pageNodeService.PublishDraftAsync(id, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    // ── Content page Save (idempotent draft persist) ───────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/content/save-draft")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentSaveDraft(Guid id)
+    {
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+        var json = await pageNodeService.GetWorkingOrLatestContentAsync(id) ?? "[]";
+        await pageNodeService.SaveWorkingContentAsync(id, json, string.Empty, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    // ── Version-level publish-now / unpublish ─────────────────────────────────
+
+    [HttpPost("/admin/pages/{id:guid}/versions/publish-now")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PublishNow(Guid id, int versionId, DateTime? from, DateTime? to)
+    {
+        await pageNodeService.PublishAsync(id, versionId, from ?? DateTime.UtcNow, to, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/versions");
+    }
+
+    [HttpPost("/admin/pages/{id:guid}/versions/unpublish")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnpublishVersion(Guid id, int versionId)
+    {
+        await pageNodeService.PublishAsync(id, versionId, null, null, User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/versions");
+    }
+
     // ── Edit / Save ───────────────────────────────────────────────────────────
 
     [HttpGet("/admin/pages/{id:guid}/edit")]

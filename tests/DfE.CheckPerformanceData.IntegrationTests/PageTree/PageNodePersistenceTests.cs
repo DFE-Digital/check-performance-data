@@ -50,4 +50,15 @@ public sealed class PageNodePersistenceTests(PostgresFixture fixture)
         ctx.PageNodes.Add(new PageNode { Id = Guid.NewGuid(), Segment = "a", Path = "a", Title = "A2", PageType = "folder", CreatedDate = DateTime.UtcNow, UpdatedDate = DateTime.UtcNow });
         await Assert.ThrowsAsync<DbUpdateException>(() => ctx.SaveChangesAsync());
     }
+
+    [Fact]
+    public async Task Path_AllowsDuplicate_WhenFirstNodeIsDeleted()
+    {
+        await TruncateAsync();
+        await using var ctx = _fixture.CreateContext();
+        ctx.PageNodes.Add(new PageNode { Id = Guid.NewGuid(), Segment = "a", Path = "a", Title = "A", PageType = "folder", CreatedDate = DateTime.UtcNow, UpdatedDate = DateTime.UtcNow, DeletedDate = DateTime.UtcNow, DeletedBy = "test" });
+        await ctx.SaveChangesAsync();
+        ctx.PageNodes.Add(new PageNode { Id = Guid.NewGuid(), Segment = "a", Path = "a", Title = "A2", PageType = "folder", CreatedDate = DateTime.UtcNow, UpdatedDate = DateTime.UtcNow });
+        await ctx.SaveChangesAsync(); // must not throw — first is soft-deleted and excluded by the filtered index
+    }
 }

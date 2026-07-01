@@ -105,6 +105,21 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public async Task UpdateVersionWindowAsync(
+        Guid nodeId, int versionId, DateTime? publishFrom, DateTime? publishTo, string? userId)
+    {
+        var entity = await context.PageNodeVersions
+            .FirstOrDefaultAsync(v => v.PageNodeId == nodeId && v.VersionId == versionId)
+            ?? throw new InvalidOperationException(
+                $"Version {versionId} for node {nodeId} not found.");
+
+        entity.PublishFrom = publishFrom;
+        entity.PublishTo = publishTo;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
     public Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId) =>
         context.PageNodeVersions
             .AsNoTracking()

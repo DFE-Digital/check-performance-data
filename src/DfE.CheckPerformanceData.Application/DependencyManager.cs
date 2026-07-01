@@ -1,4 +1,5 @@
 ﻿using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
 using DfE.CheckPerformanceData.Application.Common;
@@ -21,6 +22,7 @@ public static class DependencyManager
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<IPageNodeService, PageNodeService>();
         services.AddScoped<ContentPages.IContentPageService, ContentPages.ContentPageService>();
         services.AddScoped<ContentPages.IContentPageEditor, ContentPages.ContentPageEditor>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();

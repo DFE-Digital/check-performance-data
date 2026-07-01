@@ -20,6 +20,10 @@ public interface IPageNodeRepository
     Task UpdateVersionContentAsync(
         Guid nodeId, int versionId, string content, string bodyPlainText, string? userId);
 
+    /// <summary>Sets the publish window on an existing version. Call RecomputeCurrentAsync after.</summary>
+    Task UpdateVersionWindowAsync(
+        Guid nodeId, int versionId, DateTime? publishFrom, DateTime? publishTo, string? userId);
+
     Task<List<PageNodeVersionDto>> GetVersionsAsync(Guid nodeId);
 
     Task<PageNodeVersionDto?> GetLiveVersionAsync(Guid nodeId, DateTime nowUtc);

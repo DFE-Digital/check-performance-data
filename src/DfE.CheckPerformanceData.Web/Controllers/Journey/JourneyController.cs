@@ -439,20 +439,19 @@ public sealed class JourneyController(
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
         }
-
+        
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
+            s.SelectedNextStep = null;
             s.SelectedWhatToChange = null;
-            s.SelectedPupil = null;
             s.SelectedPupilId = null;
             s.SelectedPupilLabel = null;
-            s.SelectedNextStep = null;
-            s.MatchedPupil = null;
+            s.SelectedPupil = null;
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
-            s.QuestionAnswers = new();
-            s.QuestionHistory = new();
-            // ReferenceNumber and CheckingWindow preserved for the Confirmation page
+            s.MatchedPupil = null;
+            s.QuestionAnswers.Clear();
+            s.QuestionHistory.Clear();
         });
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
@@ -522,16 +521,17 @@ public sealed class JourneyController(
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
 
-        if (journey.ReferenceNumber is null || journey.CheckingWindow is null)
+        if (string.IsNullOrEmpty(journey?.ReferenceNumber) || journey?.CheckingWindow is null)
             return RedirectToCheckYourData(windowId);
 
-        var window = journey.CheckingWindow;
-        return View(new ConfirmationViewModel
+        var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
-            WindowCloseLabel = $"{window.EndDate.ToString("htt").ToLower()} on {window.EndDate:dddd d MMMM yyyy}"
-        });
+            WindowCloseLabel = $"{journey.CheckingWindow.EndDate:htt} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+        };
+
+        return View(model);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────

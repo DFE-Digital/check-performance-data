@@ -22,6 +22,7 @@ using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
+using DfE.CheckPerformanceData.Web.PageTree;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -150,6 +151,9 @@ try
     builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
     builder.Services.AddSingleton<PayloadRedactor>();
+
+    builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();
+    builder.Services.AddScoped<PageNodePathValidator>();
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));

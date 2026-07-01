@@ -1,0 +1,27 @@
+@using DfE.CheckPerformanceData.Application.PageTree
+@model IReadOnlyList<PageTreeNode>
+@{
+    ViewData["Title"] = "Pages";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+        <h1 class="govuk-heading-l">Pages</h1>
+
+        <a href="/admin/pages/new" class="govuk-button" data-module="govuk-button">Create page</a>
+
+        @if (Model.Count == 0)
+        {
+            <p class="govuk-body">No pages yet. Create one to get started.</p>
+        }
+        else
+        {
+            <ul class="govuk-list app-page-tree">
+                @foreach (var node in Model)
+                {
+                    @await Html.PartialAsync("PageTree/_TreeNode", node)
+                }
+            </ul>
+        }
+    </div>
+</div>

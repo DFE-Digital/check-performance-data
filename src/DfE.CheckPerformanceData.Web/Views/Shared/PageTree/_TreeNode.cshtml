@@ -1,0 +1,42 @@
+@using DfE.CheckPerformanceData.Application.PageTree
+@model PageTreeNode
+@*
+    Recursive admin page-tree node partial.
+    Model: PageTreeNode — carries Id, Title, Path, PageType, HasLiveVersion, Children.
+
+    Title link decision: if HasLiveVersion the title links to the live public page at
+    "/" + Path. If no live version exists there is nothing to view, so the title is
+    rendered as plain muted text instead of a broken link.
+*@
+
+<li class="app-page-tree__item">
+    <span class="app-page-tree__icon">
+        @await Html.PartialAsync("PageTree/_PageTypeIcon", Model.PageType)
+    </span>
+    <span class="app-page-tree__title">
+        @if (Model.HasLiveVersion)
+        {
+            <a class="govuk-link" href="/@Model.Path">@Model.Title</a>
+        }
+        else
+        {
+            <span class="govuk-body govuk-!-colour-secondary">@Model.Title</span>
+        }
+    </span>
+    <span class="app-page-tree__type govuk-body-s govuk-!-colour-secondary">(@Model.PageType)</span>
+    <span class="app-page-tree__actions govuk-body-s">
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/edit">Edit</a>
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/@Model.Id/versions">Versions</a>
+        <a class="govuk-link govuk-!-margin-right-2" href="/admin/pages/new?parentId=@Model.Id">New child page</a>
+        <a class="govuk-link" href="/admin/pages/@Model.Id/delete">Delete</a>
+    </span>
+    @if (Model.Children.Count > 0)
+    {
+        <ul class="govuk-list app-page-tree__children">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("PageTree/_TreeNode", child)
+            }
+        </ul>
+    }
+</li>

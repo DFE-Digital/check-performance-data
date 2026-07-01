@@ -6,9 +6,9 @@ public sealed record ContentPagesNavEntry : IAdminNavEntry
 {
     public string Key => AdminNavKeys.ContentPages;
     public string? ParentKey => AdminNavKeys.CmsAdmin;
-    public string Title => "Content pages";
-    public string Description => "Build and edit content pages from reusable regions and widgets, then publish them.";
-    public string Url => "/admin/content-pages";
+    public string Title => "Pages";
+    public string Description => "Browse and manage all pages in the site tree — content, wiki, and folder nodes.";
+    public string Url => "/admin/pages";
     public bool Enabled => true;
     public int Order => 35;
 }

@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @model AdminNavNodePartialModel
 @{
@@ -10,6 +11,8 @@
     // Expand a branch when nothing is active yet (first paint) or when it contains the
     // active page. site.js re-collapses inactive branches once it binds.
     var expandedInitial = activeKey == null || Model.SubtreeContainsActive;
+    // Page-type icon: present only for page-tree nodes (PageTreeNavEntry).
+    var pageIconType = entry is PageTreeNavEntry pte ? pte.PageType : null;
 }
 
 <li class="tv-item @(Model.IsLast ? "tv-item-last" : "")">
@@ -28,16 +31,25 @@
         @if (hasChildren && enabled)
         {
             @* Branch node that is also navigable (e.g. Queues, Pipeline dashboard): a bold link. *@
-            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
+            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </a>
         }
         else if (hasChildren)
         {
             @* Pure container (e.g. Rules Engine sub-group): a bold non-link label. *@
-            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")">@entry.Title</span>
+            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")">
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </span>
         }
         else if (enabled)
         {
-            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
+            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </a>
         }
         else if (entry.Enabled && entry.HttpMethod == "POST")
         {

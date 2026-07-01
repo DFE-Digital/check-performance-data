@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -28,5 +29,79 @@ public sealed class AdminNavNodeViewModel
             .ToList();
 
         return ChildrenOf(null);
+    }
+
+    // Grafts a live page tree under the ContentPages node in the given forest.
+    // Returns a new forest with the ContentPages node's Children replaced by the
+    // page tree mapped to AdminNavNodeViewModels using PageTreeNavEntry. Other nodes
+    // are returned by reference (unchanged). Defensive: null/empty page tree returns
+    // the forest unchanged.
+    public static IReadOnlyList<AdminNavNodeViewModel> GraftPageTree(
+        IReadOnlyList<AdminNavNodeViewModel> forest,
+        IReadOnlyList<PageTreeNode> pageTree)
+    {
+        if (pageTree is null || pageTree.Count == 0)
+            return forest;
+
+        return GraftInForest(forest, pageTree);
+    }
+
+    private static IReadOnlyList<AdminNavNodeViewModel> GraftInForest(
+        IReadOnlyList<AdminNavNodeViewModel> forest,
+        IReadOnlyList<PageTreeNode> pageTree)
+    {
+        var result = new List<AdminNavNodeViewModel>(forest.Count);
+        var changed = false;
+        foreach (var node in forest)
+        {
+            var grafted = GraftInNode(node, pageTree);
+            result.Add(grafted);
+            if (!ReferenceEquals(grafted, node)) changed = true;
+        }
+        return changed ? result : forest;
+    }
+
+    private static AdminNavNodeViewModel GraftInNode(
+        AdminNavNodeViewModel node,
+        IReadOnlyList<PageTreeNode> pageTree)
+    {
+        if (node.Entry.Key == AdminNavKeys.ContentPages)
+        {
+            return new AdminNavNodeViewModel
+            {
+                Entry = node.Entry,
+                Children = MapPageNodes(pageTree, AdminNavKeys.ContentPages),
+            };
+        }
+
+        var newChildren = GraftInForest(node.Children, pageTree);
+        if (ReferenceEquals(newChildren, node.Children))
+            return node;
+
+        return new AdminNavNodeViewModel
+        {
+            Entry = node.Entry,
+            Children = newChildren,
+        };
+    }
+
+    private static AdminNavNodeViewModel MapPageNode(PageTreeNode node, string parentNavKey)
+    {
+        var entry = new PageTreeNavEntry(node.Id, node.Title, node.PageType, node.HasLiveVersion, parentNavKey);
+        return new AdminNavNodeViewModel
+        {
+            Entry = entry,
+            Children = MapPageNodes(node.Children, entry.Key),
+        };
+    }
+
+    private static IReadOnlyList<AdminNavNodeViewModel> MapPageNodes(
+        IReadOnlyList<PageTreeNode> nodes,
+        string parentNavKey)
+    {
+        if (nodes is null || nodes.Count == 0)
+            return [];
+
+        return nodes.Select(n => MapPageNode(n, parentNavKey)).ToList();
     }
 }

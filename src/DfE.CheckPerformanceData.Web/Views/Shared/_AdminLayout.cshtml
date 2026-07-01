@@ -1,4 +1,5 @@
 @using System.Security.Claims
+@using DfE.CheckPerformanceData.Application.PageTree
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Authentication
@@ -7,6 +8,7 @@
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
+@inject IPageNodeService PageNodeService
 @*
     Admin chrome — black-banded header and "Administration" wordmark
     to make the admin context unambiguous. The public Beta phase banner
@@ -51,6 +53,15 @@
     var showImpersonateDropdown = devToolsEnabled && !HostEnvironment.IsProduction() && !showSignOut;
 
     var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
+    try
+    {
+        var pageTree = PageTreeBuilder.Build(await PageNodeService.GetTreeAsync());
+        adminNavTreeModel = AdminNavNodeViewModel.GraftPageTree(adminNavTreeModel, pageTree);
+    }
+    catch
+    {
+        // Page-tree failure must not break the rest of admin — degrade gracefully.
+    }
 
     // Active-page tracking: resolve the nav entry the current request path belongs to, so the tree
     // highlights it (aria-current=page) and force-expands its ancestor groups. The recursive node

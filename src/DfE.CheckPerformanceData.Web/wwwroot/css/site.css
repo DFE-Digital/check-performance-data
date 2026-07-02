@@ -1491,17 +1491,26 @@ body.js-enabled .rules-condition__apply {
 .guidance-section .content-block--title h2,
 .guidance-section .content-block--title h3 { margin-bottom: 0; }
 
-/* Landing-page search box (input + button on one row). Narrower input and a clear gap
-   between input and button per the Figma design. */
+/* Landing-page search box (input + button on one row). The input runs at the section's
+   natural two-thirds-ish width and the button sits with a real gap per the Figma design —
+   flex `gap` beats margin-left because margins can be overridden by later rules. */
 .cypmd-search { margin: 20px 0 30px; }
-.cypmd-search__row { display: flex; max-width: 30em; }
+.cypmd-search__row { display: flex; gap: 20px; max-width: 45em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
-.cypmd-search__button { margin-bottom: 0; margin-left: 15px; flex: 0 0 auto; }
+.cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
 /* Content-page breadcrumbs sit tight against the phase banner rather than the govuk-frontend
-   default. Matches the Figma design where the breadcrumb sits just below the beta strip with
-   only a small top gap. */
-.cpb-breadcrumbs { margin-top: 0; padding-top: 10px; }
+   default's roomy top padding + margin. Uses !important because govuk-frontend applies these
+   at the same class-specificity, so cascade order alone isn't enough when the govuk CSS
+   ships as a compiled bundle whose order relative to site.css can vary. */
+.cpb-breadcrumbs {
+    margin: 0 !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+}
+/* Phase banner sits with a fat margin-bottom by default; tighten it right above the
+   breadcrumb so the two read as one continuous strip, matching the Figma design. */
+.govuk-phase-banner { margin-bottom: 0 !important; padding-bottom: 10px !important; }
 
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }

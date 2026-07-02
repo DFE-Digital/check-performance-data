@@ -94,6 +94,26 @@ public class ContentTreeEditorMoveToTests
         Assert.Equal([RegionLayout.Single, RegionLayout.Thirds, RegionLayout.Halves], layouts);
     }
 
+    // ── cross-level: source precedes the target region at a shallower level ──
+
+    [Fact]
+    public void MoveTo_TopLevelWidget_IntoLaterRegionColumn_AdjustsAncestorIndex()
+    {
+        // Root: [W(x) @0, region @1]. Move x into the region's empty col0.
+        // Removing x (root idx 0) shifts the region from idx 1 to idx 0, so the target path's
+        // ancestor step (root idx 1) must decrement to 0, else InsertAt resolves out of range.
+        var region = new RegionNode { Layout = RegionLayout.Single, Columns = [[]] };
+        var root = new List<ContentNode> { W("x"), region };
+
+        ContentTreeEditor.MoveTo(root,
+            [new TreeStep(0, 0)],                       // root[0] = x
+            [new TreeStep(0, 1), new TreeStep(0, 0)]);  // region(@1).col0[0]
+
+        Assert.Single(root);                     // only the region remains at root
+        Assert.Same(region, root[0]);
+        Assert.Equal(["x"], Ids(region.Columns[0])); // x now lives inside the region
+    }
+
     // ── own-subtree safe-restore ─────────────────────────────────────────────
 
     [Fact]

@@ -30,9 +30,13 @@
 
     document.addEventListener('dragover', function (e) {
         if (!draggingPath) return;
-        // Prefer .cpb-node over the column container for precise drop targeting.
-        var target = (e.target.closest ? e.target.closest('.cpb-node') : null)
-            || (e.target.closest ? e.target.closest('[data-column-path]') : null);
+        // Match the drop resolution: highlight the column when the nearest node is its region
+        // ancestor (drop would append to the column), otherwise highlight the node.
+        var overNode = e.target.closest ? e.target.closest('.cpb-node') : null;
+        var overColumn = e.target.closest ? e.target.closest('[data-column-path]') : null;
+        var target = (overColumn && (!overNode || !overColumn.contains(overNode)))
+            ? overColumn
+            : (overNode || overColumn);
         if (!target) return;
 
         e.preventDefault();
@@ -71,10 +75,14 @@
         var droppedOnNode = e.target.closest ? e.target.closest('.cpb-node') : null;
         var droppedOnColumn = e.target.closest ? e.target.closest('[data-column-path]') : null;
 
-        if (droppedOnNode && droppedOnNode.dataset && droppedOnNode.dataset.nodePath) {
-            toPath = droppedOnNode.dataset.nodePath;
-        } else if (droppedOnColumn && droppedOnColumn.dataset && droppedOnColumn.dataset.columnPath) {
+        // If the nearest column does NOT contain the nearest node, the node is the column's region
+        // ancestor (i.e. we're over a region's own — often empty — column area), so append to the
+        // column. Otherwise the node is a child within the column: insert before it.
+        if (droppedOnColumn && droppedOnColumn.dataset && droppedOnColumn.dataset.columnPath
+            && (!droppedOnNode || !droppedOnColumn.contains(droppedOnNode))) {
             toPath = droppedOnColumn.dataset.columnPath;
+        } else if (droppedOnNode && droppedOnNode.dataset && droppedOnNode.dataset.nodePath) {
+            toPath = droppedOnNode.dataset.nodePath;
         }
 
         if (!toPath) return;

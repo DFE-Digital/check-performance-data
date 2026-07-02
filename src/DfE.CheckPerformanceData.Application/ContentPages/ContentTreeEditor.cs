@@ -60,19 +60,23 @@ public static class ContentTreeEditor
         catch { InsertAt(root, fromPath, node); } // target invalid (e.g. dropped into own subtree) → restore
     }
 
-    // Same containing column === same path length AND all-but-last steps equal AND last step's
-    // Column equal. When the source precedes the target in that column the removal shifts the
-    // target's slot down by one, so decrement the target index to compensate.
+    // Removing the source node shifts down every later sibling IN THE SOURCE'S COLUMN. If the target
+    // position lives in that same column at a higher index — either the target itself (same-column
+    // reorder) or one of the target's ancestors (dropping into a region that sits after the removed
+    // node) — its index at that level must be decremented to compensate. The relevant level is the
+    // source's last step (f-1): the target shares the same parent descent up to there and the same
+    // column, and if its index at that level exceeds the source's, it shifted down by one.
     private static IReadOnlyList<TreeStep> AdjustAfterRemoval(IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath)
     {
-        if (fromPath.Count == toPath.Count
-            && fromPath.Count >= 1
-            && fromPath.Take(fromPath.Count - 1).SequenceEqual(toPath.Take(toPath.Count - 1))
-            && fromPath[^1].Column == toPath[^1].Column
-            && fromPath[^1].Index < toPath[^1].Index)
+        var f = fromPath.Count;
+        if (f >= 1
+            && toPath.Count >= f
+            && fromPath.Take(f - 1).SequenceEqual(toPath.Take(f - 1))
+            && fromPath[f - 1].Column == toPath[f - 1].Column
+            && fromPath[f - 1].Index < toPath[f - 1].Index)
         {
             var steps = toPath.ToList();
-            steps[^1] = new TreeStep(steps[^1].Column, steps[^1].Index - 1);
+            steps[f - 1] = new TreeStep(steps[f - 1].Column, steps[f - 1].Index - 1);
             return steps;
         }
         return toPath;

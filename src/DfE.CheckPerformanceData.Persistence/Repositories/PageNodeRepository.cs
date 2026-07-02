@@ -224,6 +224,17 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     public Task ExecuteInTransactionAsync(Func<Task> work) =>
         context.ExecuteInTransactionAsync(work);
 
+    public async Task SetPageTypeAsync(Guid id, string pageType, string? userId)
+    {
+        var entity = await context.PageNodes.FindAsync(id)
+            ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+        entity.PageType = pageType;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
     // ── Staging (import) ────────────────────────────────────────────────────
 
     public async Task<PageNodeDto> CreateNodeForStagingAsync(

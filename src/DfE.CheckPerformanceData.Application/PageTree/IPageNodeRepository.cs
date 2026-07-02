@@ -50,6 +50,13 @@ public interface IPageNodeRepository
 
     Task ExecuteInTransactionAsync(Func<Task> work);
 
+    /// <summary>
+    /// Changes a node's <see cref="PageNodeDto.PageType"/> in place. Used by the default-root
+    /// seeder to upgrade legacy folder-typed roots to content pages without recreating them
+    /// (which would break any children already parented under them).
+    /// </summary>
+    Task SetPageTypeAsync(Guid id, string pageType, string? userId);
+
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
     // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id

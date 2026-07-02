@@ -858,6 +858,13 @@ public class PageNodeServiceTests
             Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId) =>
             throw new NotSupportedException("staging");
 
+        public Task SetPageTypeAsync(Guid id, string pageType, string? userId)
+        {
+            var node = _nodes.First(n => n.Id == id);
+            node.PageType = pageType;
+            return Task.CompletedTask;
+        }
+
         // ── helpers ──────────────────────────────────────────────────────────
 
         private void RecomputeCurrentSync(Guid nodeId, DateTime nowUtc)
@@ -903,7 +910,7 @@ public class PageNodeServiceTests
             public required string Segment { get; init; }
             public required string Path { get; init; }
             public required string Title { get; init; }
-            public required string PageType { get; init; }
+            public required string PageType { get; set; }
             public int SortOrder { get; set; }
             public bool IsDeleted { get; set; }
             public DateTime CreatedDate { get; init; }

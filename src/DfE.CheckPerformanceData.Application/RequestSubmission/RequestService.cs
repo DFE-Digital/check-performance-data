@@ -1,5 +1,7 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -14,7 +16,8 @@ public sealed class RequestService(
     ICurrentUserService currentUserService,
     ILogger<RequestService> logger,
     IQueueService queueService,
-    IRequestNotificationService requestNotificationService) : IRequestService
+    IRequestNotificationService requestNotificationService,
+    ICheckYourPupilDataService checkYourPupilDataService) : IRequestService
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
@@ -127,13 +130,16 @@ public sealed class RequestService(
 
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
 
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+        var deadline = window.EndDate;
+
         if (row?.RequestType == RequestType.Amendment)
         {
-            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber);
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber, deadline);
         }
         else if (row?.RequestType == RequestType.ConfirmCorrect)
         {
-            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber);
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber, deadline);
         }
         else
         {

@@ -8,7 +8,7 @@ public interface IRequestNotificationService
     Task NotifySubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, string referenceNumber);
     Task NotifyDataCheckConfirmedAsync(DateTime deadlineDate, string referenceNumber);
 
-    Task NotifyAmendmentWithdrawnAsync(string referenceNumber);
+    Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate);
 
-    Task NotifyDataCheckWithdrawnAsync(string referenceNumber);
+    Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate);
 }

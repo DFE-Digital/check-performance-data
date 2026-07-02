@@ -46,24 +46,26 @@ public sealed class RequestNotificationService(
         });
     }
 
-    public async Task NotifyAmendmentWithdrawnAsync(string referenceNumber)
+    public async Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate)
     {
         await dispatcher.EnqueueAsync(new EmailNotification
         {
             Type = NotificationType.AmendmentWithdrawn,
             ReferenceNumber = referenceNumber,
+            Deadline = FormatDeadline(deadlineDate),
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
             IncludeOrganisationUsers = false
         });
     }
 
-    public async Task NotifyDataCheckWithdrawnAsync(string referenceNumber)
+    public async Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate)
     {
         await dispatcher.EnqueueAsync(new EmailNotification
         {
             Type = NotificationType.DataCheckWithdrawn,
             ReferenceNumber = referenceNumber,
+            Deadline = FormatDeadline(deadlineDate),
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
             IncludeOrganisationUsers = true

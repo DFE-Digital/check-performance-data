@@ -1528,16 +1528,23 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 
 /* Equal-height cards: make each card row a flex row so every column — and the
    dfe-card inside it — stretches to the height of the tallest card in the row,
-   instead of each card sizing to its own (variable) amount of text. Scoped to the
-   landing card sections so the global govuk-grid-row is untouched elsewhere. */
-.cypmd-landing-section .govuk-grid-row {
+   instead of each card sizing to its own (variable) amount of text. Also applied
+   to any grid row whose direct grandchild is a dfe-card (via :has()) so
+   widget-editor-authored card rows in the rendered view line up too. The :has()
+   variant deliberately targets only the direct .row > .col > .dfe-card chain,
+   so the editor's deeper .cpb-node > .cpb-preview wrapping is not matched and
+   the toolbar chrome does not get stretched. */
+.cypmd-landing-section .govuk-grid-row,
+.govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) {
   display: flex;
   flex-wrap: wrap;
 }
-.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"] {
+.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"],
+.govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) > [class*="govuk-grid-column"] {
   display: flex;
 }
-.cypmd-landing-section .dfe-card {
+.cypmd-landing-section .dfe-card,
+.govuk-grid-row > [class*="govuk-grid-column"] > .dfe-card {
   width: 100%;
 }
 

@@ -10,6 +10,7 @@ internal sealed class PageNodeVersionConfiguration : IEntityTypeConfiguration<Pa
     {
         builder.HasKey(v => v.Id);
         builder.Property(v => v.Id).ValueGeneratedNever();
+        builder.Property(v => v.MinorVersion).HasDefaultValue(0);
         builder.Property(v => v.Content).HasColumnType("text").IsRequired();
         builder.Property(v => v.BodyPlainText).IsRequired().HasDefaultValue("");
         builder.HasIndex(v => new { v.PageNodeId, v.VersionId }).IsUnique();

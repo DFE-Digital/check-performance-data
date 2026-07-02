@@ -334,6 +334,70 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("versionId", src);
     }
 
+    // ── Version number labels — helpers use PageVersionNumbering / PageVersionStatus ──────────
+
+    [Fact]
+    public void ContentEdit_StatusTag_ShowsPublishedVersionLabel()
+    {
+        var src = ContentEdit();
+        Assert.Contains("Published — version", src);
+        Assert.Contains("PublishedVersionLabel", src);
+    }
+
+    [Fact]
+    public void ContentEdit_StatusTag_ShowsDraftVersionLabel()
+    {
+        var src = ContentEdit();
+        Assert.Contains("Draft — version", src);
+        Assert.Contains("DraftVersionLabel", src);
+    }
+
+    [Fact]
+    public void WikiEdit_StatusTag_ShowsPublishedVersionLabel()
+    {
+        var src = WikiEdit();
+        Assert.Contains("Published — version", src);
+        Assert.Contains("PublishedVersionLabel", src);
+    }
+
+    [Fact]
+    public void WikiEdit_StatusTag_ShowsDraftVersionLabel()
+    {
+        var src = WikiEdit();
+        Assert.Contains("Draft — version", src);
+        Assert.Contains("DraftVersionLabel", src);
+    }
+
+    // ── Versions.cshtml and _VersionHistoryList.cshtml use helper classes ─────
+
+    [Fact]
+    public void Versions_UsesPageVersionStatusHelper()
+    {
+        var src = VersionsView();
+        Assert.Contains("PageVersionStatus", src);
+    }
+
+    [Fact]
+    public void Versions_UsesPageVersionNumberingHelper()
+    {
+        var src = VersionsView();
+        Assert.Contains("PageVersionNumbering", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_UsesPageVersionStatusHelper()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("PageVersionStatus", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_UsesPageVersionNumberingHelper()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("PageVersionNumbering", src);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static int CountOccurrences(string text, string value)

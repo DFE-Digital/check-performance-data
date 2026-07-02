@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.PageTree
 @using DfE.CheckPerformanceData.Web.Models.PageTree
 @model PageTreeAdminVersionHistoryModel
 
@@ -23,33 +24,12 @@ else
             @{ var now = DateTime.UtcNow; }
             @foreach (var v in Model.Versions)
             {
-                string tagClass;
-                string tagText;
-                if (v.IsCurrent)
-                {
-                    tagClass = "govuk-tag--green";
-                    tagText  = "Live";
-                }
-                else if (v.PublishFrom != null && v.PublishFrom > now)
-                {
-                    tagClass = "govuk-tag--blue";
-                    tagText  = "Scheduled";
-                }
-                else if (v.PublishTo != null && v.PublishTo <= now)
-                {
-                    tagClass = "govuk-tag--grey";
-                    tagText  = "Past";
-                }
-                else
-                {
-                    tagClass = "govuk-tag--grey";
-                    tagText  = "Draft";
-                }
+                var st = PageVersionStatus.Of(v.IsCurrent, v.PublishFrom, now);
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@v.VersionId</td>
+                    <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
                     <td class="govuk-table__cell">@v.UpdatedDate.ToString("dd MMM yyyy HH:mm")</td>
                     <td class="govuk-table__cell">
-                        <strong class="govuk-tag @tagClass">@tagText</strong>
+                        <strong class="govuk-tag @st.TagClass">@st.Label</strong>
                     </td>
                     <td class="govuk-table__cell">
                         @if (!v.IsCurrent)

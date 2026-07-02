@@ -35,20 +35,23 @@ public sealed class ContentPageEditViewModel
     /// <summary>All versions, newest first (as GetVersionsAsync returns them).</summary>
     public IReadOnlyList<PageNodeVersionDto> Versions { get; init; } = [];
 
-    /// <summary>VersionId of the currently-live version, or null if none is live.</summary>
-    public int? PublishedVersionId => Versions.FirstOrDefault(v => v.IsCurrent)?.VersionId;
+    /// <summary>Display label of the currently-live version (e.g. "1"), or null if none is live.</summary>
+    public string? PublishedVersionLabel =>
+        Versions.FirstOrDefault(v => v.IsCurrent) is { } live
+            ? PageVersionNumbering.Label(Versions, live)
+            : null;
 
     /// <summary>
-    /// VersionId of the working draft (newest version with no publish window); if none and the
+    /// Display label of the working draft (newest version with MinorVersion >= 1); if none and the
     /// page is not live, the latest version is surfaced as the draft. Null only when there are no versions.
     /// </summary>
-    public int? DraftVersionId
+    public string? DraftVersionLabel
     {
         get
         {
-            var working = Versions.FirstOrDefault(v => v.PublishFrom is null);
-            if (working is not null) return working.VersionId;
-            return PublishedVersionId is null ? Versions.FirstOrDefault()?.VersionId : null;
+            var draft = Versions.FirstOrDefault(v => v.MinorVersion >= 1);
+            if (draft is null && PublishedVersionLabel is null) draft = Versions.FirstOrDefault();
+            return draft is null ? null : PageVersionNumbering.Label(Versions, draft);
         }
     }
 }

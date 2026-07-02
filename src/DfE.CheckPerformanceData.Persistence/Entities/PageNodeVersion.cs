@@ -12,6 +12,7 @@ public sealed class PageNodeVersion
     public bool IsCurrent { get; set; }
     public DateTime? PublishFrom { get; set; }
     public DateTime? PublishTo { get; set; }
+    public int MinorVersion { get; set; }
     public string Content { get; set; } = string.Empty;
     public string BodyPlainText { get; set; } = string.Empty;
     public DateTime CreatedDate { get; set; }

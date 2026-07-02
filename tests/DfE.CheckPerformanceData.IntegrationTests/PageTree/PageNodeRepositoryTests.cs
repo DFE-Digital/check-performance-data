@@ -123,6 +123,76 @@ public sealed class PageNodeRepositoryTests(PostgresFixture fixture)
         Assert.Equal(nodeA.Id, siblings[2].Id);
     }
 
+    // ── MinorVersion lifecycle ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task AddVersion_Sets_MinorVersion_To_1()
+    {
+        await TruncateAsync();
+        var n = await Repo().CreateNodeAsync(null, "p", "p", "P", "content", "u1");
+
+        var versionId = await Repo().AddVersionAsync(n.Id, "[]", "", null, null, "u1");
+
+        var versions = await Repo().GetVersionsAsync(n.Id);
+        Assert.Single(versions);
+        Assert.Equal(versionId, versions[0].VersionId);
+        Assert.Equal(1, versions[0].MinorVersion);
+    }
+
+    [Fact]
+    public async Task UpdateVersionContent_Increments_MinorVersion()
+    {
+        await TruncateAsync();
+        var n = await Repo().CreateNodeAsync(null, "p", "p", "P", "content", "u1");
+        var versionId = await Repo().AddVersionAsync(n.Id, "[]", "", null, null, "u1");
+        // MinorVersion starts at 1; each content save bumps it.
+
+        await Repo().UpdateVersionContentAsync(n.Id, versionId, "[updated]", "updated", "u1");
+
+        var versions = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(2, versions[0].MinorVersion);
+
+        await Repo().UpdateVersionContentAsync(n.Id, versionId, "[updated2]", "updated2", "u1");
+        versions = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(3, versions[0].MinorVersion);
+    }
+
+    [Fact]
+    public async Task UpdateVersionWindow_WithPublishFrom_Sets_MinorVersion_To_0()
+    {
+        await TruncateAsync();
+        var n = await Repo().CreateNodeAsync(null, "p", "p", "P", "content", "u1");
+        var versionId = await Repo().AddVersionAsync(n.Id, "[]", "", null, null, "u1");
+        // Verify it starts at 1.
+        var before = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(1, before[0].MinorVersion);
+
+        var publishFrom = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        await Repo().UpdateVersionWindowAsync(n.Id, versionId, publishFrom, null, "u1");
+
+        var after = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(0, after[0].MinorVersion);
+    }
+
+    [Fact]
+    public async Task UpdateVersionWindow_WithNullPublishFrom_Leaves_MinorVersion_Unchanged()
+    {
+        await TruncateAsync();
+        var n = await Repo().CreateNodeAsync(null, "p", "p", "P", "content", "u1");
+        var versionId = await Repo().AddVersionAsync(n.Id, "[]", "", null, null, "u1");
+        // Save content twice to bump minor to 3.
+        await Repo().UpdateVersionContentAsync(n.Id, versionId, "[v2]", "", "u1");
+        await Repo().UpdateVersionContentAsync(n.Id, versionId, "[v3]", "", "u1");
+        var mid = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(3, mid[0].MinorVersion);
+
+        // Unpublish (publishFrom = null) must not change minor.
+        await Repo().UpdateVersionWindowAsync(n.Id, versionId, null, null, "u1");
+
+        var after = await Repo().GetVersionsAsync(n.Id);
+        Assert.Equal(3, after[0].MinorVersion);
+    }
+
     [Fact]
     public async Task SwapSortOrder_ExchangesSortOrderOfTwoSiblings()
     {

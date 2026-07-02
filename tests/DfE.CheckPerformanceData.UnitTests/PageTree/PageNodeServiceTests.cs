@@ -750,6 +750,7 @@ public class PageNodeServiceTests
                 Id = Guid.NewGuid(),
                 NodeId = nodeId,
                 VersionId = versionId,
+                MinorVersion = 1,           // drafts always start at 1
                 Content = content,
                 PublishFrom = publishFrom,
                 PublishTo = publishTo,
@@ -766,6 +767,7 @@ public class PageNodeServiceTests
         {
             var v = _versions.First(v => v.NodeId == nodeId && v.VersionId == versionId);
             v.Content = content;
+            v.MinorVersion += 1;            // each save bumps the minor
             v.UpdatedDate = DateTime.UtcNow;
             return Task.CompletedTask;
         }
@@ -778,6 +780,8 @@ public class PageNodeServiceTests
             v.PublishTo = publishTo;
             v.UpdatedDate = DateTime.UtcNow;
             LastWindowUserId = userId;
+            if (publishFrom is not null)
+                v.MinorVersion = 0;         // publishing zeros the minor → integer version
             return Task.CompletedTask;
         }
 
@@ -867,6 +871,7 @@ public class PageNodeServiceTests
         {
             Id = v.Id,
             VersionId = v.VersionId,
+            MinorVersion = v.MinorVersion,
             IsCurrent = v.IsCurrent,
             PublishFrom = v.PublishFrom,
             PublishTo = v.PublishTo,
@@ -894,6 +899,7 @@ public class PageNodeServiceTests
             public Guid Id { get; init; }
             public Guid NodeId { get; init; }
             public int VersionId { get; init; }
+            public int MinorVersion { get; set; }
             public required string Content { get; set; }
             public DateTime? PublishFrom { get; set; }
             public DateTime? PublishTo { get; set; }

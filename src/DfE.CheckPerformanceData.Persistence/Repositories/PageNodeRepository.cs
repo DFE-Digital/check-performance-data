@@ -86,6 +86,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Id = Guid.NewGuid(),
             PageNodeId = nodeId,
             VersionId = versionId,
+            MinorVersion = 1,               // all new versions are drafts
             Content = content,
             BodyPlainText = bodyPlainText,
             PublishFrom = publishFrom,
@@ -110,6 +111,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
 
         entity.Content = content;
         entity.BodyPlainText = bodyPlainText;
+        entity.MinorVersion += 1;           // each working-draft save bumps the minor counter
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
         await context.SaveChangesAsync();
@@ -127,6 +129,10 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.PublishTo = publishTo;
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
+        // Publishing or scheduling zeros the minor counter → version becomes an integer version.
+        // Unpublishing (publishFrom == null) leaves minor unchanged — it becomes a past draft again.
+        if (publishFrom is not null)
+            entity.MinorVersion = 0;
         await context.SaveChangesAsync();
     }
 
@@ -237,6 +243,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         {
             Id = v.Id,
             VersionId = v.VersionId,
+            MinorVersion = v.MinorVersion,
             IsCurrent = v.IsCurrent,
             PublishFrom = v.PublishFrom,
             PublishTo = v.PublishTo,

@@ -38,11 +38,11 @@
         <p class="govuk-body govuk-!-margin-bottom-2">
             @if (Model.IsPublished)
             {
-                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionId</span>
+                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionLabel</span>
             }
-            @if (Model.DraftVersionId is not null)
+            @if (Model.DraftVersionLabel is not null)
             {
-                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionId</span>
+                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionLabel</span>
             }
         </p>
         <div class="govuk-button-group">

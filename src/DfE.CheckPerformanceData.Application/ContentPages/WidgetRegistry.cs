@@ -15,7 +15,8 @@ public static class WidgetRegistry
         new("card", "Card", ContributesToNav: false, """{"title":"","body":"","href":""}"""),
         new("summarylist", "Summary list", ContributesToNav: false, """{"rows":[]}"""),
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
-        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/help/search","buttonText":"Search"}""")
+        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/help/search","buttonText":"Search"}"""),
+        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings"}""")
     ];
 
     private static readonly Dictionary<string, WidgetDefinition> ByType =

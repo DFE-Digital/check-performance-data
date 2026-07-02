@@ -11,7 +11,18 @@ public sealed class RenderedPageViewModel
     public string? Subtitle { get; init; }
     public required string PageType { get; init; }
     public IReadOnlyList<ContentNode>? Content { get; init; }
+    /// <summary>
+    /// Auto-generated heading nav (H2 top-level, H3 nested) for content pages, the sibling
+    /// nav for wiki pages, or the child list for folder pages. Consumed by the pagenav widget
+    /// via ViewData on content pages; used directly by the Wiki and Folder templates.
+    /// </summary>
     public IReadOnlyList<ContentNavItem>? Nav { get; init; }
+
+    /// <summary>
+    /// Direct children of the current node — used by the pagenav widget when its <c>mode</c>
+    /// prop is set to <c>"children"</c>. Content pages only.
+    /// </summary>
+    public IReadOnlyList<ContentNavItem>? ChildrenNav { get; init; }
     public string? WikiHtml { get; init; }
     public bool IsPreview { get; init; }
 

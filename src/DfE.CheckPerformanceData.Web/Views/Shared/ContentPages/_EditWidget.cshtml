@@ -90,6 +90,16 @@
                             </div>
                             break;
 
+                        case "pagenav":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="pn-@Model.Path">Show</label>
+                                <select class="govuk-select" id="pn-@Model.Path" name="props[mode]">
+                                    <option value="headings" selected="@(w.GetString("mode") == "headings" ? "selected" : null)">Page headings</option>
+                                    <option value="children" selected="@(w.GetString("mode") == "children" ? "selected" : null)">Child pages</option>
+                                </select>
+                            </div>
+                            break;
+
                         case "search":
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="sl-@Model.Path">Label</label>

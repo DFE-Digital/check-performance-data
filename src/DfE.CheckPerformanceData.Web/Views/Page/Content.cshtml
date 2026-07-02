@@ -2,8 +2,13 @@
 @model DfE.CheckPerformanceData.Web.Models.PageTree.RenderedPageViewModel
 @{
     ViewData["Title"] = Model.Title;
-    IReadOnlyList<ContentNavItem> nav     = Model.Nav     ?? [];
-    IReadOnlyList<ContentNode>    content = Model.Content ?? [];
+    IReadOnlyList<ContentNode> content = Model.Content ?? [];
+
+    // Ambient nav lists for the PageNav widget. It receives only its own WidgetNode props,
+    // so any page-context data it needs (auto heading nav, direct-children nav) is stashed
+    // on ViewData here — the widget partial reads whichever key its mode dictates.
+    ViewData["PageHeadingNav"]  = Model.Nav         ?? Array.Empty<ContentNavItem>();
+    ViewData["PageChildrenNav"] = Model.ChildrenNav ?? Array.Empty<ContentNavItem>();
 }
 
 @if (Model.IsPreview)
@@ -35,16 +40,12 @@
     </ol>
 </nav>
 
-<div class="govuk-grid-row">
-    <div class="govuk-grid-column-one-third">
-        @await Html.PartialAsync("ContentPages/_SideNav", nav)
-    </div>
-    <div class="govuk-grid-column-two-thirds">
-        @if (!string.IsNullOrWhiteSpace(Model.Subtitle))
-        {
-            <p class="govuk-caption-l cpb-subtitle">@Model.Subtitle</p>
-        }
-        <h1 class="govuk-heading-xl">@Model.Title</h1>
-        @await Html.PartialAsync("ContentPages/_ContentNodes", content)
-    </div>
-</div>
+@* Full-width — no fixed one-third/two-thirds grid. The author uses Region widgets to
+   split into columns wherever they want a side-nav (they place a PageNav widget in the
+   narrower column and the body content in the wider one). *@
+@if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+{
+    <p class="govuk-caption-l cpb-subtitle">@Model.Subtitle</p>
+}
+<h1 class="govuk-heading-xl">@Model.Title</h1>
+@await Html.PartialAsync("ContentPages/_ContentNodes", content)

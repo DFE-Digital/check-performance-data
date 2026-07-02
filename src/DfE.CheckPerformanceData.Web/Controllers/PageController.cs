@@ -92,13 +92,26 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         var tree = ContentPageJson.Deserialize(result.Version.Content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
-            Title      = result.Node.Title,
-            Subtitle   = result.Node.Subtitle,
-            PageType   = "content",
-            Content    = tree,
-            Nav        = ContentNavBuilder.Build(tree),
-            Breadcrumb = await BuildBreadcrumbAsync(result.Node)
+            Title       = result.Node.Title,
+            Subtitle    = result.Node.Subtitle,
+            PageType    = "content",
+            Content     = tree,
+            Nav         = ContentNavBuilder.Build(tree),
+            ChildrenNav = await BuildChildrenNavAsync(result.Node.Id),
+            Breadcrumb  = await BuildBreadcrumbAsync(result.Node)
         });
+    }
+
+    // Direct-children nav for the current node, ordered by SortOrder. Empty when the node
+    // has no children. Fed to the pagenav widget through ViewData.
+    private async Task<IReadOnlyList<ContentNavItem>> BuildChildrenNavAsync(Guid nodeId)
+    {
+        var tree = await pageNodes.GetTreeAsync() ?? [];
+        return tree
+            .Where(n => n.ParentId == nodeId)
+            .OrderBy(n => n.SortOrder)
+            .Select(n => new ContentNavItem(n.Title, "/" + n.Path, []))
+            .ToList();
     }
 
     // Builds the section side-nav from the tree: siblings of the current node
@@ -128,13 +141,14 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         var tree = ContentPageJson.Deserialize(content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
-            Title      = node.Title,
-            Subtitle   = node.Subtitle,
-            PageType   = "content",
-            Content    = tree,
-            Nav        = ContentNavBuilder.Build(tree),
-            Breadcrumb = await BuildBreadcrumbAsync(node),
-            IsPreview  = true
+            Title       = node.Title,
+            Subtitle    = node.Subtitle,
+            PageType    = "content",
+            Content     = tree,
+            Nav         = ContentNavBuilder.Build(tree),
+            ChildrenNav = await BuildChildrenNavAsync(node.Id),
+            Breadcrumb  = await BuildBreadcrumbAsync(node),
+            IsPreview   = true
         });
     }
 

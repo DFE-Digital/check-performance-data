@@ -1,0 +1,19 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@*
+    Page-navigation widget. Mode "headings" (the default) renders the auto-generated heading
+    nav for the current page (H2 top-level, H3 nested). Mode "children" renders the current
+    page's direct child pages as a flat list.
+
+    Both nav lists are pre-computed by PageController and stashed in ViewData by the outer
+    Content.cshtml view — the widget itself has no page-context, only its own props.
+*@
+@{
+    var mode = Model.GetString("mode") ?? "headings";
+    var key = mode == "children" ? "PageChildrenNav" : "PageHeadingNav";
+    var items = ViewData[key] as IReadOnlyList<ContentNavItem>;
+}
+@if (items is { Count: > 0 })
+{
+    @await Html.PartialAsync("ContentPages/_SideNav", items)
+}

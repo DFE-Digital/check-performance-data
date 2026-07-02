@@ -151,6 +151,7 @@ try
     builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Services.GuidanceContentCopyService>();
     builder.Services.AddSingleton<PayloadRedactor>();
 
     builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();

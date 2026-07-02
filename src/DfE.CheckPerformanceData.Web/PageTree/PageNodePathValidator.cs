@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using DfE.CheckPerformanceData.Application.PageTree;
 
 namespace DfE.CheckPerformanceData.Web.PageTree;
 
@@ -49,7 +50,8 @@ public sealed class PageNodePathValidator
         if (HardReserved.Contains(firstSegment))
             return (false, $"'{firstSegment}' is a reserved path segment and cannot be used for content pages.");
 
-        if (_reserved.ReservedFirstSegments().Contains(firstSegment))
+        if (!DefaultPageNodeRoots.Segments.Contains(firstSegment)
+            && _reserved.ReservedFirstSegments().Contains(firstSegment))
             return (false, $"'{firstSegment}' conflicts with an existing application route and cannot be used for content pages.");
 
         return (true, null);

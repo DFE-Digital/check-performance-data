@@ -2,6 +2,7 @@ using AngleSharp;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
@@ -218,6 +219,11 @@ try
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
+
+    using (var scope = app.Services.CreateScope())
+    {
+        await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
+    }
 
     app.UseForwardedHeaders();
 

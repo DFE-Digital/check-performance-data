@@ -313,11 +313,28 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = newNextId });
         }
 
+        // Capture the branch target before applying the new answers so we can tell whether
+        // re-answering this page changed the flow (relevant when the user navigated back).
+        var priorNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
+
         foreach (var (qId, answer) in newAnswers)
             journey.QuestionAnswers[qId] = answer;
 
-        if (!journey.QuestionHistory.Contains(pageId))
+        var nextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
+
+        if (journey.QuestionHistory.Contains(pageId))
+        {
+            // The user came back to an already-visited page. If the answer changed the branch,
+            // the pages recorded after this one belong to the old branch — trim them so the
+            // navigation guard doesn't recompute the next page from a stale history entry and
+            // bounce the user back into that branch.
+            if (nextId != priorNextId)
+                TrimHistoryTo(journey, windowId, pageId);
+        }
+        else
+        {
             journey.QuestionHistory.Add(pageId);
+        }
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
@@ -325,7 +342,6 @@ public sealed class JourneyController(
             s.QuestionHistory = journey.QuestionHistory;
         });
 
-        var nextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
         return nextId is null
             ? RedirectToAction(nameof(Summary), new { windowId })
             : RedirectToAction(nameof(Page), new { windowId, pageId = nextId });

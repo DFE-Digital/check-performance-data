@@ -224,6 +224,43 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     public Task ExecuteInTransactionAsync(Func<Task> work) =>
         context.ExecuteInTransactionAsync(work);
 
+    public async Task RenameNodeAndCascadeAsync(
+        Guid id, string newSegment, string newPath, string newTitle, string? userId)
+    {
+        await context.ExecuteInTransactionAsync(async () =>
+        {
+            var node = await context.PageNodes.FindAsync(id)
+                ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+            var oldPath = node.Path;
+            var now = DateTime.UtcNow;
+
+            node.Segment = newSegment;
+            node.Path = newPath;
+            node.Title = newTitle;
+            node.UpdatedDate = now;
+            node.UpdatedBy = userId;
+
+            // Only cascade when the path actually changed.
+            if (!string.Equals(oldPath, newPath, StringComparison.Ordinal))
+            {
+                var oldPrefix = oldPath + "/";
+                var descendants = await context.PageNodes
+                    .Where(n => n.Id != id && n.Path.StartsWith(oldPrefix))
+                    .ToListAsync();
+
+                foreach (var d in descendants)
+                {
+                    d.Path = newPath + "/" + d.Path[oldPrefix.Length..];
+                    d.UpdatedDate = now;
+                    d.UpdatedBy = userId;
+                }
+            }
+
+            await context.SaveChangesAsync();
+        });
+    }
+
     public async Task SetPageTypeAsync(Guid id, string pageType, string? userId)
     {
         var entity = await context.PageNodes.FindAsync(id)

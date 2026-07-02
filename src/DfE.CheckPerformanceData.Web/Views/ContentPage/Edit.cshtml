@@ -29,6 +29,51 @@
         <p class="govuk-body">
             <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
         </p>
+
+        @if (Model.NodeId != Guid.Empty)
+        {
+            var renameResult = TempData["RenameResult"] as string;
+            if (!string.IsNullOrEmpty(renameResult))
+            {
+                <div class="govuk-notification-banner" role="alert" aria-labelledby="rename-banner-title">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="rename-banner-title">Page details</h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading">@renameResult</p>
+                    </div>
+                </div>
+            }
+
+            <form id="cpb-rename-form" method="post" action="/admin/pages/@Model.NodeId/rename"
+                  data-original-segment="@Model.Segment">
+                @Html.AntiForgeryToken()
+                <div class="govuk-form-group">
+                    <label class="govuk-label govuk-label--s" for="cpb-title">Title</label>
+                    <input class="govuk-input" id="cpb-title" name="title" value="@Model.Title" />
+                </div>
+                <div class="govuk-form-group">
+                    <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
+                    <div id="cpb-segment-hint" class="govuk-hint">
+                        Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
+                    </div>
+                    <input class="govuk-input govuk-input--width-30" id="cpb-segment" name="segment"
+                           value="@Model.Segment" aria-describedby="cpb-segment-hint" />
+                </div>
+                <div class="govuk-button-group">
+                    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+                        Save details
+                    </button>
+                </div>
+            </form>
+
+            <govuk-confirm-modal id="cpb-rename-confirm"
+                                 title="Change page URL?"
+                                 warning-text="Changing the URL segment will change this page's URL and every child page's URL."
+                                 body="Existing bookmarks and links to this page will stop working."
+                                 confirm-label="Yes, change URL"
+                                 destructive="true" />
+        }
         <p class="govuk-body">
             @if (Model.IsPublished)
             {
@@ -178,3 +223,52 @@
     })();
 </script>
 <script src="~/js/content-editor-dnd.js"></script>
+
+@* URL-change confirmation: if the user changed the segment, gate the rename form submit
+   behind the govuk-confirm-modal so they must explicitly acknowledge that the URL (and every
+   child page's URL) will change. Title-only edits pass through without a prompt. *@
+<script>
+    (function () {
+        'use strict';
+        var form = document.getElementById('cpb-rename-form');
+        var dialog = document.getElementById('cpb-rename-confirm');
+        if (!form || !dialog) return;
+
+        var segmentInput = form.querySelector('input[name="segment"]');
+        var originalSegment = form.getAttribute('data-original-segment') || '';
+        var confirmedSubmit = false;
+
+        form.addEventListener('submit', function (e) {
+            if (confirmedSubmit) return;                 // user has clicked "Yes, change URL"
+            var current = (segmentInput && segmentInput.value ? segmentInput.value : '').trim();
+            if (current === originalSegment) return;     // no URL change, skip modal
+
+            e.preventDefault();
+            if (typeof dialog.showModal === 'function') dialog.showModal();
+            else dialog.setAttribute('open', 'open');    // <dialog> not supported → open non-modally
+        });
+
+        // The modal's own <form> has action="" (empty) — clicking its submit button submits
+        // that inner form, not the rename form. Intercept: prevent the inner submit, close
+        // the dialog, and programmatically submit the outer rename form with the flag set.
+        dialog.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (typeof dialog.close === 'function') dialog.close();
+            else dialog.removeAttribute('open');
+            confirmedSubmit = true;
+            form.submit();
+        });
+
+        // "Cancel" link inside the modal — close without submitting.
+        dialog.addEventListener('click', function (e) {
+            var target = e.target;
+            if (target && (target.hasAttribute('data-confirm-cancel') || target.hasAttribute('data-modal-close'))) {
+                e.preventDefault();
+                if (typeof dialog.close === 'function') dialog.close();
+                else dialog.removeAttribute('open');
+            }
+        });
+
+        // Esc key on the <dialog> already closes it natively; no extra handling needed.
+    })();
+</script>

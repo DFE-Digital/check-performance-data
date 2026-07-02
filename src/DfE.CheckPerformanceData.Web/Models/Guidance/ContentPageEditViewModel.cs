@@ -14,6 +14,9 @@ public sealed class ContentPageEditViewModel
     public string? Slug { get; init; }
     public required string ActionBase { get; init; }
     public required string Title { get; init; }
+
+    /// <summary>The node's URL segment (last path piece). Editable in the node-tree editor.</summary>
+    public string Segment { get; init; } = string.Empty;
     public string Layout { get; init; } = string.Empty;
     public required IReadOnlyList<ContentNode> Content { get; init; }
 

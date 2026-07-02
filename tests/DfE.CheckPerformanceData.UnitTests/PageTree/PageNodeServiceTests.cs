@@ -653,6 +653,76 @@ public class PageNodeServiceTests
         Assert.Equal(childC.Id, siblings[2].Id);
     }
 
+    // ── RenameNodeAsync ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Rename_TitleOnly_LeavesPathAlone()
+    {
+        var node = await Sut().CreatePageAsync(null, "guidance", "Guidance", "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(node.Id, "guidance", "Guidance for schools", "u1");
+
+        Assert.Equal(RenameNodeResult.Ok, result);
+        var reloaded = await _repo.GetByIdAsync(node.Id);
+        Assert.Equal("Guidance for schools", reloaded!.Title);
+        Assert.Equal("guidance", reloaded.Segment);
+        Assert.Equal("guidance", reloaded.Path);
+    }
+
+    [Fact]
+    public async Task Rename_SegmentChange_CascadesPathsToDescendants()
+    {
+        var root  = await Sut().CreatePageAsync(null,     "support", "Support",  "content", "u1");
+        var child = await Sut().CreatePageAsync(root.Id,  "faq",     "FAQ",      "content", "u1");
+        var grand = await Sut().CreatePageAsync(child.Id, "gcse",    "GCSE",     "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(root.Id, "help-and-support", "Help & Support", "u1");
+
+        Assert.Equal(RenameNodeResult.Ok, result);
+        var r = await _repo.GetByIdAsync(root.Id);
+        var c = await _repo.GetByIdAsync(child.Id);
+        var g = await _repo.GetByIdAsync(grand.Id);
+        Assert.Equal("help-and-support",              r!.Path);
+        Assert.Equal("help-and-support/faq",          c!.Path);
+        Assert.Equal("help-and-support/faq/gcse",     g!.Path);
+        Assert.Equal("faq",  c.Segment);   // descendants keep their own segment
+        Assert.Equal("gcse", g.Segment);
+    }
+
+    [Fact]
+    public async Task Rename_PathConflict_LeavesEverythingUntouched()
+    {
+        // A sibling already occupies "help".
+        await Sut().CreatePageAsync(null, "help",     "Help",     "content", "u1");
+        var target = await Sut().CreatePageAsync(null, "support", "Support", "content", "u1");
+
+        var result = await Sut().RenameNodeAsync(target.Id, "help", "Support", "u1");
+
+        Assert.Equal(RenameNodeResult.PathConflict, result);
+        var reloaded = await _repo.GetByIdAsync(target.Id);
+        Assert.Equal("support", reloaded!.Path);   // unchanged
+        Assert.Equal("support", reloaded.Segment);
+    }
+
+    [Fact]
+    public async Task Rename_InvalidSegment_IsRejected()
+    {
+        var node = await Sut().CreatePageAsync(null, "help", "Help", "content", "u1");
+
+        var empty = await Sut().RenameNodeAsync(node.Id, "", "Help", "u1");
+        var slash = await Sut().RenameNodeAsync(node.Id, "with/slash", "Help", "u1");
+
+        Assert.Equal(RenameNodeResult.InvalidSegment, empty);
+        Assert.Equal(RenameNodeResult.InvalidSegment, slash);
+    }
+
+    [Fact]
+    public async Task Rename_MissingNode_ReturnsNotFound()
+    {
+        var result = await Sut().RenameNodeAsync(Guid.NewGuid(), "anything", "Anything", "u1");
+        Assert.Equal(RenameNodeResult.NotFound, result);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // In-memory fake repository
     // ═══════════════════════════════════════════════════════════════════════════
@@ -865,6 +935,24 @@ public class PageNodeServiceTests
             return Task.CompletedTask;
         }
 
+        public Task RenameNodeAndCascadeAsync(
+            Guid id, string newSegment, string newPath, string newTitle, string? userId)
+        {
+            var node = _nodes.First(n => n.Id == id);
+            var oldPath = node.Path;
+            node.Segment = newSegment;
+            node.Path = newPath;
+            node.Title = newTitle;
+
+            if (!string.Equals(oldPath, newPath, StringComparison.Ordinal))
+            {
+                var oldPrefix = oldPath + "/";
+                foreach (var d in _nodes.Where(n => n.Id != id && n.Path.StartsWith(oldPrefix)).ToList())
+                    d.Path = newPath + "/" + d.Path[oldPrefix.Length..];
+            }
+            return Task.CompletedTask;
+        }
+
         // ── helpers ──────────────────────────────────────────────────────────
 
         private void RecomputeCurrentSync(Guid nodeId, DateTime nowUtc)
@@ -907,9 +995,9 @@ public class PageNodeServiceTests
         {
             public Guid Id { get; init; }
             public Guid? ParentId { get; init; }
-            public required string Segment { get; init; }
-            public required string Path { get; init; }
-            public required string Title { get; init; }
+            public required string Segment { get; set; }
+            public required string Path { get; set; }
+            public required string Title { get; set; }
             public required string PageType { get; set; }
             public int SortOrder { get; set; }
             public bool IsDeleted { get; set; }

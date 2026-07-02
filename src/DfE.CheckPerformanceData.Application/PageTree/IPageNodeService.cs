@@ -79,4 +79,24 @@ public interface IPageNodeService
 
     /// <summary>Returns true if any version is currently marked as live (IsCurrent).</summary>
     Task<bool> IsPublishedAsync(Guid nodeId);
+
+    /// <summary>
+    /// Renames a node's Segment and/or Title. When the Segment changes, the node's Path — and
+    /// every descendant's Path — is rewritten atomically so all sub-page URLs stay valid.
+    /// Returns <c>RenameNodeResult.Ok</c> on success, or a specific failure reason so the caller
+    /// can surface a helpful message.
+    /// </summary>
+    Task<RenameNodeResult> RenameNodeAsync(
+        Guid id, string newSegment, string newTitle, string? userId);
+}
+
+/// <summary>Outcome of <see cref="IPageNodeService.RenameNodeAsync"/>.</summary>
+public enum RenameNodeResult
+{
+    Ok,
+    NotFound,
+    /// <summary>The segment is empty or otherwise invalid.</summary>
+    InvalidSegment,
+    /// <summary>Another live node already occupies the target path.</summary>
+    PathConflict
 }

@@ -210,6 +210,10 @@ public class PageNodeContentEditorTests
         public Task<bool> IsPublishedAsync(Guid nodeId) => throw new NotSupportedException();
         public Task DeleteAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
+
+        public Task<RenameNodeResult> RenameNodeAsync(
+            Guid id, string newSegment, string newTitle, string? userId) =>
+            throw new NotSupportedException();
     }
 
     // Minimal IHtmlRenderingService stub: passes text through unchanged. Sufficient for unit-testing

@@ -292,6 +292,30 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/edit");
     }
 
+    // ── Rename (Title + Slug) ─────────────────────────────────────────────────
+
+    // Renames the page's URL segment and/or Title. When the segment changes, all descendant
+    // page URLs are rewritten atomically. The UI shows a confirm-modal warning before this
+    // POST fires so the change is deliberate.
+    [HttpPost("/admin/pages/{id:guid}/rename")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Rename(Guid id, string? segment, string? title)
+    {
+        var result = await pageNodeService.RenameNodeAsync(
+            id, segment ?? string.Empty, title ?? string.Empty, User?.Identity?.Name);
+
+        TempData["RenameResult"] = result switch
+        {
+            RenameNodeResult.Ok              => "Saved.",
+            RenameNodeResult.NotFound        => "Page not found.",
+            RenameNodeResult.InvalidSegment  => "URL segment must not be empty and cannot contain '/'.",
+            RenameNodeResult.PathConflict    => "Another page already uses that URL.",
+            _                                => null
+        };
+
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
     // ── Node delete ───────────────────────────────────────────────────────────
 
     [HttpGet("/admin/pages/{id:guid}/delete")]
@@ -457,6 +481,7 @@ public sealed class PageTreeAdminController(
             ActionBase        = $"/admin/pages/{id}/content",
             NodeId            = id,
             Title             = node.Title,
+            Segment           = node.Segment,
             Content           = tree,
             PagePath          = node.Path,
             ShowInlinePublish = false,

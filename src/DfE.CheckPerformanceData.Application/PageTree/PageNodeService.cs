@@ -154,6 +154,32 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         return versions.Any(v => v.IsCurrent);
     }
 
+    public async Task<RenameNodeResult> RenameNodeAsync(
+        Guid id, string newSegment, string newTitle, string? userId)
+    {
+        newSegment ??= string.Empty;
+        newTitle ??= string.Empty;
+
+        if (string.IsNullOrWhiteSpace(newSegment) || newSegment.Contains('/'))
+            return RenameNodeResult.InvalidSegment;
+
+        var node = await repository.GetByIdAsync(id);
+        if (node is null) return RenameNodeResult.NotFound;
+
+        var newPath = await ComputePathAsync(node.ParentId, newSegment);
+
+        // No-op path change: title only. Still allow the write so title updates persist.
+        if (!string.Equals(newPath, node.Path, StringComparison.Ordinal))
+        {
+            var occupant = await repository.GetByPathAsync(newPath);
+            if (occupant is not null && occupant.Id != id)
+                return RenameNodeResult.PathConflict;
+        }
+
+        await repository.RenameNodeAndCascadeAsync(id, newSegment, newPath, newTitle, userId);
+        return RenameNodeResult.Ok;
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private async Task<string> ComputePathAsync(Guid? parentId, string segment)

@@ -57,6 +57,15 @@ public interface IPageNodeRepository
     /// </summary>
     Task SetPageTypeAsync(Guid id, string pageType, string? userId);
 
+    /// <summary>
+    /// Renames a node's <see cref="PageNodeDto.Segment"/> / <see cref="PageNodeDto.Title"/> and
+    /// updates its <see cref="PageNodeDto.Path"/> to <paramref name="newPath"/>. All descendant
+    /// nodes whose current Path begins with the old node's Path + '/' have their Path prefixes
+    /// rewritten in the same transaction, so the descendant URLs stay valid.
+    /// </summary>
+    Task RenameNodeAndCascadeAsync(
+        Guid id, string newSegment, string newPath, string newTitle, string? userId);
+
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
     // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id

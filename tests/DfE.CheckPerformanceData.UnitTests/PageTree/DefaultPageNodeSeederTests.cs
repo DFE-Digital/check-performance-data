@@ -5,47 +5,52 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 
 public class DefaultPageNodeSeederTests
 {
-    private static PageNodeDto StubDto(string segment) => new()
+    private static PageNodeDto StubDto(string segment, string pageType = "content") => new()
     {
         Id       = Guid.NewGuid(),
         Segment  = segment,
         Path     = segment,
         Title    = segment,
-        PageType = "folder"
+        PageType = pageType
     };
 
-    private static IPageNodeService BuildService(params string[] existingPaths)
+    private static (IPageNodeService Svc, IPageNodeRepository Repo) BuildDeps(
+        params (string Path, string PageType)[] existingNodes)
     {
-        var svc = Substitute.For<IPageNodeService>();
+        var svc  = Substitute.For<IPageNodeService>();
+        var repo = Substitute.For<IPageNodeRepository>();
 
-        // Return a stub for paths that already exist.
-        foreach (var path in existingPaths)
+        foreach (var (path, pageType) in existingNodes)
         {
             var captured = path;
-            svc.GetNodeByPathAsync(captured).Returns(StubDto(captured));
+            svc.GetNodeByPathAsync(captured).Returns(StubDto(captured, pageType));
         }
 
-        // All other paths return null (not yet seeded).
-        svc.GetNodeByPathAsync(Arg.Is<string>(p => !existingPaths.Contains(p)))
+        // Missing paths return null.
+        svc.GetNodeByPathAsync(Arg.Is<string>(p => !existingNodes.Any(e => e.Path == p)))
            .Returns((PageNodeDto?)null);
 
         svc.CreatePageAsync(default, default!, default!, default!, default)
            .ReturnsForAnyArgs(StubDto("x"));
 
-        return svc;
+        // Retype-upgrade path: after SetPageType flips to content, seeder checks versions and only
+        // adds a draft if none exist. Empty list = no existing draft.
+        repo.GetVersionsAsync(Arg.Any<Guid>()).Returns([]);
+
+        return (svc, repo);
     }
 
     [Fact]
-    public async Task WhenNoneExist_CreatesAllFourRoots()
+    public async Task WhenNoneExist_CreatesAllFourRootsAsContent()
     {
-        var svc = BuildService();
-        await new DefaultPageNodeSeeder(svc).SeedAsync();
+        var (svc, repo) = BuildDeps();
+        await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
         await svc.Received(4).CreatePageAsync(
             Arg.Is<Guid?>(p => p == null),
             Arg.Any<string>(),
             Arg.Any<string>(),
-            "folder",
+            "content",
             "system");
     }
 
@@ -56,60 +61,71 @@ public class DefaultPageNodeSeederTests
     [InlineData("guidance")]
     public async Task WhenNoneExist_CreatesEachRootWithCorrectSegment(string segment)
     {
-        var svc = BuildService();
-        await new DefaultPageNodeSeeder(svc).SeedAsync();
+        var (svc, repo) = BuildDeps();
+        await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
         await svc.Received(1).CreatePageAsync(
             null,
             segment,
             Arg.Any<string>(),
-            "folder",
+            "content",
             "system");
     }
 
     [Fact]
-    public async Task WhenAllExist_CreatesNothing()
+    public async Task WhenAllExistAsContent_CreatesNothing_And_DoesNotRetype()
     {
-        var svc = BuildService("support", "wiki", "help", "guidance");
-        await new DefaultPageNodeSeeder(svc).SeedAsync();
+        var (svc, repo) = BuildDeps(
+            ("support",  "content"),
+            ("wiki",     "content"),
+            ("help",     "content"),
+            ("guidance", "content"));
+        await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
         await svc.DidNotReceiveWithAnyArgs().CreatePageAsync(default, default!, default!, default!, default);
+        await repo.DidNotReceiveWithAnyArgs().SetPageTypeAsync(default, default!, default);
     }
 
     [Fact]
-    public async Task WhenSomeExist_CreatesOnlyMissing()
+    public async Task WhenSomeMissing_CreatesOnlyMissingAsContent()
     {
-        // "help" and "guidance" already exist; "support" and "wiki" are missing.
-        var svc = BuildService("help", "guidance");
-        await new DefaultPageNodeSeeder(svc).SeedAsync();
+        var (svc, repo) = BuildDeps(
+            ("help",     "content"),
+            ("guidance", "content"));
+        await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
-        await svc.Received(2).CreatePageAsync(
-            null, Arg.Any<string>(), Arg.Any<string>(), "folder", "system");
-
-        await svc.Received(1).CreatePageAsync(null, "support", Arg.Any<string>(), "folder", "system");
-        await svc.Received(1).CreatePageAsync(null, "wiki",    Arg.Any<string>(), "folder", "system");
-
-        await svc.DidNotReceive().CreatePageAsync(null, "help",     Arg.Any<string>(), "folder", "system");
-        await svc.DidNotReceive().CreatePageAsync(null, "guidance", Arg.Any<string>(), "folder", "system");
+        await svc.Received(1).CreatePageAsync(null, "support", Arg.Any<string>(), "content", "system");
+        await svc.Received(1).CreatePageAsync(null, "wiki",    Arg.Any<string>(), "content", "system");
+        await svc.DidNotReceive().CreatePageAsync(null, "help",     Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await svc.DidNotReceive().CreatePageAsync(null, "guidance", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
     }
 
     [Fact]
-    public async Task AlwaysCreatesAsFolder_WithNullParent_AndSystemUser()
+    public async Task WhenExistsAsLegacyFolder_UpgradesToContent_AndSeedsEmptyDraftIfMissing()
     {
-        var svc = BuildService();
-        await new DefaultPageNodeSeeder(svc).SeedAsync();
+        // /support already exists as folder from a previous seed run. Upgrade in place.
+        var supportId = Guid.NewGuid();
+        var svc  = Substitute.For<IPageNodeService>();
+        var repo = Substitute.For<IPageNodeRepository>();
 
-        var calls = svc.ReceivedCalls()
-            .Where(c => c.GetMethodInfo().Name == nameof(IPageNodeService.CreatePageAsync))
-            .ToList();
-
-        Assert.Equal(4, calls.Count);
-        foreach (var call in calls)
+        svc.GetNodeByPathAsync("support").Returns(new PageNodeDto
         {
-            var args = call.GetArguments();
-            Assert.Null(args[0]);            // parentId = null
-            Assert.Equal("folder", args[3]); // pageType = "folder"
-            Assert.Equal("system", args[4]); // userId   = "system"
-        }
+            Id = supportId, Segment = "support", Path = "support", Title = "Support", PageType = "folder"
+        });
+        svc.GetNodeByPathAsync(Arg.Is<string>(p => p != "support")).Returns((PageNodeDto?)null);
+        svc.CreatePageAsync(default, default!, default!, default!, default).ReturnsForAnyArgs(StubDto("x"));
+        repo.GetVersionsAsync(supportId).Returns([]);
+
+        await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
+
+        await repo.Received(1).SetPageTypeAsync(supportId, "content", "system");
+        // Empty draft seeded because GetVersionsAsync returned empty.
+        await repo.Received(1).AddVersionAsync(
+            supportId,
+            Arg.Is<string>(s => s == "[]"),
+            Arg.Any<string>(),
+            null,
+            null,
+            "system");
     }
 }

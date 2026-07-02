@@ -50,12 +50,12 @@
                 @Html.AntiForgeryToken()
                 <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
             </form>
-            <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
+            <a class="govuk-link" href="#version-history">Version history</a>
         </div>
     }
     else
     {
-        <a class="govuk-link" href="/admin/pages/@Model.NodeId/versions">Version history</a>
+        <a class="govuk-link" href="#version-history">Version history</a>
         <p class="govuk-hint">Make this page live.</p>
     }
 

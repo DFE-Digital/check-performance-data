@@ -83,7 +83,7 @@ public sealed class PageTreeGridRenderTests
 
         // ── Action icon hrefs ─────────────────────────────────────────────────
         Assert.Contains($"/admin/pages/{liveId}/edit",     html);
-        Assert.Contains($"/admin/pages/{liveId}/versions", html);
+        Assert.Contains($"/admin/pages/{liveId}/edit#version-history", html);
         Assert.Contains($"/admin/pages/{liveId}/delete",   html);
         Assert.Contains($"/admin/pages/new?parentId={liveId}", html);
 

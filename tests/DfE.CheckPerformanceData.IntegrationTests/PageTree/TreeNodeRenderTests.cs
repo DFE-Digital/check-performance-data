@@ -54,7 +54,7 @@ public sealed class TreeNodeRenderTests
 
         // Per-node action links for the parent carry the correct hrefs.
         Assert.Contains($"/admin/pages/{parentId}/edit",          html);
-        Assert.Contains($"/admin/pages/{parentId}/versions",      html);
+        Assert.Contains($"/admin/pages/{parentId}/edit#version-history", html);
         Assert.Contains($"/admin/pages/{parentId}/delete",        html);
         Assert.Contains($"/admin/pages/new?parentId={parentId}",  html);
 
@@ -64,7 +64,7 @@ public sealed class TreeNodeRenderTests
 
         // Child's action links carry the child's own id, not the parent's.
         Assert.Contains($"/admin/pages/{childId}/edit",         html);
-        Assert.Contains($"/admin/pages/{childId}/versions",     html);
+        Assert.Contains($"/admin/pages/{childId}/edit#version-history", html);
         Assert.Contains($"/admin/pages/{childId}/delete",       html);
         Assert.Contains($"/admin/pages/new?parentId={childId}", html);
     }

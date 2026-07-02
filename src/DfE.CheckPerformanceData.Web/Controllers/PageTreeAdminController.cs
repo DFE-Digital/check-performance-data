@@ -148,23 +148,36 @@ public sealed class PageTreeAdminController(
             : Redirect("/admin/pages");
     }
 
-    // ── Versions ─────────────────────────────────────────────────────────────
+    // ── Version preview ────────────────────────────────────────────────────────
 
-    [HttpGet("/admin/pages/{id:guid}/versions")]
-    public async Task<IActionResult> Versions(Guid id)
+    [HttpGet("/admin/pages/{id:guid}/versions/{versionId:int}/preview")]
+    public async Task<IActionResult> VersionPreview(Guid id, int versionId)
     {
         var node = await pageNodeService.GetNodeByIdAsync(id);
         if (node is null) return NotFound();
+        var version = (await pageNodeService.GetVersionsAsync(id)).FirstOrDefault(v => v.VersionId == versionId);
+        if (version is null) return NotFound();
 
-        var versions = await pageNodeService.GetVersionsAsync(id);
-        var vm = new PageTreeAdminVersionsViewModel
+        if (node.PageType == "content")
         {
-            NodeId = id,
-            NodeTitle = node.Title,
-            Versions = versions
-        };
-
-        return View("Versions", vm);
+            var tree = ContentPageJson.Deserialize(version.Content) ?? [];
+            return View("~/Views/Page/Content.cshtml", new RenderedPageViewModel
+            {
+                Title = node.Title, PageType = "content", Content = tree,
+                Nav = ContentNavBuilder.Build(tree), IsPreview = true
+            });
+        }
+        if (node.PageType == "wiki")
+        {
+            var all = await pageNodeService.GetTreeAsync() ?? [];
+            var siblings = all.Where(n => n.ParentId == node.ParentId).OrderBy(n => n.SortOrder)
+                .Select(n => new ContentNavItem(n.Title, "/" + n.Path, [])).ToList();
+            return View("~/Views/Page/Wiki.cshtml", new RenderedPageViewModel
+            {
+                Title = node.Title, PageType = "wiki", WikiHtml = version.Content, Nav = siblings, IsPreview = true
+            });
+        }
+        return NotFound();
     }
 
     // ── Publish ───────────────────────────────────────────────────────────────
@@ -174,7 +187,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> Publish(Guid id, int versionId, string? from, string? to)
     {
         await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from), ParseWindowUtc(to), User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/versions");
+        return Redirect($"/admin/pages/{id}/edit#version-history");
     }
 
     // datetime-local form fields post an unzoned string (e.g. "2027-01-01T09:00"). The default
@@ -237,7 +250,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> PublishNow(Guid id, int versionId, string? from, string? to)
     {
         await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from) ?? DateTime.UtcNow, ParseWindowUtc(to), User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/versions");
+        return Redirect($"/admin/pages/{id}/edit#version-history");
     }
 
     [HttpPost("/admin/pages/{id:guid}/versions/unpublish")]
@@ -245,7 +258,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> UnpublishVersion(Guid id, int versionId)
     {
         await pageNodeService.PublishAsync(id, versionId, null, null, User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/versions");
+        return Redirect($"/admin/pages/{id}/edit#version-history");
     }
 
     // ── Edit / Save ───────────────────────────────────────────────────────────

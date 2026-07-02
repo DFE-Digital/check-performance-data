@@ -51,7 +51,7 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     {
         var src = ContentEdit();
         Assert.Contains("Version history", src);
-        Assert.Contains("/versions", src);
+        Assert.Contains("#version-history", src);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     {
         var src = WikiEdit();
         Assert.Contains("Version history", src);
-        Assert.Contains("/versions", src);
+        Assert.Contains("#version-history", src);
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         var src = WikiEdit();
         Assert.Contains("Model.NodeId/save-and-publish", src);
         Assert.Contains("Model.NodeId/unpublish", src);
-        Assert.Contains("Model.NodeId/versions", src);
+        Assert.Contains("#version-history", src);
     }
 
     // The top-of-page status tag must share the same source of truth as the publish block
@@ -233,40 +233,6 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("govuk-button-group", src);
     }
 
-    // ── Versions page — publish-now and per-version unpublish ────────────────
-
-    private static string VersionsView() => ReadView("PageTreeAdmin", "Versions.cshtml");
-
-    [Fact]
-    public void Versions_HasPublishNow_Action()
-    {
-        var src = VersionsView();
-        Assert.Contains("/versions/publish-now", src);
-    }
-
-    [Fact]
-    public void Versions_HasUnpublishVersion_Action()
-    {
-        var src = VersionsView();
-        Assert.Contains("/versions/unpublish", src);
-    }
-
-    [Fact]
-    public void Versions_StillHasPublish_Action()
-    {
-        var src = VersionsView();
-        Assert.Contains("/publish", src);
-    }
-
-    [Fact]
-    public void Versions_ButtonGroup_HasThreeButtons()
-    {
-        var src = VersionsView();
-        Assert.Contains("govuk-button-group", src);
-        Assert.Contains("govuk-button--warning", src);
-        Assert.Contains("govuk-button--secondary", src);
-    }
-
     // ── Version numbers on status tags ───────────────────────────────────────
 
     [Fact]
@@ -334,6 +300,52 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("versionId", src);
     }
 
+    [Fact]
+    public void VersionHistoryListPartial_HasAnchorId()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("id=\"version-history\"", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasPublishFromAndToColumns()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("Publish from", src);
+        Assert.Contains("Publish to", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasFromAndToDateInputs()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("name=\"from\"", src);
+        Assert.Contains("name=\"to\"", src);
+        Assert.Contains("datetime-local", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_PostsToPublishForSave()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("/publish\"", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasUnpublishAction()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("/versions/unpublish", src);
+    }
+
+    [Fact]
+    public void VersionHistoryListPartial_HasViewPreviewLink()
+    {
+        var src = ReadView("PageTreeAdmin", "_VersionHistoryList.cshtml");
+        Assert.Contains("/preview", src);
+        Assert.Contains("target=\"_blank\"", src);
+    }
+
     // ── Version number labels — helpers use PageVersionNumbering / PageVersionStatus ──────────
 
     [Fact]
@@ -368,21 +380,7 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
         Assert.Contains("DraftVersionLabel", src);
     }
 
-    // ── Versions.cshtml and _VersionHistoryList.cshtml use helper classes ─────
-
-    [Fact]
-    public void Versions_UsesPageVersionStatusHelper()
-    {
-        var src = VersionsView();
-        Assert.Contains("PageVersionStatus", src);
-    }
-
-    [Fact]
-    public void Versions_UsesPageVersionNumberingHelper()
-    {
-        var src = VersionsView();
-        Assert.Contains("PageVersionNumbering", src);
-    }
+    // ── _VersionHistoryList.cshtml uses helper classes ────────────────────────
 
     [Fact]
     public void VersionHistoryListPartial_UsesPageVersionStatusHelper()

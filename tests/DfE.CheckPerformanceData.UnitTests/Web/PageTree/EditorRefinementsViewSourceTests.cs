@@ -5,7 +5,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.PageTree;
 // - _EditColumn.cshtml uses _ActionIcon, icon buttons, onsubmit confirm, region-first order, toolbar delete class
 // - _EditWidget.cshtml edit summary references _ActionIcon with "edit"
 // - Edit.cshtml style block contains the .cpb-region #f3f2f1 rule
-// - Versions.cshtml and _VersionHistoryList.cshtml contain "Modified by" and "UpdatedBy"
+// - _VersionHistoryList.cshtml contains "Modified by" and "UpdatedBy"
 //
 // Pattern mirrors ContentPageEditorViewSourceTests and PageTreeAdminEditPublishViewSourceTests.
 public sealed class EditorRefinementsViewSourceTests
@@ -148,22 +148,6 @@ public sealed class EditorRefinementsViewSourceTests
         var src = ReadContentPage("Edit.cshtml");
         Assert.Contains(".cpb-toolbar__delete", src);
         Assert.Contains("margin-left: auto", src);
-    }
-
-    // ── Versions.cshtml ──────────────────────────────────────────────────────
-
-    [Fact]
-    public void Versions_HasModifiedByColumn()
-    {
-        var src = ReadPageTreeAdmin("Versions.cshtml");
-        Assert.Contains("Modified by", src);
-    }
-
-    [Fact]
-    public void Versions_CellRendersUpdatedBy()
-    {
-        var src = ReadPageTreeAdmin("Versions.cshtml");
-        Assert.Contains("UpdatedBy", src);
     }
 
     // ── _VersionHistoryList.cshtml ───────────────────────────────────────────

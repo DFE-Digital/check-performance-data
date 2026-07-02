@@ -485,42 +485,82 @@ public sealed class PageTreeAdminControllerTests
         Assert.NotNull(method!.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
     }
 
-    // ── GET /admin/pages/{id}/versions ───────────────────────────────────────
+    // ── GET /admin/pages/{id}/versions/{versionId}/preview ───────────────────
 
     [Fact]
-    public async Task Versions_UnknownId_ReturnsNotFound()
+    public async Task VersionPreview_UnknownNode_ReturnsNotFound()
     {
         var id = Guid.NewGuid();
         _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
 
-        var result = await Sut().Versions(id);
+        var result = await Sut().VersionPreview(id, 1);
 
         Assert.IsType<NotFoundResult>(result);
     }
 
     [Fact]
-    public async Task Versions_KnownId_ReturnsViewWithVersions()
+    public async Task VersionPreview_UnknownVersionId_ReturnsNotFound()
     {
         var id = Guid.NewGuid();
         _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
         {
-            Id = id, Segment = "my-page", Path = "my-page",
-            Title = "My Page", PageType = "wiki"
+            Id = id, Segment = "page", Path = "page", Title = "Page", PageType = "content"
         });
         _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
         {
-            new() { Id = Guid.NewGuid(), VersionId = 2, IsCurrent = true, Content = "<p>v2</p>" },
-            new() { Id = Guid.NewGuid(), VersionId = 1, IsCurrent = false, Content = "<p>v1</p>" }
+            new() { Id = Guid.NewGuid(), VersionId = 2, IsCurrent = true, Content = "[]" }
         });
 
-        var result = await Sut().Versions(id);
+        var result = await Sut().VersionPreview(id, 99);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task VersionPreview_ContentNode_MatchingVersion_ReturnsPreviewView()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "page", Path = "page", Title = "My Page", PageType = "content"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 5, IsCurrent = false, Content = "[]" }
+        });
+
+        var result = await Sut().VersionPreview(id, 5);
 
         var view = Assert.IsType<ViewResult>(result);
-        Assert.Equal("Versions", view.ViewName);
-        var vm = Assert.IsType<PageTreeAdminVersionsViewModel>(view.Model);
-        Assert.Equal(id, vm.NodeId);
-        Assert.Equal("My Page", vm.NodeTitle);
-        Assert.Equal(2, vm.Versions.Count);
+        Assert.Equal("~/Views/Page/Content.cshtml", view.ViewName);
+        var vm = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.Equal("My Page", vm.Title);
+        Assert.Equal("content", vm.PageType);
+        Assert.True(vm.IsPreview);
+    }
+
+    [Fact]
+    public async Task VersionPreview_WikiNode_MatchingVersion_ReturnsPreviewView()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+        {
+            Id = id, Segment = "wiki", Path = "wiki", Title = "Wiki Page", PageType = "wiki"
+        });
+        _service.GetVersionsAsync(id).Returns(new List<PageNodeVersionDto>
+        {
+            new() { Id = Guid.NewGuid(), VersionId = 3, IsCurrent = false, Content = "<p>hi</p>" }
+        });
+        _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
+
+        var result = await Sut().VersionPreview(id, 3);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("~/Views/Page/Wiki.cshtml", view.ViewName);
+        var vm = Assert.IsType<RenderedPageViewModel>(view.Model);
+        Assert.Equal("wiki", vm.PageType);
+        Assert.Equal("<p>hi</p>", vm.WikiHtml);
+        Assert.True(vm.IsPreview);
     }
 
     // ── POST /admin/pages/{id}/publish ───────────────────────────────────────
@@ -540,7 +580,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
     }
 
     [Fact]
@@ -1413,7 +1453,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
     }
 
     [Fact]
@@ -1431,7 +1471,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
     }
 
     [Fact]
@@ -1457,7 +1497,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/versions", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
     }
 
     [Fact]

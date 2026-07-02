@@ -17,7 +17,8 @@ public sealed class PageTreeAdminController(
     PageNodePathValidator pathValidator,
     IHtmlRenderingService htmlRenderingService,
     IPageNodeContentEditor nodeContentEditor,
-    ISettingService settingService) : Controller
+    ISettingService settingService,
+    SamplePageNodeSeeder samplePageSeeder) : Controller
 {
     private const int DefaultPageLength = 20;
 
@@ -290,6 +291,25 @@ public sealed class PageTreeAdminController(
         var plain = htmlRenderingService.StripTagsToPlainText(rendered);
         await pageNodeService.SaveWorkingContentAsync(id, content, plain, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit");
+    }
+
+    // ── Seed sample pages ─────────────────────────────────────────────────────
+
+    // Adds a small set of published sample pages under each of the four root nodes
+    // (/wiki, /help, /support, /guidance). Idempotent: only pages whose (root, segment)
+    // path does not already exist are created.
+    [HttpPost("/admin/pages/sample-seed")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SampleSeed()
+    {
+        var created = await samplePageSeeder.SeedAsync(User?.Identity?.Name);
+        TempData["SampleSeedResult"] = created switch
+        {
+            0 => "Sample pages are already present. Nothing was added.",
+            1 => "Added 1 sample page.",
+            _ => $"Added {created} sample pages."
+        };
+        return Redirect("/admin/pages");
     }
 
     // ── Rename (Title + Slug) ─────────────────────────────────────────────────

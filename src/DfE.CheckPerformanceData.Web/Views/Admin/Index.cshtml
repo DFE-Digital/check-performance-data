@@ -34,7 +34,7 @@
                 <li class="admin-nav-list__item">
                     @if (entry.Enabled && entry.HttpMethod == "POST")
                     {
-                        <form asp-controller="Help" asp-action="Seed" method="post" class="admin-tile-form">
+                        <form action="@entry.Url" method="post" class="admin-tile-form">
                             @Html.AntiForgeryToken()
                             <h3 class="govuk-heading-m">
                                 <button type="submit" class="govuk-link admin-tile-form__link" data-prevent-double-click="true">@entry.Title</button>

@@ -24,11 +24,12 @@ public sealed class PageTreeAdminControllerTests
     private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
     private readonly IPageNodeContentEditor _contentEditor = Substitute.For<IPageNodeContentEditor>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
+    private readonly SamplePageNodeSeeder _sampleSeeder = new(Substitute.For<IPageNodeService>());
 
     private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
     {
         var controller = new PageTreeAdminController(
-            _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings);
+            _service, validator ?? OpenValidator(), _renderer, _contentEditor, _settings, _sampleSeeder);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

@@ -245,11 +245,15 @@ public sealed class PageTreeAdminController(
 
     // ── Version-level publish-now / unpublish ─────────────────────────────────
 
+    // "Publish" makes the chosen version live NOW, open-ended. It deliberately ignores the row's
+    // From/To fields — those are pre-filled with the version's current window and belong to "Save"
+    // (which edits/schedules dates). Otherwise publishing an already-scheduled or past version would
+    // just re-apply its old From date and never actually go live.
     [HttpPost("/admin/pages/{id:guid}/versions/publish-now")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PublishNow(Guid id, int versionId, string? from, string? to)
+    public async Task<IActionResult> PublishNow(Guid id, int versionId)
     {
-        await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from) ?? DateTime.UtcNow, ParseWindowUtc(to), User?.Identity?.Name);
+        await pageNodeService.PublishAsync(id, versionId, DateTime.UtcNow, null, User?.Identity?.Name);
         return Redirect($"/admin/pages/{id}/edit#version-history");
     }
 

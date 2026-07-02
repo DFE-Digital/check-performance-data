@@ -1440,34 +1440,17 @@ public sealed class PageTreeAdminControllerTests
     // ── POST /admin/pages/{id}/versions/publish-now ──────────────────────────
 
     [Fact]
-    public async Task PublishNow_NullFrom_CallsPublishAsync_WithNonNullDateTime_AndRedirectsToVersions()
+    public async Task PublishNow_PublishesVersionLiveNow_OpenEnded_AndRedirectsToEdit()
     {
         var id = Guid.NewGuid();
 
-        var result = await Sut().PublishNow(id, 3, null, null);
+        var result = await Sut().PublishNow(id, 3);
 
-        // NSubstitute: when any DateTime? uses Arg.Is<>, all DateTime? args must use matchers.
+        // "Publish" always goes live now (non-null From) with no end date (null To), ignoring any
+        // pre-filled row dates. NSubstitute: all DateTime? args must use matchers when one does.
         await _service.Received(1).PublishAsync(
             id, 3,
             Arg.Is<DateTime?>(d => d != null),
-            Arg.Is<DateTime?>(d => d == null),
-            Arg.Any<string?>());
-        var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
-    }
-
-    [Fact]
-    public async Task PublishNow_ExplicitFrom_PassesThroughSameFrom_AndRedirectsToVersions()
-    {
-        var id = Guid.NewGuid();
-
-        var result = await Sut().PublishNow(id, 3, "2026-09-01T00:00", null);
-
-        await _service.Received(1).PublishAsync(
-            id, 3,
-            Arg.Is<DateTime?>(d => d.HasValue
-                && d.Value.Kind == DateTimeKind.Utc
-                && d.Value == new DateTime(2026, 9, 1, 0, 0, 0)),
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);

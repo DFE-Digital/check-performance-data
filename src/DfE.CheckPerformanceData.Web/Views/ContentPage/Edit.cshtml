@@ -45,7 +45,8 @@
                 </div>
             }
 
-            <form id="cpb-rename-form" method="post" action="/admin/pages/@Model.NodeId/rename"
+            @{ var renameUrl = $"/admin/pages/{Model.NodeId}/rename"; }
+            <form id="cpb-rename-form" method="post" action="@renameUrl"
                   data-original-segment="@Model.Segment">
                 @Html.AntiForgeryToken()
                 <div class="govuk-form-group">
@@ -67,12 +68,21 @@
                 </div>
             </form>
 
+            @* Modal's own form POSTs directly to /rename so the standard confirm-modal.js wiring
+               works unchanged. Hidden title/segment inputs are populated by JS from the outer form
+               just before the dialog opens. *@
             <govuk-confirm-modal id="cpb-rename-confirm"
                                  title="Change page URL?"
                                  warning-text="Changing the URL segment will change this page's URL and every child page's URL."
                                  body="Existing bookmarks and links to this page will stop working."
                                  confirm-label="Yes, change URL"
-                                 destructive="true" />
+                                 destructive="true"
+                                 form-action="@renameUrl"
+                                 form-method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
+                <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
+            </govuk-confirm-modal>
         }
         <p class="govuk-body">
             @if (Model.IsPublished)
@@ -224,9 +234,11 @@
 </script>
 <script src="~/js/content-editor-dnd.js"></script>
 
-@* URL-change confirmation: if the user changed the segment, gate the rename form submit
-   behind the govuk-confirm-modal so they must explicitly acknowledge that the URL (and every
-   child page's URL) will change. Title-only edits pass through without a prompt. *@
+@* URL-change confirmation. When the segment field differs from the value the page loaded
+   with, the outer form's submit is cancelled, the current title + segment are copied into the
+   modal's hidden inputs, and the govuk-confirm-modal is opened. Confirming inside the modal
+   POSTs the modal's own form directly to /rename (matching the standard pattern used by
+   confirm-modal.js). Title-only edits skip the modal and submit as normal. *@
 <script>
     (function () {
         'use strict';
@@ -235,40 +247,25 @@
         if (!form || !dialog) return;
 
         var segmentInput = form.querySelector('input[name="segment"]');
+        var titleInput = form.querySelector('input[name="title"]');
+        var modalTitleHidden = document.getElementById('cpb-rename-modal-title');
+        var modalSegmentHidden = document.getElementById('cpb-rename-modal-segment');
         var originalSegment = form.getAttribute('data-original-segment') || '';
-        var confirmedSubmit = false;
 
         form.addEventListener('submit', function (e) {
-            if (confirmedSubmit) return;                 // user has clicked "Yes, change URL"
             var current = (segmentInput && segmentInput.value ? segmentInput.value : '').trim();
-            if (current === originalSegment) return;     // no URL change, skip modal
+            if (current === originalSegment) return;  // no URL change → submit as normal
 
             e.preventDefault();
-            if (typeof dialog.showModal === 'function') dialog.showModal();
-            else dialog.setAttribute('open', 'open');    // <dialog> not supported → open non-modally
-        });
+            if (modalTitleHidden)   modalTitleHidden.value   = titleInput ? titleInput.value : '';
+            if (modalSegmentHidden) modalSegmentHidden.value = current;
 
-        // The modal's own <form> has action="" (empty) — clicking its submit button submits
-        // that inner form, not the rename form. Intercept: prevent the inner submit, close
-        // the dialog, and programmatically submit the outer rename form with the flag set.
-        dialog.addEventListener('submit', function (e) {
-            e.preventDefault();
-            if (typeof dialog.close === 'function') dialog.close();
-            else dialog.removeAttribute('open');
-            confirmedSubmit = true;
-            form.submit();
-        });
-
-        // "Cancel" link inside the modal — close without submitting.
-        dialog.addEventListener('click', function (e) {
-            var target = e.target;
-            if (target && (target.hasAttribute('data-confirm-cancel') || target.hasAttribute('data-modal-close'))) {
-                e.preventDefault();
-                if (typeof dialog.close === 'function') dialog.close();
-                else dialog.removeAttribute('open');
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            } else {
+                // Fallback for browsers that don't support <dialog>.
+                dialog.setAttribute('open', 'open');
             }
         });
-
-        // Esc key on the <dialog> already closes it natively; no extra handling needed.
     })();
 </script>

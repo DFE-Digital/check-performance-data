@@ -89,6 +89,25 @@
                                 <input class="govuk-input" id="pt-@Model.Path" name="props[text]" value="@w.GetString("text")" />
                             </div>
                             break;
+
+                        case "search":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sl-@Model.Path">Label</label>
+                                <input class="govuk-input" id="sl-@Model.Path" name="props[label]" value="@w.GetString("label")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sa-@Model.Path">Form action URL</label>
+                                <input class="govuk-input" id="sa-@Model.Path" name="props[action]" value="@w.GetString("action")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sp-@Model.Path">Placeholder (optional)</label>
+                                <input class="govuk-input" id="sp-@Model.Path" name="props[placeholder]" value="@w.GetString("placeholder")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sb-@Model.Path">Button text</label>
+                                <input class="govuk-input" id="sb-@Model.Path" name="props[buttonText]" value="@w.GetString("buttonText")" />
+                            </div>
+                            break;
                     }
 
                     <button class="govuk-button cpb-btn" type="submit">Save</button>

@@ -1,0 +1,21 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    var label       = Model.GetString("label")       ?? "Search";
+    var placeholder = Model.GetString("placeholder") ?? string.Empty;
+    var action      = Model.GetString("action")      ?? string.Empty;
+    var buttonText  = Model.GetString("buttonText")  ?? "Search";
+    var inputId     = string.IsNullOrEmpty(Model.Anchor) ? "search" : $"search-{Model.Anchor}";
+}
+<form class="cypmd-search" role="search" method="get" action="@action">
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="@inputId">@label</label>
+        <div class="cypmd-search__row">
+            <input class="govuk-input cypmd-search__input" id="@inputId" name="q" type="search"
+                   placeholder="@placeholder" autocomplete="off" />
+            <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">
+                @buttonText
+            </button>
+        </div>
+    </div>
+</form>

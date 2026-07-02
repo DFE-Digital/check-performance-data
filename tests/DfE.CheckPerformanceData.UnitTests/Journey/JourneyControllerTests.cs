@@ -369,6 +369,98 @@ public class JourneyControllerTests
         Assert.Equal("FR", saved.CodeValue);
     }
 
+    // ── PagePost — back navigation changing a branch ─────────────────────────
+
+    [Fact]
+    public async Task PagePost_WhenGoingBackAndChangingBranch_TrimsStaleDownstreamHistory()
+    {
+        SetupReasonBranchPage();
+        SetupSession(ValidSession(
+            history: ["select-pupil", "reason", "year-group-change-higher-lower"],
+            answers: new Dictionary<string, QuestionAnswer>
+            {
+                ["reason"] = new() { TextValue = "year-group-change" },
+                ["higher-lower"] = new() { TextValue = "higher" }
+            }));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "pupil-died"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("pupil-died", redirect.RouteValues!["pageId"]);
+
+        // The old branch's pages after "reason" must be dropped, otherwise the navigation
+        // guard recomputes the next page from the stale last entry and bounces the user
+        // back into the year-group-change branch.
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(["select-pupil", "reason"], saved.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task PagePost_WhenGoingBackAndKeepingSameBranch_PreservesDownstreamHistory()
+    {
+        SetupReasonBranchPage();
+        SetupSession(ValidSession(
+            history: ["select-pupil", "reason", "year-group-change-higher-lower"],
+            answers: new Dictionary<string, QuestionAnswer>
+            {
+                ["reason"] = new() { TextValue = "year-group-change" },
+                ["higher-lower"] = new() { TextValue = "higher" }
+            }));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "year-group-change"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("year-group-change-higher-lower", redirect.RouteValues!["pageId"]);
+
+        // Unchanged branch — the already-visited downstream page stays in history so the
+        // user keeps their progress rather than being forced to re-walk the branch.
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(["select-pupil", "reason", "year-group-change-higher-lower"], saved.QuestionHistory);
+    }
+
+    // A "reason" Radio page whose answer branches to different next pages, and a GetNextPageId
+    // stub that resolves the branch from the current answer value in the answers dictionary.
+    private void SetupReasonBranchPage()
+    {
+        var reasonPage = new JourneyPage
+        {
+            Id = "reason",
+            Questions =
+            [
+                new Question
+                {
+                    Id = "reason", Type = QuestionType.Radio, Title = "Why?",
+                    Options =
+                    [
+                        new QuestionOption { Value = "year-group-change", Label = "Year group change", NextPageId = "year-group-change-higher-lower" },
+                        new QuestionOption { Value = "pupil-died", Label = "Pupil died", NextPageId = "pupil-died" }
+                    ]
+                }
+            ]
+        };
+        _flowService.GetPage(Config, "reason").Returns(reasonPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "reason", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns(ci =>
+            {
+                var answers = ci.Arg<Dictionary<string, QuestionAnswer>>();
+                return answers.TryGetValue("reason", out var a) && a.TextValue == "year-group-change"
+                    ? "year-group-change-higher-lower"
+                    : "pupil-died";
+            });
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]

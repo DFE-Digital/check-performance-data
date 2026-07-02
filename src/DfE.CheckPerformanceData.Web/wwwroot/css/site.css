@@ -1500,9 +1500,11 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
 /* Content-page breadcrumbs sit tight against the phase banner rather than the govuk-frontend
-   default's roomy top padding + margin. Uses !important because govuk-frontend applies these
-   at the same class-specificity, so cascade order alone isn't enough when the govuk CSS
-   ships as a compiled bundle whose order relative to site.css can vary. */
+   default's roomy top padding + margin. Also pin the containing govuk-main-wrapper's own
+   padding-top — that 40px is where the visible gap comes from, and no amount of breadcrumb
+   margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox 121+, Safari 15.4+)
+   so only content pages that carry the .cpb-breadcrumbs marker are affected. */
+main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 10px !important; }
 .cpb-breadcrumbs {
     margin: 0 !important;
     padding-top: 10px !important;

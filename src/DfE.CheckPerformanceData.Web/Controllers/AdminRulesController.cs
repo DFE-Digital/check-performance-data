@@ -146,11 +146,10 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var (current, etag) = await TryGetRulesAsync(ct);
         if (current is null)
         {
-            return View(OutcomeAddView, AddOutcomeViewModel.For(form,
-                new[] { "The rules could not be loaded. Reload and try again." }));
+            return View(OutcomeAddView, AddOutcomeViewModel.For(form, ["The rules could not be loaded. Reload and try again."]));
         }
 
-        var key = form.Key?.Trim() ?? string.Empty;
+        var key = form.Key.Trim();
         var errors = OutcomeKeyValidator.Validate(key, current.Outcomes.Select(o => o.Key));
         if (errors.Count > 0)
         {
@@ -224,9 +223,9 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             Key = outcome.Key, Label = outcome.Label, BranchCount = outcome.Rules.Count, Errors = errors
         };
 
-        if (!string.Equals(confirmKey?.Trim(), key, StringComparison.Ordinal))
+        if (!string.Equals(confirmKey.Trim(), key, StringComparison.Ordinal))
         {
-            return View(OutcomeDeleteView, Vm(new[] { "Enter the exact outcome key to confirm deletion." }));
+            return View(OutcomeDeleteView, Vm(["Enter the exact outcome key to confirm deletion."]));
         }
 
         var spliced = RuleSetSplicer.RemoveOutcome(current, key);
@@ -242,7 +241,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         }
         catch (RulesConfigConflictException)
         {
-            return View(OutcomeDeleteView, Vm(new[] { "The rules were changed by someone else. Nothing was deleted — reload and try again." }));
+            return View(OutcomeDeleteView, Vm(["The rules were changed by someone else. Nothing was deleted — reload and try again."]));
         }
     }
 
@@ -320,7 +319,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             IsNew = true,
             Status = DecisionStatus.Scrutiny,
             LoadETag = etag,
-            Nodes = new List<PredicateNodeForm> { new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf } }
+            Nodes = [new() { Id = 1, ParentId = null, Kind = PredicateKind.AllOf }]
         };
         return View(BranchEditView, BranchEditViewModel.For(form));
     }
@@ -364,8 +363,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var (current, currentETag) = await TryGetRulesAsync(ct);
         if (current is null)
         {
-            return Failure(BranchEditViewModel.For(form,
-                new[] { "The rules could not be loaded. Reload and try again." }));
+            return Failure(BranchEditViewModel.For(form, ["The rules could not be loaded. Reload and try again."]));
         }
         // App-level check catches the common case (two admins editing at once) cheaply.
         // The service's blob If-Match below is the authoritative guard against the residual race.
@@ -374,10 +372,9 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
             return Failure(BranchEditViewModel.For(form, concurrencyConflict: true));
         }
 
-        if (!current.Outcomes.Any(o => o.Key == form.OutcomeKey))
+        if (current.Outcomes.All(o => o.Key != form.OutcomeKey))
         {
-            return Failure(BranchEditViewModel.For(form,
-                new[] { $"Outcome '{form.OutcomeKey}' no longer exists. Reload and try again." }));
+            return Failure(BranchEditViewModel.For(form, [$"Outcome '{form.OutcomeKey}' no longer exists. Reload and try again."]));
         }
 
         var predicate = PredicateForm.RebuildPredicate(form.Nodes);
@@ -556,7 +553,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         var (_, etag) = await TryGetLookupsAsync(ct);
         var form = new LookupRowEditForm
         {
-            Code = "", IsNew = true, LoadETag = etag, Languages = new List<string> { "" }
+            Code = "", IsNew = true, LoadETag = etag, Languages = [""]
         };
         return View(LookupRowEditView, LookupRowEditViewModel.For(form));
     }
@@ -583,7 +580,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         if (currentETag != form.LoadETag)
         {
             return View(LookupRowEditView, LookupRowEditViewModel.For(form,
-                new[] { "The lookups were changed by someone else since you opened this page. Reload and try again." }));
+                ["The lookups were changed by someone else since you opened this page. Reload and try again."]));
         }
 
         var map = current?.CountryLanguages.ToDictionary(kv => kv.Key, kv => kv.Value)
@@ -611,8 +608,7 @@ public sealed class AdminRulesController(IRulesConfigService rules) : Controller
         }
         catch (RulesConfigConflictException)
         {
-            return View(LookupRowEditView, LookupRowEditViewModel.For(form,
-                new[] { "The lookups were changed by someone else. Nothing was saved — reload and try again." }));
+            return View(LookupRowEditView, LookupRowEditViewModel.For(form, ["The lookups were changed by someone else. Nothing was saved — reload and try again."]));
         }
     }
 

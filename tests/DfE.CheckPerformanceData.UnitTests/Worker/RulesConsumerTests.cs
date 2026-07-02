@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -45,6 +46,9 @@ public sealed class RulesConsumerTests
     [Fact]
     public async Task ProcessMessage_DoesNotCallZendesk()
     {
+        // A non-null rules snapshot + decision are prerequisites for processing to run at all
+        // (the consumer reads snapshot.Version unconditionally); the decision content is irrelevant here.
+        StubDecision(new Decision(DecisionStatus.AutoApproved, "AutoApproved-outcome", "R-1", []));
         var consumer = CreateConsumer();
 
         await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
@@ -58,10 +62,82 @@ public sealed class RulesConsumerTests
     [Fact]
     public async Task ProcessMessage_PersistsDecisionInTransaction()
     {
+        StubDecision(new Decision(DecisionStatus.AutoApproved, "AutoApproved-outcome", "R-1", []));
         var consumer = CreateConsumer();
 
         await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
 
         await _dbContext.Received().ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
+    }
+
+    // --- Decision-mix analytics: the consumer emits a non-PII RequestDecisionEvent per message ---
+
+    [Fact]
+    public async Task ProcessMessage_EmitsRequestDecisionEvent_WithDecisionMetadata()
+    {
+        var analytics = Substitute.For<IAnalyticsService>();
+        StubDecision(new Decision(DecisionStatus.AutoApproved, "Deceased", "EAL-1", []));
+        var consumer = CreateConsumer(analytics);
+
+        await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
+
+        // Non-PII decision metadata, sourced from the decision, the rules snapshot, and the
+        // parsed document. RequestTypeCode/CheckingWindowType come from ValidMessage;
+        // RulesVersion from the stubbed snapshot.
+        await analytics.Received(1).TrackAsync(
+            Arg.Is<RequestDecisionEvent>(e =>
+                e.DecisionStatus == "AutoApproved" &&
+                e.OutcomeKey == "Deceased" &&
+                e.MatchedRuleId == "EAL-1" &&
+                e.RulesVersion == "v1" &&
+                e.RequestTypeCode == "not-on-roll" &&
+                e.CheckingWindowType == "Spring" &&
+                !e.IsSyntheticFallback),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessage_MarksDecisionEventSynthetic_WhenRuleIdIsFallback()
+    {
+        // Fallback decisions (mapper/engine error, unmatched outcome) carry a '_'-prefixed
+        // MatchedRuleId; the event flags them so the metric can separate genuine rule
+        // outcomes from error fallbacks.
+        var analytics = Substitute.For<IAnalyticsService>();
+        StubDecision(new Decision(DecisionStatus.Scrutiny, "_unknown", "_engine_error", []));
+        var consumer = CreateConsumer(analytics);
+
+        await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
+
+        await analytics.Received(1).TrackAsync(
+            Arg.Is<RequestDecisionEvent>(e => e.IsSyntheticFallback && e.DecisionStatus == "Scrutiny"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ProcessMessage_StillPersists_WhenAnalyticsThrows()
+    {
+        // Analytics is observability; a sink failure must not throw out of processing (which
+        // would leave the message to be retried/poisoned) nor undo the decision that was
+        // already persisted in the dequeue transaction.
+        var analytics = Substitute.For<IAnalyticsService>();
+        analytics.TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>())
+            .Returns(_ => throw new InvalidOperationException("analytics sink down"));
+        StubDecision(new Decision(DecisionStatus.Scrutiny, "k", "r", []));
+        var consumer = CreateConsumer(analytics);
+
+        // Does not throw.
+        await consumer.ProcessMessageBodyAsync(ValidMessage, CancellationToken.None);
+
+        await _dbContext.Received().ExecuteInTransactionAsync(Arg.Any<Func<Task>>(), Arg.Any<CancellationToken>());
+    }
+
+    private RulesConsumer CreateConsumer(IAnalyticsService analytics) =>
+        new(_queueService, _rulesProvider, _rulesEngine, _contextMapper, _dbContext, analytics: analytics);
+
+    private void StubDecision(Decision decision)
+    {
+        _rulesProvider.Current.Returns(new RulesSnapshot(
+            new RuleSet("v1", DateTimeOffset.UtcNow, []), Lookups.Empty, "v1", DateTimeOffset.UtcNow, RulesHealth.Healthy));
+        _rulesEngine.Evaluate(Arg.Any<RuleSet>(), Arg.Any<RuleContext>(), Arg.Any<Lookups>()).Returns(decision);
     }
 }

@@ -450,11 +450,11 @@ public sealed class ObservabilityController : Controller
 
     private TimeSpan ResolveHeartbeat()
     {
-        var configured = HttpContext?.RequestServices
+        var configured = HttpContext.RequestServices
             .GetService(typeof(IConfiguration)) as IConfiguration;
         var seconds = configured?.GetValue("Observability:HeartbeatSeconds", MaxHeartbeatSeconds)
             ?? MaxHeartbeatSeconds;
-        if (seconds <= 0 || seconds > MaxHeartbeatSeconds)
+        if (seconds is <= 0 or > MaxHeartbeatSeconds)
             seconds = MaxHeartbeatSeconds;
         return TimeSpan.FromSeconds(seconds);
     }

@@ -17,6 +17,13 @@
         DecisionStatus.AutoRejected => "Auto rejected",
         _ => "Scrutiny"
     };
+
+    // Movable branches (the "Otherwise" branch has no actions). Used to disable Up on the first
+    // movable branch and Down on the last. BranchViewModel has no index, so match by Id (Ids are
+    // unique and used in the move/edit/remove routes).
+    var movable = Model.Branches.Where(b => !b.IsOtherwise).ToList();
+    var firstMovableId = movable.FirstOrDefault()?.Id;
+    var lastMovableId = movable.LastOrDefault()?.Id;
 }
 
 <a href="/admin/rules/outcomes" class="govuk-back-link">Back to outcomes</a>
@@ -67,25 +74,48 @@ else
                 </li>
                 @if (!branch.IsOtherwise)
                 {
+                    var isFirst = branch.Id == firstMovableId;
+                    var isLast = branch.Id == lastMovableId;
                     <li class="govuk-summary-card__action">
-                        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/edit">Edit</a>
+                        <a class="rules-action rules-action--edit"
+                           href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/edit"
+                           aria-label="Edit branch @branch.Id" title="Edit">
+                            <svg class="rules-action__icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+                            </svg>
+                        </a>
                     </li>
                     <li class="govuk-summary-card__action">
-                        <form method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move" style="display:inline">
+                        <form class="rules-actions__form" method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move">
                             @Html.AntiForgeryToken()
-                            <button class="govuk-link govuk-button--text" name="direction" value="up" type="submit"
-                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Up</button>
+                            <button class="rules-action rules-action--move" name="direction" value="up" type="submit"
+                                    aria-label="Move branch @branch.Id up" title="@(isFirst ? null : "Move up")" disabled="@isFirst">
+                                <svg class="rules-action__icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M12 19V5M12 5l-6 6M12 5l6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
                         </form>
                     </li>
                     <li class="govuk-summary-card__action">
-                        <form method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move" style="display:inline">
+                        <form class="rules-actions__form" method="post" action="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/move">
                             @Html.AntiForgeryToken()
-                            <button class="govuk-link govuk-button--text" name="direction" value="down" type="submit"
-                                    style="background:none;border:none;padding:0;color:#1d70b8;cursor:pointer;text-decoration:underline;">Down</button>
+                            <button class="rules-action rules-action--move" name="direction" value="down" type="submit"
+                                    aria-label="Move branch @branch.Id down" title="@(isLast ? null : "Move down")" disabled="@isLast">
+                                <svg class="rules-action__icon" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path d="M12 5v14M12 19l-6-6M12 19l6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
                         </form>
                     </li>
                     <li class="govuk-summary-card__action">
-                        <a class="govuk-link" href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/remove">Remove</a>
+                        <a class="rules-action rules-action--remove"
+                           href="/admin/rules/outcomes/@Model.Key/branches/@branch.Id/remove"
+                           aria-label="Remove branch @branch.Id" title="Remove">
+                            <svg class="rules-action__icon" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <circle cx="12" cy="12" r="11" fill="#d4351c" />
+                                <path d="M8 8l8 8M16 8l-8 8" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </a>
                     </li>
                 }
             </ul>

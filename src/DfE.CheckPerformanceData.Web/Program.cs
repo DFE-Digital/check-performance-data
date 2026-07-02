@@ -1,4 +1,3 @@
-using AngleSharp;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -7,7 +6,6 @@ using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
-using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
@@ -20,12 +18,15 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
+using DfE.CheckPerformanceData.Web.Analytics;
+using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Infrastructure.Analytics;
+using Dfe.Analytics;
+using Dfe.Analytics.AspNetCore;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
@@ -222,6 +223,29 @@ try
 
     builder.Services.AddHealthChecks();
 
+    // DfE Analytics: stream a web_request event to BigQuery per request when configured.
+    // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
+    // review and local boot without GCP. The matching middleware is added below under
+    // the same flag. The RequestFilter keeps health-probe noise out of the dataset.
+    var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
+    if (analyticsEnabled)
+    {
+        builder.Services
+            .AddDfeAnalytics()
+            .AddAspNetCoreIntegration(options =>
+                options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
+        builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
+        // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
+        // is sent as its own row, auto-enriched with request + organisation context.
+        builder.Services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
+    }
+    else
+    {
+        // No-op so controllers can always inject IAnalyticsService; dev/review/local
+        // boot without GCP.
+        builder.Services.AddSingleton<IAnalyticsService, NullAnalyticsService>();
+    }
+
     var app = builder.Build();
 
     await app.MigrateDatabaseAsync();
@@ -281,6 +305,11 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // After auth so the event captures the signed-in user's id + organisation claims;
+    // the RequestFilter configured above excludes health probes from the dataset.
+    if (analyticsEnabled)
+        app.UseDfeAnalytics();
 
     // Sits after auth so the diagnostic comment sees the final principal claims;
     // before controllers so it can wrap their response body. The middleware itself

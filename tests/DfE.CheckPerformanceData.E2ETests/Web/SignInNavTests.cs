@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.E2ETests.Fixtures;
 using DfE.CheckPerformanceData.E2ETests.Helpers;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
+using xRetry;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
@@ -20,7 +21,13 @@ public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    [Fact]
+    // Cold-start timing flake: the first navigation on a fresh Chromium can leave
+    // StabiliseAsync's WaitForLoadStateAsync(Load) waiting on a load transition that
+    // already fired (Playwright logs "NetworkIdle event fired" then times out at 30s).
+    // The app and flow are correct — verified via HTTP and a live browser, where load
+    // fires in <200ms — so retry the whole scenario, matching the suite's xRetry
+    // convention (see GovUkAssetsTests) rather than masking a product defect.
+    [RetryFact(3)]
     public async Task SignInCluster_RoundTrips_ThroughImpersonationAndSignOut()
     {
         try

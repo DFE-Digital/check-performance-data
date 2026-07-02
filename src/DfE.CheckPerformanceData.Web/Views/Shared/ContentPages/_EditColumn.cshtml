@@ -2,9 +2,14 @@
 @using DfE.CheckPerformanceData.Web.Models.Guidance
 @model EditColumnModel
 @{
-    var addPath = TreePath.Format(Model.AppendPath());
+    var appendPath = TreePath.Format(Model.AppendPath());
 }
-<div data-column-path="@addPath">
+<div data-column-path="@appendPath">
+@if (Model.Nodes.Count == 0)
+{
+    @* Empty column — one entry point for the very first content. *@
+    @await Html.PartialAsync("ContentPages/_AddHere", new AddHereModel(Model.ActionBase, Model.AppendPath()))
+}
 @for (var i = 0; i < Model.Nodes.Count; i++)
 {
     var node = Model.Nodes[i];
@@ -55,38 +60,9 @@
             @await Html.PartialAsync("ContentPages/_EditWidget", new EditWidgetModel(Model.ActionBase, path, widget))
         }
     </div>
-}
 
-<details class="govuk-details cpb-add">
-    <summary class="govuk-details__summary">
-        <span class="govuk-details__summary-text">
-            @await Html.PartialAsync("PageTree/_ActionIcon", "add")
-            Add content here
-        </span>
-    </summary>
-    <div class="govuk-details__text">
-        <form method="post" action="@Model.ActionBase/add" class="cpb-inline govuk-!-margin-right-3">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="path" value="@addPath" />
-            <select class="govuk-select" name="regionLayout" aria-label="Region layout">
-                @foreach (var layout in Enum.GetValues<RegionLayout>())
-                {
-                    <option value="@layout">@layout</option>
-                }
-            </select>
-            <button class="govuk-button govuk-button--secondary cpb-btn" type="submit">Add region</button>
-        </form>
-        <form method="post" action="@Model.ActionBase/add" class="cpb-inline">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="path" value="@addPath" />
-            <select class="govuk-select" name="widgetType" aria-label="Widget type">
-                @foreach (var w in WidgetRegistry.All)
-                {
-                    <option value="@w.Type">@w.PaletteLabel</option>
-                }
-            </select>
-            <button class="govuk-button cpb-btn" type="submit">Add widget</button>
-        </form>
-    </div>
-</details>
+    @* Inline insert point directly below this node. Path is (i + 1) in this column, so a new
+       node lands immediately after the current one — no scroll-and-drag from the bottom. *@
+    @await Html.PartialAsync("ContentPages/_AddHere", new AddHereModel(Model.ActionBase, Model.PathOf(i + 1)))
+}
 </div>

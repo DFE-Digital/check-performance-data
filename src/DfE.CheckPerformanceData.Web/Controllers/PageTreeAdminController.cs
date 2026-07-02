@@ -387,6 +387,15 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/edit");
     }
 
+    [HttpPost("/admin/pages/{id:guid}/content/move-to")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ContentMoveTo(Guid id, string fromPath, string toPath)
+    {
+        if (await pageNodeService.GetNodeByIdAsync(id) is null) return NotFound();
+        await nodeContentEditor.MoveToAsync(id, TreePath.Parse(fromPath), TreePath.Parse(toPath), User?.Identity?.Name);
+        return Redirect($"/admin/pages/{id}/edit");
+    }
+
     [HttpPost("/admin/pages/{id:guid}/content/widget")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ContentWidget(Guid id, string path, string type, [FromForm] Dictionary<string, string?>? props)

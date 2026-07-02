@@ -19,4 +19,6 @@ public interface IPageNodeContentEditor
     Task DeleteAsync(Guid nodeId, IReadOnlyList<TreeStep> path, string? userId);
 
     Task UpdateWidgetAsync(Guid nodeId, IReadOnlyList<TreeStep> path, JsonObject props, string? userId);
+
+    Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId);
 }

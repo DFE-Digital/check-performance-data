@@ -1512,4 +1512,46 @@ public sealed class PageTreeAdminControllerTests
         var vm = Assert.IsType<PageTreeAdminWikiEditViewModel>(Assert.IsType<ViewResult>(result).Model);
         Assert.Equal(3, vm.Versions.Count);
     }
+
+    // ── POST /admin/pages/{id}/content/move-to ───────────────────────────────
+
+    [Fact]
+    public async Task ContentMoveTo_KnownNode_CallsMoveToAsync_WithParsedPaths_AndRedirects()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns(new PageNodeDto
+            { Id = id, Segment = "p", Path = "p", Title = "P", PageType = "content" });
+
+        var result = await Sut().ContentMoveTo(id, "0.2", "0.0");
+
+        await _contentEditor.Received(1).MoveToAsync(
+            id,
+            Arg.Is<IReadOnlyList<TreeStep>>(p => p.SequenceEqual(new[] { new TreeStep(0, 2) })),
+            Arg.Is<IReadOnlyList<TreeStep>>(p => p.SequenceEqual(new[] { new TreeStep(0, 0) })),
+            Arg.Any<string?>());
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{id}/edit", redirect.Url);
+    }
+
+    [Fact]
+    public async Task ContentMoveTo_UnknownNode_ReturnsNotFound_DoesNotCallEditor()
+    {
+        var id = Guid.NewGuid();
+        _service.GetNodeByIdAsync(id).Returns((PageNodeDto?)null);
+
+        var result = await Sut().ContentMoveTo(id, "0.0", "0.1");
+
+        Assert.IsType<NotFoundResult>(result);
+        await _contentEditor.DidNotReceive().MoveToAsync(
+            Arg.Any<Guid>(), Arg.Any<IReadOnlyList<TreeStep>>(),
+            Arg.Any<IReadOnlyList<TreeStep>>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public void ContentMoveTo_HasValidateAntiForgeryTokenAndHttpPost()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.ContentMoveTo))!;
+        Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+        Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
+    }
 }

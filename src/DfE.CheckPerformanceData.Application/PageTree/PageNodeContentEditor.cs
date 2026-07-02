@@ -42,6 +42,9 @@ public sealed class PageNodeContentEditor(
                 widget.Props = props;
         });
 
+    public Task MoveToAsync(Guid nodeId, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath, string? userId) =>
+        MutateAsync(nodeId, userId, tree => ContentTreeEditor.MoveTo(tree, fromPath, toPath));
+
     private async Task MutateAsync(Guid nodeId, string? userId, Action<List<ContentNode>> edit)
     {
         // Load draft if one exists, else the latest published version's content.

@@ -46,6 +46,38 @@ public static class ContentTreeEditor
         return column[index];
     }
 
+    // Moves the node addressed by fromPath to the position addressed by toPath (insert-before
+    // semantics: the moved node ends up at toPath's index within toPath's column). Removes first,
+    // then adjusts toPath when both paths share the same containing column and fromIndex < toIndex
+    // (the removal shifted the target down by one). No-op-safe: if toPath can no longer be resolved
+    // after removal (e.g. the drop landed inside the removed node's own subtree), re-inserts the
+    // node at its original position.
+    public static void MoveTo(List<ContentNode> root, IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath)
+    {
+        var node = Remove(root, fromPath);
+        var target = AdjustAfterRemoval(fromPath, toPath);
+        try { InsertAt(root, target, node); }
+        catch { InsertAt(root, fromPath, node); } // target invalid (e.g. dropped into own subtree) → restore
+    }
+
+    // Same containing column === same path length AND all-but-last steps equal AND last step's
+    // Column equal. When the source precedes the target in that column the removal shifts the
+    // target's slot down by one, so decrement the target index to compensate.
+    private static IReadOnlyList<TreeStep> AdjustAfterRemoval(IReadOnlyList<TreeStep> fromPath, IReadOnlyList<TreeStep> toPath)
+    {
+        if (fromPath.Count == toPath.Count
+            && fromPath.Count >= 1
+            && fromPath.Take(fromPath.Count - 1).SequenceEqual(toPath.Take(toPath.Count - 1))
+            && fromPath[^1].Column == toPath[^1].Column
+            && fromPath[^1].Index < toPath[^1].Index)
+        {
+            var steps = toPath.ToList();
+            steps[^1] = new TreeStep(steps[^1].Column, steps[^1].Index - 1);
+            return steps;
+        }
+        return toPath;
+    }
+
     // Walks the path, returning the column that contains the addressed position and the index
     // within it. Each step after the first descends into the previously-addressed region's column.
     private static (List<ContentNode> Column, int Index) Resolve(List<ContentNode> root, IReadOnlyList<TreeStep> path)

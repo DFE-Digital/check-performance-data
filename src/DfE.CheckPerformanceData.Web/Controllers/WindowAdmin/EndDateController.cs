@@ -5,34 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class StartDateController(ILogger<TitleController> logger, IWindowService windowService): Controller
+public class EndDateController(ILogger<TitleController> logger, IWindowService windowService): Controller
 {
-    private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
+    private const string PageView = "~/Views/WindowAdmin/EndDate.cshtml";
 
-    [ActionName("Edit")]
-    [HttpGet("admin/windows/{id:guid}/start-date")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
-    {
-        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
-
-        if (window is null)
-        {
-            return NotFound();
-        }
-
-        WindowDateEditItem model = new WindowDateEditItem()
-        {
-            WindowId = window.Id,
-            DateValue = window.StartDate,
-            PostUrl = $"/admin/windows/{window.Id}/start-date"
-        };
-
-        return View(PageView, model);
-    }
-    
     [ActionName("New")]
-    [HttpGet("admin/windows/start-date")]
+    [HttpGet("admin/windows/end-date")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
@@ -47,13 +25,35 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
         {
             WindowId = Guid.Empty,
             DateValue = DateTime.UtcNow.AddMonths(1),
-            PostUrl =  $"/admin/windows/start-date"
+            PostUrl = "/admin/windows/end-date",
         };
 
         return View(PageView, model);
     }
     
-    [HttpPost("admin/windows/start-date")]
+    [ActionName("Edit")]
+    [HttpGet("admin/windows/{id:guid}/end-date")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    {
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
+
+        if (window is null)
+        {
+            return NotFound();
+        }
+
+        WindowDateEditItem model = new WindowDateEditItem()
+        {
+            WindowId = window.Id,
+            DateValue = window.StartDate,
+            PostUrl = $"/admin/windows/{window.Id}/end-date"
+        };
+
+        return View(PageView, model);
+    }
+    
+    [HttpPost("admin/windows/end-date")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(WindowDateEditItem model, CancellationToken cancellationToken)
     {
@@ -71,13 +71,14 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
             return View(PageView, model);
         }
 
-        draft.StartDate = model.DateValue;
+        draft.EndDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", "EndDate");
+        throw new NotImplementedException("Waiting on controller");
+        return RedirectToAction("Index", "Summary");
     }
 
-    [HttpPost("admin/windows/{id:guid}/start-date")]
+    [HttpPost("admin/windows/{id:guid}/end-date")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
     {
@@ -105,12 +106,13 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
     {
         if (model.DateValue < DateTime.UtcNow)
         {
-            ModelState.AddModelError(nameof(model.DateValue), "Start date can not occur in the past.");
+            ModelState.AddModelError(nameof(model.DateValue), "End date can not occur in the past.");
         }
 
-        if (windowDto != null && model.DateValue > windowDto.EndDate)
+        if (windowDto != null && model.DateValue < windowDto.StartDate)
         {
-            ModelState.AddModelError(nameof(model.DateValue), $"Start date can not occur after the end date ({windowDto.EndDate:dd MM yyyy}).");
+            ModelState.AddModelError(nameof(model.DateValue),
+                $"End date can not occur before the start date ({windowDto.EndDate:dd MM yyyy}).");
         }
     }
 }

@@ -52,7 +52,7 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
         
-        return RedirectToAction("NewWindow", "StartDate");
+        return RedirectToAction("New", "StartDate");
     }
 
     [HttpPost("admin/windows/{id:guid}/title")]
@@ -73,6 +73,6 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         window.Title = model.Title;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return Redirect($"/admin/windows/summary/{id}");
+        return RedirectToAction("Index", "Summary", id);
     }
 }

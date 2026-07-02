@@ -38,4 +38,19 @@ public class CheckingWindowDraft
     public string? Title { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public CheckingWindowType? CheckingWindowType { get; set; }
+
+    public bool IsValid
+    {
+        get
+        {
+            if (Title == null || !StartDate.HasValue || !EndDate.HasValue || !CheckingWindowType.HasValue)   
+                return false;
+            
+            if (StartDate < DateTime.UtcNow || EndDate < StartDate)
+                return false;
+
+            return true;
+        }
+    }
 }

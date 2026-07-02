@@ -67,9 +67,11 @@ public class WindowTitleEditItem
     public string Title { get; init; }
 }
 
-public class WindowStartDateEditItem
+public class WindowDateEditItem
 {
     public Guid WindowId { get; init; }
-    [Required(ErrorMessage = "Start date can not be empty")]
-    public DateTime StartDate { get; init; }
+    [Required(ErrorMessage = "Date can not be empty")]
+    public DateTime DateValue { get; init; }
+
+    public string PostUrl { get; init; } = string.Empty;
 }

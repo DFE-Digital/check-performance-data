@@ -1499,20 +1499,27 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
-/* Content-page breadcrumbs sit tight against the phase banner rather than the govuk-frontend
-   default's roomy top padding + margin. Also pin the containing govuk-main-wrapper's own
-   padding-top — that 40px is where the visible gap comes from, and no amount of breadcrumb
-   margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox 121+, Safari 15.4+)
-   so only content pages that carry the .cpb-breadcrumbs marker are affected. */
-main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 10px !important; }
+/* Content-page breadcrumbs sit tight against the phase banner. main-wrapper padding-top is
+   pinned near-zero because the govuk-frontend default reserves 40px above the breadcrumb — no
+   amount of breadcrumb margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox
+   121+, Safari 15.4+) so only pages that carry the .cpb-breadcrumbs marker are affected. */
+main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 .cpb-breadcrumbs {
     margin: 0 !important;
-    padding-top: 10px !important;
-    padding-bottom: 10px !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
 }
-/* Phase banner sits with a fat margin-bottom by default; tighten it right above the
-   breadcrumb so the two read as one continuous strip, matching the Figma design. */
+/* Phase banner default margin-bottom is fat; tighten it right above the breadcrumb so the
+   two read as one continuous strip, matching the Figma design. */
 .govuk-phase-banner { margin-bottom: 0 !important; padding-bottom: 10px !important; }
+
+/* Design has a real gap between breadcrumb and subtitle — the caption sits well down the
+   page. govuk-caption-l ships with margin-top: 0 by default, so add it here. */
+.cpb-subtitle { margin-top: 30px; }
+
+/* Extra breathing room between the H1 lockup and the first body element. govuk-heading-xl's
+   own margin-bottom is 48px which reads tight on this template; the Figma design has more. */
+.cpb-page-h1 { margin-bottom: 60px !important; }
 
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }

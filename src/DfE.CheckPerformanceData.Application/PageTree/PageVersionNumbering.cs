@@ -1,28 +1,30 @@
 namespace DfE.CheckPerformanceData.Application.PageTree;
 
 /// <summary>
-/// Derives human-readable version labels from a list of versions.
-/// Drafts (MinorVersion >= 1) display as "{major}.{minor:00}"; published versions (MinorVersion == 0)
-/// display as "{major}". Major is derived from publish order, not stored.
+/// Derives human-readable version labels from a list of versions. Whole-integer scheme —
+/// every version is displayed as a single integer, whether published or still a working draft.
+/// A draft is labelled with the integer it will become when published (the next major after the
+/// most recent live version), and that label does not change as the draft is edited.
 /// </summary>
 public static class PageVersionNumbering
 {
     /// <summary>
-    /// Returns the major number for a version within the given ordered list.
-    /// For a published version (Minor == 0): count of published versions with VersionId &lt;= own.
-    /// For a draft (Minor >= 1): count of published versions with VersionId &lt; own.
+    /// Returns the major number for a version within the given ordered list. Published versions
+    /// count as themselves (1st publish → 1, 2nd publish → 2, …). A draft takes the next major
+    /// after however many publishes existed at the time it was created — so a draft opened
+    /// against v2 is labelled "3".
     /// </summary>
-    public static int MajorFor(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v) =>
-        v.MinorVersion == 0
-            ? all.Count(x => x.MinorVersion == 0 && x.VersionId <= v.VersionId)
-            : all.Count(x => x.MinorVersion == 0 && x.VersionId < v.VersionId);
+    public static int MajorFor(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v)
+    {
+        var publishedUpToInclusive = all.Count(x => x.MinorVersion == 0 && x.VersionId <= v.VersionId);
+        return v.MinorVersion == 0
+            ? publishedUpToInclusive
+            : publishedUpToInclusive + 1;
+    }
 
     /// <summary>
-    /// Returns the display label: "{major}" for published versions, "{major}.{minor:00}" for drafts.
+    /// Returns the display label — always the major number as a plain integer.
     /// </summary>
-    public static string Label(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v)
-    {
-        var major = MajorFor(all, v);
-        return v.MinorVersion == 0 ? major.ToString() : $"{major}.{v.MinorVersion:00}";
-    }
+    public static string Label(IReadOnlyList<PageNodeVersionDto> all, PageNodeVersionDto v) =>
+        MajorFor(all, v).ToString();
 }

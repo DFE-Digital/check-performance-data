@@ -3,7 +3,9 @@ using DfE.CheckPerformanceData.Application.PageTree;
 namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 
 // Pure unit tests for PageVersionNumbering label derivation.
-// No DB, no Razor — just list manipulation.
+// Whole-integer scheme: every version — draft or published — is labelled with a single
+// integer. A draft is labelled with the integer it will become on publish (next major
+// after the most recent live version), and that label does not shift as the draft is saved.
 public sealed class PageVersionNumberingTests
 {
     private static PageNodeVersionDto Draft(int versionId, int minor) => new()
@@ -30,58 +32,68 @@ public sealed class PageVersionNumberingTests
         UpdatedDate = DateTime.UtcNow
     };
 
-    // One draft (VersionId=1, Minor=1), nothing published → label "0.01"
+    // The first draft on a brand-new page (nothing published yet) is "1" — it will
+    // publish as version 1.
     [Fact]
-    public void Label_OneDraft_NothingPublished_Returns_0_01()
+    public void Label_FirstDraft_NothingPublished_Is_1()
     {
         var v = Draft(1, 1);
         var all = new[] { v };
 
-        var label = PageVersionNumbering.Label(all, v);
-
-        Assert.Equal("0.01", label);
+        Assert.Equal("1", PageVersionNumbering.Label(all, v));
     }
 
-    // After publish (VersionId=1, Minor=0) → label "1"
     [Fact]
-    public void Label_SinglePublishedVersion_Returns_1()
+    public void Label_SinglePublishedVersion_Is_1()
     {
         var v = Published(1);
         var all = new[] { v };
 
-        var label = PageVersionNumbering.Label(all, v);
-
-        Assert.Equal("1", label);
+        Assert.Equal("1", PageVersionNumbering.Label(all, v));
     }
 
-    // published v1 (Minor=0) + draft v2 (Minor=2) → v1="1", v2="1.02"
+    // Draft opened after v1 is published → "2".
     [Fact]
-    public void Label_PublishedV1_PlusDraftV2_Minor2()
+    public void Label_PublishedV1_PlusDraftV2_DraftIs_2()
     {
         var v1 = Published(1);
         var v2 = Draft(2, 2);
-        var all = new[] { v2, v1 }; // newest first
+        var all = new[] { v2, v1 };
 
         Assert.Equal("1", PageVersionNumbering.Label(all, v1));
-        Assert.Equal("1.02", PageVersionNumbering.Label(all, v2));
+        Assert.Equal("2", PageVersionNumbering.Label(all, v2));
     }
 
-    // published v1 (Minor=0) + published v2 (Minor=0) + draft v3 (Minor=1)
-    // → v1="1", v2="2", v3="2.01"
+    // Two publishes + a draft on top → drafts labelled "3", published still "1" and "2".
     [Fact]
-    public void Label_TwoPublished_PlusDraftV3_Minor1()
+    public void Label_TwoPublished_PlusDraft_DraftIs_3()
     {
         var v1 = Published(1);
         var v2 = Published(2);
         var v3 = Draft(3, 1);
-        var all = new[] { v3, v2, v1 }; // newest first
+        var all = new[] { v3, v2, v1 };
 
         Assert.Equal("1", PageVersionNumbering.Label(all, v1));
         Assert.Equal("2", PageVersionNumbering.Label(all, v2));
-        Assert.Equal("2.01", PageVersionNumbering.Label(all, v3));
+        Assert.Equal("3", PageVersionNumbering.Label(all, v3));
     }
 
-    // MajorFor: integer version counts itself in its own rank
+    // The draft's label is stable — it does not shift as the editor saves it again
+    // (which bumps MinorVersion in storage).
+    [Fact]
+    public void Label_DraftLabel_DoesNotShift_WhenMinorIncrements()
+    {
+        var v1 = Published(1);
+        var drafted = Draft(2, 1);
+        var draftedAgain = Draft(2, 7);
+
+        var all1 = new[] { drafted, v1 };
+        var all2 = new[] { draftedAgain, v1 };
+
+        Assert.Equal("2", PageVersionNumbering.Label(all1, drafted));
+        Assert.Equal("2", PageVersionNumbering.Label(all2, draftedAgain));
+    }
+
     [Fact]
     public void MajorFor_PublishedVersion_CountsItself()
     {
@@ -91,28 +103,15 @@ public sealed class PageVersionNumberingTests
         Assert.Equal(1, PageVersionNumbering.MajorFor(all, v));
     }
 
-    // MajorFor: draft version counts published versions with VersionId < own
+    // A draft opened after two publishes → major = 3 (next integer).
     [Fact]
-    public void MajorFor_DraftVersion_CountsPublishedBeforeIt()
+    public void MajorFor_DraftAfterTwoPublishes_IsNextInteger()
     {
         var v1 = Published(1);
         var v2 = Published(3);
         var v3 = Draft(5, 1);
         var all = new[] { v3, v2, v1 };
 
-        // Two published versions (1 and 3) both have VersionId < 5 → major = 2
-        Assert.Equal(2, PageVersionNumbering.MajorFor(all, v3));
-    }
-
-    // Two-digit minor is zero-padded to exactly 2 digits
-    [Fact]
-    public void Label_DraftWithMinor10_PadsTwoDigits()
-    {
-        var v1 = Published(1);
-        var v2 = Draft(2, 10);
-        var all = new[] { v2, v1 };
-
-        // major=1, minor=10 → "1.10"
-        Assert.Equal("1.10", PageVersionNumbering.Label(all, v2));
+        Assert.Equal(3, PageVersionNumbering.MajorFor(all, v3));
     }
 }

@@ -37,7 +37,7 @@ public sealed class ContentPageEditorDndViewSourceTests
     public void EditColumn_ColumnWrapper_HasDataColumnPathAttribute()
     {
         var src = ReadShared("_EditColumn.cshtml");
-        Assert.Contains("data-column-path=\"@addPath\"", src);
+        Assert.Contains("data-column-path=\"@appendPath\"", src);
     }
 
     [Fact]

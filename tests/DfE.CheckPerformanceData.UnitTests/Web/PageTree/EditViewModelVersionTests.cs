@@ -35,20 +35,18 @@ public sealed class EditViewModelVersionTests
 
     // ── ContentPageEditViewModel ──────────────────────────────────────────────
 
-    // live v2 + working-draft v3 (Minor=2) → Published="1", Draft="1.02"
+    // live v2 + working-draft v3 → Published="1", Draft="2" (the draft will publish as v2).
     [Fact]
     public void ContentVm_LivePlusWorkingDraft_ReturnsCorrectLabels()
     {
         var vm = MakeContentVm([WorkingDraft(3), Live(2)]);
-        // v2 is the only published (Minor=0) version → major=1 → "1"
-        // v3 is draft (Minor=2), published count before v3 = 1 → "1.02"
         Assert.Equal("1", vm.PublishedVersionLabel);
-        Assert.Equal("1.02", vm.DraftVersionLabel);
+        Assert.Equal("2", vm.DraftVersionLabel);
     }
 
-    // only v1 with Minor=1 → Published=null, Draft="0.01"
+    // First-ever draft on a brand-new page → Published=null, Draft="1".
     [Fact]
-    public void ContentVm_OnlyWorkingDraft_PublishedIsNull_DraftIs_0_01()
+    public void ContentVm_OnlyWorkingDraft_PublishedIsNull_DraftIs_1()
     {
         var vm = MakeContentVm([new PageNodeVersionDto
         {
@@ -56,7 +54,7 @@ public sealed class EditViewModelVersionTests
             PublishFrom = null, Content = string.Empty
         }]);
         Assert.Null(vm.PublishedVersionLabel);
-        Assert.Equal("0.01", vm.DraftVersionLabel);
+        Assert.Equal("1", vm.DraftVersionLabel);
     }
 
     // only v1 scheduled (Minor=0) → Published=null, Draft surfaced as latest → label "1"
@@ -93,11 +91,11 @@ public sealed class EditViewModelVersionTests
     {
         var vm = MakeWikiVm([WorkingDraft(3), Live(2)]);
         Assert.Equal("1", vm.PublishedVersionLabel);
-        Assert.Equal("1.02", vm.DraftVersionLabel);
+        Assert.Equal("2", vm.DraftVersionLabel);
     }
 
     [Fact]
-    public void WikiVm_OnlyWorkingDraft_PublishedIsNull_DraftIs_0_01()
+    public void WikiVm_OnlyWorkingDraft_PublishedIsNull_DraftIs_1()
     {
         var vm = MakeWikiVm([new PageNodeVersionDto
         {
@@ -105,7 +103,7 @@ public sealed class EditViewModelVersionTests
             PublishFrom = null, Content = string.Empty
         }]);
         Assert.Null(vm.PublishedVersionLabel);
-        Assert.Equal("0.01", vm.DraftVersionLabel);
+        Assert.Equal("1", vm.DraftVersionLabel);
     }
 
     [Fact]

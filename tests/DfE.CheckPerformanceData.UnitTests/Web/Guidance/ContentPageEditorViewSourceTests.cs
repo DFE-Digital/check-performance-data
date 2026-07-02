@@ -45,9 +45,11 @@ public sealed class ContentPageEditorViewSourceTests
     }
 
     [Fact]
-    public void EditColumn_UsesActionBase_ForAddFormActions()
+    public void AddHere_UsesActionBase_ForAddFormActions()
     {
-        var src = ReadShared("_EditColumn.cshtml");
+        // The add-forms moved out of _EditColumn.cshtml into the shared _AddHere.cshtml partial
+        // so the same add UI can be rendered below every node without duplicating markup.
+        var src = ReadShared("_AddHere.cshtml");
         Assert.Contains("action=\"@Model.ActionBase/add\"", src);
     }
 

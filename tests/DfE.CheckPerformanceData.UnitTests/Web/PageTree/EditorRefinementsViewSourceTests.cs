@@ -86,13 +86,15 @@ public sealed class EditorRefinementsViewSourceTests
     }
 
     [Fact]
-    public void EditColumn_AddSection_RegionFormAppearsBeforeWidgetForm()
+    public void AddHere_RegionFormAppearsBeforeWidgetForm()
     {
-        var src = ReadSharedContentPages("_EditColumn.cshtml");
+        // The add-forms now live in _AddHere.cshtml. Region form must still appear before the
+        // widget form so the "add region" option is not buried under "add widget".
+        var src = ReadSharedContentPages("_AddHere.cshtml");
         var regionIdx = src.IndexOf("regionLayout", StringComparison.Ordinal);
         var widgetIdx = src.IndexOf("widgetType", StringComparison.Ordinal);
-        Assert.True(regionIdx >= 0, "Expected regionLayout select in _EditColumn.cshtml");
-        Assert.True(widgetIdx >= 0, "Expected widgetType select in _EditColumn.cshtml");
+        Assert.True(regionIdx >= 0, "Expected regionLayout select in _AddHere.cshtml");
+        Assert.True(widgetIdx >= 0, "Expected widgetType select in _AddHere.cshtml");
         Assert.True(regionIdx < widgetIdx, "Add-region form (regionLayout) must appear before Add-widget form (widgetType)");
     }
 

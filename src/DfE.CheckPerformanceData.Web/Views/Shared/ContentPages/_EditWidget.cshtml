@@ -41,7 +41,7 @@
                             <div class="govuk-form-group">
                                 <label class="govuk-label" for="lvl-@Model.Path">Level</label>
                                 <select class="govuk-select" id="lvl-@Model.Path" name="props[level]">
-                                    @foreach (var lvl in new[] { 2, 3, 4 })
+                                    @foreach (var lvl in new[] { 1, 2, 3, 4, 5, 6 })
                                     {
                                         <option value="@lvl" selected="@(w.GetInt("level") == lvl ? "selected" : null)">Heading @lvl</option>
                                     }

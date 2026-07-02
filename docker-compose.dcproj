@@ -4,9 +4,17 @@
     <ProjectVersion>2.1</ProjectVersion>
     <DockerTargetOS>Linux</DockerTargetOS>
     <ProjectGuid>{27230172-3FEF-45ED-ABFF-6C0E3F276D34}</ProjectGuid>
+    <!-- Name the compose stack so VS and the CLI group containers under the same
+         project name (matches `name:` in docker-compose.yaml). -->
+    <DockerComposeProjectName>check_performance_data</DockerComposeProjectName>
     <DockerLaunchBrowser>True</DockerLaunchBrowser>
     <DockerServiceUrl>{Scheme}://localhost:{ServicePort}</DockerServiceUrl>
-    <DockerServiceName>check-performance-data</DockerServiceName>
+    <DockerServiceName>web</DockerServiceName>
+    <!-- The e2e-tests compose service builds the E2ETests project but only runs
+         under the 'e2e' compose profile (it's a one-shot test runner, not a
+         debuggable service). Ignore it so VS doesn't hunt for a container the
+         'all' profile never starts. -->
+    <DockerComposeProjectsToIgnore>tests\DfE.CheckPerformanceData.E2ETests\DfE.CheckPerformanceData.E2ETests.csproj</DockerComposeProjectsToIgnore>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.yaml" />

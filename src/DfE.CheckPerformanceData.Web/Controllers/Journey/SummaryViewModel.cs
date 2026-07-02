@@ -48,8 +48,7 @@ public sealed class SummaryRow(JourneyPage page, Question question, QuestionAnsw
 
     public string DisplayAnswer => Question.Type switch
     {
-        QuestionType.Date when Answer?.DateValue is { } d =>
-            $"{d.Day} {new DateTime(d.Year, d.Month, d.Day):MMMM yyyy}",
+        QuestionType.Date when Answer?.DateValue is { } d => d.ToDisplayString(),
         QuestionType.Radio when Answer?.TextValue is { } v =>
             Question.Options?.FirstOrDefault(o => o.Value == v)?.Label ?? v,
         _ => Answer?.TextValue ?? string.Empty

@@ -235,6 +235,10 @@ test-e2e: ## Run full E2E suite inside the Linux Playwright container; auto-boot
 test-e2e-fast: ## Run E2E suite natively on host SDK, skipping visual regression (fast TDD inner loop)
 	dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
 
+.PHONY: dev-deps
+dev-deps: ## Start local dependency containers (Postgres + Azurite) for VS in-container debugging
+	docker compose up -d db azurite
+
 .PHONY: clean-test-bin
 clean-test-bin: ## Remove cross-OS bin/obj pollution from the E2ETests project (run between native and container test runs)
 	rm -rf tests/DfE.CheckPerformanceData.E2ETests/bin tests/DfE.CheckPerformanceData.E2ETests/obj

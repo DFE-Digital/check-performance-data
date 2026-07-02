@@ -4,11 +4,12 @@
 @{
     var addPath = TreePath.Format(Model.AppendPath());
 }
+<div data-column-path="@addPath">
 @for (var i = 0; i < Model.Nodes.Count; i++)
 {
     var node = Model.Nodes[i];
     var path = TreePath.Format(Model.PathOf(i));
-    <div class="cpb-node">
+    <div class="cpb-node" data-node-path="@path">
         <div class="cpb-toolbar">
             <form method="post" action="@Model.ActionBase/move" class="cpb-inline">
                 @Html.AntiForgeryToken()
@@ -37,7 +38,7 @@
         {
             var classes = RegionLayoutGrid.ColumnClasses(region.Layout);
             <div class="cpb-region">
-                <span class="govuk-caption-m">Region — @region.Layout</span>
+                <span class="govuk-caption-m cpb-drag-handle" draggable="true" title="Drag to reorder">Region — @region.Layout</span>
                 <div class="govuk-grid-row">
                     @for (var c = 0; c < region.Columns.Count; c++)
                     {
@@ -88,3 +89,4 @@
         </form>
     </div>
 </details>
+</div>

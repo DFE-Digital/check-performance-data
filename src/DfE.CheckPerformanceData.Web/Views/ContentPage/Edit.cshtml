@@ -16,9 +16,12 @@
     .cpb-btn { margin-bottom: 0; }
     .cpb-preview { background: #f3f2f1; padding: 8px 12px; }
     .cpb-add { margin-top: 4px; }
+    .cpb-drag-handle { cursor: move; user-select: none; }
+    .cpb-dragging { opacity: 0.5; }
+    .cpb-drop-target { outline: 2px dashed #1d70b8; outline-offset: 2px; }
 </style>
 
-<div class="govuk-grid-row">
+<div class="govuk-grid-row" data-cpb-node-id="@Model.NodeId">
     <div class="govuk-grid-column-full">
         <span class="govuk-caption-l">Content page editor</span>
         <h1 class="govuk-heading-l">@Model.Title</h1>
@@ -174,3 +177,4 @@
         document.addEventListener('submit', function () { tinymce.triggerSave(); }, true);
     })();
 </script>
+<script src="~/js/content-editor-dnd.js"></script>

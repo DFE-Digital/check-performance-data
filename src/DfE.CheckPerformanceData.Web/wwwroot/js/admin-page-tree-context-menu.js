@@ -113,11 +113,15 @@
     }
 
     function buildMenuForRoot() {
-        addItem('New child page', 'add', function () { navigate('/admin/pages/new'); });
+        addItem('New child page', 'add', function () {
+            window.open('/admin/pages/new', '_blank', 'noopener');
+        });
     }
 
     function buildMenuForPage(pageId, pagePath) {
-        addItem('New child page', 'add', function () { navigate('/admin/pages/new?parentId=' + pageId); });
+        addItem('New child page', 'add', function () {
+            window.open('/admin/pages/new?parentId=' + pageId, '_blank', 'noopener');
+        });
         addItem('Edit', 'edit', function () {
             window.open('/admin/pages/' + pageId + '/edit', '_blank', 'noopener');
         });

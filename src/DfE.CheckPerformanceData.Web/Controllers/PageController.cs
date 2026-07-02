@@ -28,7 +28,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         {
             return result.Node.PageType switch
             {
-                "content" => BuildContentView(result),
+                "content" => await BuildContentViewAsync(result),
                 "wiki"    => await BuildWikiViewAsync(result),
                 _         => NotFound()
             };
@@ -44,6 +44,26 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             "wiki"    => await BuildPreviewWikiViewAsync(node),
             _         => NotFound()
         };
+    }
+
+    // Ancestor chain from root down to the immediate parent, as breadcrumb items. Leaves the
+    // current page off so the view can render it as the trailing plain-text crumb.
+    private async Task<IReadOnlyList<BreadcrumbItem>> BuildBreadcrumbAsync(PageNodeDto node)
+    {
+        if (node.ParentId is null) return [];
+        var tree = await pageNodes.GetTreeAsync() ?? [];
+        var byId = tree.ToDictionary(n => n.Id);
+
+        var chain = new List<BreadcrumbItem>();
+        var cursor = node.ParentId;
+        var depth = 0;
+        while (cursor is Guid id && byId.TryGetValue(id, out var ancestor) && depth < 10)
+        {
+            chain.Insert(0, new BreadcrumbItem(ancestor.Title, "/" + ancestor.Path));
+            cursor = ancestor.ParentId;
+            depth++;
+        }
+        return chain;
     }
 
     // Builds a child index for a folder node: direct children ordered by SortOrder,
@@ -67,15 +87,16 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
     }
 
     // Deserialises the content tree and builds the in-page heading nav.
-    private IActionResult BuildContentView(LivePageResult result)
+    private async Task<IActionResult> BuildContentViewAsync(LivePageResult result)
     {
         var tree = ContentPageJson.Deserialize(result.Version.Content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
-            Title    = result.Node.Title,
-            PageType = "content",
-            Content  = tree,
-            Nav      = ContentNavBuilder.Build(tree)
+            Title      = result.Node.Title,
+            PageType   = "content",
+            Content    = tree,
+            Nav        = ContentNavBuilder.Build(tree),
+            Breadcrumb = await BuildBreadcrumbAsync(result.Node)
         });
     }
 
@@ -106,11 +127,12 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         var tree = ContentPageJson.Deserialize(content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
-            Title     = node.Title,
-            PageType  = "content",
-            Content   = tree,
-            Nav       = ContentNavBuilder.Build(tree),
-            IsPreview = true
+            Title      = node.Title,
+            PageType   = "content",
+            Content    = tree,
+            Nav        = ContentNavBuilder.Build(tree),
+            Breadcrumb = await BuildBreadcrumbAsync(node),
+            IsPreview  = true
         });
     }
 

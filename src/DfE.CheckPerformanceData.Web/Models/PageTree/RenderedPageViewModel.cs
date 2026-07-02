@@ -13,4 +13,13 @@ public sealed class RenderedPageViewModel
     public IReadOnlyList<ContentNavItem>? Nav { get; init; }
     public string? WikiHtml { get; init; }
     public bool IsPreview { get; init; }
+
+    /// <summary>
+    /// GDS breadcrumb items from Home down to the current page's immediate parent, in root-first
+    /// order. The current page's title is rendered as the trailing plain-text crumb by the view.
+    /// Empty for root nodes; a "Home" crumb pointing at "/" is prepended by the view.
+    /// </summary>
+    public IReadOnlyList<BreadcrumbItem> Breadcrumb { get; init; } = [];
 }
+
+public sealed record BreadcrumbItem(string Title, string Href);

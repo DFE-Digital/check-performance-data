@@ -8,12 +8,12 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.ContentPages;
 public class WidgetRegistryTests
 {
     [Fact]
-    public void All_ListsTheSixShipNowWidgets()
+    public void All_ListsTheShippedWidgets()
     {
         var types = WidgetRegistry.All.Select(w => w.Type).ToList();
 
         Assert.Equal(
-            ["heading", "richtext", "divider", "card", "summarylist", "published"],
+            ["heading", "richtext", "divider", "card", "summarylist", "published", "search"],
             types);
     }
 
@@ -24,6 +24,7 @@ public class WidgetRegistryTests
     [InlineData("card")]
     [InlineData("summarylist")]
     [InlineData("published")]
+    [InlineData("search")]
     public void IsKnown_IsTrue_ForEveryRegisteredType(string type) =>
         Assert.True(WidgetRegistry.IsKnown(type));
 

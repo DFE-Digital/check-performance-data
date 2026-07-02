@@ -8,5 +8,6 @@ public sealed class PageNodeDto
     public required string Path { get; init; }
     public int SortOrder { get; init; }
     public required string Title { get; init; }
+    public string? Subtitle { get; init; }
     public required string PageType { get; init; }
 }

@@ -12,6 +12,10 @@ public sealed record PageNodeBundleItem
     public Guid? ParentId { get; init; }
     public string Segment { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
+
+    /// <summary>Optional lede rendered above the page H1. Null when unset.</summary>
+    public string? Subtitle { get; init; }
+
     public string PageType { get; init; } = "folder";
     public int SortOrder { get; init; }
     public List<PageNodeVersionBundleItem> Versions { get; init; } = [];

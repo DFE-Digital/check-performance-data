@@ -54,6 +54,14 @@
                     <input class="govuk-input" id="cpb-title" name="title" value="@Model.Title" />
                 </div>
                 <div class="govuk-form-group">
+                    <label class="govuk-label govuk-label--s" for="cpb-subtitle">Subtitle</label>
+                    <div id="cpb-subtitle-hint" class="govuk-hint">
+                        Optional lede displayed above the page heading. Leave blank to hide it.
+                    </div>
+                    <input class="govuk-input" id="cpb-subtitle" name="subtitle" value="@Model.Subtitle"
+                           aria-describedby="cpb-subtitle-hint" />
+                </div>
+                <div class="govuk-form-group">
                     <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
                     <div id="cpb-segment-hint" class="govuk-hint">
                         Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
@@ -81,6 +89,7 @@
                                  form-method="post">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
+                <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
                 <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
             </govuk-confirm-modal>
         }
@@ -246,10 +255,12 @@
         var dialog = document.getElementById('cpb-rename-confirm');
         if (!form || !dialog) return;
 
-        var segmentInput = form.querySelector('input[name="segment"]');
-        var titleInput = form.querySelector('input[name="title"]');
-        var modalTitleHidden = document.getElementById('cpb-rename-modal-title');
-        var modalSegmentHidden = document.getElementById('cpb-rename-modal-segment');
+        var segmentInput  = form.querySelector('input[name="segment"]');
+        var titleInput    = form.querySelector('input[name="title"]');
+        var subtitleInput = form.querySelector('input[name="subtitle"]');
+        var modalTitleHidden    = document.getElementById('cpb-rename-modal-title');
+        var modalSubtitleHidden = document.getElementById('cpb-rename-modal-subtitle');
+        var modalSegmentHidden  = document.getElementById('cpb-rename-modal-segment');
         var originalSegment = form.getAttribute('data-original-segment') || '';
 
         form.addEventListener('submit', function (e) {
@@ -257,8 +268,9 @@
             if (current === originalSegment) return;  // no URL change → submit as normal
 
             e.preventDefault();
-            if (modalTitleHidden)   modalTitleHidden.value   = titleInput ? titleInput.value : '';
-            if (modalSegmentHidden) modalSegmentHidden.value = current;
+            if (modalTitleHidden)    modalTitleHidden.value    = titleInput    ? titleInput.value    : '';
+            if (modalSubtitleHidden) modalSubtitleHidden.value = subtitleInput ? subtitleInput.value : '';
+            if (modalSegmentHidden)  modalSegmentHidden.value  = current;
 
             if (typeof dialog.showModal === 'function') {
                 dialog.showModal();

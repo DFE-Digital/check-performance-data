@@ -36,6 +36,7 @@ public sealed class ContentStagingService(
                 ParentId = node.ParentId,
                 Segment = node.Segment,
                 Title = node.Title,
+                Subtitle = node.Subtitle,
                 PageType = node.PageType,
                 SortOrder = node.SortOrder,
                 Versions = versions
@@ -186,7 +187,7 @@ public sealed class ContentStagingService(
                 else
                 {
                     await pageNodeRepository.UpdateNodeForStagingAsync(
-                        page.Id, page.Segment, path, page.Title, page.SortOrder, userId: null);
+                        page.Id, page.Segment, path, page.Title, page.Subtitle, page.SortOrder, userId: null);
                     if (page.PageType != "folder")
                         await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                             page.Id, MapVersions(page.Versions), userId: null);
@@ -198,7 +199,7 @@ public sealed class ContentStagingService(
 
             // New identity. Create the node with its explicit Id, then replay versions.
             var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                page.Id, page.ParentId, page.Segment, path, page.Title, page.PageType, page.SortOrder, userId: null);
+                page.Id, page.ParentId, page.Segment, path, page.Title, page.Subtitle, page.PageType, page.SortOrder, userId: null);
             if (page.PageType != "folder")
                 await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                     created.Id, MapVersions(page.Versions), userId: null);

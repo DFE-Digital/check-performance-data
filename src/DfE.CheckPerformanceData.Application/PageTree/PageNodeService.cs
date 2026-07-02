@@ -155,7 +155,7 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     }
 
     public async Task<RenameNodeResult> RenameNodeAsync(
-        Guid id, string newSegment, string newTitle, string? userId)
+        Guid id, string newSegment, string newTitle, string? newSubtitle, string? userId)
     {
         newSegment ??= string.Empty;
         newTitle ??= string.Empty;
@@ -168,7 +168,7 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
 
         var newPath = await ComputePathAsync(node.ParentId, newSegment);
 
-        // No-op path change: title only. Still allow the write so title updates persist.
+        // No-op path change: title/subtitle only. Still allow the write so those updates persist.
         if (!string.Equals(newPath, node.Path, StringComparison.Ordinal))
         {
             var occupant = await repository.GetByPathAsync(newPath);
@@ -176,7 +176,10 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
                 return RenameNodeResult.PathConflict;
         }
 
-        await repository.RenameNodeAndCascadeAsync(id, newSegment, newPath, newTitle, userId);
+        // Treat an empty subtitle as "clear" (persist as null) so an editor can remove a subtitle.
+        var subtitle = string.IsNullOrWhiteSpace(newSubtitle) ? null : newSubtitle;
+
+        await repository.RenameNodeAndCascadeAsync(id, newSegment, newPath, newTitle, subtitle, userId);
         return RenameNodeResult.Ok;
     }
 

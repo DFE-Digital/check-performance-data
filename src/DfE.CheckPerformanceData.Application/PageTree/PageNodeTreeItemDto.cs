@@ -9,6 +9,7 @@ public sealed class PageNodeTreeItemDto
     public required string Path { get; init; }
     public int SortOrder { get; init; }
     public required string Title { get; init; }
+    public string? Subtitle { get; init; }
     public required string PageType { get; init; }
     public bool HasLiveVersion { get; init; }
     /// <summary>Used as a secondary sort key when SortOrder values are equal (e.g. legacy data all-zero).</summary>

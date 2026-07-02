@@ -13,6 +13,7 @@ internal sealed class PageNodeConfiguration : IEntityTypeConfiguration<PageNode>
         builder.Property(n => n.Segment).IsRequired().HasMaxLength(256);
         builder.Property(n => n.Path).IsRequired().HasMaxLength(2048);
         builder.Property(n => n.Title).IsRequired();
+        builder.Property(n => n.Subtitle).HasMaxLength(1024);
         builder.Property(n => n.PageType).IsRequired().HasMaxLength(32);
 
         builder.HasIndex(n => n.Path).IsUnique().HasFilter("\"DeletedDate\" IS NULL");

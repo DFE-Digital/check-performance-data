@@ -64,7 +64,7 @@ public interface IPageNodeRepository
     /// rewritten in the same transaction, so the descendant URLs stay valid.
     /// </summary>
     Task RenameNodeAndCascadeAsync(
-        Guid id, string newSegment, string newPath, string newTitle, string? userId);
+        Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? userId);
 
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
@@ -80,16 +80,16 @@ public interface IPageNodeRepository
     /// </summary>
     Task<PageNodeDto> CreateNodeForStagingAsync(
         Guid id, Guid? parentId, string segment, string path,
-        string title, string pageType, int sortOrder, string? userId);
+        string title, string? subtitle, string pageType, int sortOrder, string? userId);
 
     /// <summary>
-    /// Updates an existing node's mutable header fields (segment, title, path, sortOrder). Used on
-    /// import when a node with the bundle's Id already exists and the collision decision is
+    /// Updates an existing node's mutable header fields (segment, title, subtitle, path, sortOrder).
+    /// Used on import when a node with the bundle's Id already exists and the collision decision is
     /// Overwrite. Does not touch versions — those are handled by
     /// <see cref="ReplaceAllVersionsForStagingAsync"/>.
     /// </summary>
     Task UpdateNodeForStagingAsync(
-        Guid id, string segment, string path, string title, int sortOrder, string? userId);
+        Guid id, string segment, string path, string title, string? subtitle, int sortOrder, string? userId);
 
     /// <summary>
     /// Replaces every version on <paramref name="nodeId"/> with the supplied bundle versions.

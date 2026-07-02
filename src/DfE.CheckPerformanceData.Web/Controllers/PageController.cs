@@ -93,6 +93,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         return View("Content", new RenderedPageViewModel
         {
             Title      = result.Node.Title,
+            Subtitle   = result.Node.Subtitle,
             PageType   = "content",
             Content    = tree,
             Nav        = ContentNavBuilder.Build(tree),
@@ -128,6 +129,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         return View("Content", new RenderedPageViewModel
         {
             Title      = node.Title,
+            Subtitle   = node.Subtitle,
             PageType   = "content",
             Content    = tree,
             Nav        = ContentNavBuilder.Build(tree),

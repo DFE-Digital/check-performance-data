@@ -22,6 +22,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 SortOrder = n.SortOrder,
                 CreatedDate = n.CreatedDate,
                 Title = n.Title,
+                Subtitle = n.Subtitle,
                 PageType = n.PageType,
                 HasLiveVersion = n.Versions.Any(v => v.IsCurrent)
             })
@@ -225,7 +226,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         context.ExecuteInTransactionAsync(work);
 
     public async Task RenameNodeAndCascadeAsync(
-        Guid id, string newSegment, string newPath, string newTitle, string? userId)
+        Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? userId)
     {
         await context.ExecuteInTransactionAsync(async () =>
         {
@@ -238,6 +239,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             node.Segment = newSegment;
             node.Path = newPath;
             node.Title = newTitle;
+            node.Subtitle = newSubtitle;
             node.UpdatedDate = now;
             node.UpdatedBy = userId;
 
@@ -276,7 +278,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
 
     public async Task<PageNodeDto> CreateNodeForStagingAsync(
         Guid id, Guid? parentId, string segment, string path,
-        string title, string pageType, int sortOrder, string? userId)
+        string title, string? subtitle, string pageType, int sortOrder, string? userId)
     {
         var now = DateTime.UtcNow;
         var entity = new PageNode
@@ -287,6 +289,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Path = path,
             SortOrder = sortOrder,
             Title = title,
+            Subtitle = subtitle,
             PageType = pageType,
             CreatedDate = now,
             UpdatedDate = now,
@@ -299,7 +302,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     }
 
     public async Task UpdateNodeForStagingAsync(
-        Guid id, string segment, string path, string title, int sortOrder, string? userId)
+        Guid id, string segment, string path, string title, string? subtitle, int sortOrder, string? userId)
     {
         var entity = await context.PageNodes.FindAsync(id)
             ?? throw new InvalidOperationException($"Page node {id} not found.");
@@ -307,6 +310,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.Segment = segment;
         entity.Path = path;
         entity.Title = title;
+        entity.Subtitle = subtitle;
         entity.SortOrder = sortOrder;
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
@@ -359,6 +363,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Path = n.Path,
             SortOrder = n.SortOrder,
             Title = n.Title,
+            Subtitle = n.Subtitle,
             PageType = n.PageType
         };
 
@@ -387,6 +392,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         Path = n.Path,
         SortOrder = n.SortOrder,
         Title = n.Title,
+        Subtitle = n.Subtitle,
         PageType = n.PageType
     };
 }

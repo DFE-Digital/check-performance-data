@@ -8,6 +8,7 @@ namespace DfE.CheckPerformanceData.Web.Models.PageTree;
 public sealed class RenderedPageViewModel
 {
     public required string Title { get; init; }
+    public string? Subtitle { get; init; }
     public required string PageType { get; init; }
     public IReadOnlyList<ContentNode>? Content { get; init; }
     public IReadOnlyList<ContentNavItem>? Nav { get; init; }

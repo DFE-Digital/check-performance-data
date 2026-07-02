@@ -10,6 +10,11 @@ public sealed class PageNode
     public string Path { get; set; } = string.Empty;
     public int SortOrder { get; set; }
     public string Title { get; set; } = string.Empty;
+
+    // Optional lede rendered above the page's H1 (design calls it a "subtitle"). Never used for
+    // routing, search or nav — purely a display string on the rendered page.
+    public string? Subtitle { get; set; }
+
     public string PageType { get; set; } = "folder"; // content | wiki | folder
     public DateTime CreatedDate { get; set; }
     public string? CreatedBy { get; set; }

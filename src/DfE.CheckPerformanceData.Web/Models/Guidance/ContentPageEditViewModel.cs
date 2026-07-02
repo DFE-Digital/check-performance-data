@@ -17,6 +17,9 @@ public sealed class ContentPageEditViewModel
 
     /// <summary>The node's URL segment (last path piece). Editable in the node-tree editor.</summary>
     public string Segment { get; init; } = string.Empty;
+
+    /// <summary>Optional lede rendered above the page H1. Null when unset.</summary>
+    public string? Subtitle { get; init; }
     public string Layout { get; init; } = string.Empty;
     public required IReadOnlyList<ContentNode> Content { get; init; }
 

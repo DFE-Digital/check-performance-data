@@ -69,6 +69,9 @@ public sealed class GuidanceContentCopyService
             result.Created.Add(path);
         }
 
+        // Anchorize headings so the content page's auto side-nav (ContentNavBuilder) has targets —
+        // the normal editor does this in PageNodeContentEditor.MutateAsync; the copy path must too.
+        HeadingAnchorizer.Apply(tree);
         var json = ContentPageJson.Serialize(tree);
         await _pageNodes.SaveWorkingContentAsync(nodeId, json, "", userId);
         await _pageNodes.PublishDraftAsync(nodeId, userId);

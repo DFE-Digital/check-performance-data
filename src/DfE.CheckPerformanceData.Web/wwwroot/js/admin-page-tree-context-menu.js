@@ -81,7 +81,9 @@
 
     function buildMenuForPage(pageId, pagePath) {
         addItem('New child page', function () { navigate('/admin/pages/new?parentId=' + pageId); });
-        addItem('Edit', function () { navigate('/admin/pages/' + pageId + '/edit'); });
+        addItem('Edit', function () {
+            window.open('/admin/pages/' + pageId + '/edit', '_blank', 'noopener');
+        });
         addItem('Versions', function () { navigate('/admin/pages/' + pageId + '/edit#version-history'); });
         addItem('Move up', function () { postMove(pageId, 'up'); });
         addItem('Move down', function () { postMove(pageId, 'down'); });

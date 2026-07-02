@@ -19,6 +19,7 @@ else
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Version</th>
+                <th scope="col" class="govuk-table__header">Modified by</th>
                 <th scope="col" class="govuk-table__header">Status</th>
                 <th scope="col" class="govuk-table__header">Publish from</th>
                 <th scope="col" class="govuk-table__header">Publish to</th>
@@ -32,6 +33,7 @@ else
                 var st = PageVersionStatus.Of(v.IsCurrent, v.PublishFrom, now);
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
+                    <td class="govuk-table__cell">@(v.UpdatedBy ?? "—")</td>
                     <td class="govuk-table__cell">
                         <strong class="govuk-tag @st.TagClass">@st.Label</strong>
                     </td>

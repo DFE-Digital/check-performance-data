@@ -250,7 +250,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Content = v.Content,
             CreatedDate = v.CreatedDate,
             CreatedBy = v.CreatedBy,
-            UpdatedDate = v.UpdatedDate
+            UpdatedDate = v.UpdatedDate,
+            UpdatedBy = v.UpdatedBy
         };
 
     private static PageNodeDto ToNodeDto(PageNode n) => new()

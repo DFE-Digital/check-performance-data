@@ -16,6 +16,7 @@ else
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Version</th>
                 <th scope="col" class="govuk-table__header">Modified</th>
+                <th scope="col" class="govuk-table__header">Modified by</th>
                 <th scope="col" class="govuk-table__header">Status</th>
                 <th scope="col" class="govuk-table__header">Actions</th>
             </tr>
@@ -28,6 +29,7 @@ else
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
                     <td class="govuk-table__cell">@v.UpdatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td class="govuk-table__cell">@(v.UpdatedBy ?? "—")</td>
                     <td class="govuk-table__cell">
                         <strong class="govuk-tag @st.TagClass">@st.Label</strong>
                     </td>

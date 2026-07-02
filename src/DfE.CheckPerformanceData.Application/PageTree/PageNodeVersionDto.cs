@@ -12,4 +12,5 @@ public sealed class PageNodeVersionDto
     public DateTime CreatedDate { get; init; }
     public string? CreatedBy { get; init; }
     public DateTime UpdatedDate { get; init; }
+    public string? UpdatedBy { get; init; }
 }

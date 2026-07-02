@@ -13,13 +13,23 @@
             <form method="post" action="@Model.ActionBase/move" class="cpb-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="path" value="@path" />
-                <button class="govuk-button govuk-button--secondary cpb-btn" name="direction" value="up" title="Move up">↑</button>
-                <button class="govuk-button govuk-button--secondary cpb-btn" name="direction" value="down" title="Move down">↓</button>
+                <button class="app-action-icon-btn" name="direction" value="up" title="Move up">
+                    @await Html.PartialAsync("PageTree/_ActionIcon", "arrow_upward")
+                    <span class="govuk-visually-hidden">Move up</span>
+                </button>
+                <button class="app-action-icon-btn" name="direction" value="down" title="Move down">
+                    @await Html.PartialAsync("PageTree/_ActionIcon", "arrow_downward")
+                    <span class="govuk-visually-hidden">Move down</span>
+                </button>
             </form>
-            <form method="post" action="@Model.ActionBase/delete" class="cpb-inline">
+            <form method="post" action="@Model.ActionBase/delete" class="cpb-inline cpb-toolbar__delete"
+                  onsubmit="return confirm('Delete this content?');">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="path" value="@path" />
-                <button class="govuk-button govuk-button--warning cpb-btn" title="Delete">Delete</button>
+                <button class="app-action-icon-btn" title="Delete">
+                    @await Html.PartialAsync("PageTree/_ActionIcon", "delete")
+                    <span class="govuk-visually-hidden">Delete</span>
+                </button>
             </form>
         </div>
 
@@ -48,21 +58,13 @@
 
 <details class="govuk-details cpb-add">
     <summary class="govuk-details__summary">
-        <span class="govuk-details__summary-text">Add content here</span>
+        <span class="govuk-details__summary-text">
+            @await Html.PartialAsync("PageTree/_ActionIcon", "add")
+            Add content here
+        </span>
     </summary>
     <div class="govuk-details__text">
         <form method="post" action="@Model.ActionBase/add" class="cpb-inline govuk-!-margin-right-3">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="path" value="@addPath" />
-            <select class="govuk-select" name="widgetType" aria-label="Widget type">
-                @foreach (var w in WidgetRegistry.All)
-                {
-                    <option value="@w.Type">@w.PaletteLabel</option>
-                }
-            </select>
-            <button class="govuk-button cpb-btn" type="submit">Add widget</button>
-        </form>
-        <form method="post" action="@Model.ActionBase/add" class="cpb-inline">
             @Html.AntiForgeryToken()
             <input type="hidden" name="path" value="@addPath" />
             <select class="govuk-select" name="regionLayout" aria-label="Region layout">
@@ -72,6 +74,17 @@
                 }
             </select>
             <button class="govuk-button govuk-button--secondary cpb-btn" type="submit">Add region</button>
+        </form>
+        <form method="post" action="@Model.ActionBase/add" class="cpb-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="path" value="@addPath" />
+            <select class="govuk-select" name="widgetType" aria-label="Widget type">
+                @foreach (var w in WidgetRegistry.All)
+                {
+                    <option value="@w.Type">@w.PaletteLabel</option>
+                }
+            </select>
+            <button class="govuk-button cpb-btn" type="submit">Add widget</button>
         </form>
     </div>
 </details>

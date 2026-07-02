@@ -1,8 +1,6 @@
-using System.Text.Json;
-using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.ContentStaging;
-using DfE.CheckPerformanceData.Application.Wiki;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -10,45 +8,68 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ContentStaging;
 
+// End-to-end round-trip through a real Postgres: seed a page tree with folders, content pages
+// and multiple versions; export; wipe the database; import; export again; assert the second
+// export matches the first structurally. Proves the v2 bundle is a complete, invertible snapshot
+// of the page tree and content blocks — no drift on Id, ParentId, Segment, Title, SortOrder,
+// PageType, per-node version history, or content-block payloads.
 [Collection(nameof(PostgresCollection))]
 public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
 {
     private readonly PostgresFixture _fixture = fixture;
-    private static readonly HtmlRenderingService Html = new();
 
     private ContentStagingService NewStaging(out PortalDbContext ctx)
     {
         ctx = _fixture.CreateContext();
-        var user = new FakeCurrentUserService();
-        var wikiRepo = new WikiRepository(ctx, user);
+        var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        var wikiSvc = new WikiService(wikiRepo, Html);
-        return new ContentStagingService(wikiSvc, wikiRepo, blockRepo);
+        return new ContentStagingService(pageRepo, blockRepo);
     }
 
     private async Task ResetAsync()
     {
         await using var ctx = _fixture.CreateContext();
         await ctx.Database.ExecuteSqlRawAsync(
-            @"TRUNCATE ""WikiPages"", ""ContentBlocks"" RESTART IDENTITY CASCADE;");
+            @"TRUNCATE ""PageNodes"", ""PageNodeVersions"", ""ContentBlocks"", ""ContentBlockVersions"" RESTART IDENTITY CASCADE;");
     }
 
+    // Seeds a tiny tree:
+    //   support (folder)
+    //     └─ getting-started (content, 2 versions — first published, working draft on top)
+    //   guidance (folder)
+    //     └─ ks4-window (content, 1 published version)
+    // Plus two content blocks (banner, footer). All identities are stable across the two exports.
     private async Task SeedAsync()
     {
         await using var ctx = _fixture.CreateContext();
-        var wikiSvc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
-        var blockSvc = new ContentBlockService(new ContentBlockRepository(ctx), Html);
+        var pageRepo = new PageNodeRepository(ctx);
+        var pageSvc = new PageNodeService(pageRepo);
+        var blockRepo = new ContentBlockRepository(ctx);
 
-        var alpha = await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "Alpha", Content = "## Alpha body" });
-        await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "Beta", Content = "## Beta body", ParentId = alpha.Id });
-        await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "Gamma", Content = "## Gamma body" });
+        var support = await pageSvc.CreatePageAsync(null, "support", "Support", "folder", userId: "seed");
+        var start = await pageSvc.CreatePageAsync(
+            support.Id, "getting-started", "Getting started", "content", userId: "seed");
+        await pageSvc.SaveWorkingContentAsync(start.Id, "{\"kind\":\"root\",\"children\":[]}", "getting started", "seed");
+        await pageSvc.PublishDraftAsync(start.Id, userId: "seed");
+        await pageSvc.SaveWorkingContentAsync(start.Id, "{\"kind\":\"root\",\"children\":[\"draft\"]}", "getting started draft", "seed");
 
-        await blockSvc.SaveAsync(new SaveContentBlockDto { Key = "footer", BlockType = "Content", Value = "## footer" });
-        await blockSvc.SaveAsync(new SaveContentBlockDto { Key = "banner", BlockType = "Content", Value = "## banner" });
+        var guidance = await pageSvc.CreatePageAsync(null, "guidance", "Guidance", "folder", userId: "seed");
+        var ks4 = await pageSvc.CreatePageAsync(
+            guidance.Id, "ks4-window", "KS4 window", "content", userId: "seed");
+        await pageSvc.SaveWorkingContentAsync(ks4.Id, "{\"kind\":\"root\",\"children\":[\"ks4\"]}", "ks4 window", "seed");
+        await pageSvc.PublishDraftAsync(ks4.Id, userId: "seed");
+
+        await blockRepo.ExecuteInTransactionAsync(async () =>
+        {
+            var banner = await blockRepo.AddBlockAsync("banner", "Content", "hello", Guid.NewGuid());
+            await blockRepo.AddVersionAsync(banner.Id, "hello", 1);
+            var footer = await blockRepo.AddBlockAsync("footer", "Content", "© crown", Guid.NewGuid());
+            await blockRepo.AddVersionAsync(footer.Id, "© crown", 1);
+        });
     }
 
     [Fact]
-    public async Task Export_ThenImportIntoFreshDb_ThenExport_ProducesIdenticalPayload()
+    public async Task Export_ThenImportIntoFreshDb_ThenExport_ProducesEquivalentBundle()
     {
         await ResetAsync();
         await SeedAsync();
@@ -60,13 +81,18 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
             firstExport = await staging.ExportAsync();
         }
 
-        // Sanity: the bundle carries the seeded content with GUID parentage (Beta's parent is Alpha).
-        Assert.Equal(3, firstExport.WikiPages.Count);
+        // Sanity: bundle carries the seeded tree with GUID parentage (getting-started → support).
+        Assert.Equal(4, firstExport.PageNodes.Count);
         Assert.Equal(2, firstExport.ContentBlocks.Count);
-        var alphaId = firstExport.WikiPages.Single(p => p.Title == "Alpha").Id;
-        Assert.Contains(firstExport.WikiPages, p => p.Title == "Beta" && p.ParentId == alphaId);
+        var supportId = firstExport.PageNodes.Single(p => p.Segment == "support").Id;
+        Assert.Contains(firstExport.PageNodes, p => p.Segment == "getting-started" && p.ParentId == supportId);
 
-        // Fresh environment: wipe everything, replay the bundle through the app layer.
+        // Content pages carry version history; folders do not.
+        Assert.Empty(firstExport.PageNodes.Single(p => p.PageType == "folder").Versions);
+        var start = firstExport.PageNodes.Single(p => p.Segment == "getting-started");
+        Assert.True(start.Versions.Count >= 2, "getting-started must carry both the published version and the working draft");
+
+        // Fresh environment: wipe everything, replay the bundle through the service.
         await ResetAsync();
         ContentImportResult importResult;
         {
@@ -74,10 +100,11 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
             await using var _ = ctx;
             importResult = await staging.ImportAsync(firstExport, ContentImportMode.Skip);
         }
-        Assert.Equal(3, importResult.WikiPagesCreated);
+        Assert.Equal(4, importResult.PageNodesCreated);
         Assert.Equal(2, importResult.ContentBlocksCreated);
-        Assert.Empty(importResult.Warnings);
+        Assert.Empty(importResult.Errors);
 
+        // Re-export from the fresh environment and assert structural equality with the original.
         ContentBundle secondExport;
         {
             var staging = NewStaging(out var ctx);
@@ -85,315 +112,82 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
             secondExport = await staging.ExportAsync();
         }
 
-        // Round-trip integrity: the canonical payload is identical on the second run. Compare the
-        // serialised content arrays (the bundle's header metadata is excluded by construction —
-        // ExportAsync leaves ExportedAtUtc / ExportedBy unset).
-        Assert.True(firstExport.WikiPages.SequenceEqual(secondExport.WikiPages));
-        Assert.True(firstExport.ContentBlocks.SequenceEqual(secondExport.ContentBlocks));
-        Assert.Equal(
-            JsonSerializer.Serialize(firstExport.WikiPages, ContentStagingJson.Options),
-            JsonSerializer.Serialize(secondExport.WikiPages, ContentStagingJson.Options));
+        AssertPagesEquivalent(firstExport.PageNodes, secondExport.PageNodes);
+        AssertBlocksEquivalent(firstExport.ContentBlocks, secondExport.ContentBlocks);
     }
 
     [Fact]
-    public async Task Import_Skip_DoesNotDuplicateExistingContent()
+    public async Task ImportAsync_ExistingIdSkipMode_LeavesTargetUnchanged()
     {
         await ResetAsync();
         await SeedAsync();
 
-        ContentBundle bundle;
+        ContentBundle firstExport;
         {
             var staging = NewStaging(out var ctx);
             await using var _ = ctx;
-            bundle = await staging.ExportAsync();
+            firstExport = await staging.ExportAsync();
         }
 
-        // Re-import into the SAME populated DB: everything already exists, so nothing is added.
+        // Re-import into the SAME database with Skip mode — every collision resolves to Skip, so
+        // no node is created and no version is replaced.
         ContentImportResult result;
         {
             var staging = NewStaging(out var ctx);
             await using var _ = ctx;
-            result = await staging.ImportAsync(bundle, ContentImportMode.Skip);
+            result = await staging.ImportAsync(firstExport, ContentImportMode.Skip);
         }
 
-        Assert.Equal(0, result.WikiPagesCreated);
-        Assert.Equal(3, result.WikiPagesSkipped);
-        Assert.Equal(0, result.ContentBlocksCreated);
-        Assert.Equal(2, result.ContentBlocksSkipped);
-
-        await using var verify = _fixture.CreateContext();
-        Assert.Equal(3, await verify.WikiPages.CountAsync());
-        Assert.Equal(2, await verify.ContentBlocks.CountAsync());
+        Assert.Equal(0, result.PageNodesCreated);
+        Assert.Equal(4, result.PageNodesSkipped);
     }
 
-    [Fact]
-    public async Task Import_Fail_IntoPopulatedDb_Throws_AndAddsNothing()
+    // ── assertion helpers ──────────────────────────────────────────────────
+
+    private static void AssertPagesEquivalent(
+        IReadOnlyList<PageNodeBundleItem> a, IReadOnlyList<PageNodeBundleItem> b)
     {
-        await ResetAsync();
-        await SeedAsync();
+        Assert.Equal(a.Count, b.Count);
+        var aById = a.ToDictionary(p => p.Id);
+        var bById = b.ToDictionary(p => p.Id);
+        Assert.Equal(aById.Keys.OrderBy(x => x), bById.Keys.OrderBy(x => x));
 
-        ContentBundle bundle;
+        foreach (var id in aById.Keys)
         {
-            var staging = NewStaging(out var ctx);
-            await using var _ = ctx;
-            bundle = await staging.ExportAsync();
-        }
+            var pa = aById[id];
+            var pb = bById[id];
+            Assert.Equal(pa.ParentId, pb.ParentId);
+            Assert.Equal(pa.Segment, pb.Segment);
+            Assert.Equal(pa.Title, pb.Title);
+            Assert.Equal(pa.PageType, pb.PageType);
+            Assert.Equal(pa.SortOrder, pb.SortOrder);
+            Assert.Equal(pa.Versions.Count, pb.Versions.Count);
 
-        var staging2 = NewStaging(out var ctx2);
-        await using var __ = ctx2;
-        await Assert.ThrowsAsync<ContentImportConflictException>(
-            () => staging2.ImportAsync(bundle, ContentImportMode.Fail));
-    }
-
-    [Fact]
-    public async Task Import_Replace_MatchesRenamedPageByGuid_NotSlug()
-    {
-        // Lance's case: source has A + B. Target also had A + B, but B was renamed to C (the row
-        // keeps its GUID). Pushing source -> target with Replace must overwrite C (same GUID as B),
-        // restoring the title to "B" — proving identity is the GUID, not the slug/title.
-        await ResetAsync();
-
-        // Source environment: A + B. Capture the bundle.
-        ContentBundle bundle;
-        {
-            var staging = NewStaging(out var ctx);
-            await using var _ = ctx;
-            var wikiSvc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
-            await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "A doc", Content = "a" });
-            await wikiSvc.CreatePageAsync(new CreateWikiPageDto { Title = "B doc", Content = "b-source" });
-            bundle = await staging.ExportAsync();
-        }
-        var bGuid = bundle.WikiPages.Single(p => p.Title == "B doc").Id;
-
-        // Target environment: same DB, but "B doc" gets renamed to "C doc" (GUID unchanged).
-        await using (var ctx = _fixture.CreateContext())
-        {
-            var wikiSvc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
-            var bRow = await ctx.WikiPages.FirstAsync(p => p.ContentId == bGuid);
-            await wikiSvc.UpdatePageAsync(bRow.Id, new UpdateWikiPageDto { Title = "C doc", Content = "c-edited" });
-        }
-
-        // Push source -> target with Replace.
-        {
-            var staging = NewStaging(out var ctx);
-            await using var _ = ctx;
-            var result = await staging.ImportAsync(bundle, ContentImportMode.Replace);
-            Assert.Equal(2, result.WikiPagesUpdated);   // both matched by GUID, none created
-            Assert.Equal(0, result.WikiPagesCreated);
-        }
-
-        // The renamed row was matched by GUID and restored to the source's title/content.
-        await using (var verify = _fixture.CreateContext())
-        {
-            Assert.Equal(2, await verify.WikiPages.CountAsync());          // no duplicate created
-            var restored = await verify.WikiPages.FirstAsync(p => p.ContentId == bGuid);
-            Assert.Equal("B doc", restored.Title);
-            Assert.Equal("b-source", restored.Content);
+            for (int i = 0; i < pa.Versions.Count; i++)
+            {
+                Assert.Equal(pa.Versions[i].VersionId, pb.Versions[i].VersionId);
+                Assert.Equal(pa.Versions[i].MinorVersion, pb.Versions[i].MinorVersion);
+                Assert.Equal(pa.Versions[i].PublishFrom, pb.Versions[i].PublishFrom);
+                Assert.Equal(pa.Versions[i].PublishTo, pb.Versions[i].PublishTo);
+                Assert.Equal(pa.Versions[i].Content, pb.Versions[i].Content);
+                Assert.Equal(pa.Versions[i].BodyPlainText, pb.Versions[i].BodyPlainText);
+            }
         }
     }
 
-    [Fact]
-    public async Task ContentBlockRepository_GetAllAsync_ReturnsAllBlocksOrderedByKey()
+    private static void AssertBlocksEquivalent(
+        IReadOnlyList<ContentBlockBundleItem> a, IReadOnlyList<ContentBlockBundleItem> b)
     {
-        await ResetAsync();
-        await SeedAsync();
+        Assert.Equal(a.Count, b.Count);
+        var aById = a.ToDictionary(x => x.Id);
+        var bById = b.ToDictionary(x => x.Id);
+        Assert.Equal(aById.Keys.OrderBy(x => x), bById.Keys.OrderBy(x => x));
 
-        await using var ctx = _fixture.CreateContext();
-        var repo = new ContentBlockRepository(ctx);
-        var all = await repo.GetAllAsync();
-
-        Assert.Equal(["banner", "footer"], all.Select(b => b.Key));
-    }
-
-    // ---- export/import scenarios verifying the resulting state -------------------------------
-
-    private async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
-    {
-        var staging = NewStaging(out var ctx);
-        await using var _ = ctx;
-        return await staging.ExportAsync(selection);
-    }
-
-    private async Task<ContentImportResult> ImportAsync(
-        ContentBundle bundle, ContentImportMode mode, IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null)
-    {
-        var staging = NewStaging(out var ctx);
-        await using var _ = ctx;
-        return await staging.ImportAsync(bundle, mode, decisions);
-    }
-
-    [Fact]
-    public async Task Export_ThenImportFresh_ReproducesTree_Parentage_Order_AndContent()
-    {
-        await ResetAsync();
-        await SeedAsync();
-        var bundle = await ExportAsync();
-
-        await ResetAsync();
-        var result = await ImportAsync(bundle, ContentImportMode.Skip);
-
-        Assert.Equal(3, result.WikiPagesCreated);
-        Assert.Empty(result.Errors);
-
-        await using var verify = _fixture.CreateContext();
-        var pages = await verify.WikiPages.OrderBy(p => p.Id).ToListAsync();
-        Assert.Equal(3, pages.Count);
-
-        var alpha = pages.Single(p => p.Title == "Alpha");
-        var beta = pages.Single(p => p.Title == "Beta");
-        Assert.Null(alpha.ParentId);
-        Assert.Equal(alpha.Id, beta.ParentId);              // parentage reproduced via GUID
-        Assert.Equal("## Beta body", beta.Content);         // content reproduced
-        Assert.Equal("alpha", alpha.Slug);                  // slug regenerated from title
-    }
-
-    [Fact]
-    public async Task Export_SelectOnlyOneBlock_BundleHasNoPagesAndThatBlock()
-    {
-        await ResetAsync();
-        await SeedAsync();
-        var full = await ExportAsync();
-        var footerId = full.ContentBlocks.Single(b => b.Key == "footer").Id;
-
-        var bundle = await ExportAsync(new ContentExportSelection(new HashSet<Guid>(), new HashSet<Guid> { footerId }));
-
-        Assert.Empty(bundle.WikiPages);
-        Assert.Equal(["footer"], bundle.ContentBlocks.Select(b => b.Key));
-    }
-
-    [Fact]
-    public async Task Import_Replace_RestoresEditedContent()
-    {
-        await ResetAsync();
-        await SeedAsync();
-        var bundle = await ExportAsync();
-
-        // Drift the live content away from the bundle.
-        await using (var ctx = _fixture.CreateContext())
+        foreach (var id in aById.Keys)
         {
-            var alpha = await ctx.WikiPages.FirstAsync(p => p.Title == "Alpha");
-            alpha.Content = "DRIFTED";
-            await ctx.SaveChangesAsync();
+            Assert.Equal(aById[id].Key, bById[id].Key);
+            Assert.Equal(aById[id].BlockType, bById[id].BlockType);
+            Assert.Equal(aById[id].Value, bById[id].Value);
         }
-
-        var result = await ImportAsync(bundle, ContentImportMode.Replace);
-
-        Assert.Equal(3, result.WikiPagesUpdated);
-        await using var verify = _fixture.CreateContext();
-        var alphaAfter = await verify.WikiPages.FirstAsync(p => p.Title == "Alpha");
-        Assert.Equal("## Alpha body", alphaAfter.Content);   // restored from the bundle
-    }
-
-    [Fact]
-    public async Task Import_PerItemDecisions_OverwriteOneSkipAnother()
-    {
-        await ResetAsync();
-        await SeedAsync();
-        var bundle = await ExportAsync();
-
-        Guid alphaId, gammaId;
-        await using (var ctx = _fixture.CreateContext())
-        {
-            var alpha = await ctx.WikiPages.FirstAsync(p => p.Title == "Alpha");
-            var gamma = await ctx.WikiPages.FirstAsync(p => p.Title == "Gamma");
-            alphaId = alpha.ContentId;
-            gammaId = gamma.ContentId;
-            alpha.Content = "DRIFTED-A";
-            gamma.Content = "DRIFTED-G";
-            await ctx.SaveChangesAsync();
-        }
-
-        // Global Skip, but overwrite Alpha specifically.
-        var decisions = new Dictionary<Guid, ContentImportMode> { [alphaId] = ContentImportMode.Replace };
-        await ImportAsync(bundle, ContentImportMode.Skip, decisions);
-
-        await using var verify = _fixture.CreateContext();
-        Assert.Equal("## Alpha body", (await verify.WikiPages.FirstAsync(p => p.Title == "Alpha")).Content); // overwritten
-        Assert.Equal("DRIFTED-G", (await verify.WikiPages.FirstAsync(p => p.Title == "Gamma")).Content);     // skipped
-    }
-
-    [Fact]
-    public async Task Import_UnknownParent_ReportsError_AndCreatesNoOrphan()
-    {
-        await ResetAsync();
-        await SeedAsync();
-
-        var bundle = new ContentBundle
-        {
-            WikiPages = [new() { Id = Guid.NewGuid(), ParentId = Guid.NewGuid(), Title = "Orphan", Content = "x" }]
-        };
-
-        var result = await ImportAsync(bundle, ContentImportMode.Skip);
-
-        Assert.Single(result.Errors);
-        Assert.Equal(0, result.WikiPagesCreated);
-        await using var verify = _fixture.CreateContext();
-        Assert.Equal(3, await verify.WikiPages.CountAsync());        // no orphan added
-        Assert.False(await verify.WikiPages.AnyAsync(p => p.Title == "Orphan"));
-    }
-
-    [Fact]
-    public async Task Import_NewBlock_WithExistingKey_ReportsError_AndDoesNotOverwrite()
-    {
-        await ResetAsync();
-        await SeedAsync();
-
-        // New identity, but a Key that already exists (independently seeded) — must not merge.
-        var bundle = new ContentBundle
-        {
-            ContentBlocks = [new() { Id = Guid.NewGuid(), Key = "footer", BlockType = "Content", Value = "HIJACK" }]
-        };
-
-        var result = await ImportAsync(bundle, ContentImportMode.Replace);
-
-        Assert.Single(result.Errors);
-        Assert.Equal(0, result.ContentBlocksUpdated);
-        await using var verify = _fixture.CreateContext();
-        Assert.Equal("## footer", (await verify.ContentBlocks.FirstAsync(b => b.Key == "footer")).Value); // untouched
-    }
-
-    [Fact]
-    public async Task CustomSlug_IsPreservedOnTitleChange_AndThroughExportImport()
-    {
-        await ResetAsync();
-
-        // Create with a pinned SEO slug, then rename the title.
-        await using (var ctx = _fixture.CreateContext())
-        {
-            var svc = new WikiService(new WikiRepository(ctx, new FakeCurrentUserService()), Html);
-            var page = await svc.CreatePageAsync(new CreateWikiPageDto { Title = "Original Title", Slug = "seo-pinned", Content = "c" });
-            await svc.UpdatePageAsync(page.Id, new UpdateWikiPageDto { Title = "Renamed For Marketing", Content = "c2" });
-        }
-
-        // The slug did not follow the title rename.
-        await using (var v = _fixture.CreateContext())
-            Assert.Equal("seo-pinned", (await v.WikiPages.FirstAsync(p => p.Title == "Renamed For Marketing")).Slug);
-
-        // And it survives a fresh export -> import round-trip.
-        var bundle = await ExportAsync();
-        await ResetAsync();
-        await ImportAsync(bundle, ContentImportMode.Skip);
-
-        await using (var v = _fixture.CreateContext())
-            Assert.Equal("seo-pinned", (await v.WikiPages.FirstAsync(p => p.Title == "Renamed For Marketing")).Slug);
-    }
-
-    [Fact]
-    public async Task Preview_ReportsNew_Collision_AndBlockedCounts()
-    {
-        await ResetAsync();
-        await SeedAsync();
-        var bundle = await ExportAsync();   // 3 pages + 2 blocks, all will collide
-
-        bundle.WikiPages.Add(new() { Id = Guid.NewGuid(), Title = "Brand New" });                               // new
-        bundle.WikiPages.Add(new() { Id = Guid.NewGuid(), ParentId = Guid.NewGuid(), Title = "Orphan" });       // blocked
-
-        var staging = NewStaging(out var ctx);
-        await using var _ = ctx;
-        var preview = await staging.PreviewAsync(bundle);
-
-        Assert.Equal(5, preview.CollisionCount);     // 3 pages + 2 blocks
-        Assert.Equal(1, preview.NewCount);           // Brand New
-        Assert.Equal(1, preview.BlockedCount);       // Orphan
     }
 }

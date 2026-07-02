@@ -34,7 +34,7 @@ public sealed class ContentStagingControllerTests
 
     private static string ValidBundleJson() => ContentStagingJson.Serialize(new ContentBundle
     {
-        WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
+        PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
     });
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class ContentStagingControllerTests
     {
         _staging.ExportAsync().Returns(new ContentBundle
         {
-            WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
+            PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
 
         var result = await _sut.Export();
@@ -70,7 +70,7 @@ public sealed class ContentStagingControllerTests
     {
         _staging.ExportAsync().Returns(new ContentBundle
         {
-            WikiPages = [new() { Id = Guid.NewGuid(), Title = "Alpha", Content = "a" }]
+            PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
 
         var result = await _sut.Export();
@@ -117,14 +117,14 @@ public sealed class ContentStagingControllerTests
         var blockId = Guid.NewGuid();
         _staging.ExportAsync(Arg.Any<ContentExportSelection>()).Returns(new ContentBundle
         {
-            WikiPages = [new() { Id = pageId, Title = "Alpha" }]
+            PageNodes = [new() { Id = pageId, Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
 
         var result = await _sut.ExportSelected([pageId], [blockId]);
 
         Assert.IsType<FileContentResult>(result);
         await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection>(
-            s => s.WikiPageIds.Contains(pageId) && s.ContentBlockIds.Contains(blockId)));
+            s => s.PageNodeIds.Contains(pageId) && s.ContentBlockIds.Contains(blockId)));
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed class ContentStagingControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<ImportPreviewViewModel>(view.Model);
         Assert.Contains(ContentBundle.CurrentSchema, model.BundleJson);
-        await _staging.Received(1).PreviewAsync(Arg.Is<ContentBundle>(b => b.WikiPages.Count == 1));
+        await _staging.Received(1).PreviewAsync(Arg.Is<ContentBundle>(b => b.PageNodes.Count == 1));
     }
 
     [Fact]
@@ -198,7 +198,7 @@ public sealed class ContentStagingControllerTests
         var id = Guid.NewGuid();
         _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
                 Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
-            .Returns(new ContentImportResult { WikiPagesUpdated = 1 });
+            .Returns(new ContentImportResult { PageNodesUpdated = 1 });
 
         var model = new ImportConfirmFormModel
         {
@@ -259,7 +259,7 @@ public sealed class ContentStagingControllerTests
     [Fact]
     public async Task Import_Confirm_WithWarnings_ExposesThemInTempData()
     {
-        var withWarning = new ContentImportResult { WikiPagesSkipped = 1 };
+        var withWarning = new ContentImportResult { PageNodesSkipped = 1 };
         withWarning.Warnings.Add("Skipped 'x/y' — parent 'x' not found.");
         _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
                 Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())

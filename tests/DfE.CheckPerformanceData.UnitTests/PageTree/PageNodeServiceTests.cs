@@ -843,6 +843,21 @@ public class PageNodeServiceTests
 
         public Task ExecuteInTransactionAsync(Func<Task> work) => work();
 
+        // Staging methods are exercised by ContentStagingServiceTests against its own mock; this
+        // fake is only used by PageNodeService tests so the staging path is not reached here.
+        public Task<PageNodeDto> CreateNodeForStagingAsync(
+            Guid id, Guid? parentId, string segment, string path,
+            string title, string pageType, int sortOrder, string? userId) =>
+            throw new NotSupportedException("staging");
+
+        public Task UpdateNodeForStagingAsync(
+            Guid id, string segment, string path, string title, int sortOrder, string? userId) =>
+            throw new NotSupportedException("staging");
+
+        public Task ReplaceAllVersionsForStagingAsync(
+            Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId) =>
+            throw new NotSupportedException("staging");
+
         // ── helpers ──────────────────────────────────────────────────────────
 
         private void RecomputeCurrentSync(Guid nodeId, DateTime nowUtc)

@@ -9,6 +9,36 @@
 
     var menu = null;
 
+    // Material Symbols Outlined SVG paths — kept in sync with Views/Shared/PageTree/_ActionIcon.cshtml
+    // so the icons in the context menu match the icons on the page-tree toolbar rows.
+    var ICON_PATHS = {
+        add:            'M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z',
+        edit:           'M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z',
+        history:        'M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z',
+        arrow_upward:   'M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z',
+        arrow_downward: 'M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224V-800h-80Z',
+        'delete':       'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
+        open_in_new:    'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z'
+    };
+
+    function makeIcon(iconName) {
+        var path = ICON_PATHS[iconName];
+        if (!path) return null;
+        var svgNs = 'http://www.w3.org/2000/svg';
+        var svg = document.createElementNS(svgNs, 'svg');
+        svg.setAttribute('xmlns', svgNs);
+        svg.setAttribute('viewBox', '0 -960 960 960');
+        svg.setAttribute('width', '18');
+        svg.setAttribute('height', '18');
+        svg.setAttribute('fill', 'currentColor');
+        svg.setAttribute('aria-hidden', 'true');
+        svg.setAttribute('focusable', 'false');
+        var p = document.createElementNS(svgNs, 'path');
+        p.setAttribute('d', path);
+        svg.appendChild(p);
+        return svg;
+    }
+
     function getAntiForgeryToken() {
         var form = document.getElementById('cms-tree-antiforgery');
         if (!form) return '';
@@ -29,14 +59,21 @@
         }
     }
 
-    function addItem(label, action, isDanger) {
+    function addItem(label, iconName, action, isDanger) {
         var li = document.createElement('li');
         li.className = 'cms-context-menu__item' + (isDanger ? ' cms-context-menu__item--danger' : '');
         li.setAttribute('role', 'menuitem');
 
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.textContent = label;
+
+        var icon = makeIcon(iconName);
+        if (icon) btn.appendChild(icon);
+
+        var span = document.createElement('span');
+        span.textContent = label;
+        btn.appendChild(span);
+
         btn.addEventListener('click', function () {
             hideMenu();
             action();
@@ -76,21 +113,21 @@
     }
 
     function buildMenuForRoot() {
-        addItem('New child page', function () { navigate('/admin/pages/new'); });
+        addItem('New child page', 'add', function () { navigate('/admin/pages/new'); });
     }
 
     function buildMenuForPage(pageId, pagePath) {
-        addItem('New child page', function () { navigate('/admin/pages/new?parentId=' + pageId); });
-        addItem('Edit', function () {
+        addItem('New child page', 'add', function () { navigate('/admin/pages/new?parentId=' + pageId); });
+        addItem('Edit', 'edit', function () {
             window.open('/admin/pages/' + pageId + '/edit', '_blank', 'noopener');
         });
-        addItem('Versions', function () {
+        addItem('Versions', 'history', function () {
             window.open('/admin/pages/' + pageId + '/edit#version-history', '_blank', 'noopener');
         });
-        addItem('Move up', function () { postMove(pageId, 'up'); });
-        addItem('Move down', function () { postMove(pageId, 'down'); });
-        addItem('Delete', function () { navigate('/admin/pages/' + pageId + '/delete'); }, true);
-        addItem('View', function () {
+        addItem('Move up', 'arrow_upward', function () { postMove(pageId, 'up'); });
+        addItem('Move down', 'arrow_downward', function () { postMove(pageId, 'down'); });
+        addItem('Delete', 'delete', function () { navigate('/admin/pages/' + pageId + '/delete'); }, true);
+        addItem('View', 'open_in_new', function () {
             var path = pagePath.replace(/^\//, '');
             window.open('/' + path, '_blank', 'noopener');
         });

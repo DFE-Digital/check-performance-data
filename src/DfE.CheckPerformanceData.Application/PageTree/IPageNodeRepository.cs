@@ -49,4 +49,39 @@ public interface IPageNodeRepository
     Task SetSiblingOrderAsync(IReadOnlyList<(Guid Id, int SortOrder)> orders);
 
     Task ExecuteInTransactionAsync(Func<Task> work);
+
+    // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
+    //
+    // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id
+    // and each version's VersionId / MinorVersion / IsCurrent / publish window are set directly
+    // from the bundle rather than auto-assigned. They are not intended for interactive editing.
+
+    /// <summary>
+    /// Creates a node with an explicit <paramref name="id"/> and an explicit
+    /// <paramref name="sortOrder"/>, so a bundle's identity and ordering survive round-trip.
+    /// The caller supplies the materialised <paramref name="path"/> (segment or parent.Path + '/' +
+    /// segment).
+    /// </summary>
+    Task<PageNodeDto> CreateNodeForStagingAsync(
+        Guid id, Guid? parentId, string segment, string path,
+        string title, string pageType, int sortOrder, string? userId);
+
+    /// <summary>
+    /// Updates an existing node's mutable header fields (segment, title, path, sortOrder). Used on
+    /// import when a node with the bundle's Id already exists and the collision decision is
+    /// Overwrite. Does not touch versions — those are handled by
+    /// <see cref="ReplaceAllVersionsForStagingAsync"/>.
+    /// </summary>
+    Task UpdateNodeForStagingAsync(
+        Guid id, string segment, string path, string title, int sortOrder, string? userId);
+
+    /// <summary>
+    /// Replaces every version on <paramref name="nodeId"/> with the supplied bundle versions.
+    /// Existing versions are deleted; the bundle versions are added with their original VersionId
+    /// / MinorVersion / windows. IsCurrent is recomputed at the end from the (PublishFrom,
+    /// PublishTo) windows relative to <c>DateTime.UtcNow</c>, so the target picks a live version
+    /// consistently even if the source's clock differed.
+    /// </summary>
+    Task ReplaceAllVersionsForStagingAsync(
+        Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId);
 }

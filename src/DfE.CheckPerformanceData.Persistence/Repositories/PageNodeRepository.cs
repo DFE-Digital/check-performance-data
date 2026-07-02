@@ -224,6 +224,82 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     public Task ExecuteInTransactionAsync(Func<Task> work) =>
         context.ExecuteInTransactionAsync(work);
 
+    // ── Staging (import) ────────────────────────────────────────────────────
+
+    public async Task<PageNodeDto> CreateNodeForStagingAsync(
+        Guid id, Guid? parentId, string segment, string path,
+        string title, string pageType, int sortOrder, string? userId)
+    {
+        var now = DateTime.UtcNow;
+        var entity = new PageNode
+        {
+            Id = id,
+            ParentId = parentId,
+            Segment = segment,
+            Path = path,
+            SortOrder = sortOrder,
+            Title = title,
+            PageType = pageType,
+            CreatedDate = now,
+            UpdatedDate = now,
+            CreatedBy = userId,
+            UpdatedBy = userId
+        };
+        context.PageNodes.Add(entity);
+        await context.SaveChangesAsync();
+        return ToNodeDto(entity);
+    }
+
+    public async Task UpdateNodeForStagingAsync(
+        Guid id, string segment, string path, string title, int sortOrder, string? userId)
+    {
+        var entity = await context.PageNodes.FindAsync(id)
+            ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+        entity.Segment = segment;
+        entity.Path = path;
+        entity.Title = title;
+        entity.SortOrder = sortOrder;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
+    public async Task ReplaceAllVersionsForStagingAsync(
+        Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId)
+    {
+        var now = DateTime.UtcNow;
+
+        // Wipe existing versions in one round-trip; then add the bundle versions with their
+        // original identities. IsCurrent is recomputed from windows below.
+        var existing = await context.PageNodeVersions
+            .Where(v => v.PageNodeId == nodeId)
+            .ToListAsync();
+        context.PageNodeVersions.RemoveRange(existing);
+
+        foreach (var v in versions)
+        {
+            context.PageNodeVersions.Add(new PageNodeVersion
+            {
+                Id = Guid.NewGuid(),
+                PageNodeId = nodeId,
+                VersionId = v.VersionId,
+                MinorVersion = v.MinorVersion,
+                Content = v.Content,
+                BodyPlainText = v.BodyPlainText,
+                PublishFrom = v.PublishFrom,
+                PublishTo = v.PublishTo,
+                IsCurrent = false,      // RecomputeCurrentAsync sets this from windows
+                CreatedDate = now,
+                UpdatedDate = now,
+                CreatedBy = userId,
+                UpdatedBy = userId
+            });
+        }
+        await context.SaveChangesAsync();
+        await RecomputeCurrentAsync(nodeId, now);
+    }
+
     // ── projections ──────────────────────────────────────────────────────────
 
     private static readonly System.Linq.Expressions.Expression<Func<PageNode, PageNodeDto>> NodeProjection =
@@ -248,6 +324,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             PublishFrom = v.PublishFrom,
             PublishTo = v.PublishTo,
             Content = v.Content,
+            BodyPlainText = v.BodyPlainText,
             CreatedDate = v.CreatedDate,
             CreatedBy = v.CreatedBy,
             UpdatedDate = v.UpdatedDate,

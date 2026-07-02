@@ -38,13 +38,13 @@ public sealed class ContentStagingController(
     // Export only the ticked pages/blocks (ancestors of selected pages are added by the service).
     [HttpPost("export")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ExportSelected(List<Guid>? wikiPageIds, List<Guid>? contentBlockIds)
+    public async Task<IActionResult> ExportSelected(List<Guid>? pageNodeIds, List<Guid>? contentBlockIds)
     {
         var selection = new ContentExportSelection(
-            wikiPageIds?.ToHashSet() ?? [],
+            pageNodeIds?.ToHashSet() ?? [],
             contentBlockIds?.ToHashSet() ?? []);
 
-        if (selection.WikiPageIds.Count == 0 && selection.ContentBlockIds.Count == 0)
+        if (selection.PageNodeIds.Count == 0 && selection.ContentBlockIds.Count == 0)
         {
             TempData["ContentStagingError"] = "Select at least one page or content block to export.";
             return Redirect("/admin/content-staging/select");
@@ -62,7 +62,7 @@ public sealed class ContentStagingController(
             SchemaVersion = bundle.SchemaVersion,
             ExportedAtUtc = DateTime.UtcNow,
             ExportedBy = currentUser.Email,
-            WikiPages = bundle.WikiPages,
+            PageNodes = bundle.PageNodes,
             ContentBlocks = bundle.ContentBlocks
         };
 
@@ -168,7 +168,7 @@ public sealed class ContentStagingController(
     }
 
     private static string BuildSummary(ContentImportResult r) =>
-        $"Import complete. Wiki pages: {r.WikiPagesCreated} added, {r.WikiPagesUpdated} updated, " +
-        $"{r.WikiPagesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
+        $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
+        $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
 }

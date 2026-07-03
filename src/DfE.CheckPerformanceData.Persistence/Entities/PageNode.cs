@@ -21,6 +21,13 @@ public sealed class PageNode
     public string? PageName { get; set; }
 
     public string PageType { get; set; } = "folder"; // content | wiki | folder
+
+    // Public-facing menu visibility. false hides this page from PageNav mode=children (the
+    // side-nav on content pages that lists sibling / child pages). The admin left-hand tree
+    // still shows the page — hiding it from admin would strand any editor who wanted to
+    // find it. Default true so existing pages stay visible.
+    public bool ShowInMenu { get; set; } = true;
+
     public DateTime CreatedDate { get; set; }
     public string? CreatedBy { get; set; }
     public DateTime UpdatedDate { get; set; }

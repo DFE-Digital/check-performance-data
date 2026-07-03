@@ -26,6 +26,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 Subtitle = n.Subtitle,
                 PageName = n.PageName,
                 PageType = n.PageType,
+                ShowInMenu = n.ShowInMenu,
                 HasLiveVersion = n.Versions.Any(v => v.IsCurrent)
             })
             .ToListAsync();
@@ -375,6 +376,17 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public async Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId)
+    {
+        var entity = await context.PageNodes.FindAsync(id)
+            ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+        entity.ShowInMenu = showInMenu;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
     // ── Staging (import) ────────────────────────────────────────────────────
 
     public async Task<PageNodeDto> CreateNodeForStagingAsync(
@@ -469,6 +481,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Subtitle = n.Subtitle,
             PageName = n.PageName,
             PageType = n.PageType,
+            ShowInMenu = n.ShowInMenu,
             DeletedDate = n.DeletedDate,
             DeletedBy = n.DeletedBy,
         };

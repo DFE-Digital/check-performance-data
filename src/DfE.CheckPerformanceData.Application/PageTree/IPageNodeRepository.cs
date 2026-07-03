@@ -88,6 +88,8 @@ public interface IPageNodeRepository
     Task MoveNodeAsync(
         Guid id, Guid? newParentId, string newPath, int newSortOrder, string? userId);
 
+    Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId);
+
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
     // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id

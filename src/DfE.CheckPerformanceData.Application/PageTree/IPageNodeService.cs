@@ -72,6 +72,9 @@ public interface IPageNodeService
     Task<MoveNodeResult> MoveNodeAsync(
         Guid nodeId, Guid? newParentId, int newSortOrder, string? userId);
 
+    /// <summary>Sets the public menu visibility flag on <paramref name="nodeId"/>.</summary>
+    Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId);
+
     /// <summary>
     /// Moves the node up or down among its siblings by swapping <c>SortOrder</c> with the
     /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").

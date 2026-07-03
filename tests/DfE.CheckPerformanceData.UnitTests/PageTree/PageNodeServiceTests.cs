@@ -912,6 +912,8 @@ public class PageNodeServiceTests
             return Task.CompletedTask;
         }
 
+        public Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId) => Task.CompletedTask;
+
         public Task RestoreAsync(Guid nodeId, string? userId)
         {
             var node = _nodes.First(n => n.Id == nodeId);

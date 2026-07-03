@@ -332,10 +332,18 @@ public sealed class PageTreeAdminController(
     // POST fires so the change is deliberate.
     [HttpPost("/admin/pages/{id:guid}/rename")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Rename(Guid id, string? segment, string? title, string? subtitle, string? pageName)
+    public async Task<IActionResult> Rename(Guid id, string? segment, string? title, string? subtitle, string? pageName, bool? showInMenu)
     {
         var result = await pageNodeService.RenameNodeAsync(
             id, segment ?? string.Empty, title ?? string.Empty, subtitle, pageName, User?.Identity?.Name);
+
+        // The details form always posts a showInMenu value (hidden false input + optional true
+        // checkbox). Save the visibility flag alongside the rename outcome; a rename failure
+        // still leaves the menu-visibility unchanged, which is the safe direction.
+        if (result == RenameNodeResult.Ok && showInMenu.HasValue)
+        {
+            await pageNodeService.SetShowInMenuAsync(id, showInMenu.Value, User?.Identity?.Name);
+        }
 
         TempData["RenameResult"] = result switch
         {
@@ -544,6 +552,7 @@ public sealed class PageTreeAdminController(
             Segment           = node.Segment,
             Subtitle          = node.Subtitle,
             PageName          = node.PageName,
+            ShowInMenu        = node.ShowInMenu,
             Content           = tree,
             PagePath          = node.Path,
             ShowInlinePublish = false,

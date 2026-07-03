@@ -16,6 +16,7 @@ public sealed class PageNodeTreeItemDto
     /// <summary>Label for tree/nav renderers: PageName if set, else Title.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(PageName) ? Title : PageName;
     public bool HasLiveVersion { get; init; }
+    public bool ShowInMenu { get; init; } = true;
     /// <summary>Used as a secondary sort key when SortOrder values are equal (e.g. legacy data all-zero).</summary>
     public DateTime CreatedDate { get; init; }
 }

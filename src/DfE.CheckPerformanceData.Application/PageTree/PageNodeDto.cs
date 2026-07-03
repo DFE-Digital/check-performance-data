@@ -11,6 +11,7 @@ public sealed class PageNodeDto
     public string? Subtitle { get; init; }
     public string? PageName { get; init; }
     public required string PageType { get; init; }
+    public bool ShowInMenu { get; init; } = true;
 
     /// <summary>Populated only on hits from GetDeletedAsync; null otherwise.</summary>
     public DateTime? DeletedDate { get; init; }

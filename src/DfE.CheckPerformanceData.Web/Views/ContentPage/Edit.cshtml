@@ -206,6 +206,22 @@
                             <input class="govuk-input govuk-input--width-30" id="cpb-segment" name="segment"
                                    value="@Model.Segment" aria-describedby="cpb-segment-hint" />
                         </div>
+                        <div class="govuk-form-group">
+                            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                <div class="govuk-checkboxes__item">
+                                    @* Hidden field first so the false value posts when the box is unticked. *@
+                                    <input type="hidden" name="showInMenu" value="false" />
+                                    <input class="govuk-checkboxes__input" id="cpb-showinmenu" type="checkbox"
+                                           name="showInMenu" value="true" aria-describedby="cpb-showinmenu-hint"
+                                           @(Model.ShowInMenu ? "checked" : null) />
+                                    <label class="govuk-label govuk-checkboxes__label" for="cpb-showinmenu">Show in menu</label>
+                                    <div id="cpb-showinmenu-hint" class="govuk-hint govuk-checkboxes__hint">
+                                        Uncheck to hide this page from the public side navigation.
+                                        Unpublished pages are always hidden from menus.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="govuk-button-group">
                             <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
                                 Save details

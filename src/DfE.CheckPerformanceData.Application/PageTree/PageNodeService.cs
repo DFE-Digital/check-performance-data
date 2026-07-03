@@ -93,6 +93,9 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
 
     public Task<List<PageNodeDto>> GetDeletedAsync() => repository.GetDeletedAsync();
 
+    public Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId) =>
+        repository.SetShowInMenuAsync(nodeId, showInMenu, userId);
+
     public Task RestoreAsync(Guid nodeId, string? userId) => repository.RestoreAsync(nodeId, userId);
 
     public async Task<MoveNodeResult> MoveNodeAsync(

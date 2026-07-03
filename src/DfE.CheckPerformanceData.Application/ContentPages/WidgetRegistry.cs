@@ -15,7 +15,7 @@ public static class WidgetRegistry
         new("card", "Card", ContributesToNav: false, """{"title":"","body":"","href":""}"""),
         new("summarylist", "Summary list", ContributesToNav: false, """{"rows":[]}"""),
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
-        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search"}"""),
+        new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/search","buttonText":"Search","scope":""}"""),
         new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search"}""")
     ];
 

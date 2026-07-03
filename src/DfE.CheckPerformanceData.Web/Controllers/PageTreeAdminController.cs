@@ -332,10 +332,10 @@ public sealed class PageTreeAdminController(
     // POST fires so the change is deliberate.
     [HttpPost("/admin/pages/{id:guid}/rename")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Rename(Guid id, string? segment, string? title, string? subtitle)
+    public async Task<IActionResult> Rename(Guid id, string? segment, string? title, string? subtitle, string? pageName)
     {
         var result = await pageNodeService.RenameNodeAsync(
-            id, segment ?? string.Empty, title ?? string.Empty, subtitle, User?.Identity?.Name);
+            id, segment ?? string.Empty, title ?? string.Empty, subtitle, pageName, User?.Identity?.Name);
 
         TempData["RenameResult"] = result switch
         {
@@ -516,6 +516,7 @@ public sealed class PageTreeAdminController(
             Title             = node.Title,
             Segment           = node.Segment,
             Subtitle          = node.Subtitle,
+            PageName          = node.PageName,
             Content           = tree,
             PagePath          = node.Path,
             ShowInlinePublish = false,

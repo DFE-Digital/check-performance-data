@@ -87,7 +87,7 @@ public interface IPageNodeService
     /// can surface a helpful message.
     /// </summary>
     Task<RenameNodeResult> RenameNodeAsync(
-        Guid id, string newSegment, string newTitle, string? newSubtitle, string? userId);
+        Guid id, string newSegment, string newTitle, string? newSubtitle, string? newPageName, string? userId);
 }
 
 /// <summary>Outcome of <see cref="IPageNodeService.RenameNodeAsync"/>.</summary>

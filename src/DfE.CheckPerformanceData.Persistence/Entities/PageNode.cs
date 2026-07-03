@@ -15,6 +15,11 @@ public sealed class PageNode
     // routing, search or nav — purely a display string on the rendered page.
     public string? Subtitle { get; set; }
 
+    // Optional label used in the admin left-hand navigation and other tree/list surfaces when the
+    // page's actual Title would be too long, too formal or duplicated. Falls back to Title when
+    // unset. Never used for the rendered page's H1 or for routing.
+    public string? PageName { get; set; }
+
     public string PageType { get; set; } = "folder"; // content | wiki | folder
     public DateTime CreatedDate { get; set; }
     public string? CreatedBy { get; set; }

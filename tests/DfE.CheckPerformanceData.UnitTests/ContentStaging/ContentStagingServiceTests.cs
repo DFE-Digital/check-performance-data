@@ -301,7 +301,7 @@ public class ContentStagingServiceTests
     {
         _pages.GetByIdAsync(GuidA).ReturnsNull();
         _pages.CreateNodeForStagingAsync(
-                GuidA, null, "p", "p", "P", null, "content", 0, null)
+                GuidA, null, "p", "p", "P", null, null, "content", 0, null)
             .Returns(new PageNodeDto { Id = GuidA, Segment = "p", Path = "p", Title = "P", PageType = "content" });
 
         var bundle = new ContentBundle
@@ -320,7 +320,7 @@ public class ContentStagingServiceTests
 
         Assert.Equal(1, result.PageNodesCreated);
         await _pages.Received(1).CreateNodeForStagingAsync(
-            GuidA, null, "p", "p", "P", null, "content", 0, null);
+            GuidA, null, "p", "p", "P", null, null, "content", 0, null);
         await _pages.Received(1).ReplaceAllVersionsForStagingAsync(
             GuidA, Arg.Is<IReadOnlyList<PageNodeVersionDto>>(v => v.Count == 1 && v[0].VersionId == 1), null);
     }
@@ -330,7 +330,7 @@ public class ContentStagingServiceTests
     {
         _pages.GetByIdAsync(GuidA).ReturnsNull();
         _pages.CreateNodeForStagingAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
             .Returns(new PageNodeDto { Id = GuidA, Segment = "f", Path = "f", Title = "F", PageType = "folder" });
 
         var bundle = new ContentBundle
@@ -364,7 +364,7 @@ public class ContentStagingServiceTests
         Assert.Equal(0, result.PageNodesUpdated);
         await _pages.DidNotReceive().UpdateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -390,7 +390,7 @@ public class ContentStagingServiceTests
         var result = await _sut.ImportAsync(bundle, ContentImportMode.Replace);
 
         Assert.Equal(1, result.PageNodesUpdated);
-        await _pages.Received(1).UpdateNodeForStagingAsync(GuidA, "p", "p", "New", null, 0, null);
+        await _pages.Received(1).UpdateNodeForStagingAsync(GuidA, "p", "p", "New", null, null, 0, null);
         await _pages.Received(1).ReplaceAllVersionsForStagingAsync(
             GuidA, Arg.Any<IReadOnlyList<PageNodeVersionDto>>(), null);
     }
@@ -413,10 +413,10 @@ public class ContentStagingServiceTests
 
         await _pages.DidNotReceive().CreateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
         await _pages.DidNotReceive().UpdateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -447,7 +447,7 @@ public class ContentStagingServiceTests
         // created first (and its path is threaded through to build the child's path).
         _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
         _pages.CreateNodeForStagingAsync(Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
             .Returns(ci => new PageNodeDto
             {
                 Id = (Guid)ci[0],
@@ -455,7 +455,7 @@ public class ContentStagingServiceTests
                 Segment = (string)ci[2],
                 Path = (string)ci[3],
                 Title = (string)ci[4],
-                PageType = (string)ci[6]
+                PageType = (string)ci[7]
             });
 
         var bundle = new ContentBundle
@@ -471,9 +471,9 @@ public class ContentStagingServiceTests
 
         // Received.InOrder-style check: verify the child's create call carried the parent's Id.
         await _pages.Received(1).CreateNodeForStagingAsync(
-            GuidA, null, "parent", "parent", "Parent", null, "folder", 0, null);
+            GuidA, null, "parent", "parent", "Parent", null, null, "folder", 0, null);
         await _pages.Received(1).CreateNodeForStagingAsync(
-            GuidB, GuidA, "child", "parent/child", "Child", null, "content", 0, null);
+            GuidB, GuidA, "child", "parent/child", "Child", null, null, "content", 0, null);
     }
 
     [Fact]
@@ -497,6 +497,6 @@ public class ContentStagingServiceTests
         Assert.Equal(0, result.PageNodesCreated);
         await _pages.DidNotReceive().CreateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
     }
 }

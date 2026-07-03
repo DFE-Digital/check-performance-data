@@ -20,6 +20,12 @@ public sealed class ContentPageEditViewModel
 
     /// <summary>Optional lede rendered above the page H1. Null when unset.</summary>
     public string? Subtitle { get; init; }
+
+    /// <summary>
+    /// Optional override label used in the admin left-hand nav (and other tree/list surfaces).
+    /// Falls back to <see cref="Title"/> when unset. Null when unset.
+    /// </summary>
+    public string? PageName { get; init; }
     public string Layout { get; init; } = string.Empty;
     public required IReadOnlyList<ContentNode> Content { get; init; }
 

@@ -9,5 +9,9 @@ public sealed class PageNodeDto
     public int SortOrder { get; init; }
     public required string Title { get; init; }
     public string? Subtitle { get; init; }
+    public string? PageName { get; init; }
     public required string PageType { get; init; }
+
+    /// <summary>The label to show in tree / nav / list surfaces. PageName if set, else Title.</summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(PageName) ? Title : PageName;
 }

@@ -16,7 +16,34 @@
     .cpb-btn { margin-bottom: 0; }
     .cpb-preview { background: #f3f2f1; padding: 8px 12px; }
     .cpb-add { margin-top: 4px; }
-    .cpb-drag-handle { cursor: move; user-select: none; }
+    /* Drag handle: pill with a 6-dot grip icon so authors can see exactly where to grab. */
+    .cpb-drag-handle {
+        cursor: move;
+        cursor: grab;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 10px 3px 6px;
+        background: #f3f2f1;
+        border: 1px solid #b1b4b6;
+        border-radius: 3px;
+        line-height: 1.4;
+    }
+    .cpb-drag-handle::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 14px;
+        background-image:
+            radial-gradient(#505a5f 1.2px, transparent 1.4px),
+            radial-gradient(#505a5f 1.2px, transparent 1.4px);
+        background-size: 4px 4px, 4px 4px;
+        background-position: 0 0, 4px 0;
+        background-repeat: repeat-y;
+    }
+    .cpb-drag-handle:hover  { background: #e8e6e3; }
+    .cpb-drag-handle:active { cursor: grabbing; background: #d8d6d3; }
     .cpb-dragging { opacity: 0.5; }
     .cpb-drop-target { outline: 2px dashed #1d70b8; outline-offset: 2px; }
 </style>
@@ -62,6 +89,14 @@
                            aria-describedby="cpb-subtitle-hint" />
                 </div>
                 <div class="govuk-form-group">
+                    <label class="govuk-label govuk-label--s" for="cpb-pagename">Page name</label>
+                    <div id="cpb-pagename-hint" class="govuk-hint">
+                        Short label used in the admin navigation. Defaults to the title if left blank.
+                    </div>
+                    <input class="govuk-input" id="cpb-pagename" name="pageName" value="@Model.PageName"
+                           aria-describedby="cpb-pagename-hint" />
+                </div>
+                <div class="govuk-form-group">
                     <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
                     <div id="cpb-segment-hint" class="govuk-hint">
                         Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
@@ -90,6 +125,7 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
                 <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
+                <input type="hidden" name="pageName" id="cpb-rename-modal-pagename" value="" />
                 <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
             </govuk-confirm-modal>
         }
@@ -258,8 +294,10 @@
         var segmentInput  = form.querySelector('input[name="segment"]');
         var titleInput    = form.querySelector('input[name="title"]');
         var subtitleInput = form.querySelector('input[name="subtitle"]');
+        var pageNameInput = form.querySelector('input[name="pageName"]');
         var modalTitleHidden    = document.getElementById('cpb-rename-modal-title');
         var modalSubtitleHidden = document.getElementById('cpb-rename-modal-subtitle');
+        var modalPageNameHidden = document.getElementById('cpb-rename-modal-pagename');
         var modalSegmentHidden  = document.getElementById('cpb-rename-modal-segment');
         var originalSegment = form.getAttribute('data-original-segment') || '';
 
@@ -270,6 +308,7 @@
             e.preventDefault();
             if (modalTitleHidden)    modalTitleHidden.value    = titleInput    ? titleInput.value    : '';
             if (modalSubtitleHidden) modalSubtitleHidden.value = subtitleInput ? subtitleInput.value : '';
+            if (modalPageNameHidden) modalPageNameHidden.value = pageNameInput ? pageNameInput.value : '';
             if (modalSegmentHidden)  modalSegmentHidden.value  = current;
 
             if (typeof dialog.showModal === 'function') {

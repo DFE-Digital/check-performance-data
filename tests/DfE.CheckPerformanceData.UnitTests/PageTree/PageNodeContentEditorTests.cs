@@ -212,7 +212,7 @@ public class PageNodeContentEditorTests
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
 
         public Task<RenameNodeResult> RenameNodeAsync(
-            Guid id, string newSegment, string newTitle, string? newSubtitle, string? userId) =>
+            Guid id, string newSegment, string newTitle, string? newSubtitle, string? newPageName, string? userId) =>
             throw new NotSupportedException();
     }
 

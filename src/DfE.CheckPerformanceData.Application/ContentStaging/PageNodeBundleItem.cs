@@ -16,6 +16,9 @@ public sealed record PageNodeBundleItem
     /// <summary>Optional lede rendered above the page H1. Null when unset.</summary>
     public string? Subtitle { get; init; }
 
+    /// <summary>Optional short label used in nav/tree/list surfaces. Null when unset.</summary>
+    public string? PageName { get; init; }
+
     public string PageType { get; init; } = "folder";
     public int SortOrder { get; init; }
     public List<PageNodeVersionBundleItem> Versions { get; init; } = [];

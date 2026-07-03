@@ -660,7 +660,7 @@ public class PageNodeServiceTests
     {
         var node = await Sut().CreatePageAsync(null, "guidance", "Guidance", "content", "u1");
 
-        var result = await Sut().RenameNodeAsync(node.Id, "guidance", "Guidance for schools", newSubtitle: null, "u1");
+        var result = await Sut().RenameNodeAsync(node.Id, "guidance", "Guidance for schools", newSubtitle: null, newPageName: null, "u1");
 
         Assert.Equal(RenameNodeResult.Ok, result);
         var reloaded = await _repo.GetByIdAsync(node.Id);
@@ -676,7 +676,7 @@ public class PageNodeServiceTests
         var child = await Sut().CreatePageAsync(root.Id,  "faq",     "FAQ",      "content", "u1");
         var grand = await Sut().CreatePageAsync(child.Id, "gcse",    "GCSE",     "content", "u1");
 
-        var result = await Sut().RenameNodeAsync(root.Id, "help-and-support", "Help & Support", newSubtitle: null, "u1");
+        var result = await Sut().RenameNodeAsync(root.Id, "help-and-support", "Help & Support", newSubtitle: null, newPageName: null, "u1");
 
         Assert.Equal(RenameNodeResult.Ok, result);
         var r = await _repo.GetByIdAsync(root.Id);
@@ -696,7 +696,7 @@ public class PageNodeServiceTests
         await Sut().CreatePageAsync(null, "help",     "Help",     "content", "u1");
         var target = await Sut().CreatePageAsync(null, "support", "Support", "content", "u1");
 
-        var result = await Sut().RenameNodeAsync(target.Id, "help", "Support", newSubtitle: null, "u1");
+        var result = await Sut().RenameNodeAsync(target.Id, "help", "Support", newSubtitle: null, newPageName: null, "u1");
 
         Assert.Equal(RenameNodeResult.PathConflict, result);
         var reloaded = await _repo.GetByIdAsync(target.Id);
@@ -709,8 +709,8 @@ public class PageNodeServiceTests
     {
         var node = await Sut().CreatePageAsync(null, "help", "Help", "content", "u1");
 
-        var empty = await Sut().RenameNodeAsync(node.Id, "", "Help", newSubtitle: null, "u1");
-        var slash = await Sut().RenameNodeAsync(node.Id, "with/slash", "Help", newSubtitle: null, "u1");
+        var empty = await Sut().RenameNodeAsync(node.Id, "", "Help", newSubtitle: null, newPageName: null, "u1");
+        var slash = await Sut().RenameNodeAsync(node.Id, "with/slash", "Help", newSubtitle: null, newPageName: null, "u1");
 
         Assert.Equal(RenameNodeResult.InvalidSegment, empty);
         Assert.Equal(RenameNodeResult.InvalidSegment, slash);
@@ -719,7 +719,7 @@ public class PageNodeServiceTests
     [Fact]
     public async Task Rename_MissingNode_ReturnsNotFound()
     {
-        var result = await Sut().RenameNodeAsync(Guid.NewGuid(), "anything", "Anything", newSubtitle: null, "u1");
+        var result = await Sut().RenameNodeAsync(Guid.NewGuid(), "anything", "Anything", newSubtitle: null, newPageName: null, "u1");
         Assert.Equal(RenameNodeResult.NotFound, result);
     }
 
@@ -917,11 +917,11 @@ public class PageNodeServiceTests
         // fake is only used by PageNodeService tests so the staging path is not reached here.
         public Task<PageNodeDto> CreateNodeForStagingAsync(
             Guid id, Guid? parentId, string segment, string path,
-            string title, string? subtitle, string pageType, int sortOrder, string? userId) =>
+            string title, string? subtitle, string? pageName, string pageType, int sortOrder, string? userId) =>
             throw new NotSupportedException("staging");
 
         public Task UpdateNodeForStagingAsync(
-            Guid id, string segment, string path, string title, string? subtitle, int sortOrder, string? userId) =>
+            Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder, string? userId) =>
             throw new NotSupportedException("staging");
 
         public Task ReplaceAllVersionsForStagingAsync(
@@ -936,7 +936,7 @@ public class PageNodeServiceTests
         }
 
         public Task RenameNodeAndCascadeAsync(
-            Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? userId)
+            Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? newPageName, string? userId)
         {
             var node = _nodes.First(n => n.Id == id);
             var oldPath = node.Path;
@@ -944,6 +944,7 @@ public class PageNodeServiceTests
             node.Path = newPath;
             node.Title = newTitle;
             node.Subtitle = newSubtitle;
+            node.PageName = newPageName;
 
             if (!string.Equals(oldPath, newPath, StringComparison.Ordinal))
             {
@@ -1000,6 +1001,7 @@ public class PageNodeServiceTests
             public required string Path { get; set; }
             public required string Title { get; set; }
             public string? Subtitle { get; set; }
+            public string? PageName { get; set; }
             public required string PageType { get; set; }
             public int SortOrder { get; set; }
             public bool IsDeleted { get; set; }

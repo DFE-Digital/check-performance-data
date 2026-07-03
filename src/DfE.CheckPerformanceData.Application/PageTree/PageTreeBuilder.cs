@@ -62,7 +62,8 @@ public static class PageTreeBuilder
 
         return new PageTreeNode(
             row.Id,
-            row.Title,
+            // Nav uses DisplayName: PageName if the author has set an override, else Title.
+            row.DisplayName,
             row.Path,
             row.PageType,
             row.HasLiveVersion,

@@ -65,6 +65,14 @@ public interface IPageNodeService
     Task RestoreAsync(Guid nodeId, string? userId);
 
     /// <summary>
+    /// Reparents <paramref name="nodeId"/> under <paramref name="newParentId"/> (null = root)
+    /// and positions it at <paramref name="newSortOrder"/> among its new siblings. Handles the
+    /// path cascade for descendants and reorders the affected sibling sets.
+    /// </summary>
+    Task<MoveNodeResult> MoveNodeAsync(
+        Guid nodeId, Guid? newParentId, int newSortOrder, string? userId);
+
+    /// <summary>
     /// Moves the node up or down among its siblings by swapping <c>SortOrder</c> with the
     /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").
     /// No-ops silently when the node is already at the end of the list.
@@ -105,4 +113,15 @@ public enum RenameNodeResult
     InvalidSegment,
     /// <summary>Another live node already occupies the target path.</summary>
     PathConflict
+}
+
+/// <summary>Outcome of <see cref="IPageNodeService.MoveNodeAsync"/>.</summary>
+public enum MoveNodeResult
+{
+    Ok,
+    NotFound,
+    /// <summary>The move would place the node under itself or one of its descendants.</summary>
+    Cycle,
+    /// <summary>Another live node already occupies the target path.</summary>
+    PathConflict,
 }

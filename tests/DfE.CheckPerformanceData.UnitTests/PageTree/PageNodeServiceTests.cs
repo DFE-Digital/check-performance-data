@@ -903,6 +903,15 @@ public class PageNodeServiceTests
         public Task<List<PageNodeDto>> GetDeletedAsync() =>
             Task.FromResult(_nodes.Where(n => n.IsDeleted).Select(ToNodeDto).ToList());
 
+        public Task MoveNodeAsync(Guid id, Guid? newParentId, string newPath, int newSortOrder, string? userId)
+        {
+            var node = _nodes.First(n => n.Id == id);
+            node.ParentId = newParentId;
+            node.Path = newPath;
+            node.SortOrder = newSortOrder;
+            return Task.CompletedTask;
+        }
+
         public Task RestoreAsync(Guid nodeId, string? userId)
         {
             var node = _nodes.First(n => n.Id == nodeId);
@@ -1010,7 +1019,7 @@ public class PageNodeServiceTests
         private sealed class FakeNode
         {
             public Guid Id { get; init; }
-            public Guid? ParentId { get; init; }
+            public Guid? ParentId { get; set; }
             public required string Segment { get; set; }
             public required string Path { get; set; }
             public required string Title { get; set; }

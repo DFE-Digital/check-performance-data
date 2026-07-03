@@ -412,6 +412,32 @@ public sealed class PageTreeAdminController(
             : Redirect("/admin/pages");
     }
 
+    // Drag/drop endpoint used by the admin nav tree. Accepts a JSON body:
+    //   { newParentId: "<guid>" | null, newSortOrder: <int> }
+    // Returns 200 on success, 400 on cycle / collision, 404 on unknown node.
+    [HttpPost("/admin/pages/{id:guid}/move-to")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MoveTo(Guid id, [FromBody] MoveNodeRequest? request)
+    {
+        if (request is null) return BadRequest();
+        var result = await pageNodeService.MoveNodeAsync(
+            id, request.NewParentId, request.NewSortOrder, User?.Identity?.Name);
+        return result switch
+        {
+            MoveNodeResult.Ok => Ok(),
+            MoveNodeResult.NotFound => NotFound(),
+            MoveNodeResult.Cycle => BadRequest(new { error = "cycle", message = "Cannot move a page under itself." }),
+            MoveNodeResult.PathConflict => BadRequest(new { error = "path-conflict", message = "Another page already exists at the target URL." }),
+            _ => BadRequest(),
+        };
+    }
+
+    public sealed class MoveNodeRequest
+    {
+        public Guid? NewParentId { get; set; }
+        public int NewSortOrder { get; set; }
+    }
+
     // ── Content widget-editor mutation routes ─────────────────────────────────
     // All four routes are namespaced under /content/ so they cannot collide with
     // the node-level page-delete route /admin/pages/{id}/delete.

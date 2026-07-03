@@ -327,6 +327,43 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         });
     }
 
+    public async Task MoveNodeAsync(Guid id, Guid? newParentId, string newPath, int newSortOrder, string? userId)
+    {
+        await context.ExecuteInTransactionAsync(async () =>
+        {
+            var node = await context.PageNodes.FindAsync(id)
+                ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+            var oldPath = node.Path;
+            var now = DateTime.UtcNow;
+
+            node.ParentId = newParentId;
+            node.Path = newPath;
+            node.SortOrder = newSortOrder;
+            node.UpdatedDate = now;
+            node.UpdatedBy = userId;
+
+            // Only cascade when the path actually changed. Descendants keep their tail; only the
+            // prefix moves.
+            if (!string.Equals(oldPath, newPath, StringComparison.Ordinal))
+            {
+                var oldPrefix = oldPath + "/";
+                var descendants = await context.PageNodes
+                    .Where(n => n.Id != id && n.Path.StartsWith(oldPrefix))
+                    .ToListAsync();
+
+                foreach (var d in descendants)
+                {
+                    d.Path = newPath + "/" + d.Path[oldPrefix.Length..];
+                    d.UpdatedDate = now;
+                    d.UpdatedBy = userId;
+                }
+            }
+
+            await context.SaveChangesAsync();
+        });
+    }
+
     public async Task SetPageTypeAsync(Guid id, string pageType, string? userId)
     {
         var entity = await context.PageNodes.FindAsync(id)

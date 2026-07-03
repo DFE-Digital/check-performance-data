@@ -95,6 +95,83 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
 
     public Task RestoreAsync(Guid nodeId, string? userId) => repository.RestoreAsync(nodeId, userId);
 
+    public async Task<MoveNodeResult> MoveNodeAsync(
+        Guid nodeId, Guid? newParentId, int newSortOrder, string? userId)
+    {
+        var node = await repository.GetByIdAsync(nodeId);
+        if (node is null) return MoveNodeResult.NotFound;
+
+        PageNodeDto? newParent = null;
+        if (newParentId.HasValue)
+        {
+            newParent = await repository.GetByIdAsync(newParentId.Value);
+            if (newParent is null) return MoveNodeResult.NotFound;
+
+            // Prevent a cycle: newParent must not be the node itself or any descendant.
+            if (newParent.Id == node.Id
+                || newParent.Path == node.Path
+                || newParent.Path.StartsWith(node.Path + "/", StringComparison.Ordinal))
+                return MoveNodeResult.Cycle;
+        }
+
+        // Path = parent.Path + "/" + segment, or just segment when moving to root.
+        var newPath = newParent is null ? node.Segment : $"{newParent.Path}/{node.Segment}";
+
+        // Path collision: another live node already occupies this URL.
+        if (!string.Equals(newPath, node.Path, StringComparison.Ordinal))
+        {
+            var existing = await repository.GetByPathAsync(newPath);
+            if (existing is not null && existing.Id != node.Id)
+                return MoveNodeResult.PathConflict;
+        }
+
+        // Reorder siblings at both the old and new parents so SortOrder values are dense and
+        // the moved node lands at the requested position. This makes the tree stable regardless
+        // of what the existing SortOrder values were before.
+        var tree = await repository.GetTreeAsync();
+        var newSiblings = tree
+            .Where(n => n.ParentId == newParentId && n.Id != node.Id)
+            .OrderBy(n => n.SortOrder)
+            .ThenBy(n => n.CreatedDate)
+            .Select(n => n.Id)
+            .ToList();
+
+        var insertAt = Math.Clamp(newSortOrder, 0, newSiblings.Count);
+        var newOrder = new List<(Guid Id, int SortOrder)>();
+        for (var i = 0; i < newSiblings.Count; i++)
+        {
+            var pos = i < insertAt ? i : i + 1;
+            newOrder.Add((newSiblings[i], pos));
+        }
+        newOrder.Add((node.Id, insertAt));
+
+        List<(Guid Id, int SortOrder)>? oldOrder = null;
+        if (node.ParentId != newParentId)
+        {
+            var oldSiblings = tree
+                .Where(n => n.ParentId == node.ParentId && n.Id != node.Id)
+                .OrderBy(n => n.SortOrder)
+                .ThenBy(n => n.CreatedDate)
+                .Select(n => n.Id)
+                .ToList();
+            oldOrder = oldSiblings.Select((id, i) => (id, i)).ToList();
+        }
+
+        await repository.ExecuteInTransactionAsync(async () =>
+        {
+            await repository.MoveNodeAsync(node.Id, newParentId, newPath, insertAt, userId);
+            // Reassign SortOrder on siblings that weren't the moved node so their ordering
+            // is contiguous and matches the visible tree.
+            var moveAssignments = newOrder.Where(x => x.Id != node.Id).ToList();
+            if (moveAssignments.Count > 0)
+                await repository.SetSiblingOrderAsync(moveAssignments);
+            if (oldOrder is not null && oldOrder.Count > 0)
+                await repository.SetSiblingOrderAsync(oldOrder);
+        });
+
+        return MoveNodeResult.Ok;
+    }
+
     public async Task MoveAsync(Guid nodeId, string direction)
     {
         var node = await repository.GetByIdAsync(nodeId);

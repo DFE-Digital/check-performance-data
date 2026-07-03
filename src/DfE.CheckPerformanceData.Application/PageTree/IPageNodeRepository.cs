@@ -80,6 +80,14 @@ public interface IPageNodeRepository
     Task RenameNodeAndCascadeAsync(
         Guid id, string newSegment, string newPath, string newTitle, string? newSubtitle, string? newPageName, string? userId);
 
+    /// <summary>
+    /// Reparents <paramref name="id"/> under <paramref name="newParentId"/> (null = root),
+    /// updates its Path to <paramref name="newPath"/>, sets its SortOrder, and rewrites the
+    /// Path of every descendant so the sub-tree's URLs stay valid. All in one transaction.
+    /// </summary>
+    Task MoveNodeAsync(
+        Guid id, Guid? newParentId, string newPath, int newSortOrder, string? userId);
+
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
     // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id

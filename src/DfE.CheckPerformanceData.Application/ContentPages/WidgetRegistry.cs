@@ -16,7 +16,7 @@ public static class WidgetRegistry
         new("summarylist", "Summary list", ContributesToNav: false, """{"rows":[]}"""),
         new("published", "Published callout", ContributesToNav: false, """{"text":""}"""),
         new("search",    "Search",            ContributesToNav: false, """{"label":"Search","placeholder":"","action":"/help/search","buttonText":"Search"}"""),
-        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings"}""")
+        new("pagenav",   "Page navigation",   ContributesToNav: false, """{"mode":"headings","childrenParentPath":"","showSearch":false,"searchPath":"","searchLabel":"Search"}""")
     ];
 
     private static readonly Dictionary<string, WidgetDefinition> ByType =

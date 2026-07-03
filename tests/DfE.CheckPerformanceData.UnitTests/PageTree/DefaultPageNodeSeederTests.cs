@@ -75,11 +75,13 @@ public class DefaultPageNodeSeederTests
     [Fact]
     public async Task WhenAllExistAsContent_CreatesNothing_And_DoesNotRetype()
     {
+        // help/not-found is treated as already present so the seeder does not add anything.
         var (svc, repo) = BuildDeps(
-            ("support",  "content"),
-            ("wiki",     "content"),
-            ("help",     "content"),
-            ("guidance", "content"));
+            ("support",         "content"),
+            ("wiki",            "content"),
+            ("help",            "content"),
+            ("guidance",        "content"),
+            ("help/not-found",  "content"));
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
         await svc.DidNotReceiveWithAnyArgs().CreatePageAsync(default, default!, default!, default!, default);

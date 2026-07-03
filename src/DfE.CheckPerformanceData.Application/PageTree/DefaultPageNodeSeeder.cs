@@ -32,5 +32,24 @@ public sealed class DefaultPageNodeSeeder(
                         existing.Id, EmptyContentTree, string.Empty, null, null, "system");
             }
         }
+
+        // Default 404 page under /help. Renders whenever the catch-all resolver can't find a
+        // page, so an editor can customise the message from the CMS rather than shipping a
+        // hard-coded template.
+        var help = await pageNodes.GetNodeByPathAsync("help");
+        if (help is not null && await pageNodes.GetNodeByPathAsync("help/not-found") is null)
+        {
+            var notFound = await pageNodes.CreatePageAsync(
+                help.Id, "not-found", "Page not found", "content", "system");
+
+            // Seed with a starter rich-text widget so authors have something to customise
+            // rather than a blank canvas.
+            const string starter =
+                "[{\"kind\":\"widget\",\"type\":\"richtext\"," +
+                "\"props\":{\"html\":\"<p class='govuk-body'>Sorry, the page you were looking for cannot be found. " +
+                "It may have been moved or removed. Use the search box or the links above to find what you need.</p>\"}}]";
+            await pageNodes.SaveWorkingContentAsync(notFound.Id, starter, "Page not found", "system");
+            await pageNodes.PublishDraftAsync(notFound.Id, "system");
+        }
     }
 }

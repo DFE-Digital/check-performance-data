@@ -4,6 +4,8 @@
 @model ContentPageEditViewModel
 @{
     ViewData["Title"] = $"Edit: {Model.Title}";
+    var renameResult = TempData["RenameResult"] as string;
+    var renameUrl = $"/admin/pages/{Model.NodeId}/rename";
 }
 
 <style>
@@ -57,78 +59,6 @@
             <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
         </p>
 
-        @if (Model.NodeId != Guid.Empty)
-        {
-            var renameResult = TempData["RenameResult"] as string;
-            if (!string.IsNullOrEmpty(renameResult))
-            {
-                <div class="govuk-notification-banner" role="alert" aria-labelledby="rename-banner-title">
-                    <div class="govuk-notification-banner__header">
-                        <h2 class="govuk-notification-banner__title" id="rename-banner-title">Page details</h2>
-                    </div>
-                    <div class="govuk-notification-banner__content">
-                        <p class="govuk-notification-banner__heading">@renameResult</p>
-                    </div>
-                </div>
-            }
-
-            var renameUrl = $"/admin/pages/{Model.NodeId}/rename";
-            <form id="cpb-rename-form" method="post" action="@renameUrl"
-                  data-original-segment="@Model.Segment">
-                @Html.AntiForgeryToken()
-                <div class="govuk-form-group">
-                    <label class="govuk-label govuk-label--s" for="cpb-title">Title</label>
-                    <input class="govuk-input" id="cpb-title" name="title" value="@Model.Title" />
-                </div>
-                <div class="govuk-form-group">
-                    <label class="govuk-label govuk-label--s" for="cpb-subtitle">Subtitle</label>
-                    <div id="cpb-subtitle-hint" class="govuk-hint">
-                        Optional lede displayed above the page heading. Leave blank to hide it.
-                    </div>
-                    <input class="govuk-input" id="cpb-subtitle" name="subtitle" value="@Model.Subtitle"
-                           aria-describedby="cpb-subtitle-hint" />
-                </div>
-                <div class="govuk-form-group">
-                    <label class="govuk-label govuk-label--s" for="cpb-pagename">Page name</label>
-                    <div id="cpb-pagename-hint" class="govuk-hint">
-                        Short label used in the admin navigation. Defaults to the title if left blank.
-                    </div>
-                    <input class="govuk-input" id="cpb-pagename" name="pageName" value="@Model.PageName"
-                           aria-describedby="cpb-pagename-hint" />
-                </div>
-                <div class="govuk-form-group">
-                    <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
-                    <div id="cpb-segment-hint" class="govuk-hint">
-                        Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
-                    </div>
-                    <input class="govuk-input govuk-input--width-30" id="cpb-segment" name="segment"
-                           value="@Model.Segment" aria-describedby="cpb-segment-hint" />
-                </div>
-                <div class="govuk-button-group">
-                    <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
-                        Save details
-                    </button>
-                </div>
-            </form>
-
-            @* Modal's own form POSTs directly to /rename so the standard confirm-modal.js wiring
-               works unchanged. Hidden title/segment inputs are populated by JS from the outer form
-               just before the dialog opens. *@
-            <govuk-confirm-modal id="cpb-rename-confirm"
-                                 title="Change page URL?"
-                                 warning-text="Changing the URL segment will change this page's URL and every child page's URL."
-                                 body="Existing bookmarks and links to this page will stop working."
-                                 confirm-label="Yes, change URL"
-                                 destructive="true"
-                                 form-action="@renameUrl"
-                                 form-method="post">
-                @Html.AntiForgeryToken()
-                <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
-                <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
-                <input type="hidden" name="pageName" id="cpb-rename-modal-pagename" value="" />
-                <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
-            </govuk-confirm-modal>
-        }
         <p class="govuk-body">
             @if (Model.IsPublished)
             {
@@ -140,61 +70,151 @@
             }
         </p>
 
-        @await Html.PartialAsync("ContentPages/_EditColumn",
-            new EditColumnModel(Model.ActionBase, Model.Content, Array.Empty<TreeStep>(), 0))
+        @* Tabs: Content (default), Properties, Versions. govuk-frontend's tabs module
+           auto-activates the panel matching the URL hash on load, so redirects that end
+           in #properties or #versions land the user on the right tab. *@
+        <div class="govuk-tabs" data-module="govuk-tabs">
+            <h2 class="govuk-tabs__title">Contents</h2>
+            <ul class="govuk-tabs__list">
+                <li class="govuk-tabs__list-item govuk-tabs__list-item--selected">
+                    <a class="govuk-tabs__tab" href="#content">Content</a>
+                </li>
+                <li class="govuk-tabs__list-item">
+                    <a class="govuk-tabs__tab" href="#properties">Properties</a>
+                </li>
+                <li class="govuk-tabs__list-item">
+                    <a class="govuk-tabs__tab" href="#versions">Versions</a>
+                </li>
+            </ul>
 
-        @if (Model.NodeId != Guid.Empty)
-        {
-            <div class="govuk-!-margin-top-6">
-                <div class="govuk-button-group">
-                    <form method="post" action="/admin/pages/@Model.NodeId/content/save-draft">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="govuk-button govuk-button--secondary">Save</button>
-                    </form>
-                    <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="govuk-button">Publish draft</button>
-                    </form>
-                </div>
+            @* ── Content tab ─────────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel" id="content">
+                @await Html.PartialAsync("ContentPages/_EditColumn",
+                    new EditColumnModel(Model.ActionBase, Model.Content, Array.Empty<TreeStep>(), 0))
 
-                @if (Model.IsPublished)
+                @if (Model.NodeId != Guid.Empty)
                 {
-                    <p class="govuk-body govuk-!-margin-bottom-2">
-                        @if (Model.IsPublished)
+                    <div class="govuk-!-margin-top-6">
+                        <div class="govuk-button-group">
+                            <form method="post" action="/admin/pages/@Model.NodeId/content/save-draft">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button govuk-button--secondary">Save</button>
+                            </form>
+                            <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button">Publish draft</button>
+                            </form>
+                            @if (Model.IsPublished)
+                            {
+                                <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
+                                </form>
+                            }
+                        </div>
+                        @if (!Model.IsPublished)
                         {
-                            <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionLabel</span>
+                            <p class="govuk-hint">Publish draft to make this page live.</p>
                         }
-                        @if (Model.DraftVersionLabel is not null)
-                        {
-                            <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionLabel</span>
-                        }
-                    </p>
-                    <div class="govuk-button-group">
-                        <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
-                        </form>
-                        <a class="govuk-link" href="#version-history">Version history</a>
                     </div>
+                }
+
+                @if (Model.ShowInlinePublish)
+                {
+                    <form method="post" action="@Model.ActionBase/publish" class="govuk-!-margin-top-6">
+                        @Html.AntiForgeryToken()
+                        <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
+                    </form>
+                }
+            </div>
+
+            @* ── Properties tab ────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="properties">
+                @if (!string.IsNullOrEmpty(renameResult))
+                {
+                    <div class="govuk-notification-banner" role="alert" aria-labelledby="rename-banner-title">
+                        <div class="govuk-notification-banner__header">
+                            <h2 class="govuk-notification-banner__title" id="rename-banner-title">Page details</h2>
+                        </div>
+                        <div class="govuk-notification-banner__content">
+                            <p class="govuk-notification-banner__heading">@renameResult</p>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.NodeId != Guid.Empty)
+                {
+                    <form id="cpb-rename-form" method="post" action="@renameUrl"
+                          data-original-segment="@Model.Segment">
+                        @Html.AntiForgeryToken()
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-title">Title</label>
+                            <input class="govuk-input" id="cpb-title" name="title" value="@Model.Title" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-subtitle">Subtitle</label>
+                            <div id="cpb-subtitle-hint" class="govuk-hint">
+                                Optional lede displayed above the page heading. Leave blank to hide it.
+                            </div>
+                            <input class="govuk-input" id="cpb-subtitle" name="subtitle" value="@Model.Subtitle"
+                                   aria-describedby="cpb-subtitle-hint" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-pagename">Page name</label>
+                            <div id="cpb-pagename-hint" class="govuk-hint">
+                                Short label used in the admin navigation. Defaults to the title if left blank.
+                            </div>
+                            <input class="govuk-input" id="cpb-pagename" name="pageName" value="@Model.PageName"
+                                   aria-describedby="cpb-pagename-hint" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
+                            <div id="cpb-segment-hint" class="govuk-hint">
+                                Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
+                            </div>
+                            <input class="govuk-input govuk-input--width-30" id="cpb-segment" name="segment"
+                                   value="@Model.Segment" aria-describedby="cpb-segment-hint" />
+                        </div>
+                        <div class="govuk-button-group">
+                            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+                                Save details
+                            </button>
+                        </div>
+                    </form>
+
+                    @* Modal's own form POSTs directly to /rename. Hidden mirrors of the outer
+                       form's Title / Subtitle / Page name / Segment inputs are populated by JS
+                       just before the modal opens. *@
+                    <govuk-confirm-modal id="cpb-rename-confirm"
+                                         title="Change page URL?"
+                                         warning-text="Changing the URL segment will change this page's URL and every child page's URL."
+                                         body="Existing bookmarks and links to this page will stop working."
+                                         confirm-label="Yes, change URL"
+                                         destructive="true"
+                                         form-action="@renameUrl"
+                                         form-method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
+                        <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
+                        <input type="hidden" name="pageName" id="cpb-rename-modal-pagename" value="" />
+                        <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
+                    </govuk-confirm-modal>
+                }
+            </div>
+
+            @* ── Versions tab ──────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="versions">
+                @if (Model.NodeId != Guid.Empty)
+                {
+                    @await Html.PartialAsync("~/Views/PageTreeAdmin/_VersionHistoryList.cshtml",
+                        new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
                 }
                 else
                 {
-                    <a class="govuk-link" href="#version-history">Version history</a>
-                    <p class="govuk-hint">Make this page live.</p>
+                    <p class="govuk-body">This page has no version history yet.</p>
                 }
-
-                @await Html.PartialAsync("~/Views/PageTreeAdmin/_VersionHistoryList.cshtml",
-                    new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
             </div>
-        }
-
-        @if (Model.ShowInlinePublish)
-        {
-            <form method="post" action="@Model.ActionBase/publish" class="govuk-!-margin-top-6">
-                @Html.AntiForgeryToken()
-                <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
-            </form>
-        }
+        </div>
     </div>
 </div>
 
@@ -242,8 +262,6 @@
                 promotion: false,
                 license_key: 'gpl',
                 setup: function (editor) {
-                    // GDS warning text needs the "!" icon and a visually-hidden "Warning" prefix, which
-                    // a style_formats wrapper can't express — a dedicated button inserts the markup.
                     editor.ui.registry.addButton('warningtext', {
                         text: 'Warning',
                         tooltip: 'Insert GDS warning text',
@@ -264,7 +282,6 @@
             });
         }
 
-        // Lazy-init each rich-text editor the first time its disclosure is opened.
         document.querySelectorAll('details').forEach(function (details) {
             var textarea = details.querySelector('textarea.cpb-richtext');
             if (!textarea) return;
@@ -273,17 +290,40 @@
             });
         });
 
-        // Belt and braces: flush every active editor to its textarea before any submit.
         document.addEventListener('submit', function () { tinymce.triggerSave(); }, true);
     })();
 </script>
 <script src="~/js/content-editor-dnd.js"></script>
 
+@* Live toggling for the PageNav widget editor: only show the children-only fields when
+   mode=children, and only show the search-scope fields when Show search is ticked. *@
+<script>
+    (function () {
+        'use strict';
+        document.querySelectorAll('[data-cpb-pagenav-mode]').forEach(function (select) {
+            var wrapper = select.closest('.govuk-details__text');
+            if (!wrapper) return;
+            var childrenPanel = wrapper.querySelector('[data-cpb-pagenav-children]');
+            var searchCheckbox = wrapper.querySelector('[data-cpb-pagenav-showsearch]');
+            var searchPanel = wrapper.querySelector('[data-cpb-pagenav-searchfields]');
+            if (!childrenPanel) return;
+
+            function refresh() {
+                var isChildren = select.value === 'children';
+                childrenPanel.hidden = !isChildren;
+                if (searchPanel) searchPanel.hidden = !isChildren || !(searchCheckbox && searchCheckbox.checked);
+            }
+            select.addEventListener('change', refresh);
+            if (searchCheckbox) searchCheckbox.addEventListener('change', refresh);
+            refresh();
+        });
+    })();
+</script>
+
 @* URL-change confirmation. When the segment field differs from the value the page loaded
-   with, the outer form's submit is cancelled, the current title + segment are copied into the
-   modal's hidden inputs, and the govuk-confirm-modal is opened. Confirming inside the modal
-   POSTs the modal's own form directly to /rename (matching the standard pattern used by
-   confirm-modal.js). Title-only edits skip the modal and submit as normal. *@
+   with, the outer form's submit is cancelled, the current title / subtitle / page name / segment
+   are copied into the modal's hidden inputs, and the govuk-confirm-modal is opened. Title-only
+   edits skip the modal and submit as normal. *@
 <script>
     (function () {
         'use strict';
@@ -303,7 +343,7 @@
 
         form.addEventListener('submit', function (e) {
             var current = (segmentInput && segmentInput.value ? segmentInput.value : '').trim();
-            if (current === originalSegment) return;  // no URL change → submit as normal
+            if (current === originalSegment) return;
 
             e.preventDefault();
             if (modalTitleHidden)    modalTitleHidden.value    = titleInput    ? titleInput.value    : '';
@@ -314,7 +354,6 @@
             if (typeof dialog.showModal === 'function') {
                 dialog.showModal();
             } else {
-                // Fallback for browsers that don't support <dialog>.
                 dialog.setAttribute('open', 'open');
             }
         });

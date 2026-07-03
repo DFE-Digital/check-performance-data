@@ -188,7 +188,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> Publish(Guid id, int versionId, string? from, string? to)
     {
         await pageNodeService.PublishAsync(id, versionId, ParseWindowUtc(from), ParseWindowUtc(to), User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/edit#version-history");
+        return Redirect($"/admin/pages/{id}/edit#versions");
     }
 
     // datetime-local form fields post an unzoned string (e.g. "2027-01-01T09:00"). The default
@@ -255,7 +255,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> PublishNow(Guid id, int versionId)
     {
         await pageNodeService.PublishAsync(id, versionId, DateTime.UtcNow, null, User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/edit#version-history");
+        return Redirect($"/admin/pages/{id}/edit#versions");
     }
 
     [HttpPost("/admin/pages/{id:guid}/versions/unpublish")]
@@ -263,7 +263,7 @@ public sealed class PageTreeAdminController(
     public async Task<IActionResult> UnpublishVersion(Guid id, int versionId)
     {
         await pageNodeService.PublishAsync(id, versionId, null, null, User?.Identity?.Name);
-        return Redirect($"/admin/pages/{id}/edit#version-history");
+        return Redirect($"/admin/pages/{id}/edit#versions");
     }
 
     // ── Edit / Save ───────────────────────────────────────────────────────────
@@ -346,7 +346,8 @@ public sealed class PageTreeAdminController(
             _                                => null
         };
 
-        return Redirect($"/admin/pages/{id}/edit");
+        // Land back on the Properties tab so the editor sees the banner without hunting.
+        return Redirect($"/admin/pages/{id}/edit#properties");
     }
 
     // ── Node delete ───────────────────────────────────────────────────────────

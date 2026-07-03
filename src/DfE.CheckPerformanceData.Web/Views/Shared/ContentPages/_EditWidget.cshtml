@@ -91,13 +91,55 @@
                             break;
 
                         case "pagenav":
-                            <div class="govuk-form-group">
-                                <label class="govuk-label" for="pn-@Model.Path">Show</label>
-                                <select class="govuk-select" id="pn-@Model.Path" name="props[mode]">
-                                    <option value="headings" selected="@(w.GetString("mode") == "headings" ? "selected" : null)">Page headings</option>
-                                    <option value="children" selected="@(w.GetString("mode") == "children" ? "selected" : null)">Child pages</option>
-                                </select>
-                            </div>
+                            {
+                                var pnMode = w.GetString("mode") ?? "headings";
+                                var pnShowSearch = w.GetString("showSearch") == "true" || (w.Props?["showSearch"]?.GetValue<bool?>() == true);
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label" for="pn-@Model.Path">Show</label>
+                                    <select class="govuk-select cpb-pagenav__mode" id="pn-@Model.Path" name="props[mode]"
+                                            data-cpb-pagenav-mode>
+                                        <option value="headings" selected="@(pnMode == "headings" ? "selected" : null)">Page headings</option>
+                                        <option value="children" selected="@(pnMode == "children" ? "selected" : null)">Child pages</option>
+                                    </select>
+                                </div>
+                                @* Children-only fields — shown when mode=children. The script at the bottom
+                                   of Edit.cshtml toggles visibility live as the select changes. *@
+                                <div class="cpb-pagenav__children-fields" data-cpb-pagenav-children @(pnMode == "children" ? null : Html.Raw("hidden"))>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="pnpp-@Model.Path">Parent path for children</label>
+                                        <div class="govuk-hint">
+                                            Path whose direct children are listed (e.g. <code>help</code>).
+                                            Leave blank to list children of the current page.
+                                        </div>
+                                        <input class="govuk-input" id="pnpp-@Model.Path" name="props[childrenParentPath]" value="@w.GetString("childrenParentPath")" />
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" id="pnss-@Model.Path" name="props[showSearch]"
+                                                   type="checkbox" value="true" data-cpb-pagenav-showsearch
+                                                   @(pnShowSearch ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="pnss-@Model.Path">
+                                                Show a search box above the list
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @* Search-only fields — shown when Show search is ticked. *@
+                                    <div class="cpb-pagenav__search-fields" data-cpb-pagenav-searchfields @(pnShowSearch ? null : Html.Raw("hidden"))>
+                                        <div class="govuk-form-group">
+                                            <label class="govuk-label" for="pnsl-@Model.Path">Search label</label>
+                                            <input class="govuk-input" id="pnsl-@Model.Path" name="props[searchLabel]" value="@w.GetString("searchLabel")" />
+                                        </div>
+                                        <div class="govuk-form-group">
+                                            <label class="govuk-label" for="pnsp-@Model.Path">Search scope path</label>
+                                            <div class="govuk-hint">
+                                                Restrict search to descendants of this path (e.g. <code>help</code>).
+                                                Leave blank to search all documents.
+                                            </div>
+                                            <input class="govuk-input" id="pnsp-@Model.Path" name="props[searchPath]" value="@w.GetString("searchPath")" />
+                                        </div>
+                                    </div>
+                                </div>
+                            }
                             break;
 
                         case "search":

@@ -17,7 +17,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
     {
         var node = await pageNodes.GetNodeByPathAsync(path);
         if (node is null)
-            return NotFound();
+            return await NotFoundPageAsync();
 
         if (node.PageType == "folder")
             return await BuildFolderViewAsync(node);
@@ -30,20 +30,36 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
             {
                 "content" => await BuildContentViewAsync(result),
                 "wiki"    => await BuildWikiViewAsync(result),
-                _         => NotFound()
+                _         => await NotFoundPageAsync()
             };
         }
 
-        // No live version: editors see a draft preview; everyone else gets 404.
+        // No live version: editors see a draft preview; everyone else gets the 404 page.
         if (!User.IsInRole(WikiConstants.EditorRole))
-            return NotFound();
+            return await NotFoundPageAsync();
 
         return node.PageType switch
         {
             "content" => await BuildPreviewContentViewAsync(node),
             "wiki"    => await BuildPreviewWikiViewAsync(node),
-            _         => NotFound()
+            _         => await NotFoundPageAsync()
         };
+    }
+
+    // Renders /help/not-found (a CMS-authored content page) with HTTP 404 status. Falls back to
+    // a bare NotFound() when the page has been deleted or has no live version, so the resolver
+    // never fails to return SOMETHING.
+    private async Task<IActionResult> NotFoundPageAsync()
+    {
+        var live = await pageNodes.GetLivePageAsync("help/not-found", DateTime.UtcNow);
+        if (live is null || live.Node.PageType != "content")
+        {
+            Response.StatusCode = 404;
+            return NotFound();
+        }
+        var view = await BuildContentViewAsync(live);
+        Response.StatusCode = 404;
+        return view;
     }
 
     // Ancestor chain from root down to the immediate parent, as breadcrumb items. Leaves the

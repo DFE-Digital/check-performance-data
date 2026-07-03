@@ -1,18 +1,72 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.PageTree
+@inject IPageNodeService PageNodes
 @model WidgetNode
 @*
-    Page-navigation widget. Mode "headings" (the default) renders the auto-generated heading
-    nav for the current page (H2 top-level, H3 nested). Mode "children" renders the current
-    page's direct child pages as a flat list.
+    Page-navigation widget. Two modes:
 
-    Both nav lists are pre-computed by PageController and stashed in ViewData by the outer
-    Content.cshtml view — the widget itself has no page-context, only its own props.
+    - "headings" (default) → renders the auto-generated heading nav for the current page
+      (H2 top-level, H3 nested). Pre-computed by PageController and stashed in ViewData.
+
+    - "children" → renders a list of direct child pages. Which parent's children are listed
+      is set by the childrenParentPath prop (empty = current page). Optionally shows a
+      search box above the list, scoped to the searchPath prop (empty = search all).
 *@
 @{
     var mode = Model.GetString("mode") ?? "headings";
-    var key = mode == "children" ? "PageChildrenNav" : "PageHeadingNav";
-    var items = ViewData[key] as IReadOnlyList<ContentNavItem>;
+
+    IReadOnlyList<ContentNavItem> items;
+    if (mode == "children")
+    {
+        var scopePath = (Model.GetString("childrenParentPath") ?? string.Empty).Trim().Trim('/');
+        if (string.IsNullOrEmpty(scopePath))
+        {
+            // No path supplied → fall back to the ambient page-children nav pre-computed by PageController.
+            items = ViewData["PageChildrenNav"] as IReadOnlyList<ContentNavItem> ?? [];
+        }
+        else
+        {
+            var scopeNode = await PageNodes.GetNodeByPathAsync(scopePath);
+            if (scopeNode is null)
+            {
+                items = [];
+            }
+            else
+            {
+                var tree = await PageNodes.GetTreeAsync() ?? [];
+                items = tree
+                    .Where(n => n.ParentId == scopeNode.Id)
+                    .OrderBy(n => n.SortOrder)
+                    .Select(n => new ContentNavItem(n.DisplayName, "/" + n.Path, Array.Empty<ContentNavItem>()))
+                    .ToList();
+            }
+        }
+    }
+    else
+    {
+        items = ViewData["PageHeadingNav"] as IReadOnlyList<ContentNavItem> ?? [];
+    }
+
+    var showSearch = mode == "children"
+        && (Model.GetString("showSearch") == "true" || Model.Props?["showSearch"]?.GetValue<bool?>() == true);
+    var searchLabel = Model.GetString("searchLabel") ?? "Search";
+    var searchPathProp = (Model.GetString("searchPath") ?? string.Empty).Trim();
+    var searchAction = string.IsNullOrEmpty(searchPathProp) ? "/help/search" : $"/{searchPathProp.Trim('/')}/search";
 }
+
+@if (showSearch)
+{
+    <form class="cypmd-search" role="search" method="get" action="@searchAction">
+        <div class="govuk-form-group">
+            <label class="govuk-label govuk-label--s" for="pn-search">@searchLabel</label>
+            <div class="cypmd-search__row">
+                <input class="govuk-input cypmd-search__input" id="pn-search" name="q" type="search" autocomplete="off" />
+                <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">@searchLabel</button>
+            </div>
+        </div>
+    </form>
+}
+
 @if (items is { Count: > 0 })
 {
     @await Html.PartialAsync("ContentPages/_SideNav", items)

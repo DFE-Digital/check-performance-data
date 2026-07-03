@@ -581,7 +581,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#versions", redirect.Url);
     }
 
     [Fact]
@@ -1455,7 +1455,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#versions", redirect.Url);
     }
 
     [Fact]
@@ -1481,7 +1481,7 @@ public sealed class PageTreeAdminControllerTests
             Arg.Is<DateTime?>(d => d == null),
             Arg.Any<string?>());
         var redirect = Assert.IsType<RedirectResult>(result);
-        Assert.Equal($"/admin/pages/{id}/edit#version-history", redirect.Url);
+        Assert.Equal($"/admin/pages/{id}/edit#versions", redirect.Url);
     }
 
     [Fact]

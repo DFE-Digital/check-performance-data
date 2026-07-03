@@ -47,11 +47,13 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     }
 
     [Fact]
-    public void ContentEdit_HasVersionHistoryLink()
+    public void ContentEdit_HasVersionsTab()
     {
+        // Version history moved out of a scroll-to anchor into its own tab so authors do not
+        // need to scroll a long page just to see history. The tab is targeted by #versions.
         var src = ContentEdit();
-        Assert.Contains("Version history", src);
-        Assert.Contains("#version-history", src);
+        Assert.Contains("Versions", src);
+        Assert.Contains("#versions", src);
     }
 
     [Fact]
@@ -89,7 +91,8 @@ public sealed class PageTreeAdminEditPublishViewSourceTests
     public void ContentEdit_HelperText_MakeThisPageLive_PresentInUnpublishedBranch()
     {
         var src = ContentEdit();
-        Assert.Contains("Make this page live", src);
+        // Tab restructure re-worded the helper — same idea, different phrasing.
+        Assert.Contains("make this page live", src);
     }
 
     // ── Wiki editor (WikiEdit.cshtml) ────────────────────────────────────────

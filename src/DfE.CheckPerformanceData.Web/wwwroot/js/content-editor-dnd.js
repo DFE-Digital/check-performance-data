@@ -1,14 +1,51 @@
 // Vanilla HTML5 drag-and-drop reordering for the content-page inline editor.
+//
 // Grab a region or widget by its caption (.cpb-drag-handle) to move it.
-// Drop onto a .cpb-node to insert before it; drop onto an empty column area
-// ([data-column-path]) to append.  Submits the move via POST to /content/move-to,
-// which calls ContentTreeEditor.MoveTo on the server and redirects back to /edit.
+// While dragging over a .cpb-node the cursor's Y position within that node decides
+// whether the drop will land ABOVE (top half) or BELOW (bottom half) it — indicated
+// visually by a coloured strip along the top or bottom edge of the target. Dropping
+// on an empty column area appends to that column.
+//
+// Server-side ContentTreeEditor.MoveTo(fromPath, toPath) always inserts BEFORE toPath.
+// To land AFTER a node we resolve to the NEXT sibling's path (if any); if the target
+// is the last node in its column, we resolve to the column's append path instead.
 // No external library dependency.
 (function () {
     'use strict';
 
     var draggingPath = null;
     var currentDropTarget = null;
+    // 'above', 'below', or null (column drop).
+    var currentDropSide = null;
+
+    function clearHighlight() {
+        if (currentDropTarget) {
+            currentDropTarget.classList.remove(
+                'cpb-drop-target',
+                'cpb-drop-target--above',
+                'cpb-drop-target--below');
+        }
+        currentDropTarget = null;
+        currentDropSide = null;
+    }
+
+    function setHighlight(target, side) {
+        if (currentDropTarget !== target || currentDropSide !== side) {
+            clearHighlight();
+            currentDropTarget = target;
+            currentDropSide = side;
+            target.classList.add('cpb-drop-target');
+            if (side === 'above') target.classList.add('cpb-drop-target--above');
+            else if (side === 'below') target.classList.add('cpb-drop-target--below');
+        }
+    }
+
+    // Given a node target and the pointer Y, decides above/below based on the midpoint.
+    function sideFor(node, clientY) {
+        var r = node.getBoundingClientRect();
+        var midpoint = r.top + r.height / 2;
+        return clientY < midpoint ? 'above' : 'below';
+    }
 
     // ── dragstart ─────────────────────────────────────────────────────────────
 
@@ -30,23 +67,27 @@
 
     document.addEventListener('dragover', function (e) {
         if (!draggingPath) return;
-        // Match the drop resolution: highlight the column when the nearest node is its region
-        // ancestor (drop would append to the column), otherwise highlight the node.
+
         var overNode = e.target.closest ? e.target.closest('.cpb-node') : null;
         var overColumn = e.target.closest ? e.target.closest('[data-column-path]') : null;
-        var target = (overColumn && (!overNode || !overColumn.contains(overNode)))
-            ? overColumn
-            : (overNode || overColumn);
-        if (!target) return;
+
+        // If the nearest column doesn't contain the nearest node, the node is the column's
+        // region ancestor (i.e. we're over a region's own — often empty — column area).
+        // In that case the drop appends to the column; highlight the column, no above/below.
+        if (overColumn && (!overNode || !overColumn.contains(overNode))) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            setHighlight(overColumn, null);
+            return;
+        }
+
+        if (!overNode) return;
 
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
 
-        if (currentDropTarget !== target) {
-            if (currentDropTarget) currentDropTarget.classList.remove('cpb-drop-target');
-            currentDropTarget = target;
-            target.classList.add('cpb-drop-target');
-        }
+        var side = sideFor(overNode, e.clientY);
+        setHighlight(overNode, side);
     });
 
     // ── dragleave ─────────────────────────────────────────────────────────────
@@ -55,18 +96,16 @@
         if (!currentDropTarget) return;
         // Only clear when the cursor truly leaves the element (not just into a child).
         if (!currentDropTarget.contains(e.relatedTarget)) {
-            currentDropTarget.classList.remove('cpb-drop-target');
-            currentDropTarget = null;
+            clearHighlight();
         }
     });
 
     // ── drop ─────────────────────────────────────────────────────────────────
 
     document.addEventListener('drop', function (e) {
-        if (currentDropTarget) {
-            currentDropTarget.classList.remove('cpb-drop-target');
-            currentDropTarget = null;
-        }
+        var side = currentDropSide;
+        var target = currentDropTarget;
+        clearHighlight();
 
         var fromPath = e.dataTransfer.getData('text/plain');
         if (!fromPath) return;
@@ -75,14 +114,30 @@
         var droppedOnNode = e.target.closest ? e.target.closest('.cpb-node') : null;
         var droppedOnColumn = e.target.closest ? e.target.closest('[data-column-path]') : null;
 
-        // If the nearest column does NOT contain the nearest node, the node is the column's region
-        // ancestor (i.e. we're over a region's own — often empty — column area), so append to the
-        // column. Otherwise the node is a child within the column: insert before it.
+        // Column-append path (dropped in an empty area of a column, not over a node).
         if (droppedOnColumn && droppedOnColumn.dataset && droppedOnColumn.dataset.columnPath
             && (!droppedOnNode || !droppedOnColumn.contains(droppedOnNode))) {
             toPath = droppedOnColumn.dataset.columnPath;
-        } else if (droppedOnNode && droppedOnNode.dataset && droppedOnNode.dataset.nodePath) {
-            toPath = droppedOnNode.dataset.nodePath;
+        }
+        else if (droppedOnNode && droppedOnNode.dataset && droppedOnNode.dataset.nodePath) {
+            // Above: MoveTo semantics already insert BEFORE toPath — use the node itself.
+            // Below: resolve to the NEXT sibling's path, or the column-append path if last.
+            if (side === 'below') {
+                var next = droppedOnNode.nextElementSibling;
+                // Skip over any inline "Add content here" details between nodes.
+                while (next && !next.classList.contains('cpb-node')) {
+                    next = next.nextElementSibling;
+                }
+                if (next && next.dataset && next.dataset.nodePath) {
+                    toPath = next.dataset.nodePath;
+                } else if (droppedOnColumn && droppedOnColumn.dataset && droppedOnColumn.dataset.columnPath) {
+                    toPath = droppedOnColumn.dataset.columnPath;
+                } else {
+                    toPath = droppedOnNode.dataset.nodePath;
+                }
+            } else {
+                toPath = droppedOnNode.dataset.nodePath;
+            }
         }
 
         if (!toPath) return;
@@ -135,9 +190,6 @@
         document.querySelectorAll('.cpb-dragging').forEach(function (el) {
             el.classList.remove('cpb-dragging');
         });
-        if (currentDropTarget) {
-            currentDropTarget.classList.remove('cpb-drop-target');
-            currentDropTarget = null;
-        }
+        clearHighlight();
     });
 })();

@@ -1603,6 +1603,17 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 .govuk-body:has(> .govuk-caption-l:only-child) { margin-bottom: 0; }
 .govuk-body > .govuk-caption-l:only-child { margin-bottom: 5px; }
 
+/* Vertically align the caption text with the first item's text in the side nav.
+   moj-side-navigation ships with padding-top: 20px, and its links carry padding-top: 10px,
+   so the first link text sits 30px below the nav container's top. Pad the caption widget
+   the same amount when it's the first thing in the two-thirds column of a top region, so
+   both columns start their visible text on the same baseline. */
+.cpb-breadcrumbs + .govuk-grid-row
+  > .govuk-grid-column-two-thirds
+  > .govuk-body:first-child:has(> .govuk-caption-l:only-child) {
+    padding-top: 30px;
+}
+
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }
 .cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }

@@ -162,7 +162,10 @@
             body: JSON.stringify(move)
         }).then(function (res) {
             if (res.ok) {
-                window.location.reload();
+                // Navigate to the moved page so the tree's active-key logic force-expands the
+                // branch it now lives on and highlights it — otherwise a simple reload leaves
+                // the nav collapsed above the drop target.
+                window.location.href = '/admin/pages/' + id;
                 return;
             }
             return res.json().catch(function () { return { message: 'Move failed.' }; })

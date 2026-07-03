@@ -26,6 +26,7 @@ public class GuidanceContentTreeBuilderTests
         public Task<ContentBlockDto> SaveAsync(SaveContentBlockDto dto) => throw new NotImplementedException();
         public Task<List<ContentBlockVersionDto>> GetVersionsAsync(string key) => throw new NotImplementedException();
         public Task<ContentBlockDto> RevertToVersionAsync(string key, int versionId) => throw new NotImplementedException();
+        public Task<ContentBlockDto> EnsureAsync(string key, string blockType, string defaultValue, string path) => throw new NotImplementedException();
     }
 
     private static WidgetNode Widget(ContentNode node) => Assert.IsType<WidgetNode>(node);

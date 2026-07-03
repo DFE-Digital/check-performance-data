@@ -15,6 +15,28 @@ public sealed class ContentBlockService(
     public Task RecordLastSeenAsync(string key, string path) =>
         repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
 
+    public async Task<ContentBlockDto> EnsureAsync(string key, string blockType, string defaultValue, string path)
+    {
+        var existing = await repository.GetByKeyAsync(key);
+        if (existing is null)
+        {
+            ContentBlockDto? created = null;
+            await repository.ExecuteInTransactionAsync(async () =>
+            {
+                created = await repository.AddBlockAsync(key, blockType, defaultValue);
+                await repository.AddVersionAsync(created.Id, defaultValue, 1);
+                await repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
+            });
+            return EnrichDto(created!);
+        }
+
+        if (!string.Equals(existing.LastSeenPath, path, StringComparison.Ordinal))
+        {
+            await repository.SetLastSeenAsync(key, path, DateTime.UtcNow);
+        }
+        return EnrichDto(existing);
+    }
+
     public async Task<List<ContentBlockDto>> GetAllAsync()
     {
         var blocks = await repository.GetAllAsync();

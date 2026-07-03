@@ -13,21 +13,20 @@ public sealed class EditableTitleViewComponent(IContentBlockService contentBlock
         string cssClass = "govuk-heading-xl")
     {
         var isEditing = HttpContext.Request.Query["edit"].ToString() == key;
-        var block = await contentBlockService.GetByKeyAsync(key);
-
-        // Record which page this block currently sits on (writes only when the path changed).
         var path = HttpContext.Request.Path.ToString();
-        if (block is not null && block.LastSeenPath != path)
-            await contentBlockService.RecordLastSeenAsync(key, path);
+
+        // Auto-provision on first render so the block appears in the admin tree with the
+        // template's default text as its initial value.
+        var block = await contentBlockService.EnsureAsync(key, "Title", defaultText, path);
 
         var model = new EditableTitleViewModel
         {
             Key = key,
-            Value = block?.Value ?? defaultText,
+            Value = block.Value,
             HeadingLevel = headingLevel,
             CssClass = cssClass,
             IsEditing = isEditing,
-            HasSavedContent = block != null,
+            HasSavedContent = true,
             ReturnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}"
         };
 

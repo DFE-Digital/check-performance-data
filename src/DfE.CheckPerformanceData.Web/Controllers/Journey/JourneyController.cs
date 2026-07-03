@@ -1,4 +1,6 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -15,7 +17,8 @@ public sealed class JourneyController(
     IFileStorageService fileStorageService,
     IRequestService requestService,
     ICheckYourPupilDataService pupilDataService,
-    JourneyViewModelBuilder viewModelBuilder) : Controller
+    JourneyViewModelBuilder viewModelBuilder,
+    IAnalyticsService analytics) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -44,8 +47,11 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = navPageId });
 
         var viewName = page.Type == PageType.EvidenceUpload ? "EvidenceUpload" : "Page";
+        // Surface an upload error stashed by UploadFile before its PRG redirect here — otherwise
+        // a rejected upload (e.g. a non-PDF) would silently show no validation message.
         return View(viewName, viewModelBuilder.BuildPageVm(windowId, page, journey.QuestionAnswers,
-            journey, fromSummary, ModelState, config));
+            journey, fromSummary, ModelState, config,
+            uploadError: TempData["UploadError"] as string));
     }
 
     // ── PupilSearchPage (GET) ───────────────────────────────────────────────
@@ -92,6 +98,12 @@ public sealed class JourneyController(
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Enter the name of the pupil";
             ModelState.AddModelError("selectedPupilId", validationMessage);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = 1,
+                ErrorCodes = [ValidationErrorCoding.NoSelection],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
@@ -101,6 +113,12 @@ public sealed class JourneyController(
                 ? JourneyTemplate.Resolve(page.ValidationFailure, JourneyViewModelBuilder.GetPupilName(journey))
                 : "Select a different pupil to the first record";
             ModelState.AddModelError("selectedPupilId", validationMessage);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = 1,
+                ErrorCodes = [ValidationErrorCoding.SamePupil],
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+            });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
         }
 
@@ -228,6 +246,24 @@ public sealed class JourneyController(
 
         if (!isValid)
         {
+            var codes = new List<string>();
+            foreach (var q in page.Questions)
+            {
+                if (!ModelState.TryGetValue(q.Id, out var entry) || entry.Errors.Count == 0) continue;
+                if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); continue; }
+                newAnswers.TryGetValue(q.Id, out var ans);
+                var answered = ans is not null && journeyService.IsAnswered(q, ans);
+                codes.Add(ValidationErrorCoding.ForQuestion(q, answered));
+            }
+            if (atLeastOne is not null) codes.Add(ValidationErrorCoding.AtLeastOne);
+            await analytics.TrackSafeAsync(new ValidationErrorEvent
+            {
+                ErrorCount = ModelState.ErrorCount,
+                ErrorCodes = codes,
+                WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                FromSummary = fromSummary,
+            });
+
             var displayAnswers = journey.QuestionAnswers
                 .Concat(newAnswers)
                 .GroupBy(kv => kv.Key)
@@ -237,6 +273,23 @@ public sealed class JourneyController(
                 journey, fromSummary, ModelState, config,
                 uploadError: pendingUploadError ?? TempData["UploadError"] as string,
                 atLeastOneError: atLeastOne?.SummaryMessage));
+        }
+
+        if (page.Type == PageType.EvidenceUpload)
+        {
+            var files = page.Questions
+                .Where(q => q.Type == QuestionType.FileUpload)
+                .SelectMany(q => newAnswers.TryGetValue(q.Id, out var a) ? (a.FileValues ?? []) : [])
+                .ToList();
+            var textLength = page.Questions
+                .Where(q => q.Type == QuestionType.TextArea)
+                .Sum(q => newAnswers.TryGetValue(q.Id, out var a) ? (a.TextValue?.Length ?? 0) : 0);
+            await analytics.TrackSafeAsync(new EvidenceContinueEvent
+            {
+                FileCount = files.Count,
+                PageCount = files.Sum(f => f.PageCount),
+                EvidenceTextLength = textLength,
+            });
         }
 
         if (fromSummary)
@@ -260,11 +313,28 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = newNextId });
         }
 
+        // Capture the branch target before applying the new answers so we can tell whether
+        // re-answering this page changed the flow (relevant when the user navigated back).
+        var priorNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
+
         foreach (var (qId, answer) in newAnswers)
             journey.QuestionAnswers[qId] = answer;
 
-        if (!journey.QuestionHistory.Contains(pageId))
+        var nextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
+
+        if (journey.QuestionHistory.Contains(pageId))
+        {
+            // The user came back to an already-visited page. If the answer changed the branch,
+            // the pages recorded after this one belong to the old branch — trim them so the
+            // navigation guard doesn't recompute the next page from a stale history entry and
+            // bounce the user back into that branch.
+            if (nextId != priorNextId)
+                TrimHistoryTo(journey, windowId, pageId);
+        }
+        else
+        {
             journey.QuestionHistory.Add(pageId);
+        }
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
@@ -272,7 +342,6 @@ public sealed class JourneyController(
             s.QuestionHistory = journey.QuestionHistory;
         });
 
-        var nextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
         return nextId is null
             ? RedirectToAction(nameof(Summary), new { windowId })
             : RedirectToAction(nameof(Page), new { windowId, pageId = nextId });
@@ -297,6 +366,8 @@ public sealed class JourneyController(
         if (fileUpload is null || fileUpload.Length == 0)
         {
             TempData["UploadError"] = "Select a file to upload";
+            await analytics.TrackSafeAsync(
+                new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "no_file" });
             return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
         }
 
@@ -310,11 +381,13 @@ public sealed class JourneyController(
     // Validates and stores a single uploaded file against the given question, updating both the
     // session and the in-memory `journey` so callers in the same request see the new file.
     // Returns null on success, or a user-facing error message on failure. Assumes a non-empty file.
-    private async Task<string?> CommitUploadedFileAsync(
-        Guid windowId, string questionId, RequestState journey, IFormFile file)
+    private async Task<string?> CommitUploadedFileAsync(Guid windowId, string questionId, RequestState journey, IFormFile file)
     {
         if (file.Length > MaxUploadBytes)
+        {
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "too_large", FileSizeBytes = file.Length });
             return $"'{file.FileName}' must be 10 MB or less";
+        }
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
@@ -322,14 +395,20 @@ public sealed class JourneyController(
 
         var pageCount = PdfPageCounter.GetPageCount(bytes);
         if (pageCount is null)
-            return $"'{file.FileName}' could not be read as a PDF. Check the file and try again.";
+        {
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "not_a_pdf", FileSizeBytes = bytes.LongLength });
+            return $"Evidence must be in a PDF format.";
+        }
 
         journey.QuestionAnswers.TryGetValue(questionId, out var existing);
         var currentFiles = existing?.FileValues?.ToList() ?? [];
 
         var uploadError = journeyService.ValidateFileUpload(file.FileName, pageCount.Value, currentFiles);
         if (uploadError is not null)
+        {
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "page_limit_exceeded", PageCount = pageCount.Value, FileSizeBytes = bytes.LongLength });
             return uploadError;
+        }
 
         var storedName = await fileStorageService.SaveAsync(windowId, bytes);
         currentFiles.Add(new FileAnswer
@@ -344,6 +423,13 @@ public sealed class JourneyController(
         journey.QuestionAnswers[questionId] = updated;
         HttpContext.Session.SaveRequestState(windowId, s => s.QuestionAnswers[questionId] = updated);
 
+        await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent
+        {
+            Outcome = "success",
+            PageCount = pageCount.Value,
+            FileSizeBytes = bytes.LongLength,
+        });
+
         return null;
     }
 
@@ -352,8 +438,7 @@ public sealed class JourneyController(
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/Journey/{windowId}/page/{pageId}/question/{questionId}/remove")]
-    public async Task<IActionResult> RemoveFile(Guid windowId, string pageId, string questionId,
-        bool fromSummary, string storedFileName)
+    public async Task<IActionResult> RemoveFile(Guid windowId, string pageId, string questionId, bool fromSummary, string storedFileName)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
@@ -367,12 +452,19 @@ public sealed class JourneyController(
         if (currentFiles.All(f => f.StoredFileName != storedFileName))
             return BadRequest();
 
+        var filesBefore = currentFiles.Count;
         currentFiles.RemoveAll(f => f.StoredFileName == storedFileName);
 
         await fileStorageService.DeleteAsync(windowId, storedFileName);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
             s.QuestionAnswers[questionId] = new QuestionAnswer { FileValues = currentFiles });
+
+        await analytics.TrackSafeAsync(new EvidenceFileRemovedEvent
+        {
+            FilesBefore = filesBefore,
+            FilesAfter = currentFiles.Count,
+        });
 
         return RedirectToAction(nameof(Page), new { windowId, pageId, fromSummary });
     }
@@ -434,25 +526,38 @@ public sealed class JourneyController(
         }
         catch (DuplicateRequestException)
         {
+            await analytics.TrackSafeAsync(new RequestSubmissionFailedEvent
+            {
+                FailureReason = "duplicate_request",
+                WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+                CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            });
+
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
         }
 
+        await analytics.TrackSafeAsync(new RequestSubmittedEvent
+        {
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            ReferenceNumber = journey.ReferenceNumber ?? "",
+        });
+
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
+            s.SelectedNextStep = null;
             s.SelectedWhatToChange = null;
-            s.SelectedPupil = null;
             s.SelectedPupilId = null;
             s.SelectedPupilLabel = null;
-            s.SelectedNextStep = null;
-            s.MatchedPupil = null;
+            s.SelectedPupil = null;
             s.MatchedPupilId = null;
             s.MatchedPupilLabel = null;
-            s.QuestionAnswers = new();
-            s.QuestionHistory = new();
-            // ReferenceNumber and CheckingWindow preserved for the Confirmation page
+            s.MatchedPupil = null;
+            s.QuestionAnswers.Clear();
+            s.QuestionHistory.Clear();
         });
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
@@ -500,6 +605,15 @@ public sealed class JourneyController(
         }
 
         await requestService.SaveDraftAsync(windowId, journey, status);
+
+        await analytics.TrackSafeAsync(new DraftSavedEvent
+        {
+            Status = status.ToString(),
+            WhatToChange = journey.SelectedWhatToChange?.ToString() ?? "",
+            CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
+            ReferenceNumber = journey.ReferenceNumber ?? "",
+        });
+
         HttpContext.Session.ClearRequestState(windowId);
         return RedirectToAction("Index", "AmendmentRequests", new { windowId });
     }
@@ -522,16 +636,17 @@ public sealed class JourneyController(
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
 
-        if (journey.ReferenceNumber is null || journey.CheckingWindow is null)
+        if (string.IsNullOrEmpty(journey?.ReferenceNumber) || journey?.CheckingWindow is null)
             return RedirectToCheckYourData(windowId);
 
-        var window = journey.CheckingWindow;
-        return View(new ConfirmationViewModel
+        var model = new ConfirmationViewModel
         {
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber,
-            WindowCloseLabel = $"{window.EndDate.ToString("htt").ToLower()} on {window.EndDate:dddd d MMMM yyyy}"
-        });
+            WindowCloseLabel = $"{journey.CheckingWindow.EndDate:htt} on {journey.CheckingWindow.EndDate:dddd d MMMM yyyy}"
+        };
+
+        return View(model);
     }
 
     // ── Private helpers ────────────────────────────────────────────────────

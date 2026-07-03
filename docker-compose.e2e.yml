@@ -1,0 +1,47 @@
+# E2E test runner — kept OUT of docker-compose.yaml on purpose.
+#
+# Visual Studio's docker-compose orchestration loads only docker-compose.yaml
+# (via the .dcproj) and tried to manage this one-shot Playwright runner — which
+# builds the E2ETests solution project — failing with "Cannot find the container
+# for the service 'e2e-tests'" because it's gated to the 'e2e' profile and never
+# starts under VS's 'all' profile. Neither DockerComposeProjectsToIgnore nor a
+# serviceActions:DoNotStart suppressed it, so the service lives here instead.
+#
+# For CLI use it is merged back in via COMPOSE_FILE in .env, so
+# `docker compose --profile e2e run --rm e2e-tests` and `make test-e2e` work
+# unchanged. The `web` dependency, the `cypd` network and the `cpd-nuget-cache`
+# volume all resolve from docker-compose.yaml on merge.
+services:
+  e2e-tests:
+    profiles: [e2e]
+    container_name: cypd_e2e_tests
+    # Image tag is pinned in tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    # (FROM line) — must move in lockstep with the Microsoft.Playwright NuGet
+    # version in src/Directory.Packages.props. Drift surfaces via
+    # `bash scripts/check-playwright-pin.sh`.
+    build:
+      context: .
+      dockerfile: tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
+    image: cypd_e2e_tests:latest
+    working_dir: /work
+    environment:
+      - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
+      - NUGET_PACKAGES=/root/.nuget/packages
+      - DOTNET_NOLOGO=1
+      - DOTNET_CLI_TELEMETRY_OPTOUT=1
+    # The bind-mount lets dotnet test see the full source tree and write
+    # diff PNGs back to the host on visual-regression failure. The named
+    # cpd-nuget-cache volume persists package restore across --rm runs so
+    # subsequent invocations start in seconds, not minutes.
+    volumes:
+      - ./:/work
+      - cpd-nuget-cache:/root/.nuget/packages
+    # depends_on uses default condition (service_started). PlaywrightFixture
+    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
+    # any test exercises the web app — that is the authoritative readiness
+    # gate. (web service has no compose-level healthcheck today.)
+    depends_on:
+      - web
+    networks:
+      - cypd
+    command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]

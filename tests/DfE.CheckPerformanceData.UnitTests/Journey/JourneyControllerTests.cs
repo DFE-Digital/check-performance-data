@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
@@ -9,7 +10,6 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Microsoft.AspNetCore.Mvc;
@@ -28,10 +28,10 @@ public class JourneyControllerTests
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
-    private readonly JourneyViewModelBuilder _viewModelBuilder;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
@@ -92,11 +92,11 @@ public class JourneyControllerTests
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _viewModelBuilder = new JourneyViewModelBuilder(
+        var viewModelBuilder = new JourneyViewModelBuilder(
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, _viewModelBuilder)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -282,7 +282,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns<Task>(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException());
 
         var result = await _sut.SummaryConfirm(WindowId);
 
@@ -298,7 +298,7 @@ public class JourneyControllerTests
         var state = ValidSession(history: ["page-1"]);
         SetupSession(state);
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns<Task>(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException());
 
         await _sut.SummaryConfirm(WindowId);
 
@@ -341,6 +341,36 @@ public class JourneyControllerTests
         Assert.Null(remaining.MatchedPupilLabel);
     }
 
+    [Fact]
+    public async Task SummaryConfirm_AfterSuccess_EmitsRequestSubmittedEvent()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmittedEvent>(e =>
+                e.WhatToChange == "Remove" &&
+                e.CheckingWindowType == "KS4June" &&
+                e.ReferenceNumber == "CYPMD_KS4June_ABC1234"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenDuplicate_EmitsRequestSubmissionFailedEvent()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
+            .Returns(_ => throw new DuplicateRequestException());
+
+        await _sut.SummaryConfirm(WindowId);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<RequestSubmissionFailedEvent>(e =>
+                e.FailureReason == "duplicate_request" && e.WhatToChange == "Remove"),
+            Arg.Any<CancellationToken>());
+    }
+
     // ── PagePost — Autocomplete code capture ─────────────────────────────────
 
     [Fact]
@@ -369,6 +399,115 @@ public class JourneyControllerTests
         Assert.Equal("FR", saved.CodeValue);
     }
 
+    // ── PagePost — back navigation changing a branch ─────────────────────────
+
+    [Fact]
+    public async Task PagePost_WhenGoingBackAndChangingBranch_TrimsStaleDownstreamHistory()
+    {
+        SetupReasonBranchPage();
+        SetupSession(ValidSession(
+            history: ["select-pupil", "reason", "year-group-change-higher-lower"],
+            answers: new Dictionary<string, QuestionAnswer>
+            {
+                ["reason"] = new() { TextValue = "year-group-change" },
+                ["higher-lower"] = new() { TextValue = "higher" }
+            }));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "pupil-died"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("pupil-died", redirect.RouteValues!["pageId"]);
+
+        // The old branch's pages after "reason" must be dropped, otherwise the navigation
+        // guard recomputes the next page from the stale last entry and bounces the user
+        // back into the year-group-change branch.
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(["select-pupil", "reason"], saved.QuestionHistory);
+    }
+
+    [Fact]
+    public async Task PagePost_WhenGoingBackAndKeepingSameBranch_PreservesDownstreamHistory()
+    {
+        SetupReasonBranchPage();
+        SetupSession(ValidSession(
+            history: ["select-pupil", "reason", "year-group-change-higher-lower"],
+            answers: new Dictionary<string, QuestionAnswer>
+            {
+                ["reason"] = new() { TextValue = "year-group-change" },
+                ["higher-lower"] = new() { TextValue = "higher" }
+            }));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "year-group-change"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("year-group-change-higher-lower", redirect.RouteValues!["pageId"]);
+
+        // Unchanged branch — the already-visited downstream page stays in history so the
+        // user keeps their progress rather than being forced to re-walk the branch.
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(["select-pupil", "reason", "year-group-change-higher-lower"], saved.QuestionHistory);
+    }
+
+    // A "reason" Radio page whose answer branches to different next pages, and a GetNextPageId
+    // stub that resolves the branch from the current answer value in the answers dictionary.
+    private void SetupReasonBranchPage()
+    {
+        var reasonPage = new JourneyPage
+        {
+            Id = "reason",
+            Questions =
+            [
+                new Question
+                {
+                    Id = "reason", Type = QuestionType.Radio, Title = "Why?",
+                    Options =
+                    [
+                        new QuestionOption { Value = "year-group-change", Label = "Year group change", NextPageId = "year-group-change-higher-lower" },
+                        new QuestionOption { Value = "pupil-died", Label = "Pupil died", NextPageId = "pupil-died" }
+                    ]
+                }
+            ]
+        };
+        _flowService.GetPage(Config, "reason").Returns(reasonPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "reason", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns(ci =>
+            {
+                var answers = ci.Arg<Dictionary<string, QuestionAnswer>>();
+                return answers.TryGetValue("reason", out var a) && a.TextValue == "year-group-change"
+                    ? "year-group-change-higher-lower"
+                    : "pupil-died";
+            });
+    }
+
+    [Fact]
+    public async Task PagePost_WhenInvalid_EmitsValidationErrorWithCodes()
+    {
+        SetupSession(ValidSession(history: ["page-1"]));
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter something");
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(false);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        await _sut.PagePost(WindowId, "page-2", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes.Contains("required") && e.WhatToChange == "Remove" && e.FromSummary == false),
+            Arg.Any<CancellationToken>());
+    }
+
     // ── SaveDraft ────────────────────────────────────────────────────────────
 
     [Fact]
@@ -379,6 +518,21 @@ public class JourneyControllerTests
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToCheckYourData(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_AfterSaving_EmitsDraftSavedEvent()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.SaveDraft(WindowId, pageId: null);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<DraftSavedEvent>(e =>
+                e.Status == "ReadyToSubmit" &&
+                e.WhatToChange == "Remove" &&
+                e.ReferenceNumber == "CYPMD_KS4June_ABC1234"),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -579,6 +733,24 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task Page_WhenUploadErrorInTempData_SurfacesItInViewModel()
+    {
+        // The "Upload file" button posts to UploadFile, which on a rejected file stores the
+        // message in TempData and redirects (PRG) to Page GET. Page GET must surface that
+        // message — otherwise a rejected upload (e.g. a non-PDF) silently shows nothing.
+        SetupSession(ValidSession(history: ["evidence-page"]));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        const string message = "Evidence must be in a PDF format.";
+        _sut.TempData["UploadError"] = message;
+
+        var result = await _sut.Page(WindowId, "evidence-page");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<PageViewModel>(view.Model);
+        Assert.Equal(message, model.UploadError);
+    }
+
+    [Fact]
     public async Task RemoveFile_PreservesSubmittedTextAnswers()
     {
         var answers = new Dictionary<string, QuestionAnswer>
@@ -748,6 +920,116 @@ public class JourneyControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
+    // ── Evidence analytics ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UploadFile_WhenNoFile_EmitsFailedNoFile()
+    {
+        SetupSession(ValidSession());
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, fileUpload: null);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "no_file"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenTooLarge_EmitsFailedTooLarge()
+    {
+        SetupSession(ValidSession());
+        var file = new FormFile(new MemoryStream([1]), 0, 11L * 1024 * 1024, "fileUpload", "big.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "too_large"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenNotPdf_EmitsFailedNotAPdf()
+    {
+        SetupSession(ValidSession());
+        var bytes = new byte[] { 1, 2, 3 };
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "notpdf.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "not_a_pdf"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenValid_EmitsSuccessWithMetrics()
+    {
+        SetupSession(ValidSession());
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "evidence.pdf");
+        _fileStorageService.SaveAsync(WindowId, Arg.Any<byte[]>()).Returns("stored-guid");
+        // NSubstitute returns "" for string by default; null means "no upload error".
+        _journeyService.ValidateFileUpload(default!, 0, default!).ReturnsForAnyArgs((string?)null);
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e =>
+                e.Outcome == "success" && e.PageCount == 1 && e.FileSizeBytes == bytes.Length),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RemoveFile_AfterRemove_EmitsEvidenceFileRemoved()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues =
+                [
+                    new FileAnswer { StoredFileName = "keep", OriginalFileName = "a.pdf", PageCount = 1, FileSizeBytes = 10 },
+                    new FileAnswer { StoredFileName = "drop", OriginalFileName = "b.pdf", PageCount = 1, FileSizeBytes = 10 }
+                ]
+            }
+        };
+        SetupSession(ValidSession(answers: answers));
+
+        await _sut.RemoveFile(WindowId, "evidence-page", "evidence", fromSummary: false, storedFileName: "drop");
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceFileRemovedEvent>(e => e.FilesBefore == 2 && e.FilesAfter == 1),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PagePost_EvidencePage_WhenValid_EmitsEvidenceContinue()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "f", OriginalFileName = "e.pdf", PageCount = 2, FileSizeBytes = 100 }]
+            }
+        };
+        SetupSession(ValidSession(history: ["evidence-page"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>()).Returns((string?)null);
+
+        await _sut.PagePost(WindowId, "evidence-page", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceContinueEvent>(e => e.FileCount == 1 && e.PageCount == 2 && e.EvidenceTextLength == 0),
+            Arg.Any<CancellationToken>());
+    }
+
+    private static byte[] MinimalPdf()
+    {
+        var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder();
+        builder.AddPage(UglyToad.PdfPig.Content.PageSize.A4);
+        return builder.Build();
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private void SetupSession(RequestState state)
@@ -774,18 +1056,18 @@ public class JourneyControllerTests
             },
             ReferenceNumber = "CYPMD_KS4June_ABC1234",
             QuestionHistory = history ?? [],
-            QuestionAnswers = answers ?? new()
-        };
-        state.SelectedPupil = new PupilDto
-        {
-            Id = Guid.NewGuid(),
-            Firstname = "Jane",
-            Surname = "Smith",
-            Sex = "F",
-            DateOfBirth = "01/01/2010",
-            Age = 16,
-            Cypmd_Id = "CYPMD123",
-            Upn = "123123"
+            QuestionAnswers = answers ?? new(),
+            SelectedPupil = new PupilDto
+            {
+                Id = Guid.NewGuid(),
+                Firstname = "Jane",
+                Surname = "Smith",
+                Sex = "F",
+                DateOfBirth = "01/01/2010",
+                Age = 16,
+                Cypmd_Id = "CYPMD123",
+                Upn = "123123"
+            }
         };
         return state;
     }

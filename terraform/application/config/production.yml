@@ -4,7 +4,7 @@ DfeSignIn__BaseUrl: https://api.signin.education.gov.uk/
 DfeSignIn__ClientId: CheckPerformanceData
 DfeSignIn__Audience: signin.education.gov.uk
 DfeSignIn__MetadataAddress: https://oidc.signin.education.gov.uk/.well-known/openid-configuration
-DfeSignIn__ServiceId: F9CB3B88-11F7-4E52-AEA6-2E5E22218DBB
+DfeSignIn__ServiceId: 7596A9E4-C209-4C37-8113-BF1046858F33
 GoogleTagManager__Enabled: true
 GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true
@@ -16,7 +16,7 @@ Notify__PupilDataCheckWithdrawTemplateId: 5e506276-2a7f-4208-8c0e-ade7ec46c457
 Notify__SubmissionNotificationTemplateId: f123aa5f-be65-4a57-8e6e-66b323337095
 Notify__WithdrawNotificationTemplateId: e8667eed-7b52-42f7-a7e6-875b470e31c7
 Notify__DlqThresholdTemplateId: 517c069b-1566-473d-b8ad-8167f05ce723
-Notify__LinkBaseUrl: https://check-performance-data-development.prod.teacherservices.cloud/
+Notify__LinkBaseUrl: https://check-performance-data.education.gov.uk/
 Notify__UtmSource: prod-check-performance-data
 Notify__UtmMedium: email
 Notify__UtmCampaigns__submission-confirm: prod-submission-confirm

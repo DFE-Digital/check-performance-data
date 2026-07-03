@@ -14,22 +14,9 @@ public sealed class AdminController(IEnumerable<IAdminNavEntry> navEntries) : Co
     [HttpGet("admin")]
     public IActionResult Index()
     {
-        var all = navEntries.ToList();
-        var groups = all
-            .Where(e => e.ParentKey is null)
-            .OrderBy(e => e.Order)
-            .Select(g => new AdminNavGroupViewModel
-            {
-                Key = g.Key,
-                Title = g.Title,
-                Description = g.Description,
-                Children = all
-                    .Where(e => e.ParentKey == g.Key)
-                    .OrderBy(e => e.Order)
-                    .ToList()
-            })
-            .ToList();
-
-        return View(new AdminLandingViewModel { Groups = groups });
+        // Build the full nav forest (shared with the sidebar) so the landing page can recurse
+        // into container sub-groups such as Rules Engine rather than rendering them as dead links.
+        var roots = AdminNavNodeViewModel.BuildForest(navEntries);
+        return View(new AdminLandingViewModel { Roots = roots });
     }
 }

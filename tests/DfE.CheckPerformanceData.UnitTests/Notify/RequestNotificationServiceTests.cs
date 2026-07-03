@@ -1,5 +1,4 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
 using NSubstitute;
@@ -12,9 +11,9 @@ public sealed class RequestNotificationServiceTests
     private static readonly DateTime EndDate = new(2026, 6, 26, 17, 0, 0);
     private const string ReferenceNumber = "REF001";
     private const string CurrentUserEmail = "current.user@education.gov.uk";
+    private const string Ukprn = "10000000";
 
-    private readonly INotifyService _notifyService = Substitute.For<INotifyService>();
-    private readonly IDfESignInApiClient _dfESignInApiClient = Substitute.For<IDfESignInApiClient>();
+    private readonly INotificationDispatcher _dispatcher = Substitute.For<INotificationDispatcher>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IEmailLinkGenerator _emailLinkGenerator = Substitute.For<IEmailLinkGenerator>();
     private readonly RequestNotificationService _sut;
@@ -25,182 +24,123 @@ public sealed class RequestNotificationServiceTests
         return prop != null && prop.GetValue(o)?.ToString() == windowId.ToString();
     }
 
+    private EmailNotification? Captured() =>
+        (EmailNotification?)_dispatcher.ReceivedCalls()
+            .FirstOrDefault(c => c.GetMethodInfo().Name == nameof(INotificationDispatcher.EnqueueAsync))
+            ?.GetArguments()[0];
+
     public RequestNotificationServiceTests()
     {
         _currentUserService.Email.Returns(CurrentUserEmail);
-        _currentUserService.Ukprn.Returns("10000000");
-        _sut = new RequestNotificationService(
-            _notifyService, _dfESignInApiClient, _currentUserService, _emailLinkGenerator);
+        _currentUserService.Ukprn.Returns(Ukprn);
+        _sut = new RequestNotificationService(_currentUserService, _emailLinkGenerator, _dispatcher);
     }
 
     // ── NotifySubmissionConfirmedAsync ───────────────────────────────────────
 
     [Fact]
-    public async Task NotifySubmissionConfirmedAsync_ResolvesRecipientsFromCurrentUserAndOrgUsers()
+    public async Task NotifySubmissionConfirmedAsync_EnqueuesSubmissionMessageWithOrgUsersAndOriginator()
     {
-        var orgUserEmail = "org.user@school.gov.uk";
-        _dfESignInApiClient.GetOrganisationUsersAsync("10000000")
-            .Returns(new OrganisationUsersResponseDto
-            {
-                Users = [new OrganisationUserDto { FirstName = "Org", LastName = "User", Email = orgUserEmail }]
-            });
-
         await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            ReferenceNumber,
-            Arg.Any<string>(),
-            Arg.Is<IReadOnlyCollection<string>>(r =>
-                r.Contains(CurrentUserEmail) && r.Contains(orgUserEmail) && r.Count == 2),
-            Arg.Any<NotificationType>(),
-            Arg.Any<string?>());
+        var msg = Captured();
+        Assert.NotNull(msg);
+        Assert.Equal(NotificationType.SubmissionConfirmed, msg!.Type);
+        Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
+        Assert.Equal(CurrentUserEmail, msg.OriginatorEmail);
+        Assert.Equal(Ukprn, msg.Ukprn);
+        Assert.True(msg.IncludeOrganisationUsers);
     }
 
     [Fact]
     public async Task NotifySubmissionConfirmedAsync_FormatsDeadlineCorrectly()
     {
-        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
-            .Returns(new OrganisationUsersResponseDto { Users = [] });
-
         await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            Arg.Any<string>(),
-            "5pm on Friday 26 June 2026",
-            Arg.Any<IReadOnlyCollection<string>>(),
-            Arg.Any<NotificationType>(),
-            Arg.Any<string?>());
+        Assert.Equal("5pm on Friday 26 June 2026", Captured()!.Deadline);
     }
 
     [Fact]
-    public async Task NotifySubmissionConfirmedAsync_GeneratesLinkAndPassesToNotifyService()
+    public async Task NotifySubmissionConfirmedAsync_GeneratesLinkOnRequestThreadAndCarriesItInMessage()
     {
         var linkUrl = "https://example.gov.uk/WhatToChange/Index?windowId=aaa";
-        _emailLinkGenerator.GenerateLink("WhatToChange", "Index", Arg.Is<object>(o => MatchWindowId(o, WindowId)), "SubmissionNotification")
+        _emailLinkGenerator.GenerateLink(
+            "WhatToChange", "Index", Arg.Is<object>(o => MatchWindowId(o, WindowId)), "SubmissionNotification")
             .Returns(linkUrl);
-        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>(), Arg.Any<string[]>())
-            .Returns(new OrganisationUsersResponseDto { Users = [] });
 
         await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyCollection<string>>(),
-            NotificationType.SubmissionConfirmed,
-            linkUrl);
+        Assert.Equal(linkUrl, Captured()!.LinkUrl);
+    }
+
+    [Theory]
+    [InlineData(0, 0, "12am on Friday 26 June 2026")]
+    [InlineData(12, 0, "12pm on Friday 26 June 2026")]
+    public async Task NotifySubmissionConfirmedAsync_HandlesDeadlineEdgeCases(int hour, int minute, string expected)
+    {
+        await _sut.NotifySubmissionConfirmedAsync(
+            WindowId, new DateTime(2026, 6, 26, hour, minute, 0), ReferenceNumber);
+
+        Assert.Equal(expected, Captured()!.Deadline);
     }
 
     // ── NotifyDataCheckConfirmedAsync ────────────────────────────────────────
 
     [Fact]
-    public async Task NotifyDataCheckConfirmedAsync_SendsWithDataCheckTypeAndNoUrl()
+    public async Task NotifyDataCheckConfirmedAsync_EnqueuesDataCheckMessageWithOrgUsersAndNoLink()
     {
-        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>())
-            .Returns(new OrganisationUsersResponseDto { Users = [] });
-
         await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber);
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            ReferenceNumber,
-            Arg.Any<string>(),
-            Arg.Any<IReadOnlyCollection<string>>(),
-            NotificationType.DataCheckConfirmed);
-    }
-
-    // ── Recipient deduplication ──────────────────────────────────────────────
-
-    [Fact]
-    public async Task NotifySubmissionConfirmedAsync_DeduplicatesRecipientsCaseInsensitively()
-    {
-        var duplicateEmail = "Current.User@education.gov.uk";
-        _dfESignInApiClient.GetOrganisationUsersAsync("10000000")
-            .Returns(new OrganisationUsersResponseDto
-            {
-                Users = [new OrganisationUserDto { FirstName = "Current", LastName = "User", Email = duplicateEmail }]
-            });
-
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, EndDate, ReferenceNumber);
-
-        await _notifyService.Received(1).SendNotificationsAsync(
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(CurrentUserEmail)),
-            Arg.Any<NotificationType>(),
-            Arg.Any<string?>());
-    }
-
-    // ── Deadline edge cases ──────────────────────────────────────────────────
-
-    [Fact]
-    public async Task NotifySubmissionConfirmedAsync_HandlesMidnightDeadline()
-    {
-        var midnight = new DateTime(2026, 6, 26, 0, 0, 0);
-        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>())
-            .Returns(new OrganisationUsersResponseDto { Users = [] });
-
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, midnight, ReferenceNumber);
-
-        await _notifyService.Received(1).SendNotificationsAsync(
-            Arg.Any<string>(),
-            "12am on Friday 26 June 2026",
-            Arg.Any<IReadOnlyCollection<string>>(),
-            Arg.Any<NotificationType>(),
-            Arg.Any<string?>());
-    }
-
-    [Fact]
-    public async Task NotifySubmissionConfirmedAsync_HandlesNoonDeadline()
-    {
-        var noon = new DateTime(2026, 6, 26, 12, 0, 0);
-        _dfESignInApiClient.GetOrganisationUsersAsync(Arg.Any<string>())
-            .Returns(new OrganisationUsersResponseDto { Users = [] });
-
-        await _sut.NotifySubmissionConfirmedAsync(WindowId, noon, ReferenceNumber);
-
-        await _notifyService.Received(1).SendNotificationsAsync(
-            Arg.Any<string>(),
-            "12pm on Friday 26 June 2026",
-            Arg.Any<IReadOnlyCollection<string>>(),
-            Arg.Any<NotificationType>(),
-            Arg.Any<string?>());
+        var msg = Captured();
+        Assert.NotNull(msg);
+        Assert.Equal(NotificationType.DataCheckConfirmed, msg!.Type);
+        Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
+        Assert.Equal("5pm on Friday 26 June 2026", msg.Deadline);
+        Assert.Null(msg.LinkUrl);
+        Assert.True(msg.IncludeOrganisationUsers);
     }
 
     // ── NotifyAmendmentWithdrawnAsync ─────────────────────────────────────────
 
     [Fact]
-    public async Task NotifyAmendmentWithdrawnAsync_SendsToCurrentUserOnly()
+    public async Task NotifyAmendmentWithdrawnAsync_EnqueuesOriginatorOnlyMessage()
     {
-        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            ReferenceNumber,
-            string.Empty,
-            Arg.Is<IReadOnlyCollection<string>>(r => r.Count == 1 && r.Contains(CurrentUserEmail)),
-            NotificationType.AmendmentWithdrawn,
-            Arg.Any<string?>());
+        var msg = Captured();
+        Assert.NotNull(msg);
+        Assert.Equal(NotificationType.AmendmentWithdrawn, msg!.Type);
+        Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
+        Assert.Equal("5pm on Friday 26 June 2026", msg.Deadline);
+        Assert.Equal(CurrentUserEmail, msg.OriginatorEmail);
+        Assert.False(msg.IncludeOrganisationUsers);
     }
 
     // ── NotifyDataCheckWithdrawnAsync ─────────────────────────────────────────
 
     [Fact]
-    public async Task NotifyDataCheckWithdrawnAsync_SendsToCurrentUserAndOrgUsers()
+    public async Task NotifyDataCheckWithdrawnAsync_EnqueuesMessageWithOrgUsers()
     {
-        var orgUserEmail = "org.user@school.gov.uk";
-        _dfESignInApiClient.GetOrganisationUsersAsync("10000000")
-            .Returns(new OrganisationUsersResponseDto
-            {
-                Users = [new OrganisationUserDto { FirstName = "Org", LastName = "User", Email = orgUserEmail }]
-            });
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
 
-        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber);
+        var msg = Captured();
+        Assert.NotNull(msg);
+        Assert.Equal(NotificationType.DataCheckWithdrawn, msg!.Type);
+        Assert.Equal(ReferenceNumber, msg.ReferenceNumber);
+        Assert.Equal("5pm on Friday 26 June 2026", msg.Deadline);
+        Assert.True(msg.IncludeOrganisationUsers);
+    }
 
-        await _notifyService.Received(1).SendNotificationsAsync(
-            ReferenceNumber,
-            string.Empty,
-            Arg.Is<IReadOnlyCollection<string>>(r =>
-                r.Contains(CurrentUserEmail) && r.Contains(orgUserEmail) && r.Count == 2),
-            NotificationType.DataCheckWithdrawn,
-            Arg.Any<string?>());
+    // ── No external calls on the request thread ──────────────────────────────
+
+    [Fact]
+    public async Task Notify_DoesNotResolveLinkForNonSubmissionNotifications()
+    {
+        await _sut.NotifyDataCheckConfirmedAsync(EndDate, ReferenceNumber);
+        await _sut.NotifyAmendmentWithdrawnAsync(ReferenceNumber, EndDate);
+        await _sut.NotifyDataCheckWithdrawnAsync(ReferenceNumber, EndDate);
+
+        _emailLinkGenerator.DidNotReceive().GenerateLink(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>());
     }
 }

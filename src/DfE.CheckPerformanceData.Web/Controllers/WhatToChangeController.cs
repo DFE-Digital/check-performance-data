@@ -1,5 +1,7 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +9,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 public sealed class WhatToChangeController(
     ICheckYourPupilDataService service,
-    IQuestionFlowService flowService) : Controller
+    IQuestionFlowService flowService,
+    IAnalyticsService analytics) : Controller
 {
     [Route("/WhatToChange/{windowId}")]
     public IActionResult Index(Guid windowId)
@@ -28,6 +31,7 @@ public sealed class WhatToChangeController(
         if (vm.SelectedWhatToChange == null)
         {
             ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), "Select what pupil data you would like to change");
+            await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection] });
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null });
         }
 
@@ -37,6 +41,12 @@ public sealed class WhatToChangeController(
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
+        });
+
+        await analytics.TrackSafeAsync(new ChangeTypeSelectedEvent
+        {
+            WhatToChange = vm.SelectedWhatToChange.Value.ToString(),
+            CheckingWindowType = window.CheckingWindowType.ToString(),
         });
 
         var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);

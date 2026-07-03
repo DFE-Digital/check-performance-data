@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -28,16 +29,4 @@ public sealed class ConfirmCorrectController(
         var confirmedVw = new ConfirmedCorrectViewModel(window.EndDate.ToString("htt 'on' dddd d MMMM"), reference);
         return View(confirmedVw);
     }
-}
-
-public class ConfirmedCorrectViewModel(string endDate, string referenceNumber)
-{
-    public string EndDate { get; } = endDate;
-    public string ReferenceNumber { get; } = referenceNumber;
-}
-
-public class ConfirmCorrectViewModel(Guid windowId, string endDate)
-{
-    public Guid WindowId { get; } = windowId;
-    public string EndDate { get; } = endDate;
 }

@@ -47,14 +47,14 @@ public sealed class AdminControllerTests
 		Assert.Equal("admin", httpGet!.Template);
 	}
 
-	// --- Index_Returns_AdminLandingViewModel_Grouped_By_ParentKey ---
+	// --- Index_Returns_AdminLandingViewModel_As_Forest_Sorted_By_Order ---
 
 	[Fact]
-	public void Index_Returns_AdminLandingViewModel_Grouped_By_ParentKey()
+	public void Index_Returns_AdminLandingViewModel_As_Forest_Sorted_By_Order()
 	{
 		// Two groups, two children each. Children intentionally out of Order to verify
 		// per-group sorting. Groups intentionally out of Order in the list to verify
-		// top-level sorting.
+		// top-level sorting. The landing page now uses the recursive forest model.
 		var groupA = StubEntry(key: "cms-admin", parentKey: null, order: 10, title: "CMS administration");
 		var groupAChildHigh = StubEntry(key: "child-a-hi", parentKey: "cms-admin", order: 20, title: "Child A2");
 		var groupAChildLow = StubEntry(key: "child-a-lo", parentKey: "cms-admin", order: 10, title: "Child A1");
@@ -75,19 +75,50 @@ public sealed class AdminControllerTests
 		var view = Assert.IsType<ViewResult>(result);
 		var model = Assert.IsType<AdminLandingViewModel>(view.Model);
 
-		Assert.Equal(2, model.Groups.Count);
-		Assert.Equal("cms-admin", model.Groups[0].Key);
-		Assert.Equal("system-admin", model.Groups[1].Key);
+		Assert.Equal(2, model.Roots.Count);
+		Assert.Equal("cms-admin", model.Roots[0].Entry.Key);
+		Assert.Equal("system-admin", model.Roots[1].Entry.Key);
 
 		Assert.Collection(
-			model.Groups[0].Children,
-			c => Assert.Equal(10, c.Order),
-			c => Assert.Equal(20, c.Order));
+			model.Roots[0].Children,
+			c => Assert.Equal(10, c.Entry.Order),
+			c => Assert.Equal(20, c.Entry.Order));
 
 		Assert.Collection(
-			model.Groups[1].Children,
-			c => Assert.Equal(10, c.Order),
-			c => Assert.Equal(20, c.Order));
+			model.Roots[1].Children,
+			c => Assert.Equal(10, c.Entry.Order),
+			c => Assert.Equal(20, c.Entry.Order));
+	}
+
+	// --- Index_Nests_Empty_Url_Container_With_Its_Child_Links ---
+
+	[Fact]
+	public void Index_Nests_Empty_Url_Container_With_Its_Child_Links()
+	{
+		// Regression: the "Rules Engine" sub-group is a container with an empty Url whose children
+		// are the real pages. The landing model must expose the container WITH its children nested,
+		// so the view can render the children as working links instead of rendering the container
+		// itself as a dead <a href="">.
+		var group = StubEntry(key: "system-admin", parentKey: null, order: 10,
+			title: "System administration");
+		var container = StubEntry(key: "rules-engine-group", parentKey: "system-admin", order: 10,
+			title: "Rules Engine", url: "", enabled: true);
+		var page = StubEntry(key: "rules-config", parentKey: "rules-engine-group", order: 30,
+			title: "Rules Engine configuration", url: "/admin/rules", enabled: true);
+
+		var sut = new AdminController(new List<IAdminNavEntry> { group, container, page });
+
+		var result = sut.Index();
+
+		var model = Assert.IsType<AdminLandingViewModel>(Assert.IsType<ViewResult>(result).Model);
+
+		var systemAdmin = Assert.Single(model.Roots);
+		var containerNode = Assert.Single(systemAdmin.Children);
+		Assert.Equal("rules-engine-group", containerNode.Entry.Key);
+		Assert.Empty(containerNode.Entry.Url);
+
+		var pageNode = Assert.Single(containerNode.Children);
+		Assert.Equal("/admin/rules", pageNode.Entry.Url);
 	}
 
 	private static IAdminNavEntry StubEntry(

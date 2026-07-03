@@ -1,5 +1,5 @@
-using AngleSharp;
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.DataProtection;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
@@ -8,7 +8,6 @@ using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
-using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
@@ -21,13 +20,16 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using DfE.CheckPerformanceData.Web.QuestionFlow;
 using DfE.CheckPerformanceData.Web.Settings;
 using DfE.CheckPerformanceData.Web.PageTree;
+using DfE.CheckPerformanceData.Web.Analytics;
+using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Infrastructure.Analytics;
+using Dfe.Analytics;
+using Dfe.Analytics.AspNetCore;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
@@ -83,7 +85,7 @@ try
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
-        .AddPersistenceDependencies(configuration, seedData)
+        .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
@@ -142,6 +144,17 @@ try
     }
 
     builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
+
+    // Email sending is fire-and-forget: the request thread enqueues onto an in-process channel
+    // (ChannelNotificationDispatcher, a singleton shared with the background worker) and returns;
+    // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
+    // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
+    builder.Services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
+    builder.Services.AddSingleton<INotificationDispatcher>(sp =>
+        sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();
@@ -156,6 +169,26 @@ try
 
     builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();
     builder.Services.AddScoped<PageNodePathValidator>();
+
+    // ASP.NET Core Data Protection key ring. Production runs multiple web replicas, so the
+    // key ring MUST be shared across pods: the OIDC 'state' and correlation cookie are
+    // protected when the user is redirected TO DfE Sign-in and unprotected on the /auth/callback
+    // return. With the default in-memory keys, each pod has its own ring, so a callback that
+    // load-balances to a different pod fails with "Unable to unprotect the message.State." and
+    // the user lands on the no-access page. Persisting keys to the shared blob storage account
+    // (and pinning the application name so all instances derive the same purpose strings) makes
+    // every replica agree. When no storage connection string is configured the default
+    // in-memory provider is used (single-instance local dev), which is fine.
+    var dataProtection = builder.Services.AddDataProtection()
+        .SetApplicationName("check-performance-data");
+    var dataProtectionConn = builder.Configuration.GetConnectionString("AzureStorage");
+    if (!string.IsNullOrEmpty(dataProtectionConn))
+    {
+        var keyRingContainer = new BlobServiceClient(dataProtectionConn)
+            .GetBlobContainerClient("data-protection-keys");
+        keyRingContainer.CreateIfNotExists();
+        dataProtection.PersistKeysToAzureBlobStorage(keyRingContainer.GetBlobClient("keys.xml"));
+    }
 
     builder.Services.AddSingleton(_ =>
         new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
@@ -216,6 +249,29 @@ try
     });
 
     builder.Services.AddHealthChecks();
+
+    // DfE Analytics: stream a web_request event to BigQuery per request when configured.
+    // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
+    // review and local boot without GCP. The matching middleware is added below under
+    // the same flag. The RequestFilter keeps health-probe noise out of the dataset.
+    var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
+    if (analyticsEnabled)
+    {
+        builder.Services
+            .AddDfeAnalytics()
+            .AddAspNetCoreIntegration(options =>
+                options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
+        builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
+        // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
+        // is sent as its own row, auto-enriched with request + organisation context.
+        builder.Services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
+    }
+    else
+    {
+        // No-op so controllers can always inject IAnalyticsService; dev/review/local
+        // boot without GCP.
+        builder.Services.AddSingleton<IAnalyticsService, NullAnalyticsService>();
+    }
 
     var app = builder.Build();
 
@@ -284,6 +340,11 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+
+    // After auth so the event captures the signed-in user's id + organisation claims;
+    // the RequestFilter configured above excludes health probes from the dataset.
+    if (analyticsEnabled)
+        app.UseDfeAnalytics();
 
     // Sits after auth so the diagnostic comment sees the final principal claims;
     // before controllers so it can wrap their response body. The middleware itself

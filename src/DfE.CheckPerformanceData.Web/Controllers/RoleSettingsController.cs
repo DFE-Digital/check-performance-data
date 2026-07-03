@@ -18,6 +18,11 @@ public sealed class RoleSettingsController(IAdminAccessPolicy accessPolicy) : Co
         DefaultAdminAccessSeeder.EditorRole,
     ];
 
+    // Sentinel section written for every registered role so the row persists in the DB even
+    // when every real section is unchecked. That's how the "Register a new role" flow puts a
+    // fresh column into the grid before any grants have been made.
+    public const string RegisteredMarker = "__registered__";
+
     [HttpGet("/admin/system/roles")]
     public async Task<IActionResult> Index()
     {
@@ -37,10 +42,20 @@ public sealed class RoleSettingsController(IAdminAccessPolicy accessPolicy) : Co
 
         foreach (var role in roles)
         {
-            var allowedKey = $"grants[{role}]";
-            var allowed = form.Grants is not null && form.Grants.TryGetValue(role, out var list)
-                ? list ?? []
-                : [];
+            List<string> allowed;
+            if (string.Equals(role, DefaultAdminAccessSeeder.AdminRole, StringComparison.OrdinalIgnoreCase))
+            {
+                // Admin is locked to every section server-side, whatever the form contained.
+                allowed = DefaultAdminAccessSeeder.AllSections.ToList();
+            }
+            else
+            {
+                allowed = form.Grants is not null && form.Grants.TryGetValue(role, out var list)
+                    ? list?.ToList() ?? []
+                    : [];
+            }
+            // Sentinel so the role's column persists even when every real section is unchecked.
+            allowed.Add(RegisteredMarker);
             await accessPolicy.SetGrantsForRoleAsync(role, allowed, userId);
         }
 
@@ -48,9 +63,9 @@ public sealed class RoleSettingsController(IAdminAccessPolicy accessPolicy) : Co
         if (!string.IsNullOrEmpty(newRole)
             && !roles.Any(r => string.Equals(r, newRole, StringComparison.OrdinalIgnoreCase)))
         {
-            // Register the new role by writing an empty grant set — no access yet, but the
-            // column will appear on the next render so it can be checked in.
-            await accessPolicy.SetGrantsForRoleAsync(newRole, [], userId);
+            // Register the new role by writing just the sentinel — no real grants yet, but the
+            // column will appear on the next render so it can be ticked in.
+            await accessPolicy.SetGrantsForRoleAsync(newRole, [RegisteredMarker], userId);
         }
 
         TempData["RoleSettingsSaved"] = "Role access saved.";
@@ -68,6 +83,7 @@ public sealed class RoleSettingsController(IAdminAccessPolicy accessPolicy) : Co
             .ToList();
 
         var grantSet = grants
+            .Where(g => g.SectionKey != RegisteredMarker)
             .GroupBy(g => g.RoleName, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,

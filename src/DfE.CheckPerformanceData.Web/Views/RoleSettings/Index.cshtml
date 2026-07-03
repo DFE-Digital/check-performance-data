@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.Admin
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.RoleSettingsViewModel
 @{
     Layout = "_AdminLayout";
@@ -48,20 +49,26 @@
                     <th scope="row" class="govuk-table__header"><code>@(section)</code></th>
                     @foreach (var role in Model.Roles)
                     {
-                        var isChecked = Model.IsGranted(role, section);
+                        var isAdmin = string.Equals(role, DefaultAdminAccessSeeder.AdminRole, StringComparison.OrdinalIgnoreCase);
+                        var isChecked = isAdmin || Model.IsGranted(role, section);
                         var inputId = $"g-{role}-{section}".Replace(":", "-");
                         <td class="govuk-table__cell govuk-!-text-align-centre">
-                            <div class="govuk-checkboxes__item govuk-checkboxes--small">
-                                <input class="govuk-checkboxes__input"
-                                       id="@inputId"
+                            <label class="cypmd-role-cell" for="@inputId">
+                                <span class="govuk-visually-hidden">Allow @role in @(section)</span>
+                                <input id="@inputId"
                                        type="checkbox"
                                        name="Grants[@role]"
                                        value="@(section)"
-                                       @(isChecked ? "checked" : null) />
-                                <label class="govuk-label govuk-checkboxes__label govuk-visually-hidden" for="@inputId">
-                                    Allow @role in @(section)
-                                </label>
-                            </div>
+                                       @(isChecked ? "checked" : null)
+                                       @(isAdmin ? "disabled" : null) />
+                                @if (isAdmin)
+                                {
+                                    @* Disabled inputs don't post. Include a hidden field so the admin
+                                       row remains full when the form is submitted, and so someone
+                                       tampering with the DOM can't lower admin's own access. *@
+                                    <input type="hidden" name="Grants[@role]" value="@(section)" />
+                                }
+                            </label>
                         </td>
                     }
                 </tr>

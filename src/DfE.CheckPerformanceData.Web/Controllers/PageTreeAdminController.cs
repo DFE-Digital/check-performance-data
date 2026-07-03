@@ -312,6 +312,19 @@ public sealed class PageTreeAdminController(
         return Redirect("/admin/pages");
     }
 
+    // If someone lands on the seed URL as a GET — a stale bookmark, an out-of-date link
+    // that hasn't picked up the POST-form rendering, or a copy-pasted URL — bounce them
+    // back to /admin/pages with a helpful banner rather than a bare 404 (which the raw
+    // HttpPost-only route otherwise produces).
+    [HttpGet("/admin/pages/sample-seed")]
+    public IActionResult SampleSeedGet()
+    {
+        TempData["SampleSeedResult"] =
+            "Use the ‘Seed sample pages’ button from the CMS administration menu " +
+            "(this URL only accepts an antiforgery-protected POST).";
+        return Redirect("/admin/pages");
+    }
+
     // ── Rename (Title + Slug) ─────────────────────────────────────────────────
 
     // Renames the page's URL segment and/or Title. When the segment changes, all descendant

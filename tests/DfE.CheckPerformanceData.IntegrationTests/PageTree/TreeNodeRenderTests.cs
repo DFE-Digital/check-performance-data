@@ -103,7 +103,7 @@ public sealed class TreeNodeRenderTests
                 web.ConfigureServices(services =>
                 {
                     services.AddControllersWithViews()
-                        .AddApplicationPart(typeof(GuidanceController).Assembly);
+                        .AddApplicationPart(typeof(PageController).Assembly);
                     // _TreeNode.cshtml renders GovUk form tag helpers (move up/down),
                     // which resolve IComponentGenerator from the GovUk.Frontend services.
                     services.AddGovUkFrontend();

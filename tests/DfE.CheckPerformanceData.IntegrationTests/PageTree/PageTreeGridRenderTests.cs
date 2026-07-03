@@ -288,7 +288,7 @@ public sealed class PageTreeGridRenderTests
                 web.ConfigureServices(services =>
                 {
                     services.AddControllersWithViews()
-                        .AddApplicationPart(typeof(GuidanceController).Assembly);
+                        .AddApplicationPart(typeof(PageController).Assembly);
                     // Index.cshtml renders move-up/down forms which need GovUk tag helpers.
                     services.AddGovUkFrontend();
                 });

@@ -104,7 +104,7 @@ public sealed class WikiTemplateRenderTests
                 web.ConfigureServices(services =>
                 {
                     services.AddControllersWithViews()
-                        .AddApplicationPart(typeof(GuidanceController).Assembly);
+                        .AddApplicationPart(typeof(PageController).Assembly);
                     // Wiki.cshtml injects the sanitiser via @inject IHtmlRenderingService.
                     services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
                 });

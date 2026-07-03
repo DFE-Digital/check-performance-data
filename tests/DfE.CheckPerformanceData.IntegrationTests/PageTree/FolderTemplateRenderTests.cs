@@ -92,7 +92,7 @@ public sealed class FolderTemplateRenderTests
                 web.ConfigureServices(services =>
                 {
                     services.AddControllersWithViews()
-                        .AddApplicationPart(typeof(GuidanceController).Assembly);
+                        .AddApplicationPart(typeof(PageController).Assembly);
                 });
                 web.Configure(_ => { });
             })

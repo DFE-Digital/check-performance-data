@@ -121,7 +121,7 @@ public sealed class ContentTemplateRenderTests
                 web.ConfigureServices(services =>
                 {
                     services.AddControllersWithViews()
-                        .AddApplicationPart(typeof(GuidanceController).Assembly);
+                        .AddApplicationPart(typeof(PageController).Assembly);
                     // The rich-text partial injects the sanitiser.
                     services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
                 });

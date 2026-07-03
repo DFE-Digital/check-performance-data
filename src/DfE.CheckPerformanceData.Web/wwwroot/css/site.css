@@ -1590,6 +1590,19 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
    own margin-bottom is 48px which reads tight on this template; the Figma design has more. */
 .cpb-page-h1 { margin-bottom: 60px !important; }
 
+/* Pages that author their own H1 as a widget (KS4 split pages: caption richtext + H1 heading
+   inside the right column of a top region) drop straight from the breadcrumb into the grid
+   row. Give that transition enough room to breathe — otherwise the side-nav crowds the
+   breadcrumb. Matches the space above the title in the Figma design. */
+.cpb-breadcrumbs + .govuk-grid-row { margin-top: 30px; }
+
+/* The caption widget is a richtext with a single govuk-caption-l inside. Its wrapping
+   .govuk-body's default 20px margin-bottom pushes the following H1 too far down. When the
+   only child is the caption, zero the wrapper's margin and hand a small gap to the caption
+   itself so "Guidance" sits tight above the H1 (matching the design's lock-up). */
+.govuk-body:has(> .govuk-caption-l:only-child) { margin-bottom: 0; }
+.govuk-body > .govuk-caption-l:only-child { margin-bottom: 5px; }
+
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }
 .cypmd-landing-section__rule { margin-top: 5px; margin-bottom: 20px; }

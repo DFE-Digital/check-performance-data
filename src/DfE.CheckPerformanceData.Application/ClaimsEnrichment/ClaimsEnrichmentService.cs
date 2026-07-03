@@ -61,13 +61,24 @@ public sealed class ClaimsEnrichmentService(
             return null;
         }
 
+        // The Claim constructor throws ArgumentNullException on a null value. Some DfE Sign-in
+        // organisations leave these fields null (e.g. Laestab is only populated when the org
+        // record carries a localAuthority element), so coalesce to empty rather than aborting
+        // sign-in — downstream consumers already treat a missing claim as empty. A null laestab
+        // means pupil data will not resolve, so surface it for investigation.
+        if (string.IsNullOrEmpty(organisation.Laestab) || string.IsNullOrEmpty(organisation.Name))
+            logger.LogWarning(
+                "DfE Sign-in organisation {OrgId} (URN {Urn}) is missing fields during enrichment " +
+                "(name present: {HasName}, laestab present: {HasLaestab}). Enrichment will continue with empty values.",
+                orgId, organisation.Urn, !string.IsNullOrEmpty(organisation.Name), !string.IsNullOrEmpty(organisation.Laestab));
+
         var newIdentity = new ClaimsIdentity(roleClaims, "DfeSignIn");
         newIdentity.AddClaim(new Claim("organisation_id", orgId, ClaimValueTypes.String));
         if (organisation.Ukprn != null)
             newIdentity.AddClaim(new Claim("ukprn", organisation.Ukprn, ClaimValueTypes.String));
-        newIdentity.AddClaim(new Claim("organisation_name", organisation.Name, ClaimValueTypes.String));
-        newIdentity.AddClaim(new Claim("organisation_urn", organisation.Urn, ClaimValueTypes.String));
-        newIdentity.AddClaim(new Claim("organisation_laestab", organisation.Laestab, ClaimValueTypes.String));
+        newIdentity.AddClaim(new Claim("organisation_name", organisation.Name ?? string.Empty, ClaimValueTypes.String));
+        newIdentity.AddClaim(new Claim("organisation_urn", organisation.Urn ?? string.Empty, ClaimValueTypes.String));
+        newIdentity.AddClaim(new Claim("organisation_laestab", organisation.Laestab ?? string.Empty, ClaimValueTypes.String));
         if (organisation.Type?.Id is { } typeId)
             newIdentity.AddClaim(new Claim("organisation_type_id", typeId, ClaimValueTypes.String));
 

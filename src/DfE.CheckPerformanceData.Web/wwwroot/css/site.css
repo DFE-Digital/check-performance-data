@@ -375,25 +375,32 @@
 }
 
 /* ---- Page tree drag & drop --------------------------------------------- */
-.cpb-tree-dragging { opacity: 0.4; }
 
-/* The link the cursor is over — highlight per-zone. Above/below use a thick coloured
-   underline/overline; onto uses a filled background so it reads as "become a child". */
-[data-page-node].cpb-tree-drop-above,
-[data-page-root].cpb-tree-drop-above {
-  box-shadow: 0 -3px 0 0 #1d70b8 inset;
-  background: #f2f4f7;
+/* Ghost the source row while it's being dragged so the placeholder-driven layout
+   is what the eye follows. */
+.cpb-tree-dragging {
+  opacity: 0.35;
 }
-[data-page-node].cpb-tree-drop-below,
-[data-page-root].cpb-tree-drop-below {
-  box-shadow: 0 3px 0 0 #1d70b8 inset;
-  background: #f2f4f7;
+.cpb-tree-dragging > .tv-row { pointer-events: none; }
+
+/* Placeholder <li>: a real slot that pushes siblings out of the way. Filled bar
+   instead of an above/below line so it's unambiguous where the page will land. */
+.cpb-tree-placeholder {
+  list-style: none;
+  transition: min-height 120ms ease-out;
 }
-[data-page-node].cpb-tree-drop-onto,
-[data-page-root].cpb-tree-drop-onto {
+.cpb-tree-placeholder > .tv-row {
+  align-items: center;
+  padding: 2px 0;
+}
+.cpb-tree-placeholder__slot {
+  display: block;
+  flex: 1;
+  height: 26px;
+  min-width: 60px;
+  border-radius: 4px;
   background: #d6ecdb;
-  outline: 2px dashed #00703c;
-  outline-offset: 2px;
+  border: 2px dashed #00703c;
 }
 
 /* ---- Delete button (edit mode) ------------------------------------------ */

@@ -1,24 +1,34 @@
 @using DfE.CheckPerformanceData.Application.ContentPages
 @model IReadOnlyList<ContentNavItem>
 @*
-    Auto-generated page contents, built from the page's Heading widgets (H2 top level, H3 nested).
-    Editors never hand-maintain this — it always matches the content.
+    Page-side navigation used by the PageNav widget in both "headings" (auto H2/H3 of the
+    current page) and "children" (a sibling/child page list) modes. Marks the entry whose
+    Href matches the current request path as active, which triggers the blue left bar via
+    moj-side-navigation__item--active.
 *@
+@{
+    var currentPath = Context.Request.Path.Value ?? string.Empty;
+    bool IsActive(string href) =>
+        !string.IsNullOrEmpty(href) && !href.StartsWith('#')
+        && string.Equals(href.TrimEnd('/'), currentPath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
+}
 @if (Model.Count > 0)
 {
     <nav class="moj-side-navigation" aria-label="Page contents">
         <ul class="moj-side-navigation__list">
             @foreach (var item in Model)
             {
-                <li class="moj-side-navigation__item">
-                    <a href="@item.Href">@item.Text</a>
+                var itemActive = IsActive(item.Href);
+                <li class="moj-side-navigation__item @(itemActive ? "moj-side-navigation__item--active" : "")">
+                    <a href="@item.Href" @(itemActive ? "aria-current=page" : "")>@item.Text</a>
                     @if (item.Children.Count > 0)
                     {
                         <ul class="moj-side-navigation__list">
                             @foreach (var child in item.Children)
                             {
-                                <li class="moj-side-navigation__item">
-                                    <a href="@child.Href">@child.Text</a>
+                                var childActive = IsActive(child.Href);
+                                <li class="moj-side-navigation__item @(childActive ? "moj-side-navigation__item--active" : "")">
+                                    <a href="@child.Href" @(childActive ? "aria-current=page" : "")>@child.Text</a>
                                 </li>
                             }
                         </ul>

@@ -9,6 +9,15 @@
     // on ViewData here — the widget partial reads whichever key its mode dictates.
     ViewData["PageHeadingNav"]  = Model.Nav         ?? Array.Empty<ContentNavItem>();
     ViewData["PageChildrenNav"] = Model.ChildrenNav ?? Array.Empty<ContentNavItem>();
+
+    // If the author has placed their own H1 widget inside the content tree, suppress the
+    // template-emitted title + subtitle — otherwise we'd render two H1s and the title would
+    // float full-width above whatever multi-column layout they set up. This lets pages that
+    // use a 1/3-2/3 region put "Guidance / Title / Subtitle" inside the right column
+    // (matching the GDS pattern-library design) while still auto-titling pages that don't
+    // opt in.
+    var hasAuthoredH1 = ContentTreeWalker.AllWidgets(content)
+        .Any(w => w.Type == "heading" && w.GetInt("level") == 1);
 }
 
 @if (Model.IsPreview)
@@ -43,11 +52,14 @@
 @* Full-width — no fixed one-third/two-thirds grid. The author uses Region widgets to
    split into columns wherever they want a side-nav (they place a PageNav widget in the
    narrower column and the body content in the wider one). *@
-@if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+@if (!hasAuthoredH1)
 {
-    <p class="govuk-caption-l cpb-subtitle">@Model.Subtitle</p>
+    @if (!string.IsNullOrWhiteSpace(Model.Subtitle))
+    {
+        <p class="govuk-caption-l cpb-subtitle">@Model.Subtitle</p>
+    }
+    <h1 class="govuk-heading-xl cpb-page-h1">@Model.Title</h1>
 }
-<h1 class="govuk-heading-xl cpb-page-h1">@Model.Title</h1>
 @await Html.PartialAsync("ContentPages/_ContentNodes", content)
 
 @* Equalise the height of dfe-cards that live as direct grandchildren of a govuk-grid-row.

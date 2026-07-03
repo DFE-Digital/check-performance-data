@@ -53,7 +53,40 @@
               '<span class="tv-connector"></span>' +
               '<span class="cpb-tree-placeholder__slot" aria-hidden="true"></span>' +
             '</div>';
+        // The placeholder is a real <li> inserted at the drop position. Without these two
+        // handlers it would steal the dragover / drop events from the underlying target
+        // (the pointer sits over the placeholder once it's inserted above/below the target),
+        // and dropping would silently fail because no element ever called preventDefault.
+        placeholder.addEventListener('dragover', function (ev) {
+            if (draggingId == null) return;
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = 'move';
+        });
+        placeholder.addEventListener('drop', onPlaceholderDrop);
         return placeholder;
+    }
+
+    // The placeholder already sits in its final position, so its parent = the target parent
+    // and the count of real siblings before it = the new sort order.
+    function onPlaceholderDrop(ev) {
+        if (draggingId == null) return;
+        ev.preventDefault();
+        var parentUl = placeholder.parentElement;
+        if (!parentUl) return;
+        var parentLi = parentUl.closest('.tv-item');
+        var parentLink = parentLi
+            ? parentLi.querySelector(':scope > .tv-row > [data-page-node], :scope > .tv-row > [data-page-root]')
+            : null;
+        var newParentId = parentLink && parentLink.hasAttribute('data-page-id')
+            ? parentLink.getAttribute('data-page-id')
+            : null;
+        var newSortOrder = 0;
+        for (var i = 0; i < parentUl.children.length; i++) {
+            var el = parentUl.children[i];
+            if (el === placeholder) break;
+            if (el.classList.contains('tv-item') && el !== draggingLi) newSortOrder++;
+        }
+        submitMove(draggingId, { NewParentId: newParentId, NewSortOrder: newSortOrder });
     }
 
     function removePlaceholder() {

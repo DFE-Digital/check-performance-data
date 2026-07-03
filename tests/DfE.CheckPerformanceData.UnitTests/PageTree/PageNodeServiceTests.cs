@@ -782,6 +782,10 @@ public class PageNodeServiceTests
                     .Select(ToNodeDto)
                     .FirstOrDefault());
 
+        public Task<List<DfE.CheckPerformanceData.Application.Search.PageSearchHitRaw>> SearchPagesAsync(
+            string term, string? scopePath, int max)
+            => Task.FromResult(new List<DfE.CheckPerformanceData.Application.Search.PageSearchHitRaw>());
+
         public Task<PageNodeDto?> GetByIdAsync(Guid id) =>
             Task.FromResult(
                 _nodes

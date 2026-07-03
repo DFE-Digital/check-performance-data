@@ -5,6 +5,14 @@ public interface IPageNodeRepository
     /// <summary>All live (non-deleted) nodes, ordered by ParentId then SortOrder. Caller builds the tree.</summary>
     Task<List<PageNodeTreeItemDto>> GetTreeAsync();
 
+    /// <summary>
+    /// Case-insensitive contains-search across Title, Subtitle and BodyPlainText of the
+    /// currently-live version of each non-deleted node. Optional <paramref name="scopePath"/>
+    /// (no leading slash) restricts hits to that path or a descendant. Returns raw hits;
+    /// snippet building lives in the service layer.
+    /// </summary>
+    Task<List<Search.PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max);
+
     Task<PageNodeDto?> GetByPathAsync(string path);
 
     Task<PageNodeDto?> GetByIdAsync(Guid id);

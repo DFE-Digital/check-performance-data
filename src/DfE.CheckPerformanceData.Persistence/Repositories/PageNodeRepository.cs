@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +36,44 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .Where(n => n.Path == path)
             .Select(NodeProjection)
             .FirstOrDefaultAsync();
+
+    public Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
+    {
+        // ILIKE via EF.Functions.ILike is Postgres-specific but this project pins Postgres
+        // everywhere (Testcontainers + prod), so it's safe. Wildcards are added at the edges;
+        // callers pass raw terms.
+        var pattern = "%" + term + "%";
+        var scopePrefix = string.IsNullOrEmpty(scopePath) ? null : scopePath + "/";
+
+        var query = context.PageNodes
+            .AsNoTracking()
+            .Where(n => n.DeletedDate == null)
+            .Where(n => scopePath == null || n.Path == scopePath || n.Path.StartsWith(scopePrefix!))
+            .Select(n => new
+            {
+                Node = n,
+                Live = n.Versions
+                    .Where(v => v.IsCurrent)
+                    .Select(v => new { v.BodyPlainText })
+                    .FirstOrDefault()
+            })
+            .Where(x =>
+                EF.Functions.ILike(x.Node.Title, pattern)
+                || (x.Node.Subtitle != null && EF.Functions.ILike(x.Node.Subtitle, pattern))
+                || (x.Live != null && EF.Functions.ILike(x.Live.BodyPlainText, pattern)))
+            .OrderBy(x => x.Node.Path)
+            .Take(max)
+            .Select(x => new PageSearchHitRaw
+            {
+                PageId = x.Node.Id,
+                Path = x.Node.Path,
+                Title = x.Node.Title,
+                Subtitle = x.Node.Subtitle,
+                BodyPlainText = x.Live != null ? x.Live.BodyPlainText : string.Empty,
+            });
+
+        return query.ToListAsync();
+    }
 
     public Task<PageNodeDto?> GetByIdAsync(Guid id) =>
         context.PageNodes

@@ -49,8 +49,8 @@
 
     var showSearch = mode == "children" && (Model.GetBool("showSearch") ?? false);
     var searchLabel = Model.GetString("searchLabel") ?? "Search";
-    var searchPathProp = (Model.GetString("searchPath") ?? string.Empty).Trim();
-    var searchAction = string.IsNullOrEmpty(searchPathProp) ? "/help/search" : $"/{searchPathProp.Trim('/')}/search";
+    var searchPathProp = (Model.GetString("searchPath") ?? string.Empty).Trim().Trim('/');
+    var searchAction = "/search";
 }
 
 @if (showSearch)
@@ -63,6 +63,10 @@
                 <button class="govuk-button cypmd-search__button" data-module="govuk-button" type="submit">@searchLabel</button>
             </div>
         </div>
+        @if (!string.IsNullOrEmpty(searchPathProp))
+        {
+            <input type="hidden" name="scope" value="@searchPathProp" />
+        }
     </form>
 }
 

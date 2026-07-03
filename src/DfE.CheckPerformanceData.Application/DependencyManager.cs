@@ -10,6 +10,7 @@ using DfE.CheckPerformanceData.Application.Journey.Conditions;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Wiki;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +23,7 @@ public static class DependencyManager
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
+        services.AddScoped<ISiteSearchService, SiteSearchService>();
         services.AddScoped<IPageNodeService, PageNodeService>();
         services.AddScoped<IPageNodeContentEditor, PageNodeContentEditor>();
         services.AddScoped<DefaultPageNodeSeeder>();

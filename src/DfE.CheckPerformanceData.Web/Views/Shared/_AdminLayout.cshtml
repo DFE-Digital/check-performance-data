@@ -138,6 +138,8 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
+@* The nav is collapsible on every admin page. AdminWide only chooses whether the shell is
+   edge-to-edge (dashboards, grids) or bounded by govuk-width-container (default). *@
 @if (adminWide)
 {
     <div class="admin-layout admin-layout--wide" data-admin-nav-collapse-root>
@@ -157,10 +159,15 @@
 else
 {
     <div class="govuk-width-container">
-        <div class="admin-layout">
-            <aside class="admin-rail" aria-label="Administration sidebar">
+        <div class="admin-layout" data-admin-nav-collapse-root>
+            <aside class="admin-rail" id="admin-rail" aria-label="Administration sidebar">
                 @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
             </aside>
+            <button type="button" class="admin-nav-collapse" data-admin-nav-collapse
+                    aria-expanded="true" aria-controls="admin-rail"
+                    aria-label="Collapse navigation" title="Collapse navigation">
+                <span class="admin-nav-collapse__chevron" aria-hidden="true"></span>
+            </button>
             <main class="admin-main" id="main-content">
                 @RenderBody()
             </main>
@@ -193,10 +200,7 @@ else
     <form id="cms-tree-antiforgery" hidden>@Html.AntiForgeryToken()</form>
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
-    @if (adminWide)
-    {
-        <script src="~/js/admin-nav-collapse.js"></script>
-    }
+    <script src="~/js/admin-nav-collapse.js"></script>
     <script src="~/js/admin-page-tree-context-menu.js" asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

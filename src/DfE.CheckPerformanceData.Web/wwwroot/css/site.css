@@ -999,8 +999,18 @@ dialog.govuk-modal-dialogue__box::backdrop {
 
 @media (max-width: 640px) {
   .admin-layout--wide { flex-direction: column; padding-left: 16px; padding-right: 16px; }
+  /* Below 640px, the layout stacks and the rail follows main — a collapse toggle would be
+     more nuisance than help, so hide it and force the rail visible regardless of the
+     collapsed class. Applies to both wide and default admin layouts. */
   .admin-nav-collapse { display: none; }
   .admin-layout--nav-collapsed .admin-rail { display: block; }
+}
+
+/* Collapse toggle is available on every admin page (not only the wide dashboards). Give
+   it a subtle background when the rail is collapsed on the default-width layout so the
+   tiny button doesn't feel like it's floating alone in whitespace. */
+.admin-layout:not(.admin-layout--wide) .admin-nav-collapse {
+  margin-left: -12px;
 }
 
 .admin-nav-tree {

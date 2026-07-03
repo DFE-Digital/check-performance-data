@@ -110,6 +110,32 @@ public class JourneyValidationServiceTests
         Assert.Equal("Date of birth is required", _sut.ValidateAnswer(question, answer, "Date of birth"));
     }
 
+    [Theory]
+    [InlineData(26)]    // "26" typed meaning 2026 — must not be accepted as year 0026
+    [InlineData(1)]
+    [InlineData(999)]
+    [InlineData(10000)] // five-digit typo — must error, not throw in DaysInMonth
+    public void ValidateAnswer_Date_WhenYearIsNotFourDigits_ReturnsError(int year)
+    {
+        var question = MakeQuestion(QuestionType.Date);
+        var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = year } };
+
+        Assert.Equal("Date of birth must include a 4-digit year",
+            _sut.ValidateAnswer(question, answer, "Date of birth"));
+    }
+
+    [Theory]
+    [InlineData(1000)]
+    [InlineData(2026)]
+    [InlineData(9999)]
+    public void ValidateAnswer_Date_WhenYearIsFourDigits_ReturnsNull(int year)
+    {
+        var question = MakeQuestion(QuestionType.Date);
+        var answer = new QuestionAnswer { DateValue = new DateAnswer { Day = 15, Month = 6, Year = year } };
+
+        Assert.Null(_sut.ValidateAnswer(question, answer, "Date of birth"));
+    }
+
     // ── ValidateAnswer with a named format validator ────────────────────────
 
     [Fact]

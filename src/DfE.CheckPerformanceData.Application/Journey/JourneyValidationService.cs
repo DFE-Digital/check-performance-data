@@ -45,6 +45,11 @@ public sealed class JourneyValidationService(
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
+            // A 4-digit year is required (GOV.UK date input pattern): "26" would otherwise be
+            // accepted as the literal year 0026. Checked before IsValidDate, which must only
+            // see years DateTime.DaysInMonth accepts (1-9999).
+            QuestionType.Date when answer.DateValue!.Year is < 1000 or > 9999
+                => $"{resolvedTitle} must include a 4-digit year",
             QuestionType.Date when !IsValidDate(answer.DateValue!)
                 => $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)

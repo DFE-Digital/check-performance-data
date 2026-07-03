@@ -93,7 +93,7 @@
                         case "pagenav":
                             {
                                 var pnMode = w.GetString("mode") ?? "headings";
-                                var pnShowSearch = w.GetString("showSearch") == "true" || (w.Props?["showSearch"]?.GetValue<bool?>() == true);
+                                var pnShowSearch = w.GetBool("showSearch") ?? false;
                                 <div class="govuk-form-group">
                                     <label class="govuk-label" for="pn-@Model.Path">Show</label>
                                     <select class="govuk-select cpb-pagenav__mode" id="pn-@Model.Path" name="props[mode]"

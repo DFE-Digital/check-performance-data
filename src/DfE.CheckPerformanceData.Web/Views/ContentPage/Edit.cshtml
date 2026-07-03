@@ -47,8 +47,9 @@
     .cpb-drag-handle:hover  { background: #e8e6e3; }
     .cpb-drag-handle:active { cursor: grabbing; background: #d8d6d3; }
     .cpb-dragging { opacity: 0.5; }
-    /* Drop indicator: a distinct insertion strip along the edge where the widget will land.
-       Column-append drop (no side) still gets a dashed frame so the whole column stays legible. */
+    /* Drop indicator: a thick, high-contrast insertion strip along the edge where the widget
+       will land. 8px tall with a soft blue halo so it reads clearly from a scanning cursor.
+       Column-append drop (no side) gets a dashed frame + light-blue wash. */
     .cpb-drop-target {
         position: relative;
         transition: margin .12s ease;
@@ -57,23 +58,26 @@
     .cpb-drop-target::after {
         content: "";
         position: absolute;
-        left: -4px;
-        right: -4px;
-        height: 4px;
-        border-radius: 2px;
+        left: -8px;
+        right: -8px;
+        height: 8px;
+        border-radius: 4px;
         background: #1d70b8;
+        box-shadow: 0 0 0 2px rgba(29, 112, 184, 0.35);
         pointer-events: none;
+        opacity: 0;
     }
-    .cpb-drop-target::before { top: -8px; opacity: 0; }
-    .cpb-drop-target::after  { bottom: -8px; opacity: 0; }
+    .cpb-drop-target::before { top: -14px; }
+    .cpb-drop-target::after  { bottom: -14px; }
     .cpb-drop-target--above::before { opacity: 1; }
-    .cpb-drop-target--above          { margin-top: 12px; }
+    .cpb-drop-target--above          { margin-top: 22px; }
     .cpb-drop-target--below::after  { opacity: 1; }
-    .cpb-drop-target--below          { margin-bottom: 12px; }
+    .cpb-drop-target--below          { margin-bottom: 22px; }
     /* Column-append (no above/below side) — dashed frame for the column area. */
     [data-column-path].cpb-drop-target:not(.cpb-drop-target--above):not(.cpb-drop-target--below) {
-        outline: 2px dashed #1d70b8;
-        outline-offset: 2px;
+        outline: 3px dashed #1d70b8;
+        outline-offset: 3px;
+        background: rgba(29, 112, 184, 0.06);
     }
 </style>
 

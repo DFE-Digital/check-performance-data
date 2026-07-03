@@ -22,32 +22,10 @@ public sealed class HelpController(
 
     private string EditSuffix => IsEditMode ? "?" + WikiConstants.EditQueryKey : "";
 
-    [AllowAnonymous]
-    public async Task<IActionResult> Index(string? slugPath)
-    {
-        var tree = await wikiService.GetNavigationTreeAsync();
-        WikiPageDto? page = null;
-
-        if (!string.IsNullOrEmpty(slugPath))
-        {
-            page = await wikiService.GetPageBySlugPathAsync(slugPath);
-            if (page == null) return NotFound();
-        }
-        else if (tree.Count > 0)
-        {
-            page = await wikiService.GetPageByIdAsync(tree[0].Id);
-        }
-
-        var vm = new HelpViewModel
-        {
-            NavigationTree = tree,
-            CurrentPage = page,
-            CurrentSlugPath = page?.SlugPath ?? string.Empty,
-            IsEditMode = IsEditMode
-        };
-
-        return View(vm);
-    }
+    // Wiki Index retired: /help and /help/{slugPath} resolve via PageController's catch-all
+    // against the PageNode tree. Wiki management endpoints (create/edit/delete/move/search/
+    // deleted/versions/restore/revert/seed) remain on this controller — they use explicit
+    // HttpGet/HttpPost attribute routes so they're unaffected by the missing Index action.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/create")]

@@ -17,4 +17,24 @@ public static class WidgetProps
 
     public static JsonArray? GetArray(this WidgetNode widget, string key) =>
         widget.Props is { } p && p.TryGetPropertyValue(key, out var node) ? node as JsonArray : null;
+
+    // Safe boolean read. Tolerates the value being stored as a real bool (from a JSON default)
+    // OR the string "true" / "false" (from a form post). Returns null if the prop is absent or
+    // the value can't be read as either — never throws.
+    public static bool? GetBool(this WidgetNode widget, string key)
+    {
+        if (widget.Props is not { } p) return null;
+        if (!p.TryGetPropertyValue(key, out var node) || node is null) return null;
+        try
+        {
+            if (node is JsonValue jv)
+            {
+                if (jv.TryGetValue<bool>(out var b)) return b;
+                if (jv.TryGetValue<string>(out var s))
+                    return string.Equals(s, "true", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch { /* fall through to null */ }
+        return null;
+    }
 }

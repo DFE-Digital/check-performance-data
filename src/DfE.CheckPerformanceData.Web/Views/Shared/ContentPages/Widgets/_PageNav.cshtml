@@ -47,8 +47,7 @@
         items = ViewData["PageHeadingNav"] as IReadOnlyList<ContentNavItem> ?? [];
     }
 
-    var showSearch = mode == "children"
-        && (Model.GetString("showSearch") == "true" || Model.Props?["showSearch"]?.GetValue<bool?>() == true);
+    var showSearch = mode == "children" && (Model.GetBool("showSearch") ?? false);
     var searchLabel = Model.GetString("searchLabel") ?? "Search";
     var searchPathProp = (Model.GetString("searchPath") ?? string.Empty).Trim();
     var searchAction = string.IsNullOrEmpty(searchPathProp) ? "/help/search" : $"/{searchPathProp.Trim('/')}/search";

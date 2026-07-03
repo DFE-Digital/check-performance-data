@@ -34,14 +34,14 @@
             else
             {
                 var tree = await PageNodes.GetTreeAsync() ?? [];
-                // Public menu: hide pages the author has flagged with ShowInMenu=false and hide
-                // content/wiki pages that don't have a currently-live version (unpublished drafts
-                // shouldn't leak into anyone else's nav). Folder pages have no version, so they
-                // stay visible as containers.
+                // Public menu: only content/wiki pages that are actually published, and that the
+                // author hasn't flagged with ShowInMenu=false. Folder pages are containers only;
+                // they don't render as a linkable page and are dropped from the nav.
                 items = tree
                     .Where(n => n.ParentId == scopeNode.Id)
+                    .Where(n => n.PageType != "folder")
                     .Where(n => n.ShowInMenu)
-                    .Where(n => n.PageType == "folder" || n.HasLiveVersion)
+                    .Where(n => n.HasLiveVersion)
                     .OrderBy(n => n.SortOrder)
                     .Select(n => new ContentNavItem(n.DisplayName, "/" + n.Path, Array.Empty<ContentNavItem>()))
                     .ToList();

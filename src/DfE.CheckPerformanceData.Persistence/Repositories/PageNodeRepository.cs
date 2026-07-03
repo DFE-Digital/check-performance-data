@@ -49,6 +49,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         var query = context.PageNodes
             .AsNoTracking()
             .Where(n => n.DeletedDate == null)
+            // Folder pages are containers only — nothing to render, nothing to link to.
+            // Skip them so search results only point at real pages.
+            .Where(n => n.PageType != "folder")
             .Where(n => scopePath == null || n.Path == scopePath || n.Path.StartsWith(scopePrefix!))
             .Select(n => new
             {
@@ -58,6 +61,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                     .Select(v => new { v.BodyPlainText })
                     .FirstOrDefault()
             })
+            // Only surface pages that are actually live at the moment of the search — a draft
+            // saved but not published shouldn't appear in public results.
+            .Where(x => x.Live != null)
             .Where(x =>
                 EF.Functions.ILike(x.Node.Title, pattern)
                 || (x.Node.Subtitle != null && EF.Functions.ILike(x.Node.Subtitle, pattern))

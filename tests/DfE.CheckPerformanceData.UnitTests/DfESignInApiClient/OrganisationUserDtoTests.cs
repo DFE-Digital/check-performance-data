@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.UnitTests.DfESignInApiClient;
@@ -77,7 +78,7 @@ public class OrganisationUserDtoTests
         });
 
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.example.com/") };
-        var apiClient = new DfeSignInApiClient(client, Options.Create(new DfeSigninSettings { ServiceId = "svc-1", ApiClientSecret = "secret", ClientId = "client", Audience = "audience" }));
+        var apiClient = new DfeSignInApiClient(client, Options.Create(new DfeSigninSettings { ServiceId = "svc-1", ApiClientSecret = "secret", ClientId = "client", Audience = "audience" }), NullLogger<DfeSignInApiClient>.Instance);
 
         var result = await apiClient.GetOrganisationUsersAsync("12345", ["APR", "SUB"]);
 
@@ -97,7 +98,7 @@ public class OrganisationUserDtoTests
         });
 
         var client = new HttpClient(handler) { BaseAddress = new Uri("https://api.example.com/") };
-        var apiClient = new DfeSignInApiClient(client, Options.Create(new DfeSigninSettings { ServiceId = "svc-1", ApiClientSecret = "secret", ClientId = "client", Audience = "audience" }));
+        var apiClient = new DfeSignInApiClient(client, Options.Create(new DfeSigninSettings { ServiceId = "svc-1", ApiClientSecret = "secret", ClientId = "client", Audience = "audience" }), NullLogger<DfeSignInApiClient>.Instance);
 
         var result = await apiClient.GetOrganisationUsersAsync("12345", ["APR"]);
 

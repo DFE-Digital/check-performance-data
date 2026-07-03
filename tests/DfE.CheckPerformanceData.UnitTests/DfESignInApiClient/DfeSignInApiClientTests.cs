@@ -1,5 +1,6 @@
 using System.Net;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.DfESignInApiClient;
@@ -19,7 +20,7 @@ public sealed class DfeSignInApiClientTests
             Audience = "audience",
             ServiceId = "service-id"
         });
-        return new DfeSignInApiClient(httpClient, settings);
+        return new DfeSignInApiClient(httpClient, settings, NullLogger<DfeSignInApiClient>.Instance);
     }
 
     [Fact]

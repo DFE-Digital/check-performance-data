@@ -27,7 +27,7 @@
             @Html.AntiForgeryToken()
             <input type="hidden" name="path" value="@pathValue" />
             <select class="govuk-select" name="widgetType" aria-label="Widget type">
-                @foreach (var w in WidgetRegistry.All)
+                @foreach (var w in WidgetRegistry.All.OrderBy(x => x.PaletteLabel, StringComparer.OrdinalIgnoreCase))
                 {
                     <option value="@w.Type">@w.PaletteLabel</option>
                 }

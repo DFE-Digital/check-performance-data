@@ -6,11 +6,13 @@
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @using DfE.CheckPerformanceData.Application.ContentBlocks
+@using DfE.CheckPerformanceData.Application.Admin
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
 @inject IPageNodeService PageNodeService
 @inject IContentBlockService ContentBlockService
+@inject IAdminAccessPolicy AdminAccessPolicy
 @*
     Admin chrome — black-banded header and "Administration" wordmark
     to make the admin context unambiguous. The public Beta phase banner
@@ -75,6 +77,27 @@
     catch
     {
         // Page-tree failure must not break the rest of admin — degrade gracefully.
+    }
+
+    // Role-based access filter: hide sections the current user's roles don't grant. Runs after
+    // grafting so synthetic page/content-block leaves inherit their group's visibility. Cached
+    // per-request via a small dictionary so we don't hit the policy service once per node.
+    try
+    {
+        var accessCache = new Dictionary<string, bool>(StringComparer.Ordinal);
+        bool CanAccess(string key)
+        {
+            if (accessCache.TryGetValue(key, out var cached)) return cached;
+            var allowed = AdminAccessPolicy.CanAccessAsync(User, key).GetAwaiter().GetResult();
+            accessCache[key] = allowed;
+            return allowed;
+        }
+        adminNavTreeModel = AdminNavNodeViewModel.FilterByAccess(adminNavTreeModel, CanAccess);
+    }
+    catch
+    {
+        // Access policy failure must not blank the whole nav — leave the tree as it was so an
+        // authenticated admin can still reach the role-settings page to fix it.
     }
 
     // Active-page tracking: resolve the nav entry the current request path belongs to, so the tree

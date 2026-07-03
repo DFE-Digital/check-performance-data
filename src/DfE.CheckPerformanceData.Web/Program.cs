@@ -224,6 +224,9 @@ try
     using (var scope = app.Services.CreateScope())
     {
         await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
+        await scope.ServiceProvider
+            .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
+            .SeedIfEmptyAsync();
     }
 
     app.UseForwardedHeaders();

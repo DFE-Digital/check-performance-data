@@ -170,4 +170,55 @@ public sealed class AdminNavNodeViewModel
                 yield return entry;
         }
     }
+
+    // Prunes the forest to sections a predicate says the user can reach: a container node is
+    // kept when any descendant is allowed (so groups don't disappear entirely). The synthetic
+    // page-tree nodes and content-block-tree nodes are always kept — their access follows the
+    // parent group (Pages / Content blocks), not their own key.
+    public static IReadOnlyList<AdminNavNodeViewModel> FilterByAccess(
+        IReadOnlyList<AdminNavNodeViewModel> forest,
+        Func<string, bool> canAccessSection)
+    {
+        var result = new List<AdminNavNodeViewModel>();
+        foreach (var node in forest)
+        {
+            var filtered = FilterNode(node, canAccessSection);
+            if (filtered is not null) result.Add(filtered);
+        }
+        return result;
+    }
+
+    private static AdminNavNodeViewModel? FilterNode(
+        AdminNavNodeViewModel node,
+        Func<string, bool> canAccessSection)
+    {
+        var isSynthetic = node.Entry is PageTreeNavEntry or ContentBlockPageNavEntry;
+        var filteredChildren = new List<AdminNavNodeViewModel>();
+        foreach (var child in node.Children)
+        {
+            var kept = FilterNode(child, canAccessSection);
+            if (kept is not null) filteredChildren.Add(kept);
+        }
+
+        // Navigable leaves: keep if the section is granted (synthetic entries always pass —
+        // access to them follows the parent group's grant, not their own).
+        // Containers (no URL): keep only when at least one descendant survived — an empty
+        // group would render as a bare heading with nothing under it.
+        var hasUrl = !string.IsNullOrEmpty(node.Entry.Url);
+        var selfAllowed = hasUrl
+            ? (isSynthetic || canAccessSection(node.Entry.Key))
+            : filteredChildren.Count > 0;
+
+        if (!selfAllowed && filteredChildren.Count == 0) return null;
+
+        if (ReferenceEquals(filteredChildren, node.Children)
+            || filteredChildren.SequenceEqual(node.Children))
+            return node;
+
+        return new AdminNavNodeViewModel
+        {
+            Entry = node.Entry,
+            Children = filteredChildren,
+        };
+    }
 }

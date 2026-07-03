@@ -30,6 +30,7 @@ public sealed class PortalDbContext(
     public DbSet<ShareToken> ShareTokens => Set<ShareToken>();
     public DbSet<PageNode> PageNodes => Set<PageNode>();
     public DbSet<PageNodeVersion> PageNodeVersions => Set<PageNodeVersion>();
+    public DbSet<AdminSectionAccess> AdminSectionAccesses => Set<AdminSectionAccess>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +51,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new ShareTokenConfiguration());
         modelBuilder.ApplyConfiguration(new PageNodeConfiguration());
         modelBuilder.ApplyConfiguration(new PageNodeVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new AdminSectionAccessConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

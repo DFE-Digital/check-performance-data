@@ -53,6 +53,7 @@ public static class DependencyManager
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
         services.AddScoped<Application.PageTree.IPageNodeRepository, Repositories.PageNodeRepository>();
+        services.AddScoped<Application.Admin.IAdminSectionAccessRepository, Repositories.AdminSectionAccessRepository>();
         services.AddScoped<Application.Observability.IMetricsQueryService,
             Observability.MetricsQueryService>();
         services.AddScoped<Application.Observability.IMetricsSink,

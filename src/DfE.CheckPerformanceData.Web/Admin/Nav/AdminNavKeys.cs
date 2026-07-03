@@ -16,6 +16,7 @@ public static class AdminNavKeys
     public const string DeletedPages = "deleted-pages";
     public const string SeedSamplePages = "seed-sample-pages";
     public const string SystemSettings = "system-settings";
+    public const string RoleSettings = "role-settings";
     public const string RulesConfig = "rules-config";
 
     public const string RulesEngineGroup = "rules-engine-group";

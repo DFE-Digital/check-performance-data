@@ -1,0 +1,89 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.RoleSettingsViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Role settings";
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Role settings</h1>
+
+<p class="govuk-body">
+    Tick a box to grant that role access to a section of admin. The role columns come from the
+    users active in this system; register a new role below to add another column.
+</p>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert" aria-labelledby="rs-saved">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="rs-saved">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@Model.SuccessMessage</p>
+        </div>
+    </div>
+}
+
+<form method="post" action="/admin/system/roles" class="cypmd-role-settings">
+    @Html.AntiForgeryToken()
+
+    <table class="govuk-table cypmd-role-settings__table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Section</th>
+                @foreach (var role in Model.Roles)
+                {
+                    <th scope="col" class="govuk-table__header">
+                        <code>@role</code>
+                        <input type="hidden" name="Roles" value="@role" />
+                    </th>
+                }
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var section in Model.Sections)
+            {
+                <tr class="govuk-table__row">
+                    <th scope="row" class="govuk-table__header"><code>@(section)</code></th>
+                    @foreach (var role in Model.Roles)
+                    {
+                        var isChecked = Model.IsGranted(role, section);
+                        var inputId = $"g-{role}-{section}".Replace(":", "-");
+                        <td class="govuk-table__cell govuk-!-text-align-centre">
+                            <div class="govuk-checkboxes__item govuk-checkboxes--small">
+                                <input class="govuk-checkboxes__input"
+                                       id="@inputId"
+                                       type="checkbox"
+                                       name="Grants[@role]"
+                                       value="@(section)"
+                                       @(isChecked ? "checked" : null) />
+                                <label class="govuk-label govuk-checkboxes__label govuk-visually-hidden" for="@inputId">
+                                    Allow @role in @(section)
+                                </label>
+                            </div>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--s" for="new-role">Register a new role</label>
+        <div id="new-role-hint" class="govuk-hint">
+            Type the exact role name that will appear on user identities. It will get its own column
+            with no boxes ticked; edit it here to grant sections.
+        </div>
+        <input class="govuk-input govuk-input--width-30"
+               id="new-role"
+               name="NewRoleName"
+               type="text"
+               aria-describedby="new-role-hint" />
+    </div>
+
+    <div class="govuk-button-group">
+        <button type="submit" class="govuk-button" data-module="govuk-button">Save role access</button>
+        <a href="/admin" class="govuk-link">Cancel</a>
+    </div>
+</form>

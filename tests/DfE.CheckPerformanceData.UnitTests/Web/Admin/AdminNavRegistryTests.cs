@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(21, entries.Count);
+		Assert.Equal(22, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);
@@ -71,9 +71,10 @@ public sealed class AdminNavRegistryTests
 			.ToArray();
 
 		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
-		// System administration now has two direct children: the Rules Engine sub-group (10)
-		// and System settings (20). The pipeline tiles nest one level deeper under Rules Engine.
-		Assert.Equal(new[] { 10, 20 }, systemOrders);
+		// System administration has three direct children: the Rules Engine sub-group (10),
+		// System settings (20), Role settings (30). The pipeline tiles nest one level deeper
+		// under Rules Engine.
+		Assert.Equal(new[] { 10, 20, 30 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")

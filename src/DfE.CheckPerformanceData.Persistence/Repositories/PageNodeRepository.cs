@@ -235,6 +235,29 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public Task<List<PageNodeDto>> GetDeletedAsync() =>
+        context.PageNodes
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(n => n.DeletedDate != null)
+            .OrderByDescending(n => n.DeletedDate)
+            .Select(NodeProjection)
+            .ToListAsync();
+
+    public async Task RestoreAsync(Guid nodeId, string? userId)
+    {
+        var entity = await context.PageNodes
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(n => n.Id == nodeId)
+            ?? throw new InvalidOperationException($"Page node {nodeId} not found.");
+
+        entity.DeletedDate = null;
+        entity.DeletedBy = null;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
     public async Task SwapSortOrderAsync(Guid nodeId, Guid otherNodeId)
     {
         // FindAsync bypasses the global query filter — that is intentional here, since the
@@ -408,7 +431,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Title = n.Title,
             Subtitle = n.Subtitle,
             PageName = n.PageName,
-            PageType = n.PageType
+            PageType = n.PageType,
+            DeletedDate = n.DeletedDate,
+            DeletedBy = n.DeletedBy,
         };
 
     private static readonly System.Linq.Expressions.Expression<Func<PageNodeVersion, PageNodeVersionDto>> VersionProjection =

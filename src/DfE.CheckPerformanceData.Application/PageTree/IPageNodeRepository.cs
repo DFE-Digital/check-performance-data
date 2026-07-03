@@ -43,6 +43,12 @@ public interface IPageNodeRepository
 
     Task SoftDeleteAsync(Guid nodeId, string? userId);
 
+    /// <summary>All soft-deleted (DeletedDate != null) nodes ordered by DeletedDate DESC.</summary>
+    Task<List<PageNodeDto>> GetDeletedAsync();
+
+    /// <summary>Clears the DeletedDate/DeletedBy on <paramref name="nodeId"/>, restoring the node.</summary>
+    Task RestoreAsync(Guid nodeId, string? userId);
+
     /// <summary>
     /// Swaps the <see cref="PageNodeTreeItemDto.SortOrder"/> values of two nodes in a single
     /// SaveChanges call, so siblings exchange their position in the tree.

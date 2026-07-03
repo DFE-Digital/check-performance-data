@@ -91,10 +91,10 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal(new[] { 10, 20, 30 }, queueOrders);
 	}
 
-	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---
+	// --- DeletedPages_Tile_Links_To_Admin_Route ---
 
 	[Fact]
-	public void DeletedPages_Tile_Has_Help_Deleted_Url()
+	public void DeletedPages_Tile_Links_To_Admin_Route()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -103,7 +103,7 @@ public sealed class AdminNavRegistryTests
 		var entry = provider.GetServices<IAdminNavEntry>()
 			.Single(e => e.Key == "deleted-pages");
 
-		Assert.Equal("/help/deleted", entry.Url);
+		Assert.Equal("/admin/pages/deleted", entry.Url);
 		Assert.True(entry.Enabled);
 	}
 

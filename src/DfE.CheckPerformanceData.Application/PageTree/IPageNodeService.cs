@@ -58,6 +58,12 @@ public interface IPageNodeService
     /// </summary>
     Task DeleteAsync(Guid nodeId, string? userId);
 
+    /// <summary>Soft-deleted pages listed for the admin "Deleted pages" screen.</summary>
+    Task<List<PageNodeDto>> GetDeletedAsync();
+
+    /// <summary>Restores a soft-deleted page (clears DeletedDate). No-op if already live.</summary>
+    Task RestoreAsync(Guid nodeId, string? userId);
+
     /// <summary>
     /// Moves the node up or down among its siblings by swapping <c>SortOrder</c> with the
     /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").

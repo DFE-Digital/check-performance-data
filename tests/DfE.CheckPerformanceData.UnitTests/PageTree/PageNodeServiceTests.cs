@@ -900,6 +900,16 @@ public class PageNodeServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<List<PageNodeDto>> GetDeletedAsync() =>
+            Task.FromResult(_nodes.Where(n => n.IsDeleted).Select(ToNodeDto).ToList());
+
+        public Task RestoreAsync(Guid nodeId, string? userId)
+        {
+            var node = _nodes.First(n => n.Id == nodeId);
+            node.IsDeleted = false;
+            return Task.CompletedTask;
+        }
+
         public Task SwapSortOrderAsync(Guid nodeId, Guid otherNodeId)
         {
             var nodeA = _nodes.First(n => n.Id == nodeId);

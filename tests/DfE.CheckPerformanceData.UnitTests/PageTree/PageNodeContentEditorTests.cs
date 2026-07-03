@@ -209,6 +209,8 @@ public class PageNodeContentEditorTests
         public Task UnpublishAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
         public Task<bool> IsPublishedAsync(Guid nodeId) => throw new NotSupportedException();
         public Task DeleteAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
+        public Task<List<PageNodeDto>> GetDeletedAsync() => throw new NotSupportedException();
+        public Task RestoreAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
 
         public Task<RenameNodeResult> RenameNodeAsync(

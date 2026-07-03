@@ -91,6 +91,10 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         await repository.SoftDeleteAsync(nodeId, userId);
     }
 
+    public Task<List<PageNodeDto>> GetDeletedAsync() => repository.GetDeletedAsync();
+
+    public Task RestoreAsync(Guid nodeId, string? userId) => repository.RestoreAsync(nodeId, userId);
+
     public async Task MoveAsync(Guid nodeId, string direction)
     {
         var node = await repository.GetByIdAsync(nodeId);

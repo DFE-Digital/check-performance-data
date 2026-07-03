@@ -1,0 +1,71 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.DeletedPagesViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Deleted pages";
+}
+
+<a href="/admin/pages" class="govuk-back-link">Back to pages</a>
+
+<h1 class="govuk-heading-xl">Deleted pages</h1>
+
+<p class="govuk-body">
+    Every page that has been soft-deleted. Restore returns the page (and its content) to the
+    live tree.
+</p>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert" aria-labelledby="dp-msg">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="dp-msg">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@Model.SuccessMessage</p>
+        </div>
+    </div>
+}
+
+@if (Model.Deleted.Count == 0)
+{
+    <p class="govuk-body">No deleted pages.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Title</th>
+                <th scope="col" class="govuk-table__header">Path</th>
+                <th scope="col" class="govuk-table__header">Type</th>
+                <th scope="col" class="govuk-table__header">Deleted</th>
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var page in Model.Deleted)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@(page).Title</td>
+                    <td class="govuk-table__cell"><code>/@(page).Path</code></td>
+                    <td class="govuk-table__cell">@(page).PageType</td>
+                    <td class="govuk-table__cell">
+                        @if (page.DeletedDate.HasValue)
+                        {
+                            <span>@(page).DeletedDate.Value.ToString("d MMM yyyy, HH:mm")</span>
+                        }
+                        @if (!string.IsNullOrEmpty(page.DeletedBy))
+                        {
+                            <div class="govuk-hint govuk-!-margin-0">by @(page).DeletedBy</div>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        <form method="post" action="/admin/pages/deleted/@(page).Id/restore" class="cpb-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0" data-module="govuk-button">Restore</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -12,6 +12,10 @@ public sealed class PageNodeDto
     public string? PageName { get; init; }
     public required string PageType { get; init; }
 
+    /// <summary>Populated only on hits from GetDeletedAsync; null otherwise.</summary>
+    public DateTime? DeletedDate { get; init; }
+    public string? DeletedBy { get; init; }
+
     /// <summary>The label to show in tree / nav / list surfaces. PageName if set, else Title.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(PageName) ? Title : PageName;
 }

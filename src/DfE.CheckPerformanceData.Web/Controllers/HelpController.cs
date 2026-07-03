@@ -154,57 +154,8 @@ public sealed class HelpController(
         return View(vm);
     }
 
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpGet("help/deleted")]
-    public async Task<IActionResult> Deleted(string? search, string? sort, string? dir, int page = 1)
-    {
-        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
-        var result = await wikiService.GetDeletedPagesAsync(new DeletedPagesQuery
-        {
-            Search = search,
-            Sort = sort,
-            Direction = dir,
-            Page = page,
-            PageSize = pageSize
-        });
-        var availableParents = await wikiService.GetAvailableParentsAsync();
-
-        var vm = new DeletedWikiPagesViewModel
-        {
-            DeletedPages = result.Items.ToList(),
-            AvailableParents = availableParents,
-            Results = result
-        };
-
-        return View(vm);
-    }
-
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpPost("help/restore/{id:int}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Restore(int id, int? newParentId)
-    {
-        var page = await wikiService.RestorePageAsync(id, newParentId);
-        return Redirect($"/help/{page.SlugPath}{EditSuffix}");
-    }
-
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpPost("help/delete-permanently/{id:int}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeletePermanently(int id)
-    {
-        try
-        {
-            await wikiService.HardDeletePageAsync(id);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning(ex, "Hard-delete refused for page {PageId}", id);
-            TempData["HardDeleteError"] = ex.Message;
-        }
-
-        return Redirect("/help/deleted");
-    }
+    // Wiki-flavored Deleted / Restore / hard-delete routes have been retired: the CMS now
+    // uses /admin/pages/deleted via DeletedPagesController against the PageNode tree.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/versions/{id:int}")]

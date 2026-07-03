@@ -9,6 +9,7 @@
     <DockerfileContext>..</DockerfileContext>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" />
     <PackageReference Include="DfeAnalytics.AspNetCore" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
     <PackageReference Include="PdfPig" />

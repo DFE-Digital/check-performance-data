@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
@@ -9,11 +10,12 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
 public sealed class ContentBlockControllerTests
 {
     private readonly IContentBlockService _service = Substitute.For<IContentBlockService>();
+    private readonly IPageNodeService _pageNodeService = Substitute.For<IPageNodeService>();
     private readonly ContentBlockController _sut;
 
     public ContentBlockControllerTests()
     {
-        _sut = new ContentBlockController(_service);
+        _sut = new ContentBlockController(_service, _pageNodeService);
     }
 
     // --- Index: content-blocks management page ---

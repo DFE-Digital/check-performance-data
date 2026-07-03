@@ -5,10 +5,12 @@
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@using DfE.CheckPerformanceData.Application.ContentBlocks
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
 @inject IPageNodeService PageNodeService
+@inject IContentBlockService ContentBlockService
 @*
     Admin chrome — black-banded header and "Administration" wordmark
     to make the admin context unambiguous. The public Beta phase banner
@@ -57,6 +59,18 @@
     {
         var pageTree = PageTreeBuilder.Build(await PageNodeService.GetTreeAsync());
         adminNavTreeModel = AdminNavNodeViewModel.GraftPageTree(adminNavTreeModel, pageTree);
+
+        // Content-blocks tree mirrors the pages tree, pruned to pages that own blocks.
+        // LastSeenPath is a request path ("/help/foo"); PageNode.Path is stored without
+        // the leading slash. Normalise on the way in.
+        var blocks = await ContentBlockService.GetAllAsync();
+        var pagesWithBlocks = new HashSet<string>(
+            blocks
+                .Where(b => !string.IsNullOrWhiteSpace(b.LastSeenPath))
+                .Select(b => b.LastSeenPath!.TrimStart('/')),
+            StringComparer.OrdinalIgnoreCase);
+        adminNavTreeModel = AdminNavNodeViewModel.GraftContentBlockPageTree(
+            adminNavTreeModel, pageTree, pagesWithBlocks);
     }
     catch
     {
@@ -73,7 +87,9 @@
     // synthetic page-{id} entry rather than the parent content-pages entry. If grafting failed
     // the forest contains only DI-registered entries, giving identical behaviour to before.
     ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(
-        adminCurrentPath, AdminNavNodeViewModel.CollectEntries(adminNavTreeModel));
+        adminCurrentPath,
+        Context.Request.QueryString.Value,
+        AdminNavNodeViewModel.CollectEntries(adminNavTreeModel));
 
     // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
     // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and

@@ -43,18 +43,40 @@ public sealed class AdminNavNodeViewModel
         if (pageTree is null || pageTree.Count == 0)
             return forest;
 
-        return GraftInForest(forest, pageTree);
+        return GraftInForest(forest, pageTree, AdminNavKeys.ContentPages, MapPageNode);
+    }
+
+    // Grafts a pruned page tree under the ContentBlocks node — same shape as the
+    // pages tree but each node links to /admin/content-blocks?page=/{path}. Pages
+    // are pruned to only those that own blocks or contain descendants that do, so
+    // the tree matches the flat list on /admin/content-blocks.
+    public static IReadOnlyList<AdminNavNodeViewModel> GraftContentBlockPageTree(
+        IReadOnlyList<AdminNavNodeViewModel> forest,
+        IReadOnlyList<PageTreeNode> pageTree,
+        ISet<string> pagesWithBlocks)
+    {
+        if (pageTree is null || pageTree.Count == 0 || pagesWithBlocks.Count == 0)
+            return forest;
+
+        var pruned = PrunePagesWithBlocks(pageTree, pagesWithBlocks);
+        if (pruned.Count == 0)
+            return forest;
+
+        return GraftInForest(forest, pruned, AdminNavKeys.ContentBlocks,
+            (node, parentKey) => MapContentBlockPageNode(node, parentKey, pagesWithBlocks));
     }
 
     private static IReadOnlyList<AdminNavNodeViewModel> GraftInForest(
         IReadOnlyList<AdminNavNodeViewModel> forest,
-        IReadOnlyList<PageTreeNode> pageTree)
+        IReadOnlyList<PageTreeNode> pageTree,
+        string targetKey,
+        Func<PageTreeNode, string, AdminNavNodeViewModel> mapper)
     {
         var result = new List<AdminNavNodeViewModel>(forest.Count);
         var changed = false;
         foreach (var node in forest)
         {
-            var grafted = GraftInNode(node, pageTree);
+            var grafted = GraftInNode(node, pageTree, targetKey, mapper);
             result.Add(grafted);
             if (!ReferenceEquals(grafted, node)) changed = true;
         }
@@ -63,18 +85,20 @@ public sealed class AdminNavNodeViewModel
 
     private static AdminNavNodeViewModel GraftInNode(
         AdminNavNodeViewModel node,
-        IReadOnlyList<PageTreeNode> pageTree)
+        IReadOnlyList<PageTreeNode> pageTree,
+        string targetKey,
+        Func<PageTreeNode, string, AdminNavNodeViewModel> mapper)
     {
-        if (node.Entry.Key == AdminNavKeys.ContentPages)
+        if (node.Entry.Key == targetKey)
         {
             return new AdminNavNodeViewModel
             {
                 Entry = node.Entry,
-                Children = MapPageNodes(pageTree, AdminNavKeys.ContentPages),
+                Children = pageTree.Select(n => mapper(n, targetKey)).ToList(),
             };
         }
 
-        var newChildren = GraftInForest(node.Children, pageTree);
+        var newChildren = GraftInForest(node.Children, pageTree, targetKey, mapper);
         if (ReferenceEquals(newChildren, node.Children))
             return node;
 
@@ -85,24 +109,50 @@ public sealed class AdminNavNodeViewModel
         };
     }
 
+    private static IReadOnlyList<PageTreeNode> PrunePagesWithBlocks(
+        IReadOnlyList<PageTreeNode> nodes,
+        ISet<string> pagesWithBlocks)
+    {
+        var kept = new List<PageTreeNode>();
+        foreach (var node in nodes)
+        {
+            var prunedChildren = PrunePagesWithBlocks(node.Children, pagesWithBlocks);
+            var hasOwnBlocks = pagesWithBlocks.Contains(node.Path);
+            if (hasOwnBlocks || prunedChildren.Count > 0)
+            {
+                kept.Add(node with { Children = prunedChildren });
+            }
+        }
+        return kept;
+    }
+
+    private static AdminNavNodeViewModel MapContentBlockPageNode(
+        PageTreeNode node,
+        string parentNavKey,
+        ISet<string> pagesWithBlocks)
+    {
+        var entry = new ContentBlockPageNavEntry(
+            node.Id, node.Title, node.PageType, node.Path,
+            pagesWithBlocks.Contains(node.Path), parentNavKey);
+        return new AdminNavNodeViewModel
+        {
+            Entry = entry,
+            Children = node.Children
+                .Select(c => MapContentBlockPageNode(c, entry.Key, pagesWithBlocks))
+                .ToList(),
+        };
+    }
+
     private static AdminNavNodeViewModel MapPageNode(PageTreeNode node, string parentNavKey)
     {
         var entry = new PageTreeNavEntry(node.Id, node.Title, node.PageType, node.Path, node.HasLiveVersion, parentNavKey);
         return new AdminNavNodeViewModel
         {
             Entry = entry,
-            Children = MapPageNodes(node.Children, entry.Key),
+            Children = node.Children.Count == 0
+                ? []
+                : node.Children.Select(c => MapPageNode(c, entry.Key)).ToList(),
         };
-    }
-
-    private static IReadOnlyList<AdminNavNodeViewModel> MapPageNodes(
-        IReadOnlyList<PageTreeNode> nodes,
-        string parentNavKey)
-    {
-        if (nodes is null || nodes.Count == 0)
-            return [];
-
-        return nodes.Select(n => MapPageNode(n, parentNavKey)).ToList();
     }
 
     // Walks the forest depth-first and yields every entry it contains — both DI-registered

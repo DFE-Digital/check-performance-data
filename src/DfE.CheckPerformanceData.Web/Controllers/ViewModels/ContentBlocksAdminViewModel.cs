@@ -8,4 +8,9 @@ public sealed class ContentBlocksAdminViewModel
 {
     public IReadOnlyList<ContentBlockDto> Blocks { get; init; } = [];
     public string? EditKey { get; init; }
+    // ?page= filter: when set, Blocks has already been narrowed to blocks whose
+    // LastSeenPath matches this request path. PageTitle is looked up for display.
+    public string? FilterPagePath { get; init; }
+    public string? FilterPageTitle { get; init; }
+    public int TotalBlockCount { get; init; }
 }

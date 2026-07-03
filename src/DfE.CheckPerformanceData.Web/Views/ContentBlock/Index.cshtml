@@ -10,17 +10,33 @@
         var text = (value ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
         return text.Length > 90 ? text[..90] + "…" : text;
     }
-    var returnUrl = "/admin/content-blocks";
+    var isFiltered = !string.IsNullOrEmpty(Model.FilterPagePath);
+    var returnUrl = isFiltered
+        ? $"/admin/content-blocks?page=/{Model.FilterPagePath}"
+        : "/admin/content-blocks";
 }
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
 
 <h1 class="govuk-heading-xl">Content blocks</h1>
-<p class="govuk-body">
-    Every content block in one place. Click <strong>Edit</strong> to change a block inline, save,
-    then move on to the next — no need to visit each page. The “On page” column shows where a
-    block was last displayed.
-</p>
+
+@if (isFiltered)
+{
+    <p class="govuk-body">
+        Showing blocks on
+        <strong>@(Model.FilterPageTitle ?? ("/" + Model.FilterPagePath))</strong>
+        (<code>/@Model.FilterPagePath</code>).
+        <a class="govuk-link" href="/admin/content-blocks">Show all @Model.TotalBlockCount blocks</a>
+    </p>
+}
+else
+{
+    <p class="govuk-body">
+        Every content block in one place. Click <strong>Edit</strong> to change a block inline, save,
+        then move on to the next — no need to visit each page. The “On page” column shows where a
+        block was last displayed. Pick a page in the left-hand nav to filter to just that page’s blocks.
+    </p>
+}
 
 <div class="govuk-form-group">
     <label class="govuk-label govuk-label--s" for="cs-filter">Filter</label>
@@ -30,7 +46,14 @@
 
 @if (Model.Blocks.Count == 0)
 {
-    <p class="govuk-body">No content blocks yet.</p>
+    if (isFiltered)
+    {
+        <p class="govuk-body">No content blocks have been seen on this page yet.</p>
+    }
+    else
+    {
+        <p class="govuk-body">No content blocks yet.</p>
+    }
 }
 else
 {

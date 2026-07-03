@@ -13,9 +13,11 @@
     // page, or when the node ITSELF is the active page (so a selected folder shows its children).
     // site.js re-collapses inactive branches once it binds, but respects the same rule.
     var expandedInitial = activeKey == null || Model.SubtreeContainsActive || isActive;
-    // Page-type icon: present only for page-tree nodes (PageTreeNavEntry).
+    // Page-type icon: present on page-tree nodes (PageTreeNavEntry) and on the
+    // synthetic content-block-tree nodes that mirror them (ContentBlockPageNavEntry).
     var pte = entry as PageTreeNavEntry;
-    var pageIconType = pte?.PageType;
+    var cbe = entry as ContentBlockPageNavEntry;
+    var pageIconType = pte?.PageType ?? cbe?.PageType;
     // Context-menu data attributes: page-tree leaf/branch nodes carry page-node attrs;
     // the ContentPages root carries data-page-root.
     var isPageRoot = entry.Key == AdminNavKeys.ContentPages;

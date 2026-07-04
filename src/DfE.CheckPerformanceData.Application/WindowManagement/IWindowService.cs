@@ -35,10 +35,15 @@ public sealed class CheckingWindowDto
 
 public class CheckingWindowDraft
 {
+    public string PostUrl { get; set; } = string.Empty;
     public string? Title { get; set; }
+    public string TitleLink { get; init; } = string.Empty;
     public DateTime? StartDate { get; set; }
+    public string StartDateLink { get; init; } = string.Empty;
     public DateTime? EndDate { get; set; }
+    public string EndDateLink { get; init; } = string.Empty;
     public CheckingWindowType? CheckingWindowType { get; set; }
+    public string CheckingWindowTypeLink { get; init; } = string.Empty;
 
     public bool IsValid
     {

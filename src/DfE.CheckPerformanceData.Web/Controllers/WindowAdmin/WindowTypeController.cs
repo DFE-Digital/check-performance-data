@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
@@ -73,6 +72,11 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
 
         draft.CheckingWindowType = model.WindowType;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
+
+        if (draft.IsValid)
+        {
+            return RedirectToAction("New", "CreateCheckingWindow");
+        }
 
         return RedirectToAction("New", "WindowType");
     }

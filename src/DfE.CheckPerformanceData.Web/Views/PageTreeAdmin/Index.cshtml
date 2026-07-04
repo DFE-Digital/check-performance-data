@@ -44,19 +44,21 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
 
-        <h1 class="govuk-heading-l">Pages</h1>
-
         @{
             var nodeHref = Model.SelectedId.HasValue
                 ? $"/admin/pages/{Model.SelectedId.Value}"
                 : "/admin/pages";
+            var pageHeading = Model.SelectedId.HasValue ? Model.SelectedTitle : "Pages";
         }
 
-        @* Action icons for the currently-selected page (or the root when nothing is selected).
-           Mirrors the right-click context menu on the tree — Edit, Versions, New child, Move
-           up / down, Delete, View — so you don't have to right-click a nav item to act on
-           the page you're already looking at. *@
-        <div class="app-page-actions" aria-label="Actions for @Model.SelectedTitle">
+        @* H1 + icon toolbar on one row. The toolbar mirrors the right-click context menu
+           for the currently-selected page (Edit, Versions, New child, Move up / down,
+           Delete, View), pinned to the right so it doesn't fight the title for attention.
+           On the root view the toolbar collapses to a single "Create a top-level page"
+           icon. *@
+        <div class="app-page-header">
+            <h1 class="govuk-heading-l app-page-header__title">@pageHeading</h1>
+            <div class="app-page-actions" aria-label="Actions for @pageHeading">
             @if (Model.SelectedId.HasValue)
             {
                 var pid = Model.SelectedId.Value;
@@ -124,6 +126,7 @@
                     <span class="govuk-visually-hidden">Create a top-level page</span>
                 </a>
             }
+            </div>
         </div>
 
         @* Search is only useful when there's something to filter. Skip the widget when the
@@ -151,13 +154,8 @@
             </form>
         }
 
-        @* Grid / empty states *@
-        @{
-            var newHref = Model.SelectedId.HasValue
-                ? $"/admin/pages/new?parentId={Model.SelectedId.Value}"
-                : "/admin/pages/new";
-            var newLabel = Model.SelectedId.HasValue ? "New child page" : "Create page";
-        }
+        @* Grid / empty states — the "New page" action lives on the header toolbar above,
+           so the empty state is just a one-line hint. *@
         @if (Model.TotalCount == 0 && !string.IsNullOrEmpty(Model.SearchQuery))
         {
             <p class="govuk-body">No pages match '<strong>@Model.SearchQuery</strong>'.</p>
@@ -165,8 +163,7 @@
         }
         else if (Model.TotalCount == 0)
         {
-            <p class="govuk-body">No pages in this section yet.</p>
-            <a href="@newHref" class="govuk-button" data-module="govuk-button">@newLabel</a>
+            <p class="govuk-body">No pages in this section yet. Use the <strong>+</strong> icon above to add one.</p>
         }
         else
         {

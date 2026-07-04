@@ -26,17 +26,6 @@
             {
                 <input type="hidden" name="scope" value="@Model.Scope" />
             }
-
-            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-                <div class="govuk-checkboxes__item">
-                    <input class="govuk-checkboxes__input" id="inc-pages" name="includePages" type="checkbox" value="true" @(Model.IncludePages ? "checked" : null) />
-                    <label class="govuk-label govuk-checkboxes__label" for="inc-pages">Pages</label>
-                </div>
-                <div class="govuk-checkboxes__item">
-                    <input class="govuk-checkboxes__input" id="inc-blocks" name="includeContentBlocks" type="checkbox" value="true" @(Model.IncludeContentBlocks ? "checked" : null) />
-                    <label class="govuk-label govuk-checkboxes__label" for="inc-blocks">Content blocks</label>
-                </div>
-            </div>
         </form>
 
         @if (Model.InvalidReason == SearchInvalidReason.EmptyQuery)

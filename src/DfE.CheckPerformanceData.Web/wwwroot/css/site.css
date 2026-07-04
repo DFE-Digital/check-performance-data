@@ -374,6 +374,43 @@
   border-radius: 3px;
 }
 
+/* ---- In-page "Edit" shortcut for CMS editors --------------------------- */
+
+/* Small floating pencil pinned to the top-right of the viewport. Only rendered when
+   the user has the CMS editor or admin role, so guests never see it. */
+.cpb-inpage-edit {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #ffffff;
+  color: #1d70b8;
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  font-family: "GDS Transport", arial, sans-serif;
+  font-size: 14px;
+  line-height: 1;
+}
+.cpb-inpage-edit svg { display: block; }
+.cpb-inpage-edit:hover {
+  background: #f2f4f7;
+  color: #0b0c0c;
+  border-color: #0b0c0c;
+  text-decoration: none;
+}
+.cpb-inpage-edit:focus-visible {
+  outline: 3px solid #ffdd00;
+  outline-offset: 0;
+  background: #ffdd00;
+  color: #0b0c0c;
+}
+
 /* ---- Page tree drag & drop --------------------------------------------- */
 
 /* Ghost the source row while it's being dragged so the placeholder-driven layout

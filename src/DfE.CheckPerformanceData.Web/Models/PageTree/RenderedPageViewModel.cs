@@ -7,6 +7,9 @@ namespace DfE.CheckPerformanceData.Web.Models.PageTree;
 // IsPreview=true when the viewer is an editor previewing an unpublished page.
 public sealed class RenderedPageViewModel
 {
+    /// <summary>PageNode id — used to build the /admin/pages/{id}/edit deep-link on the
+    /// in-page edit shortcut shown to CMS editors.</summary>
+    public Guid NodeId { get; init; }
     public required string Title { get; init; }
     public string? Subtitle { get; init; }
     public required string PageType { get; init; }

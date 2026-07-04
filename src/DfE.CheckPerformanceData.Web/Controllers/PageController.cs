@@ -108,6 +108,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         var tree = ContentPageJson.Deserialize(result.Version.Content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
+            NodeId      = result.Node.Id,
             Title       = result.Node.Title,
             Subtitle    = result.Node.Subtitle,
             PageType    = "content",
@@ -157,6 +158,7 @@ public sealed class PageController(IPageNodeService pageNodes) : Controller
         var tree = ContentPageJson.Deserialize(content) ?? [];
         return View("Content", new RenderedPageViewModel
         {
+            NodeId      = node.Id,
             Title       = node.Title,
             Subtitle    = node.Subtitle,
             PageType    = "content",

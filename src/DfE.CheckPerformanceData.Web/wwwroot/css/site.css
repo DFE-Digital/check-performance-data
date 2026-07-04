@@ -1167,6 +1167,14 @@ dialog.govuk-modal-dialogue__box::backdrop {
   color: #0b0c0c;
 }
 
+/* Toolbar of action icons for the currently-selected page (top of /admin/pages/{id}). */
+.app-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
 /* Inline search: input + Search button + Clear link on one row */
 .app-page-search-row {
   display: flex;

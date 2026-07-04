@@ -46,29 +46,110 @@
 
         <h1 class="govuk-heading-l">Pages</h1>
 
-        @* Inline search: input + Search button on the same line *@
         @{
             var nodeHref = Model.SelectedId.HasValue
                 ? $"/admin/pages/{Model.SelectedId.Value}"
                 : "/admin/pages";
         }
-        <form method="get" action="@nodeHref">
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="q">Search pages in this section</label>
-                <div class="app-page-search-row">
-                    <input class="govuk-input govuk-input--width-20"
-                           type="search"
-                           id="q"
-                           name="q"
-                           value="@Model.SearchQuery" />
-                    <button type="submit" class="govuk-button govuk-button--secondary">Search</button>
-                    @if (!string.IsNullOrEmpty(Model.SearchQuery))
-                    {
-                        <a class="govuk-link" href="@nodeHref">Clear</a>
-                    }
+
+        @* Action icons for the currently-selected page (or the root when nothing is selected).
+           Mirrors the right-click context menu on the tree — Edit, Versions, New child, Move
+           up / down, Delete, View — so you don't have to right-click a nav item to act on
+           the page you're already looking at. *@
+        <div class="app-page-actions" aria-label="Actions for @Model.SelectedTitle">
+            @if (Model.SelectedId.HasValue)
+            {
+                var pid = Model.SelectedId.Value;
+                <a class="app-action-icon"
+                   href="/admin/pages/@pid/edit"
+                   target="_blank" rel="noopener"
+                   title="Edit @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("edit")
+                    <span class="govuk-visually-hidden">Edit @Model.SelectedTitle</span>
+                </a>
+                <a class="app-action-icon"
+                   href="/admin/pages/@pid/edit#version-history"
+                   target="_blank" rel="noopener"
+                   title="Versions of @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("history")
+                    <span class="govuk-visually-hidden">Versions of @Model.SelectedTitle</span>
+                </a>
+                <a class="app-action-icon"
+                   href="/admin/pages/new?parentId=@pid"
+                   target="_blank" rel="noopener"
+                   title="Add child page under @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("add")
+                    <span class="govuk-visually-hidden">Add child page under @Model.SelectedTitle</span>
+                </a>
+                <form method="post" action="/admin/pages/@pid/move" class="app-action-icon-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="direction" value="up" />
+                    <button type="submit" class="app-action-icon-btn" title="Move @Model.SelectedTitle up">
+                        @ActionSvg("arrow_upward")
+                        <span class="govuk-visually-hidden">Move @Model.SelectedTitle up</span>
+                    </button>
+                </form>
+                <form method="post" action="/admin/pages/@pid/move" class="app-action-icon-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="direction" value="down" />
+                    <button type="submit" class="app-action-icon-btn" title="Move @Model.SelectedTitle down">
+                        @ActionSvg("arrow_downward")
+                        <span class="govuk-visually-hidden">Move @Model.SelectedTitle down</span>
+                    </button>
+                </form>
+                <a class="app-action-icon app-action-icon--delete"
+                   href="/admin/pages/@pid/delete"
+                   title="Delete @Model.SelectedTitle">
+                    @ActionSvg("delete")
+                    <span class="govuk-visually-hidden">Delete @Model.SelectedTitle</span>
+                </a>
+                @if (!string.IsNullOrEmpty(Model.SelectedPath))
+                {
+                    <a class="app-action-icon"
+                       href="/@Model.SelectedPath"
+                       target="_blank" rel="noopener"
+                       title="View @Model.SelectedTitle (opens in new tab)">
+                        @ActionSvg("open_in_new")
+                        <span class="govuk-visually-hidden">View @Model.SelectedTitle (opens in new tab)</span>
+                    </a>
+                }
+            }
+            else
+            {
+                <a class="app-action-icon"
+                   href="/admin/pages/new"
+                   target="_blank" rel="noopener"
+                   title="Create a top-level page (opens in new tab)">
+                    @ActionSvg("add")
+                    <span class="govuk-visually-hidden">Create a top-level page</span>
+                </a>
+            }
+        </div>
+
+        @* Search is only useful when there's something to filter. Skip the widget when the
+           current section has no children AND no query is active — a search box on an
+           empty section is just noise. Once a search is running, keep it visible so the
+           user can widen or clear it. *@
+        @if (Model.TotalCount > 0 || !string.IsNullOrEmpty(Model.SearchQuery))
+        {
+            <form method="get" action="@nodeHref">
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="q">Search pages in this section</label>
+                    <div class="app-page-search-row">
+                        <input class="govuk-input govuk-input--width-20"
+                               type="search"
+                               id="q"
+                               name="q"
+                               value="@Model.SearchQuery" />
+                        <button type="submit" class="govuk-button govuk-button--secondary">Search</button>
+                        @if (!string.IsNullOrEmpty(Model.SearchQuery))
+                        {
+                            <a class="govuk-link" href="@nodeHref">Clear</a>
+                        }
+                    </div>
                 </div>
-            </div>
-        </form>
+            </form>
+        }
 
         @* Grid / empty states *@
         @{

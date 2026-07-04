@@ -6,6 +6,8 @@
         : $"Search results for “{Model.Query}”";
     var scopeSuffix = string.IsNullOrEmpty(Model.Scope) ? string.Empty : $" in /{Model.Scope}";
     var formAction = "/search";
+    // Build the "origin" (scheme://host) once so every result can show its full clickable URL.
+    var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
 }
 
 <div class="govuk-grid-row">
@@ -62,7 +64,9 @@
                                 <p class="govuk-body-s govuk-!-margin-bottom-1"><em>@hit.Subtitle</em></p>
                             }
                             <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                            <p class="govuk-hint govuk-!-margin-top-0">/@hit.Path</p>
+                            <p class="govuk-hint govuk-!-margin-top-0">
+                                <a class="govuk-link govuk-link--muted" href="/@hit.Path">@origin/@hit.Path</a>
+                            </p>
                         </li>
                     }
                 </ul>
@@ -79,7 +83,10 @@
                                 <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>
                             </h3>
                             <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                            <p class="govuk-hint govuk-!-margin-top-0">@hit.Url · <code>@hit.Key</code></p>
+                            <p class="govuk-hint govuk-!-margin-top-0">
+                                <a class="govuk-link govuk-link--muted" href="@hit.Url">@(origin)@hit.Url</a>
+                                · <code>@hit.Key</code>
+                            </p>
                         </li>
                     }
                 </ul>

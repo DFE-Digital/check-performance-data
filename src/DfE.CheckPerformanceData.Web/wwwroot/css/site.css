@@ -377,11 +377,12 @@
 /* ---- Page tree drag & drop --------------------------------------------- */
 
 /* Ghost the source row while it's being dragged so the placeholder-driven layout
-   is what the eye follows. */
+   is what the eye follows. pointer-events on the source row are LEFT ALONE — some
+   browsers cancel the whole drag if the originating element becomes untouchable
+   partway through. */
 .cpb-tree-dragging {
   opacity: 0.35;
 }
-.cpb-tree-dragging > .tv-row { pointer-events: none; }
 
 /* Placeholder <li>: a real slot that pushes siblings out of the way. Filled bar
    instead of an above/below line so it's unambiguous where the page will land. */

@@ -43,7 +43,9 @@
 
         // dragover / drop live at the tree root. Event delegation catches drops on the
         // padding / connectors / toggle spans that surround a link, not just on the
-        // <a> itself.
+        // <a> itself. Firefox needs dragenter to preventDefault too; Chrome tolerates
+        // dragover-only, so bind both to the same handler.
+        tree.addEventListener('dragenter', onTreeDragOver);
         tree.addEventListener('dragover', onTreeDragOver);
         tree.addEventListener('drop', onTreeDrop);
         tree.addEventListener('dragleave', onTreeDragLeave);

@@ -374,55 +374,6 @@
   border-radius: 3px;
 }
 
-/* ---- Search results — whole-row click target ---------------------------- */
-
-.cypmd-search-result {
-  list-style: none;
-  margin: 0 0 15px 0;
-}
-.cypmd-search-result__link {
-  display: block;
-  padding: 12px 15px;
-  border-left: 4px solid transparent;
-  border-radius: 2px;
-  color: #0b0c0c;
-  text-decoration: none;
-}
-.cypmd-search-result__link:hover,
-.cypmd-search-result__link:focus-visible {
-  background: #f2f4f7;
-  border-left-color: #1d70b8;
-}
-.cypmd-search-result__link:focus-visible {
-  outline: 3px solid #ffdd00;
-  outline-offset: -2px;
-  background: #ffdd00;
-}
-.cypmd-search-result__title {
-  display: block;
-  color: #1d70b8;
-  margin: 0 0 4px 0;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-.cypmd-search-result__link:hover .cypmd-search-result__title { text-decoration-thickness: 2px; }
-.cypmd-search-result__subtitle {
-  display: block;
-  color: #505a5f;
-  margin: 0 0 4px 0;
-}
-.cypmd-search-result__snippet {
-  display: block;
-  margin: 0;
-  color: #0b0c0c;
-}
-.cypmd-search-result__snippet mark {
-  background: #ffdd00;
-  color: #0b0c0c;
-  padding: 0 2px;
-}
-
 /* ---- Page tree drag & drop --------------------------------------------- */
 
 /* Ghost the source row while it's being dragged so the placeholder-driven layout

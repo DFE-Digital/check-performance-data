@@ -209,11 +209,16 @@
                         <div class="govuk-form-group">
                             <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
                                 <div class="govuk-checkboxes__item">
-                                    @* Hidden field first so the false value posts when the box is unticked. *@
-                                    <input type="hidden" name="showInMenu" value="false" />
+                                    @* Checkbox first, hidden second — same pattern ASP.NET Core's
+                                       asp-for tag helper uses for booleans. When ticked, the form
+                                       posts showInMenu=true&showInMenu=false and the model binder
+                                       takes the first parseable value (true). When unticked, only
+                                       the hidden false is posted. Reversing this order silently
+                                       clobbers the flag to false every time you save. *@
                                     <input class="govuk-checkboxes__input" id="cpb-showinmenu" type="checkbox"
                                            name="showInMenu" value="true" aria-describedby="cpb-showinmenu-hint"
                                            @(Model.ShowInMenu ? "checked" : null) />
+                                    <input type="hidden" name="showInMenu" value="false" />
                                     <label class="govuk-label govuk-checkboxes__label" for="cpb-showinmenu">Show in menu</label>
                                     <div id="cpb-showinmenu-hint" class="govuk-hint govuk-checkboxes__hint">
                                         Uncheck to hide this page from the public side navigation.

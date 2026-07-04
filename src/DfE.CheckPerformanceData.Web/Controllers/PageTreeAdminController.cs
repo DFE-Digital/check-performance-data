@@ -386,8 +386,16 @@ public sealed class PageTreeAdminController(
 
         try
         {
+            // Capture the parent BEFORE deleting — GetNodeByIdAsync on a soft-deleted node
+            // returns null, so we couldn't recover it after the delete.
+            var parentId = node.ParentId;
             await pageNodeService.DeleteAsync(id, User?.Identity?.Name);
-            return Redirect("/admin/pages");
+            // Land on the deleted page's parent so the editor stays in context rather than
+            // getting bumped all the way back to the root — or spinning on the just-deleted
+            // page's URL. Falls back to the root when the deleted page had no parent.
+            return parentId.HasValue
+                ? Redirect($"/admin/pages/{parentId.Value}")
+                : Redirect("/admin/pages");
         }
         catch (InvalidOperationException)
         {

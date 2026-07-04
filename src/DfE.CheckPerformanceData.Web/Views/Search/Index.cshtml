@@ -6,8 +6,6 @@
         : $"Search results for “{Model.Query}”";
     var scopeSuffix = string.IsNullOrEmpty(Model.Scope) ? string.Empty : $" in /{Model.Scope}";
     var formAction = "/search";
-    // Build the "origin" (scheme://host) once so every result can show its full clickable URL.
-    var origin = $"{Context.Request.Scheme}://{Context.Request.Host}";
 }
 
 <div class="govuk-grid-row">
@@ -55,18 +53,15 @@
                 <ul class="govuk-list govuk-list--spaced cypmd-search-results">
                     @foreach (var hit in Model.PageHits)
                     {
-                        <li>
-                            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
-                                <a class="govuk-link" href="/@hit.Path">@hit.Title</a>
-                            </h3>
-                            @if (!string.IsNullOrEmpty(hit.Subtitle))
-                            {
-                                <p class="govuk-body-s govuk-!-margin-bottom-1"><em>@hit.Subtitle</em></p>
-                            }
-                            <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                            <p class="govuk-hint govuk-!-margin-top-0">
-                                <a class="govuk-link govuk-link--muted" href="/@hit.Path">@origin/@hit.Path</a>
-                            </p>
+                        <li class="cypmd-search-result">
+                            <a class="cypmd-search-result__link" href="/@hit.Path">
+                                <span class="govuk-heading-s cypmd-search-result__title">@hit.Title</span>
+                                @if (!string.IsNullOrEmpty(hit.Subtitle))
+                                {
+                                    <span class="govuk-body-s cypmd-search-result__subtitle"><em>@hit.Subtitle</em></span>
+                                }
+                                <span class="govuk-body-s cypmd-search-result__snippet">@Html.Raw(hit.SnippetHtml)</span>
+                            </a>
                         </li>
                     }
                 </ul>
@@ -78,15 +73,11 @@
                 <ul class="govuk-list govuk-list--spaced cypmd-search-results">
                     @foreach (var hit in Model.ContentBlockHits)
                     {
-                        <li>
-                            <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
-                                <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>
-                            </h3>
-                            <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
-                            <p class="govuk-hint govuk-!-margin-top-0">
-                                <a class="govuk-link govuk-link--muted" href="@hit.Url">@(origin)@hit.Url</a>
-                                · <code>@hit.Key</code>
-                            </p>
+                        <li class="cypmd-search-result">
+                            <a class="cypmd-search-result__link" href="@hit.Url">
+                                <span class="govuk-heading-s cypmd-search-result__title">@hit.PageTitle</span>
+                                <span class="govuk-body-s cypmd-search-result__snippet">@Html.Raw(hit.SnippetHtml)</span>
+                            </a>
                         </li>
                     }
                 </ul>

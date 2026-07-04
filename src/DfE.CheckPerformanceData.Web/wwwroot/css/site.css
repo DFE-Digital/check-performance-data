@@ -1167,24 +1167,13 @@ dialog.govuk-modal-dialogue__box::backdrop {
   color: #0b0c0c;
 }
 
-/* H1 + action toolbar on one row: title on the left, icons pinned to the right. */
-.app-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-.app-page-header__title {
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-}
+/* H1 stacked above the icon toolbar. */
+.app-page-header { margin-bottom: 20px; }
+.app-page-header__title { margin: 0 0 10px 0; }
 .app-page-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-shrink: 0;
 }
 
 /* Inline search: input + Search button + Clear link on one row */

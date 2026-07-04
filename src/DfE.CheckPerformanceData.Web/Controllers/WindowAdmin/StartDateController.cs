@@ -5,13 +5,12 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class StartDateController(ILogger<TitleController> logger, IWindowService windowService): Controller
+public class StartDateController(ILogger<StartDateController> logger, IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
 
     [ActionName("Edit")]
     [HttpGet("admin/windows/{id:guid}/start-date")]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
@@ -33,7 +32,6 @@ public class StartDateController(ILogger<TitleController> logger, IWindowService
     
     [ActionName("New")]
     [HttpGet("admin/windows/start-date")]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");

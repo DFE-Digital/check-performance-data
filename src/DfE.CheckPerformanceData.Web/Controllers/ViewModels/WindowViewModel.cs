@@ -75,3 +75,12 @@ public class WindowDateEditItem
 
     public string PostUrl { get; init; } = string.Empty;
 }
+
+public class WindowTypeItem
+{
+    public Guid WindowId { get; init; }
+
+    public IEnumerable<CheckingWindowType> Types { get; set; } = [];
+    public CheckingWindowType? WindowType { get; set; }    
+    public string PostUrl { get; init; } = string.Empty;
+}

@@ -1,16 +1,18 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class EndDateController(ILogger<EndDateController> logger, IWindowService windowService): Controller
+public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowService windowService) : Controller
 {
-    private const string PageView = "~/Views/WindowAdmin/EndDate.cshtml";
+    private const string PageView = "~/Views/WindowAdmin/WindowType.cshtml";
 
     [ActionName("New")]
-    [HttpGet("admin/windows/end-date")]
+    [HttpGet("admin/windows/window-type")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
@@ -19,19 +21,20 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         {
             return BadRequest("No draft data");
         }
-        
-        WindowDateEditItem model = new WindowDateEditItem()
-        {
-            WindowId = Guid.Empty,
-            DateValue = DateTime.UtcNow.AddMonths(1),
-            PostUrl = "/admin/windows/end-date",
-        };
 
+        WindowTypeItem model = new WindowTypeItem()
+        {
+            WindowId = Guid.NewGuid(),
+            Types = Enum.GetValues<CheckingWindowType>(),
+            PostUrl = "/admin/windows/window-type",
+            WindowType = draft.CheckingWindowType
+        };
+        
         return View(PageView, model);
     }
     
     [ActionName("Edit")]
-    [HttpGet("admin/windows/{id:guid}/end-date")]
+    [HttpGet("admin/windows/{id:guid}/window-type")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
@@ -41,19 +44,20 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
             return NotFound();
         }
 
-        WindowDateEditItem model = new WindowDateEditItem()
+        WindowTypeItem model = new WindowTypeItem()
         {
-            WindowId = window.Id,
-            DateValue = window.StartDate,
-            PostUrl = $"/admin/windows/{window.Id}/end-date"
+            WindowId = Guid.NewGuid(),
+            Types = Enum.GetValues<CheckingWindowType>(),
+            PostUrl = "/admin/windows/window-type",
+            WindowType = window.CheckingWindowType
         };
-
+        
         return View(PageView, model);
     }
     
-    [HttpPost("admin/windows/end-date")]
+    [HttpPost("admin/windows/window-type")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(WindowTypeItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -61,27 +65,28 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         {
             return BadRequest("No draft data");
         }
-
-        DateValidation(model, null);
-        
+       
         if (ModelState.ErrorCount > 0)
         {
             return View(PageView, model);
         }
 
-        draft.EndDate = model.DateValue;
+        draft.CheckingWindowType = model.WindowType;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
         return RedirectToAction("New", "WindowType");
     }
-
-    [HttpPost("admin/windows/{id:guid}/end-date")]
+    
+    [HttpPost("admin/windows/{id:guid}/window-type")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(Guid id, WindowTypeItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
-        DateValidation(model, window);
+        if (model.WindowType == null)
+        {
+            ModelState.AddModelError("WindowType", "Please select a window type");
+        }
         
         if (ModelState.ErrorCount > 0)
         {
@@ -93,23 +98,9 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
             return BadRequest();
         }
 
-        window.StartDate = model.DateValue;
+        window.CheckingWindowType = model.WindowType.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", id);
-    }
-
-    public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)
-    {
-        if (model.DateValue < DateTime.UtcNow)
-        {
-            ModelState.AddModelError(nameof(model.DateValue), "End date can not occur in the past.");
-        }
-
-        if (windowDto != null && model.DateValue < windowDto.StartDate)
-        {
-            ModelState.AddModelError(nameof(model.DateValue),
-                $"End date can not occur before the start date ({windowDto.EndDate:dd MM yyyy}).");
-        }
     }
 }

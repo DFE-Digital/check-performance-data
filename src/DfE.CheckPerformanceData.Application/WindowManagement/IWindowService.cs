@@ -6,7 +6,6 @@ public interface IWindowService
 {
     Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken);
     Task<CheckingWindowDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
-
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 }
@@ -37,15 +36,15 @@ public class CheckingWindowDraft
 {
     public string PostUrl { get; set; } = string.Empty;
     public string? Title { get; set; }
-    public string TitleLink { get; init; } = "/admin/windows/title";
+    public string TitleLink = "/admin/windows/title";
     public DateTime? StartDate { get; set; }
-    public string StartDateLink { get; init; } = string.Empty;
+    public string StartDateLink  = "/admin/windows/start-date";
     public DateTime? EndDate { get; set; }
-    public string EndDateLink { get; init; } = string.Empty;
+    public string EndDateLink  = "/admin/windows/end-date";
     public CheckingWindowType? CheckingWindowType { get; set; }
-    public string CheckingWindowTypeLink { get; init; } = string.Empty;
-    public KeyStages? KeyStage { get; set; } = null;
-    public string KeyStageLink { get; init; } = string.Empty;
+    public string CheckingWindowTypeLink  = "/admin/windows/window-type";
+    public KeyStages? KeyStage { get; set; }
+    public string KeyStageLink  = "/admin/windows/key-stage";
 
     public bool IsValid
     {
@@ -76,5 +75,4 @@ public class CheckingWindowDraft
             (false, _, _, _, true) => "KeyStage",
             _ => "CreateCheckingWindow"
         };
-    
 }

@@ -33,14 +33,14 @@
     </row>
     <row>
         <key>Window Type</key>
-        <value>@Model.CheckingWindowType</value>
+        <value>@Model.CheckingWindowType?.GetDisplayName()</value>
         <row-actions>
             <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
         </row-actions>
     </row>
     <row>
         <key>Key Stage</key>
-        <value>@Model.KeyStage</value>
+        <value>@Model.KeyStage?.GetDisplayName()</value>
         <row-actions>
             <action href="@Model.KeyStageLink" visually-hidden-text="Key Stage">Change</action>
         </row-actions>

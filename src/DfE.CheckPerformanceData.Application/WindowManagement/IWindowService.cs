@@ -50,15 +50,15 @@ public class CheckingWindowDraft
     {
         get
         {
-            if (Title == null || !StartDate.HasValue || !EndDate.HasValue || !CheckingWindowType.HasValue || !KeyStage.HasValue)   
-                return false;
-            
-            if (StartDate < DateTime.UtcNow || EndDate < StartDate)
+            if (IsEmpty || StartDate < DateTime.UtcNow || EndDate < StartDate)
                 return false;
 
             return true;
         }
     }
+    
+    public bool IsEmpty => 
+        Title == null && !StartDate.HasValue && !EndDate.HasValue && !CheckingWindowType.HasValue && !KeyStage.HasValue;
 
     public string NextController() => (
                 Title is null,

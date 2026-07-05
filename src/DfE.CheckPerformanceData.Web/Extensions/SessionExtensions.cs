@@ -17,4 +17,9 @@ public static class SessionExtensions
             ? default
             : JsonSerializer.Deserialize<T>(json);
     }
+    
+    public static void RemoveObject(this ISession session, string key)
+    {
+        session.Remove(key);
+    }
 }

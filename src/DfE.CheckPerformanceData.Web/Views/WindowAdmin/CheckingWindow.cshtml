@@ -7,7 +7,7 @@
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>
 <h1 class="govuk-heading-l">New Checking Window</h1>
-<h2 class="govuk-heading-m">Window details</h2>
+<h2 class="govuk-heading-m">Confirm you want to delete this window</h2>
 
 <govuk-summary-list>
     <row>
@@ -47,6 +47,15 @@
     </row>
 </govuk-summary-list>
 
-<govuk-button disabled="!@Model.IsValid" type="submit">Save and continue</govuk-button>
-<govuk-button class="govuk-button--secondary">Cancel</govuk-button>
+@if (ViewBag.Cancelation)
+{
+    <govuk-button type="submit" name="action" value="continue">Continue</govuk-button>
+    <govuk-button class="govuk-button--warning" name="action" value="delete">Delete</govuk-button>
+}
+else
+{
+    <govuk-button disabled="!@Model.IsValid" type="submit">Save and continue</govuk-button>
+    <govuk-button class="govuk-button--secondary">Cancel</govuk-button>
+}
+
 </form>

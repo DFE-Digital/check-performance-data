@@ -37,19 +37,21 @@ public class CheckingWindowDraft
 {
     public string PostUrl { get; set; } = string.Empty;
     public string? Title { get; set; }
-    public string TitleLink { get; init; } = string.Empty;
+    public string TitleLink { get; init; } = "/admin/windows/title";
     public DateTime? StartDate { get; set; }
     public string StartDateLink { get; init; } = string.Empty;
     public DateTime? EndDate { get; set; }
     public string EndDateLink { get; init; } = string.Empty;
     public CheckingWindowType? CheckingWindowType { get; set; }
     public string CheckingWindowTypeLink { get; init; } = string.Empty;
+    public KeyStages? KeyStage { get; set; } = null;
+    public string KeyStageLink { get; init; } = string.Empty;
 
     public bool IsValid
     {
         get
         {
-            if (Title == null || !StartDate.HasValue || !EndDate.HasValue || !CheckingWindowType.HasValue)   
+            if (Title == null || !StartDate.HasValue || !EndDate.HasValue || !CheckingWindowType.HasValue || !KeyStage.HasValue)   
                 return false;
             
             if (StartDate < DateTime.UtcNow || EndDate < StartDate)
@@ -58,4 +60,21 @@ public class CheckingWindowDraft
             return true;
         }
     }
+
+    public string NextController() => (
+                Title is null,
+                !StartDate.HasValue, 
+                !EndDate.HasValue, 
+                !CheckingWindowType.HasValue, 
+                !KeyStage.HasValue   
+            ) switch
+        {
+            (true, _, _, _, _) => "Title",
+            (false, true, _, _, _) => "StartDate",
+            (false, _, true, _, _) => "EndDate",
+            (false, _, _, true, _) => "WindowType",
+            (false, _, _, _, true) => "KeyStage",
+            _ => "CreateCheckingWindow"
+        };
+    
 }

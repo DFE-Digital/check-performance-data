@@ -52,7 +52,7 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
         
-        return RedirectToAction("New", "StartDate");
+        return RedirectToAction("New", draft.NextController());
     }
 
     [HttpPost("admin/windows/{id:guid}/title")]

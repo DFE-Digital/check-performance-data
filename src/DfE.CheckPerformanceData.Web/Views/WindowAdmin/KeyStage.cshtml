@@ -1,0 +1,27 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.KeyStageItem
+
+<form method="post" action="@Model.PostUrl" novalidate> 
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="@Model.WindowId" />
+  
+    <govuk-radios for="KeyStage">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                Select the key stage
+            </govuk-radios-fieldset-legend>
+
+            <govuk-radios-hint>
+                Select one option.
+            </govuk-radios-hint>
+
+            @foreach (var keyStage in Model.KeyStages)
+            {
+                <govuk-radios-item value="@keyStage" checked="@(Model.KeyStage == keyStage)">@keyStage.GetDisplayName()</govuk-radios-item>
+            }
+
+        </govuk-radios-fieldset>
+    </govuk-radios>
+    
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <govuk-button class="govuk-button--secondary">Cancel</govuk-button>
+</form> 

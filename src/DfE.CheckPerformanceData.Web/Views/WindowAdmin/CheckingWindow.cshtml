@@ -38,8 +38,15 @@
             <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
         </row-actions>
     </row>
+    <row>
+        <key>Key Stage</key>
+        <value>@Model.KeyStage</value>
+        <row-actions>
+            <action href="@Model.KeyStageLink" visually-hidden-text="Key Stage">Change</action>
+        </row-actions>
+    </row>
 </govuk-summary-list>
 
-<govuk-button type="submit">Save and continue</govuk-button>
+<govuk-button disabled="!@Model.IsValid" type="submit">Save and continue</govuk-button>
 <govuk-button class="govuk-button--secondary">Cancel</govuk-button>
 </form>

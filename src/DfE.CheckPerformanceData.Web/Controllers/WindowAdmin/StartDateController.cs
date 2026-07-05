@@ -72,7 +72,7 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         draft.StartDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", "EndDate");
+        return RedirectToAction("New", draft.NextController());
     }
 
     [HttpPost("admin/windows/{id:guid}/start-date")]

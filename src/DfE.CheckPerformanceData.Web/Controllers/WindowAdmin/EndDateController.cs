@@ -72,7 +72,7 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         draft.EndDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", "WindowType");
+        return RedirectToAction("New", draft.NextController());
     }
 
     [HttpPost("admin/windows/{id:guid}/end-date")]

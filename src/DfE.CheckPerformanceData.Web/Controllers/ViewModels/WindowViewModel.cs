@@ -84,3 +84,12 @@ public class WindowTypeItem
     public CheckingWindowType? WindowType { get; set; }    
     public string PostUrl { get; init; } = string.Empty;
 }
+
+public class KeyStageItem
+{
+    public Guid WindowId { get; init; }
+    public IEnumerable<KeyStages> KeyStages { get; set; } = [];
+    public KeyStages? KeyStage { get; set; }    
+    public string PostUrl { get; init; } = string.Empty;   
+}
+

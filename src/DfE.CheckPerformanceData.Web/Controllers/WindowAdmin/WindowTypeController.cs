@@ -73,12 +73,7 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
         draft.CheckingWindowType = model.WindowType;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        if (draft.IsValid)
-        {
-            return RedirectToAction("New", "CreateCheckingWindow");
-        }
-
-        return RedirectToAction("New", "WindowType");
+        return RedirectToAction("New", draft.NextController());
     }
     
     [HttpPost("admin/windows/{id:guid}/window-type")]

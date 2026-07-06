@@ -9,11 +9,14 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
+    // Keyed on the pupil's stable Id, not UPN: a UPN-less pupil has a blank UPN shared with every
+    // other UPN-less pupil, so UPN keying would both raise false conflicts between different pupils
+    // and (for null UPNs) fail to detect real ones.
     public Task<bool> HasConflictingRequestAsync(
-        Guid windowId, string pupilUpn, long organisationUrn, string currentReferenceNumber) =>
+        Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber) =>
         db.ChangeRequests.AnyAsync(r =>
             r.WindowId == windowId &&
-            r.PupilUpn == pupilUpn &&
+            r.PupilId == pupilId &&
             r.OrganisationUrn == organisationUrn &&
             r.ReferenceNumber != currentReferenceNumber &&
             r.Status != RequestStatus.Withdrawn);
@@ -36,6 +39,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.Status, data.Status)
                     .SetProperty(r => r.Submitted, timestamp)
                     .SetProperty(r => r.OrganisationUrn, data.OrganisationUrn)
+                    .SetProperty(r => r.PupilId, data.PupilId)
                     .SetProperty(r => r.PupilUpn, data.PupilUpn)
                     .SetProperty(r => r.PupilFirstname, data.PupilFirstname)
                     .SetProperty(r => r.PupilSurname, data.PupilSurname)
@@ -54,6 +58,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             WindowId = data.WindowId,
             ReferenceNumber = data.ReferenceNumber,
             OrganisationUrn = data.OrganisationUrn,
+            PupilId = data.PupilId,
             PupilUpn = data.PupilUpn,
             PupilFirstname = data.PupilFirstname,
             PupilSurname = data.PupilSurname,

@@ -68,11 +68,12 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         Upn = upn,
     };
 
-    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, string upn, RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
+    private static ChangeRequest NewChangeRequest(Guid windowId, long orgUrn, Guid pupilId, string upn, RequestStatus status = RequestStatus.SubmittedUnCommitted) => new()
     {
         Id = Guid.NewGuid(),
         WindowId = windowId,
         OrganisationUrn = orgUrn,
+        PupilId = pupilId,
         PupilUpn = upn,
         PupilFirstname = "Test",
         PupilSurname = "Pupil",
@@ -98,19 +99,44 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     {
         await ResetAsync();
         var windowId = Guid.NewGuid();
-        var upn = "A100000000001";
+        var pupil = NewPupil(windowId, "Smith", "A100000000001");
 
         await SeedWindowsAndRequestsAsync(
             [NewWindow(windowId)],
-            [NewChangeRequest(windowId, TestUrnLong, upn)]);
+            [NewChangeRequest(windowId, TestUrnLong, pupil.Id, pupil.Upn)]);
 
         var blobClient = new FakePupilDataBlobClient();
-        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, "Smith", upn)]);
+        blobClient.SetPupils(windowId, TestLaestab, [pupil]);
 
         var repo = CreateRepo(blobClient);
         var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Smith", PupilFilter.Included);
 
         Assert.Empty(results);
+    }
+
+    // The core UPN-less bug: two pupils at the same school share a (blank) UPN, but only one has a
+    // change request. Keying exclusion on UPN would hide both; keying on pupil Id hides only the one
+    // that was actually requested.
+    [Fact]
+    public async Task ExcludesByPupilId_NotUpn_WhenTwoPupilsShareTheSameUpn()
+    {
+        await ResetAsync();
+        var windowId = Guid.NewGuid();
+        var requested = NewPupil(windowId, "Green", upn: "");
+        var untouched = NewPupil(windowId, "Green", upn: "");
+
+        await SeedWindowsAndRequestsAsync(
+            [NewWindow(windowId)],
+            [NewChangeRequest(windowId, TestUrnLong, requested.Id, requested.Upn)]);
+
+        var blobClient = new FakePupilDataBlobClient();
+        blobClient.SetPupils(windowId, TestLaestab, [requested, untouched]);
+
+        var repo = CreateRepo(blobClient);
+        var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Green", PupilFilter.Included);
+
+        Assert.Single(results);
+        Assert.Equal(untouched.Id, results[0].Id);
     }
 
     [Fact]
@@ -119,14 +145,14 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ResetAsync();
         var windowId = Guid.NewGuid();
         var otherWindowId = Guid.NewGuid();
-        var upn = "A100000000002";
+        var pupil = NewPupil(windowId, "Jones", "A100000000002");
 
         await SeedWindowsAndRequestsAsync(
             [NewWindow(windowId), NewWindow(otherWindowId)],
-            [NewChangeRequest(otherWindowId, TestUrnLong, upn)]);
+            [NewChangeRequest(otherWindowId, TestUrnLong, pupil.Id, pupil.Upn)]);
 
         var blobClient = new FakePupilDataBlobClient();
-        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, "Jones", upn)]);
+        blobClient.SetPupils(windowId, TestLaestab, [pupil]);
 
         var repo = CreateRepo(blobClient);
         var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Jones", PupilFilter.Included);
@@ -140,14 +166,14 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         await ResetAsync();
         var windowId = Guid.NewGuid();
         var otherUrnLong = TestUrnLong + 1;
-        var upn = "A100000000003";
+        var pupil = NewPupil(windowId, "Taylor", "A100000000003");
 
         await SeedWindowsAndRequestsAsync(
             [NewWindow(windowId)],
-            [NewChangeRequest(windowId, otherUrnLong, upn)]);
+            [NewChangeRequest(windowId, otherUrnLong, pupil.Id, pupil.Upn)]);
 
         var blobClient = new FakePupilDataBlobClient();
-        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, "Taylor", upn)]);
+        blobClient.SetPupils(windowId, TestLaestab, [pupil]);
 
         var repo = CreateRepo(blobClient);
         var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Taylor", PupilFilter.Included);
@@ -160,14 +186,14 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     {
         await ResetAsync();
         var windowId = Guid.NewGuid();
-        var upn = "A100000000004";
+        var pupil = NewPupil(windowId, "Brown", "A100000000004");
 
         await SeedWindowsAndRequestsAsync(
             [NewWindow(windowId)],
-            [NewChangeRequest(windowId, TestUrnLong, upn, status: RequestStatus.InProgress)]);
+            [NewChangeRequest(windowId, TestUrnLong, pupil.Id, pupil.Upn, status: RequestStatus.InProgress)]);
 
         var blobClient = new FakePupilDataBlobClient();
-        blobClient.SetPupils(windowId, TestLaestab, [NewPupil(windowId, "Brown", upn)]);
+        blobClient.SetPupils(windowId, TestLaestab, [pupil]);
 
         var repo = CreateRepo(blobClient);
         var results = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Brown", PupilFilter.Included);

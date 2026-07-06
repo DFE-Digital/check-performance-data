@@ -28,7 +28,7 @@ public sealed class RequestService(
 
         var urnLong = OrganisationUrnLong;
         var refNum = journey.ReferenceNumber ?? string.Empty;
-        if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Upn, urnLong, refNum))
+        if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Id, urnLong, refNum))
             throw new DuplicateRequestException();
 
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
@@ -174,7 +174,8 @@ public sealed class RequestService(
             WindowId = windowId,
             ReferenceNumber = journey.ReferenceNumber!,
             OrganisationUrn = OrganisationUrnLong,
-            PupilUpn = journey.SelectedPupil!.Upn,
+            PupilId = journey.SelectedPupil!.Id,
+            PupilUpn = journey.SelectedPupil.Upn,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
             // Stored as UTC and converted to London time at display. The column is

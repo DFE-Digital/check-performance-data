@@ -67,7 +67,7 @@ public class RequestServiceTests
         _requestRepository
             .HasConflictingRequestAsync(
                 WindowId,
-                journey.SelectedPupil!.Upn,
+                journey.SelectedPupil!.Id,
                 100000L,
                 journey.ReferenceNumber!)
             .Returns(true);
@@ -476,6 +476,7 @@ public class RequestServiceTests
 
         Assert.Equal("Jane", captured!.PupilFirstname);
         Assert.Equal("Smith", captured.PupilSurname);
+        Assert.Equal(journey.SelectedPupil!.Id, captured.PupilId);
         Assert.Equal("123123", captured.PupilUpn);
         Assert.Equal(100000L, captured.OrganisationUrn);
         Assert.Equal("Test User", captured.SubmittedByName);

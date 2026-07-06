@@ -50,7 +50,7 @@ public sealed class ContentStagingTests(PlaywrightFixture fixture)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("cpd-content-v1", body); // the bundle's schema marker
+        Assert.Contains("cpd-content-v2", body); // the bundle's schema marker
     }
 
     [Fact]

@@ -43,13 +43,13 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     }
 
     [HttpGet("admin/storage/{account}/{containerName}")]
-    public async Task<IActionResult> Container(string account, string containerName, [FromQuery] string? prefix)
+    public async Task<IActionResult> Container(string account, string containerName, [FromQuery] string? prefix, CancellationToken cancellationToken = default)
     {
         var client = GetClient(account);
         if (client is null) return NotFound();
 
         var container = client.GetBlobContainerClient(containerName);
-        if (!await container.ExistsAsync())
+        if (!await container.ExistsAsync(cancellationToken: cancellationToken))
             return NotFound();
 
         var currentPath = string.IsNullOrWhiteSpace(prefix) ? null : prefix;

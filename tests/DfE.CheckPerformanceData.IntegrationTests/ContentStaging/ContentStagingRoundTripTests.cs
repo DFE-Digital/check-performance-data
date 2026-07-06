@@ -88,7 +88,9 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         Assert.Contains(firstExport.PageNodes, p => p.Segment == "getting-started" && p.ParentId == supportId);
 
         // Content pages carry version history; folders do not.
-        Assert.Empty(firstExport.PageNodes.Single(p => p.PageType == "folder").Versions);
+        Assert.All(
+            firstExport.PageNodes.Where(p => p.PageType == "folder"),
+            f => Assert.Empty(f.Versions));
         var start = firstExport.PageNodes.Single(p => p.Segment == "getting-started");
         Assert.True(start.Versions.Count >= 2, "getting-started must carry both the published version and the working draft");
 

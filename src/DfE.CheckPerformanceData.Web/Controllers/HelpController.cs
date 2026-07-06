@@ -200,6 +200,19 @@ public sealed class HelpController(
             "text/html");
     }
 
+    // Test-only slug → wiki page id lookup. The E2E seed helper used to scrape
+    // data-page-id="..." out of the wiki tree rendered by HelpController.Index; that Index
+    // action was retired on this branch (see the constructor comment) so the tests need
+    // another way to convert the slug returned by POST /help/create into the numeric id
+    // required by delete/edit/versions.
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpGet("help/slug-to-id/{**slug}")]
+    public async Task<IActionResult> SlugToId(string slug)
+    {
+        var page = await wikiService.GetPageBySlugPathAsync(slug);
+        return page is null ? NotFound() : Content(page.Id.ToString(), "text/plain");
+    }
+
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/seed")]
     [ValidateAntiForgeryToken]

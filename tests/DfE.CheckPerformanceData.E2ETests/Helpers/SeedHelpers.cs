@@ -303,15 +303,15 @@ public static class SeedHelpers
 
     internal static async Task<int> ResolveIdFromTreeAsync(HttpClient client, string slugPath)
     {
-        var response = await client.GetAsync("/help");
-        response.EnsureSuccessStatusCode();
-        var html = await response.Content.ReadAsStringAsync();
-
-        foreach (Match match in SlugToIdPattern.Matches(html))
+        // Direct lookup via the editor-only slug-to-id endpoint. Replaces the previous
+        // GET /help + regex scrape of _WikiTree.cshtml — that page is no longer served on
+        // this branch (HelpController.Index was retired; /help resolves through the CMS
+        // catch-all now, which doesn't render the wiki tree markup the regex depended on).
+        var response = await client.GetAsync($"/help/slug-to-id/{slugPath}");
+        if (response.IsSuccessStatusCode)
         {
-            var renderedSlug = match.Groups["slug"].Value;
-            if (string.Equals(renderedSlug, slugPath, StringComparison.Ordinal)
-                && int.TryParse(match.Groups["id"].Value, out var id))
+            var body = (await response.Content.ReadAsStringAsync()).Trim();
+            if (int.TryParse(body, out var id))
             {
                 return id;
             }

@@ -34,7 +34,7 @@ public static class SeedHelpers
         var slugPrefix = $"e2e-{Guid.NewGuid():N}";
         var prefixedTitle = $"{slugPrefix} {title}";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
 
         var formFields = new List<KeyValuePair<string, string>>
         {
@@ -99,7 +99,7 @@ public static class SeedHelpers
         string title,
         string body)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
 
         var formFields = new[]
         {
@@ -142,7 +142,7 @@ public static class SeedHelpers
         string key,
         string newValue)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
 
         var formFields = new[]
         {
@@ -178,7 +178,7 @@ public static class SeedHelpers
     {
         var key = $"e2e-{Guid.NewGuid():N}-{keyPrefix}";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
 
         var formFields = new[]
         {
@@ -276,7 +276,7 @@ public static class SeedHelpers
 
     public static async Task SoftDeleteWikiPageAsync(HttpClient client, int id)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
 
         var formFields = new[]
         {

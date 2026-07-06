@@ -1,7 +1,9 @@
+using System.Text.Encodings.Web;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -181,6 +183,21 @@ public sealed class HelpController(
     {
         var page = await wikiService.RevertToVersionAsync(pageId, versionId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
+    }
+
+    // Minimal test-only endpoint: renders a lone antiforgery-token input and issues the
+    // matching cookie. Used by the E2E seeding helpers to obtain a token+cookie pair for the
+    // POST endpoints on this controller — the wiki-editor GET that used to serve this role
+    // was retired when HelpController.Index was removed.
+    [Authorize(Roles = WikiConstants.EditorRole)]
+    [HttpGet("help/antiforgery-token")]
+    public ContentResult AntiforgeryToken([FromServices] IAntiforgery antiforgery)
+    {
+        var tokens = antiforgery.GetAndStoreTokens(HttpContext);
+        var encoded = HtmlEncoder.Default.Encode(tokens.RequestToken ?? string.Empty);
+        return Content(
+            $"<input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"{encoded}\" />",
+            "text/html");
     }
 
     [Authorize(Roles = WikiConstants.EditorRole)]

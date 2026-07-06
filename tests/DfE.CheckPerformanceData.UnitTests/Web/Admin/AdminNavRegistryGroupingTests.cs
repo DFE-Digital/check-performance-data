@@ -25,12 +25,13 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		Assert.Equal(4, groups.Count);
+		Assert.Equal(5, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
 		Assert.Contains("cms-admin", groupKeys);
 		Assert.Contains("system-admin", groupKeys);
 		Assert.Contains("storage-admin", groupKeys);
 		Assert.Contains("amendment-requests-admin", groupKeys);
+		Assert.Contains("window-admin", groupKeys);
 	}
 
 	// --- Tiles_Have_NonNull_ParentKey_Matching_An_Existing_Entry ---
@@ -61,7 +62,7 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(20, keys.Count);
+		Assert.Equal(23, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

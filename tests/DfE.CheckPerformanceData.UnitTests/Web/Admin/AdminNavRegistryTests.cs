@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(20, entries.Count);
+		Assert.Equal(23, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);

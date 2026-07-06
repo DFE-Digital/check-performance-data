@@ -1,12 +1,12 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AppLogsViewModel
 @{
-    ViewData["Title"] = "Application logs";
+    ViewData["Title"] = "View logs";
     var flash = TempData["AppLogsResult"] as string;
 }
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
 
-<h1 class="govuk-heading-xl">Application logs</h1>
+<h1 class="govuk-heading-xl">View logs</h1>
 
 @if (!string.IsNullOrEmpty(flash))
 {

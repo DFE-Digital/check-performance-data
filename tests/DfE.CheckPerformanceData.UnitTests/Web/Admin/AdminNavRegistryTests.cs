@@ -45,7 +45,7 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Replay", titles);
 		Assert.Contains("Amendment requests", titles);
 		Assert.Contains("Uncommitted requests", titles);
-		Assert.Contains("Application logs", titles);
+		Assert.Contains("View logs", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

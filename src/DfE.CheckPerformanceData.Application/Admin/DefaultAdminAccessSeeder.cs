@@ -23,6 +23,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "content-staging",
         "system-settings",
         "role-settings",
+        "app-logs",
         "rules-config",
         "rules-engine",
         "rules-engine-queue",
@@ -40,16 +41,24 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
 
     public async Task SeedIfEmptyAsync()
     {
-        if (await repository.HasAnyAsync()) return;
+        var wasEmpty = !await repository.HasAnyAsync();
 
-        var grants = new List<RoleSectionAccessGrant>();
-        foreach (var section in AllSections)
-            grants.Add(new RoleSectionAccessGrant(AdminRole, section));
+        // Admin is policy-locked to every section (see RoleSettingsController — the form save
+        // always writes AllSections for the admin role, regardless of what was ticked). Top up
+        // the DB on every startup so newly-added sections in AllSections become available to
+        // admin without waiting for someone to re-save the role settings page.
+        var grants = AllSections.Select(s => new RoleSectionAccessGrant(AdminRole, s)).ToList();
 
-        // Editor default: content pages + the seed-sample-pages helper only.
-        grants.Add(new RoleSectionAccessGrant(EditorRole, "content-pages"));
-        grants.Add(new RoleSectionAccessGrant(EditorRole, "seed-sample-pages"));
+        // Editor defaults are user-editable; only apply them on a fresh DB so any subsequent
+        // grant changes made from the role settings page stick.
+        if (wasEmpty)
+        {
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "content-pages"));
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "seed-sample-pages"));
+        }
 
+        // Repository SeedAsync is idempotent — skips rows that already exist — so re-running
+        // this on a populated DB only inserts the gaps.
         await repository.SeedAsync(grants, "system");
     }
 }

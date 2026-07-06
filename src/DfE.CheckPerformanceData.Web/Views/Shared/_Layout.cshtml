@@ -22,7 +22,10 @@
     var signOutHref = hasRealDfeAuth
         ? Url.Action("DfeSignOut", "Account")
         : "/dev/impersonate/clear";
-    var showAdminLink = User.IsInRole(WikiConstants.AdminRole);
+    // CMS editors now reach the admin surface too — they land on the pages tree, blocks,
+    // and content-staging screens (gated per-section by the role-access grid). Show the
+    // Admin link for both roles so editors don't have to know the URL by heart.
+    var showAdminLink = User.IsInRole(WikiConstants.AdminRole) || User.IsInRole(WikiConstants.EditorRole);
 
     string? displayName = null;
     if (hasRealDfeAuth)

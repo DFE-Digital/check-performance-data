@@ -52,25 +52,8 @@ public sealed class SoftDeleteWikiPageTests(PlaywrightFixture fixture) : Seeding
         await Expect(Page.Locator($"a.govuk-link[href*=\"{queryToken}\"]")).ToHaveCountAsync(0);
     }
 
-    // --- SoftDeletedPage_AppearsInDeletedPagesList ---
-
-    [Fact]
-    public async Task SoftDeletedPage_AppearsInDeletedPagesList()
-    {
-        var queryToken = $"e2edl{Guid.NewGuid().ToString("N")[..8]}";
-        var id = await SeedHelpers.SeedWikiPageAsync(
-            Fixture.SeedClient,
-            title: $"{queryToken} restorable",
-            body: $"Content for {queryToken}.",
-            parentId: null,
-            TrackedIds);
-
-        await SeedHelpers.SoftDeleteWikiPageAsync(Fixture.SeedClient, id);
-
-        await Page.GotoAsync($"{Fixture.BaseUrl}/help/deleted");
-
-        // The deleted-pages admin view (Views/Help/Deleted.cshtml) renders one <tr> per
-        // soft-deleted page with the title in a <td class="govuk-table__cell"> cell.
-        await Expect(Page.GetByText(queryToken).First).ToBeVisibleAsync();
-    }
+    // SoftDeletedPage_AppearsInDeletedPagesList removed: the wiki-flavored deleted-pages view at
+    // /help/deleted was retired along with HelpController.Index (see HelpController.cs:157). The
+    // CMS-driven equivalent lives at /admin/pages/deleted against the PageNode tree and has its
+    // own coverage in the admin controller tests.
 }

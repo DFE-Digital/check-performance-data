@@ -96,32 +96,8 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
 
-    // --- GetHelpSlug_RendersTitle ---
-
-    [Fact]
-    public async Task GetHelpSlug_RendersTitle()
-    {
-        var unique = $"e2e-{Guid.NewGuid():N}";
-        var title = $"{unique}-roundtrip-target";
-        var tracking = new List<int>();
-        var (id, slug) = await SeedHelpers.SeedWikiPageReturningSlugAsync(
-            _fixture.SeedClient, title, "Round-trip body content.", parentId: null, tracking);
-
-        try
-        {
-            var response = await _fixture.SeedClient.GetAsync($"/help/{slug}");
-
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var body = await response.Content.ReadAsStringAsync();
-            // SeedHelpers prepends "e2e-{guidA} " to the supplied title, then GenerateSlug
-            // collapses the space to a dash. The unique block we control still appears verbatim
-            // in the rendered title, so asserting against it is the safe substring check.
-            Assert.Contains(unique, body);
-        }
-        finally
-        {
-            try { await SeedHelpers.SoftDeleteWikiPageAsync(_fixture.SeedClient, id); }
-            catch { /* best-effort cleanup */ }
-        }
-    }
+    // GetHelpSlug_RendersTitle removed: the wiki page read path (GET /help/{slug}) was retired
+    // when HelpController.Index went. Wiki pages are still creatable/deletable via the POST
+    // endpoints above, but their reader-facing surface has been replaced by CMS-driven
+    // PageNode rendering — the equivalent read-path coverage now sits under PageController.
 }

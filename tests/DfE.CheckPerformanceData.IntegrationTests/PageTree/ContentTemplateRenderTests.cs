@@ -19,8 +19,10 @@ using Microsoft.Extensions.Hosting;
 namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 
 // Renders Views/Page/Content.cshtml through the real Razor view engine to prove the template
-// correctly wires up RenderedPageViewModel: H1 heading, left-hand side-nav from Nav,
-// widget tree via _ContentNodes, and rich-text sanitisation (no script survives).
+// correctly wires up RenderedPageViewModel: H1 heading, widget tree via _ContentNodes,
+// and rich-text sanitisation (no script survives). The side-nav is a widget in its own
+// right (PageNav) — placed by authors, not injected by the layout — so this test asserts
+// the always-on template concerns only.
 public sealed class ContentTemplateRenderTests
 {
     [Fact]
@@ -60,18 +62,17 @@ public sealed class ContentTemplateRenderTests
         Assert.Contains("govuk-heading-xl", html);
         Assert.Contains("Test Content Page", html);
 
-        // _SideNav partial rendered from Nav.
-        Assert.Contains("moj-side-navigation", html);
-        Assert.Contains("#overview", html);
-
         // _Heading widget rendered via _ContentNodes → _Widget → _Heading.
         Assert.Contains("govuk-heading-l", html);
         Assert.Contains("id=\"overview\"", html);
         Assert.Contains("Overview", html);
 
-        // Rich text: safe text survives; script is stripped.
+        // Rich text: safe text survives; the malicious payload is stripped. Asserting the
+        // payload itself, not the substring "<script" — the layout legitimately includes its
+        // own <script src="/js/…"> tags for widget-editor JS, which is not what we're guarding
+        // against here.
         Assert.Contains("Safe text", html);
-        Assert.DoesNotContain("<script", html);
+        Assert.DoesNotContain("alert(1)", html);
     }
 
     [Fact]

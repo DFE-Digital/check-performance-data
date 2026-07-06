@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DfE.CheckPerformanceData.Application.ContentStaging;
 
@@ -14,9 +16,13 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // content and wiki nodes carry their full version history so the target can replay it faithfully.
 public sealed class ContentStagingService(
     IPageNodeRepository pageNodeRepository,
-    IContentBlockRepository contentBlockRepository) : IContentStagingService
+    IContentBlockRepository contentBlockRepository,
+    ILogger<ContentStagingService>? logger = null) : IContentStagingService
 {
     private const int MaxDepth = 10;
+
+    private readonly ILogger<ContentStagingService> _log =
+        logger ?? NullLogger<ContentStagingService>.Instance;
 
     public async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
     {
@@ -144,6 +150,10 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
+        _log.LogInformation(
+            "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), mode={Mode}, decisions={DecisionCount}",
+            bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, decisions?.Count ?? 0);
+
         // Each item's effective mode is its per-collision decision, falling back to the global mode.
         ContentImportMode ModeFor(Guid id) =>
             decisions is not null && decisions.TryGetValue(id, out var m) ? m : mode;
@@ -162,90 +172,127 @@ public sealed class ContentStagingService(
 
         foreach (var page in pages)
         {
-            string? parentPath = null;
-            if (page.ParentId is { } parentGuid)
+            try
             {
-                parentPath = await ResolveParentPathAsync(parentGuid, pathByContentId);
-                if (parentPath is null)
+                string? parentPath = null;
+                if (page.ParentId is { } parentGuid)
                 {
-                    // Unknown parent: never create an orphan under a blank/guessed parent.
-                    result.Errors.Add($"Could not import ‘{page.Title}’ — its parent was not found in the bundle or this environment.");
+                    parentPath = await ResolveParentPathAsync(parentGuid, pathByContentId);
+                    if (parentPath is null)
+                    {
+                        _log.LogWarning(
+                            "ContentStaging: skipping page {PageId} ‘{Title}’ — parent {ParentId} not found",
+                            page.Id, page.Title, parentGuid);
+                        // Unknown parent: never create an orphan under a blank/guessed parent.
+                        result.Errors.Add($"Could not import ‘{page.Title}’ — its parent was not found in the bundle or this environment.");
+                        continue;
+                    }
+                }
+
+                var path = parentPath is null ? page.Segment : $"{parentPath}/{page.Segment}";
+
+                // Match purely by stable identity.
+                var existing = page.Id != Guid.Empty ? await pageNodeRepository.GetByIdAsync(page.Id) : null;
+
+                if (existing is not null)
+                {
+                    if (ModeFor(page.Id) == ContentImportMode.Skip)
+                    {
+                        _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ exists, mode=Skip", page.Id, page.Title);
+                        result.PageNodesSkipped++;
+                    }
+                    else
+                    {
+                        await pageNodeRepository.UpdateNodeForStagingAsync(
+                            page.Id, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder, userId: null);
+                        if (page.PageType != "folder")
+                            await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
+                                page.Id, MapVersions(page.Versions), userId: null);
+                        _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ updated ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
+                        result.PageNodesUpdated++;
+                    }
+                    pathByContentId[page.Id] = existing.Path;
                     continue;
                 }
+
+                // New identity. Create the node with its explicit Id, then replay versions.
+                var created = await pageNodeRepository.CreateNodeForStagingAsync(
+                    page.Id, page.ParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder, userId: null);
+                if (page.PageType != "folder")
+                    await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
+                        created.Id, MapVersions(page.Versions), userId: null);
+                _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ created ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
+                result.PageNodesCreated++;
+                pathByContentId[page.Id] = path;
             }
-
-            var path = parentPath is null ? page.Segment : $"{parentPath}/{page.Segment}";
-
-            // Match purely by stable identity.
-            var existing = page.Id != Guid.Empty ? await pageNodeRepository.GetByIdAsync(page.Id) : null;
-
-            if (existing is not null)
+            catch (Exception ex)
             {
-                if (ModeFor(page.Id) == ContentImportMode.Skip)
-                {
-                    result.PageNodesSkipped++;
-                }
-                else
-                {
-                    await pageNodeRepository.UpdateNodeForStagingAsync(
-                        page.Id, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder, userId: null);
-                    if (page.PageType != "folder")
-                        await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                            page.Id, MapVersions(page.Versions), userId: null);
-                    result.PageNodesUpdated++;
-                }
-                pathByContentId[page.Id] = existing.Path;
-                continue;
+                // Never abort the whole import on a single-page failure — record it and continue,
+                // so the operator can see how far it got and what specifically broke.
+                _log.LogError(ex,
+                    "ContentStaging: page {PageId} ‘{Title}’ ({Segment}, pageType={PageType}) failed to import",
+                    page.Id, page.Title, page.Segment, page.PageType);
+                result.Errors.Add($"Failed to import ‘{page.Title}’: {ex.GetType().Name} — {ex.Message}");
             }
-
-            // New identity. Create the node with its explicit Id, then replay versions.
-            var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                page.Id, page.ParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder, userId: null);
-            if (page.PageType != "folder")
-                await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                    created.Id, MapVersions(page.Versions), userId: null);
-            result.PageNodesCreated++;
-            pathByContentId[page.Id] = path;
         }
 
         foreach (var block in bundle.ContentBlocks)
         {
-            var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
-
-            if (existing is not null)
+            try
             {
-                if (ModeFor(block.Id) == ContentImportMode.Skip)
+                var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
+
+                if (existing is not null)
                 {
-                    result.ContentBlocksSkipped++;
+                    if (ModeFor(block.Id) == ContentImportMode.Skip)
+                    {
+                        result.ContentBlocksSkipped++;
+                        continue;
+                    }
+
+                    await contentBlockRepository.ExecuteInTransactionAsync(async () =>
+                    {
+                        var maxVersion = await contentBlockRepository.GetMaxVersionNumberAsync(existing.Id);
+                        await contentBlockRepository.UpdateForStagingAsync(
+                            existing.Id, block.Key, block.BlockType, block.Value, block.Id);
+                        await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
+                    });
+                    result.ContentBlocksUpdated++;
+                    continue;
+                }
+
+                // New identity. Guard the unique Key so a same-keyed block doesn't crash the create.
+                if (await contentBlockRepository.GetByKeyAsync(block.Key) is not null)
+                {
+                    _log.LogWarning(
+                        "ContentStaging: block key ‘{Key}’ already used by a different content id; skipping",
+                        block.Key);
+                    result.Errors.Add($"Could not create block ‘{block.Key}’ — a different block already uses that key.");
                     continue;
                 }
 
                 await contentBlockRepository.ExecuteInTransactionAsync(async () =>
                 {
-                    var maxVersion = await contentBlockRepository.GetMaxVersionNumberAsync(existing.Id);
-                    await contentBlockRepository.UpdateForStagingAsync(
-                        existing.Id, block.Key, block.BlockType, block.Value, block.Id);
-                    await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
+                    var created = await contentBlockRepository.AddBlockAsync(
+                        block.Key, block.BlockType, block.Value, block.Id);
+                    await contentBlockRepository.AddVersionAsync(created.Id, block.Value, 1);
                 });
-                result.ContentBlocksUpdated++;
-                continue;
+                result.ContentBlocksCreated++;
             }
-
-            // New identity. Guard the unique Key so a same-keyed block doesn't crash the create.
-            if (await contentBlockRepository.GetByKeyAsync(block.Key) is not null)
+            catch (Exception ex)
             {
-                result.Errors.Add($"Could not create block ‘{block.Key}’ — a different block already uses that key.");
-                continue;
+                _log.LogError(ex,
+                    "ContentStaging: block {BlockId} ‘{Key}’ ({BlockType}) failed to import",
+                    block.Id, block.Key, block.BlockType);
+                result.Errors.Add($"Failed to import block ‘{block.Key}’: {ex.GetType().Name} — {ex.Message}");
             }
-
-            await contentBlockRepository.ExecuteInTransactionAsync(async () =>
-            {
-                var created = await contentBlockRepository.AddBlockAsync(
-                    block.Key, block.BlockType, block.Value, block.Id);
-                await contentBlockRepository.AddVersionAsync(created.Id, block.Value, 1);
-            });
-            result.ContentBlocksCreated++;
         }
+
+        _log.LogInformation(
+            "ContentStaging import finished: pages created={PagesCreated} updated={PagesUpdated} skipped={PagesSkipped}; blocks created={BlocksCreated} updated={BlocksUpdated} skipped={BlocksSkipped}; errors={ErrorCount} warnings={WarningCount}",
+            result.PageNodesCreated, result.PageNodesUpdated, result.PageNodesSkipped,
+            result.ContentBlocksCreated, result.ContentBlocksUpdated, result.ContentBlocksSkipped,
+            result.Errors.Count, result.Warnings.Count);
 
         return result;
     }

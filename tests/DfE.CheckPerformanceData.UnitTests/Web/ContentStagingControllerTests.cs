@@ -1,12 +1,15 @@
+using System.Reflection;
 using System.Text;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web;
@@ -15,12 +18,14 @@ public sealed class ContentStagingControllerTests
 {
     private readonly IContentStagingService _staging = Substitute.For<IContentStagingService>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IPageNodeRepository _pageNodeRepository = Substitute.For<IPageNodeRepository>();
+    private readonly ILogger<ContentStagingController> _logger = Substitute.For<ILogger<ContentStagingController>>();
     private readonly ContentStagingController _sut;
 
     public ContentStagingControllerTests()
     {
         _currentUser.Email.Returns("editor@education.gov.uk");
-        _sut = new ContentStagingController(_staging, _currentUser)
+        _sut = new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
@@ -266,6 +271,52 @@ public sealed class ContentStagingControllerTests
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/admin/content-staging", redirect.Url);
+    }
+
+    // Destructive wipe: hits the repository truncate and lands the user back on the landing
+    // page with a success banner. Guarded by CSRF + editor role at the framework level.
+    [Fact]
+    public async Task ClearAll_TruncatesRepository_AndRedirectsWithSuccessBanner()
+    {
+        var result = await _sut.ClearAll();
+
+        await _pageNodeRepository.Received(1).TruncateAllContentAsync();
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        Assert.NotNull(_sut.TempData["ContentStagingResult"]);
+    }
+
+    [Fact]
+    public void ClearAll_HasValidateAntiForgeryTokenAndHttpPost()
+    {
+        var method = typeof(ContentStagingController)
+            .GetMethod(nameof(ContentStagingController.ClearAll))!;
+        Assert.NotNull(method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute>());
+        Assert.NotNull(method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.HttpPostAttribute>());
+    }
+
+    // An unexpected exception (e.g. DB error) inside ImportAsync used to bubble to a bare 500.
+    // Now it's caught, logged, and surfaced to the user as a coherent error banner.
+    [Fact]
+    public async Task Import_Confirm_UnexpectedException_IsCaught_LoggedAndSurfacedAsError()
+    {
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns<ContentImportResult>(_ =>
+                throw new InvalidOperationException("db-blew-up"));
+
+        var result = await _sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Skip
+        });
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        var error = _sut.TempData["ContentStagingError"] as string;
+        Assert.NotNull(error);
+        Assert.Contains("InvalidOperationException", error);
+        Assert.Contains("db-blew-up", error);
     }
 
     [Fact]

@@ -146,17 +146,22 @@ public sealed class ContentStagingService(
     public async Task<ContentImportResult> ImportAsync(
         ContentBundle bundle,
         ContentImportMode mode,
-        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null)
+        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null,
+        ContentImportMode newItemMode = ContentImportMode.Replace)
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
         _log.LogInformation(
-            "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), mode={Mode}, decisions={DecisionCount}",
-            bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, decisions?.Count ?? 0);
+            "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), collisionMode={Mode}, newItemMode={NewMode}, decisions={DecisionCount}",
+            bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, newItemMode, decisions?.Count ?? 0);
 
-        // Each item's effective mode is its per-collision decision, falling back to the global mode.
-        ContentImportMode ModeFor(Guid id) =>
-            decisions is not null && decisions.TryGetValue(id, out var m) ? m : mode;
+        // Per-item explicit decision wins; the caller distinguishes "existing item" from "new
+        // item" via two separate fallback modes. isExisting is passed by the loops so we can
+        // pick the right default when there is no explicit decision.
+        ContentImportMode ModeFor(Guid id, bool isExisting) =>
+            decisions is not null && decisions.TryGetValue(id, out var m)
+                ? m
+                : (isExisting ? mode : newItemMode);
 
         var pages = OrderForImport(bundle.PageNodes);
 
@@ -223,7 +228,7 @@ public sealed class ContentStagingService(
                     // If the match came from Path (not GUID), use the LOCAL Id everywhere so the
                     // update targets the actual row and children get the right pointer.
                     var effectiveId = existing.Id;
-                    if (ModeFor(page.Id) == ContentImportMode.Skip)
+                    if (ModeFor(page.Id, isExisting: true) == ContentImportMode.Skip)
                     {
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ exists, mode=Skip", page.Id, page.Title);
                         result.PageNodesSkipped++;
@@ -250,8 +255,20 @@ public sealed class ContentStagingService(
                     continue;
                 }
 
-                // New identity. Rewrite ParentId through the localId map so a bundle parent
-                // whose local match has a different GUID still lines up against the FK.
+                // New identity. Skip decision on a new item honours the "pick a subset" flow
+                // from the preview page — the operator can uncheck items they don't want to
+                // land in this environment. Descendants of a skipped page will hit the
+                // "parent not found" branch and be flagged in the errors list, which is what
+                // the operator expects when they opt out of a folder.
+                if (ModeFor(page.Id, isExisting: false) == ContentImportMode.Skip)
+                {
+                    _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ is new, mode=Skip — leaving out of import", page.Id, page.Title);
+                    result.PageNodesSkipped++;
+                    continue;
+                }
+
+                // Rewrite ParentId through the localId map so a bundle parent whose local match
+                // has a different GUID still lines up against the FK.
                 var effectiveParentId = page.ParentId;
                 if (page.ParentId is { } bundleParent && localIdByBundleId.TryGetValue(bundleParent, out var localParent))
                     effectiveParentId = localParent;
@@ -300,7 +317,7 @@ public sealed class ContentStagingService(
 
                 if (existing is not null)
                 {
-                    if (ModeFor(block.Id) == ContentImportMode.Skip)
+                    if (ModeFor(block.Id, isExisting: true) == ContentImportMode.Skip)
                     {
                         result.ContentBlocksSkipped++;
                         continue;
@@ -314,6 +331,15 @@ public sealed class ContentStagingService(
                         await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
                     });
                     result.ContentBlocksUpdated++;
+                    continue;
+                }
+
+                // New block. Honour a Skip decision so the operator can leave items out of
+                // the import from the preview page.
+                if (ModeFor(block.Id, isExisting: false) == ContentImportMode.Skip)
+                {
+                    _log.LogDebug("ContentStaging: block ‘{Key}’ is new, mode=Skip — leaving out of import", block.Key);
+                    result.ContentBlocksSkipped++;
                     continue;
                 }
 
@@ -347,14 +373,15 @@ public sealed class ContentStagingService(
 
     // Refuse before making any change if a collision is left at the Fail mode (no per-item
     // Skip/Overwrite decision resolves it). Items with an explicit decision are not blocked.
+    // Only invoked with isExisting: true — Fail only makes sense for collisions.
     private async Task GuardFailCollisionsAsync(
         List<PageNodeBundleItem> pages,
         List<ContentBlockBundleItem> blocks,
-        Func<Guid, ContentImportMode> modeFor)
+        Func<Guid, bool, ContentImportMode> modeFor)
     {
         foreach (var page in pages)
         {
-            if (modeFor(page.Id) == ContentImportMode.Fail
+            if (modeFor(page.Id, true) == ContentImportMode.Fail
                 && page.Id != Guid.Empty
                 && await pageNodeRepository.GetByIdAsync(page.Id) is not null)
                 throw new ContentImportConflictException(
@@ -363,7 +390,7 @@ public sealed class ContentStagingService(
 
         foreach (var block in blocks)
         {
-            if (modeFor(block.Id) == ContentImportMode.Fail
+            if (modeFor(block.Id, true) == ContentImportMode.Fail
                 && block.Id != Guid.Empty
                 && await contentBlockRepository.GetByContentIdAsync(block.Id) is not null)
                 throw new ContentImportConflictException(

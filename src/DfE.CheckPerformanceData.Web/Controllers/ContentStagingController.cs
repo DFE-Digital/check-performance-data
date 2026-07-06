@@ -148,12 +148,12 @@ public sealed class ContentStagingController(
             .ToDictionary(g => g.Key, g => g.First().Action!.Value);
 
         logger.LogInformation(
-            "Import controller: bundle={PageCount} pages / {BlockCount} blocks, globalMode={Mode}, perItemDecisions={DecisionCount}",
-            parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, decisions.Count);
+            "Import controller: bundle={PageCount} pages / {BlockCount} blocks, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
+            parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
 
         try
         {
-            var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions);
+            var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions, model.GlobalNewMode);
             TempData["ContentStagingResult"] = BuildSummary(result);
             if (result.Errors.Count > 0)
                 TempData["ContentStagingError"] = string.Join("\n", result.Errors);

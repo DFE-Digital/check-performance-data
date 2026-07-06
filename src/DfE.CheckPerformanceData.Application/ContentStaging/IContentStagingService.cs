@@ -14,12 +14,17 @@ public interface IContentStagingService
     // which collide with existing content. Shown on the import preview page; makes no changes.
     Task<ContentImportPreview> PreviewAsync(ContentBundle bundle);
 
-    // Replays a bundle through the normal application services (no raw SQL). Each existing item is
-    // handled by its per-collision decision (keyed by stable GUID) if given, otherwise the global
-    // mode; children whose parent is absent are skipped and reported. Throws
+    // Replays a bundle through the normal application services (no raw SQL). Each item is
+    // resolved to an effective mode using: the explicit per-item decision if given, otherwise
+    // the collision default (for items that already exist) or the new-item default (for items
+    // that don't). Children whose parent is absent are skipped and reported. Throws
     // ContentImportConflictException if a collision is left at the Fail mode.
+    //
+    // newItemMode is optional to preserve older call sites; when omitted it defaults to Replace,
+    // which is the historical behaviour ("always create new items").
     Task<ContentImportResult> ImportAsync(
         ContentBundle bundle,
         ContentImportMode mode,
-        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null);
+        IReadOnlyDictionary<Guid, ContentImportMode>? decisions = null,
+        ContentImportMode newItemMode = ContentImportMode.Replace);
 }

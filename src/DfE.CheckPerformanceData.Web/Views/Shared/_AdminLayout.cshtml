@@ -242,5 +242,11 @@ else
     <script src="~/js/admin-nav-collapse.js"></script>
     <script src="~/js/admin-page-tree-context-menu.js" asp-append-version="true"></script>
     <script src="~/js/admin-page-tree-dnd.js" asp-append-version="true"></script>
+    @* Wires the govuk-confirm-modal trigger/cancel/backdrop/focus-trap behaviour. Loaded
+       here so every admin page that uses the modal (DLQ redrive/purge, content-staging
+       clear-all, application logs clear-all, page-tree delete confirmations) actually
+       responds to clicks — the shared _Layout also loads it, but admin views run under
+       this layout instead. *@
+    <script src="~/js/confirm-modal.js" defer></script>
     @RenderSection("Scripts", required: false)
 }

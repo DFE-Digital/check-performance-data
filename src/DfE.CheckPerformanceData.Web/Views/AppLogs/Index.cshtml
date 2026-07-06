@@ -141,30 +141,48 @@ else
         </tbody>
     </table>
 
+    @* Numbered pagination matching Help/Search and CheckYourPupilData. Shows first, last,
+       current, and one either side of current; ellipses fill the gaps. All filter query
+       params are carried through so paging preserves the current view. *@
     @if (Model.TotalPages > 1)
     {
-        <nav class="govuk-pagination" role="navigation" aria-label="results">
+        object PageLink(int p) => new
+        {
+            level = Model.Level,
+            category = Model.Category,
+            search = Model.Search,
+            from = Model.From,
+            to = Model.To,
+            page = p
+        };
+
+        <govuk-pagination>
             @if (Model.Page > 1)
             {
-                var prev = Model.Skip - Model.Take;
-                <div class="govuk-pagination__prev">
-                    <a class="govuk-link govuk-pagination__link"
-                       href="?@(Context.Request.QueryString.HasValue
-                           ? System.Text.RegularExpressions.Regex.Replace(Context.Request.QueryString.Value!.TrimStart('?'), @"skip=\d+&?", "")
-                           : "")&skip=@prev" rel="prev">Previous</a>
-                </div>
+                <govuk-pagination-previous href="@Url.Action("Index", "AppLogs", PageLink(Model.Page - 1))">Previous</govuk-pagination-previous>
             }
+
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                var showPage = p == 1
+                               || p == Model.TotalPages
+                               || (p >= Model.Page - 1 && p <= Model.Page + 1);
+                if (showPage)
+                {
+                    <govuk-pagination-item href="@Url.Action("Index", "AppLogs", PageLink(p))"
+                                           current="@(p == Model.Page)">@p</govuk-pagination-item>
+                }
+                else if ((p == 2 && Model.Page - 1 > 2) || (p == Model.TotalPages - 1 && Model.Page + 1 < Model.TotalPages - 1))
+                {
+                    <govuk-pagination-ellipsis></govuk-pagination-ellipsis>
+                }
+            }
+
             @if (Model.Page < Model.TotalPages)
             {
-                var next = Model.Skip + Model.Take;
-                <div class="govuk-pagination__next">
-                    <a class="govuk-link govuk-pagination__link"
-                       href="?@(Context.Request.QueryString.HasValue
-                           ? System.Text.RegularExpressions.Regex.Replace(Context.Request.QueryString.Value!.TrimStart('?'), @"skip=\d+&?", "")
-                           : "")&skip=@next" rel="next">Next</a>
-                </div>
+                <govuk-pagination-next href="@Url.Action("Index", "AppLogs", PageLink(Model.Page + 1))">Next</govuk-pagination-next>
             }
-        </nav>
+        </govuk-pagination>
     }
 }
 

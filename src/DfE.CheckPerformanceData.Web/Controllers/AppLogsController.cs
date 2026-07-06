@@ -20,9 +20,12 @@ public sealed class AppLogsController(IAppLogRepository logs) : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index(
         string? level, string? category, string? search,
-        string? from, string? to, int skip = 0, CancellationToken ct = default)
+        string? from, string? to, int page = 1, CancellationToken ct = default)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.AppLogs;
+
+        var pageNumber = Math.Max(1, page);
+        var skip = (pageNumber - 1) * PageSize;
 
         var query = new AppLogQuery(
             Level: NullIfEmpty(level),
@@ -30,17 +33,17 @@ public sealed class AppLogsController(IAppLogRepository logs) : Controller
             Search: NullIfEmpty(search),
             FromUtc: ParseDate(from),
             ToUtc: ParseDate(to)?.AddDays(1).AddTicks(-1),   // inclusive end-of-day
-            Skip: Math.Max(0, skip),
+            Skip: skip,
             Take: PageSize);
 
-        var page = await logs.SearchAsync(query, ct);
+        var result = await logs.SearchAsync(query, ct);
 
         return View(new AppLogsViewModel
         {
-            Rows = page.Rows,
-            Total = page.Total,
-            Levels = page.Levels,
-            Categories = page.Categories,
+            Rows = result.Rows,
+            Total = result.Total,
+            Levels = result.Levels,
+            Categories = result.Categories,
             Skip = query.Skip,
             Take = query.Take,
             Level = level, Category = category, Search = search,

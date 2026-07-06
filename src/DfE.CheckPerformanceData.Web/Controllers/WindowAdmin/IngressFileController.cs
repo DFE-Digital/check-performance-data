@@ -67,6 +67,7 @@ public class IngressFileController(ILogger<IngressFileController> logger,
         await foreach (var item in containerClient.GetBlobsByHierarchyAsync(
                            delimiter: "/",
                            prefix: currentPath,
+                           states: BlobStates.All,
                            traits: BlobTraits.None,
                            cancellationToken: cancellationToken))
         {

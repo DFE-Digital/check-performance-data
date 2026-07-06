@@ -18,6 +18,7 @@ public static class AdminNavKeys
     public const string SystemSettings = "system-settings";
     public const string RoleSettings = "role-settings";
     public const string RulesConfig = "rules-config";
+    public const string AppLogs = "app-logs";
 
     public const string RulesEngineGroup = "rules-engine-group";
     public const string RulesEngine = "rules-engine";

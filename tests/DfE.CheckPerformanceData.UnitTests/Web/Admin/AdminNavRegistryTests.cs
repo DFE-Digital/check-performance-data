@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(22, entries.Count);
+		Assert.Equal(23, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);
@@ -45,6 +45,7 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Replay", titles);
 		Assert.Contains("Amendment requests", titles);
 		Assert.Contains("Uncommitted requests", titles);
+		Assert.Contains("Application logs", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---
@@ -71,10 +72,10 @@ public sealed class AdminNavRegistryTests
 			.ToArray();
 
 		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
-		// System administration has three direct children: the Rules Engine sub-group (10),
-		// System settings (20), Role settings (30). The pipeline tiles nest one level deeper
-		// under Rules Engine.
-		Assert.Equal(new[] { 10, 20, 30 }, systemOrders);
+		// System administration has four direct children: the Rules Engine sub-group (10),
+		// System settings (20), Application logs (25), Role settings (30). The pipeline tiles
+		// nest one level deeper under Rules Engine.
+		Assert.Equal(new[] { 10, 20, 25, 30 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")

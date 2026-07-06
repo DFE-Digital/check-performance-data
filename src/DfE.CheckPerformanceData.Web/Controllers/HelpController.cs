@@ -1,9 +1,7 @@
-using System.Text.Encodings.Web;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -185,38 +183,10 @@ public sealed class HelpController(
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
 
-    // Minimal test-only endpoint: renders a lone antiforgery-token input and issues the
-    // matching cookie. Used by the E2E seeding helpers to obtain a token+cookie pair for the
-    // POST endpoints on this controller — the wiki-editor GET that used to serve this role
-    // was retired when HelpController.Index was removed.
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpGet("help/antiforgery-token")]
-    public ContentResult AntiforgeryToken([FromServices] IAntiforgery antiforgery)
-    {
-        var tokens = antiforgery.GetAndStoreTokens(HttpContext);
-        var encoded = HtmlEncoder.Default.Encode(tokens.RequestToken ?? string.Empty);
-        return Content(
-            $"<input name=\"__RequestVerificationToken\" type=\"hidden\" value=\"{encoded}\" />",
-            "text/html");
-    }
-
-    // Test-only slug → wiki page id lookup. The E2E seed helper used to scrape
-    // data-page-id="..." out of the wiki tree rendered by HelpController.Index; that Index
-    // action was retired on this branch (see the constructor comment) so the tests need
-    // another way to convert the slug returned by POST /help/create into the numeric id
-    // required by delete/edit/versions.
-    //
-    // Slug travels as a query-string parameter, not a route segment, so this endpoint
-    // never counts as a catch-all — wiki slugs may contain '/' for nested pages, and a
-    // catch-all route would conflict with PageController.Show (see RoutePrecedenceTests).
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpGet("help/slug-to-id")]
-    public async Task<IActionResult> SlugToId([FromQuery] string slug)
-    {
-        if (string.IsNullOrWhiteSpace(slug)) return NotFound();
-        var page = await wikiService.GetPageBySlugPathAsync(slug);
-        return page is null ? NotFound() : Content(page.Id.ToString(), "text/plain");
-    }
+    // Test-only endpoints (antiforgery-token, slug-to-id, wiki-e2e-cleanup) live on
+    // DevE2eSupportController under /dev/*, gated on Dev:ToolsEnabled + !IsProduction so
+    // they can never leak into a production environment. They used to sit here on
+    // HelpController but that put an obviously-test surface alongside real editor routes.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/seed")]

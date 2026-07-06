@@ -1729,3 +1729,26 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 .cms-context-menu__item--danger button {
   color: #d4351c;
 }
+
+/* Rich-text widget images. Inserted via the TinyMCE image dialog as inline base64 data
+   URIs — the sanitiser strips inline `style` attributes, so image sizing has to come
+   from a class instead. Applied automatically to every <img> inside a rich-text widget
+   so authors don't need to remember to add the class themselves. */
+.govuk-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+  border: 1px solid #b1b4b6;
+}
+.govuk-body figure {
+  margin: 1.5em 0;
+}
+.govuk-body figure img {
+  margin: 0;
+}
+.govuk-body figcaption,
+.govuk-body figure em {
+  color: #505a5f;
+  font-size: 1rem;
+}

@@ -73,8 +73,27 @@
             selector: '#page-content',
             height: 400,
             menubar: true,
-            plugins: 'lists link table code wordcount searchreplace fullscreen',
-            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link table | code fullscreen',
+            plugins: 'lists link table code wordcount searchreplace fullscreen image',
+            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
+            // Images stay inline as data: URIs (see ContentPage/Edit.cshtml for the
+            // detailed comment); no upload endpoint, no blob storage.
+            automatic_uploads: false,
+            paste_data_images: true,
+            images_file_types: 'png,jpg,jpeg,gif,webp',
+            file_picker_types: 'image',
+            file_picker_callback: function (cb) {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+                input.onchange = function () {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function () { cb(reader.result, { title: file.name }); };
+                    reader.readAsDataURL(file);
+                };
+                input.click();
+            },
             style_formats: [
                 { title: 'Heading 2', block: 'h2' },
                 { title: 'Heading 3', block: 'h3' },

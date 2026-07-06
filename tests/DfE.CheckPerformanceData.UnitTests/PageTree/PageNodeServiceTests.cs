@@ -953,6 +953,9 @@ public class PageNodeServiceTests
             Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId) =>
             throw new NotSupportedException("staging");
 
+        public Task TruncateAllContentAsync() =>
+            throw new NotSupportedException("wipe");
+
         public Task SetPageTypeAsync(Guid id, string pageType, string? userId)
         {
             var node = _nodes.First(n => n.Id == id);

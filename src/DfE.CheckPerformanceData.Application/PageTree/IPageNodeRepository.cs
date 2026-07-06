@@ -124,4 +124,13 @@ public interface IPageNodeRepository
     /// </summary>
     Task ReplaceAllVersionsForStagingAsync(
         Guid nodeId, IReadOnlyList<PageNodeVersionDto> versions, string? userId);
+
+    /// <summary>
+    /// Wipes every page node, page-node version, content block, and content-block version in a
+    /// single TRUNCATE ... CASCADE. Powers the admin-only "Clear all CMS content" button on the
+    /// content-staging page: gives editors/QA a reliable "reset to empty" state before importing
+    /// a bundle, without shell access to the database. Identity sequences are reset so the next
+    /// insert starts at 1.
+    /// </summary>
+    Task TruncateAllContentAsync();
 }

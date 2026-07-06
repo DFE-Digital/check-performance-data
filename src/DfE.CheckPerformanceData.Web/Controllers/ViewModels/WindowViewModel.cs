@@ -43,13 +43,13 @@ public class WindowEditItem
         get => $"{baseEditUrl}/checking-window-type";
     }
     //data
-    public string IngressFile { get; set; }
+    public string? IngressFile { get; set; }
     public string IngressFileLink
     {
         get => $"{baseEditUrl}/ingress-file";
     }
-    public string OutputPath { get; set; }
-    public string SchemaFile { get; set; }
+    public string? OutputPath { get; set; }
+    public string? SchemaFile { get; set; }
     public string SchemaFileLink
     {
         get => $"{baseEditUrl}/schema-file";

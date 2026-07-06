@@ -5,14 +5,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 
 public static class SeedHelpers
 {
-    // Pulls the integer Id from the rendered help tree by matching the slug-bearing anchor
-    // immediately following a data-page-id="..." attribute in _WikiTree.cshtml. Slugs always
-    // include the e2e-{Guid:N}- prefix so collisions with the seeded corpus are not possible.
-    private static readonly Regex SlugToIdPattern =
-        new(
-            "data-page-id=\"(?<id>\\d+)\"[^>]*>\\s*(?:<[^>]+>\\s*)*<a[^>]+href=\"/help/(?<slug>[^\"?]+)",
-            RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
     public static async Task<int> SeedWikiPageAsync(
         HttpClient client,
         string title,
@@ -34,7 +26,7 @@ public static class SeedHelpers
         var slugPrefix = $"e2e-{Guid.NewGuid():N}";
         var prefixedTitle = $"{slugPrefix} {title}";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
         var formFields = new List<KeyValuePair<string, string>>
         {
@@ -85,7 +77,7 @@ public static class SeedHelpers
 
         var seededSlug = slugPath[prefix.Length..];
 
-        var id = await ResolveIdFromTreeAsync(client, seededSlug);
+        var id = await ResolveWikiPageIdBySlugAsync(client, seededSlug);
         tracking.Add(id);
         return (id, seededSlug);
     }
@@ -99,7 +91,7 @@ public static class SeedHelpers
         string title,
         string body)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
         var formFields = new[]
         {
@@ -142,7 +134,7 @@ public static class SeedHelpers
         string key,
         string newValue)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
         var formFields = new[]
         {
@@ -178,7 +170,7 @@ public static class SeedHelpers
     {
         var key = $"e2e-{Guid.NewGuid():N}-{keyPrefix}";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
         var formFields = new[]
         {
@@ -209,45 +201,33 @@ public static class SeedHelpers
         return key;
     }
 
-    // Sweeps any wiki page still visible in the tree whose slug starts with "e2e-"
-    // and soft-deletes it. The e2e- prefix is the seed "tag" (every test seed sets it
-    // via SeedWikiPageReturningSlugAsync) so this catches orphans left behind when a
-    // test crashed before SeedingPageTest.DisposeAsync ran its tracked cleanup. Best-
-    // effort: per-page failures are swallowed so the sweep doesn't mask test outcomes.
+    // Server-side teardown: POSTs to /dev/wiki-e2e-cleanup which walks the wiki tree,
+    // finds every page whose slug starts "e2e-", and soft-deletes it. Called from
+    // PlaywrightFixture.DisposeAsync so orphans from a crashed test don't accumulate.
+    // Best-effort: swallowed exceptions preserve the outer test outcome.
     public static async Task SweepOrphanE2eWikiPagesAsync(HttpClient client)
     {
-        HttpResponseMessage response;
         try
         {
-            response = await client.GetAsync("/help");
+            var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
+            var baseAddress = client.BaseAddress
+                ?? throw new InvalidOperationException("SeedClient must have a BaseAddress.");
+
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, new Uri(baseAddress, "/dev/wiki-e2e-cleanup"))
+            {
+                Content = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("__RequestVerificationToken", token)
+                })
+            };
+            request.Headers.Add("Cookie", cookie);
+            request.Headers.Add("X-XSRF-TOKEN", token);
+            using var _ = await TestHttpClients.SendAsync(request);
         }
         catch
         {
-            return; // app is unreachable; nothing we can do at teardown
-        }
-
-        if (!response.IsSuccessStatusCode) return;
-
-        var html = await response.Content.ReadAsStringAsync();
-        var ids = new HashSet<int>();
-
-        foreach (Match match in SlugToIdPattern.Matches(html))
-        {
-            var slug = match.Groups["slug"].Value;
-            if (!slug.StartsWith("e2e-", StringComparison.Ordinal)) continue;
-            if (int.TryParse(match.Groups["id"].Value, out var id)) ids.Add(id);
-        }
-
-        foreach (var id in ids)
-        {
-            try
-            {
-                await SoftDeleteWikiPageAsync(client, id);
-            }
-            catch
-            {
-                // best-effort
-            }
+            // best-effort; teardown must not mask test outcomes
         }
     }
 
@@ -276,7 +256,7 @@ public static class SeedHelpers
 
     public static async Task SoftDeleteWikiPageAsync(HttpClient client, int id)
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/help/antiforgery-token");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(client, "/dev/antiforgery-token");
 
         var formFields = new[]
         {
@@ -301,21 +281,17 @@ public static class SeedHelpers
         }
     }
 
-    internal static async Task<int> ResolveIdFromTreeAsync(HttpClient client, string slugPath)
+    // Resolves a wiki page slug to its numeric id via the dev-only lookup endpoint. Used
+    // by SeedWikiPageReturningSlugAsync (which knows the slug the create redirect returned
+    // and needs the id for the tracking list) and by any test whose flow needs the id
+    // after a slug-based creation. Uses TestHttpClients.SendAsync so the impersonation
+    // cookie attaches — the endpoint is editor-gated and the SeedClient does not manage
+    // cookies of its own.
+    internal static async Task<int> ResolveWikiPageIdBySlugAsync(HttpClient client, string slugPath)
     {
-        // Direct lookup via the editor-only slug-to-id endpoint. Replaces the previous
-        // GET /help + regex scrape of _WikiTree.cshtml — that page is no longer served on
-        // this branch (HelpController.Index was retired; /help resolves through the CMS
-        // catch-all now, which doesn't render the wiki tree markup the regex depended on).
-        // Slug travels as a query string so nested slugs ("parent/child") don't need any
-        // escaping and the endpoint stays out of the catch-all-route accounting.
-        //
-        // Uses TestHttpClients.SendAsync so the impersonation cookie is attached
-        // automatically — the SeedClient has UseCookies=false and the endpoint is
-        // editor-gated, so an anonymous request would 302 to sign-in and never resolve.
         var baseAddress = client.BaseAddress
             ?? throw new InvalidOperationException("SeedClient must have a BaseAddress.");
-        var uri = new Uri(baseAddress, $"/help/slug-to-id?slug={Uri.EscapeDataString(slugPath)}");
+        var uri = new Uri(baseAddress, $"/dev/wiki-slug-to-id?slug={Uri.EscapeDataString(slugPath)}");
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         var response = await TestHttpClients.SendAsync(request);
         if (response.IsSuccessStatusCode)
@@ -328,7 +304,7 @@ public static class SeedHelpers
         }
 
         throw new InvalidOperationException(
-            $"Could not resolve wiki page Id for slug '{slugPath}' via /help/slug-to-id (status {(int)response.StatusCode}).");
+            $"Could not resolve wiki page id for slug '{slugPath}' via /dev/wiki-slug-to-id (status {(int)response.StatusCode}).");
     }
 
     private static Task<HttpResponseMessage> SendWithoutFollowingRedirects(

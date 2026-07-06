@@ -4,16 +4,25 @@ using Microsoft.Playwright.Xunit;
 
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
-// The guidance pages are [AllowAnonymous] and render entirely from the section manifest
-// with defaultText/defaultHtml fallbacks, so they show full structure even with no seeded
-// CMS content. These tests assert template-owned structure, not seeded copy.
+// The guidance pages used to be rendered by GuidanceController from a section manifest in
+// code. That controller was retired on this branch — /guidance and its children now
+// resolve through the CMS catch-all against a seeded PageNode tree, so what renders is
+// entirely dependent on which content has been imported into the target environment.
+//
+// The three tests below assert layout details (specific H1 copy, a ".guidance-side-nav"
+// element, template-owned section anchors, a >=25 section count) that only hold for the
+// old manifest-driven view. Skipping them until the CMS-driven equivalents are written —
+// deletion is safer than a rewrite that guesses at the seeded content.
 [Collection("E2E")]
 [Trait("Category", "W1")]
 public sealed class GuidancePagesTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;
+    private const string SkipReason =
+        "Guidance-in-code was retired on the content-page-builder branch; "
+        + "these assertions target manifest-owned markup that no longer exists.";
 
-    [Fact]
+    [Fact(Skip = SkipReason)]
     public async Task GuidanceLanding_Returns200_AndRendersHeadingAndSearch()
     {
         var response = await Page.GotoAsync($"{_fixture.BaseUrl}/guidance");
@@ -26,7 +35,7 @@ public sealed class GuidancePagesTests(PlaywrightFixture fixture) : PageTest
         await Expect(Page.Locator("form.cypmd-search[action='/help/search']")).ToBeVisibleAsync();
     }
 
-    [Fact]
+    [Fact(Skip = SkipReason)]
     public async Task Ks4Page_Returns200_AndRendersTitleAndSideNav()
     {
         var response = await Page.GotoAsync($"{_fixture.BaseUrl}/guidance/2026-ks4-june-checking-exercise");
@@ -38,7 +47,7 @@ public sealed class GuidancePagesTests(PlaywrightFixture fixture) : PageTest
         await Expect(Page.Locator(".guidance-side-nav")).ToBeVisibleAsync();
     }
 
-    [Fact]
+    [Fact(Skip = SkipReason)]
     public async Task Ks4Page_RendersTemplateOwnedSectionAnchors()
     {
         await Page.GotoAsync($"{_fixture.BaseUrl}/guidance/2026-ks4-june-checking-exercise");

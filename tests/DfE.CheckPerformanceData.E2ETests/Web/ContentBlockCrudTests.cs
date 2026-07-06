@@ -20,7 +20,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         var unique = $"e2e-{Guid.NewGuid():N}";
         var key = $"{unique}-block";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help/antiforgery-token");
 
         var form = new FormUrlEncodedContent(new[]
         {
@@ -53,7 +53,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         var unique = $"e2e-{Guid.NewGuid():N}";
         var key = $"{unique}-block";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help/antiforgery-token");
 
         try
         {
@@ -93,7 +93,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
     [Fact]
     public async Task PostRevert_AsNonEditor_Returns403()
     {
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help/antiforgery-token");
 
         try
         {

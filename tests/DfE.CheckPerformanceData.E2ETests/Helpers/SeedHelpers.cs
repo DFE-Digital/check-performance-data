@@ -309,8 +309,15 @@ public static class SeedHelpers
         // catch-all now, which doesn't render the wiki tree markup the regex depended on).
         // Slug travels as a query string so nested slugs ("parent/child") don't need any
         // escaping and the endpoint stays out of the catch-all-route accounting.
-        var response = await client.GetAsync(
-            $"/help/slug-to-id?slug={Uri.EscapeDataString(slugPath)}");
+        //
+        // Uses TestHttpClients.SendAsync so the impersonation cookie is attached
+        // automatically — the SeedClient has UseCookies=false and the endpoint is
+        // editor-gated, so an anonymous request would 302 to sign-in and never resolve.
+        var baseAddress = client.BaseAddress
+            ?? throw new InvalidOperationException("SeedClient must have a BaseAddress.");
+        var uri = new Uri(baseAddress, $"/help/slug-to-id?slug={Uri.EscapeDataString(slugPath)}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        var response = await TestHttpClients.SendAsync(request);
         if (response.IsSuccessStatusCode)
         {
             var body = (await response.Content.ReadAsStringAsync()).Trim();
@@ -321,7 +328,7 @@ public static class SeedHelpers
         }
 
         throw new InvalidOperationException(
-            $"Could not resolve wiki page Id for slug '{slugPath}' from the rendered tree at /help.");
+            $"Could not resolve wiki page Id for slug '{slugPath}' via /help/slug-to-id (status {(int)response.StatusCode}).");
     }
 
     private static Task<HttpResponseMessage> SendWithoutFollowingRedirects(

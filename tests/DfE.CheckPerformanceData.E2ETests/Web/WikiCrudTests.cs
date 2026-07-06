@@ -25,7 +25,7 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         var unique = $"e2e-{Guid.NewGuid():N}";
         var title = $"{unique}-create-target";
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help/antiforgery-token");
 
         var form = new FormUrlEncodedContent(new[]
         {
@@ -82,7 +82,7 @@ public sealed class WikiCrudTests(PlaywrightFixture fixture)
         var id = await SeedHelpers.SeedWikiPageAsync(
             _fixture.SeedClient, title, "To be deleted.", parentId: null, tracking);
 
-        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help?edit");
+        var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/help/antiforgery-token");
 
         using var request = NewRequest(
             HttpMethod.Post,

@@ -200,18 +200,17 @@ public sealed class HardDeleteTests(PlaywrightFixture fixture)
             Assert.Contains("govuk-error-summary", followBody);
             Assert.Contains("Could not delete the page", followBody);
 
-            // The LIVE page row must still be present in the tree. /help is editor-
-            // gated for the data-page-id attribute (which only renders in edit mode);
-            // attach the impersonation cookie and hit /help?edit explicitly.
-            using var treeRequest = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/help?edit");
+            // The LIVE page row must still be present. The wiki tree that used to hold
+            // data-page-id attributes is gone on this branch (HelpController.Index was
+            // retired), so probe the page directly via the versions endpoint — a 200
+            // means the row is still there, 404 means the delete swept it.
+            using var probeRequest = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/help/versions/{id}");
             if (!string.IsNullOrEmpty(impersonation))
             {
-                treeRequest.Headers.Add("Cookie", impersonation);
+                probeRequest.Headers.Add("Cookie", impersonation);
             }
-            var treeResponse = await TestHttpClients.SendAsync(treeRequest);
-            treeResponse.EnsureSuccessStatusCode();
-            var treeBody = await treeResponse.Content.ReadAsStringAsync();
-            Assert.Contains($"data-page-id=\"{id}\"", treeBody);
+            var probeResponse = await TestHttpClients.SendAsync(probeRequest);
+            probeResponse.EnsureSuccessStatusCode();
         }
         finally
         {

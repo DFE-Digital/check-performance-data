@@ -56,7 +56,7 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
 
         var folders = new List<string>();
         var blobs = new List<StorageBlobItemViewModel>();
-        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath, states: BlobStates.All, traits: BlobTraits.None))
+        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath, states: BlobStates.All, traits: BlobTraits.None, cancellationToken: cancellationToken))
         {
             if (item.IsPrefix)
             {
@@ -150,7 +150,7 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
 
     [HttpPost("admin/storage/{account}/{containerName}/delete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string account, string containerName, string blobName, [FromForm] string? prefix)
+    public async Task<IActionResult> Delete(string account, string containerName, string blobName, [FromForm] string? prefix = null)
     {
         var client = GetClient(account);
         if (client is null) return NotFound();

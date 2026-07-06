@@ -11,7 +11,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(DateTime now, CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
-            .Where(w => w.StartDate <= now && w.EndDate >= now)
+            .Where(w => w.EndDate >= now)
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,

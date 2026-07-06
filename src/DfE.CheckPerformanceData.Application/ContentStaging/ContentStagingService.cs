@@ -170,6 +170,13 @@ public sealed class ContentStagingService(
         // re-querying the database on every iteration.
         var pathByContentId = new Dictionary<Guid, string>();
 
+        // Bundle node GUID -> the local node GUID that it actually resolves to. Populated when
+        // path-fallback matches a bundle page to an existing local node with a different GUID
+        // (default-root seeder, manually-authored roots, etc.). A child in the bundle carries
+        // its bundle-parent's GUID as ParentId, but the FK constraint checks against the local
+        // row — so we rewrite ParentId through this map at create time.
+        var localIdByBundleId = new Dictionary<Guid, Guid>();
+
         foreach (var page in pages)
         {
             try
@@ -191,11 +198,31 @@ public sealed class ContentStagingService(
 
                 var path = parentPath is null ? page.Segment : $"{parentPath}/{page.Segment}";
 
-                // Match purely by stable identity.
+                // Primary match: stable GUID identity — the ideal path when the target env has
+                // seen this content before.
                 var existing = page.Id != Guid.Empty ? await pageNodeRepository.GetByIdAsync(page.Id) : null;
+
+                // Fallback match: the target env already has a node at this path but with a
+                // different GUID. Happens routinely with the default-root seeder (Support, Help,
+                // Wiki, Guidance are created on startup) and with any manually-authored page
+                // that shares a segment with the bundle. Path is the natural human identity, so
+                // treat it as a collision even though the GUIDs don't line up.
+                var pathMatch = existing is null
+                    ? await pageNodeRepository.GetByPathAsync(path)
+                    : null;
+                if (pathMatch is not null)
+                {
+                    _log.LogInformation(
+                        "ContentStaging: page ‘{Title}’ at {Path} — GUID mismatch (bundle={BundleId}, local={LocalId}); treating as existing via path match",
+                        page.Title, path, page.Id, pathMatch.Id);
+                    existing = pathMatch;
+                }
 
                 if (existing is not null)
                 {
+                    // If the match came from Path (not GUID), use the LOCAL Id everywhere so the
+                    // update targets the actual row and children get the right pointer.
+                    var effectiveId = existing.Id;
                     if (ModeFor(page.Id) == ContentImportMode.Skip)
                     {
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ exists, mode=Skip", page.Id, page.Title);
@@ -204,20 +231,33 @@ public sealed class ContentStagingService(
                     else
                     {
                         await pageNodeRepository.UpdateNodeForStagingAsync(
-                            page.Id, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder, userId: null);
+                            effectiveId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder, userId: null);
                         if (page.PageType != "folder")
                             await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                                page.Id, MapVersions(page.Versions), userId: null);
+                                effectiveId, MapVersions(page.Versions), userId: null);
                         _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ updated ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                         result.PageNodesUpdated++;
                     }
+                    // Children in the bundle reference *this bundle page's* Id, so map both the
+                    // bundle Id and the local Id to the existing path — children can then be
+                    // adopted under whichever pointer they carry.
                     pathByContentId[page.Id] = existing.Path;
+                    if (effectiveId != page.Id)
+                    {
+                        pathByContentId[effectiveId] = existing.Path;
+                        localIdByBundleId[page.Id] = effectiveId;
+                    }
                     continue;
                 }
 
-                // New identity. Create the node with its explicit Id, then replay versions.
+                // New identity. Rewrite ParentId through the localId map so a bundle parent
+                // whose local match has a different GUID still lines up against the FK.
+                var effectiveParentId = page.ParentId;
+                if (page.ParentId is { } bundleParent && localIdByBundleId.TryGetValue(bundleParent, out var localParent))
+                    effectiveParentId = localParent;
+
                 var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                    page.Id, page.ParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder, userId: null);
+                    page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder, userId: null);
                 if (page.PageType != "folder")
                     await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                         created.Id, MapVersions(page.Versions), userId: null);
@@ -242,6 +282,22 @@ public sealed class ContentStagingService(
             {
                 var existing = block.Id != Guid.Empty ? await contentBlockRepository.GetByContentIdAsync(block.Id) : null;
 
+                // Fallback: same key, different GUID. Happens when the target env has
+                // auto-provisioned the block on its own (EditableContent view components seed
+                // blocks the first time a page renders, with fresh GUIDs). Key is the human
+                // identity — treat it as a collision even without a GUID match.
+                if (existing is null)
+                {
+                    var keyMatch = await contentBlockRepository.GetByKeyAsync(block.Key);
+                    if (keyMatch is not null)
+                    {
+                        _log.LogInformation(
+                            "ContentStaging: block ‘{Key}’ — GUID mismatch (bundle={BundleId}, local={LocalId}); treating as existing via key match",
+                            block.Key, block.Id, keyMatch.Id);
+                        existing = keyMatch;
+                    }
+                }
+
                 if (existing is not null)
                 {
                     if (ModeFor(block.Id) == ContentImportMode.Skip)
@@ -258,16 +314,6 @@ public sealed class ContentStagingService(
                         await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
                     });
                     result.ContentBlocksUpdated++;
-                    continue;
-                }
-
-                // New identity. Guard the unique Key so a same-keyed block doesn't crash the create.
-                if (await contentBlockRepository.GetByKeyAsync(block.Key) is not null)
-                {
-                    _log.LogWarning(
-                        "ContentStaging: block key ‘{Key}’ already used by a different content id; skipping",
-                        block.Key);
-                    result.Errors.Add($"Could not create block ‘{block.Key}’ — a different block already uses that key.");
                     continue;
                 }
 

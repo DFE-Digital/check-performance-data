@@ -1,6 +1,20 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.StorageBlobListViewModel
 @{
     ViewData["Title"] = $"Container: {Model.ContainerName}";
+
+    string PathUrl(string? prefix) =>
+        string.IsNullOrEmpty(prefix)
+            ? $"/admin/storage/{Model.AccountKey}/{Model.ContainerName}"
+            : $"/admin/storage/{Model.AccountKey}/{Model.ContainerName}?prefix={Uri.EscapeDataString(prefix)}";
+
+    // Leaf name from a full blob path or folder prefix (relative to the current folder).
+    string Leaf(string name)
+    {
+        var relative = string.IsNullOrEmpty(Model.Prefix) || !name.StartsWith(Model.Prefix)
+            ? name
+            : name[Model.Prefix.Length..];
+        return relative.TrimEnd('/');
+    }
 }
 
 <p class="govuk-body">
@@ -10,16 +24,43 @@
 <h1 class="govuk-heading-xl">
     <code>@Model.ContainerName</code>
 </h1>
-<p class="govuk-body-l">@Model.Blobs.Count blob(s).</p>
 
-@if (Model.Blobs.Count == 0)
+@if (!string.IsNullOrEmpty(Model.Prefix))
 {
-    <p class="govuk-body">No blobs found in this container.</p>
+    <p class="govuk-body">
+        <span class="govuk-!-font-weight-bold">Folder:</span> <code>@Model.Prefix</code>
+    </p>
+    <p class="govuk-body">
+        <a class="govuk-link" href="@PathUrl(Model.ParentPath)">↑ Up to @(string.IsNullOrEmpty(Model.ParentPath) ? "container root" : Model.ParentPath)</a>
+    </p>
+}
+
+<p class="govuk-body-l">@Model.Folders.Count folder(s), @Model.Blobs.Count blob(s).</p>
+
+<form method="post" enctype="multipart/form-data" action="/admin/storage/@Model.AccountKey/@Model.ContainerName/upload">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="prefix" value="@Model.Prefix" />
+    <h2 class="govuk-heading-m">Upload files@(string.IsNullOrEmpty(Model.Prefix) ? "" : $" to {Model.Prefix}")</h2>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="folder">Folder (optional)</label>
+        <div id="folder-hint" class="govuk-hint">Type a name to create a new sub-folder for these files, e.g. <code>reports/2026</code>. Leave blank to upload here.</div>
+        <input class="govuk-input govuk-input--width-20" id="folder" name="folder" type="text" aria-describedby="folder-hint" />
+    </div>
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="files">Files</label>
+        <input class="govuk-file-upload" id="files" name="files" type="file" multiple />
+    </div>
+    <button type="submit" class="govuk-button" data-prevent-double-click="true">Upload</button>
+</form>
+
+@if (Model.Folders.Count == 0 && Model.Blobs.Count == 0)
+{
+    <p class="govuk-body">This folder is empty.</p>
 }
 else
 {
     <table class="govuk-table">
-        <caption class="govuk-table__caption govuk-visually-hidden">Blobs in @Model.ContainerName</caption>
+        <caption class="govuk-table__caption govuk-visually-hidden">Contents of @Model.ContainerName</caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Name</th>
@@ -30,6 +71,20 @@ else
             </tr>
         </thead>
         <tbody class="govuk-table__body">
+            @foreach (var folder in Model.Folders)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="@PathUrl(folder)">📁 <code>@Leaf(folder)</code></a>
+                    </td>
+                    <td class="govuk-table__cell">—</td>
+                    <td class="govuk-table__cell">Folder</td>
+                    <td class="govuk-table__cell">—</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="@PathUrl(folder)">Open</a>
+                    </td>
+                </tr>
+            }
             @foreach (var blob in Model.Blobs)
             {
                 var encodedBlob = Uri.EscapeDataString(blob.Name);
@@ -39,7 +94,7 @@ else
                         ? $"{blob.SizeBytes / 1024.0:F1} KB"
                         : $"{blob.SizeBytes / 1_048_576.0:F1} MB";
                 <tr class="govuk-table__row">
-                    <td class="govuk-table__cell"><code>@blob.Name</code></td>
+                    <td class="govuk-table__cell"><code>@Leaf(blob.Name)</code></td>
                     <td class="govuk-table__cell">@sizeLabel</td>
                     <td class="govuk-table__cell">@(blob.ContentType ?? "—")</td>
                     <td class="govuk-table__cell">@(blob.LastModified?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
@@ -53,6 +108,7 @@ else
                               style="display:inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="blobName" value="@blob.Name" />
+                            <input type="hidden" name="prefix" value="@Model.Prefix" />
                             <button type="submit"
                                     class="govuk-link"
                                     style="background:none;border:none;cursor:pointer;padding:0;color:#d4351c"

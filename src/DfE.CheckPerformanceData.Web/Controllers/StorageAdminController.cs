@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,7 +43,7 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
     }
 
     [HttpGet("admin/storage/{account}/{containerName}")]
-    public async Task<IActionResult> Container(string account, string containerName)
+    public async Task<IActionResult> Container(string account, string containerName, [FromQuery] string? prefix)
     {
         var client = GetClient(account);
         if (client is null) return NotFound();
@@ -51,15 +52,28 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
         if (!await container.ExistsAsync())
             return NotFound();
 
+        var currentPath = string.IsNullOrWhiteSpace(prefix) ? null : prefix;
+
+        var folders = new List<string>();
         var blobs = new List<StorageBlobItemViewModel>();
-        await foreach (var item in container.GetBlobsAsync())
+        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath))
         {
+            if (item.IsPrefix)
+            {
+                folders.Add(item.Prefix);
+                continue;
+            }
+
+            // Hide the zero-byte placeholder that represents the current folder itself.
+            if (item.Blob.Name == currentPath)
+                continue;
+
             blobs.Add(new StorageBlobItemViewModel
             {
-                Name = item.Name,
-                SizeBytes = item.Properties.ContentLength ?? 0,
-                ContentType = item.Properties.ContentType,
-                LastModified = item.Properties.LastModified
+                Name = item.Blob.Name,
+                SizeBytes = item.Blob.Properties.ContentLength ?? 0,
+                ContentType = item.Blob.Properties.ContentType,
+                LastModified = item.Blob.Properties.LastModified
             });
         }
 
@@ -68,6 +82,9 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
             AccountKey = account,
             AccountDisplayName = GetDisplayName(account),
             ContainerName = containerName,
+            Prefix = currentPath,
+            ParentPath = GetParentPath(currentPath),
+            Folders = folders,
             Blobs = blobs,
         });
     }
@@ -133,7 +150,7 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
 
     [HttpPost("admin/storage/{account}/{containerName}/delete")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Delete(string account, string containerName, string blobName)
+    public async Task<IActionResult> Delete(string account, string containerName, string blobName, [FromForm] string? prefix)
     {
         var client = GetClient(account);
         if (client is null) return NotFound();
@@ -141,7 +158,65 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
         var container = client.GetBlobContainerClient(containerName);
         var blobClient = container.GetBlobClient(blobName);
         await blobClient.DeleteIfExistsAsync();
-        return Redirect($"/admin/storage/{account}/{containerName}");
+        return RedirectToContainer(account, containerName, prefix);
+    }
+
+    [HttpPost("admin/storage/{account}/{containerName}/upload")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Upload(string account, string containerName, List<IFormFile> files, [FromForm] string? prefix, [FromForm] string? folder)
+    {
+        var client = GetClient(account);
+        if (client is null) return NotFound();
+
+        var container = client.GetBlobContainerClient(containerName);
+        if (!await container.ExistsAsync())
+            return NotFound();
+
+        // Files are stored at <current prefix>/<optional new folder>/<file name>.
+        // The folder structure exists purely because a real blob lives at that path;
+        // blob storage has no standalone folders.
+        var targetPrefix = NormalizePrefix(prefix);
+        var subFolder = folder?.Trim().Trim('/');
+        if (!string.IsNullOrEmpty(subFolder) && !subFolder.Contains(".."))
+            targetPrefix += $"{subFolder}/";
+
+        foreach (var file in files ?? [])
+        {
+            if (file.Length == 0) continue;
+
+            var blobClient = container.GetBlobClient($"{targetPrefix}{Path.GetFileName(file.FileName)}");
+            await using var stream = file.OpenReadStream();
+            await blobClient.UploadAsync(stream, new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
+            });
+        }
+
+        return RedirectToContainer(account, containerName, prefix);
+    }
+
+    private IActionResult RedirectToContainer(string account, string containerName, string? prefix)
+    {
+        var url = $"/admin/storage/{account}/{containerName}";
+        if (!string.IsNullOrWhiteSpace(prefix))
+            url += $"?prefix={Uri.EscapeDataString(prefix)}";
+        return Redirect(url);
+    }
+
+    // Ensures a folder prefix is either empty (root) or ends in exactly one "/".
+    private static string NormalizePrefix(string? prefix)
+    {
+        var trimmed = prefix?.Trim().Trim('/');
+        return string.IsNullOrEmpty(trimmed) ? string.Empty : $"{trimmed}/";
+    }
+
+    // Given "foo/bar/" returns "foo/"; given "foo/" or null returns null (root).
+    private static string? GetParentPath(string? prefix)
+    {
+        if (string.IsNullOrEmpty(prefix)) return null;
+        var trimmed = prefix.TrimEnd('/');
+        var lastSlash = trimmed.LastIndexOf('/');
+        return lastSlash < 0 ? null : trimmed[..(lastSlash + 1)];
     }
 
     private BlobServiceClient? GetClient(string account) =>

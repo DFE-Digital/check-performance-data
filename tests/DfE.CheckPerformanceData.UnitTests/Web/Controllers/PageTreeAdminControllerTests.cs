@@ -1537,6 +1537,88 @@ public sealed class PageTreeAdminControllerTests
         Assert.Equal(3, vm.Versions.Count);
     }
 
+    // ── POST /admin/pages/{id}/move-to (page-tree drag/drop) ─────────────────
+    // JSON body { newParentId: Guid?, newSortOrder: int } from the admin nav DnD JS.
+    // Each MoveNodeResult must translate to the exact HTTP status/shape the JS relies on
+    // to keep the tree in sync — a silent 400 with no `error` key would break the client's
+    // "cycle" vs "conflict" branching.
+
+    [Fact]
+    public async Task MoveTo_NullBody_ReturnsBadRequest_WithoutCallingService()
+    {
+        var result = await Sut().MoveTo(Guid.NewGuid(), request: null);
+
+        Assert.IsType<BadRequestResult>(result);
+        await _service.DidNotReceive().MoveNodeAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task MoveTo_ServiceReturnsOk_Returns200_AndForwardsRequestArgs()
+    {
+        var id = Guid.NewGuid();
+        var newParent = Guid.NewGuid();
+        _service.MoveNodeAsync(id, newParent, 3, Arg.Any<string?>()).Returns(MoveNodeResult.Ok);
+
+        var result = await Sut().MoveTo(
+            id,
+            new PageTreeAdminController.MoveNodeRequest { NewParentId = newParent, NewSortOrder = 3 });
+
+        Assert.IsType<OkResult>(result);
+        await _service.Received(1).MoveNodeAsync(id, newParent, 3, Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task MoveTo_ServiceReturnsNotFound_Returns404()
+    {
+        var id = Guid.NewGuid();
+        _service.MoveNodeAsync(id, null, 0, Arg.Any<string?>()).Returns(MoveNodeResult.NotFound);
+
+        var result = await Sut().MoveTo(
+            id,
+            new PageTreeAdminController.MoveNodeRequest { NewParentId = null, NewSortOrder = 0 });
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task MoveTo_ServiceReturnsCycle_Returns400_WithCycleErrorKey()
+    {
+        var id = Guid.NewGuid();
+        _service.MoveNodeAsync(id, Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<string?>())
+            .Returns(MoveNodeResult.Cycle);
+
+        var result = await Sut().MoveTo(
+            id,
+            new PageTreeAdminController.MoveNodeRequest { NewParentId = id, NewSortOrder = 0 });
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("cycle", System.Text.Json.JsonSerializer.Serialize(bad.Value));
+    }
+
+    [Fact]
+    public async Task MoveTo_ServiceReturnsPathConflict_Returns400_WithPathConflictErrorKey()
+    {
+        var id = Guid.NewGuid();
+        _service.MoveNodeAsync(id, Arg.Any<Guid?>(), Arg.Any<int>(), Arg.Any<string?>())
+            .Returns(MoveNodeResult.PathConflict);
+
+        var result = await Sut().MoveTo(
+            id,
+            new PageTreeAdminController.MoveNodeRequest { NewParentId = null, NewSortOrder = 0 });
+
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("path-conflict", System.Text.Json.JsonSerializer.Serialize(bad.Value));
+    }
+
+    [Fact]
+    public void MoveTo_HasValidateAntiForgeryTokenAndHttpPost()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.MoveTo))!;
+        Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+        Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
+    }
+
     // ── POST /admin/pages/{id}/content/move-to ───────────────────────────────
 
     [Fact]

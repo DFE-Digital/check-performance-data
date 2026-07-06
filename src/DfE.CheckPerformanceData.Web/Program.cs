@@ -54,6 +54,10 @@ try
     // and silently clobbered environment-specific overrides.
     var configuration = builder.Configuration;
 
+    // writeToProviders: true so ILogger events are forwarded to every ILoggerProvider registered
+    // through DI (Serilog does not become the exclusive sink). Required for the Postgres
+    // DatabaseLoggerProvider to receive events; without it Serilog handles everything itself
+    // and other providers silently receive nothing.
     builder.Host.UseSerilog((context, services, config) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
@@ -67,7 +71,7 @@ try
                     "[{@t:HH:mm:ss} {@l:u3}] {SourceContext}\n  {@m}\n{@x}",
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
-    });
+    }, writeToProviders: true);
     
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -154,6 +158,26 @@ try
     builder.Services.AddSingleton<INotificationDispatcher>(sp =>
         sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
     builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
+
+    // Postgres log sink. The provider is additive: Serilog / console keep working. Options
+    // bind from AppLogSink:{MinLevel,BatchSize,FlushInterval,…}; sensible defaults apply if
+    // the section is missing.
+    var logSinkOptions = new DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions();
+    builder.Configuration.GetSection(DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions.SectionName)
+        .Bind(logSinkOptions);
+    builder.Services.AddSingleton(logSinkOptions);
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.AppLogChannel>();
+    // Singleton because DatabaseLoggerProvider is a singleton. Under the hood it reads
+    // IHttpContextAccessor.HttpContext (backed by AsyncLocal) so per-request path / user
+    // / correlation resolve correctly. Background-service logs (no request in flight)
+    // simply get nulls.
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext,
+        DfE.CheckPerformanceData.Web.Logging.HttpLogRequestContext>();
+    // The provider is a singleton that resolves the shared channel + options from DI. Registering
+    // it as ILoggerProvider hooks it into the ambient logger factory alongside console/Serilog.
+    builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider,
+        DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Logging.DatabaseLogWriter>();
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();

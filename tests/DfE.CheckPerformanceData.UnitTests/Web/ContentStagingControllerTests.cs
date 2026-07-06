@@ -256,6 +256,18 @@ public sealed class ContentStagingControllerTests
         Assert.Equal("clash", _sut.TempData["ContentStagingError"]);
     }
 
+    // /import is POST-only in the actual flow, but bookmarks/pasted URLs shouldn't fall
+    // through to the catch-all PageController — which produces a 404 locally and a 500 on
+    // some review-app configurations. A GET should just bounce back to the landing page.
+    [Fact]
+    public void ImportLanding_GET_RedirectsToStagingHome()
+    {
+        var result = _sut.ImportLanding();
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+    }
+
     [Fact]
     public async Task Import_Confirm_WithWarnings_ExposesThemInTempData()
     {

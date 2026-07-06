@@ -103,6 +103,13 @@ public sealed class ContentStagingController(
         });
     }
 
+    // Pasted-URL landing: /import is a POST-only step in the flow, but users sometimes visit the
+    // URL directly from a bookmark or a link. Bounce them back to the landing page (which is
+    // where the upload form actually lives) instead of letting the request fall through to the
+    // catch-all PageController and 404/500 depending on environment.
+    [HttpGet("import")]
+    public IActionResult ImportLanding() => Redirect("/admin/content-staging");
+
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
     // overrides. The bundle round-trips through a hidden field so no server-side state is needed.
     [HttpPost("import")]

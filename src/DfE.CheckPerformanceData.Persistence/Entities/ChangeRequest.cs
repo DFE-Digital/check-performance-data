@@ -8,6 +8,11 @@ public class ChangeRequest
     public required Guid Id { get; init; }
     public required Guid WindowId { get; init; }
     public required long OrganisationUrn { get; init; }
+    // Stable pupil identity from the source JSON file (PupilRecord.Id). This — not PupilUpn — is
+    // the key used for duplicate-request detection and search exclusion, because a pupil may have
+    // no UPN and every UPN-less pupil would otherwise share the same blank UPN and collide.
+    // Nullable only so rows written before this column existed remain valid.
+    public Guid? PupilId { get; init; }
     public string? PupilUpn { get; init; }
     public string? PupilFirstname { get; init; }
     public string? PupilSurname { get; init; }

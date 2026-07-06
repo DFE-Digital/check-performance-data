@@ -115,15 +115,77 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         Assert.True(await ctx.ChangeRequests.AnyAsync(r => r.ReferenceNumber == "REF-DEL-2"));
     }
 
+    [Fact]
+    public async Task HasConflictingRequest_TrueForSamePupilId_InSameWindowAndOrg()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-1", pupilId: pupilId));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+
+        Assert.True(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_FalseForDifferentPupilId_EvenWhenUpnMatches()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        // Two different pupils that share a (blank) UPN. A request for one must not conflict the other.
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-2", pupilId: Guid.NewGuid(), pupilUpn: ""));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, Guid.NewGuid(), 100000, "REF-CONF-3");
+
+        Assert.False(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_FalseForSamePupilButSameReference()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-4", pupilId: pupilId));
+
+        // Re-submitting the same reference (the current draft) is not a conflict with itself.
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-4");
+
+        Assert.False(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_FalseWhenExistingRequestWithdrawn()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-5", RequestStatus.Withdrawn, pupilId: pupilId));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-6");
+
+        Assert.False(conflict);
+    }
+
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
-        long organisationUrn = 100000) =>
+        long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1") =>
         new()
         {
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = organisationUrn,
-            PupilUpn = "UPN1",
+            PupilId = pupilId,
+            PupilUpn = pupilUpn,
             PupilFirstname = "Jane",
             PupilSurname = "Smith",
             Timestamp = DateTime.UtcNow,

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using DfE.CheckPerformanceData.Application.Logging;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -13,10 +14,10 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // "Clear all logs" action guarded by a confirm modal.
 [Authorize(Roles = WikiConstants.AdminRole)]
 [Route("admin/system-administration/logs")]
-public sealed class AppLogsController(IAppLogRepository logs) : Controller
+public sealed class AppLogsController(
+    IAppLogRepository logs,
+    ISettingService settings) : Controller
 {
-    private const int PageSize = 50;
-
     [HttpGet("")]
     public async Task<IActionResult> Index(
         string? level, string? category, string? search,
@@ -24,8 +25,12 @@ public sealed class AppLogsController(IAppLogRepository logs) : Controller
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.AppLogs;
 
+        // Shared "rows per page" setting used by Help/Search, the deleted-pages list, and
+        // every other paged admin surface. Bounded to a sensible minimum so a misconfigured
+        // value can't produce a divide-by-zero on the paging math.
+        var pageSize = Math.Max(1, await settings.GetIntAsync(SettingKeys.WikiPageLength));
         var pageNumber = Math.Max(1, page);
-        var skip = (pageNumber - 1) * PageSize;
+        var skip = (pageNumber - 1) * pageSize;
 
         var query = new AppLogQuery(
             Level: NullIfEmpty(level),
@@ -34,7 +39,7 @@ public sealed class AppLogsController(IAppLogRepository logs) : Controller
             FromUtc: ParseDate(from),
             ToUtc: ParseDate(to)?.AddDays(1).AddTicks(-1),   // inclusive end-of-day
             Skip: skip,
-            Take: PageSize);
+            Take: pageSize);
 
         var result = await logs.SearchAsync(query, ct);
 

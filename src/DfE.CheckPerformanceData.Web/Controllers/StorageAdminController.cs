@@ -56,7 +56,7 @@ public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServi
 
         var folders = new List<string>();
         var blobs = new List<StorageBlobItemViewModel>();
-        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath))
+        await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", prefix: currentPath, states: BlobStates.All, traits: BlobTraits.None))
         {
             if (item.IsPrefix)
             {

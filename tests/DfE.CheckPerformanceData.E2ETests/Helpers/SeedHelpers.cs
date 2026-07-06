@@ -307,7 +307,10 @@ public static class SeedHelpers
         // GET /help + regex scrape of _WikiTree.cshtml — that page is no longer served on
         // this branch (HelpController.Index was retired; /help resolves through the CMS
         // catch-all now, which doesn't render the wiki tree markup the regex depended on).
-        var response = await client.GetAsync($"/help/slug-to-id/{slugPath}");
+        // Slug travels as a query string so nested slugs ("parent/child") don't need any
+        // escaping and the endpoint stays out of the catch-all-route accounting.
+        var response = await client.GetAsync(
+            $"/help/slug-to-id?slug={Uri.EscapeDataString(slugPath)}");
         if (response.IsSuccessStatusCode)
         {
             var body = (await response.Content.ReadAsStringAsync()).Trim();

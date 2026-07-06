@@ -205,10 +205,15 @@ public sealed class HelpController(
     // action was retired on this branch (see the constructor comment) so the tests need
     // another way to convert the slug returned by POST /help/create into the numeric id
     // required by delete/edit/versions.
+    //
+    // Slug travels as a query-string parameter, not a route segment, so this endpoint
+    // never counts as a catch-all — wiki slugs may contain '/' for nested pages, and a
+    // catch-all route would conflict with PageController.Show (see RoutePrecedenceTests).
     [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpGet("help/slug-to-id/{**slug}")]
-    public async Task<IActionResult> SlugToId(string slug)
+    [HttpGet("help/slug-to-id")]
+    public async Task<IActionResult> SlugToId([FromQuery] string slug)
     {
+        if (string.IsNullOrWhiteSpace(slug)) return NotFound();
         var page = await wikiService.GetPageBySlugPathAsync(slug);
         return page is null ? NotFound() : Content(page.Id.ToString(), "text/plain");
     }

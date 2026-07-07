@@ -5,9 +5,9 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 
 public class DefaultPageNodeSeederTests
 {
-    private static PageNodeDto StubDto(string segment, string pageType = "content") => new()
+    private static PageNodeDto StubDto(string segment, string pageType = "content", Guid? id = null) => new()
     {
-        Id       = Guid.NewGuid(),
+        Id       = id ?? Guid.NewGuid(),
         Segment  = segment,
         Path     = segment,
         Title    = segment,
@@ -30,8 +30,13 @@ public class DefaultPageNodeSeederTests
         svc.GetNodeByPathAsync(Arg.Is<string>(p => !existingNodes.Any(e => e.Path == p)))
            .Returns((PageNodeDto?)null);
 
-        svc.CreatePageAsync(default, default!, default!, default!, default)
-           .ReturnsForAnyArgs(StubDto("x"));
+        // Repository staging-create is now the seed path — pin a return so downstream
+        // seeder logic (working-content save, publish) has an id to work with.
+        repo.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(),
+                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+            .Returns(ci => StubDto((string)ci[2], "content", (Guid)ci[0]));
 
         // Retype-upgrade path: after SetPageType flips to content, seeder checks versions and only
         // adds a draft if none exist. Empty list = no existing draft.
@@ -41,17 +46,20 @@ public class DefaultPageNodeSeederTests
     }
 
     [Fact]
-    public async Task WhenNoneExist_CreatesAllFourRootsAsContent()
+    public async Task WhenNoneExist_CreatesAllFourRootsAsContent_WithHardcodedGuids()
     {
         var (svc, repo) = BuildDeps();
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
-        await svc.Received(4).CreatePageAsync(
-            Arg.Is<Guid?>(p => p == null),
-            Arg.Any<string>(),
-            Arg.Any<string>(),
-            "content",
-            "system");
+        // Each root seeds with its hardcoded Guid from DefaultPageNodeRoots.All, not a
+        // freshly-generated one — that's the whole point of the pinning.
+        foreach (var (id, segment, title) in DefaultPageNodeRoots.All)
+        {
+            await repo.Received(1).CreateNodeForStagingAsync(
+                id, null, segment, segment, title,
+                Arg.Any<string?>(), Arg.Any<string?>(),
+                "content", Arg.Any<int>(), "system");
+        }
     }
 
     [Theory]
@@ -64,12 +72,11 @@ public class DefaultPageNodeSeederTests
         var (svc, repo) = BuildDeps();
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
-        await svc.Received(1).CreatePageAsync(
-            null,
-            segment,
-            Arg.Any<string>(),
-            "content",
-            "system");
+        var expectedId = DefaultPageNodeRoots.All.Single(r => r.Segment == segment).Id;
+        await repo.Received(1).CreateNodeForStagingAsync(
+            expectedId, null, segment, segment, Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(),
+            "content", Arg.Any<int>(), "system");
     }
 
     [Fact]
@@ -84,7 +91,8 @@ public class DefaultPageNodeSeederTests
             ("help/not-found",  "content"));
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
-        await svc.DidNotReceiveWithAnyArgs().CreatePageAsync(default, default!, default!, default!, default);
+        await repo.DidNotReceiveWithAnyArgs().CreateNodeForStagingAsync(
+            default, default, default!, default!, default!, default, default, default!, default, default);
         await repo.DidNotReceiveWithAnyArgs().SetPageTypeAsync(default, default!, default);
     }
 
@@ -93,13 +101,27 @@ public class DefaultPageNodeSeederTests
     {
         var (svc, repo) = BuildDeps(
             ("help",     "content"),
-            ("guidance", "content"));
+            ("guidance", "content"),
+            ("help/not-found", "content"));
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
-        await svc.Received(1).CreatePageAsync(null, "support", Arg.Any<string>(), "content", "system");
-        await svc.Received(1).CreatePageAsync(null, "wiki",    Arg.Any<string>(), "content", "system");
-        await svc.DidNotReceive().CreatePageAsync(null, "help",     Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
-        await svc.DidNotReceive().CreatePageAsync(null, "guidance", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        var supportId  = DefaultPageNodeRoots.All.Single(r => r.Segment == "support").Id;
+        var wikiId     = DefaultPageNodeRoots.All.Single(r => r.Segment == "wiki").Id;
+        var helpId     = DefaultPageNodeRoots.All.Single(r => r.Segment == "help").Id;
+        var guidanceId = DefaultPageNodeRoots.All.Single(r => r.Segment == "guidance").Id;
+
+        await repo.Received(1).CreateNodeForStagingAsync(
+            supportId, null, "support", "support", Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), "system");
+        await repo.Received(1).CreateNodeForStagingAsync(
+            wikiId, null, "wiki", "wiki", Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), "system");
+        await repo.DidNotReceive().CreateNodeForStagingAsync(
+            helpId, Arg.Any<Guid?>(), "help", Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+        await repo.DidNotReceive().CreateNodeForStagingAsync(
+            guidanceId, Arg.Any<Guid?>(), "guidance", Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -115,7 +137,11 @@ public class DefaultPageNodeSeederTests
             Id = supportId, Segment = "support", Path = "support", Title = "Support", PageType = "folder"
         });
         svc.GetNodeByPathAsync(Arg.Is<string>(p => p != "support")).Returns((PageNodeDto?)null);
-        svc.CreatePageAsync(default, default!, default!, default!, default).ReturnsForAnyArgs(StubDto("x"));
+        repo.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(),
+                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+            .Returns(ci => StubDto((string)ci[2], "content", (Guid)ci[0]));
         repo.GetVersionsAsync(supportId).Returns([]);
 
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();

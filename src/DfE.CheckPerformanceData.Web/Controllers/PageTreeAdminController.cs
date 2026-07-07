@@ -358,6 +358,23 @@ public sealed class PageTreeAdminController(
         return Redirect($"/admin/pages/{id}/edit#properties");
     }
 
+    // ── Copy page ─────────────────────────────────────────────────────────────
+
+    // Clones a page as a sibling: fresh Guid, all versions preserved, segment/title suffixed
+    // with '-copy'. Redirects to the copy's edit page so the operator can immediately rename or
+    // continue authoring. GUID-preserving import matches on the source's stable identity, so
+    // making a copy is a safe fallback when someone realises a bundle import overwrote a page
+    // that shared a segment with something else.
+    [HttpPost("/admin/pages/{id:guid}/copy")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Copy(Guid id)
+    {
+        var copy = await pageNodeService.CopyPageAsync(id, User?.Identity?.Name);
+        if (copy is null) return NotFound();
+        TempData["RenameResult"] = "Copied. Change the segment and title to something meaningful before publishing.";
+        return Redirect($"/admin/pages/{copy.Id}/edit#properties");
+    }
+
     // ── Node delete ───────────────────────────────────────────────────────────
 
     [HttpGet("/admin/pages/{id:guid}/delete")]

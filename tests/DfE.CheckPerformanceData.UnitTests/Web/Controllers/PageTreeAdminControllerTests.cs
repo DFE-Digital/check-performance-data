@@ -34,6 +34,9 @@ public sealed class PageTreeAdminControllerTests
         {
             HttpContext = new DefaultHttpContext()
         };
+        controller.TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(
+            controller.ControllerContext.HttpContext,
+            Substitute.For<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>());
         return controller;
     }
 
@@ -1657,6 +1660,44 @@ public sealed class PageTreeAdminControllerTests
     public void ContentMoveTo_HasValidateAntiForgeryTokenAndHttpPost()
     {
         var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.ContentMoveTo))!;
+        Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
+        Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
+    }
+
+    // ── POST /admin/pages/{id}/copy ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Copy_KnownPage_CallsCopyPageAsync_RedirectsToNewPagesPropertiesTab()
+    {
+        var sourceId = Guid.NewGuid();
+        var newId = Guid.NewGuid();
+        _service.CopyPageAsync(sourceId, Arg.Any<string?>()).Returns(new PageNodeDto
+        {
+            Id = newId, Segment = "help-copy", Path = "help-copy", Title = "Help - Copy", PageType = "content"
+        });
+
+        var result = await Sut().Copy(sourceId);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal($"/admin/pages/{newId}/edit#properties", redirect.Url);
+        await _service.Received(1).CopyPageAsync(sourceId, Arg.Any<string?>());
+    }
+
+    [Fact]
+    public async Task Copy_UnknownPage_Returns404()
+    {
+        var sourceId = Guid.NewGuid();
+        _service.CopyPageAsync(sourceId, Arg.Any<string?>()).Returns((PageNodeDto?)null);
+
+        var result = await Sut().Copy(sourceId);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public void Copy_HasValidateAntiForgeryTokenAndHttpPost()
+    {
+        var method = typeof(PageTreeAdminController).GetMethod(nameof(PageTreeAdminController.Copy))!;
         Assert.NotNull(method.GetCustomAttribute<ValidateAntiForgeryTokenAttribute>());
         Assert.NotNull(method.GetCustomAttribute<HttpPostAttribute>());
     }

@@ -105,6 +105,15 @@ public interface IPageNodeService
     /// </summary>
     Task<RenameNodeResult> RenameNodeAsync(
         Guid id, string newSegment, string newTitle, string? newSubtitle, string? newPageName, string? userId);
+
+    /// <summary>
+    /// Clones a page as a sibling of the source with a fresh Guid, all versions copied verbatim
+    /// (content + publish windows + IsCurrent flag preserved), and a <c>-copy</c>-suffixed
+    /// segment and title so the two rows are distinguishable in the tree. If the target segment
+    /// is already taken (a prior copy exists) the suffix is bumped to <c>-copy-2</c>, <c>-copy-3</c>
+    /// and so on. Returns the new node, or <c>null</c> if the source doesn't exist.
+    /// </summary>
+    Task<PageNodeDto?> CopyPageAsync(Guid sourceId, string? userId);
 }
 
 /// <summary>Outcome of <see cref="IPageNodeService.RenameNodeAsync"/>.</summary>

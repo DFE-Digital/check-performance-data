@@ -21,32 +21,10 @@ public sealed class HelpController(
 
     private string EditSuffix => IsEditMode ? "?" + WikiConstants.EditQueryKey : "";
 
-    [AllowAnonymous]
-    public async Task<IActionResult> Index(string? slugPath)
-    {
-        var tree = await wikiService.GetNavigationTreeAsync();
-        WikiPageDto? page = null;
-
-        if (!string.IsNullOrEmpty(slugPath))
-        {
-            page = await wikiService.GetPageBySlugPathAsync(slugPath);
-            if (page == null) return NotFound();
-        }
-        else if (tree.Count > 0)
-        {
-            page = await wikiService.GetPageByIdAsync(tree[0].Id);
-        }
-
-        var vm = new HelpViewModel
-        {
-            NavigationTree = tree,
-            CurrentPage = page,
-            CurrentSlugPath = page?.SlugPath ?? string.Empty,
-            IsEditMode = IsEditMode
-        };
-
-        return View(vm);
-    }
+    // Wiki Index retired: /help and /help/{slugPath} resolve via PageController's catch-all
+    // against the PageNode tree. Wiki management endpoints (create/edit/delete/move/search/
+    // deleted/versions/restore/revert/seed) remain on this controller — they use explicit
+    // HttpGet/HttpPost attribute routes so they're unaffected by the missing Index action.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/create")]
@@ -175,57 +153,8 @@ public sealed class HelpController(
         return View(vm);
     }
 
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpGet("help/deleted")]
-    public async Task<IActionResult> Deleted(string? search, string? sort, string? dir, int page = 1)
-    {
-        var pageSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
-        var result = await wikiService.GetDeletedPagesAsync(new DeletedPagesQuery
-        {
-            Search = search,
-            Sort = sort,
-            Direction = dir,
-            Page = page,
-            PageSize = pageSize
-        });
-        var availableParents = await wikiService.GetAvailableParentsAsync();
-
-        var vm = new DeletedWikiPagesViewModel
-        {
-            DeletedPages = result.Items.ToList(),
-            AvailableParents = availableParents,
-            Results = result
-        };
-
-        return View(vm);
-    }
-
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpPost("help/restore/{id:int}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Restore(int id, int? newParentId)
-    {
-        var page = await wikiService.RestorePageAsync(id, newParentId);
-        return Redirect($"/help/{page.SlugPath}{EditSuffix}");
-    }
-
-    [Authorize(Roles = WikiConstants.EditorRole)]
-    [HttpPost("help/delete-permanently/{id:int}")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeletePermanently(int id)
-    {
-        try
-        {
-            await wikiService.HardDeletePageAsync(id);
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger.LogWarning(ex, "Hard-delete refused for page {PageId}", id);
-            TempData["HardDeleteError"] = ex.Message;
-        }
-
-        return Redirect("/help/deleted");
-    }
+    // Wiki-flavored Deleted / Restore / hard-delete routes have been retired: the CMS now
+    // uses /admin/pages/deleted via DeletedPagesController against the PageNode tree.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("help/versions/{id:int}")]
@@ -253,6 +182,11 @@ public sealed class HelpController(
         var page = await wikiService.RevertToVersionAsync(pageId, versionId);
         return Redirect($"/help/{page.SlugPath}{EditSuffix}");
     }
+
+    // Test-only endpoints (antiforgery-token, slug-to-id, wiki-e2e-cleanup) live on
+    // DevE2eSupportController under /dev/*, gated on Dev:ToolsEnabled + !IsProduction so
+    // they can never leak into a production environment. They used to sit here on
+    // HelpController but that put an obviously-test surface alongside real editor routes.
 
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("help/seed")]

@@ -1,0 +1,11 @@
+@using DfE.CheckPerformanceData.Application.Common
+@using DfE.CheckPerformanceData.Application.ContentPages
+@inject IHtmlRenderingService Renderer
+@model WidgetNode
+@*
+    Rich-text body. The stored HTML is sanitised through the shared renderer (Markdig + HTML
+    sanitiser) before it reaches the page — never emit the raw draft value.
+*@
+<div class="govuk-body">
+    @Html.Raw(Renderer.RenderHtml(Model.GetString("html") ?? string.Empty))
+</div>

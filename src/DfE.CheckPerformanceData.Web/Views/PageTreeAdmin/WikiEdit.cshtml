@@ -1,0 +1,116 @@
+@using DfE.CheckPerformanceData.Application.PageTree
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model PageTreeAdminWikiEditViewModel
+@{
+    ViewData["Title"] = "Edit — " + Model.NodeTitle;
+}
+
+<h1 class="govuk-heading-l">Edit: @Model.NodeTitle</h1>
+
+<p class="govuk-body">
+    <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
+</p>
+
+<form action="/admin/pages/@Model.NodeId/save" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="govuk-form-group">
+        <label class="govuk-label govuk-label--m" for="page-content">Page content</label>
+        <div class="govuk-hint">You can type directly, use Markdown, or paste formatted text from Word.</div>
+        <textarea class="govuk-textarea" id="page-content" name="content" rows="15">@Model.Content</textarea>
+    </div>
+
+    <div class="govuk-button-group">
+        <button type="submit" class="govuk-button" data-module="govuk-button">
+            Save page
+        </button>
+        <button type="submit" class="govuk-button govuk-button--secondary"
+                formaction="/admin/pages/@Model.NodeId/save-and-publish">
+            Publish
+        </button>
+        <a href="/admin/pages" class="govuk-link">Cancel</a>
+    </div>
+</form>
+
+<div class="govuk-!-margin-top-4">
+    @if (Model.IsPublished)
+    {
+        <p class="govuk-body govuk-!-margin-bottom-2">
+            @if (Model.IsPublished)
+            {
+                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionLabel</span>
+            }
+            @if (Model.DraftVersionLabel is not null)
+            {
+                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionLabel</span>
+            }
+        </p>
+        <div class="govuk-button-group">
+            <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
+            </form>
+            <a class="govuk-link" href="#version-history">Version history</a>
+        </div>
+    }
+    else
+    {
+        <a class="govuk-link" href="#version-history">Version history</a>
+        <p class="govuk-hint">Make this page live.</p>
+    }
+
+    @await Html.PartialAsync("_VersionHistoryList",
+        new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
+</div>
+
+<script src="~/lib/tinymce/tinymce.min.js"></script>
+<script>
+    (function () {
+        'use strict';
+        if (typeof tinymce === 'undefined') return;
+
+        tinymce.init({
+            selector: '#page-content',
+            height: 400,
+            menubar: true,
+            plugins: 'lists link table code wordcount searchreplace fullscreen image',
+            toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | code fullscreen',
+            // Images stay inline as data: URIs (see ContentPage/Edit.cshtml for the
+            // detailed comment); no upload endpoint, no blob storage.
+            automatic_uploads: false,
+            paste_data_images: true,
+            images_file_types: 'png,jpg,jpeg,gif,webp',
+            file_picker_types: 'image',
+            file_picker_callback: function (cb) {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+                input.onchange = function () {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function () { cb(reader.result, { title: file.name }); };
+                    reader.readAsDataURL(file);
+                };
+                input.click();
+            },
+            style_formats: [
+                { title: 'Heading 2', block: 'h2' },
+                { title: 'Heading 3', block: 'h3' },
+                { title: 'Heading 4', block: 'h4' },
+                { title: 'Paragraph', block: 'p' }
+            ],
+            paste_as_text: true,
+            paste_tab_spaces: 4,
+            content_css: 'default',
+            branding: false,
+            promotion: false,
+            license_key: 'gpl',
+            setup: function (editor) {
+                editor.on('change', function () {
+                    editor.save();
+                });
+            }
+        });
+    })();
+</script>

@@ -22,7 +22,7 @@
 }
 
 <p class="govuk-body">
-    Tick the wiki pages and content blocks to include, then export them as a single bundle.
+    Tick the pages and content blocks to include, then export them as a single bundle.
     Selecting a page automatically includes its parent pages so the structure stays intact.
 </p>
 
@@ -35,10 +35,10 @@
 <form method="post" action="/admin/content-staging/export">
     @Html.AntiForgeryToken()
 
-    <h2 class="govuk-heading-l">Wiki pages</h2>
+    <h2 class="govuk-heading-l">Pages</h2>
     @if (Model.Pages.Count == 0)
     {
-        <p class="govuk-body">No wiki pages.</p>
+        <p class="govuk-body">No pages.</p>
     }
     else
     {
@@ -62,7 +62,7 @@
                     <tr class="govuk-table__row" data-filter="@($"{p.Title} {p.SlugPath}".ToLowerInvariant())">
                         <td class="govuk-table__cell">
                             <div class="govuk-checkboxes__item govuk-checkboxes--small">
-                                <input class="govuk-checkboxes__input" type="checkbox" name="wikiPageIds" value="@p.Id" id="cs-page-@p.Id">
+                                <input class="govuk-checkboxes__input" type="checkbox" name="pageNodeIds" value="@p.Id" id="cs-page-@p.Id">
                                 <label class="govuk-label govuk-checkboxes__label" for="cs-page-@p.Id"><span class="govuk-visually-hidden">Select @p.Title</span></label>
                             </div>
                         </td>

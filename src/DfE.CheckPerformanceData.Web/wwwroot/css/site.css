@@ -374,6 +374,73 @@
   border-radius: 3px;
 }
 
+/* ---- In-page "Edit" shortcut for CMS editors --------------------------- */
+
+/* Small floating pencil pinned to the top-right of the viewport. Only rendered when
+   the user has the CMS editor or admin role, so guests never see it. */
+.cpb-inpage-edit {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #ffffff;
+  color: #1d70b8;
+  border: 1px solid #b1b4b6;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  text-decoration: none;
+  font-family: "GDS Transport", arial, sans-serif;
+  font-size: 14px;
+  line-height: 1;
+}
+.cpb-inpage-edit svg { display: block; }
+.cpb-inpage-edit:hover {
+  background: #f2f4f7;
+  color: #0b0c0c;
+  border-color: #0b0c0c;
+  text-decoration: none;
+}
+.cpb-inpage-edit:focus-visible {
+  outline: 3px solid #ffdd00;
+  outline-offset: 0;
+  background: #ffdd00;
+  color: #0b0c0c;
+}
+
+/* ---- Page tree drag & drop --------------------------------------------- */
+
+/* Ghost the source row while it's being dragged so the placeholder-driven layout
+   is what the eye follows. pointer-events on the source row are LEFT ALONE — some
+   browsers cancel the whole drag if the originating element becomes untouchable
+   partway through. */
+.cpb-tree-dragging {
+  opacity: 0.35;
+}
+
+/* Placeholder <li>: a real slot that pushes siblings out of the way. Filled bar
+   instead of an above/below line so it's unambiguous where the page will land. */
+.cpb-tree-placeholder {
+  list-style: none;
+  transition: min-height 120ms ease-out;
+}
+.cpb-tree-placeholder > .tv-row {
+  align-items: center;
+  padding: 2px 0;
+}
+.cpb-tree-placeholder__slot {
+  display: block;
+  flex: 1;
+  height: 26px;
+  min-width: 60px;
+  border-radius: 4px;
+  background: #d6ecdb;
+  border: 2px dashed #00703c;
+}
+
 /* ---- Delete button (edit mode) ------------------------------------------ */
 .tv-del-form {
   display: inline-flex;
@@ -1011,8 +1078,18 @@ dialog.govuk-modal-dialogue__box::backdrop {
 
 @media (max-width: 640px) {
   .admin-layout--wide { flex-direction: column; padding-left: 16px; padding-right: 16px; }
+  /* Below 640px, the layout stacks and the rail follows main — a collapse toggle would be
+     more nuisance than help, so hide it and force the rail visible regardless of the
+     collapsed class. Applies to both wide and default admin layouts. */
   .admin-nav-collapse { display: none; }
   .admin-layout--nav-collapsed .admin-rail { display: block; }
+}
+
+/* Collapse toggle is available on every admin page (not only the wide dashboards). Give
+   it a subtle background when the rail is collapsed on the default-width layout so the
+   tiny button doesn't feel like it's floating alone in whitespace. */
+.admin-layout:not(.admin-layout--wide) .admin-nav-collapse {
+  margin-left: -12px;
 }
 
 .admin-nav-tree {
@@ -1058,6 +1135,93 @@ dialog.govuk-modal-dialogue__box::backdrop {
   color: #0b0c0c;
   text-decoration: none;
   box-shadow: 0 2px 0 #0b0c0c;
+}
+
+/* ==========================================================================
+   Page tree grid — action icon buttons + inline search
+   ========================================================================== */
+
+/* Icon link/button for GET actions (Edit, Versions, Add child, View) */
+.app-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d70b8;
+  text-decoration: none;
+  padding: 3px;
+  border-radius: 2px;
+  margin-right: 2px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.app-action-icon:hover {
+  color: #003078;
+  background: #f3f2f1;
+}
+.app-action-icon:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 2px 0 #0b0c0c;
+  color: #0b0c0c;
+}
+.app-action-icon--delete {
+  color: #d4351c;
+}
+.app-action-icon--delete:hover {
+  color: #942514;
+  background: #fce5e1;
+}
+
+/* Wrapper form for POST icon actions (Move up / Move down) */
+.app-action-icon-form {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+}
+
+/* Button inside the form that renders like an icon link */
+.app-action-icon-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #1d70b8;
+  vertical-align: middle;
+  border-radius: 2px;
+  margin-right: 2px;
+  font: inherit;
+}
+.app-action-icon-btn:hover {
+  color: #003078;
+  background: #f3f2f1;
+}
+.app-action-icon-btn:focus-visible {
+  outline: 3px solid #ffdd00;
+  box-shadow: 0 2px 0 #0b0c0c;
+  color: #0b0c0c;
+}
+
+/* H1 stacked above the icon toolbar. */
+.app-page-header { margin-bottom: 20px; }
+.app-page-header__title { margin: 0 0 10px 0; }
+.app-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Inline search: input + Search button + Clear link on one row */
+.app-page-search-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.app-page-search-row .govuk-button {
+  margin-bottom: 0;
 }
 
 /* ==========================================================================
@@ -1443,11 +1607,59 @@ body.js-enabled .rules-condition__apply {
 .guidance-section .content-block--title h2,
 .guidance-section .content-block--title h3 { margin-bottom: 0; }
 
-/* Landing-page search box (input + button on one row). */
+/* Landing-page search box (input + button on one row). The input runs at the section's
+   natural two-thirds-ish width and the button sits with a real gap per the Figma design —
+   flex `gap` beats margin-left because margins can be overridden by later rules. */
 .cypmd-search { margin: 20px 0 30px; }
-.cypmd-search__row { display: flex; max-width: 51em; }
+.cypmd-search__row { display: flex; gap: 20px; max-width: 45em; }
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
-.cypmd-search__button { margin-bottom: 0; margin-left: 5px; flex: 0 0 auto; }
+.cypmd-search__button { flex: 0 0 auto; margin: 0; }
+
+/* Content-page breadcrumbs sit tight against the phase banner. main-wrapper padding-top is
+   pinned near-zero because the govuk-frontend default reserves 40px above the breadcrumb — no
+   amount of breadcrumb margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox
+   121+, Safari 15.4+) so only pages that carry the .cpb-breadcrumbs marker are affected. */
+main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
+.cpb-breadcrumbs {
+    margin: 0 !important;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+}
+/* Phase banner default margin-bottom is fat; tighten it right above the breadcrumb so the
+   two read as one continuous strip, matching the Figma design. */
+.govuk-phase-banner { margin-bottom: 0 !important; padding-bottom: 10px !important; }
+
+/* Design has a real gap between breadcrumb and subtitle — the caption sits well down the
+   page. govuk-caption-l ships with margin-top: 0 by default, so add it here. */
+.cpb-subtitle { margin-top: 30px; }
+
+/* Extra breathing room between the H1 lockup and the first body element. govuk-heading-xl's
+   own margin-bottom is 48px which reads tight on this template; the Figma design has more. */
+.cpb-page-h1 { margin-bottom: 60px !important; }
+
+/* Pages that author their own H1 as a widget (KS4 split pages: caption richtext + H1 heading
+   inside the right column of a top region) drop straight from the breadcrumb into the grid
+   row. Give that transition enough room to breathe — otherwise the side-nav crowds the
+   breadcrumb. Matches the space above the title in the Figma design. */
+.cpb-breadcrumbs + .govuk-grid-row { margin-top: 30px; }
+
+/* The caption widget is a richtext with a single govuk-caption-l inside. Its wrapping
+   .govuk-body's default 20px margin-bottom pushes the following H1 too far down. When the
+   only child is the caption, zero the wrapper's margin and hand a small gap to the caption
+   itself so "Guidance" sits tight above the H1 (matching the design's lock-up). */
+.govuk-body:has(> .govuk-caption-l:only-child) { margin-bottom: 0; }
+.govuk-body > .govuk-caption-l:only-child { margin-bottom: 5px; }
+
+/* Vertically align the caption text with the first item's text in the side nav.
+   moj-side-navigation ships with padding-top: 20px, and its links carry padding-top: 10px,
+   so the first link text sits 30px below the nav container's top. Pad the caption widget
+   the same amount when it's the first thing in the two-thirds column of a top region, so
+   both columns start their visible text on the same baseline. */
+.cpb-breadcrumbs + .govuk-grid-row
+  > .govuk-grid-column-two-thirds
+  > .govuk-body:first-child:has(> .govuk-caption-l:only-child) {
+    padding-top: 30px;
+}
 
 /* Landing-page data-check sections: visible rule directly under the heading. */
 .cypmd-landing-section { margin-bottom: 40px; }
@@ -1456,15 +1668,87 @@ body.js-enabled .rules-condition__apply {
 
 /* Equal-height cards: make each card row a flex row so every column — and the
    dfe-card inside it — stretches to the height of the tallest card in the row,
-   instead of each card sizing to its own (variable) amount of text. Scoped to the
-   landing card sections so the global govuk-grid-row is untouched elsewhere. */
-.cypmd-landing-section .govuk-grid-row {
+   instead of each card sizing to its own (variable) amount of text. Also applied
+   to any grid row whose direct grandchild is a dfe-card (via :has()) so
+   widget-editor-authored card rows in the rendered view line up too. The :has()
+   variant deliberately targets only the direct .row > .col > .dfe-card chain,
+   so the editor's deeper .cpb-node > .cpb-preview wrapping is not matched and
+   the toolbar chrome does not get stretched. */
+.cypmd-landing-section .govuk-grid-row,
+.govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) {
   display: flex;
   flex-wrap: wrap;
 }
-.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"] {
+.cypmd-landing-section .govuk-grid-row > [class*="govuk-grid-column"],
+.govuk-grid-row:has(> [class*="govuk-grid-column"] > .dfe-card) > [class*="govuk-grid-column"] {
   display: flex;
 }
-.cypmd-landing-section .dfe-card {
+.cypmd-landing-section .dfe-card,
+.govuk-grid-row > [class*="govuk-grid-column"] > .dfe-card {
   width: 100%;
+}
+
+/* ---- CMS Page Tree Context Menu ----------------------------------------- */
+.cms-context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #b1b4b6;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+  min-width: 180px;
+}
+.cms-context-menu[hidden] { display: none !important; }
+.cms-context-menu__item button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 16px;
+  cursor: pointer;
+  color: #0b0c0c;
+  white-space: nowrap;
+}
+.cms-context-menu__item svg {
+  flex: 0 0 18px;
+  color: #505a5f;
+}
+.cms-context-menu__item--danger svg { color: #d4351c; }
+.cms-context-menu__item button:hover,
+.cms-context-menu__item button:focus {
+  background-color: #f3f2f1;
+  outline: 3px solid #ffdd00;
+  outline-offset: 0;
+}
+.cms-context-menu__item--danger button {
+  color: #d4351c;
+}
+
+/* Rich-text widget images. Inserted via the TinyMCE image dialog as inline base64 data
+   URIs — the sanitiser strips inline `style` attributes, so image sizing has to come
+   from a class instead. Applied automatically to every <img> inside a rich-text widget
+   so authors don't need to remember to add the class themselves. */
+.govuk-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1em 0;
+  border: 1px solid #b1b4b6;
+}
+.govuk-body figure {
+  margin: 1.5em 0;
+}
+.govuk-body figure img {
+  margin: 0;
+}
+.govuk-body figcaption,
+.govuk-body figure em {
+  color: #505a5f;
+  font-size: 1rem;
 }

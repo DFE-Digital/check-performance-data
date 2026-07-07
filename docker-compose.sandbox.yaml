@@ -1,0 +1,84 @@
+name: cypd_sandbox
+
+# A second, fully isolated Compose stack alongside the main one. Same source, same
+# Dockerfile, separate containers, ports, volumes, and network — so an experiment
+# (bundle import, migration replay, log-sink test, etc.) can't touch the state on
+# the main stack. Bring it up with:
+#
+#   docker compose --project-name cypd_sandbox -f docker-compose.sandbox.yaml up -d
+#
+# and hit the web app on http://localhost:8091. Postgres is on host port 5434;
+# Azurite blob/queue on 10010/10011. Everything else (pgAdmin, rules engine,
+# E2E tests) is omitted — this stack is for interactive CMS import/export
+# testing, not the full local dev experience.
+
+services:
+  web:
+    container_name: cypd_sandbox_web
+    restart: unless-stopped
+    build:
+      context: ./src
+      dockerfile: DfE.CheckPerformanceData.Web/Dockerfile
+    image: cypd_sandbox_web:latest
+    ports:
+      - "8091:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT:-Development}
+      - Dev__ToolsEnabled=${DEV_TOOLS_ENABLED:-true}
+      - ASPNETCORE_URLS=http://+:8080
+      - Notify__UseFake=${NOTIFY_USEFAKE:-true}
+      # Points at the sandbox db + azurite services on the sandbox network,
+      # NOT the main stack's cypd_db / cypd_azurite. Kept literal so the
+      # sandbox can never accidentally speak to the main-stack DB.
+      - ConnectionStrings__Postgres=Host=db;Database=cypd_sandbox;Username=postgres;Password=postgres
+      - ConnectionStrings__AzureStorage=DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;QueueEndpoint=http://azurite:10001/devstoreaccount1;
+      - DfeSignIn__BaseUrl=${DFESIGNIN_BASEURL:-https://test-api.signin.education.gov.uk/}
+      - DfeSignIn__ClientId=${DFESIGNIN_CLIENTID}
+      - DfeSignIn__ApiClientSecret=${DFESIGNIN_APICLIENTSECRET}
+      - DfeSignIn__Audience=${DFESIGNIN_AUDIENCE:-signin.education.gov.uk}
+      - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
+      - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
+      - DfeSignIn__ServiceId=${DFESIGNIN_SERVICEID}
+    depends_on:
+      - db
+      - azurite
+    networks:
+      - sandbox
+
+  db:
+    container_name: cypd_sandbox_db
+    restart: unless-stopped
+    image: postgres:18.1-alpine
+    environment:
+      - POSTGRES_DB=cypd_sandbox
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - sandbox_postgres_data:/var/lib/postgresql/data
+    networks:
+      - sandbox
+
+  azurite:
+    container_name: cypd_sandbox_azurite
+    restart: unless-stopped
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    ports:
+      - "10010:10000"  # Blob
+      - "10011:10001"  # Queue
+    environment:
+      - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
+    volumes:
+      - sandbox_azurite_data:/data
+    command: azurite --blobHost 0.0.0.0 --queueHost 0.0.0.0 --location /data --debug /data/debug.log --skipApiVersionCheck
+    networks:
+      - sandbox
+
+volumes:
+  sandbox_postgres_data:
+  sandbox_azurite_data:
+
+networks:
+  sandbox:
+    driver: bridge

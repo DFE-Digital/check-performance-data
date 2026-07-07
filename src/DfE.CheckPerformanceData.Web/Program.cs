@@ -2,6 +2,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.DataProtection;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
@@ -20,6 +21,7 @@ using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Settings;
+using DfE.CheckPerformanceData.Web.PageTree;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
@@ -52,6 +54,10 @@ try
     // and silently clobbered environment-specific overrides.
     var configuration = builder.Configuration;
 
+    // writeToProviders: true so ILogger events are forwarded to every ILoggerProvider registered
+    // through DI (Serilog does not become the exclusive sink). Required for the Postgres
+    // DatabaseLoggerProvider to receive events; without it Serilog handles everything itself
+    // and other providers silently receive nothing.
     builder.Host.UseSerilog((context, services, config) =>
     {
         var isDevelopment = context.HostingEnvironment.IsDevelopment();
@@ -65,7 +71,7 @@ try
                     "[{@t:HH:mm:ss} {@l:u3}] {SourceContext}\n  {@m}\n{@x}",
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
-    });
+    }, writeToProviders: true);
     
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -153,6 +159,26 @@ try
         sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
     builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
 
+    // Postgres log sink. The provider is additive: Serilog / console keep working. Options
+    // bind from AppLogSink:{MinLevel,BatchSize,FlushInterval,…}; sensible defaults apply if
+    // the section is missing.
+    var logSinkOptions = new DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions();
+    builder.Configuration.GetSection(DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions.SectionName)
+        .Bind(logSinkOptions);
+    builder.Services.AddSingleton(logSinkOptions);
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.AppLogChannel>();
+    // Singleton because DatabaseLoggerProvider is a singleton. Under the hood it reads
+    // IHttpContextAccessor.HttpContext (backed by AsyncLocal) so per-request path / user
+    // / correlation resolve correctly. Background-service logs (no request in flight)
+    // simply get nulls.
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext,
+        DfE.CheckPerformanceData.Web.Logging.HttpLogRequestContext>();
+    // The provider is a singleton that resolves the shared channel + options from DI. Registering
+    // it as ILoggerProvider hooks it into the ambient logger factory alongside console/Serilog.
+    builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider,
+        DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Logging.DatabaseLogWriter>();
+
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
     builder.Services.AddScoped<JourneyViewModelBuilder>();
@@ -162,7 +188,11 @@ try
     builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
     builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Services.GuidanceContentCopyService>();
     builder.Services.AddSingleton<PayloadRedactor>();
+
+    builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();
+    builder.Services.AddScoped<PageNodePathValidator>();
 
     // ASP.NET Core Data Protection key ring. Production runs multiple web replicas, so the
     // key ring MUST be shared across pods: the OIDC 'state' and correlation cookie are
@@ -271,6 +301,14 @@ try
 
     await app.MigrateDatabaseAsync();
 
+    using (var scope = app.Services.CreateScope())
+    {
+        await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
+        await scope.ServiceProvider
+            .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
+            .SeedIfEmptyAsync();
+    }
+
     app.UseForwardedHeaders();
 
     app.UseSerilogRequestLogging(options =>
@@ -340,10 +378,11 @@ try
 
     app.MapStaticAssets().AllowAnonymous();
 
-    app.MapControllerRoute(
-        name: "wiki",
-        pattern: "help/{**slugPath}",
-        defaults: new { controller = "Help", action = "Index" });
+    // Wiki is retired: /help and its descendants now resolve via PageController's
+    // catch-all against the PageNode tree (e.g. help/not-found is the default 404 page).
+    // Wiki management endpoints on HelpController (help/create, help/search, help/deleted,
+    // help/versions/{id}, etc.) still work — they use explicit HttpGet/HttpPost attribute
+    // routes, so removing the catch-all map here doesn't affect them.
 
     app.MapControllerRoute(
             name: "default",

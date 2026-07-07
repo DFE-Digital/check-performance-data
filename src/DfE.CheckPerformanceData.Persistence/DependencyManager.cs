@@ -56,6 +56,9 @@ public static class DependencyManager
         services.AddScoped<ICountryRepository, CountryRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
+        services.AddScoped<Application.PageTree.IPageNodeRepository, Repositories.PageNodeRepository>();
+        services.AddScoped<Application.Admin.IAdminSectionAccessRepository, Repositories.AdminSectionAccessRepository>();
+        services.AddScoped<Application.Logging.IAppLogRepository, Repositories.AppLogRepository>();
         services.AddScoped<Application.Observability.IMetricsQueryService,
             Observability.MetricsQueryService>();
         services.AddScoped<Application.Observability.IMetricsSink,

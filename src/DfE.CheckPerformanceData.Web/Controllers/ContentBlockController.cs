@@ -1,21 +1,53 @@
 using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public sealed partial class ContentBlockController(IContentBlockService contentBlockService) : Controller
+public sealed partial class ContentBlockController(
+    IContentBlockService contentBlockService,
+    IPageNodeService pageNodeService) : Controller
 {
     // The content-blocks management page: every block in one place, edited inline one after
     // another. ?edit=<key> opens that block's editor (reusing the same save endpoint).
+    // ?page=<request-path> filters the list to just the blocks last seen on that page —
+    // used by the content-blocks tree in the left admin nav.
     [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("admin/content-blocks")]
-    public async Task<IActionResult> Index(string? edit)
+    public async Task<IActionResult> Index(string? edit = null, string? page = null)
     {
-        var blocks = await contentBlockService.GetAllAsync();
-        return View(new ContentBlocksAdminViewModel { Blocks = blocks, EditKey = edit });
+        var allBlocks = await contentBlockService.GetAllAsync();
+
+        var filterPath = NormaliseFilterPath(page);
+        IReadOnlyList<ContentBlockDto> blocks = allBlocks;
+        string? filterPageTitle = null;
+        if (filterPath is not null)
+        {
+            var requestPath = "/" + filterPath;
+            blocks = allBlocks
+                .Where(b => string.Equals(b.LastSeenPath, requestPath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            filterPageTitle = (await pageNodeService.GetNodeByPathAsync(filterPath))?.Title;
+        }
+
+        return View(new ContentBlocksAdminViewModel
+        {
+            Blocks = blocks,
+            EditKey = edit,
+            FilterPagePath = filterPath,
+            FilterPageTitle = filterPageTitle,
+            TotalBlockCount = allBlocks.Count,
+        });
+    }
+
+    private static string? NormaliseFilterPath(string? page)
+    {
+        if (string.IsNullOrWhiteSpace(page)) return null;
+        var trimmed = page.Trim().TrimStart('/');
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 
     [Authorize(Roles = WikiConstants.EditorRole)]

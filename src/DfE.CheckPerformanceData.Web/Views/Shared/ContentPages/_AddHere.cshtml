@@ -1,0 +1,38 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model AddHereModel
+@{
+    var pathValue = TreePath.Format(Model.InsertPath);
+}
+<details class="govuk-details cpb-add">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            @await Html.PartialAsync("PageTree/_ActionIcon", "add")
+            Add content here
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <form method="post" action="@Model.ActionBase/add" class="cpb-inline govuk-!-margin-right-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="path" value="@pathValue" />
+            <select class="govuk-select" name="regionLayout" aria-label="Region layout">
+                @foreach (var layout in Enum.GetValues<RegionLayout>())
+                {
+                    <option value="@layout">@layout</option>
+                }
+            </select>
+            <button class="govuk-button govuk-button--secondary cpb-btn" type="submit">Add region</button>
+        </form>
+        <form method="post" action="@Model.ActionBase/add" class="cpb-inline">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="path" value="@pathValue" />
+            <select class="govuk-select" name="widgetType" aria-label="Widget type">
+                @foreach (var w in WidgetRegistry.All.OrderBy(x => x.PaletteLabel, StringComparer.OrdinalIgnoreCase))
+                {
+                    <option value="@w.Type">@w.PaletteLabel</option>
+                }
+            </select>
+            <button class="govuk-button cpb-btn" type="submit">Add widget</button>
+        </form>
+    </div>
+</details>

@@ -11,21 +11,20 @@ public sealed class EditableContentViewComponent(IContentBlockService contentBlo
         string defaultHtml)
     {
         var isEditing = HttpContext.Request.Query["edit"].ToString() == key;
-        var block = await contentBlockService.GetByKeyAsync(key);
-
-        // Record which page this block currently sits on (path only, no query). Writes only when
-        // the path changed, so repeat views of an unchanged block don't touch the database.
         var path = HttpContext.Request.Path.ToString();
-        if (block is not null && block.LastSeenPath != path)
-            await contentBlockService.RecordLastSeenAsync(key, path);
+
+        // Auto-provision on first render: if no block exists for this key yet, create one with the
+        // template's default HTML so it shows up under the correct page in /admin/content-blocks.
+        // Subsequent renders update LastSeenPath if the page moved.
+        var block = await contentBlockService.EnsureAsync(key, "Content", defaultHtml, path);
 
         var model = new EditableContentViewModel
         {
             Key = key,
-            Value = block?.Value ?? defaultHtml,
-            ValueHtml = block?.ValueHtml ?? defaultHtml,
+            Value = block.Value,
+            ValueHtml = block.ValueHtml ?? defaultHtml,
             IsEditing = isEditing,
-            HasSavedContent = block != null,
+            HasSavedContent = true,
             ReturnUrl = $"{HttpContext.Request.Path}{HttpContext.Request.QueryString}"
         };
 

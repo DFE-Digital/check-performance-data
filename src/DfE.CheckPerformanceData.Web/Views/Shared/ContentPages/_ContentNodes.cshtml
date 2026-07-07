@@ -1,0 +1,27 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model IReadOnlyList<ContentNode>
+@*
+    Renders a content tree recursively: a region becomes a GDS grid row whose columns each recurse
+    into this same partial; a widget dispatches to its render partial. The closed RegionLayoutGrid
+    mapping is the only source of column classes, so a region can never emit arbitrary CSS.
+*@
+@foreach (var node in Model)
+{
+    if (node is RegionNode region)
+    {
+        var classes = RegionLayoutGrid.ColumnClasses(region.Layout);
+        <div class="govuk-grid-row">
+            @for (var i = 0; i < region.Columns.Count; i++)
+            {
+                var columnClass = i < classes.Count ? classes[i] : "govuk-grid-column-full";
+                <div class="@columnClass">
+                    @await Html.PartialAsync("ContentPages/_ContentNodes", region.Columns[i])
+                </div>
+            }
+        </div>
+    }
+    else if (node is WidgetNode widget)
+    {
+        @await Html.PartialAsync("ContentPages/_Widget", widget)
+    }
+}

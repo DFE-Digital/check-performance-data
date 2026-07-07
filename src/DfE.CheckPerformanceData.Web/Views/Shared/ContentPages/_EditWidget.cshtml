@@ -1,0 +1,170 @@
+@using System.Text.Json.Nodes
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@model EditWidgetModel
+@{
+    var w = Model.Widget;
+    var label = WidgetRegistry.Get(w.Type)?.PaletteLabel ?? w.Type;
+
+    string RowsText()
+    {
+        var rows = w.GetArray("rows");
+        if (rows is null) return string.Empty;
+        return string.Join("\n", rows.OfType<JsonObject>()
+            .Select(r => $"{(string?)r["key"]}|{(string?)r["value"]}"));
+    }
+}
+<div class="cpb-widget">
+    <span class="govuk-caption-m cpb-drag-handle" draggable="true" title="Drag to reorder">@label</span>
+    <div class="cpb-preview">
+        @await Html.PartialAsync("ContentPages/_Widget", w)
+    </div>
+
+    @if (w.Type != "divider")
+    {
+        <details class="govuk-details">
+            <summary class="govuk-details__summary" title="Edit @label.ToLowerInvariant()">
+                <span class="govuk-details__summary-text">
+                    @await Html.PartialAsync("PageTree/_ActionIcon", "edit")
+                    Edit @label.ToLowerInvariant()
+                </span>
+            </summary>
+            <div class="govuk-details__text">
+                <form method="post" action="@Model.ActionBase/widget">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="path" value="@Model.Path" />
+                    <input type="hidden" name="type" value="@w.Type" />
+
+                    @switch (w.Type)
+                    {
+                        case "heading":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="lvl-@Model.Path">Level</label>
+                                <select class="govuk-select" id="lvl-@Model.Path" name="props[level]">
+                                    @foreach (var lvl in new[] { 1, 2, 3, 4, 5, 6 })
+                                    {
+                                        <option value="@lvl" selected="@(w.GetInt("level") == lvl ? "selected" : null)">Heading @lvl</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="txt-@Model.Path">Text</label>
+                                <input class="govuk-input" id="txt-@Model.Path" name="props[text]" value="@w.GetString("text")" />
+                            </div>
+                            break;
+
+                        case "richtext":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="html-@Model.Path">Content</label>
+                                <textarea class="govuk-textarea cpb-richtext" id="html-@Model.Path" name="props[html]" rows="8">@w.GetString("html")</textarea>
+                            </div>
+                            break;
+
+                        case "card":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="ct-@Model.Path">Title</label>
+                                <input class="govuk-input" id="ct-@Model.Path" name="props[title]" value="@w.GetString("title")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="cb-@Model.Path">Body</label>
+                                <input class="govuk-input" id="cb-@Model.Path" name="props[body]" value="@w.GetString("body")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="ch-@Model.Path">Link (optional)</label>
+                                <input class="govuk-input" id="ch-@Model.Path" name="props[href]" value="@w.GetString("href")" />
+                            </div>
+                            break;
+
+                        case "summarylist":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="rows-@Model.Path">Rows</label>
+                                <div class="govuk-hint">One per line, as <code>Label|Value</code>.</div>
+                                <textarea class="govuk-textarea" id="rows-@Model.Path" name="props[rows]" rows="5">@RowsText()</textarea>
+                            </div>
+                            break;
+
+                        case "published":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="pt-@Model.Path">Message</label>
+                                <input class="govuk-input" id="pt-@Model.Path" name="props[text]" value="@w.GetString("text")" />
+                            </div>
+                            break;
+
+                        case "pagenav":
+                            {
+                                var pnMode = w.GetString("mode") ?? "headings";
+                                var pnShowSearch = w.GetBool("showSearch") ?? false;
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label" for="pn-@Model.Path">Show</label>
+                                    <select class="govuk-select cpb-pagenav__mode" id="pn-@Model.Path" name="props[mode]"
+                                            data-cpb-pagenav-mode>
+                                        <option value="headings" selected="@(pnMode == "headings" ? "selected" : null)">Page headings</option>
+                                        <option value="children" selected="@(pnMode == "children" ? "selected" : null)">Child pages</option>
+                                    </select>
+                                </div>
+                                @* Children-only fields — shown when mode=children. The script at the bottom
+                                   of Edit.cshtml toggles visibility live as the select changes. *@
+                                <div class="cpb-pagenav__children-fields" data-cpb-pagenav-children @(pnMode == "children" ? null : Html.Raw("hidden"))>
+                                    <div class="govuk-form-group">
+                                        <label class="govuk-label" for="pnpp-@Model.Path">Parent path for children</label>
+                                        <div class="govuk-hint">
+                                            Path whose direct children are listed (e.g. <code>help</code>).
+                                            Leave blank to list children of the current page.
+                                        </div>
+                                        <input class="govuk-input" id="pnpp-@Model.Path" name="props[childrenParentPath]" value="@w.GetString("childrenParentPath")" />
+                                    </div>
+                                    <div class="govuk-form-group">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" id="pnss-@Model.Path" name="props[showSearch]"
+                                                   type="checkbox" value="true" data-cpb-pagenav-showsearch
+                                                   @(pnShowSearch ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="pnss-@Model.Path">
+                                                Show a search box above the list
+                                            </label>
+                                        </div>
+                                    </div>
+                                    @* Search-only fields — shown when Show search is ticked. *@
+                                    <div class="cpb-pagenav__search-fields" data-cpb-pagenav-searchfields @(pnShowSearch ? null : Html.Raw("hidden"))>
+                                        <div class="govuk-form-group">
+                                            <label class="govuk-label" for="pnsl-@Model.Path">Search label</label>
+                                            <input class="govuk-input" id="pnsl-@Model.Path" name="props[searchLabel]" value="@w.GetString("searchLabel")" />
+                                        </div>
+                                        <div class="govuk-form-group">
+                                            <label class="govuk-label" for="pnsp-@Model.Path">Search scope path</label>
+                                            <div class="govuk-hint">
+                                                Restrict search to descendants of this path (e.g. <code>help</code>).
+                                                Leave blank to search all documents.
+                                            </div>
+                                            <input class="govuk-input" id="pnsp-@Model.Path" name="props[searchPath]" value="@w.GetString("searchPath")" />
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            break;
+
+                        case "search":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sl-@Model.Path">Label</label>
+                                <input class="govuk-input" id="sl-@Model.Path" name="props[label]" value="@w.GetString("label")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sa-@Model.Path">Form action URL</label>
+                                <input class="govuk-input" id="sa-@Model.Path" name="props[action]" value="@w.GetString("action")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sp-@Model.Path">Placeholder (optional)</label>
+                                <input class="govuk-input" id="sp-@Model.Path" name="props[placeholder]" value="@w.GetString("placeholder")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="sb-@Model.Path">Button text</label>
+                                <input class="govuk-input" id="sb-@Model.Path" name="props[buttonText]" value="@w.GetString("buttonText")" />
+                            </div>
+                            break;
+                    }
+
+                    <button class="govuk-button cpb-btn" type="submit">Save</button>
+                </form>
+            </div>
+        </details>
+    }
+</div>

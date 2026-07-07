@@ -32,11 +32,14 @@
     //  Expand / Collapse
     // ====================================================================
 
-    // Auto-collapse branches that don't contain the active page
+    // Auto-collapse branches that don't contain the active page.
+    // Keep open when the item's OWN row is the active page (selected folder with children),
+    // or when an active descendant lives anywhere within it (ancestor expansion).
     root.querySelectorAll('.tv-children').forEach(function (ul) {
         var parentItem = ul.closest('.tv-item');
         if (!parentItem) return;
-        var hasActive = parentItem.querySelector('.tv-link-active');
+        var hasActive = parentItem.querySelector(':scope > .tv-row .tv-link-active')
+            || parentItem.querySelector('.tv-link-active');
         if (!hasActive) {
             ul.classList.add('tv-collapsed');
             var toggle = parentItem.querySelector(':scope > .tv-row .tv-toggle');

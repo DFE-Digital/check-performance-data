@@ -21,7 +21,7 @@ public static class AntiforgeryHelpers
 
         var cookieContainer = new CookieContainer();
 
-        // /help?edit only renders the antiforgery-token-bearing form for editor-role users,
+        // /dev/antiforgery-token only issues the token+cookie pair for editor-role users,
         // so seed the dev impersonation cookie (set fixture-wide by AuthHelpers) into the
         // container before the GET. Adding a Cookie: header manually doesn't work when
         // UseCookies=true — the handler strips it and substitutes its own container.

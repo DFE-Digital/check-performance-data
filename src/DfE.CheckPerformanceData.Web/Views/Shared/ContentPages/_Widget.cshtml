@@ -1,0 +1,22 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    // type → render partial. An unknown type renders nothing (a forward-compatible page never breaks
+    // on a widget this build doesn't know).
+    var partial = Model.Type switch
+    {
+        "heading" => "ContentPages/Widgets/_Heading",
+        "richtext" => "ContentPages/Widgets/_RichText",
+        "divider" => "ContentPages/Widgets/_Divider",
+        "card" => "ContentPages/Widgets/_Card",
+        "summarylist" => "ContentPages/Widgets/_SummaryList",
+        "published" => "ContentPages/Widgets/_Published",
+        "search" => "ContentPages/Widgets/_Search",
+        "pagenav" => "ContentPages/Widgets/_PageNav",
+        _ => null
+    };
+}
+@if (partial is not null)
+{
+    @await Html.PartialAsync(partial, Model)
+}

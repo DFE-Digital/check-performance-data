@@ -17,11 +17,12 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(20, entries.Count);
+		Assert.Equal(23, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
+		Assert.Contains("Pages", titles);
 		Assert.Contains("Content blocks", titles);
 		Assert.DoesNotContain("Visual regression dashboard", titles);
 		Assert.Contains("Rules Engine", titles);
@@ -44,6 +45,7 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Replay", titles);
 		Assert.Contains("Amendment requests", titles);
 		Assert.Contains("Uncommitted requests", titles);
+		Assert.Contains("View logs", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---
@@ -69,10 +71,11 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		Assert.Equal(new[] { 10, 20, 30, 40 }, cmsOrders);
-		// System administration now has two direct children: the Rules Engine sub-group (10)
-		// and System settings (20). The pipeline tiles nest one level deeper under Rules Engine.
-		Assert.Equal(new[] { 10, 20 }, systemOrders);
+		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
+		// System administration has four direct children: the Rules Engine sub-group (10),
+		// System settings (20), Application logs (25), Role settings (30). The pipeline tiles
+		// nest one level deeper under Rules Engine.
+		Assert.Equal(new[] { 10, 20, 25, 30 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")
@@ -89,10 +92,10 @@ public sealed class AdminNavRegistryTests
 		Assert.Equal(new[] { 10, 20, 30 }, queueOrders);
 	}
 
-	// --- DeletedPages_Tile_Has_Help_Deleted_Url ---
+	// --- DeletedPages_Tile_Links_To_Admin_Route ---
 
 	[Fact]
-	public void DeletedPages_Tile_Has_Help_Deleted_Url()
+	public void DeletedPages_Tile_Links_To_Admin_Route()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -101,7 +104,7 @@ public sealed class AdminNavRegistryTests
 		var entry = provider.GetServices<IAdminNavEntry>()
 			.Single(e => e.Key == "deleted-pages");
 
-		Assert.Equal("/help/deleted", entry.Url);
+		Assert.Equal("/admin/pages/deleted", entry.Url);
 		Assert.True(entry.Enabled);
 	}
 

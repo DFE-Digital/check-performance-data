@@ -215,6 +215,96 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("WikiPageVersions");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.AdminSectionAccess", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SectionKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleName", "SectionKey")
+                        .IsUnique();
+
+                    b.ToTable("AdminSectionAccesses");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.AppLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Exception")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestPath")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("StateJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("Level");
+
+                    b.HasIndex("Timestamp")
+                        .IsDescending();
+
+                    b.ToTable("AppLogs");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -594,6 +684,133 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.ToTable("dev_zendesk_outbox", (string)null);
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PageName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PageType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Segment")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("ShowInMenu")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Subtitle")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("Path")
+                        .IsUnique()
+                        .HasFilter("\"DeletedDate\" IS NULL");
+
+                    b.ToTable("PageNodes");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BodyPlainText")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MinorVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("PageNodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PublishFrom")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PublishTo")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VersionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PageNodeId", "IsCurrent");
+
+                    b.HasIndex("PageNodeId", "VersionId")
+                        .IsUnique();
+
+                    b.ToTable("PageNodeVersions");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.QueueMessageEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -834,6 +1051,26 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("ContentBlock");
                 });
 
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNode", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_PageNode_PageNode_ParentId");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNodeVersion", b =>
+                {
+                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.PageNode", "PageNode")
+                        .WithMany("Versions")
+                        .HasForeignKey("PageNodeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PageNode");
+                });
+
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.WikiPage", "Parent")
@@ -846,6 +1083,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>
+                {
+                    b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>
                 {
                     b.Navigation("Versions");
                 });

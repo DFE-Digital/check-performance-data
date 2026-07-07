@@ -1,0 +1,198 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AppLogsViewModel
+@{
+    ViewData["Title"] = "View logs";
+    var flash = TempData["AppLogsResult"] as string;
+}
+
+<a href="/admin" class="govuk-back-link">Back to administration</a>
+
+<h1 class="govuk-heading-xl">View logs</h1>
+
+@if (!string.IsNullOrEmpty(flash))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="app-logs-flash-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="app-logs-flash-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@flash</p>
+        </div>
+    </div>
+}
+
+<p class="govuk-body">
+    ILogger events written to Postgres by the app's background sink. Use the filters below to
+    narrow the list, then <a href="#" class="govuk-link" onclick="document.getElementById('app-logs-download').click();return false;">download the current filter as CSV</a>
+    or <a class="govuk-link" data-confirm-trigger="app-logs-clear-modal" href="#">clear the entire table</a>.
+</p>
+
+<form method="get" action="/admin/system-administration/logs" class="govuk-form-group">
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-quarter">
+            <label class="govuk-label" for="level">Level</label>
+            <select class="govuk-select" id="level" name="level">
+                <option value="">Any</option>
+                @foreach (var lvl in Model.Levels)
+                {
+                    <option value="@lvl" selected="@(Model.Level == lvl)">@lvl</option>
+                }
+            </select>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <label class="govuk-label" for="category">Category</label>
+            <select class="govuk-select" id="category" name="category">
+                <option value="">Any</option>
+                @foreach (var cat in Model.Categories)
+                {
+                    <option value="@cat" selected="@(Model.Category == cat)">@cat</option>
+                }
+            </select>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <label class="govuk-label" for="from">From (UTC)</label>
+            <input class="govuk-input" id="from" name="from" type="date" value="@Model.From" />
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <label class="govuk-label" for="to">To (UTC)</label>
+            <input class="govuk-input" id="to" name="to" type="date" value="@Model.To" />
+        </div>
+    </div>
+    <div class="govuk-form-group govuk-!-margin-top-4">
+        <label class="govuk-label" for="search">Search (message + exception, case-insensitive)</label>
+        <input class="govuk-input" id="search" name="search" type="search"
+               value="@Model.Search" placeholder="e.g. content-staging, InvalidOperationException" />
+    </div>
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
+        <a class="govuk-link" href="/admin/system-administration/logs">Reset</a>
+    </div>
+</form>
+
+<a id="app-logs-download" class="govuk-button govuk-button--secondary" data-module="govuk-button"
+   href="/admin/system-administration/logs/download?@(Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value?.TrimStart('?') : "")">
+    Download CSV
+</a>
+<button type="button" class="govuk-button govuk-button--warning" data-module="govuk-button"
+        data-confirm-trigger="app-logs-clear-modal">
+    Clear all logs
+</button>
+
+<p class="govuk-body">
+    Showing @Model.Rows.Count of @Model.Total rows (page @Model.Page of @Model.TotalPages).
+</p>
+
+@if (Model.Rows.Count == 0)
+{
+    <p class="govuk-body">No log rows match these filters.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th class="govuk-table__header" scope="col">Timestamp</th>
+                <th class="govuk-table__header" scope="col">Level</th>
+                <th class="govuk-table__header" scope="col">Category</th>
+                <th class="govuk-table__header" scope="col">Message</th>
+                <th class="govuk-table__header" scope="col">Request</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+        @foreach (var row in Model.Rows)
+        {
+            <tr class="govuk-table__row">
+                <td class="govuk-table__cell govuk-!-font-size-14">@row.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff") UTC</td>
+                <td class="govuk-table__cell">
+                    <strong class="govuk-tag @(row.Level switch {
+                        "Error" or "Critical" => "govuk-tag--red",
+                        "Warning" => "govuk-tag--yellow",
+                        "Debug" or "Trace" => "govuk-tag--grey",
+                        _ => "govuk-tag--blue"
+                    })">@row.Level</strong>
+                </td>
+                <td class="govuk-table__cell govuk-!-font-size-14">@row.Category</td>
+                <td class="govuk-table__cell">
+                    <div>@row.Message</div>
+                    @if (!string.IsNullOrEmpty(row.Exception))
+                    {
+                        <details class="govuk-details govuk-!-margin-top-1">
+                            <summary class="govuk-details__summary">
+                                <span class="govuk-details__summary-text">Exception</span>
+                            </summary>
+                            <div class="govuk-details__text">
+                                <pre style="white-space: pre-wrap; font-size: 12px;">@row.Exception</pre>
+                            </div>
+                        </details>
+                    }
+                </td>
+                <td class="govuk-table__cell govuk-!-font-size-14">
+                    @if (!string.IsNullOrEmpty(row.RequestPath))
+                    {
+                        <div>@row.RequestPath</div>
+                    }
+                    @if (!string.IsNullOrEmpty(row.UserId))
+                    {
+                        <div class="govuk-hint govuk-!-font-size-14">@row.UserId</div>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    @* Numbered pagination matching Help/Search and CheckYourPupilData. Shows first, last,
+       current, and one either side of current; ellipses fill the gaps. All filter query
+       params are carried through so paging preserves the current view. *@
+    @if (Model.TotalPages > 1)
+    {
+        object PageLink(int p) => new
+        {
+            level = Model.Level,
+            category = Model.Category,
+            search = Model.Search,
+            from = Model.From,
+            to = Model.To,
+            page = p
+        };
+
+        <govuk-pagination>
+            @if (Model.Page > 1)
+            {
+                <govuk-pagination-previous href="@Url.Action("Index", "AppLogs", PageLink(Model.Page - 1))">Previous</govuk-pagination-previous>
+            }
+
+            @for (var p = 1; p <= Model.TotalPages; p++)
+            {
+                var showPage = p == 1
+                               || p == Model.TotalPages
+                               || (p >= Model.Page - 1 && p <= Model.Page + 1);
+                if (showPage)
+                {
+                    <govuk-pagination-item href="@Url.Action("Index", "AppLogs", PageLink(p))"
+                                           current="@(p == Model.Page)">@p</govuk-pagination-item>
+                }
+                else if ((p == 2 && Model.Page - 1 > 2) || (p == Model.TotalPages - 1 && Model.Page + 1 < Model.TotalPages - 1))
+                {
+                    <govuk-pagination-ellipsis></govuk-pagination-ellipsis>
+                }
+            }
+
+            @if (Model.Page < Model.TotalPages)
+            {
+                <govuk-pagination-next href="@Url.Action("Index", "AppLogs", PageLink(Model.Page + 1))">Next</govuk-pagination-next>
+            }
+        </govuk-pagination>
+    }
+}
+
+<govuk-confirm-modal id="app-logs-clear-modal"
+                     title="Clear all application logs?"
+                     warning-text="This deletes every row from the AppLogs table. It cannot be undone."
+                     body="After clearing, new log events continue to be written as they occur."
+                     confirm-label="Yes, clear all logs"
+                     destructive="true"
+                     form-action="/admin/system-administration/logs/clear"
+                     form-method="post">
+    @Html.AntiForgeryToken()
+</govuk-confirm-modal>

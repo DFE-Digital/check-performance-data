@@ -13,37 +13,92 @@ namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 // group/sub-group headings) are never matched as the active leaf.
 public static class AdminNavActive
 {
+    // Overload used by _AdminLayout: request path and query string separately, so entries that
+    // carry a query (e.g. /admin/content-blocks?page=/foo in the content-blocks tree) light up
+    // only for the exact matching query and beat their path-only parent on tiebreak.
     public static string? ResolveActiveKey(string? requestPath, IEnumerable<IAdminNavEntry> entries)
+        => ResolveActiveKey(requestPath, requestQuery: null, entries);
+
+    public static string? ResolveActiveKey(string? requestPath, string? requestQuery, IEnumerable<IAdminNavEntry> entries)
     {
         var path = Normalise(requestPath);
         if (path.Length == 0)
             return null;
 
+        var reqQueryPairs = ParseQuery(requestQuery);
+
         string? bestKey = null;
         var bestLength = -1;
+        var bestHasQuery = false;
 
         foreach (var entry in entries)
         {
-            var url = Normalise(entry.Url);
+            var (urlPath, urlQuery) = SplitUrl(entry.Url);
             // Skip containers / placeholders (empty or "#"): they are not navigable pages.
-            if (url.Length == 0 || url == "#")
+            if (urlPath.Length == 0 || urlPath == "#")
                 continue;
 
-            // Match the path exactly, or as a descendant of this entry's URL. Comparing against
-            // url + "/" prevents /admin/queues from spuriously matching /admin/queues-other.
-            var isMatch = string.Equals(path, url, StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith(url + "/", StringComparison.OrdinalIgnoreCase);
-            if (!isMatch)
+            // Path must match exactly or the request must sit beneath the entry.
+            var pathMatches = string.Equals(path, urlPath, StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(urlPath + "/", StringComparison.OrdinalIgnoreCase);
+            if (!pathMatches)
                 continue;
 
-            if (url.Length > bestLength)
+            // If the entry carries a query, the request must include every entry query pair with
+            // the matching value. Otherwise the entry's ambition is too specific and it should not
+            // light up.
+            var entryHasQuery = urlQuery.Length > 0;
+            if (entryHasQuery && !QueryContainsAll(reqQueryPairs, urlQuery))
+                continue;
+
+            // Entries with a query beat entries without on tiebreak (they're more specific).
+            // Otherwise the longest matching URL path wins.
+            var better = (entryHasQuery && !bestHasQuery)
+                || (entryHasQuery == bestHasQuery && urlPath.Length > bestLength);
+            if (better)
             {
-                bestLength = url.Length;
+                bestLength = urlPath.Length;
+                bestHasQuery = entryHasQuery;
                 bestKey = entry.Key;
             }
         }
 
         return bestKey;
+    }
+
+    private static (string Path, string Query) SplitUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return (string.Empty, string.Empty);
+        var i = url.IndexOf('?');
+        if (i < 0) return (Normalise(url), string.Empty);
+        return (Normalise(url[..i]), url[(i + 1)..]);
+    }
+
+    private static Dictionary<string, string> ParseQuery(string? query)
+    {
+        var pairs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(query)) return pairs;
+        var q = query.StartsWith('?') ? query[1..] : query;
+        foreach (var kv in q.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = kv.IndexOf('=');
+            var key = Uri.UnescapeDataString(eq < 0 ? kv : kv[..eq]);
+            var value = eq < 0 ? string.Empty : Uri.UnescapeDataString(kv[(eq + 1)..]);
+            pairs[key] = value;
+        }
+        return pairs;
+    }
+
+    private static bool QueryContainsAll(Dictionary<string, string> request, string entryQuery)
+    {
+        var entryPairs = ParseQuery(entryQuery);
+        foreach (var (key, value) in entryPairs)
+        {
+            if (!request.TryGetValue(key, out var actual) ||
+                !string.Equals(actual, value, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+        return true;
     }
 
     // Lower-cases nothing (the comparison is ordinal-ignore-case), but strips a query string and a

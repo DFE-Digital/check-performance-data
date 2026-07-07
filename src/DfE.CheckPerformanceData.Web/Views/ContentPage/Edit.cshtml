@@ -1,0 +1,434 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Web.Models.Guidance
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model ContentPageEditViewModel
+@{
+    ViewData["Title"] = $"Edit: {Model.Title}";
+    var renameResult = TempData["RenameResult"] as string;
+    var renameUrl = $"/admin/pages/{Model.NodeId}/rename";
+}
+
+<style>
+    .cpb-node { border: 1px solid #b1b4b6; border-left: 4px solid #1d70b8; padding: 10px 12px; margin-bottom: 10px; background: #fff; }
+    .cpb-region { background: #fff4e6; padding: 10px 12px; border: 1px solid #b1b4b6; }
+    .cpb-region > .govuk-grid-row { border-top: 1px dashed #d4a373; margin-top: 6px; padding-top: 6px; }
+    .cpb-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+    .cpb-toolbar__delete { margin-left: auto; }
+    .cpb-inline { display: inline; }
+    .cpb-btn { margin-bottom: 0; }
+    .cpb-preview { background: #f3f2f1; padding: 8px 12px; }
+    .cpb-add { margin-top: 4px; }
+    /* Drag handle: pill with a 6-dot grip icon so authors can see exactly where to grab. */
+    .cpb-drag-handle {
+        cursor: move;
+        cursor: grab;
+        user-select: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 10px 3px 6px;
+        background: #f3f2f1;
+        border: 1px solid #b1b4b6;
+        border-radius: 3px;
+        line-height: 1.4;
+    }
+    .cpb-drag-handle::before {
+        content: "";
+        display: inline-block;
+        width: 8px;
+        height: 14px;
+        background-image:
+            radial-gradient(#505a5f 1.2px, transparent 1.4px),
+            radial-gradient(#505a5f 1.2px, transparent 1.4px);
+        background-size: 4px 4px, 4px 4px;
+        background-position: 0 0, 4px 0;
+        background-repeat: repeat-y;
+    }
+    .cpb-drag-handle:hover  { background: #e8e6e3; }
+    .cpb-drag-handle:active { cursor: grabbing; background: #d8d6d3; }
+    .cpb-dragging { opacity: 0.5; }
+    /* Drop indicator: a thick, high-contrast insertion strip along the edge where the widget
+       will land. 8px tall with a soft blue halo so it reads clearly from a scanning cursor.
+       Column-append drop (no side) gets a dashed frame + light-blue wash. */
+    .cpb-drop-target {
+        position: relative;
+        transition: margin .12s ease;
+    }
+    .cpb-drop-target::before,
+    .cpb-drop-target::after {
+        content: "";
+        position: absolute;
+        left: -8px;
+        right: -8px;
+        height: 8px;
+        border-radius: 4px;
+        background: #1d70b8;
+        box-shadow: 0 0 0 2px rgba(29, 112, 184, 0.35);
+        pointer-events: none;
+        opacity: 0;
+    }
+    .cpb-drop-target::before { top: -14px; }
+    .cpb-drop-target::after  { bottom: -14px; }
+    .cpb-drop-target--above::before { opacity: 1; }
+    .cpb-drop-target--above          { margin-top: 22px; }
+    .cpb-drop-target--below::after  { opacity: 1; }
+    .cpb-drop-target--below          { margin-bottom: 22px; }
+    /* Column-append (no above/below side) — dashed frame for the column area. */
+    [data-column-path].cpb-drop-target:not(.cpb-drop-target--above):not(.cpb-drop-target--below) {
+        outline: 3px dashed #1d70b8;
+        outline-offset: 3px;
+        background: rgba(29, 112, 184, 0.06);
+    }
+</style>
+
+<div class="govuk-grid-row" data-cpb-node-id="@Model.NodeId">
+    <div class="govuk-grid-column-full">
+        <span class="govuk-caption-l">Content page editor</span>
+        <h1 class="govuk-heading-l">@Model.Title</h1>
+
+        <p class="govuk-body">
+            <a class="govuk-link" href="/@Model.PagePath" target="_blank" rel="noopener">View page (opens in new tab)</a>
+        </p>
+
+        <p class="govuk-body">
+            @if (Model.IsPublished)
+            {
+                <span class="govuk-tag govuk-tag--green">Published — version @Model.PublishedVersionLabel</span>
+            }
+            @if (Model.DraftVersionLabel is not null)
+            {
+                <span class="govuk-tag govuk-tag--grey">Draft — version @Model.DraftVersionLabel</span>
+            }
+        </p>
+
+        @* Tabs: Content (default), Properties, Versions. govuk-frontend's tabs module
+           auto-activates the panel matching the URL hash on load, so redirects that end
+           in #properties or #versions land the user on the right tab. *@
+        <div class="govuk-tabs" data-module="govuk-tabs">
+            <h2 class="govuk-tabs__title">Contents</h2>
+            <ul class="govuk-tabs__list">
+                <li class="govuk-tabs__list-item govuk-tabs__list-item--selected">
+                    <a class="govuk-tabs__tab" href="#content">Content</a>
+                </li>
+                <li class="govuk-tabs__list-item">
+                    <a class="govuk-tabs__tab" href="#properties">Properties</a>
+                </li>
+                <li class="govuk-tabs__list-item">
+                    <a class="govuk-tabs__tab" href="#versions">Versions</a>
+                </li>
+            </ul>
+
+            @* ── Content tab ─────────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel" id="content">
+                @await Html.PartialAsync("ContentPages/_EditColumn",
+                    new EditColumnModel(Model.ActionBase, Model.Content, Array.Empty<TreeStep>(), 0))
+
+                @if (Model.NodeId != Guid.Empty)
+                {
+                    <div class="govuk-!-margin-top-6">
+                        <div class="govuk-button-group">
+                            <form method="post" action="/admin/pages/@Model.NodeId/content/save-draft">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button govuk-button--secondary">Save</button>
+                            </form>
+                            <form method="post" action="/admin/pages/@Model.NodeId/publish-draft">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="govuk-button">Publish draft</button>
+                            </form>
+                            @if (Model.IsPublished)
+                            {
+                                <form method="post" action="/admin/pages/@Model.NodeId/unpublish">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="govuk-button govuk-button--warning">Unpublish</button>
+                                </form>
+                            }
+                        </div>
+                        @if (!Model.IsPublished)
+                        {
+                            <p class="govuk-hint">Publish draft to make this page live.</p>
+                        }
+                    </div>
+                }
+
+                @if (Model.ShowInlinePublish)
+                {
+                    <form method="post" action="@Model.ActionBase/publish" class="govuk-!-margin-top-6">
+                        @Html.AntiForgeryToken()
+                        <button class="govuk-button govuk-button--start" type="submit">Save and publish</button>
+                    </form>
+                }
+            </div>
+
+            @* ── Properties tab ────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="properties">
+                @if (!string.IsNullOrEmpty(renameResult))
+                {
+                    <div class="govuk-notification-banner" role="alert" aria-labelledby="rename-banner-title">
+                        <div class="govuk-notification-banner__header">
+                            <h2 class="govuk-notification-banner__title" id="rename-banner-title">Page details</h2>
+                        </div>
+                        <div class="govuk-notification-banner__content">
+                            <p class="govuk-notification-banner__heading">@renameResult</p>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.NodeId != Guid.Empty)
+                {
+                    <form id="cpb-rename-form" method="post" action="@renameUrl"
+                          data-original-segment="@Model.Segment">
+                        @Html.AntiForgeryToken()
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-title">Title</label>
+                            <input class="govuk-input" id="cpb-title" name="title" value="@Model.Title" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-subtitle">Subtitle</label>
+                            <div id="cpb-subtitle-hint" class="govuk-hint">
+                                Optional lede displayed above the page heading. Leave blank to hide it.
+                            </div>
+                            <input class="govuk-input" id="cpb-subtitle" name="subtitle" value="@Model.Subtitle"
+                                   aria-describedby="cpb-subtitle-hint" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-pagename">Page name</label>
+                            <div id="cpb-pagename-hint" class="govuk-hint">
+                                Short label used in the admin navigation. Defaults to the title if left blank.
+                            </div>
+                            <input class="govuk-input" id="cpb-pagename" name="pageName" value="@Model.PageName"
+                                   aria-describedby="cpb-pagename-hint" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-segment">URL segment</label>
+                            <div id="cpb-segment-hint" class="govuk-hint">
+                                Lowercase letters, digits and hyphens. Changing this changes the page URL and every child page URL.
+                            </div>
+                            <input class="govuk-input govuk-input--width-30" id="cpb-segment" name="segment"
+                                   value="@Model.Segment" aria-describedby="cpb-segment-hint" />
+                        </div>
+                        <div class="govuk-form-group">
+                            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                <div class="govuk-checkboxes__item">
+                                    @* Checkbox first, hidden second — same pattern ASP.NET Core's
+                                       asp-for tag helper uses for booleans. When ticked, the form
+                                       posts showInMenu=true&showInMenu=false and the model binder
+                                       takes the first parseable value (true). When unticked, only
+                                       the hidden false is posted. Reversing this order silently
+                                       clobbers the flag to false every time you save. *@
+                                    <input class="govuk-checkboxes__input" id="cpb-showinmenu" type="checkbox"
+                                           name="showInMenu" value="true" aria-describedby="cpb-showinmenu-hint"
+                                           @(Model.ShowInMenu ? "checked" : null) />
+                                    <input type="hidden" name="showInMenu" value="false" />
+                                    <label class="govuk-label govuk-checkboxes__label" for="cpb-showinmenu">Show in menu</label>
+                                    <div id="cpb-showinmenu-hint" class="govuk-hint govuk-checkboxes__hint">
+                                        Uncheck to hide this page from the public side navigation.
+                                        Unpublished pages are always hidden from menus.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="govuk-button-group">
+                            <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">
+                                Save details
+                            </button>
+                        </div>
+                    </form>
+
+                    @* Modal's own form POSTs directly to /rename. Hidden mirrors of the outer
+                       form's Title / Subtitle / Page name / Segment inputs are populated by JS
+                       just before the modal opens. *@
+                    <govuk-confirm-modal id="cpb-rename-confirm"
+                                         title="Change page URL?"
+                                         warning-text="Changing the URL segment will change this page's URL and every child page's URL."
+                                         body="Existing bookmarks and links to this page will stop working."
+                                         confirm-label="Yes, change URL"
+                                         destructive="true"
+                                         form-action="@renameUrl"
+                                         form-method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="title" id="cpb-rename-modal-title" value="" />
+                        <input type="hidden" name="subtitle" id="cpb-rename-modal-subtitle" value="" />
+                        <input type="hidden" name="pageName" id="cpb-rename-modal-pagename" value="" />
+                        <input type="hidden" name="segment" id="cpb-rename-modal-segment" value="" />
+                    </govuk-confirm-modal>
+                }
+            </div>
+
+            @* ── Versions tab ──────────────────────────────────────────────────── *@
+            <div class="govuk-tabs__panel govuk-tabs__panel--hidden" id="versions">
+                @if (Model.NodeId != Guid.Empty)
+                {
+                    @await Html.PartialAsync("~/Views/PageTreeAdmin/_VersionHistoryList.cshtml",
+                        new PageTreeAdminVersionHistoryModel { NodeId = Model.NodeId, Versions = Model.Versions })
+                }
+                else
+                {
+                    <p class="govuk-body">This page has no version history yet.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Rich-text widgets use the same TinyMCE editor as content blocks. They live inside collapsed
+   <details>, and TinyMCE renders incorrectly when initialised on a hidden element, so each editor
+   is initialised lazily the first time its disclosure opens. @editor.save() syncs HTML back to the
+   textarea on every change so a normal form post submits the edited content. *@
+<script src="~/lib/tinymce/tinymce.min.js"></script>
+<script>
+    (function () {
+        'use strict';
+        if (typeof tinymce === 'undefined') return;
+
+        var started = new WeakSet();
+
+        function initEditor(textarea) {
+            if (started.has(textarea)) return;
+            started.add(textarea);
+
+            tinymce.init({
+                target: textarea,
+                height: 360,
+                menubar: true,
+                plugins: 'lists link table code wordcount searchreplace fullscreen image',
+                toolbar: 'undo redo | styles | bold italic underline strikethrough | alignleft aligncenter alignright | bullist numlist outdent indent | link image table | warningtext | code fullscreen',
+                // Images are embedded inline as data: URIs so they travel with the
+                // content-staging export/import bundle. No blob storage needed; the
+                // sanitiser allows data: URIs on <img src="..."> via the app-side
+                // HtmlSanitizer allow-list.
+                automatic_uploads: false,
+                paste_data_images: true,
+                images_file_types: 'png,jpg,jpeg,gif,webp',
+                file_picker_types: 'image',
+                file_picker_callback: function (cb) {
+                    var input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+                    input.onchange = function () {
+                        var file = input.files && input.files[0];
+                        if (!file) return;
+                        var reader = new FileReader();
+                        reader.onload = function () { cb(reader.result, { title: file.name }); };
+                        reader.readAsDataURL(file);
+                    };
+                    input.click();
+                },
+                style_formats: [
+                    { title: 'Heading 2 (section)', block: 'h2', classes: 'govuk-heading-l' },
+                    { title: 'Heading 3 (sub-section)', block: 'h3', classes: 'govuk-heading-m' },
+                    { title: 'Heading 4 (minor)', block: 'h4', classes: 'govuk-heading-s' },
+                    { title: 'Paragraph', block: 'p', classes: 'govuk-body' },
+                    { title: 'Lead paragraph', block: 'p', classes: 'govuk-body-l' },
+                    { title: 'Bulleted list', selector: 'ul', classes: 'govuk-list govuk-list--bullet' },
+                    { title: 'Numbered list', selector: 'ol', classes: 'govuk-list govuk-list--number' },
+                    { title: 'Link', inline: 'a', classes: 'govuk-link' },
+                    { title: 'Inset text (grey)', block: 'div', classes: 'govuk-inset-text', wrapper: true },
+                    { title: 'Published / review callout (blue)', block: 'div', classes: 'cypmd-published', wrapper: true },
+                    { title: 'Information callout (blue)', block: 'div', classes: 'cypmd-notice', wrapper: true }
+                ],
+                style_formats_merge: false,
+                paste_as_text: false,
+                paste_merge_formats: true,
+                paste_tab_spaces: 4,
+                content_css: ['/css/dfefrontend-2.0.0.min.css', '/css/site.css'],
+                branding: false,
+                promotion: false,
+                license_key: 'gpl',
+                setup: function (editor) {
+                    editor.ui.registry.addButton('warningtext', {
+                        text: 'Warning',
+                        tooltip: 'Insert GDS warning text',
+                        onAction: function () {
+                            var selected = editor.selection.getContent({ format: 'text' });
+                            var body = selected && selected.trim() ? selected : 'Warning text';
+                            editor.insertContent(
+                                '<div class="govuk-warning-text">' +
+                                '<span class="govuk-warning-text__icon" aria-hidden="true">!</span>' +
+                                '<strong class="govuk-warning-text__text">' +
+                                '<span class="govuk-visually-hidden">Warning</span> ' +
+                                body +
+                                '</strong></div>');
+                        }
+                    });
+                    editor.on('change', function () { editor.save(); });
+                }
+            });
+        }
+
+        document.querySelectorAll('details').forEach(function (details) {
+            var textarea = details.querySelector('textarea.cpb-richtext');
+            if (!textarea) return;
+            details.addEventListener('toggle', function () {
+                if (details.open) initEditor(textarea);
+            });
+        });
+
+        document.addEventListener('submit', function () { tinymce.triggerSave(); }, true);
+    })();
+</script>
+<script src="~/js/content-editor-dnd.js"></script>
+
+@* Live toggling for the PageNav widget editor: only show the children-only fields when
+   mode=children, and only show the search-scope fields when Show search is ticked. *@
+<script>
+    (function () {
+        'use strict';
+        document.querySelectorAll('[data-cpb-pagenav-mode]').forEach(function (select) {
+            var wrapper = select.closest('.govuk-details__text');
+            if (!wrapper) return;
+            var childrenPanel = wrapper.querySelector('[data-cpb-pagenav-children]');
+            var searchCheckbox = wrapper.querySelector('[data-cpb-pagenav-showsearch]');
+            var searchPanel = wrapper.querySelector('[data-cpb-pagenav-searchfields]');
+            if (!childrenPanel) return;
+
+            function refresh() {
+                var isChildren = select.value === 'children';
+                childrenPanel.hidden = !isChildren;
+                if (searchPanel) searchPanel.hidden = !isChildren || !(searchCheckbox && searchCheckbox.checked);
+            }
+            select.addEventListener('change', refresh);
+            if (searchCheckbox) searchCheckbox.addEventListener('change', refresh);
+            refresh();
+        });
+    })();
+</script>
+
+@* URL-change confirmation. When the segment field differs from the value the page loaded
+   with, the outer form's submit is cancelled, the current title / subtitle / page name / segment
+   are copied into the modal's hidden inputs, and the govuk-confirm-modal is opened. Title-only
+   edits skip the modal and submit as normal. *@
+<script>
+    (function () {
+        'use strict';
+        var form = document.getElementById('cpb-rename-form');
+        var dialog = document.getElementById('cpb-rename-confirm');
+        if (!form || !dialog) return;
+
+        var segmentInput  = form.querySelector('input[name="segment"]');
+        var titleInput    = form.querySelector('input[name="title"]');
+        var subtitleInput = form.querySelector('input[name="subtitle"]');
+        var pageNameInput = form.querySelector('input[name="pageName"]');
+        var modalTitleHidden    = document.getElementById('cpb-rename-modal-title');
+        var modalSubtitleHidden = document.getElementById('cpb-rename-modal-subtitle');
+        var modalPageNameHidden = document.getElementById('cpb-rename-modal-pagename');
+        var modalSegmentHidden  = document.getElementById('cpb-rename-modal-segment');
+        var originalSegment = form.getAttribute('data-original-segment') || '';
+
+        form.addEventListener('submit', function (e) {
+            var current = (segmentInput && segmentInput.value ? segmentInput.value : '').trim();
+            if (current === originalSegment) return;
+
+            e.preventDefault();
+            if (modalTitleHidden)    modalTitleHidden.value    = titleInput    ? titleInput.value    : '';
+            if (modalSubtitleHidden) modalSubtitleHidden.value = subtitleInput ? subtitleInput.value : '';
+            if (modalPageNameHidden) modalPageNameHidden.value = pageNameInput ? pageNameInput.value : '';
+            if (modalSegmentHidden)  modalSegmentHidden.value  = current;
+
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            } else {
+                dialog.setAttribute('open', 'open');
+            }
+        });
+    })();
+</script>

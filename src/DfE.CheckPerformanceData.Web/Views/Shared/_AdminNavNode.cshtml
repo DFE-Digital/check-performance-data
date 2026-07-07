@@ -1,4 +1,6 @@
+@using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@using Microsoft.AspNetCore.Html
 @model AdminNavNodePartialModel
 @{
     var node = Model.Node;
@@ -7,9 +9,31 @@
     var hasChildren = node.Children.Count > 0;
     var isActive = entry.Key == activeKey;
     var enabled = entry.Enabled && !string.IsNullOrEmpty(entry.Url);
-    // Expand a branch when nothing is active yet (first paint) or when it contains the
-    // active page. site.js re-collapses inactive branches once it binds.
-    var expandedInitial = activeKey == null || Model.SubtreeContainsActive;
+    // Expand a branch when nothing is active yet (first paint), when it contains the active
+    // page, or when the node ITSELF is the active page (so a selected folder shows its children).
+    // site.js re-collapses inactive branches once it binds, but respects the same rule.
+    var expandedInitial = activeKey == null || Model.SubtreeContainsActive || isActive;
+    // Page-type icon: present on page-tree nodes (PageTreeNavEntry) and on the
+    // synthetic content-block-tree nodes that mirror them (ContentBlockPageNavEntry).
+    var pte = entry as PageTreeNavEntry;
+    var cbe = entry as ContentBlockPageNavEntry;
+    var pageIconType = pte?.PageType ?? cbe?.PageType;
+    // Context-menu data attributes: page-tree leaf/branch nodes carry page-node attrs;
+    // the ContentPages root carries data-page-root.
+    var isPageRoot = entry.Key == AdminNavKeys.ContentPages;
+    IHtmlContent pageContextAttrs;
+    if (pte is not null)
+    {
+        pageContextAttrs = Html.Raw($" data-page-node data-page-id=\"{pte.PageId}\" data-page-path=\"{Html.Encode(pte.PagePath)}\" data-page-type=\"{Html.Encode(pte.PageType)}\" data-page-has-live=\"{(pte.HasLiveVersion ? "true" : "false")}\"");
+    }
+    else if (isPageRoot)
+    {
+        pageContextAttrs = Html.Raw(" data-page-root");
+    }
+    else
+    {
+        pageContextAttrs = HtmlString.Empty;
+    }
 }
 
 <li class="tv-item @(Model.IsLast ? "tv-item-last" : "")">
@@ -28,25 +52,34 @@
         @if (hasChildren && enabled)
         {
             @* Branch node that is also navigable (e.g. Queues, Pipeline dashboard): a bold link. *@
-            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
+            <a href="@entry.Url" class="tv-link tv-link-parent @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")@pageContextAttrs>
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </a>
         }
         else if (hasChildren)
         {
             @* Pure container (e.g. Rules Engine sub-group): a bold non-link label. *@
-            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")">@entry.Title</span>
+            <span class="tv-link tv-link-parent @(Model.SubtreeContainsActive ? "tv-link-active" : "")"@pageContextAttrs>
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </span>
         }
-        else if (enabled)
+        else if (enabled && entry.HttpMethod == "POST")
         {
-            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")>@entry.Title</a>
-        }
-        else if (entry.Enabled && entry.HttpMethod == "POST")
-        {
-            @* POST action with no GET Url (e.g. Seed sample pages): a clickable antiforgery
-               form-button styled as a tree link, posting to the wiki seed endpoint. *@
-            <form asp-controller="Help" asp-action="Seed" method="post" class="tv-link-form">
+            @* POST action (e.g. Seed sample pages): a clickable antiforgery form-button styled
+               as a tree link, posting to the endpoint declared on the nav entry. *@
+            <form action="@entry.Url" method="post" class="tv-link-form">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="tv-link tv-link-button" data-prevent-double-click="true">@entry.Title</button>
             </form>
+        }
+        else if (enabled)
+        {
+            <a href="@entry.Url" class="tv-link @(isActive ? "tv-link-active" : "")" @(isActive ? "aria-current=page" : "")@pageContextAttrs>
+                @if (pageIconType != null) { @await Html.PartialAsync("PageTree/_PageTypeIcon", pageIconType) }
+                @entry.Title
+            </a>
         }
         else
         {

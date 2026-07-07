@@ -1,0 +1,64 @@
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model PageNodeDeleteViewModel
+@{
+    ViewData["Title"] = "Delete page";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+
+        @if (!string.IsNullOrEmpty(Model.Error))
+        {
+            <div class="govuk-error-summary" data-module="govuk-error-summary">
+                <div role="alert">
+                    <h2 class="govuk-error-summary__title">There is a problem</h2>
+                    <div class="govuk-error-summary__body">
+                        <ul class="govuk-list govuk-error-summary__list">
+                            <li>@Model.Error</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <h1 class="govuk-heading-l">Delete page</h1>
+
+        <p class="govuk-body">
+            You are about to delete <strong>@Model.Title</strong>.
+        </p>
+
+        @if (Model.HasChildren)
+        {
+            <div class="govuk-warning-text">
+                <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    This page has child pages. Remove or move the child pages before deleting this page.
+                </strong>
+            </div>
+
+            <p class="govuk-body">
+                <a class="govuk-link" href="/admin/pages">Return to pages</a>
+            </p>
+        }
+        else
+        {
+            <div class="govuk-warning-text">
+                <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    This action cannot be undone.
+                </strong>
+            </div>
+
+            <form method="post" action="/admin/pages/@Model.Id/delete">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-right-2" data-module="govuk-button">
+                    Delete page
+                </button>
+                <a class="govuk-link" href="/admin/pages">Cancel</a>
+            </form>
+        }
+
+    </div>
+</div>

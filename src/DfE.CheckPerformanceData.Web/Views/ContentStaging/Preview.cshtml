@@ -10,6 +10,12 @@
         .Concat(blocks.Where(b => !b.Exists).Select(b => ("Block", b))).ToList();
     var collisions = pages.Where(p => p.Exists).Select(p => ("Page", p))
         .Concat(blocks.Where(b => b.Exists).Select(b => ("Block", b))).ToList();
+
+    // Decision inputs are indexed contiguously across both tables so ASP.NET Core's
+    // model binder builds a single Decisions list. The controller doesn't care whether
+    // an entry came from the new-items table or the collisions table — the service
+    // resolves each Id against the target environment on its own.
+    var decisionIndex = 0;
 }
 
 <a href="/admin/content-staging" class="govuk-back-link">Back to content staging</a>
@@ -17,8 +23,8 @@
 <h1 class="govuk-heading-xl">Review import</h1>
 
 <p class="govuk-body">
-    <strong>@Model.Preview.NewCount</strong> item@(Model.Preview.NewCount == 1 ? "" : "s") will be added.
-    <strong>@Model.Preview.CollisionCount</strong> already exist@(Model.Preview.CollisionCount == 1 ? "s" : "") in this environment.
+    <strong>@Model.Preview.NewCount</strong> new item@(Model.Preview.NewCount == 1 ? "" : "s"),
+    <strong>@Model.Preview.CollisionCount</strong> already in this environment.
     @if (blocked.Count > 0)
     {
         <text><strong>@blocked.Count</strong> cannot be imported.</text>
@@ -50,30 +56,61 @@
        confirm step needs no re-upload or server-side state. *@
     <textarea name="BundleJson" hidden aria-hidden="true" tabindex="-1">@Model.BundleJson</textarea>
 
+    <h2 class="govuk-heading-l">Options</h2>
+
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Default for new items</legend>
+            <div id="new-hint" class="govuk-hint">
+                Applies to any new item below left on &ldquo;Use default&rdquo;.
+                Choose &ldquo;Skip&rdquo; if you only want to pick a subset of new items.
+            </div>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="gn-include" name="GlobalNewMode" type="radio" value="Replace" checked>
+                    <label class="govuk-label govuk-radios__label" for="gn-include">Include</label>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="gn-skip" name="GlobalNewMode" type="radio" value="Skip">
+                    <label class="govuk-label govuk-radios__label" for="gn-skip">Skip</label>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset" @(collisions.Count == 0 ? "disabled" : "")>
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Default for items already in this environment</legend>
+            <div id="global-hint" class="govuk-hint">
+                @if (collisions.Count == 0)
+                {
+                    <text>No colliding items in this bundle. This default has no effect.</text>
+                }
+                else
+                {
+                    <text>Applies to any collision below left on &ldquo;Use default&rdquo;.</text>
+                }
+            </div>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="g-skip" name="GlobalMode" type="radio" value="Skip" checked>
+                    <label class="govuk-label govuk-radios__label" for="g-skip">Skip</label>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="g-replace" name="GlobalMode" type="radio" value="Replace">
+                    <label class="govuk-label govuk-radios__label" for="g-replace">Overwrite</label>
+                </div>
+                <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" id="g-fail" name="GlobalMode" type="radio" value="Fail">
+                    <label class="govuk-label govuk-radios__label" for="g-fail">Fail</label>
+                </div>
+            </div>
+        </fieldset>
+    </div>
+
     @if (collisions.Count > 0)
     {
-        <div class="govuk-form-group">
-            <fieldset class="govuk-fieldset">
-                <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">Default for collisions</legend>
-                <div id="global-hint" class="govuk-hint">Applies to any collision below left on “Use default”.</div>
-                <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="g-skip" name="GlobalMode" type="radio" value="Skip" checked>
-                        <label class="govuk-label govuk-radios__label" for="g-skip">Skip</label>
-                    </div>
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="g-replace" name="GlobalMode" type="radio" value="Replace">
-                        <label class="govuk-label govuk-radios__label" for="g-replace">Overwrite</label>
-                    </div>
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="g-fail" name="GlobalMode" type="radio" value="Fail">
-                        <label class="govuk-label govuk-radios__label" for="g-fail">Fail</label>
-                    </div>
-                </div>
-            </fieldset>
-        </div>
-
-        <h2 class="govuk-heading-l">Collisions (@collisions.Count)</h2>
+        <h2 class="govuk-heading-l">Items already in this environment (@collisions.Count)</h2>
         <table class="govuk-table">
             <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
@@ -84,9 +121,9 @@
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
-                @for (var i = 0; i < collisions.Count; i++)
+                @foreach (var (type, item) in collisions)
                 {
-                    var (type, item) = collisions[i];
+                    var i = decisionIndex++;
                     <tr class="govuk-table__row">
                         <td class="govuk-table__cell">@type</td>
                         <td class="govuk-table__cell">
@@ -119,23 +156,45 @@
 
     @if (newItems.Count > 0)
     {
-        <h2 class="govuk-heading-l">New content (@newItems.Count)</h2>
-        <p class="govuk-body">These items don't exist here yet and will be added.</p>
+        <h2 class="govuk-heading-l">New items (@newItems.Count)</h2>
+        <p class="govuk-body">
+            These items don't exist in this environment yet. By default they will be added;
+            switch any of them to &ldquo;Skip&rdquo; to leave them out of this import.
+        </p>
         <table class="govuk-table">
             <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
                     <th scope="col" class="govuk-table__header">Type</th>
                     <th scope="col" class="govuk-table__header">Item</th>
+                    <th scope="col" class="govuk-table__header">Action</th>
                 </tr>
             </thead>
             <tbody class="govuk-table__body">
                 @foreach (var (type, item) in newItems)
                 {
+                    var i = decisionIndex++;
                     <tr class="govuk-table__row">
                         <td class="govuk-table__cell">@type</td>
                         <td class="govuk-table__cell">
                             <strong>@item.Title</strong>
                             <span class="govuk-hint govuk-!-margin-0">@item.Detail</span>
+                        </td>
+                        <td class="govuk-table__cell">
+                            <input type="hidden" name="Decisions[@i].Id" value="@item.Id" />
+                            <div class="govuk-radios govuk-radios--small" data-module="govuk-radios">
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-default" name="Decisions[@i].Action" type="radio" value="" checked>
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-default">Use default</label>
+                                </div>
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-include" name="Decisions[@i].Action" type="radio" value="Replace">
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-include">Include</label>
+                                </div>
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input" id="d-@i-skip" name="Decisions[@i].Action" type="radio" value="Skip">
+                                    <label class="govuk-label govuk-radios__label" for="d-@i-skip">Skip</label>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                 }

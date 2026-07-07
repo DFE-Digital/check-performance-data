@@ -44,6 +44,11 @@ public sealed partial class HtmlRenderingService : IHtmlRenderingService
         s.AllowedAttributes.Add("aria-expanded");
         s.AllowedAttributes.Add("aria-controls");
         s.AllowedAttributes.Add("aria-current");
+        // Allow data: URIs on <img src="data:image/...;base64,..."> so images pasted
+        // or uploaded through the TinyMCE image dialog can be embedded inline and travel
+        // with the content-staging export/import bundle. Restricted to the image family
+        // — data: URIs on <a href> or <link> would enable phishing / CSS injection.
+        s.AllowedSchemes.Add("data");
         return s;
     }
 

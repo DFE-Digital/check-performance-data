@@ -4,9 +4,9 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // and surface any items that could not be applied (e.g. a child whose parent was missing).
 public sealed class ContentImportResult
 {
-    public int WikiPagesCreated { get; set; }
-    public int WikiPagesUpdated { get; set; }
-    public int WikiPagesSkipped { get; set; }
+    public int PageNodesCreated { get; set; }
+    public int PageNodesUpdated { get; set; }
+    public int PageNodesSkipped { get; set; }
 
     public int ContentBlocksCreated { get; set; }
     public int ContentBlocksUpdated { get; set; }

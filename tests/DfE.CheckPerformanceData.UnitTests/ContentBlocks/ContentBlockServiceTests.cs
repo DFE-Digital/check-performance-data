@@ -19,6 +19,60 @@ public class ContentBlockServiceTests
             .Returns(ci => ((Func<Task>)ci[0])());
     }
 
+    // --- EnsureAsync ---
+
+    [Fact]
+    public async Task EnsureAsync_WhenKeyDoesNotExist_CreatesBlockAndSeedsVersionAndRecordsLastSeen()
+    {
+        _repository.GetByKeyAsync("footer-support-and-guidance").ReturnsNull();
+        var created = MakeBlock(id: 7, key: "footer-support-and-guidance", value: "<h2>Support</h2>");
+        _repository.AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>")
+            .Returns(created);
+        _htmlRenderer.RenderHtml("<h2>Support</h2>").Returns("<h2>Support</h2>");
+
+        var result = await _sut.EnsureAsync(
+            "footer-support-and-guidance", "Content", "<h2>Support</h2>", "/some-page");
+
+        Assert.Equal(7, result.Id);
+        await _repository.Received(1)
+            .AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>");
+        await _repository.Received(1).AddVersionAsync(7, "<h2>Support</h2>", 1);
+        await _repository.Received(1)
+            .SetLastSeenAsync("footer-support-and-guidance", "/some-page", Arg.Any<DateTime>());
+    }
+
+    [Fact]
+    public async Task EnsureAsync_WhenKeyExistsAndPathUnchanged_ReturnsExistingWithoutUpdatingLastSeen()
+    {
+        var existing = MakeBlock(id: 3, key: "k", value: "kept", lastSeenPath: "/home");
+        _repository.GetByKeyAsync("k").Returns(existing);
+        _htmlRenderer.RenderHtml("kept").Returns("<p>kept</p>");
+
+        var result = await _sut.EnsureAsync("k", "Content", "ignored-default", "/home");
+
+        Assert.Equal(3, result.Id);
+        Assert.Equal("<p>kept</p>", result.ValueHtml);
+        // Existing block: default value must not overwrite it, LastSeen unchanged, no new version.
+        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
+        await _repository.DidNotReceive().SetLastSeenAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>());
+    }
+
+    [Fact]
+    public async Task EnsureAsync_WhenKeyExistsAndPathDiffers_UpdatesLastSeenButKeepsExistingContent()
+    {
+        var existing = MakeBlock(id: 3, key: "k", value: "kept", lastSeenPath: "/old-page");
+        _repository.GetByKeyAsync("k").Returns(existing);
+        _htmlRenderer.RenderHtml("kept").Returns("<p>kept</p>");
+
+        var result = await _sut.EnsureAsync("k", "Content", "ignored-default", "/new-page");
+
+        Assert.Equal(3, result.Id);
+        await _repository.Received(1).SetLastSeenAsync("k", "/new-page", Arg.Any<DateTime>());
+        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
+    }
+
     // --- RecordLastSeenAsync ---
 
     [Fact]
@@ -336,11 +390,13 @@ public class ContentBlockServiceTests
         int id = 1,
         string key = "test-key",
         string blockType = "Content",
-        string value = "Test value") => new()
+        string value = "Test value",
+        string? lastSeenPath = null) => new()
     {
         Id = id,
         Key = key,
         BlockType = blockType,
-        Value = value
+        Value = value,
+        LastSeenPath = lastSeenPath
     };
 }

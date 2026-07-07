@@ -1,12 +1,18 @@
 @using System.Security.Claims
+@using DfE.CheckPerformanceData.Application.PageTree
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Admin.Nav
 @using DfE.CheckPerformanceData.Web.Authentication
 @using DfE.CheckPerformanceData.Web.Controllers
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@using DfE.CheckPerformanceData.Application.ContentBlocks
+@using DfE.CheckPerformanceData.Application.Admin
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject IEnumerable<IAdminNavEntry> AdminNavEntries
+@inject IPageNodeService PageNodeService
+@inject IContentBlockService ContentBlockService
+@inject IAdminAccessPolicy AdminAccessPolicy
 @*
     Admin chrome — black-banded header and "Administration" wordmark
     to make the admin context unambiguous. The public Beta phase banner
@@ -51,6 +57,48 @@
     var showImpersonateDropdown = devToolsEnabled && !HostEnvironment.IsProduction() && !showSignOut;
 
     var adminNavTreeModel = AdminNavNodeViewModel.BuildForest(AdminNavEntries);
+    try
+    {
+        var pageTree = PageTreeBuilder.Build(await PageNodeService.GetTreeAsync());
+        adminNavTreeModel = AdminNavNodeViewModel.GraftPageTree(adminNavTreeModel, pageTree);
+
+        // Content-blocks tree mirrors the pages tree, pruned to pages that own blocks.
+        // LastSeenPath is a request path ("/help/foo"); PageNode.Path is stored without
+        // the leading slash. Normalise on the way in.
+        var blocks = await ContentBlockService.GetAllAsync();
+        var pagesWithBlocks = new HashSet<string>(
+            blocks
+                .Where(b => !string.IsNullOrWhiteSpace(b.LastSeenPath))
+                .Select(b => b.LastSeenPath!.TrimStart('/')),
+            StringComparer.OrdinalIgnoreCase);
+        adminNavTreeModel = AdminNavNodeViewModel.GraftContentBlockPageTree(
+            adminNavTreeModel, pageTree, pagesWithBlocks);
+    }
+    catch
+    {
+        // Page-tree failure must not break the rest of admin — degrade gracefully.
+    }
+
+    // Role-based access filter: hide sections the current user's roles don't grant. Runs after
+    // grafting so synthetic page/content-block leaves inherit their group's visibility. Cached
+    // per-request via a small dictionary so we don't hit the policy service once per node.
+    try
+    {
+        var accessCache = new Dictionary<string, bool>(StringComparer.Ordinal);
+        bool CanAccess(string key)
+        {
+            if (accessCache.TryGetValue(key, out var cached)) return cached;
+            var allowed = AdminAccessPolicy.CanAccessAsync(User, key).GetAwaiter().GetResult();
+            accessCache[key] = allowed;
+            return allowed;
+        }
+        adminNavTreeModel = AdminNavNodeViewModel.FilterByAccess(adminNavTreeModel, CanAccess);
+    }
+    catch
+    {
+        // Access policy failure must not blank the whole nav — leave the tree as it was so an
+        // authenticated admin can still reach the role-settings page to fix it.
+    }
 
     // Active-page tracking: resolve the nav entry the current request path belongs to, so the tree
     // highlights it (aria-current=page) and force-expands its ancestor groups. The recursive node
@@ -58,7 +106,13 @@
     // nav never tracked location.
     var adminCurrentPath = Context.Request.Path.Value ?? string.Empty;
     ViewData["AdminCurrentPath"] = adminCurrentPath;
-    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(adminCurrentPath, AdminNavEntries);
+    // Collect all entries from the (possibly grafted) forest so /admin/pages/{id} matches the
+    // synthetic page-{id} entry rather than the parent content-pages entry. If grafting failed
+    // the forest contains only DI-registered entries, giving identical behaviour to before.
+    ViewData["AdminActiveKey"] = AdminNavActive.ResolveActiveKey(
+        adminCurrentPath,
+        Context.Request.QueryString.Value,
+        AdminNavNodeViewModel.CollectEntries(adminNavTreeModel));
 
     // Wide mode (Pipeline dashboard + Debug pipeline): drop the GDS max-width container so
     // the admin grid runs edge-to-edge, and surface a collapse toggle between the rail and
@@ -123,6 +177,8 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
+@* The nav is collapsible on every admin page. AdminWide only chooses whether the shell is
+   edge-to-edge (dashboards, grids) or bounded by govuk-width-container (default). *@
 @if (adminWide)
 {
     <div class="admin-layout admin-layout--wide" data-admin-nav-collapse-root>
@@ -142,10 +198,15 @@
 else
 {
     <div class="govuk-width-container">
-        <div class="admin-layout">
-            <aside class="admin-rail" aria-label="Administration sidebar">
+        <div class="admin-layout" data-admin-nav-collapse-root>
+            <aside class="admin-rail" id="admin-rail" aria-label="Administration sidebar">
                 @await Html.PartialAsync("_AdminNavTree", adminNavTreeModel)
             </aside>
+            <button type="button" class="admin-nav-collapse" data-admin-nav-collapse
+                    aria-expanded="true" aria-controls="admin-rail"
+                    aria-label="Collapse navigation" title="Collapse navigation">
+                <span class="admin-nav-collapse__chevron" aria-hidden="true"></span>
+            </button>
             <main class="admin-main" id="main-content">
                 @RenderBody()
             </main>
@@ -175,11 +236,17 @@ else
 }
 
 @section BodyEnd {
+    <form id="cms-tree-antiforgery" hidden>@Html.AntiForgeryToken()</form>
     <script src="~/js/site.js"></script>
     <script src="~/js/cookies.js"></script>
-    @if (adminWide)
-    {
-        <script src="~/js/admin-nav-collapse.js"></script>
-    }
+    <script src="~/js/admin-nav-collapse.js"></script>
+    <script src="~/js/admin-page-tree-context-menu.js" asp-append-version="true"></script>
+    <script src="~/js/admin-page-tree-dnd.js" asp-append-version="true"></script>
+    @* Wires the govuk-confirm-modal trigger/cancel/backdrop/focus-trap behaviour. Loaded
+       here so every admin page that uses the modal (DLQ redrive/purge, content-staging
+       clear-all, application logs clear-all, page-tree delete confirmations) actually
+       responds to clicks — the shared _Layout also loads it, but admin views run under
+       this layout instead. *@
+    <script src="~/js/confirm-modal.js" defer></script>
     @RenderSection("Scripts", required: false)
 }

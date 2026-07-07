@@ -133,14 +133,14 @@ public sealed class AdminNavTreeRenderTests
 	[Fact]
 	public void AdminNavNode_PostEntry_Renders_Antiforgery_FormButton()
 	{
-		// A POST nav entry (e.g. "Seed sample pages") has no GET Url, so it must render as an
-		// antiforgery-protected form-button that posts to Help/Seed — a real, clickable control
-		// in the tree — rather than falling through to the muted aria-disabled span.
+		// A POST nav entry (e.g. "Seed sample pages") renders as an antiforgery-protected
+		// form-button whose action is taken from the entry itself, rather than falling through
+		// to the plain anchor (GET) branch or the muted aria-disabled span.
 		var src = ReadAdminNavNode();
 
 		Assert.Contains("HttpMethod == \"POST\"", src);
 		Assert.Contains("AntiForgeryToken", src);
-		Assert.Contains("asp-action=\"Seed\"", src);
+		Assert.Contains("action=\"@entry.Url\"", src);
 	}
 
 	// --- AdminNavTree_Disabled_Child_Renders_AriaDisabled_Span_Not_Anchor ---

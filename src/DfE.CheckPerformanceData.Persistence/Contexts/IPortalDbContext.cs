@@ -1,5 +1,6 @@
 ﻿using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Entities;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -24,6 +25,10 @@ public interface IPortalDbContext
     DbSet<DevZendeskTicket> DevZendeskTickets { get; }
     DbSet<QueueMetricEvent> QueueMetricEvents { get; }
     DbSet<ShareToken> ShareTokens { get; }
+    DbSet<PageNode> PageNodes { get; }
+    DbSet<PageNodeVersion> PageNodeVersions { get; }
+    DbSet<AdminSectionAccess> AdminSectionAccesses { get; }
+    DbSet<AppLog> AppLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

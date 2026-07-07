@@ -1,0 +1,82 @@
+@using DfE.CheckPerformanceData.Application.PageTree
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@model PageTreeAdminVersionHistoryModel
+
+<hr class="govuk-section-break govuk-section-break--visible govuk-section-break--l">
+<h2 class="govuk-heading-m" id="version-history">Version history</h2>
+
+@if (Model.Versions.Count == 0)
+{
+    <p class="govuk-body">No versions yet.</p>
+}
+else
+{
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Version</th>
+                <th scope="col" class="govuk-table__header">Modified</th>
+                <th scope="col" class="govuk-table__header">Modified by</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Publish from</th>
+                <th scope="col" class="govuk-table__header">Publish to</th>
+                <th scope="col" class="govuk-table__header">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @{ var now = DateTime.UtcNow; }
+            @foreach (var v in Model.Versions)
+            {
+                var st = PageVersionStatus.Of(v.IsCurrent, v.PublishFrom, now);
+                // A <form> cannot be a direct child of <tr>, so the per-row form lives in the
+                // Actions cell and the date inputs in the other cells associate with it via form=.
+                var formId = $"version-form-{v.VersionId}";
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@PageVersionNumbering.Label(Model.Versions, v)</td>
+                    <td class="govuk-table__cell">@v.UpdatedDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td class="govuk-table__cell">@(v.UpdatedBy ?? "—")</td>
+                    <td class="govuk-table__cell">
+                        <strong class="govuk-tag @st.TagClass">@st.Label</strong>
+                    </td>
+                    <td class="govuk-table__cell">
+                        <input class="govuk-input govuk-input--width-20"
+                               type="datetime-local"
+                               form="@formId"
+                               name="from"
+                               aria-label="Publish from"
+                               value="@(v.PublishFrom?.ToString("yyyy-MM-ddTHH:mm"))" />
+                    </td>
+                    <td class="govuk-table__cell">
+                        <input class="govuk-input govuk-input--width-20"
+                               type="datetime-local"
+                               form="@formId"
+                               name="to"
+                               aria-label="Publish to"
+                               value="@(v.PublishTo?.ToString("yyyy-MM-ddTHH:mm"))" />
+                    </td>
+                    <td class="govuk-table__cell">
+                        <form id="@formId" method="post" action="/admin/pages/@Model.NodeId/publish">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="versionId" value="@v.VersionId" />
+                            <div class="govuk-button-group">
+                                <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0">Save</button>
+                                @if (!v.IsCurrent)
+                                {
+                                    <button type="submit" class="govuk-button govuk-!-margin-bottom-0"
+                                            formaction="/admin/pages/@Model.NodeId/versions/publish-now">Publish</button>
+                                }
+                                @if (v.IsCurrent)
+                                {
+                                    <button type="submit" class="govuk-button govuk-button--warning govuk-!-margin-bottom-0"
+                                            formaction="/admin/pages/@Model.NodeId/versions/unpublish">Unpublish</button>
+                                }
+                                <a class="govuk-link" target="_blank" rel="noopener"
+                                   href="/admin/pages/@Model.NodeId/versions/@v.VersionId/preview">View</a>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

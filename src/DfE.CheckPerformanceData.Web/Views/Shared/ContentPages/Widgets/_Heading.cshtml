@@ -1,0 +1,29 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@model WidgetNode
+@{
+    var level = Model.GetInt("level") ?? 2;
+    var text  = Model.GetString("text") ?? string.Empty;
+}
+@* GDS has heading utility classes for xl / l / m / s only. h1 gets xl; h5 and h6 fall
+   back to s (they stay semantically distinct in the HTML, only the visual weight is shared). *@
+@switch (level)
+{
+    case 1:
+        <h1 id="@Model.Anchor" class="govuk-heading-xl">@text</h1>
+        break;
+    case 3:
+        <h3 id="@Model.Anchor" class="govuk-heading-m">@text</h3>
+        break;
+    case 4:
+        <h4 id="@Model.Anchor" class="govuk-heading-s">@text</h4>
+        break;
+    case 5:
+        <h5 id="@Model.Anchor" class="govuk-heading-s">@text</h5>
+        break;
+    case 6:
+        <h6 id="@Model.Anchor" class="govuk-heading-s">@text</h6>
+        break;
+    default:
+        <h2 id="@Model.Anchor" class="govuk-heading-l">@text</h2>
+        break;
+}

@@ -1,0 +1,363 @@
+@using DfE.CheckPerformanceData.Web.Models.PageTree
+@using Microsoft.AspNetCore.Html
+@model PageTreeGridViewModel
+@{
+    ViewData["Title"] = "Pages";
+}
+
+@* GDS breadcrumb — replaces the old context line and "← Back to parent" link *@
+<nav class="govuk-breadcrumbs" aria-label="Breadcrumb">
+    <ol class="govuk-breadcrumbs__list">
+        @if (Model.SelectedId.HasValue)
+        {
+            <li class="govuk-breadcrumbs__list-item">
+                <a class="govuk-breadcrumbs__link" href="/admin/pages">Pages</a>
+            </li>
+            @foreach (var (ancestorId, ancestorTitle) in Model.Breadcrumb)
+            {
+                <li class="govuk-breadcrumbs__list-item">
+                    <a class="govuk-breadcrumbs__link" href="/admin/pages/@ancestorId">@ancestorTitle</a>
+                </li>
+            }
+            <li class="govuk-breadcrumbs__list-item" aria-current="page">@Model.SelectedTitle</li>
+        }
+        else
+        {
+            <li class="govuk-breadcrumbs__list-item" aria-current="page">Pages</li>
+        }
+    </ol>
+</nav>
+
+@{ var sampleSeedResult = TempData["SampleSeedResult"] as string; }
+@if (!string.IsNullOrEmpty(sampleSeedResult))
+{
+    <div class="govuk-notification-banner" role="alert" aria-labelledby="sample-seed-banner-title">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="sample-seed-banner-title">Sample pages</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">@sampleSeedResult</p>
+        </div>
+    </div>
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+
+        @{
+            var nodeHref = Model.SelectedId.HasValue
+                ? $"/admin/pages/{Model.SelectedId.Value}"
+                : "/admin/pages";
+            var pageHeading = Model.SelectedId.HasValue ? Model.SelectedTitle : "Pages";
+        }
+
+        @* H1 + icon toolbar on one row. The toolbar mirrors the right-click context menu
+           for the currently-selected page (Edit, Versions, New child, Move up / down,
+           Delete, View), pinned to the right so it doesn't fight the title for attention.
+           On the root view the toolbar collapses to a single "Create a top-level page"
+           icon. *@
+        <div class="app-page-header">
+            <h1 class="govuk-heading-l app-page-header__title">@pageHeading</h1>
+            <div class="app-page-actions" aria-label="Actions for @pageHeading">
+            @if (Model.SelectedId.HasValue)
+            {
+                var pid = Model.SelectedId.Value;
+                <a class="app-action-icon"
+                   href="/admin/pages/@pid/edit"
+                   target="_blank" rel="noopener"
+                   title="Edit @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("edit")
+                    <span class="govuk-visually-hidden">Edit @Model.SelectedTitle</span>
+                </a>
+                <a class="app-action-icon"
+                   href="/admin/pages/@pid/edit#version-history"
+                   target="_blank" rel="noopener"
+                   title="Versions of @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("history")
+                    <span class="govuk-visually-hidden">Versions of @Model.SelectedTitle</span>
+                </a>
+                <a class="app-action-icon"
+                   href="/admin/pages/new?parentId=@pid"
+                   target="_blank" rel="noopener"
+                   title="Add child page under @Model.SelectedTitle (opens in new tab)">
+                    @ActionSvg("add")
+                    <span class="govuk-visually-hidden">Add child page under @Model.SelectedTitle</span>
+                </a>
+                <form method="post" action="/admin/pages/@pid/move" class="app-action-icon-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="direction" value="up" />
+                    <button type="submit" class="app-action-icon-btn" title="Move @Model.SelectedTitle up">
+                        @ActionSvg("arrow_upward")
+                        <span class="govuk-visually-hidden">Move @Model.SelectedTitle up</span>
+                    </button>
+                </form>
+                <form method="post" action="/admin/pages/@pid/move" class="app-action-icon-form">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="direction" value="down" />
+                    <button type="submit" class="app-action-icon-btn" title="Move @Model.SelectedTitle down">
+                        @ActionSvg("arrow_downward")
+                        <span class="govuk-visually-hidden">Move @Model.SelectedTitle down</span>
+                    </button>
+                </form>
+                <a class="app-action-icon app-action-icon--delete"
+                   href="/admin/pages/@pid/delete"
+                   title="Delete @Model.SelectedTitle">
+                    @ActionSvg("delete")
+                    <span class="govuk-visually-hidden">Delete @Model.SelectedTitle</span>
+                </a>
+                @if (!string.IsNullOrEmpty(Model.SelectedPath))
+                {
+                    <a class="app-action-icon"
+                       href="/@Model.SelectedPath"
+                       target="_blank" rel="noopener"
+                       title="View @Model.SelectedTitle (opens in new tab)">
+                        @ActionSvg("open_in_new")
+                        <span class="govuk-visually-hidden">View @Model.SelectedTitle (opens in new tab)</span>
+                    </a>
+                }
+            }
+            else
+            {
+                <a class="app-action-icon"
+                   href="/admin/pages/new"
+                   target="_blank" rel="noopener"
+                   title="Create a top-level page (opens in new tab)">
+                    @ActionSvg("add")
+                    <span class="govuk-visually-hidden">Create a top-level page</span>
+                </a>
+            }
+            </div>
+        </div>
+
+        @* Search is only useful when there's something to filter. Skip the widget when the
+           current section has no children AND no query is active — a search box on an
+           empty section is just noise. Once a search is running, keep it visible so the
+           user can widen or clear it. *@
+        @if (Model.TotalCount > 0 || !string.IsNullOrEmpty(Model.SearchQuery))
+        {
+            <form method="get" action="@nodeHref">
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="q">Search pages in this section</label>
+                    <div class="app-page-search-row">
+                        <input class="govuk-input govuk-input--width-20"
+                               type="search"
+                               id="q"
+                               name="q"
+                               value="@Model.SearchQuery" />
+                        <button type="submit" class="govuk-button govuk-button--secondary">Search</button>
+                        @if (!string.IsNullOrEmpty(Model.SearchQuery))
+                        {
+                            <a class="govuk-link" href="@nodeHref">Clear</a>
+                        }
+                    </div>
+                </div>
+            </form>
+        }
+
+        @* Grid / empty states — the "New page" action lives on the header toolbar above,
+           so the empty state is just a one-line hint. *@
+        @if (Model.TotalCount == 0 && !string.IsNullOrEmpty(Model.SearchQuery))
+        {
+            <p class="govuk-body">No pages match '<strong>@Model.SearchQuery</strong>'.</p>
+            <a class="govuk-link" href="@nodeHref">Clear search</a>
+        }
+        else if (Model.TotalCount == 0)
+        {
+            <p class="govuk-body">No pages in this section yet. Use the <strong>+</strong> icon above to add one.</p>
+        }
+        else
+        {
+            <table class="govuk-table">
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Title</th>
+                        <th scope="col" class="govuk-table__header">Path</th>
+                        <th scope="col" class="govuk-table__header">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var child in Model.Children)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">
+                                <span class="app-page-tree__icon">
+                                    @await Html.PartialAsync("PageTree/_PageTypeIcon", child.PageType)
+                                </span>
+                                @* Title as drill-in link — clicking navigates into the child's own grid *@
+                                <a class="govuk-link govuk-link--no-visited-state"
+                                   href="/admin/pages/@child.Id">@child.Title<span class="govuk-visually-hidden"> — navigate into @child.Title</span></a>
+                                <br />
+                                <span class="govuk-body-s govuk-!-colour-secondary">(@child.PageType)</span>
+                            </td>
+                            <td class="govuk-table__cell govuk-body-s govuk-!-colour-secondary">
+                                @child.Path
+                            </td>
+                            <td class="govuk-table__cell" style="white-space:nowrap">
+                                @* Edit *@
+                                <a class="app-action-icon"
+                                   href="/admin/pages/@child.Id/edit"
+                                   title="Edit @child.Title">
+                                    @ActionSvg("edit")
+                                    <span class="govuk-visually-hidden">Edit @child.Title</span>
+                                </a>
+                                @* Versions *@
+                                <a class="app-action-icon"
+                                   href="/admin/pages/@child.Id/edit#version-history"
+                                   title="Versions of @child.Title">
+                                    @ActionSvg("history")
+                                    <span class="govuk-visually-hidden">Versions of @child.Title</span>
+                                </a>
+                                @* New child page *@
+                                <a class="app-action-icon"
+                                   href="/admin/pages/new?parentId=@child.Id"
+                                   title="Add child page under @child.Title">
+                                    @ActionSvg("add")
+                                    <span class="govuk-visually-hidden">Add child page under @child.Title</span>
+                                </a>
+                                @* Move up *@
+                                <form method="post" action="/admin/pages/@child.Id/move" class="app-action-icon-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="direction" value="up" />
+                                    <button type="submit" class="app-action-icon-btn" title="Move @child.Title up">
+                                        @ActionSvg("arrow_upward")
+                                        <span class="govuk-visually-hidden">Move @child.Title up</span>
+                                    </button>
+                                </form>
+                                @* Move down *@
+                                <form method="post" action="/admin/pages/@child.Id/move" class="app-action-icon-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="direction" value="down" />
+                                    <button type="submit" class="app-action-icon-btn" title="Move @child.Title down">
+                                        @ActionSvg("arrow_downward")
+                                        <span class="govuk-visually-hidden">Move @child.Title down</span>
+                                    </button>
+                                </form>
+                                @* Delete *@
+                                <a class="app-action-icon app-action-icon--delete"
+                                   href="/admin/pages/@child.Id/delete"
+                                   title="Delete @child.Title">
+                                    @ActionSvg("delete")
+                                    <span class="govuk-visually-hidden">Delete @child.Title</span>
+                                </a>
+                                @* View — always available; editors can preview unpublished pages *@
+                                <a class="app-action-icon"
+                                   href="/@child.Path"
+                                   target="_blank"
+                                   rel="noopener"
+                                   title="View @child.Title (opens in new tab)">
+                                    @ActionSvg("open_in_new")
+                                    <span class="govuk-visually-hidden">View @child.Title (opens in new tab)</span>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @* Pager *@
+            @if (Model.TotalPages > 1)
+            {
+                <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <div class="govuk-pagination__prev">
+                            <a class="govuk-link govuk-pagination__link"
+                               href="@PageHref(Model.SelectedId, Model.SearchQuery, Model.CurrentPage - 1)"
+                               rel="prev">
+                                <svg class="govuk-pagination__icon govuk-pagination__icon--prev"
+                                     xmlns="http://www.w3.org/2000/svg"
+                                     height="13" width="15" focusable="false" aria-hidden="true"
+                                     viewBox="0 0 15 13">
+                                    <path d="m6.5938-0.0078125-6.7266 6.7266 6.7441 6.4062 1.377-1.449-4.1856-3.9768h12.896v-2h-12.984l4.2931-4.293-1.414-1.414z" />
+                                </svg>
+                                <span class="govuk-pagination__link-title">
+                                    Previous<span class="govuk-visually-hidden"> page</span>
+                                </span>
+                            </a>
+                        </div>
+                    }
+                    <ul class="govuk-pagination__list">
+                        @for (var p = 1; p <= Model.TotalPages; p++)
+                        {
+                            if (p == Model.CurrentPage)
+                            {
+                                <li class="govuk-pagination__item govuk-pagination__item--current">
+                                    <a class="govuk-link govuk-pagination__link"
+                                       href="@PageHref(Model.SelectedId, Model.SearchQuery, p)"
+                                       aria-label="Page @p"
+                                       aria-current="page">@p</a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="govuk-pagination__item">
+                                    <a class="govuk-link govuk-pagination__link"
+                                       href="@PageHref(Model.SelectedId, Model.SearchQuery, p)"
+                                       aria-label="Page @p">@p</a>
+                                </li>
+                            }
+                        }
+                    </ul>
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <div class="govuk-pagination__next">
+                            <a class="govuk-link govuk-pagination__link"
+                               href="@PageHref(Model.SelectedId, Model.SearchQuery, Model.CurrentPage + 1)"
+                               rel="next">
+                                <span class="govuk-pagination__link-title">
+                                    Next<span class="govuk-visually-hidden"> page</span>
+                                </span>
+                                <svg class="govuk-pagination__icon govuk-pagination__icon--next"
+                                     xmlns="http://www.w3.org/2000/svg"
+                                     height="13" width="15" focusable="false" aria-hidden="true"
+                                     viewBox="0 0 15 13">
+                                    <path d="m8.107-0.0078125-1.4136 1.414 4.2926 4.293h-12.986v2h12.896l-4.1855 3.9766 1.377 1.4492 6.7441-6.4062-6.7246-6.7246z" />
+                                </svg>
+                            </a>
+                        </div>
+                    }
+                </nav>
+            }
+        }
+
+    </div>
+</div>
+
+@functions {
+    private static string PageHref(Guid? selectedId, string? q, int page)
+    {
+        var basePath = selectedId.HasValue
+            ? $"/admin/pages/{selectedId.Value}"
+            : "/admin/pages";
+        var parts = new System.Collections.Generic.List<string>();
+        if (!string.IsNullOrEmpty(q))
+            parts.Add($"q={Uri.EscapeDataString(q)}");
+        if (page > 1)
+            parts.Add($"page={page}");
+        return parts.Count > 0 ? basePath + "?" + string.Join("&", parts) : basePath;
+    }
+
+    /// <summary>
+    /// Renders a Material Symbols Outlined SVG for the given icon name (Apache 2.0; self-hosted).
+    /// aria-hidden="true": the accessible label lives on the adjacent govuk-visually-hidden span.
+    /// </summary>
+    private static IHtmlContent ActionSvg(string icon)
+    {
+        var path = icon switch
+        {
+            "edit"           => "M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z",
+            "history"        => "M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z",
+            "add"            => "M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z",
+            "arrow_upward"   => "M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z",
+            "arrow_downward" => "M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224V-800h-80Z",
+            "delete"         => "M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z",
+            "open_in_new"    => "M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z",
+            _                => ""
+        };
+        if (string.IsNullOrEmpty(path)) return HtmlString.Empty;
+        return new HtmlString(
+            $"<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 -960 960 960\" " +
+            $"width=\"18\" height=\"18\" fill=\"currentColor\" aria-hidden=\"true\" focusable=\"false\">" +
+            $"<path d=\"{path}\"/></svg>");
+    }
+}

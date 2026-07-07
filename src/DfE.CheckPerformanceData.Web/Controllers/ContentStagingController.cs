@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,7 +15,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [Route("admin/content-staging")]
 public sealed class ContentStagingController(
     IContentStagingService staging,
-    ICurrentUserService currentUser) : Controller
+    ICurrentUserService currentUser,
+    IPageNodeRepository pageNodeRepository,
+    ILogger<ContentStagingController> logger) : Controller
 {
     [HttpGet("")]
     public IActionResult Index() => View();
@@ -38,13 +41,13 @@ public sealed class ContentStagingController(
     // Export only the ticked pages/blocks (ancestors of selected pages are added by the service).
     [HttpPost("export")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ExportSelected(List<Guid>? wikiPageIds, List<Guid>? contentBlockIds)
+    public async Task<IActionResult> ExportSelected(List<Guid>? pageNodeIds, List<Guid>? contentBlockIds)
     {
         var selection = new ContentExportSelection(
-            wikiPageIds?.ToHashSet() ?? [],
+            pageNodeIds?.ToHashSet() ?? [],
             contentBlockIds?.ToHashSet() ?? []);
 
-        if (selection.WikiPageIds.Count == 0 && selection.ContentBlockIds.Count == 0)
+        if (selection.PageNodeIds.Count == 0 && selection.ContentBlockIds.Count == 0)
         {
             TempData["ContentStagingError"] = "Select at least one page or content block to export.";
             return Redirect("/admin/content-staging/select");
@@ -62,7 +65,7 @@ public sealed class ContentStagingController(
             SchemaVersion = bundle.SchemaVersion,
             ExportedAtUtc = DateTime.UtcNow,
             ExportedBy = currentUser.Email,
-            WikiPages = bundle.WikiPages,
+            PageNodes = bundle.PageNodes,
             ContentBlocks = bundle.ContentBlocks
         };
 
@@ -103,6 +106,28 @@ public sealed class ContentStagingController(
         });
     }
 
+    // Pasted-URL landing: /import is a POST-only step in the flow, but users sometimes visit the
+    // URL directly from a bookmark or a link. Bounce them back to the landing page (which is
+    // where the upload form actually lives) instead of letting the request fall through to the
+    // catch-all PageController and 404/500 depending on environment.
+    [HttpGet("import")]
+    public IActionResult ImportLanding() => Redirect("/admin/content-staging");
+
+    // Destructive: truncates every PageNode / PageNodeVersion / ContentBlock / ContentBlockVersion
+    // row. Used to reset a test environment to empty before replaying an import bundle. Gated by
+    // the same editor role as the rest of the controller and behind a confirm modal on the view.
+    // Default startup seeders (root nodes, /help/not-found) will re-run and rehydrate a minimal
+    // shell on the next request.
+    [HttpPost("clear-all")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearAll()
+    {
+        await pageNodeRepository.TruncateAllContentAsync();
+        TempData["ContentStagingResult"] =
+            "All CMS pages and content blocks were cleared. Default root nodes will regenerate on the next request.";
+        return Redirect("/admin/content-staging");
+    }
+
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
     // overrides. The bundle round-trips through a hidden field so no server-side state is needed.
     [HttpPost("import")]
@@ -122,9 +147,13 @@ public sealed class ContentStagingController(
             .GroupBy(d => d.Id)
             .ToDictionary(g => g.Key, g => g.First().Action!.Value);
 
+        logger.LogInformation(
+            "Import controller: bundle={PageCount} pages / {BlockCount} blocks, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
+            parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
+
         try
         {
-            var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions);
+            var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions, model.GlobalNewMode);
             TempData["ContentStagingResult"] = BuildSummary(result);
             if (result.Errors.Count > 0)
                 TempData["ContentStagingError"] = string.Join("\n", result.Errors);
@@ -134,6 +163,16 @@ public sealed class ContentStagingController(
         catch (ContentImportConflictException ex)
         {
             TempData["ContentStagingError"] = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            // The service handles per-item failures internally, so this catches only the
+            // catastrophic-outer-flow case — e.g. a database connection failure or a JSON edge case
+            // that the parser missed. Log the full exception so the review-app logs surface it,
+            // and hand the user a coherent error instead of a blank 500 page.
+            logger.LogError(ex, "Import controller: bundle import failed with an unhandled exception");
+            TempData["ContentStagingError"] =
+                $"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace.";
         }
 
         return Redirect("/admin/content-staging");
@@ -168,7 +207,7 @@ public sealed class ContentStagingController(
     }
 
     private static string BuildSummary(ContentImportResult r) =>
-        $"Import complete. Wiki pages: {r.WikiPagesCreated} added, {r.WikiPagesUpdated} updated, " +
-        $"{r.WikiPagesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
+        $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
+        $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
 }

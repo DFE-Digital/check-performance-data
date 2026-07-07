@@ -1,0 +1,110 @@
+@using DfE.CheckPerformanceData.Web.Controllers
+@model DfE.CheckPerformanceData.Web.Controllers.ContactViewModel
+@{
+    ViewBag.Title = "Contact us";
+    Layout = "_Layout";
+    var isEditor = User.IsInRole(WikiConstants.EditorRole) || User.IsInRole(WikiConstants.AdminRole);
+    var backHref = Model.ReturnUrl ?? "/guidance";
+}
+
+<a href="@backHref" class="govuk-back-link">Back</a>
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="govuk-error-summary" data-module="govuk-error-summary">
+                <div role="alert">
+                    <h2 class="govuk-error-summary__title">There is a problem</h2>
+                    <div class="govuk-error-summary__body">
+                        <ul class="govuk-list govuk-error-summary__error-list">
+                            <li><a href="#EnquiryType">Select what you need help with</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* i) Highlight — collapsed for end users when the block is empty; editors always see it so
+             they can add content (the EditableContent component auto-provisions the block). *@
+        @if (Model.HasHighlightContent || isEditor)
+        {
+            <div class="govuk-inset-text">
+                @await Component.InvokeAsync("EditableContent", new { key = "contact-highlight", defaultHtml = "" })
+            </div>
+        }
+
+        @* ii) Title + intro — editable content blocks (same pattern as the footer block). *@
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = "contact-title",
+            defaultHtml = "<h1 class=\"govuk-heading-xl\">Contact us</h1>"
+        })
+        @await Component.InvokeAsync("EditableContent", new
+        {
+            key = "contact-intro",
+            defaultHtml = "<p class=\"govuk-body\">Use this form to ask for help. We will not record any of the details you enter here.</p>"
+        })
+
+        <form method="post" action="/contact">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+
+            @if (Model.IsAuthenticated)
+            {
+                <div class="govuk-inset-text">
+                    You're contacting us about <strong>@Model.OrganisationName (@Model.OrganisationLaestab)</strong>
+                </div>
+            }
+            else
+            {
+                <p class="govuk-hint">
+                    <a class="govuk-link" href="@Url.Action("Index", "LandingPage")">Sign in</a>
+                    for help specific to your school.
+                </p>
+
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="Name">Your name</label>
+                    <input class="govuk-input" id="Name" name="Name" type="text" value="@Model.Name" />
+                </div>
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="Email">Your email address</label>
+                    <input class="govuk-input" id="Email" name="Email" type="email" value="@Model.Email" />
+                </div>
+                <div class="govuk-form-group">
+                    <label class="govuk-label" for="School">Your school</label>
+                    <div id="School-hint" class="govuk-hint">School name or URN</div>
+                    <input class="govuk-input" id="School" name="School" type="text" aria-describedby="School-hint" value="@Model.School" />
+                </div>
+            }
+
+            <govuk-radios for="EnquiryType">
+                <govuk-radios-fieldset>
+                    <govuk-radios-fieldset-legend class="govuk-fieldset__legend--m">
+                        What do you need help with?
+                    </govuk-radios-fieldset-legend>
+                    @if (!Model.IsAuthenticated)
+                    {
+                        <govuk-radios-hint>Sign in to see more ways we can help.</govuk-radios-hint>
+                    }
+                    @foreach (var option in Model.EnquiryOptions)
+                    {
+                        <govuk-radios-item value="@option.Value">@option.Label</govuk-radios-item>
+                    }
+                </govuk-radios-fieldset>
+            </govuk-radios>
+
+            <div class="govuk-form-group govuk-character-count" data-module="govuk-character-count" data-maxlength="1200">
+                <label class="govuk-label" for="Details">Tell us more (optional)</label>
+                <div id="Details-hint" class="govuk-hint">Do not include personal details. Nothing you type here is saved.</div>
+                <textarea class="govuk-textarea govuk-js-character-count" id="Details" name="Details" rows="5" aria-describedby="Details-hint Details-info">@Model.Details</textarea>
+                <div id="Details-info" class="govuk-hint govuk-character-count__message">
+                    You can enter up to 1200 characters
+                </div>
+            </div>
+
+            <govuk-button type="submit">Submit</govuk-button>
+        </form>
+    </div>
+</div>

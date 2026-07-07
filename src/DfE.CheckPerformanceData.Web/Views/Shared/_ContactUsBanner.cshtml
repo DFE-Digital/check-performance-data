@@ -1,0 +1,19 @@
+@{
+    // Reading TempData marks the key consumed, so the banner shows once — on the page the user
+    // lands on immediately after submitting.
+    var submitted = TempData["ContactUsSubmitted"] as bool? ?? false;
+}
+@if (submitted)
+{
+    <div class="govuk-width-container">
+        <div class="govuk-notification-banner" role="region"
+             aria-labelledby="contact-us-banner-title" data-module="govuk-notification-banner">
+            <div class="govuk-notification-banner__header">
+                <h2 class="govuk-notification-banner__title" id="contact-us-banner-title">Important</h2>
+            </div>
+            <div class="govuk-notification-banner__content">
+                <p class="govuk-notification-banner__heading">Thanks. We haven't recorded any details from this form.</p>
+            </div>
+        </div>
+    </div>
+}

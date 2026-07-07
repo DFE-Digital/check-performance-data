@@ -12,19 +12,9 @@
 <div class="govuk-grid-row">
     <div class="govuk-grid-column-two-thirds">
 
-        @if (!ViewData.ModelState.IsValid)
-        {
-            <div class="govuk-error-summary" data-module="govuk-error-summary">
-                <div role="alert">
-                    <h2 class="govuk-error-summary__title">There is a problem</h2>
-                    <div class="govuk-error-summary__body">
-                        <ul class="govuk-list govuk-error-summary__error-list">
-                            <li><a href="#EnquiryType">Select what you need help with</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        }
+        @* GOV.UK Frontend's form tag helper auto-prepends an error summary to the form when
+           ModelState has errors (same convention as Views/WhatToChange/Index.cshtml), so no
+           manual error summary is rendered here — a second one caused duplicate summaries. *@
 
         @* i) Highlight — collapsed for end users when the block is empty; editors always see it so
              they can add content (the EditableContent component auto-provisions the block). *@

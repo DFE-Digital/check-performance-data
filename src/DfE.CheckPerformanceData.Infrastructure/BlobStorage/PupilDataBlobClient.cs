@@ -8,11 +8,12 @@ namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : IPupilDataBlobClient
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    // Public so the pupil-schema deserialization tests bind supplier JSON exactly as production does.
+    public static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+        Converters = { new JsonStringEnumConverter(), new NullToEmptyStringJsonConverter() }
     };
 
     public async Task<IReadOnlyList<PupilRecord>?> GetPupilsAsync(Guid windowId, string laestab)

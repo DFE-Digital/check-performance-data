@@ -49,7 +49,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
     {
         Id = Guid.NewGuid(),
         CheckingWindowId = windowId,
-        Urn = TestUrn,
+        Urn = TestUrnLong,
         Laestab = TestLaestab,
         Surname = surname,
         Firstname = "Test",
@@ -62,7 +62,7 @@ public sealed class PupilSearchExclusionTests(PostgresFixture fixture)
         ActualYearGroup = "11",
         Ethnicity = "A1",
         SenF = "N",
-        EntryDate = DateTime.UtcNow.AddYears(-2),
+        EntryDate = "01/09/2021",
         Cypmd_Id = Guid.NewGuid().ToString(),
         MatchRef = 1,
         Upn = upn,

@@ -51,7 +51,7 @@ public static class PupilCsvGenerator
                 Escape(pinclDesc ?? string.Empty),
                 Escape(p.Laestab),
                 Escape(p.Urn),
-                Escape(p.EntryDate.ToString("dd/MM/yyyy")),
+                Escape(p.EntryDate),
                 Escape(p.SenF),
                 Escape(p.FirstLanguage),
                 Escape(p.Ethnicity),

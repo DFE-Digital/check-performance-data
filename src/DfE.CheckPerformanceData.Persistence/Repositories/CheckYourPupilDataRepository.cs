@@ -1,3 +1,4 @@
+using System.Globalization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -41,7 +42,7 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    private static bool IsIncluded(PupilRecord p) => IncludedPinclCodes.Contains(p.Pincl);
+    private static bool IsIncluded(PupilRecord p) => p.Pincl is int code && IncludedPinclCodes.Contains(code);
 
     private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string laestab, bool included, string? search, int page, int pageSize)
     {
@@ -70,12 +71,12 @@ public sealed class CheckYourPupilDataRepository(
                 Surname = p.Surname,
                 Firstname = p.Firstname,
                 Sex = p.Sex,
-                DateOfBirth = p.DateOfBirth,
+                DateOfBirth = PupilDateFormatter.ToDisplayDate(p.DateOfBirth),
                 Age = p.Age,
-                Pincl = p.Pincl,
+                Pincl = p.Pincl ?? 0,
                 Laestab = p.Laestab,
-                Urn = p.Urn,
-                EntryDate = p.EntryDate,
+                Urn = p.Urn.ToString(CultureInfo.InvariantCulture),
+                EntryDate = PupilDateFormatter.ToDisplayDate(p.EntryDate),
                 SenF = p.SenF,
                 FirstLanguage = p.FirstLanguage,
                 Ethnicity = p.Ethnicity,
@@ -119,7 +120,7 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {p.DateOfBirth}"))
+            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {PupilDateFormatter.ToDisplayDate(p.DateOfBirth)}"))
             .ToList();
     }
 
@@ -140,10 +141,10 @@ public sealed class CheckYourPupilDataRepository(
         Surname = p.Surname,
         Firstname = p.Firstname,
         Sex = p.Sex,
-        DateOfBirth = p.DateOfBirth,
+        DateOfBirth = PupilDateFormatter.ToDisplayDate(p.DateOfBirth),
         Age = p.Age,
         Cypmd_Id = p.Cypmd_Id,
         Upn = p.Upn,
-        Pincl = p.Pincl
+        Pincl = p.Pincl ?? 0
     };
 }

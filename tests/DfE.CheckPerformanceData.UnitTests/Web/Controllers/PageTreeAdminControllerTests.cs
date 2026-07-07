@@ -3,11 +3,11 @@ using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
@@ -474,11 +474,11 @@ public sealed class PageTreeAdminControllerTests
     // ── Attribute / security contracts ──────────────────────────────────────
 
     [Fact]
-    public void Controller_IsGatedToTheEditorRole()
+    public void Controller_IsGatedByContentPagesSection()
     {
-        var authorize = typeof(PageTreeAdminController).GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal(WikiConstants.EditorRole, authorize!.Roles);
+        var gate = typeof(PageTreeAdminController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal("content-pages", gate!.SectionKey);
     }
 
     [Fact]

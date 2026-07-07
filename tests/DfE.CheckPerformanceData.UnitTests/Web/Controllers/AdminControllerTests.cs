@@ -1,8 +1,8 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
 using NSubstitute;
@@ -21,17 +21,18 @@ public sealed class AdminControllerTests
 		Assert.Equal("cypmd_admin", WikiConstants.AdminRole);
 	}
 
-	// --- Index_Action_Has_Authorize_Attribute_With_AdminRole ---
+	// --- Controller_Gated_By_AllowAnyGrantedSection ---
 
 	[Fact]
-	public void Index_Action_Has_Authorize_Attribute_With_AdminRole()
+	public void Controller_Gated_By_AllowAnyGrantedSection()
 	{
-		var indexMethod = typeof(AdminController).GetMethod("Index");
-		Assert.NotNull(indexMethod);
-
-		var authorize = indexMethod!.GetCustomAttribute<AuthorizeAttribute>();
-		Assert.NotNull(authorize);
-		Assert.Equal("cypmd_admin", authorize!.Roles);
+		// The landing is not tied to a specific section grant — anyone with at least one
+		// grant reaches it, and the sidebar then hides sections their role does not have.
+		// The gate lives at the class level so every future action on the controller inherits it.
+		var gate = typeof(AdminController).GetCustomAttribute<RequireAdminSectionAttribute>();
+		Assert.NotNull(gate);
+		Assert.True(gate!.AllowAnyGrantedSection);
+		Assert.Null(gate.SectionKey);
 	}
 
 	// --- Index_Action_Has_HttpGet_Admin_Route ---

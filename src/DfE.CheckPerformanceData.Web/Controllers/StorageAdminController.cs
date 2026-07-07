@@ -1,11 +1,14 @@
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-[Authorize(Roles = WikiConstants.AdminRole)]
+// Blob-storage browser and per-blob preview / download / delete. Gated by the storage-admin
+// section grant.
+[RequireAdminSection(AdminNavKeys.StorageAdmin)]
 public sealed class StorageAdminController(IReadOnlyDictionary<string, BlobServiceClient> storageAccounts) : Controller
 {
     private static readonly IReadOnlyDictionary<string, string> DisplayNames = new Dictionary<string, string>

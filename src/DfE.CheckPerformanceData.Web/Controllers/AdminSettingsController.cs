@@ -1,15 +1,15 @@
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// System settings page under the admin shell. Editor-or-admin gated: the admin role implies
-// the editor role (Phase 3.2 one-way hierarchy), so gating on the editor role admits both.
+// System settings page under the admin shell. Gated by the system-settings section grant.
 // Views live under Views/Admin/Settings so they inherit the admin layout via the
 // Views/Admin/_ViewStart cascade, hence the explicit view paths.
-[Authorize(Roles = WikiConstants.EditorRole)]
+[RequireAdminSection(AdminNavKeys.SystemSettings)]
 public sealed class AdminSettingsController(ISettingService settings) : Controller
 {
     private const string IndexView = "~/Views/Admin/Settings/Index.cshtml";

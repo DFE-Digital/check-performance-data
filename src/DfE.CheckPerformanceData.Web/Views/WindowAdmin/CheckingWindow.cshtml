@@ -1,0 +1,61 @@
+@model DfE.CheckPerformanceData.Application.WindowManagement.CheckingWindowDraft
+
+<form method="post" action="@Model.PostUrl" novalidate> 
+@Html.AntiForgeryToken()
+
+<govuk-back-link asp-controller="WindowAdmin" asp-action="Index" />
+
+<h1 class="govuk-heading-xl">@Model.Title</h1>
+<h1 class="govuk-heading-l">New Checking Window</h1>
+<h2 class="govuk-heading-m">Confirm you want to delete this window</h2>
+
+<govuk-summary-list>
+    <row>
+        <key>Title</key>
+        <value>@Model.Title</value>
+        <row-actions>
+            <action href="@Model.TitleLink" visually-hidden-text="Title">Change</action>
+        </row-actions>
+    </row>
+    <row>
+        <key>Start Date</key>
+        <value>@Model.StartDate?.ToShortDateString()</value>
+        <row-actions>
+            <action href="@Model.StartDateLink" visually-hidden-text="Start Date">Change</action>
+        </row-actions>
+    </row>
+    <row>
+        <key>End Date</key>
+        <value>@Model.EndDate?.ToShortDateString()</value>
+        <row-actions>
+            <action href="@Model.EndDateLink" visually-hidden-text="End date">Change</action>
+        </row-actions>
+    </row>
+    <row>
+        <key>Window Type</key>
+        <value>@Model.CheckingWindowType?.GetDisplayName()</value>
+        <row-actions>
+            <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
+        </row-actions>
+    </row>
+    <row>
+        <key>Key Stage</key>
+        <value>@Model.KeyStage?.GetDisplayName()</value>
+        <row-actions>
+            <action href="@Model.KeyStageLink" visually-hidden-text="Key Stage">Change</action>
+        </row-actions>
+    </row>
+</govuk-summary-list>
+
+@if (ViewBag.Cancelation)
+{
+    <govuk-button type="submit" name="action" value="continue">Continue</govuk-button>
+    <govuk-button class="govuk-button--warning" name="action" value="delete">Delete</govuk-button>
+}
+else
+{
+    <govuk-button disabled="!@Model.IsValid" type="submit">Save and continue</govuk-button>
+    <govuk-button class="govuk-button--secondary">Cancel</govuk-button>
+}
+
+</form>

@@ -1,0 +1,27 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowTypeItem
+
+ <form method="post" action="@Model.PostUrl" novalidate> 
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="@Model.WindowId" />
+  
+    <govuk-radios for="WindowType">
+        <govuk-radios-fieldset>
+            <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                Select the window type
+            </govuk-radios-fieldset-legend>
+
+            <govuk-radios-hint>
+                Select one option.
+            </govuk-radios-hint>
+
+            @foreach (var type in Model.Types)
+            {
+                <govuk-radios-item value="@type" checked="@(Model.WindowType == type)">@type.GetDisplayName()</govuk-radios-item>
+            }
+
+        </govuk-radios-fieldset>
+    </govuk-radios>
+    
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Url.Action("Cancel", "CancelCreation")">Cancel</a>
+ </form> 

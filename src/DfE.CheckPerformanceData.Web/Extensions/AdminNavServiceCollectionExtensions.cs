@@ -43,6 +43,9 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ObservabilityNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, StorageBrowserNavEntry>();
+        services.AddSingleton<IAdminNavEntry, WindowAdminNavEntry>();
+        services.AddSingleton<IAdminNavEntry, NewWindowNavEntry>();
+        services.AddSingleton<IAdminNavEntry, ManageWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
 

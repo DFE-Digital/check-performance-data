@@ -3,9 +3,9 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -13,25 +13,17 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 public sealed class QueueAdminControllerTests
 {
-    // --- Every action is gated by the literal cypmd_admin role ---
+    // --- Controller class carries [RequireAdminSection("rules-engine-queue")] ---
+    //
+    // Every action (Index / Dlq / Message / Redrive / Purge / RedriveMessage / PurgeMessage
+    // and every future action) is covered by the class-level gate.
 
-    [Theory]
-    [InlineData(nameof(QueueAdminController.Index))]
-    [InlineData(nameof(QueueAdminController.Dlq))]
-    [InlineData(nameof(QueueAdminController.Message))]
-    [InlineData(nameof(QueueAdminController.Redrive))]
-    [InlineData(nameof(QueueAdminController.Purge))]
-    [InlineData(nameof(QueueAdminController.RedriveMessage))]
-    [InlineData(nameof(QueueAdminController.PurgeMessage))]
-    public void Action_Has_Authorize_Attribute_With_AdminRole(string actionName)
+    [Fact]
+    public void Controller_Gated_By_RulesEngineQueue_Section()
     {
-        var method = typeof(QueueAdminController).GetMethod(actionName);
-        Assert.NotNull(method);
-
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        // Pin the literal — do not reference the const on both sides.
-        Assert.Equal("cypmd_admin", authorize!.Roles);
+        var gate = typeof(QueueAdminController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal("rules-engine-queue", gate!.SectionKey);
     }
 
     // --- Destructive verbs require antiforgery ---

@@ -1,14 +1,15 @@
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Admin-native replacement for the old /help/deleted wiki view: lists every soft-deleted
-// PageNode with a Restore action so an admin can undo an accidental delete without touching
-// the database.
-[Authorize(Roles = WikiConstants.EditorRole)]
+// PageNode with a Restore action so a caller with the deleted-pages section grant can undo
+// an accidental delete without touching the database.
+[RequireAdminSection(AdminNavKeys.DeletedPages)]
 public sealed class DeletedPagesController(IPageNodeService pageNodes) : Controller
 {
     [HttpGet("/admin/pages/deleted")]

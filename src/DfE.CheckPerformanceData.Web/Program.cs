@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using Community.Microsoft.Extensions.Caching.PostgreSql;
 using Microsoft.AspNetCore.DataProtection;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.CurrentUser;
@@ -72,7 +73,15 @@ try
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
     }, writeToProviders: true);
-    
+
+    // WebApplication.CreateBuilder registers a default Console provider. With Serilog's
+    // writeToProviders: true, that default provider ALSO receives every event and prints a
+    // second copy (the "info: Category[0]" line) alongside Serilog's own console sink.
+    // Clear the defaults so Serilog owns the console; the additive DatabaseLoggerProvider is
+    // registered later (below) and is unaffected, since ClearProviders only removes what is
+    // already registered.
+    builder.Logging.ClearProviders();
+
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
@@ -264,7 +273,20 @@ try
     });
 
     builder.Services.AddMemoryCache();
-    builder.Services.AddDistributedMemoryCache();
+    // Session must be backed by a store shared across all web replicas. Production runs multiple
+    // pods, so the default AddDistributedMemoryCache (per-pod, despite the name) would lose the
+    // in-progress journey RequestState whenever a follow-up request load-balances to a different
+    // pod — the user gets bounced back to Check Your Pupil Data. Back it with the PostgreSQL we
+    // already run instead. CreateInfrastructure lets the cache table be created on startup; the
+    // app already self-migrates with this same connection (see MigrateDatabaseAsync), so the DB
+    // user has the required rights, and the create is idempotent across concurrently-starting pods.
+    builder.Services.AddDistributedPostgreSqlCache(options =>
+    {
+        options.ConnectionString = builder.Configuration.GetConnectionString("Postgres");
+        options.SchemaName = "public";
+        options.TableName = "session_cache";
+        options.CreateInfrastructure = true;
+    });
     builder.Services.AddSession(options =>
     {
         options.Cookie.HttpOnly = true;

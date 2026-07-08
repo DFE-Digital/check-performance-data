@@ -90,6 +90,15 @@ public interface IPageNodeRepository
 
     Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId);
 
+    /// <summary>
+    /// Clones a page as a sibling of the source: a fresh Guid, a segment/path derived from
+    /// <paramref name="newSegment"/> under the source's parent, every version copied verbatim
+    /// (content + PublishFrom/To + IsCurrent + MinorVersion), and SortOrder placed at the tail of
+    /// the sibling set. All in one transaction so the copy is either fully written or not at all.
+    /// Returns <c>null</c> if the source id is unknown or already soft-deleted.
+    /// </summary>
+    Task<PageNodeDto?> CopyNodeAsync(Guid sourceId, string newSegment, string newTitle, string? userId);
+
     // ── Staging (import) — explicit-id creates, used only by ContentStagingService ─────────
     //
     // These preserve the exporter's identities so a bundle round-trips faithfully: the node's Id

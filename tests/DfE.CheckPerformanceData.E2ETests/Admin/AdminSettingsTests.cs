@@ -37,11 +37,13 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Settings_AsUnprivileged_Redirects_To_AccessDenied ---
+    // --- Settings_AsUnprivileged_Returns_NotFound ---
 
     [Fact]
-    public async Task Settings_AsUnprivileged_Redirects_To_AccessDenied()
+    public async Task Settings_AsUnprivileged_Returns_NotFound()
     {
+        // Users with no section grants get 404 rather than 302 to AccessDenied — admin
+        // surface is obfuscated from URL discovery.
         try
         {
             await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
@@ -52,8 +54,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {
@@ -61,10 +62,10 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Settings_Save_AsUnprivileged_Redirects_To_AccessDenied ---
+    // --- Settings_Save_AsUnprivileged_Returns_NotFound ---
 
     [Fact]
-    public async Task Settings_Save_AsUnprivileged_Redirects_To_AccessDenied()
+    public async Task Settings_Save_AsUnprivileged_Returns_NotFound()
     {
         try
         {
@@ -76,8 +77,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

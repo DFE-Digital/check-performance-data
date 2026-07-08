@@ -18,8 +18,9 @@ public sealed class AdminRulesM4Tests(PlaywrightFixture fixture)
             await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
             using var request = new HttpRequestMessage(HttpMethod.Get, $"{_fixture.BaseUrl}/admin/rules/outcomes/add");
             var response = await TestHttpClients.SendAsync(request);
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? "");
+            // Non-admin users get 404 rather than 302 to AccessDenied — the admin surface
+            // is obfuscated from users with no section grant.
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally { await AuthHelpers.ImpersonateAsEditorAsync(_fixture); }
     }

@@ -10,10 +10,10 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
 
-    // --- Non-admin is blocked from the queue admin surface ---
+    // --- Non-admin gets 404 (obfuscated) from the queue admin surface ---
 
     [Fact]
-    public async Task QueueAdmin_AsNonAdmin_Redirects_To_AccessDenied()
+    public async Task QueueAdmin_AsNonAdmin_Returns_NotFound()
     {
         try
         {
@@ -25,8 +25,7 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

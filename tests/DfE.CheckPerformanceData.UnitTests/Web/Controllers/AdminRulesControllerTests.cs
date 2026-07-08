@@ -2,9 +2,9 @@ using System.Reflection;
 using System.Text;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
 using DfE.CheckPerformanceData.Web.Controllers;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -30,11 +30,11 @@ public sealed class AdminRulesControllerTests
     private static AdminRulesController NewController(IRulesConfigService svc) => new(svc);
 
     [Fact]
-    public void Controller_Has_Authorize_AdminRole()
+    public void Controller_Gated_By_RulesConfig_Section()
     {
-        var authorize = typeof(AdminRulesController).GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
+        var gate = typeof(AdminRulesController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal("rules-config", gate!.SectionKey);
     }
 
     [Fact]

@@ -33,7 +33,12 @@ public static class AdminNavKeys
 
     public const string DangerZone = "danger-zone";
     public const string ResetSeedData = "reset-seed-data";
-    
+
+    // Wallboard / share-token management. No sidebar nav entry today — the surface is reached
+    // from the observability dashboard — but the key exists so the section can be gated through
+    // the AdminSectionAccess grid alongside every other admin surface.
+    public const string ShareAdmin = "share-admin";
+
     public const string WindowAdmin = "window-admin";
     public const string NewWindow = "new-window";
     public const string ManageWindow = "manage-window";

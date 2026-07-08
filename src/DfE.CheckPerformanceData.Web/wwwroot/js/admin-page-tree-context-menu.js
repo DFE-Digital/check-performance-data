@@ -18,7 +18,8 @@
         arrow_upward:   'M440-160v-487L216-423l-56-57 320-320 320 320-56 57-224-224v487h-80Z',
         arrow_downward: 'M440-800v487L216-537l-56 57 320 320 320-320-56-57-224 224V-800h-80Z',
         'delete':       'M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z',
-        open_in_new:    'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z'
+        open_in_new:    'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z',
+        content_copy:   'M360-240q-33 0-56.5-23.5T280-320v-480q0-33 23.5-56.5T360-880h360q33 0 56.5 23.5T800-800v480q0 33-23.5 56.5T720-240H360Zm0-80h360v-480H360v480ZM200-80q-33 0-56.5-23.5T120-160v-560h80v560h440v80H200Zm160-240v-480 480Z'
     };
 
     function makeIcon(iconName) {
@@ -112,6 +113,25 @@
         form.submit();
     }
 
+    function postCopy(pageId) {
+        var token = getAntiForgeryToken();
+        var form = document.createElement('form');
+        form.method = 'post';
+        form.action = '/admin/pages/' + pageId + '/copy';
+        form.style.display = 'none';
+
+        if (token) {
+            var tokenInput = document.createElement('input');
+            tokenInput.type = 'hidden';
+            tokenInput.name = '__RequestVerificationToken';
+            tokenInput.value = token;
+            form.appendChild(tokenInput);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
     function buildMenuForRoot() {
         addItem('New child page', 'add', function () {
             window.open('/admin/pages/new', '_blank', 'noopener');
@@ -130,6 +150,7 @@
         });
         addItem('Move up', 'arrow_upward', function () { postMove(pageId, 'up'); });
         addItem('Move down', 'arrow_downward', function () { postMove(pageId, 'down'); });
+        addItem('Copy page', 'content_copy', function () { postCopy(pageId); });
         addItem('Delete', 'delete', function () { navigate('/admin/pages/' + pageId + '/delete'); }, true);
         addItem('View', 'open_in_new', function () {
             var path = pagePath.replace(/^\//, '');

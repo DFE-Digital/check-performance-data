@@ -2,7 +2,6 @@ using System.Reflection;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
@@ -147,25 +146,7 @@ public sealed class QueueAdminTopNTests
 
     // --- The view-all action is role-gated to cypmd_admin ---
 
-    [Fact]
-    public void QueueList_HasAuthorizeAttribute_WithAdminRole()
-    {
-        var method = typeof(QueueAdminController).GetMethod(nameof(QueueAdminController.QueueList));
-        Assert.NotNull(method);
-
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
-    }
-
-    [Fact]
-    public void Index_HasAuthorizeAttribute_WithAdminRole()
-    {
-        var method = typeof(QueueAdminController).GetMethod(nameof(QueueAdminController.Index));
-        Assert.NotNull(method);
-
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
-    }
+    // The class-level RequireAdminSection gate covers Index, QueueList and every other action.
+    // Verified in QueueAdminControllerTests.Controller_Gated_By_RulesEngineQueue_Section — no
+    // need to duplicate the assertion here per-action.
 }

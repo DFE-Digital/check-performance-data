@@ -1,16 +1,17 @@
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Administration shell landing page. Gated by the cypmd_admin role so editors and
-// unprivileged users cannot reach the admin surface. Feature-area phases attach their
-// own controllers under /admin/<feature> with the same [Authorize(Roles = ...)] attribute.
+// Administration shell landing page. Gated against the AdminSectionAccess grid — any role
+// with at least one section grant may reach the landing. The sidebar and tile grid then hide
+// sections the user's roles do not grant, so the landing degrades per-role rather than a
+// hard "admin only" wall.
+[RequireAdminSection(AllowAnyGrantedSection = true)]
 public sealed class AdminController(IEnumerable<IAdminNavEntry> navEntries) : Controller
 {
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin")]
     public IActionResult Index()
     {

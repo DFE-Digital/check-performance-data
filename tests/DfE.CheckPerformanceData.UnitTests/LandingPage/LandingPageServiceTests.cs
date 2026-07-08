@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
 
@@ -20,7 +21,8 @@ public class LandingPageServiceTests
     {
         _currentUserService.UserId.Returns("user-1");
         _currentUserService.OrganisationId.Returns("org-1");
-        _sut = new LandingPageService(_repository, new FakeTimeProvider(Now), _dfESignInApiClient, _currentUserService);
+        _sut = new LandingPageService(_repository, new FakeTimeProvider(Now), _dfESignInApiClient, _currentUserService,
+            Substitute.For<ILogger<LandingPageService>>());
     }
 
     private sealed class FakeTimeProvider(DateTimeOffset now) : TimeProvider

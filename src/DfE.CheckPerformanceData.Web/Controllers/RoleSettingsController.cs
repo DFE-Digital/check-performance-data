@@ -1,13 +1,14 @@
 using DfE.CheckPerformanceData.Application.Admin;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Grid of role columns × section rows. Editing this page is gated on the admin role — CMS
-// editors should never be able to widen their own access.
-[Authorize(Roles = WikiConstants.AdminRole)]
+// Grid of role columns × section rows. Editing this page is gated on the role-settings
+// section grant — CMS editors should never be able to widen their own access, and only the
+// admin role gets role-settings in the default seed.
+[RequireAdminSection(Admin.Nav.AdminNavKeys.RoleSettings)]
 public sealed class RoleSettingsController(IAdminAccessPolicy accessPolicy) : Controller
 {
     // Any role that appears in a grant, or the two well-known defaults, becomes a column.

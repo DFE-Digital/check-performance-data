@@ -6,6 +6,7 @@
     <PackageVersion Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.5.1" />
     <PackageVersion Include="Azure.Storage.Blobs" Version="12.29.1" />
     <PackageVersion Include="Azure.Storage.Common" Version="12.28.0" />
+    <PackageVersion Include="Community.Microsoft.Extensions.Caching.PostgreSql" Version="6.0.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="DfeAnalytics.AspNetCore" Version="0.5.1" />
     <PackageVersion Include="DfeAnalytics.Core" Version="0.5.1" />

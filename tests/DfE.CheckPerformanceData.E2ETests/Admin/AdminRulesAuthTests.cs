@@ -36,11 +36,13 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Rules_AsNonAdmin_Redirects_To_AccessDenied ---
+    // --- Rules_AsNonAdmin_Returns_NotFound ---
 
     [Fact]
-    public async Task Rules_AsNonAdmin_Redirects_To_AccessDenied()
+    public async Task Rules_AsNonAdmin_Returns_NotFound()
     {
+        // Users with no section grants get 404 rather than 302 to AccessDenied — admin
+        // surface is deliberately obfuscated from URL discovery.
         try
         {
             await AuthHelpers.ImpersonateAsUnprivilegedUserAsync(_fixture);
@@ -51,8 +53,7 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {
@@ -60,12 +61,13 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Rules_AsEditorOnly_Redirects_To_AccessDenied ---
+    // --- Rules_AsEditorOnly_Returns_NotFound ---
 
     [Fact]
-    public async Task Rules_AsEditorOnly_Redirects_To_AccessDenied()
+    public async Task Rules_AsEditorOnly_Returns_NotFound()
     {
-        // Orthogonality: holding the editor role does NOT implicitly grant admin access.
+        // The rules-config section is admin-only in DefaultAdminAccessSeeder, so an editor
+        // without the extra grant sees 404 — same obfuscation as any other ungranted role.
         try
         {
             await AuthHelpers.ImpersonateAsEditorAsync(_fixture);
@@ -76,8 +78,7 @@ public sealed class AdminRulesAuthTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

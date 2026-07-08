@@ -50,8 +50,8 @@ public class CheckingWindowDraft
     {
         get
         {
-            // if (IsEmpty || StartDate < DateTime.UtcNow || EndDate < StartDate)
-            //     return false;
+            if (IsEmpty || StartDate < DateTime.UtcNow.Date || EndDate < StartDate)
+                return false;
 
             return true;
         }

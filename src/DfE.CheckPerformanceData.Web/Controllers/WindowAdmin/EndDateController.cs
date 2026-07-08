@@ -101,7 +101,7 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
 
     public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)
     {
-        if (model.DateValue < DateTime.UtcNow)
+        if (model.DateValue < DateTime.UtcNow.Date)
         {
             ModelState.AddModelError(nameof(model.DateValue), "End date can not occur in the past.");
         }

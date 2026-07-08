@@ -2,19 +2,24 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class LandingPageRepository(
     IPortalDbContext dbContext,
-    IPupilDataBlobClient pupilDataBlobClient) : ILandingPageRepository
+    IPupilDataBlobClient pupilDataBlobClient,
+    ILogger<LandingPageRepository> logger) : ILandingPageRepository
 {
     public async Task<List<CheckingWindowDto>> GetOpenWindowsAsync(DateTime now, string laestab,
         CancellationToken cancellationToken)
     {
-        var windows = await dbContext.CheckingWindows
+        // TEMP DIAGNOSTIC (no-window-cards in preprod): fetch EVERY window (unfiltered) and
+        // log its date range against `now`, so we can see whether an existing window simply
+        // isn't bracketing the clock value. Windows are few, so scanning all is cheap.
+        // Filtering happens in memory below. Revert to the DB-side date Where() once diagnosed.
+        var allWindows = await dbContext.CheckingWindows
             .AsNoTracking()
-            .Where(w => w.StartDate <= now && w.EndDate >= now)
             .Select(w => new
             {
                 w.StartDate,
@@ -25,6 +30,19 @@ public sealed class LandingPageRepository(
                 w.Id
             })
             .ToListAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Landing page window scan: now={Now} (kind {Kind}), totalWindowsInDb={Total}",
+            now, now.Kind, allWindows.Count);
+
+        foreach (var w in allWindows)
+        {
+            logger.LogInformation(
+                "Window '{Title}' ({Id}): start={Start}, end={End}, keyStage={KeyStage}, isOpen={IsOpen}",
+                w.Title, w.Id, w.StartDate, w.EndDate, w.KeyStage, w.StartDate <= now && w.EndDate >= now);
+        }
+
+        var windows = allWindows.Where(w => w.StartDate <= now && w.EndDate >= now).ToList();
 
         var result = new List<CheckingWindowDto>(windows.Count);
         foreach (var w in windows)

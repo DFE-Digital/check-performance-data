@@ -1,17 +1,18 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Observability;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Models.Observability;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// The admin-only management surface for share/wallboard tokens. Kept off the Observability
-// controller so the dashboard file is not shared across waves. Every action is gated by the
-// cypmd_admin role, so only an authenticated admin can mint or revoke a token. The plaintext token
-// is shown ONCE on generation (only its hash is stored), surfaced via TempData so it survives the
-// post-redirect-get without being persisted.
-[Authorize(Roles = WikiConstants.AdminRole)]
+// Management surface for share/wallboard tokens. Kept off the Observability controller so the
+// dashboard file is not shared across waves. Gated by the share-admin section grant — only
+// admin gets it in the default seed, so an editor cannot mint or revoke a token. The plaintext
+// token is shown ONCE on generation (only its hash is stored), surfaced via TempData so it
+// survives the post-redirect-get without being persisted.
+[RequireAdminSection(AdminNavKeys.ShareAdmin)]
 public sealed class ShareAdminController : Controller
 {
     private readonly IShareTokenService _tokens;

@@ -3,8 +3,8 @@ using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
@@ -193,13 +193,13 @@ public sealed class DevDemoControlsTests
     }
 
     [Fact]
-    public void Replay_CarriesAdminRoleAuthorizeAttribute()
+    public void Replay_IsGatedByTheClassLevelObservabilitySection()
     {
-        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Replay));
-        Assert.NotNull(method);
-
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
+        // ObservabilityController is class-gated by RequireAdminSection("observability") so
+        // every action, Replay included, inherits the same gate. Verified once at the class
+        // level in ObservabilityControllerTests.
+        var gate = typeof(ObservabilityController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal("observability", gate!.SectionKey);
     }
 }

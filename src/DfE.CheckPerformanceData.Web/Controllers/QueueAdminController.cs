@@ -3,16 +3,20 @@ using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Read-only and management surface over the Postgres queue and dead-letter queue.
-// Gated by the cypmd_admin role on every action; destructive verbs require antiforgery.
-// Payloads are redacted by default; the full payload is only rendered when the
-// Dlq:FullPayloadEnabled setting is on, and every full-payload view is audited.
+// Read-only and management surface over the Postgres queue and dead-letter queue. Gated by
+// the rules-engine-queue section grant (the queue admin surface is one logical unit — finer
+// per-queue gating can be added if a role needs access to one queue but not another).
+// Destructive verbs require antiforgery. Payloads are redacted by default; the full payload
+// is only rendered when the Dlq:FullPayloadEnabled setting is on, and every full-payload
+// view is audited.
+[RequireAdminSection(AdminNavKeys.RulesEngineQueue)]
 public sealed class QueueAdminController : Controller
 {
     private readonly IQueueAdminService _queueAdminService;
@@ -48,7 +52,6 @@ public sealed class QueueAdminController : Controller
             [QueueOptions.ZendeskQueue] = "Zendesk queue",
         };
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues")]
     public async Task<IActionResult> Index(CancellationToken cancellationToken = default)
     {
@@ -90,7 +93,6 @@ public sealed class QueueAdminController : Controller
         });
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues/list/{queueName}")]
     public async Task<IActionResult> QueueList(string queueName, int page = 1, CancellationToken cancellationToken = default)
     {
@@ -132,7 +134,6 @@ public sealed class QueueAdminController : Controller
         return size > 0 ? size : DefaultPageLength;
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues/list/{queueName}/{id:guid}")]
     public async Task<IActionResult> WorkingMessage(string queueName, Guid id, CancellationToken cancellationToken = default)
     {
@@ -174,7 +175,6 @@ public sealed class QueueAdminController : Controller
         });
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues/dlq")]
     public async Task<IActionResult> Dlq(CancellationToken cancellationToken = default)
     {
@@ -183,7 +183,6 @@ public sealed class QueueAdminController : Controller
         return View(new DlqListViewModel { Messages = messages });
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/queues/dlq/{id:guid}")]
     public async Task<IActionResult> Message(Guid id, CancellationToken cancellationToken = default)
     {
@@ -221,7 +220,6 @@ public sealed class QueueAdminController : Controller
         });
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpPost("admin/queues/dlq/redrive")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Redrive(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
@@ -249,13 +247,11 @@ public sealed class QueueAdminController : Controller
         return RedirectToAction(nameof(Dlq));
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpPost("admin/queues/dlq/{id:guid}/redrive")]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> RedriveMessage(Guid id, CancellationToken cancellationToken = default) =>
         Redrive(new[] { id }, cancellationToken);
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpPost("admin/queues/dlq/purge")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Purge(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
@@ -293,7 +289,6 @@ public sealed class QueueAdminController : Controller
         return RedirectToAction(nameof(Dlq));
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpPost("admin/queues/dlq/{id:guid}/purge")]
     [ValidateAntiForgeryToken]
     public Task<IActionResult> PurgeMessage(Guid id, CancellationToken cancellationToken = default) =>

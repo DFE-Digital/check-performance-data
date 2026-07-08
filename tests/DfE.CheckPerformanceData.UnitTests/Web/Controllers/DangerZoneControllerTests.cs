@@ -1,7 +1,8 @@
 using System.Reflection;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Seeding;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.Hosting;
@@ -10,9 +11,9 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
 // The Danger zone reset endpoint runs the full startup seeding (destructive: wipes change
-// requests + checking windows and reseeds). It is admin-role gated AND hard-guarded against
-// Production: the POST 404s in prod and never invokes the orchestrator. Outside prod it runs
-// the orchestrator once and redirects to /admin with a TempData result banner.
+// requests + checking windows and reseeds). It is gated by the reset-seed-data section grant
+// AND hard-guarded against Production: the POST 404s in prod and never invokes the orchestrator.
+// Outside prod it runs the orchestrator once and redirects to /admin with a TempData result banner.
 public sealed class DangerZoneControllerTests
 {
     private readonly IDevDataSeedingOrchestrator _orchestrator = Substitute.For<IDevDataSeedingOrchestrator>();
@@ -34,11 +35,11 @@ public sealed class DangerZoneControllerTests
     }
 
     [Fact]
-    public void Controller_HasAuthorizeAttribute_WithAdminRole()
+    public void Controller_Gated_By_ResetSeedData_Section()
     {
-        var authorize = typeof(DangerZoneController).GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
+        var gate = typeof(DangerZoneController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal(AdminNavKeys.ResetSeedData, gate!.SectionKey);
     }
 
     [Fact]

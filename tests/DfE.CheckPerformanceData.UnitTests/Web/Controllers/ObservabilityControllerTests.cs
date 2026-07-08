@@ -2,17 +2,19 @@ using System.Reflection;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Models.Observability;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// The observability dashboard is always-on but role-gated cypmd_admin on every action,
-// including the SSE stream (no unauthenticated firehose). The throughput action validates
-// its granularity against the server-side allow-list before any aggregation runs.
+// The observability dashboard is always-on but gated by the observability section grant on
+// every action — including the SSE stream (no unauthenticated firehose). The throughput
+// action validates its granularity against the server-side allow-list before any aggregation
+// runs.
 public sealed class ObservabilityControllerTests
 {
     private static ObservabilityController BuildController(
@@ -50,21 +52,17 @@ public sealed class ObservabilityControllerTests
         return query;
     }
 
-    // --- Every action carries [Authorize(Roles = cypmd_admin)] ---
+    // --- Controller class carries [RequireAdminSection("observability")] ---
+    //
+    // The gate lives on the class so every action (Index / Journey / Stream / Inspect and every
+    // future action) is covered without per-action decoration.
 
-    [Theory]
-    [InlineData(nameof(ObservabilityController.Index))]
-    [InlineData(nameof(ObservabilityController.Journey))]
-    [InlineData(nameof(ObservabilityController.Stream))]
-    [InlineData(nameof(ObservabilityController.Inspect))]
-    public void Action_HasAuthorizeAttribute_WithAdminRole(string actionName)
+    [Fact]
+    public void Controller_Gated_By_Observability_Section()
     {
-        var method = typeof(ObservabilityController).GetMethod(actionName);
-        Assert.NotNull(method);
-
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
+        var gate = typeof(ObservabilityController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal(AdminNavKeys.Observability, gate!.SectionKey);
     }
 
     // --- Index returns the dashboard view model ---
@@ -309,16 +307,6 @@ public sealed class ObservabilityControllerTests
     // --- Export returns the underlying data as CSV, not a chart image ---
 
     [Fact]
-    public void Export_HasAuthorizeAttribute_WithAdminRole()
-    {
-        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Export));
-        Assert.NotNull(method);
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
-    }
-
-    [Fact]
     public async Task Export_ReturnsCsvFileWithAFilename()
     {
         var query = BuildQuery();
@@ -360,16 +348,6 @@ public sealed class ObservabilityControllerTests
     }
 
     // --- The full transactions page is paged by the Wiki:PageLength setting ---
-
-    [Fact]
-    public void Transactions_HasAuthorizeAttribute_WithAdminRole()
-    {
-        var method = typeof(ObservabilityController).GetMethod(nameof(ObservabilityController.Transactions));
-        Assert.NotNull(method);
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
-    }
 
     [Fact]
     public async Task Transactions_PagesByTheConfiguredPageLength()
@@ -457,18 +435,6 @@ public sealed class ObservabilityControllerTests
     }
 
     // --- The submissions picker is admin-gated and paged by Wiki:PageLength ---
-
-    [Theory]
-    [InlineData(nameof(ObservabilityController.Submissions))]
-    [InlineData(nameof(ObservabilityController.Walkthrough))]
-    public void ReplaySurfaces_HaveAuthorizeAttribute_WithAdminRole(string actionName)
-    {
-        var method = typeof(ObservabilityController).GetMethod(actionName);
-        Assert.NotNull(method);
-        var authorize = method!.GetCustomAttribute<AuthorizeAttribute>();
-        Assert.NotNull(authorize);
-        Assert.Equal("cypmd_admin", authorize!.Roles);
-    }
 
     [Fact]
     public async Task Submissions_PagesByTheConfiguredPageLength_AndDefaultsToARecentWindow()

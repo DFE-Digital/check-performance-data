@@ -26,10 +26,10 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
         "Zendesk ticket",
     };
 
-    // --- A non-admin cannot reach the dashboard ---
+    // --- A non-admin cannot reach the dashboard (obfuscated as 404) ---
 
     [Fact]
-    public async Task Dashboard_AsNonAdmin_Redirects_To_AccessDenied()
+    public async Task Dashboard_AsNonAdmin_Returns_NotFound()
     {
         try
         {
@@ -41,8 +41,7 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

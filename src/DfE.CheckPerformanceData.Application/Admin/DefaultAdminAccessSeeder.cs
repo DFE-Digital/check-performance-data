@@ -37,6 +37,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "amendment-requests-admin",
         "uncommitted-requests",
         "reset-seed-data",
+        "share-admin",
     };
 
     public async Task SeedIfEmptyAsync()
@@ -50,10 +51,15 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         var grants = AllSections.Select(s => new RoleSectionAccessGrant(AdminRole, s)).ToList();
 
         // Editor defaults are user-editable; only apply them on a fresh DB so any subsequent
-        // grant changes made from the role settings page stick.
+        // grant changes made from the role settings page stick. The CMS-authoring set covers
+        // every surface an editor needs to build the site: pages, blocks, import/export bundles,
+        // deleted-page restore, and the sample-seed helper.
         if (wasEmpty)
         {
             grants.Add(new RoleSectionAccessGrant(EditorRole, "content-pages"));
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "content-blocks"));
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "content-staging"));
+            grants.Add(new RoleSectionAccessGrant(EditorRole, "deleted-pages"));
             grants.Add(new RoleSectionAccessGrant(EditorRole, "seed-sample-pages"));
         }
 

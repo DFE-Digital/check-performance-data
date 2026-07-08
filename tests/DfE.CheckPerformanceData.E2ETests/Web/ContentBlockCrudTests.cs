@@ -45,10 +45,10 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
 
-    // --- PostSave_AsNonEditor_Returns403 ---
+    // --- PostSave_AsNonEditor_Returns_NotFound ---
 
     [Fact]
-    public async Task PostSave_AsNonEditor_Returns403()
+    public async Task PostSave_AsNonEditor_Returns_NotFound()
     {
         var unique = $"e2e-{Guid.NewGuid():N}";
         var key = $"{unique}-block";
@@ -79,8 +79,9 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            // Non-editor gets 404 rather than 302 to AccessDenied — content-block edit surface
+            // is obfuscated from users with no ContentBlocks section grant.
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {
@@ -88,10 +89,10 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- PostRevert_AsNonEditor_Returns403 ---
+    // --- PostRevert_AsNonEditor_Returns_NotFound ---
 
     [Fact]
-    public async Task PostRevert_AsNonEditor_Returns403()
+    public async Task PostRevert_AsNonEditor_Returns_NotFound()
     {
         var (token, cookie) = await AntiforgeryHelpers.ScrapeAsync(_fixture.SeedClient, "/dev/antiforgery-token");
 
@@ -115,8 +116,9 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            // Non-editor gets 404 rather than 302 to AccessDenied — content-block edit surface
+            // is obfuscated from users with no ContentBlocks section grant.
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {
@@ -124,14 +126,14 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Versions_AsNonEditor_Redirects_To_AccessDenied ---
+    // --- Versions_AsNonEditor_Returns_NotFound ---
 
     [Fact]
-    public async Task Versions_AsNonEditor_Redirects_To_AccessDenied()
+    public async Task Versions_AsNonEditor_Returns_NotFound()
     {
-        // The action returns 404 for missing keys, but authorization runs first and
-        // short-circuits with a 302 to AccessDenied before the controller body executes,
-        // so we assert on the redirect (not the 404). GET — no antiforgery scrape needed.
+        // RequireAdminSection runs before the action body and short-circuits with 404 for
+        // users without the ContentBlocks section grant, so we never reach the "missing key"
+        // 404 the controller would otherwise return. GET — no antiforgery scrape needed.
         var key = $"e2e-{Guid.NewGuid():N}-block";
 
         try
@@ -144,8 +146,7 @@ public sealed class ContentBlockCrudTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

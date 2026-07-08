@@ -2,8 +2,9 @@ using System.Runtime.CompilerServices;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Models.Observability;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
@@ -11,10 +12,11 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // The always-on observability dashboard: a server-rendered health strip, plain-English status
 // sentence, big-number tiles and accessible SVG charts, plus the per-message journey timeline
-// and the live SSE snapshot stream that refreshes the board. Every action is role-gated
-// cypmd_admin — the stream included, so there is never an unauthenticated firehose. The
-// dashboard's window/granularity selection resolves against the DashboardRanges allow-list
-// before any aggregation runs.
+// and the live SSE snapshot stream that refreshes the board. Every action — the SSE stream
+// included, so there is never an unauthenticated firehose — is gated by the observability
+// section grant. The dashboard's window/granularity selection resolves against the
+// DashboardRanges allow-list before any aggregation runs.
+[RequireAdminSection(AdminNavKeys.Observability)]
 public sealed class ObservabilityController : Controller
 {
     private readonly IMetricsQueryService _query;
@@ -67,7 +69,6 @@ public sealed class ObservabilityController : Controller
     // configured but a longer one is clamped back to 30.
     private const int MaxHeartbeatSeconds = 30;
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability")]
     public async Task<IActionResult> Index(
         string? range = null,
@@ -167,7 +168,6 @@ public sealed class ObservabilityController : Controller
     // The dashboard export: the data BEHIND the charts as CSV, never a chart image. It reads the
     // same MetricsQueryService series the dashboard renders, at the same resolved range/granularity,
     // so the file is accurate by construction. Role-gated cypmd_admin like every other action.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/export.csv")]
     public async Task<IActionResult> Export(
         string? range = null,
@@ -219,7 +219,6 @@ public sealed class ObservabilityController : Controller
     // the dashboard caps at ~10 and links here for the complete history. Paging is by the
     // Wiki:PageLength setting and done in SQL (Skip/Take + COUNT) — the whole table is never loaded
     // into memory. An optional from/to window narrows the list. Role-gated cypmd_admin.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/transactions")]
     public async Task<IActionResult> Transactions(
         int page = 1,
@@ -261,7 +260,6 @@ public sealed class ObservabilityController : Controller
     // the list; with no filter the picker opens on a recent window (the last DefaultWindow) so it
     // shows the latest submissions rather than every reference ever recorded. Paged by the
     // Wiki:PageLength setting (default 20), in SQL. Role-gated cypmd_admin.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/submissions")]
     public async Task<IActionResult> Submissions(
         int page = 1,
@@ -300,7 +298,6 @@ public sealed class ObservabilityController : Controller
     // chosen items moving across the five pipeline stages and single-step them. The progression is
     // the ordered, de-duplicated board-stage keys the reference actually visited. Role-gated
     // cypmd_admin.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/replay/walkthrough")]
     public async Task<IActionResult> Walkthrough(
         [FromQuery(Name = "reference")] string[]? reference = null,
@@ -344,7 +341,6 @@ public sealed class ObservabilityController : Controller
         return View(new WalkthroughViewModel { Items = items });
     }
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/journey/{reference}")]
     public async Task<IActionResult> Journey(string reference, CancellationToken cancellationToken = default)
     {
@@ -362,7 +358,6 @@ public sealed class ObservabilityController : Controller
     // tokens by reference number, and metrics are only recorded after ack/dead-letter, by which
     // point the queue row (and its payload) is gone. Payload viewing stays on the queue admin
     // surfaces, which carry the redaction and audit discipline.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/inspect/{reference}")]
     public async Task<IActionResult> Inspect(string reference, CancellationToken cancellationToken = default)
     {
@@ -388,7 +383,6 @@ public sealed class ObservabilityController : Controller
     // Dev:ToolsEnabled gate, because replay is a locked always-on surface present in every
     // environment. The payload is aggregate transition events (queue/stage/reference/decision)
     // with no pupil data, mirroring the snapshot schema.
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/replay")]
     public async Task<IActionResult> Replay(
         DateTime? from,
@@ -422,7 +416,6 @@ public sealed class ObservabilityController : Controller
         _ => value.ToUniversalTime(),
     };
 
-    [Authorize(Roles = WikiConstants.AdminRole)]
     [HttpGet("admin/observability/stream")]
     public IResult Stream(CancellationToken cancellationToken = default)
     {

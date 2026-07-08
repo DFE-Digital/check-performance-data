@@ -141,7 +141,7 @@ public sealed class JourneyController(
                 });
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
                 vm.ConflictErrorReference = conflictRef;
-                vm.ConflictErrorLink = $"/SubmittedRequest/{windowId}/{conflictRef}";
+                vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{conflictRef}/view";
                 return View("PupilSearch", vm);
             }
         }

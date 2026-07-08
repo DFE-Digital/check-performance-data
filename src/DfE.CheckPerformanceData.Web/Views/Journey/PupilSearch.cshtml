@@ -25,13 +25,15 @@ else
     <govuk-error-summary>
         <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
         <govuk-error-summary-item href="#pupil-search">@errorMessage</govuk-error-summary-item>
-        @if (Model.ConflictErrorReference is not null)
-        {
-            <govuk-error-summary-item href="@Model.ConflictErrorLink">
-                View existing request (@Model.ConflictErrorReference)
-            </govuk-error-summary-item>
-        }
     </govuk-error-summary>
+    @if (Model.ConflictErrorReference is not null)
+    {
+        <p class="govuk-body">
+            <a class="govuk-link" href="@Model.ConflictErrorLink" target="_blank" rel="noreferrer noopener">
+                View existing request (@Model.ConflictErrorReference) (opens in new tab)
+            </a>
+        </p>
+    }
 }
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>

@@ -96,7 +96,7 @@ public class JourneyControllerTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, _analytics)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

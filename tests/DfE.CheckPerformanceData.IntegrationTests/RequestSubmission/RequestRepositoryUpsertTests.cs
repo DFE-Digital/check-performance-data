@@ -176,6 +176,67 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         Assert.False(conflict);
     }
 
+    [Fact]
+    public async Task HasConflictingRequest_ReturnsFalse_WhenOnlyInProgressRequestExists()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-INPROG", RequestStatus.InProgress, pupilId: pupilId));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+
+        Assert.False(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_ReturnsFalse_WhenOnlyWithdrawnRequestExists()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-WD", RequestStatus.Withdrawn, pupilId: pupilId));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+
+        Assert.False(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_ReturnsTrue_WhenSubmittedUnCommittedRequestExists()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-CONF-SUBMITTED", RequestStatus.SubmittedUnCommitted, pupilId: pupilId));
+
+        var conflict = await new RequestRepository(_fixture.CreateContext())
+            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+
+        Assert.True(conflict);
+    }
+
+    [Fact]
+    public async Task HasConflictingRequest_ReturnsTrueWithReferenceNumber()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        var pupilId = Guid.NewGuid();
+        const string expectedRef = "REF-CONF-REFNUM";
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, expectedRef, RequestStatus.SubmittedUnCommitted, pupilId: pupilId));
+
+        var refNum = await new RequestRepository(_fixture.CreateContext())
+            .HasSubmittedRequestAsync(windowId, pupilId, 100000);
+
+        Assert.Equal(expectedRef, refNum);
+    }
+
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
         long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1") =>

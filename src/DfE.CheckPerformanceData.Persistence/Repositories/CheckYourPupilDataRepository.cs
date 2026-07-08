@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
-using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -87,18 +86,6 @@ public sealed class CheckYourPupilDataRepository(
     public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null)
     {
         var urnLong = long.Parse(urn);
-        // Exclude pupils that already have a live change request. Keyed on the pupil's stable Id
-        // (not UPN): a pupil may have no UPN, and every UPN-less pupil would otherwise share the
-        // same blank UPN and be excluded en masse the moment one of them was requested.
-        var excludedPupilIds = (await dbContext.ChangeRequests
-                .AsNoTracking()
-                .Where(r => r.WindowId == windowId &&
-                            r.OrganisationUrn == urnLong &&
-                            r.PupilId != null &&
-                            r.Status != RequestStatus.Withdrawn)
-                .Select(r => r.PupilId!.Value)
-                .ToListAsync())
-            .ToHashSet();
 
         var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
             .Where(p => filter switch
@@ -110,8 +97,7 @@ public sealed class CheckYourPupilDataRepository(
             .Where(p => p.Upn.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
                         p.Cypmd_Id.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
                         p.Surname.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .Where(p => !excludedPupilIds.Contains(p.Id));
+                        p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);

@@ -19,7 +19,17 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             r.PupilId == pupilId &&
             r.OrganisationUrn == organisationUrn &&
             r.ReferenceNumber != currentReferenceNumber &&
-            r.Status != RequestStatus.Withdrawn);
+            r.Status == RequestStatus.SubmittedUnCommitted);
+
+    public async Task<string?> HasSubmittedRequestAsync(
+        Guid windowId, Guid pupilId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.PupilId == pupilId
+                && r.OrganisationUrn == organisationUrn
+                && r.Status == RequestStatus.SubmittedUnCommitted)
+            .Select(r => r.ReferenceNumber)
+            .FirstOrDefaultAsync();
 
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {

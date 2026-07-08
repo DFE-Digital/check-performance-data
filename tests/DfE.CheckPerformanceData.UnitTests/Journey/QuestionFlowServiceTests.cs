@@ -498,14 +498,31 @@ public class QuestionFlowServiceTests
     }
 
     [Fact]
-    public async Task GetConfigAsync_WhenCalledTwice_ReturnsCachedResultWithoutSecondBlobCall()
+    public async Task GetConfigAsync_WhenBlobReturnsConfig_CachesResultAndSkipsSecondBlobCall()
     {
-        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns((QuestionFlowConfig?)null);
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns(_config);
 
         await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
         await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
 
         await _blobClient.Received(1).GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
+    }
+
+    [Fact]
+    public async Task GetConfigAsync_WhenBlobReturnsNull_DoesNotCacheNull_SoLaterUploadIsPickedUp()
+    {
+        // First lookup misses (config not yet uploaded to blob storage).
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns((QuestionFlowConfig?)null);
+        var first = await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
+        Assert.Null(first);
+
+        // The config is subsequently uploaded. A permanently-cached null would keep returning
+        // null (the Preprod bug); instead the next lookup must re-query the blob and find it.
+        _blobClient.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2).Returns(_config);
+        var second = await _sut.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
+
+        Assert.Same(_config, second);
+        await _blobClient.Received(2).GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS2);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

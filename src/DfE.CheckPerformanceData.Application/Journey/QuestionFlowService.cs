@@ -13,7 +13,11 @@ public sealed class QuestionFlowService(IQuestionFlowBlobClient blobClient, IMem
             return cached;
 
         var config = await blobClient.GetConfigAsync(whatToChange, checkingWindowType);
-        cache.Set(key, config, new MemoryCacheEntryOptions { Priority = CacheItemPriority.NeverRemove });
+        // Only cache a config that was actually found. Caching a null (e.g. a lookup that races
+        // ahead of the blob being uploaded) with NeverRemove priority pins that miss for the life
+        // of the process, so a later upload is never picked up until the pod restarts.
+        if (config is not null)
+            cache.Set(key, config, new MemoryCacheEntryOptions { Priority = CacheItemPriority.NeverRemove });
         return config;
     }
 

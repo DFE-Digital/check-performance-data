@@ -101,10 +101,10 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
 
     public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)
     {
-        if (model.DateValue < DateTime.UtcNow)
-        {
-            ModelState.AddModelError(nameof(model.DateValue), "Start date can not occur in the past.");
-        }
+        // if (model.DateValue < DateTime.UtcNow)
+        // {
+        //     ModelState.AddModelError(nameof(model.DateValue), "Start date can not occur in the past.");
+        // }
 
         if (windowDto != null && model.DateValue > windowDto.EndDate)
         {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using DfE.CheckPerformanceData.Application.Admin;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -137,6 +138,22 @@ public sealed class ObservabilityStreamTests
                     q.GetQueueDepthsAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<QueueDepth>());
                     q.GetDlqCountAsync(Arg.Any<CancellationToken>()).Returns(0);
                     return q;
+                });
+
+                // ObservabilityController is gated by [RequireAdminSection(observability)]
+                // which resolves IAdminAccessPolicy at request time. This narrow test host
+                // doesn't wire up the full admin-access grid, so stub the policy to grant
+                // every section to the cypmd_admin role — exercise stays on the stream, not
+                // the access control.
+                services.AddScoped<IAdminAccessPolicy>(_ =>
+                {
+                    var policy = Substitute.For<IAdminAccessPolicy>();
+                    policy.CanAccessAsync(Arg.Any<ClaimsPrincipal>(), Arg.Any<string>()).Returns(true);
+                    policy.GetAllGrantsAsync().Returns(new List<RoleSectionAccessGrant>
+                    {
+                        new("cypmd_admin", "observability")
+                    });
+                    return policy;
                 });
 
                 var authBuilder = services

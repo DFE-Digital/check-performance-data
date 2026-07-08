@@ -53,7 +53,7 @@ public sealed class PupilCsvDto
     public required int Pincl { get; init; }
     public required string Laestab { get; init; }
     public required string Urn { get; init; }
-    public required DateTime EntryDate { get; init; }
+    public required string EntryDate { get; init; }
     public required string SenF { get; init; }
     public required string FirstLanguage { get; init; }
     public required string Ethnicity { get; init; }

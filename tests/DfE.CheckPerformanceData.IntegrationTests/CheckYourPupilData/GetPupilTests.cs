@@ -18,7 +18,7 @@ public sealed class GetPupilTests(PostgresFixture fixture)
     {
         Id = id,
         CheckingWindowId = windowId,
-        Urn = "142313",
+        Urn = 142313,
         Laestab = TestLaestab,
         Surname = "Smith",
         Firstname = "Jane",
@@ -31,7 +31,7 @@ public sealed class GetPupilTests(PostgresFixture fixture)
         ActualYearGroup = "11",
         Ethnicity = "A1",
         SenF = "N",
-        EntryDate = DateTime.UtcNow.AddYears(-2),
+        EntryDate = "01/09/2021",
         Cypmd_Id = Guid.NewGuid().ToString(),
         MatchRef = 1,
         Upn = $"U{Guid.NewGuid():N}"[..13],

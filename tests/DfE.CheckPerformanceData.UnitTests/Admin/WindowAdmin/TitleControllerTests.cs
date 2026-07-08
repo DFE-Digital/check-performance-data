@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
@@ -18,8 +19,6 @@ public class TitleControllerTests
         var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
-        // A substituted session returns false from TryGetValue, so GetString/GetObject
-        // return null - i.e. there is no CheckingWindowDraft for this window yet.
         var session = Substitute.For<ISession>();
 
         var controller = new TitleController(logger, windowService)
@@ -27,10 +26,11 @@ public class TitleControllerTests
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { Session = session }
-            }
+            },
+            Url = StubUrlHelper()
         };
 
-        var result = await controller.Index(CancellationToken.None);
+        var result = await controller.NewTitle(CancellationToken.None);
 
         var viewResult = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
@@ -50,10 +50,11 @@ public class TitleControllerTests
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { Session = SessionWithDraft(draft) }
-            }
+            },
+            Url = StubUrlHelper()
         };
 
-        var result = await controller.Index(CancellationToken.None);
+        var result = await controller.NewTitle(CancellationToken.None);
 
         var viewResult = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
@@ -66,7 +67,6 @@ public class TitleControllerTests
         var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
-        // No existing draft in session, so the controller creates a new one.
         var session = Substitute.For<ISession>();
         byte[]? stored = null;
         session.When(s => s.Set("CheckingWindowDraft", Arg.Any<byte[]>()))
@@ -82,15 +82,13 @@ public class TitleControllerTests
 
         var model = new WindowTitleEditItem { Title = "Spring 2027 checking window" };
 
-        var result = await controller.Index(model, CancellationToken.None);
+        var result = await controller.SubmitNew(model, CancellationToken.None);
 
-        // The draft was written to the session with the submitted title.
         Assert.NotNull(stored);
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
         Assert.Equal("Spring 2027 checking window", savedDraft!.Title);
 
-        // With only a title set, the journey moves on to the start date step.
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("New", redirect.ActionName);
         Assert.Equal("StartDate", redirect.ControllerName);
@@ -102,7 +100,6 @@ public class TitleControllerTests
         var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
-        // An existing draft already part-way through the journey (title + start date set).
         var existing = new CheckingWindowDraft
         {
             Title = "Old title",
@@ -123,24 +120,19 @@ public class TitleControllerTests
         };
 
         var model = new WindowTitleEditItem { Title = "Updated title" };
+        var result = await controller.SubmitNew(model, CancellationToken.None);
 
-        var result = await controller.Index(model, CancellationToken.None);
-
-        // The stored draft has the new title but keeps the other fields from the existing draft.
         Assert.NotNull(stored);
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
         Assert.Equal("Updated title", savedDraft!.Title);
         Assert.Equal(new DateTime(2027, 1, 1), savedDraft.StartDate);
 
-        // Title and start date are set, so the journey moves on to the end date step.
         var redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("New", redirect.ActionName);
         Assert.Equal("EndDate", redirect.ControllerName);
     }
 
-    // Builds a substituted session that returns the given draft for the "CheckingWindowDraft"
-    // key, serialized the same way SessionExtensions.SetObject stores it (JSON as UTF-8 bytes).
     private static ISession SessionWithDraft(CheckingWindowDraft draft)
     {
         var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(draft));
@@ -158,19 +150,19 @@ public class TitleControllerTests
     [Fact]
     public async Task Edit_get_returns_view_with_the_windows_title()
     {
-        var logger = Substitute.For<ILogger<TitleController>>();
-        var windowService = Substitute.For<IWindowService>();
+        ILogger<TitleController>? logger = Substitute.For<ILogger<TitleController>>();
+        IWindowService? windowService = Substitute.For<IWindowService>();
 
-        var id = Guid.NewGuid();
+        Guid id = Guid.NewGuid();
         windowService.GetByIdAsync(id, Arg.Any<CancellationToken>())
             .Returns(Window(id, "Existing window title"));
 
-        var controller = BuildController(logger, windowService);
+        TitleController controller = BuildController(logger, windowService);
 
-        var result = await controller.Index(id, CancellationToken.None);
+        IActionResult result = await controller.EditTitle(id, CancellationToken.None);
 
-        var viewResult = Assert.IsType<ViewResult>(result);
-        var model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
+        ViewResult viewResult = Assert.IsType<ViewResult>(result);
+        WindowTitleEditItem model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
         Assert.Equal(id, model.WindowId);
         Assert.Equal("Existing window title", model.Title);
     }
@@ -182,10 +174,9 @@ public class TitleControllerTests
         var windowService = Substitute.For<IWindowService>();
 
         var id = Guid.NewGuid();
-        // GetByIdAsync returns null (the default) when nothing is found for the id.
         var controller = BuildController(logger, windowService);
 
-        var result = await controller.Index(id, CancellationToken.None);
+        var result = await controller.EditTitle(id, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -204,9 +195,8 @@ public class TitleControllerTests
 
         var model = new WindowTitleEditItem { WindowId = id, Title = "New edited title" };
 
-        var result = await controller.Index(id, model, CancellationToken.None);
+        var result = await controller.SubmitEdit(id, model, CancellationToken.None);
 
-        // The service is asked to persist the window with the updated title.
         await windowService.Received(1).UpdateAsync(
             Arg.Is<CheckingWindowDto>(w => w.Id == id && w.Title == "New edited title"),
             Arg.Any<CancellationToken>());
@@ -227,18 +217,25 @@ public class TitleControllerTests
         var routeId = Guid.NewGuid();
         var model = new WindowTitleEditItem { WindowId = Guid.NewGuid(), Title = "Mismatched" };
 
-        var result = await controller.Index(routeId, model, CancellationToken.None);
+        var result = await controller.SubmitEdit(routeId, model, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
-        // Nothing should be loaded or saved when the ids do not match.
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
     }
 
     private static TitleController BuildController(ILogger<TitleController> logger, IWindowService windowService) =>
         new(logger, windowService)
         {
-            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
+            Url = StubUrlHelper()
         };
+
+    private static IUrlHelper StubUrlHelper()
+    {
+        var urlHelper = Substitute.For<IUrlHelper>();
+        urlHelper.Action(Arg.Any<UrlActionContext>()).Returns(ci => "/");
+        return urlHelper;
+    }
 
     private static CheckingWindowDto Window(Guid id, string title) =>
         new()

@@ -8,7 +8,6 @@ public class CancelCreationController : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";
 
-    [ActionName("Cancel")]
     [HttpGet("admin/windows/cancel-creation")]
     public IActionResult Index()
     {
@@ -24,7 +23,7 @@ public class CancelCreationController : Controller
     }
     
     [HttpPost("admin/windows/cancel-creation")]
-    public IActionResult Cancel(CheckingWindowDraft draft, string action)
+    public IActionResult Submit(CheckingWindowDraft draft, string action)
     {
         if (action == "cancel")
         {

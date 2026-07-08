@@ -9,22 +9,21 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
 {
     private const string PageView = "~/Views/WindowAdmin/Title.cshtml";
 
-    [ActionName("NewTitle")]
     [HttpGet("admin/windows/title")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> NewTitle(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");        
         WindowTitleEditItem model = new WindowTitleEditItem()
         {
             Title = draft?.Title ?? "New window",
-            PostUrl = "/admin/windows/title"
+            PostUrl = Url.Action("SubmitNew", "Title"),
+            CancelUrl = Url.Action("Index", "CancelCreation")
         };
         return View(PageView, model);
     }
 
-    [ActionName("EditTitle")]
     [HttpGet("admin/windows/{id:guid}/title")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> EditTitle(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -37,33 +36,35 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         {
             WindowId = window.Id,
             Title = window.Title,
-            PostUrl = $"/admin/windows/{window.Id}/title"
+            PostUrl = Url.Action("SubmitEdit", "Title", new {id = window.Id}),
+            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id })
         };
 
         return View(PageView, model);
     }
 
     [HttpPost("admin/windows/title")]
-    public async Task<IActionResult> Index(WindowTitleEditItem model, CancellationToken cancellationToken)
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SubmitNew(WindowTitleEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft") ?? new CheckingWindowDraft();        
-        if (ModelState.ErrorCount > 0)
+        if (!ModelState.IsValid)
         {
             return View(PageView, model);
         }
 
-        draft?.Title = model.Title;
+        draft.Title = model.Title;
         
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
         
-        return RedirectToAction("New", draft?.NextController());
+        return RedirectToAction("New", draft.NextController());
     }
 
     [HttpPost("admin/windows/{id:guid}/title")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowTitleEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitEdit(Guid id, WindowTitleEditItem model, CancellationToken cancellationToken)
     {
-        if (ModelState.ErrorCount > 0)
+        if (!ModelState.IsValid)
         {
             return View(PageView, model);
         }
@@ -74,9 +75,14 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         }
 
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
-        window.Title = model?.Title;
+        if (window is null)
+        {
+            return NotFound();
+        }
+        
+        window.Title = model.Title;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", new { Id = id});
+        return RedirectToAction("Index", "Summary", new { id = id});
     }
 }

@@ -1,6 +1,5 @@
-using System.Text.Json;
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,7 +14,11 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");        
-        WindowTitleEditItem model = new WindowTitleEditItem() { Title = draft?.Title ?? "New window" };
+        WindowTitleEditItem model = new WindowTitleEditItem()
+        {
+            Title = draft?.Title ?? "New window",
+            PostUrl = "/admin/windows/title"
+        };
         return View(PageView, model);
     }
 
@@ -33,7 +36,8 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         WindowTitleEditItem model = new WindowTitleEditItem
         {
             WindowId = window.Id,
-            Title = window.Title
+            Title = window.Title,
+            PostUrl = $"/admin/windows/{window.Id}/title"
         };
 
         return View(PageView, model);
@@ -52,7 +56,7 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
         
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft?.NextController());
     }
 
     [HttpPost("admin/windows/{id:guid}/title")]
@@ -70,9 +74,9 @@ public class TitleController(ILogger<TitleController> logger, IWindowService win
         }
 
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
-        window.Title = model.Title;
+        window.Title = model?.Title;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", id);
+        return RedirectToAction("Index", "Summary", new { Id = id});
     }
 }

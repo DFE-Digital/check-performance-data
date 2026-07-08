@@ -60,13 +60,6 @@ public class WindowEditItem
     public Guid? PublishedId { get; set; }
 }
 
-public class WindowTitleEditItem
-{
-    public Guid WindowId { get; init; }
-    [Required(ErrorMessage = "Title can not be empty"), MaxLength(200, ErrorMessage = "Title must be 200 characters or less")]
-    public string Title { get; init; }
-}
-
 public class WindowDateEditItem
 {
     public Guid WindowId { get; init; }

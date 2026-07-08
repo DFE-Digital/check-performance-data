@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;

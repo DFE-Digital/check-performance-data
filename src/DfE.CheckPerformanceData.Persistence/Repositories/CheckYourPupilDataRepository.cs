@@ -1,3 +1,4 @@
+using System.Globalization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
@@ -41,7 +42,7 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    private static bool IsIncluded(PupilRecord p) => IncludedPinclCodes.Contains(p.Pincl);
+    private static bool IsIncluded(PupilRecord p) => p.Pincl is int code && IncludedPinclCodes.Contains(code);
 
     private async Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetPageAsync(Guid windowId, string laestab, bool included, string? search, int page, int pageSize)
     {
@@ -70,12 +71,12 @@ public sealed class CheckYourPupilDataRepository(
                 Surname = p.Surname,
                 Firstname = p.Firstname,
                 Sex = p.Sex,
-                DateOfBirth = p.DateOfBirth,
+                DateOfBirth = PupilDateFormatter.ToDisplayDate(p.DateOfBirth),
                 Age = p.Age,
-                Pincl = p.Pincl,
+                Pincl = p.Pincl ?? 0,
                 Laestab = p.Laestab,
-                Urn = p.Urn,
-                EntryDate = p.EntryDate,
+                Urn = p.Urn.ToString(CultureInfo.InvariantCulture),
+                EntryDate = PupilDateFormatter.ToDisplayDate(p.EntryDate),
                 SenF = p.SenF,
                 FirstLanguage = p.FirstLanguage,
                 Ethnicity = p.Ethnicity,
@@ -87,15 +88,18 @@ public sealed class CheckYourPupilDataRepository(
     public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null)
     {
         var urnLong = long.Parse(urn);
-        var excludedUpns = (await dbContext.ChangeRequests
+        // Exclude pupils that already have a live change request. Keyed on the pupil's stable Id
+        // (not UPN): a pupil may have no UPN, and every UPN-less pupil would otherwise share the
+        // same blank UPN and be excluded en masse the moment one of them was requested.
+        var excludedPupilIds = (await dbContext.ChangeRequests
                 .AsNoTracking()
                 .Where(r => r.WindowId == windowId &&
                             r.OrganisationUrn == urnLong &&
-                            r.PupilUpn != null &&
+                            r.PupilId != null &&
                             r.Status != RequestStatus.Withdrawn)
-                .Select(r => r.PupilUpn!)
+                .Select(r => r.PupilId!.Value)
                 .ToListAsync())
-            .ToHashSet(StringComparer.Ordinal);
+            .ToHashSet();
 
         var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
             .Where(p => filter switch
@@ -108,7 +112,7 @@ public sealed class CheckYourPupilDataRepository(
                         p.Cypmd_Id.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
                         p.Surname.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                         p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase))
-            .Where(p => !excludedUpns.Contains(p.Upn));
+            .Where(p => !excludedPupilIds.Contains(p.Id));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -116,7 +120,7 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {p.DateOfBirth}"))
+            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {PupilDateFormatter.ToDisplayDate(p.DateOfBirth)}"))
             .ToList();
     }
 
@@ -137,10 +141,10 @@ public sealed class CheckYourPupilDataRepository(
         Surname = p.Surname,
         Firstname = p.Firstname,
         Sex = p.Sex,
-        DateOfBirth = p.DateOfBirth,
+        DateOfBirth = PupilDateFormatter.ToDisplayDate(p.DateOfBirth),
         Age = p.Age,
         Cypmd_Id = p.Cypmd_Id,
         Upn = p.Upn,
-        Pincl = p.Pincl
+        Pincl = p.Pincl ?? 0
     };
 }

@@ -7,6 +7,7 @@ public sealed class ChangeRequestData
     public required Guid WindowId { get; init; }
     public required string ReferenceNumber { get; init; }
     public required long OrganisationUrn { get; init; }
+    public Guid? PupilId { get; init; }
     public string? PupilUpn { get; init; }
     public string? PupilFirstname { get; init; }
     public string? PupilSurname { get; init; }

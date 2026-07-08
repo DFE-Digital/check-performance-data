@@ -4,6 +4,7 @@ using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.Wiki;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using DfE.CheckPerformanceData.Persistence.Seeding;
@@ -49,6 +50,7 @@ public static class DependencyManager
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();
+        services.AddScoped<IWindowRepository, WindowRepository>();
         services.AddScoped<ICheckYourPupilDataRepository, CheckYourPupilDataRepository>();
         services.AddScoped<IRequestRepository, RequestRepository>();
         services.AddScoped<Application.UncommittedRequests.IUncommittedRequestsRepository,

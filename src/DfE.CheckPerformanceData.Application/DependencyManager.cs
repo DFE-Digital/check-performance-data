@@ -14,6 +14,7 @@ using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Wiki;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Application;
@@ -38,6 +39,7 @@ public static class DependencyManager
         services.AddScoped<WikiSeeder>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
+        services.AddScoped<IWindowService, WindowService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();

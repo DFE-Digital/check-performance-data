@@ -1,0 +1,21 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowTitleEditItem
+
+@{
+    var postUrl = Model.WindowId == Guid.Empty
+        ? "/admin/windows/title"
+        : $"/admin/windows/{Model.WindowId}/title";
+}
+
+<form method="post" action="@postUrl" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+    
+    <govuk-input for="@Model.Title">
+        <govuk-input-label is-page-heading="true" class="govuk-label--l">Edit title for @Model.Title</govuk-input-label>
+        <govuk-input-hint>Enter the name for the window.</govuk-input-hint>
+        <govuk-input-error-message asp-validation-for="Title" />
+    </govuk-input>
+    
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Url.Action("Cancel", "CancelCreation")">Cancel</a>
+</form>

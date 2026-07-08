@@ -1,0 +1,121 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.IngressFolderBrowseViewModel
+
+<h1 class="govuk-heading-xl">Browse ingress files</h1>
+
+@if (Model.IsChoosingContainer)
+{
+    <h2 class="govuk-heading-m">Containers</h2>
+
+    @if (Model.Folders.Count == 0)
+    {
+        <p class="govuk-body">No ingress containers were found.</p>
+    }
+    else
+    {
+        <ul class="govuk-list govuk-list--bullet">
+            @foreach (var container in Model.Folders)
+            {
+                <li>
+                    <a class="govuk-link"
+                       href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(container)">
+                        @container
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+}
+else
+{
+    <p class="govuk-body">
+        Path:
+        <strong>@Model.Container</strong>
+        @if (!string.IsNullOrWhiteSpace(Model.CurrentPath))
+        {
+            <text>/ @Model.CurrentPath</text>
+        }
+    </p>
+
+    <p class="govuk-body">
+        @if (Model.ParentPath is null)
+        {
+            <a class="govuk-link" href="/admin/windows/@Model.WindowId/ingress-file">
+                Back to Containers
+            </a>
+        }
+        else
+        {
+            <a class="govuk-link"
+               href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
+                Back
+            </a>
+        }
+    </p>
+
+    @if (Model.Folders.Count == 0 && Model.Files.Count == 0)
+    {
+        <p class="govuk-body">This folder is empty.</p>
+    }
+    else
+    {
+        @if (Model.Folders.Count > 0)
+        {
+            <h2 class="govuk-heading-m">Folders</h2>
+
+            <ul class="govuk-list govuk-list--bullet">
+                @foreach (var folder in Model.Folders)
+                {
+                    var folderName = folder.TrimEnd('/').Split('/').Last();
+
+                    <li>
+                        <a class="govuk-link"
+                           href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
+                            @folderName
+                        </a>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.Files.Count > 0)
+        {
+            <h2 class="govuk-heading-m">Files</h2>
+
+            <form method="post" action="/admin/windows/@Model.WindowId/ingress-file">
+                @Html.AntiForgeryToken()
+
+                <div class="govuk-form-group">
+                    <fieldset class="govuk-fieldset">
+                        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">
+                            Select a file
+                        </legend>
+
+                        <div class="govuk-radios" data-module="govuk-radios">
+                            @foreach (var file in Model.Files)
+                            {
+                                var fileName = file.Split('/').Last();
+                                var selectedValue = $"{Model.Container}/{file}";
+                                var id = $"ingress-file-{Math.Abs(selectedValue.GetHashCode())}";
+
+                                <div class="govuk-radios__item">
+                                    <input class="govuk-radios__input"
+                                           id="@id"
+                                           name="selectedFile"
+                                           type="radio"
+                                           value="@selectedValue" />
+                                    <label class="govuk-label govuk-radios__label" for="@id">
+                                        @fileName
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </fieldset>
+                </div>
+
+                <button class="govuk-button" data-module="govuk-button" type="submit">
+                    Use selected file
+                </button>
+            </form>
+        }
+    }
+}

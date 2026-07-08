@@ -72,7 +72,15 @@ try
                     theme: TemplateTheme.Code)
                 : new CompactJsonFormatter());
     }, writeToProviders: true);
-    
+
+    // WebApplication.CreateBuilder registers a default Console provider. With Serilog's
+    // writeToProviders: true, that default provider ALSO receives every event and prints a
+    // second copy (the "info: Category[0]" line) alongside Serilog's own console sink.
+    // Clear the defaults so Serilog owns the console; the additive DatabaseLoggerProvider is
+    // registered later (below) and is unaffected, since ClearProviders only removes what is
+    // already registered.
+    builder.Logging.ClearProviders();
+
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;

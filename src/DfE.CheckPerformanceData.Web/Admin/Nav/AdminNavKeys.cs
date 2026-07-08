@@ -38,4 +38,8 @@ public static class AdminNavKeys
     // from the observability dashboard — but the key exists so the section can be gated through
     // the AdminSectionAccess grid alongside every other admin surface.
     public const string ShareAdmin = "share-admin";
+
+    public const string WindowAdmin = "window-admin";
+    public const string NewWindow = "new-window";
+    public const string ManageWindow = "manage-window";
 }

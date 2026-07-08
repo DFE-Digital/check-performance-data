@@ -337,6 +337,9 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("PupilId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("PupilSurname")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");

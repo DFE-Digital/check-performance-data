@@ -1,0 +1,66 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowEditItem
+
+<govuk-back-link asp-controller="WindowAdmin" asp-action="Index" />
+
+<h1 class="govuk-heading-xl">@Model.Title</h1>
+<h1 class="govuk-heading-l">Checking Window</h1>
+<h2 class="govuk-heading-m">Window details</h2>
+
+<govuk-summary-list>
+  <row>
+    <key>Title</key>
+    <value>@Model.Title</value>
+    <row-actions>
+      <action href="@Model.TitleLink" visually-hidden-text="Title">Change</action>
+    </row-actions>
+  </row>
+  <row>
+    <key>Is Published</key>
+    <value>@Model.IsPublished</value>
+  </row>
+  <row>
+    <key>Is Open</key>
+    <value>@Model.IsOpen</value>
+  </row>
+  <row>
+    <key>Start Date</key>
+    <value>@Model.StartDate.ToShortDateString()</value>
+    <row-actions>
+      <action href="@Model.StartDateLink" visually-hidden-text="Start Date">Change</action>
+    </row-actions>
+  </row>
+  <row>
+    <key>End Date</key>
+    <value>@Model.EndDate.ToShortDateString()</value>
+    <row-actions>
+      <action href="@Model.EndDateLink" visually-hidden-text="End date">Change</action>
+    </row-actions>
+  </row>
+  <row>
+    <key>Window Type</key>
+    <value>@Model.CheckingWindowType</value>
+    <row-actions>
+      <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
+    </row-actions>
+  </row>
+
+</govuk-summary-list>
+
+<h2 class="govuk-heading-m">File details</h2>
+
+<govuk-summary-list>
+  <row>
+    <key>Ingress File</key>
+    <value>@Model.IngressFile</value>
+    <row-actions>
+      <action href="@Model.IngressFileLink" visually-hidden-text="Ingress file">Change</action>
+    </row-actions>
+  </row>
+  <row>
+    <key>Window Schema File</key>
+    <value>@Model.SchemaFile</value>
+    <row-actions>
+      <action href="@Model.SchemaFileLink" visually-hidden-text="Window schema file">Change</action>
+    </row-actions>
+  </row>
+</govuk-summary-list>

@@ -1,0 +1,26 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowDateEditItem
+
+@{
+    var exampleDate = DateTime.UtcNow.AddMonths(4).ToString("dd MM yyyy");
+}
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+    
+    <input type="hidden" asp-for="@Model.WindowId" />
+    
+    <govuk-date-input for="@Model.DateValue">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                When will the window close?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>
+                For example, @exampleDate
+            </govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="Title" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+    
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Url.Action("Cancel", "CancelCreation")">Cancel</a>
+</form>

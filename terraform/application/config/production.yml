@@ -10,6 +10,11 @@ GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true
 Clarity__ProjectId: wjs4rw6fei
 
+DfEAnalytics__DatasetId: cypmd_events_production
+DfEAnalytics__ProjectId: check-performance-data
+DfEAnalytics__Environment: production
+DfEAnalytics__Namespace: CYPMD
+
 # Notify template IDs, deadline text, and UTM parameters
 Notify__PupilDataCheckConfirmTemplateId: 04d5ea15-63a4-4e13-8ed8-548477f734b2
 Notify__PupilDataCheckWithdrawTemplateId: 5e506276-2a7f-4208-8c0e-ade7ec46c457

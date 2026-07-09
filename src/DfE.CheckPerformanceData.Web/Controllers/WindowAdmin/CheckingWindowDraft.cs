@@ -7,11 +7,11 @@ public class CheckingWindowDraft
 {
     public string PostUrl { get; set; } = string.Empty;
     public string? Title { get; set; }
-    public string TitleLink(IUrlHelper url) => url.Action("NewTitle", "Title");
+    public string TitleLink(IUrlHelper url) => url.Action("New", "Title");
     public DateTime? StartDate { get; set; }
-    public string StartDateLink(IUrlHelper url) => url.Action("NewStartDate", "StartDate");
+    public string StartDateLink(IUrlHelper url) => url.Action("New", "StartDate");
     public DateTime? EndDate { get; set; }
-    public string EndDateLink(IUrlHelper url) => url.Action("NewEndDate", "EndDate");
+    public string EndDateLink(IUrlHelper url) => url.Action("New", "EndDate");
     public CheckingWindowType? CheckingWindowType { get; set; }
     public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("NewCheckingWindowType", "CheckingWindowType");
     public KeyStages? KeyStage { get; set; }
@@ -39,11 +39,11 @@ public class CheckingWindowDraft
             !KeyStage.HasValue   
         ) switch
         {
-            (true, _, _, _, _) => url?.Action("NewTitle", "Title"),
-            (false, true, _, _, _) => url?.Action("NewStartDate", "StartDate"),
-            (false, _, true, _, _) => url?.Action("NewEndDate", "EndDate"),
-            (false, _, _, true, _) => url.Action("NewWindowType",  "WindowType"),
-            (false, _, _, _, true) => url.Action("NewKeyStage", "KeyStage"),
+            (true, _, _, _, _) => url.Action("New", "Title"),
+            (false, true, _, _, _) => url.Action("New", "StartDate"),
+            (false, _, true, _, _) => url.Action("New", "EndDate"),
+            (false, _, _, true, _) => url.Action("New",  "WindowType"),
+            (false, _, _, _, true) => url.Action("New", "KeyStage"),
             _ => url.Action("CreateCheckingWindow", "CreateCheckingWindow")
         };
 }

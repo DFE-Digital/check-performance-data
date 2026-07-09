@@ -14,35 +14,35 @@
         <key>Title</key>
         <value>@Model.Title</value>
         <row-actions>
-            <action href="@Model.TitleLink" visually-hidden-text="Title">Change</action>
+            <action href="@Model.TitleLink(Url)" visually-hidden-text="Title">Change</action>
         </row-actions>
     </row>
     <row>
         <key>Start Date</key>
         <value>@Model.StartDate?.ToShortDateString()</value>
         <row-actions>
-            <action href="@Model.StartDateLink" visually-hidden-text="Start Date">Change</action>
+            <action href="@Model.StartDateLink(Url)" visually-hidden-text="Start Date">Change</action>
         </row-actions>
     </row>
     <row>
         <key>End Date</key>
         <value>@Model.EndDate?.ToShortDateString()</value>
         <row-actions>
-            <action href="@Model.EndDateLink" visually-hidden-text="End date">Change</action>
+            <action href="@Model.EndDateLink(Url)" visually-hidden-text="End date">Change</action>
         </row-actions>
     </row>
     <row>
         <key>Window Type</key>
         <value>@Model.CheckingWindowType?.GetDisplayName()</value>
         <row-actions>
-            <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
+            <action href="@Model.CheckingWindowTypeLink(Url)" visually-hidden-text="Window Type">Change</action>
         </row-actions>
     </row>
     <row>
         <key>Key Stage</key>
         <value>@Model.KeyStage?.GetDisplayName()</value>
         <row-actions>
-            <action href="@Model.KeyStageLink" visually-hidden-text="Key Stage">Change</action>
+            <action href="@Model.KeyStageLink(Url)" visually-hidden-text="Key Stage">Change</action>
         </row-actions>
     </row>
 </govuk-summary-list>

@@ -1,5 +1,4 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +9,8 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
 {
     private const string PageView = "~/Views/WindowAdmin/EndDate.cshtml";
 
-    [ActionName("New")]
     [HttpGet("admin/windows/end-date")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> New(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -24,16 +22,16 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         WindowDateEditItem model = new WindowDateEditItem()
         {
             WindowId = Guid.Empty,
-            DateValue = DateTime.UtcNow.AddMonths(1),
-            PostUrl = "/admin/windows/end-date",
+            DateValue = draft.EndDate,
+            PostUrl =  Url.Action("Submit", "EndDate"),
+            CancelUrl =  Url.Action("Index", "CancelCreation")
         };
 
         return View(PageView, model);
     }
     
-    [ActionName("Edit")]
     [HttpGet("admin/windows/{id:guid}/end-date")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -45,8 +43,9 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         WindowDateEditItem model = new WindowDateEditItem()
         {
             WindowId = window.Id,
-            DateValue = window.StartDate,
-            PostUrl = $"/admin/windows/{window.Id}/end-date"
+            DateValue = window.EndDate,
+            PostUrl =  Url.Action("Update", "EndDate", new { id = window.Id}),
+            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id})
         };
 
         return View(PageView, model);
@@ -54,7 +53,7 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
     
     [HttpPost("admin/windows/end-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -73,12 +72,12 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         draft.EndDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", draft.NextController(Url));
+        return Redirect(draft.NextController(Url));
     }
 
     [HttpPost("admin/windows/{id:guid}/end-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -94,7 +93,7 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
             return BadRequest();
         }
 
-        window.StartDate = model.DateValue;
+        window.EndDate = model.DateValue.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", id);

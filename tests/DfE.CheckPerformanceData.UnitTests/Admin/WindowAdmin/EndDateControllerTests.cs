@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Text.Json;
 using DfE.CheckPerformanceData.Application.WindowManagement;
@@ -11,11 +10,11 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
 
-public class StartDateControllerTests
+public class EndDateControllerTests
 {
     private IUrlHelper _urlHelper = Substitute.For<IUrlHelper>();
 
-    public StartDateControllerTests()
+    public EndDateControllerTests()
     {
         _urlHelper.Action(Arg.Any<UrlActionContext>()).Returns("/dummy-url");
     }
@@ -25,7 +24,7 @@ public class StartDateControllerTests
     {
         IWindowService? windowService = Substitute.For<IWindowService>();
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = Substitute.For<ISession>() });
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = Substitute.For<ISession>() });
 
         IActionResult result = await controller.New(CancellationToken.None);
 
@@ -39,7 +38,7 @@ public class StartDateControllerTests
         IWindowService? windowService = Substitute.For<IWindowService>();
 
         CheckingWindowDraft draft = new CheckingWindowDraft() { Title = "Autumn 2026 checking window" };
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = SessionWithDraft(draft) });
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = SessionWithDraft(draft) });
         controller.Url = _urlHelper;
         
         IActionResult result = await controller.New(CancellationToken.None);
@@ -54,7 +53,7 @@ public class StartDateControllerTests
     {
         IWindowService? windowService = Substitute.For<IWindowService>();
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = Substitute.For<ISession>() });
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = Substitute.For<ISession>() });
 
         WindowDateEditItem model = new WindowDateEditItem { DateValue = DateTime.UtcNow.AddMonths(1) };
 
@@ -68,7 +67,6 @@ public class StartDateControllerTests
     public async Task New_post_stores_start_date_in_session_and_redirects()
     {
         IWindowService? windowService = Substitute.For<IWindowService>();
-        var urlHelper = Substitute.For<IUrlHelper>();
         
         CheckingWindowDraft draft = new CheckingWindowDraft { Title = "Autumn 2026 checking window" };
 
@@ -77,7 +75,7 @@ public class StartDateControllerTests
         session.When(s => s.Set("CheckingWindowDraft", Arg.Any<byte[]>()))
             .Do(call => stored = (byte[])call[1]);
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
         controller.Url = _urlHelper;
 
         DateTime startDate = DateTime.UtcNow.AddMonths(1);
@@ -88,9 +86,8 @@ public class StartDateControllerTests
         Assert.NotNull(stored);
         CheckingWindowDraft? savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
-        Assert.Equal(startDate, savedDraft!.StartDate);
-
-        RedirectResult redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal(startDate, savedDraft!.EndDate);
+        Assert.IsType<RedirectResult>(result);
     }
 
     [Fact]
@@ -104,7 +101,7 @@ public class StartDateControllerTests
         ISession session = SessionWithDraft(draft);
         session.When(s => s.Set("CheckingWindowDraft", Arg.Any<byte[]>())).Do(_ => saved = true);
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
 
         WindowDateEditItem model = new WindowDateEditItem { DateValue = new DateTime(2020, 1, 1) };
 
@@ -126,7 +123,7 @@ public class StartDateControllerTests
         CheckingWindowDto window = Window(id);
         windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(window);
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
         controller.Url = urlHelper;
 
         IActionResult result = await controller.Edit(id, CancellationToken.None);
@@ -134,7 +131,7 @@ public class StartDateControllerTests
         ViewResult viewResult = Assert.IsType<ViewResult>(result);
         WindowDateEditItem model = Assert.IsType<WindowDateEditItem>(viewResult.Model);
         Assert.Equal(id, model.WindowId);
-        Assert.Equal(window.StartDate, model.DateValue);
+        Assert.Equal(window.EndDate, model.DateValue);
     }
 
     [Fact]
@@ -143,7 +140,7 @@ public class StartDateControllerTests
         IWindowService? windowService = Substitute.For<IWindowService>();
 
         Guid id = Guid.NewGuid();
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
 
         IActionResult result = await controller.Edit(id, CancellationToken.None);
 
@@ -158,15 +155,15 @@ public class StartDateControllerTests
         Guid id = Guid.NewGuid();
         windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
 
-        DateTime newStartDate = new DateTime(2027, 1, 15);
-        WindowDateEditItem model = new WindowDateEditItem { WindowId = id, DateValue = newStartDate };
+        DateTime newEndDate = new DateTime(2027, 1, 15);
+        WindowDateEditItem model = new WindowDateEditItem { WindowId = id, DateValue = newEndDate };
 
         IActionResult result = await controller.Update(id, model, CancellationToken.None);
 
         await windowService.Received(1).UpdateAsync(
-            Arg.Is<CheckingWindowDto>(w => w.Id == id && w.StartDate == newStartDate),
+            Arg.Is<CheckingWindowDto>(w => w.Id == id && w.EndDate == newEndDate),
             Arg.Any<CancellationToken>());
 
         RedirectToActionResult redirect = Assert.IsType<RedirectToActionResult>(result);
@@ -182,7 +179,7 @@ public class StartDateControllerTests
         Guid routeId = Guid.NewGuid();
         windowService.GetByIdAsync(routeId, Arg.Any<CancellationToken>()).Returns(Window(routeId));
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
 
         WindowDateEditItem model = new WindowDateEditItem { WindowId = Guid.NewGuid(), DateValue = new DateTime(2027, 1, 15) };
 
@@ -200,7 +197,7 @@ public class StartDateControllerTests
         Guid id = Guid.NewGuid();
         windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
 
-        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
 
         WindowDateEditItem model = new WindowDateEditItem { WindowId = id, DateValue = new DateTime(2020, 1, 1) };
 
@@ -211,8 +208,8 @@ public class StartDateControllerTests
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
     }
 
-    private static StartDateController BuildController(IWindowService windowService, HttpContext httpContext) =>
-        new(Substitute.For<ILogger<StartDateController>>(), windowService)
+    private static EndDateController BuildController(IWindowService windowService, HttpContext httpContext) =>
+        new(Substitute.For<ILogger<EndDateController>>(), windowService)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

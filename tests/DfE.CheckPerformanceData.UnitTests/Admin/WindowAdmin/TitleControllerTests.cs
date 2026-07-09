@@ -36,7 +36,7 @@ public class TitleControllerTests
             Url = StubUrlHelper()
         };
 
-        var result = await controller.NewTitle(CancellationToken.None);
+        var result = await controller.New(CancellationToken.None);
 
         var viewResult = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
@@ -60,7 +60,7 @@ public class TitleControllerTests
             Url = StubUrlHelper()
         };
 
-        var result = await controller.NewTitle(CancellationToken.None);
+        var result = await controller.New(CancellationToken.None);
 
         var viewResult = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
@@ -89,7 +89,7 @@ public class TitleControllerTests
 
         var model = new WindowTitleEditItem { Title = "Spring 2027 checking window" };
 
-        var result = await controller.SubmitNew(model, CancellationToken.None);
+        var result = await controller.Submit(model, CancellationToken.None);
 
         Assert.NotNull(stored);
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
@@ -125,7 +125,7 @@ public class TitleControllerTests
         };
 
         var model = new WindowTitleEditItem { Title = "Updated title" };
-        var result = await controller.SubmitNew(model, CancellationToken.None);
+        var result = await controller.Submit(model, CancellationToken.None);
 
         Assert.NotNull(stored);
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
@@ -162,7 +162,7 @@ public class TitleControllerTests
 
         TitleController controller = BuildController(logger, windowService);
 
-        IActionResult result = await controller.EditTitle(id, CancellationToken.None);
+        IActionResult result = await controller.Edit(id, CancellationToken.None);
 
         ViewResult viewResult = Assert.IsType<ViewResult>(result);
         WindowTitleEditItem model = Assert.IsType<WindowTitleEditItem>(viewResult.Model);
@@ -179,7 +179,7 @@ public class TitleControllerTests
         var id = Guid.NewGuid();
         var controller = BuildController(logger, windowService);
 
-        var result = await controller.EditTitle(id, CancellationToken.None);
+        var result = await controller.Edit(id, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -198,7 +198,7 @@ public class TitleControllerTests
 
         var model = new WindowTitleEditItem { WindowId = id, Title = "New edited title" };
 
-        var result = await controller.SubmitEdit(id, model, CancellationToken.None);
+        var result = await controller.Update(id, model, CancellationToken.None);
 
         await windowService.Received(1).UpdateAsync(
             Arg.Is<CheckingWindowDto>(w => w.Id == id && w.Title == "New edited title"),
@@ -220,7 +220,7 @@ public class TitleControllerTests
         var routeId = Guid.NewGuid();
         var model = new WindowTitleEditItem { WindowId = Guid.NewGuid(), Title = "Mismatched" };
 
-        var result = await controller.SubmitEdit(routeId, model, CancellationToken.None);
+        var result = await controller.Update(routeId, model, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());

@@ -16,4 +16,5 @@ public sealed class PupilSearchViewModel
     public bool BackPageIsPupilSearch { get; set; }
     public string? ConflictErrorReference { get; set; }
     public string? ConflictErrorLink { get; set; }
+    public string? ConflictPupilName { get; set; }
 }

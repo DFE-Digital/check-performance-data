@@ -139,9 +139,11 @@ public sealed class JourneyController(
                     ErrorCodes = [ValidationErrorCoding.Conflict],
                     WhatToChange = journey.SelectedWhatToChange?.ToString(),
                 });
+                var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
                 vm.ConflictErrorReference = conflictRef;
                 vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{conflictRef}/view";
+                vm.ConflictPupilName = pupilName;
                 return View("PupilSearch", vm);
             }
         }

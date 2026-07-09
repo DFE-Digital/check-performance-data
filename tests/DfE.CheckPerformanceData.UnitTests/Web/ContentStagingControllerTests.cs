@@ -303,6 +303,70 @@ public sealed class ContentStagingControllerTests
         await _staging.Received(1).PreviewAsync(Arg.Is<ContentBundle>(b => b.PageNodes.Count == 1));
     }
 
+    // ── Upload size cap ────────────────────────────────────────────────────
+
+    // A bundle over the 50 MB cap is rejected before the JSON parser sees a byte. Uses a
+    // stubbed IFormFile whose Length reports the oversized value without actually
+    // allocating that many bytes — proving the guard reads Length, not the stream.
+    [Fact]
+    public async Task Preview_FileOverSizeCap_SetsError_AndRedirects_WithoutParsing()
+    {
+        var oversized = Substitute.For<IFormFile>();
+        oversized.Length.Returns(51L * 1024 * 1024);   // 51 MB → over the 50 MB cap
+        oversized.OpenReadStream().Returns(new MemoryStream());
+
+        var result = await _sut.Preview(oversized);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        Assert.NotNull(_sut.TempData["ContentStagingError"]);
+        Assert.Contains("too large", _sut.TempData["ContentStagingError"]!.ToString()!);
+        await _staging.DidNotReceive().PreviewAsync(Arg.Any<ContentBundle>());
+        oversized.DidNotReceive().OpenReadStream();
+    }
+
+    // ── Strict UTF-8 ────────────────────────────────────────────────────────
+
+    // An invalid UTF-8 byte in the middle of otherwise-valid JSON is rejected with a
+    // specific error banner — previously the default StreamReader silently substituted
+    // U+FFFD, which would corrupt strings and could round-trip into the DB unnoticed.
+    [Fact]
+    public async Task Preview_InvalidUtf8_SetsError_AndRedirects()
+    {
+        var invalidUtf8Bytes = new byte[] { 0xFF, 0xFE, 0xFD, 0x7B, 0x7D };  // lone 0xFF etc. is invalid UTF-8
+        var file = new FormFile(new MemoryStream(invalidUtf8Bytes), 0, invalidUtf8Bytes.Length, "bundle", "bundle.json");
+
+        var result = await _sut.Preview(file);
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.NotNull(_sut.TempData["ContentStagingError"]);
+        Assert.Contains("invalid UTF-8", _sut.TempData["ContentStagingError"]!.ToString()!);
+        await _staging.DidNotReceive().PreviewAsync(Arg.Any<ContentBundle>());
+    }
+
+    // ── Validator surfacing ─────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Preview_WhenServiceThrowsValidationException_SurfacesIssuesAsError()
+    {
+        _staging.PreviewAsync(Arg.Any<ContentBundle>())
+            .Returns<ContentImportPreview>(_ =>
+                throw new ContentImportValidationException(new List<ValidationIssue>
+                {
+                    new(ValidationSeverity.Fatal, "SEGMENT_INVALID", "Page 'Help' has invalid Segment 'HELP'."),
+                    new(ValidationSeverity.Fatal, "PAGE_TYPE_UNKNOWN", "Page 'Help' has unknown PageType 'foo'."),
+                }));
+
+        var result = await _sut.Preview(FileFrom(ValidBundleJson()));
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        var banner = _sut.TempData["ContentStagingError"]!.ToString()!;
+        Assert.Contains("failed validation", banner);
+        Assert.Contains("Segment 'HELP'", banner);
+        Assert.Contains("PageType 'foo'", banner);
+    }
+
     [Fact]
     public async Task Import_NoBundleJson_SetsError_AndRedirects()
     {

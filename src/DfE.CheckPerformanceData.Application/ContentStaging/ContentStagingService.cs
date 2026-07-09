@@ -19,6 +19,7 @@ public sealed class ContentStagingService(
     IPageNodeRepository pageNodeRepository,
     IContentBlockRepository contentBlockRepository,
     IHtmlRenderingService htmlRenderer,
+    ContentBundleSanitiser? sanitiser = null,
     ILogger<ContentStagingService>? logger = null) : IContentStagingService
 {
     // Ancestor walks used to be bounded by a fixed depth ceiling. The ceiling was only ever there
@@ -45,6 +46,11 @@ public sealed class ContentStagingService(
 
     private readonly ILogger<ContentStagingService> _log =
         logger ?? NullLogger<ContentStagingService>.Instance;
+
+    // Nullable + optional so the existing test set (which constructs the service with two
+    // repositories) keeps compiling and the sanitiser branch is a no-op there. Real DI in
+    // Program.cs wires the actual sanitiser in.
+    private readonly ContentBundleSanitiser? _sanitiser = sanitiser;
 
     public async Task<ContentBundle> ExportAsync(ContentExportSelection? selection = null)
     {
@@ -130,6 +136,20 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
+        // Validate up front. Fatal issues in the shape or contents of the bundle mean the
+        // preview can't be produced safely — the operator should get the error banner from
+        // the landing page instead of a broken half-preview.
+        var issues = ContentBundleValidator.Validate(bundle);
+        if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
+        {
+            throw new ContentImportValidationException(issues);
+        }
+
+        // Sanitise HTML in place before the preview so any bundle-json we round-trip through
+        // the hidden form field is already clean. Idempotent — running it again at Import
+        // time (below) is a no-op on already-scrubbed content.
+        _sanitiser?.SanitiseInPlace(bundle);
+
         var byId = BundleById(bundle.PageNodes);
         var resolvable = await ResolveableParentsAsync(bundle.PageNodes, byId);
 
@@ -175,6 +195,20 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
+        // Re-validate at Import time. The bundle round-trips through a hidden form field
+        // between Preview and Import — belt-and-braces so a tampered field can't smuggle a
+        // fatal issue past the earlier check.
+        var issues = ContentBundleValidator.Validate(bundle);
+        if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
+        {
+            throw new ContentImportValidationException(issues);
+        }
+
+        // Sanitise HTML in place. Idempotent — if PreviewAsync already sanitised, this is
+        // free. Any items that were still dirty (rare — implies the operator hand-edited
+        // the round-tripped JSON) surface as a warning on the result banner.
+        var sanitised = _sanitiser?.SanitiseInPlace(bundle) ?? 0;
+
         _log.LogInformation(
             "ContentStaging import starting: {PageCount} page(s), {BlockCount} block(s), collisionMode={Mode}, newItemMode={NewMode}, decisions={DecisionCount}",
             bundle.PageNodes.Count, bundle.ContentBlocks.Count, mode, newItemMode, decisions?.Count ?? 0);
@@ -194,6 +228,15 @@ public sealed class ContentStagingService(
         await GuardFailCollisionsAsync(pages, bundle.ContentBlocks, ModeFor);
 
         var result = new ContentImportResult();
+
+        // Surface the sanitiser's effect prominently — if the operator uploaded a bundle
+        // with unsafe HTML we want them to know that N items were scrubbed on the way in,
+        // not silently accept the cleaned payload as if it had always been clean.
+        if (sanitised > 0)
+        {
+            result.Warnings.Add(
+                $"Sanitised HTML in {sanitised} bundle item(s) on import (script tags, event handlers, or javascript: URLs were removed).");
+        }
 
         // Bundle node GUID -> materialised path, so a child resolves its parent's path without
         // re-querying the database on every iteration.

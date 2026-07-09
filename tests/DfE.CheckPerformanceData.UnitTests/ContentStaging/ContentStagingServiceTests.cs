@@ -579,4 +579,104 @@ public class ContentStagingServiceTests
             Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
     }
+
+    // ── Validator integration ────────────────────────────────────────────────
+
+    private ContentStagingService SutWithSanitiser() =>
+        new(_pages, _blockRepo, new ContentBundleSanitiser(new HtmlRenderingService()));
+
+    [Fact]
+    public async Task PreviewAsync_FatalValidatorIssue_Throws_ContentImportValidationException()
+    {
+        // Invalid PageType — the validator flags it as fatal, PreviewAsync must short-circuit.
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new() { Id = GuidA, Segment = "help", Title = "Help", PageType = "attacker-injected" }
+            ]
+        };
+
+        var ex = await Assert.ThrowsAsync<ContentImportValidationException>(
+            () => _sut.PreviewAsync(bundle));
+        Assert.Contains(ex.Issues, i => i.Code == "PAGE_TYPE_UNKNOWN");
+    }
+
+    [Fact]
+    public async Task ImportAsync_FatalValidatorIssue_Throws_And_DoesNotWrite()
+    {
+        var bundle = new ContentBundle
+        {
+            PageNodes =
+            [
+                new() { Id = GuidA, Segment = "admin", Title = "Reserved", PageType = "folder" }
+            ]
+        };
+
+        await Assert.ThrowsAsync<ContentImportValidationException>(
+            () => _sut.ImportAsync(bundle, ContentImportMode.Replace));
+        await _pages.DidNotReceive().CreateNodeForStagingAsync(
+            Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+    }
+
+    // ── Sanitiser integration ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ImportAsync_SanitisesInlineScript_AndSurfacesWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
+            .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
+
+        var bundle = new ContentBundle
+        {
+            ContentBlocks =
+            [
+                new()
+                {
+                    Id = GuidB,
+                    Key = "banner",
+                    BlockType = "Content",
+                    Value = "<p>Buy <script>steal()</script>now</p>"
+                }
+            ]
+        };
+
+        var sut = SutWithSanitiser();
+        var result = await sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        // Warning surfaced; the bundle's value is now clean (mutated in place).
+        Assert.Contains(result.Warnings, w => w.Contains("Sanitised HTML"));
+        Assert.DoesNotContain("<script", bundle.ContentBlocks[0].Value);
+        Assert.DoesNotContain("steal()", bundle.ContentBlocks[0].Value);
+        // Repository receives the cleaned value, never the raw payload.
+        await _blockRepo.Received(1).AddBlockAsync(
+            "banner", "Content", Arg.Is<string>(v => !v.Contains("<script") && !v.Contains("steal()")), Arg.Any<Guid?>());
+    }
+
+    [Fact]
+    public async Task ImportAsync_CleanBundle_DoesNotSurfaceSanitiserWarning()
+    {
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
+            .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
+
+        var bundle = new ContentBundle
+        {
+            ContentBlocks =
+            [
+                new() { Id = GuidB, Key = "banner", BlockType = "Content", Value = "<p>Hello</p>" }
+            ]
+        };
+
+        var sut = SutWithSanitiser();
+        var result = await sut.ImportAsync(bundle, ContentImportMode.Replace);
+
+        Assert.DoesNotContain(result.Warnings, w => w.Contains("Sanitised HTML"));
+    }
 }

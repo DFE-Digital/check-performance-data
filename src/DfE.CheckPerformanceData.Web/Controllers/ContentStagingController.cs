@@ -126,6 +126,13 @@ public sealed class ContentStagingController(
 
     // Step 1 of import: read the uploaded file, analyse it against the current environment, and
     // show the preview so the administrator can see new vs colliding content and decide per item.
+    // Cap the uploaded bundle at 50 MB. A typical whole-environment export tops out well
+    // under 10 MB; anything larger is either a bug (accidentally exported a bunch of
+    // base64-embedded images) or a DoS attempt via a maliciously-crafted JSON file. The cap
+    // is applied against IFormFile.Length before we ever open the stream, so a hostile
+    // upload can't force the JSON parser to allocate.
+    private const long MaxBundleBytes = 50 * 1024 * 1024;
+
     [HttpPost("preview")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(LargeBundleLimitBytes)]
@@ -138,10 +145,32 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
-        string json;
-        using (var reader = new StreamReader(bundle.OpenReadStream()))
+        if (bundle.Length > MaxBundleBytes)
         {
+            TempData["ContentStagingError"] =
+                $"Bundle file is too large ({bundle.Length / (1024 * 1024)} MB). The limit is {MaxBundleBytes / (1024 * 1024)} MB.";
+            return Redirect("/admin/content-staging");
+        }
+
+        string json;
+        // Strict UTF-8: reject invalid byte sequences up front rather than silently
+        // substituting U+FFFD replacement chars, which would corrupt content invisibly
+        // and could round-trip through Import to land malformed strings in the DB.
+        var strictUtf8 = new System.Text.UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+        try
+        {
+            // detectEncodingFromByteOrderMarks:false — a leading 0xFF 0xFE would otherwise flip
+            // StreamReader into UTF-16 LE mode, bypassing our strict UTF-8 encoding.
+            using var reader = new StreamReader(
+                bundle.OpenReadStream(), strictUtf8, detectEncodingFromByteOrderMarks: false);
             json = await reader.ReadToEndAsync();
+        }
+        catch (System.Text.DecoderFallbackException)
+        {
+            TempData["ContentStagingError"] =
+                "Bundle file contains invalid UTF-8 bytes. Re-export from a supported environment.";
+            return Redirect("/admin/content-staging");
         }
 
         if (!TryParseBundle(json, out var parsed, out var error))
@@ -150,7 +179,17 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
-        var preview = await staging.PreviewAsync(parsed!);
+        ContentImportPreview preview;
+        try
+        {
+            preview = await staging.PreviewAsync(parsed!);
+        }
+        catch (ContentImportValidationException ex)
+        {
+            TempData["ContentStagingError"] =
+                "Bundle failed validation:\n" + string.Join("\n", ex.Issues.Select(i => "• " + i.Message));
+            return Redirect("/admin/content-staging");
+        }
         return View(new ImportPreviewViewModel
         {
             Preview = preview,
@@ -230,6 +269,14 @@ public sealed class ContentStagingController(
         catch (ContentImportConflictException ex)
         {
             TempData["ContentStagingError"] = ex.Message;
+        }
+        catch (ContentImportValidationException ex)
+        {
+            // Re-validation on Import trips if the round-tripped bundle JSON has been tampered
+            // with. Surface the specific issues rather than a generic message so the operator
+            // can see exactly what's wrong with the payload.
+            TempData["ContentStagingError"] =
+                "Bundle failed validation on import:\n" + string.Join("\n", ex.Issues.Select(i => "• " + i.Message));
         }
         catch (Exception ex)
         {

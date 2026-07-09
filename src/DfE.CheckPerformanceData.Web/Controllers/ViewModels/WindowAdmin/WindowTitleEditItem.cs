@@ -1,4 +1,3 @@
-
 using System.ComponentModel.DataAnnotations;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;

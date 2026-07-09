@@ -60,15 +60,6 @@ public class WindowEditItem
     public Guid? PublishedId { get; set; }
 }
 
-public class WindowDateEditItem
-{
-    public Guid WindowId { get; init; }
-    [Required(ErrorMessage = "Date can not be empty")]
-    public DateTime DateValue { get; init; }
-
-    public string PostUrl { get; init; } = string.Empty;
-}
-
 public class WindowTypeItem
 {
     public Guid WindowId { get; init; }

@@ -55,7 +55,7 @@ public class KeyStageController(ILogger<KeyStageController> logger, IWindowServi
         {
             return RedirectToAction("New", "CreateCheckingWindow");
         }
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft.NextController(Url));
     }
 
 }

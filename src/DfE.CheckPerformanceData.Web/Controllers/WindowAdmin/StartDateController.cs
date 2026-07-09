@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +10,8 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
 {
     private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
 
-    [ActionName("Edit")]
     [HttpGet("admin/windows/{id:guid}/start-date")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> EditStartDate(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -24,15 +24,15 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         {
             WindowId = window.Id,
             DateValue = window.StartDate,
-            PostUrl = $"/admin/windows/{window.Id}/start-date"
+            PostUrl = Url.Action("SubmitEdit", "StartDate", new { id = window.Id}),
+            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id})
         };
 
         return View(PageView, model);
     }
     
-    [ActionName("New")]
     [HttpGet("admin/windows/start-date")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> NewStartDate(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -44,8 +44,9 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         WindowDateEditItem model = new WindowDateEditItem()
         {
             WindowId = Guid.Empty,
-            DateValue = DateTime.UtcNow.AddMonths(1),
-            PostUrl =  $"/admin/windows/start-date"
+            PostUrl =  Url.Action("SubmitNew", "StartDate"),
+            CancelUrl =  Url.Action("Index", "CancelCreation")
+            
         };
 
         return View(PageView, model);
@@ -53,7 +54,7 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
     
     [HttpPost("admin/windows/start-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitNew(WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -72,12 +73,12 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         draft.StartDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft.NextController(Url));
     }
 
     [HttpPost("admin/windows/{id:guid}/start-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitEdit(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 

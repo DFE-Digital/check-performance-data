@@ -31,6 +31,6 @@ public class CancelCreationController : Controller
             return RedirectToAction("Index", "Admin");
         }
         
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft.NextController(Url));
     }
 }

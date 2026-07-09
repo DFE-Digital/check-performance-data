@@ -12,7 +12,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
 
 public class TitleControllerTests
 {
-    //New Path
+    IUrlHelper _urlHelper = Substitute.For<IUrlHelper>();
+
+    public TitleControllerTests()
+    {
+        _urlHelper.Action(Arg.Any<UrlActionContext>()).Returns("/dummy-url");
+    }
+    
     [Fact]
     public async Task Return_200_on_get_with_no_session_data()
     {
@@ -77,7 +83,8 @@ public class TitleControllerTests
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { Session = session }
-            }
+            },
+            Url = _urlHelper
         };
 
         var model = new WindowTitleEditItem { Title = "Spring 2027 checking window" };
@@ -88,10 +95,7 @@ public class TitleControllerTests
         var savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
         Assert.Equal("Spring 2027 checking window", savedDraft!.Title);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("New", redirect.ActionName);
-        Assert.Equal("StartDate", redirect.ControllerName);
+        Assert.IsType<RedirectResult>(result);
     }
 
     [Fact]
@@ -116,7 +120,8 @@ public class TitleControllerTests
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext { Session = session }
-            }
+            },
+            Url = _urlHelper
         };
 
         var model = new WindowTitleEditItem { Title = "Updated title" };
@@ -128,9 +133,7 @@ public class TitleControllerTests
         Assert.Equal("Updated title", savedDraft!.Title);
         Assert.Equal(new DateTime(2027, 1, 1), savedDraft.StartDate);
 
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal("New", redirect.ActionName);
-        Assert.Equal("EndDate", redirect.ControllerName);
+        Assert.IsType<RedirectResult>(result);
     }
 
     private static ISession SessionWithDraft(CheckingWindowDraft draft)

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -72,7 +73,7 @@ public class EndDateController(ILogger<EndDateController> logger, IWindowService
         draft.EndDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft.NextController(Url));
     }
 
     [HttpPost("admin/windows/{id:guid}/end-date")]

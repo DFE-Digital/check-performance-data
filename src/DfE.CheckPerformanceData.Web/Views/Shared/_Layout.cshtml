@@ -82,7 +82,7 @@
                             var selectedWindowId = Context.Session.GetString("SelectedWindowId");
                         }
                         <li class="govuk-service-navigation__item">
-                            <a class="govuk-service-navigation__link" href="/help">Help</a>
+                            <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
                         </li>
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {

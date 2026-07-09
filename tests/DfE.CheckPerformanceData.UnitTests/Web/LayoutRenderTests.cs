@@ -154,6 +154,22 @@ public sealed class LayoutRenderTests
 	}
 
 	[Fact]
+	public void Layout_ServiceNavigation_LinksToGuidance_NotHelp()
+	{
+		// The old service-nav link pointed at /help with the text "Help"; the CMS-migrated
+		// help content lives under /guidance now, so the header link is updated to match.
+		// Pins BOTH the retired href/text (so a regression can't quietly re-introduce it)
+		// AND the new /guidance href + "Guidance" text.
+		var view = ReadLayout();
+
+		Assert.DoesNotContain("href=\"/help\"", view);
+		Assert.DoesNotContain(">Help</a>", view);
+
+		Assert.Contains("href=\"/guidance\"", view);
+		Assert.Contains(">Guidance</a>", view);
+	}
+
+	[Fact]
 	public void Layout_ServiceNavigation_StillReportsAsGdsServiceNavigation()
 	{
 		// We replaced the <govuk-service-navigation> tag helper with hand-rolled markup

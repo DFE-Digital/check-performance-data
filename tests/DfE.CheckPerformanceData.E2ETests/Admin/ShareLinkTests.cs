@@ -51,10 +51,10 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    // --- A non-admin cannot reach the token-management surface ---
+    // --- A non-admin cannot reach the token-management surface (obfuscated as 404) ---
 
     [Fact]
-    public async Task ShareAdmin_AsNonAdmin_Redirects_To_AccessDenied()
+    public async Task ShareAdmin_AsNonAdmin_Returns_NotFound()
     {
         try
         {
@@ -66,8 +66,7 @@ public sealed class ShareLinkTests(PlaywrightFixture fixture)
 
             var response = await TestHttpClients.SendAsync(request);
 
-            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
-            Assert.Contains("AccessDenied", response.Headers.Location?.ToString() ?? string.Empty);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {

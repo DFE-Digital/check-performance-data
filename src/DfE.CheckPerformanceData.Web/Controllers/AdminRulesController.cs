@@ -1,16 +1,17 @@
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Admin.Rules;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Admin surface for the rules engine config. Reads the config (M2), edits branches/
-// predicates and lookups (M3), and manages the outcome lifecycle + rollback (M4). Admin-only.
-// Views live under Views/Admin/Rules so they inherit the admin layout via the
-// Views/Admin/_ViewStart cascade, hence the explicit view paths.
-[Authorize(Roles = WikiConstants.AdminRole)]
+// predicates and lookups (M3), and manages the outcome lifecycle + rollback (M4). Gated
+// by the rules-config section grant. Views live under Views/Admin/Rules so they inherit
+// the admin layout via the Views/Admin/_ViewStart cascade, hence the explicit view paths.
+[RequireAdminSection(AdminNavKeys.RulesConfig)]
 public sealed class AdminRulesController(IRulesConfigService rules) : Controller
 {
     private const string IndexView = "~/Views/Admin/Rules/Index.cshtml";

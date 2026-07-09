@@ -3,9 +3,10 @@ using System.Text;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -43,13 +44,11 @@ public sealed class ContentStagingControllerTests
     });
 
     [Fact]
-    public void Controller_IsGatedByEditorRole()
+    public void Controller_IsGatedByContentStagingSection()
     {
-        var attr = typeof(ContentStagingController)
-            .GetCustomAttributes(typeof(AuthorizeAttribute), false)
-            .Cast<AuthorizeAttribute>()
-            .Single();
-        Assert.Equal(WikiConstants.EditorRole, attr.Roles);
+        var gate = typeof(ContentStagingController).GetCustomAttribute<RequireAdminSectionAttribute>();
+        Assert.NotNull(gate);
+        Assert.Equal(AdminNavKeys.ContentStaging, gate!.SectionKey);
     }
 
     [Fact]

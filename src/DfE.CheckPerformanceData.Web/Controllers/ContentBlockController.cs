@@ -1,13 +1,17 @@
 using System.Text.RegularExpressions;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
+// The content-blocks management surface — inline editor, save, versions and revert. Gated by
+// the content-blocks section grant.
+[RequireAdminSection(AdminNavKeys.ContentBlocks)]
 public sealed partial class ContentBlockController(
     IContentBlockService contentBlockService,
     IPageNodeService pageNodeService) : Controller
@@ -16,7 +20,6 @@ public sealed partial class ContentBlockController(
     // another. ?edit=<key> opens that block's editor (reusing the same save endpoint).
     // ?page=<request-path> filters the list to just the blocks last seen on that page —
     // used by the content-blocks tree in the left admin nav.
-    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("admin/content-blocks")]
     public async Task<IActionResult> Index(string? edit = null, string? page = null)
     {
@@ -51,7 +54,6 @@ public sealed partial class ContentBlockController(
         return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 
-    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/save")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(SaveContentBlockFormModel model)
@@ -85,7 +87,6 @@ public sealed partial class ContentBlockController(
     [GeneratedRegex("^[A-Za-z0-9_-]+$")]
     private static partial Regex SafeAnchor();
 
-    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpGet("content-block/versions/{key}")]
     public async Task<IActionResult> Versions(string key)
     {
@@ -102,7 +103,6 @@ public sealed partial class ContentBlockController(
         return View(vm);
     }
 
-    [Authorize(Roles = WikiConstants.EditorRole)]
     [HttpPost("content-block/revert/{key}/{versionId:int}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Revert(string key, int versionId, string? returnUrl)

@@ -268,6 +268,32 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
         return RenameNodeResult.Ok;
     }
 
+    public async Task<PageNodeDto?> CopyPageAsync(Guid sourceId, string? userId)
+    {
+        var source = await repository.GetByIdAsync(sourceId);
+        if (source is null) return null;
+
+        // Find an available <segment>-copy / -copy-2 / -copy-3 slot under the source's parent.
+        // Reasoning-wise we could keep bumping forever, but bounding at 100 stops a runaway loop
+        // if some other bug makes GetByPathAsync always return something (never expected in
+        // practice — an editor can only ever create a bounded number of copies).
+        for (var i = 1; i <= 100; i++)
+        {
+            var suffix = i == 1 ? "-copy" : $"-copy-{i}";
+            var candidateSegment = source.Segment + suffix;
+            var candidatePath = await ComputePathAsync(source.ParentId, candidateSegment);
+            var occupant = await repository.GetByPathAsync(candidatePath);
+            if (occupant is not null) continue;
+
+            var candidateTitle = i == 1 ? $"{source.Title} - Copy" : $"{source.Title} - Copy ({i})";
+            return await repository.CopyNodeAsync(sourceId, candidateSegment, candidateTitle, userId);
+        }
+
+        // 100 copies of the same page and none of them free? Something has gone very wrong.
+        throw new InvalidOperationException(
+            $"Could not find a free -copy segment slot under parent {source.ParentId} for page {sourceId}.");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private async Task<string> ComputePathAsync(Guid? parentId, string segment)

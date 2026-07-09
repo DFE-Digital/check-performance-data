@@ -1,12 +1,14 @@
 using DfE.CheckPerformanceData.Application.UncommittedRequests;
-using Microsoft.AspNetCore.Authorization;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
 // Read-only admin list of SubmittedUnCommitted change requests for the current open
-// checking window, showing each one's rules-engine outcome. Gated by cypmd_admin.
-[Authorize(Roles = WikiConstants.AdminRole)]
+// checking window, showing each one's rules-engine outcome. Gated by the uncommitted-requests
+// section grant.
+[RequireAdminSection(AdminNavKeys.UncommittedRequests)]
 public sealed class AdminRequestsController(IAdminRequestsService service) : Controller
 {
     [HttpGet("admin/uncommitted-requests")]

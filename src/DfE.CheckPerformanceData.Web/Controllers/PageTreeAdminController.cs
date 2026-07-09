@@ -2,16 +2,20 @@ using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentPages;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Models.Guidance;
 using DfE.CheckPerformanceData.Web.Models.PageTree;
 using DfE.CheckPerformanceData.Web.PageTree;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-[Authorize(Roles = WikiConstants.EditorRole)]
+// The CMS page-tree admin surface: browse / create / edit / rename / move / copy / delete /
+// publish page nodes and edit their content. Gated by the content-pages section grant, with
+// the sample-seed action requiring the separate seed-sample-pages grant.
+[RequireAdminSection(AdminNavKeys.ContentPages)]
 public sealed class PageTreeAdminController(
     IPageNodeService pageNodeService,
     PageNodePathValidator pathValidator,
@@ -300,6 +304,7 @@ public sealed class PageTreeAdminController(
     // path does not already exist are created.
     [HttpPost("/admin/pages/sample-seed")]
     [ValidateAntiForgeryToken]
+    [RequireAdminSection(AdminNavKeys.SeedSamplePages)]
     public async Task<IActionResult> SampleSeed()
     {
         var created = await samplePageSeeder.SeedAsync(User?.Identity?.Name);
@@ -317,6 +322,7 @@ public sealed class PageTreeAdminController(
     // back to /admin/pages with a helpful banner rather than a bare 404 (which the raw
     // HttpPost-only route otherwise produces).
     [HttpGet("/admin/pages/sample-seed")]
+    [RequireAdminSection(AdminNavKeys.SeedSamplePages)]
     public IActionResult SampleSeedGet()
     {
         TempData["SampleSeedResult"] =
@@ -356,6 +362,23 @@ public sealed class PageTreeAdminController(
 
         // Land back on the Properties tab so the editor sees the banner without hunting.
         return Redirect($"/admin/pages/{id}/edit#properties");
+    }
+
+    // ── Copy page ─────────────────────────────────────────────────────────────
+
+    // Clones a page as a sibling: fresh Guid, all versions preserved, segment/title suffixed
+    // with '-copy'. Redirects to the copy's edit page so the operator can immediately rename or
+    // continue authoring. GUID-preserving import matches on the source's stable identity, so
+    // making a copy is a safe fallback when someone realises a bundle import overwrote a page
+    // that shared a segment with something else.
+    [HttpPost("/admin/pages/{id:guid}/copy")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Copy(Guid id)
+    {
+        var copy = await pageNodeService.CopyPageAsync(id, User?.Identity?.Name);
+        if (copy is null) return NotFound();
+        TempData["RenameResult"] = "Copied. Change the segment and title to something meaningful before publishing.";
+        return Redirect($"/admin/pages/{copy.Id}/edit#properties");
     }
 
     // ── Node delete ───────────────────────────────────────────────────────────

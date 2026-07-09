@@ -214,6 +214,7 @@ public class PageNodeContentEditorTests
         public Task<MoveNodeResult> MoveNodeAsync(Guid nodeId, Guid? newParentId, int newSortOrder, string? userId) => throw new NotSupportedException();
         public Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId) => throw new NotSupportedException();
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
+        public Task<PageNodeDto?> CopyPageAsync(Guid sourceId, string? userId) => throw new NotSupportedException();
 
         public Task<RenameNodeResult> RenameNodeAsync(
             Guid id, string newSegment, string newTitle, string? newSubtitle, string? newPageName, string? userId) =>

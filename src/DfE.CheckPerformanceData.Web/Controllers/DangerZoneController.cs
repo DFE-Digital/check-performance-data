@@ -1,16 +1,17 @@
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Seeding;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Danger zone: destructive operational actions, gated by the cypmd_admin role and a hard
-// Production guard (the nav entries are not registered in prod, and every action 404s there
-// too — defence in depth). The "Reset seed data" flow is a GET interstitial warning page
-// followed by a POST that runs the full startup seeding sequence (wipes change requests +
-// checking windows and reseeds the database, pupil data and question flows).
-[Authorize(Roles = WikiConstants.AdminRole)]
+// Danger zone: destructive operational actions, gated by the reset-seed-data section grant
+// and a hard Production guard (the nav entries are not registered in prod, and every action
+// 404s there too — defence in depth). The "Reset seed data" flow is a GET interstitial warning
+// page followed by a POST that runs the full startup seeding sequence (wipes change requests
+// + checking windows and reseeds the database, pupil data and question flows).
+[RequireAdminSection(AdminNavKeys.ResetSeedData)]
 [Route("admin/danger-zone")]
 public sealed class DangerZoneController(
     IDevDataSeedingOrchestrator orchestrator,

@@ -3,15 +3,16 @@ using System.Text.Json;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Web.Admin;
+using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Content staging: editors export the wiki pages + content blocks of one environment as a
-// schema-versioned JSON bundle and import it into another. Gated by the content-editor role.
-[Authorize(Roles = WikiConstants.EditorRole)]
+// Content staging: export/import wiki pages + content blocks as a schema-versioned JSON
+// bundle between environments. Gated by the content-staging section grant.
+[RequireAdminSection(AdminNavKeys.ContentStaging)]
 [Route("admin/content-staging")]
 public sealed class ContentStagingController(
     IContentStagingService staging,

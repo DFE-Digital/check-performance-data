@@ -723,6 +723,60 @@ public class PageNodeServiceTests
         Assert.Equal(RenameNodeResult.NotFound, result);
     }
 
+    // ── CopyPageAsync ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Copy_MissingSource_ReturnsNull()
+    {
+        var copy = await Sut().CopyPageAsync(Guid.NewGuid(), "u1");
+        Assert.Null(copy);
+    }
+
+    [Fact]
+    public async Task Copy_ExistingSource_PicksCopySuffix_KeepsAllVersions()
+    {
+        var sut = Sut();
+        var source = await sut.CreatePageAsync(null, "help", "Help", "content", "u1");
+        await sut.SaveWorkingContentAsync(source.Id, "draft-body", "draft body", "u1");
+        await sut.PublishDraftAsync(source.Id, "u1");
+        await sut.SaveWorkingContentAsync(source.Id, "next-body", "next body", "u1");
+        var sourceVersions = await sut.GetVersionsAsync(source.Id);
+
+        var copy = await sut.CopyPageAsync(source.Id, "u1");
+
+        Assert.NotNull(copy);
+        Assert.NotEqual(source.Id, copy!.Id);
+        Assert.Equal("help-copy", copy.Segment);
+        Assert.Equal("Help - Copy", copy.Title);
+        Assert.Equal(source.PageType, copy.PageType);
+        Assert.Equal(source.ParentId, copy.ParentId);
+
+        // Same version count, same content — versions are copied verbatim.
+        var copyVersions = await sut.GetVersionsAsync(copy.Id);
+        Assert.Equal(sourceVersions.Count, copyVersions.Count);
+        Assert.Equal(
+            sourceVersions.Select(v => v.Content).OrderBy(x => x),
+            copyVersions.Select(v => v.Content).OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task Copy_WhenCopySlotTaken_BumpsSuffix()
+    {
+        var sut = Sut();
+        var source = await sut.CreatePageAsync(null, "help", "Help", "content", "u1");
+        var first = await sut.CopyPageAsync(source.Id, "u1");
+        var second = await sut.CopyPageAsync(source.Id, "u1");
+        var third = await sut.CopyPageAsync(source.Id, "u1");
+
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.NotNull(third);
+        Assert.Equal("help-copy", first!.Segment);
+        Assert.Equal("help-copy-2", second!.Segment);
+        Assert.Equal("help-copy-3", third!.Segment);
+        Assert.Equal("Help - Copy (2)", second.Title);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // In-memory fake repository
     // ═══════════════════════════════════════════════════════════════════════════
@@ -913,6 +967,46 @@ public class PageNodeServiceTests
         }
 
         public Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId) => Task.CompletedTask;
+
+        public Task<PageNodeDto?> CopyNodeAsync(Guid sourceId, string newSegment, string newTitle, string? userId)
+        {
+            var src = _nodes.FirstOrDefault(n => n.Id == sourceId && !n.IsDeleted);
+            if (src is null) return Task.FromResult<PageNodeDto?>(null);
+
+            var newId = Guid.NewGuid();
+            var parentPath = src.ParentId is null ? null : _nodes.First(n => n.Id == src.ParentId).Path;
+            var newPath = parentPath is null ? newSegment : $"{parentPath}/{newSegment}";
+            var maxOrder = _nodes.Where(n => n.ParentId == src.ParentId).Max(n => (int?)n.SortOrder) ?? -1;
+
+            var copy = new FakeNode
+            {
+                Id = newId,
+                ParentId = src.ParentId,
+                Segment = newSegment,
+                Path = newPath,
+                Title = newTitle,
+                Subtitle = src.Subtitle,
+                PageName = src.PageName,
+                PageType = src.PageType,
+                SortOrder = maxOrder + 1,
+            };
+            _nodes.Add(copy);
+
+            foreach (var v in _versions.Where(v => v.NodeId == sourceId).OrderBy(v => v.VersionId))
+            {
+                _versions.Add(new FakeVersion
+                {
+                    NodeId = newId,
+                    VersionId = v.VersionId,
+                    MinorVersion = v.MinorVersion,
+                    IsCurrent = v.IsCurrent,
+                    PublishFrom = v.PublishFrom,
+                    PublishTo = v.PublishTo,
+                    Content = v.Content,
+                });
+            }
+            return Task.FromResult<PageNodeDto?>(ToNodeDto(copy));
+        }
 
         public Task RestoreAsync(Guid nodeId, string? userId)
         {

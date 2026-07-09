@@ -2,17 +2,17 @@ using System.Globalization;
 using System.Text;
 using DfE.CheckPerformanceData.Application.Logging;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Admin-only viewer for the AppLogs table populated by DatabaseLoggerProvider. Provides a
-// filter grid (level / category / free-text / date range), pagination, CSV download, and a
-// "Clear all logs" action guarded by a confirm modal.
-[Authorize(Roles = WikiConstants.AdminRole)]
+// Viewer for the AppLogs table populated by DatabaseLoggerProvider. Provides a filter grid
+// (level / category / free-text / date range), pagination, CSV download, and a "Clear all
+// logs" action guarded by a confirm modal. Gated by the app-logs section grant.
+[RequireAdminSection(AdminNavKeys.AppLogs)]
 [Route("admin/system-administration/logs")]
 public sealed class AppLogsController(
     IAppLogRepository logs,

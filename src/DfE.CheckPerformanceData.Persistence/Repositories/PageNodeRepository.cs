@@ -393,6 +393,81 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public async Task<PageNodeDto?> CopyNodeAsync(Guid sourceId, string newSegment, string newTitle, string? userId)
+    {
+        var source = await context.PageNodes
+            .Where(n => n.Id == sourceId && n.DeletedDate == null)
+            .Select(n => new
+            {
+                Node = n,
+                Versions = context.PageNodeVersions
+                    .Where(v => v.PageNodeId == sourceId)
+                    .OrderBy(v => v.VersionId)
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
+        if (source is null) return null;
+
+        var now = DateTime.UtcNow;
+        var newId = Guid.NewGuid();
+        var parentPath = source.Node.ParentId is null
+            ? null
+            : await context.PageNodes
+                .Where(n => n.Id == source.Node.ParentId)
+                .Select(n => (string?)n.Path)
+                .FirstOrDefaultAsync();
+        var newPath = parentPath is null ? newSegment : $"{parentPath}/{newSegment}";
+
+        // Place the copy immediately after every existing sibling — no reshuffling of the
+        // other rows required.
+        var maxOrder = await context.PageNodes
+            .Where(n => n.ParentId == source.Node.ParentId)
+            .Select(n => (int?)n.SortOrder)
+            .MaxAsync() ?? -1;
+
+        var newNode = new PageNode
+        {
+            Id = newId,
+            ParentId = source.Node.ParentId,
+            Segment = newSegment,
+            Path = newPath,
+            SortOrder = maxOrder + 1,
+            Title = newTitle,
+            Subtitle = source.Node.Subtitle,
+            PageName = source.Node.PageName,
+            PageType = source.Node.PageType,
+            ShowInMenu = source.Node.ShowInMenu,
+            CreatedDate = now,
+            UpdatedDate = now,
+            CreatedBy = userId,
+            UpdatedBy = userId,
+        };
+        context.PageNodes.Add(newNode);
+
+        foreach (var v in source.Versions)
+        {
+            context.PageNodeVersions.Add(new PageNodeVersion
+            {
+                Id = Guid.NewGuid(),
+                PageNodeId = newId,
+                VersionId = v.VersionId,
+                MinorVersion = v.MinorVersion,
+                IsCurrent = v.IsCurrent,
+                PublishFrom = v.PublishFrom,
+                PublishTo = v.PublishTo,
+                Content = v.Content,
+                BodyPlainText = v.BodyPlainText,
+                CreatedDate = now,
+                CreatedBy = userId,
+                UpdatedDate = now,
+                UpdatedBy = userId,
+            });
+        }
+
+        await context.SaveChangesAsync();
+        return ToNodeDto(newNode);
+    }
+
     // ── Staging (import) ────────────────────────────────────────────────────
 
     public async Task<PageNodeDto> CreateNodeForStagingAsync(

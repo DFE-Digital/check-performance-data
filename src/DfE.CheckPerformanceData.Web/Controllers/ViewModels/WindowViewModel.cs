@@ -59,21 +59,3 @@ public class WindowEditItem
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
 }
-
-public class WindowTypeItem
-{
-    public Guid WindowId { get; init; }
-
-    public IEnumerable<CheckingWindowType> Types { get; set; } = [];
-    public CheckingWindowType? WindowType { get; set; }    
-    public string PostUrl { get; init; } = string.Empty;
-}
-
-public class KeyStageItem
-{
-    public Guid WindowId { get; init; }
-    public IEnumerable<KeyStages> KeyStages { get; set; } = [];
-    public KeyStages? KeyStage { get; set; }    
-    public string PostUrl { get; init; } = string.Empty;   
-}
-

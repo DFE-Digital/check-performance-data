@@ -13,9 +13,9 @@ public class CheckingWindowDraft
     public DateTime? EndDate { get; set; }
     public string EndDateLink(IUrlHelper url) => url.Action("New", "EndDate");
     public CheckingWindowType? CheckingWindowType { get; set; }
-    public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("NewCheckingWindowType", "CheckingWindowType");
+    public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("New", "CheckingWindowType");
     public KeyStages? KeyStage { get; set; }
-    public string KeyStageLink(IUrlHelper url) => url.Action("NewKeyStage", "KeyStage");
+    public string KeyStageLink(IUrlHelper url) => url.Action("New", "KeyStage");
 
     public bool IsValid
     {

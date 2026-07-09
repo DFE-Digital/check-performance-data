@@ -209,7 +209,7 @@ public class EndDateControllerTests
     }
 
     private static EndDateController BuildController(IWindowService windowService, HttpContext httpContext) =>
-        new(Substitute.For<ILogger<EndDateController>>(), windowService)
+        new(windowService)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

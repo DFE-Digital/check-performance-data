@@ -37,7 +37,7 @@ public class CreateCheckingWindowController(ILogger<CreateCheckingWindowControll
             return BadRequest("No draft data");
         }
 
-        if (draft.IsValid == false)
+        if (!draft.IsValid)
         {
             return BadRequest("Invalid data");
         }

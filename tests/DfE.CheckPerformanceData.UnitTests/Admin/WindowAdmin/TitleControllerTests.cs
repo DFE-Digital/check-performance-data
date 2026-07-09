@@ -22,12 +22,11 @@ public class TitleControllerTests
     [Fact]
     public async Task Return_200_on_get_with_no_session_data()
     {
-        var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
         var session = Substitute.For<ISession>();
 
-        var controller = new TitleController(logger, windowService)
+        var controller = new TitleController(windowService)
         {
             ControllerContext = new ControllerContext
             {
@@ -46,12 +45,11 @@ public class TitleControllerTests
     [Fact]
     public async Task Return_200_on_get_with_existing_session_title()
     {
-        var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
         var draft = new CheckingWindowDraft { Title = "Autumn 2026 checking window" };
 
-        var controller = new TitleController(logger, windowService)
+        var controller = new TitleController(windowService)
         {
             ControllerContext = new ControllerContext
             {
@@ -70,7 +68,6 @@ public class TitleControllerTests
     [Fact]
     public async Task Post_stores_submitted_title_in_session_and_redirects()
     {
-        var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
         var session = Substitute.For<ISession>();
@@ -78,7 +75,7 @@ public class TitleControllerTests
         session.When(s => s.Set("CheckingWindowDraft", Arg.Any<byte[]>()))
             .Do(call => stored = (byte[])call[1]);
 
-        var controller = new TitleController(logger, windowService)
+        var controller = new TitleController(windowService)
         {
             ControllerContext = new ControllerContext
             {
@@ -101,7 +98,6 @@ public class TitleControllerTests
     [Fact]
     public async Task Post_updates_title_on_existing_session_draft()
     {
-        var logger = Substitute.For<ILogger<TitleController>>();
         var windowService = Substitute.For<IWindowService>();
 
         var existing = new CheckingWindowDraft
@@ -115,7 +111,7 @@ public class TitleControllerTests
         session.When(s => s.Set("CheckingWindowDraft", Arg.Any<byte[]>()))
             .Do(call => stored = (byte[])call[1]);
 
-        var controller = new TitleController(logger, windowService)
+        var controller = new TitleController(windowService)
         {
             ControllerContext = new ControllerContext
             {
@@ -227,7 +223,7 @@ public class TitleControllerTests
     }
 
     private static TitleController BuildController(ILogger<TitleController> logger, IWindowService windowService) =>
-        new(logger, windowService)
+        new(windowService)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
             Url = StubUrlHelper()

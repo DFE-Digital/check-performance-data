@@ -1,18 +1,17 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowService windowService) : Controller
+public class WindowTypeController(IWindowService windowService) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/WindowType.cshtml";
 
-    [ActionName("New")]
     [HttpGet("admin/windows/window-type")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> New(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -23,18 +22,18 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
 
         WindowTypeItem model = new WindowTypeItem()
         {
-            WindowId = Guid.NewGuid(),
+           // WindowId = Guid.NewGuid(),
             Types = Enum.GetValues<CheckingWindowType>(),
-            PostUrl = "/admin/windows/window-type",
+            PostUrl = Url.Action("Submit", "WindowType"),
+            CancelUrl =  Url.Action("Index", "CancelCreation"),
             WindowType = draft.CheckingWindowType
         };
         
         return View(PageView, model);
     }
     
-    [ActionName("Edit")]
     [HttpGet("admin/windows/{id:guid}/window-type")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -45,9 +44,9 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
 
         WindowTypeItem model = new WindowTypeItem()
         {
-            WindowId = Guid.NewGuid(),
+           // WindowId = Guid.NewGuid(),
             Types = Enum.GetValues<CheckingWindowType>(),
-            PostUrl = "/admin/windows/window-type",
+            PostUrl = Url.Action("Update", "WindowType"),
             WindowType = window.CheckingWindowType
         };
         
@@ -56,7 +55,7 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
     
     [HttpPost("admin/windows/window-type")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(WindowTypeItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(WindowTypeItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -78,7 +77,7 @@ public class WindowTypeController(ILogger<WindowTypeController> logger, IWindowS
     
     [HttpPost("admin/windows/{id:guid}/window-type")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowTypeItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(Guid id, WindowTypeItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 

@@ -140,7 +140,7 @@ public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto
         string? orgCode = localAuthorityElement.GetProperty("code").GetString();
         string? orgId = root.GetProperty("establishmentNumber").GetString();
 
-        if (!string.IsNullOrEmpty(orgCode) || !string.IsNullOrEmpty(orgId))
+        if (!string.IsNullOrEmpty(orgCode) && !string.IsNullOrEmpty(orgId))
         {
             dto?.Laestab = $"{orgCode}/{orgId}";    
         }

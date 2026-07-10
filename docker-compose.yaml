@@ -30,6 +30,11 @@ services:
       - DfeSignIn__MetadataAddress=${DFESIGNIN_METADATAADDRESS:-https://test-oidc.signin.education.gov.uk/.well-known/openid-configuration}
       - DfeSignIn__ClientSecret=${DFESIGNIN_CLIENTSECRET}
       - DfeSignIn__ServiceId=${DFESIGNIN_SERVICEID}
+      - DfEAnalytics__DatasetId=${DfEAnalytics_DatasetId}
+      - DfEAnalytics__ProjectId=${DfEAnalytics_ProjectId}
+      - DfEAnalytics__Environment=${DfEAnalytics_Environment}
+      - DfEAnalytics__Namespace=${DfEAnalytics_Namespace}
+      - DfEAnalytics__CredentialsJson=${DfEAnalytics_CredentialsJson}
 
     depends_on:
       - db
@@ -195,41 +200,13 @@ services:
     networks:
       - cypd
 
-  e2e-tests:
-    profiles: [e2e]
-    container_name: cypd_e2e_tests
-    # Image tag is pinned in tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
-    # (FROM line) — must move in lockstep with the Microsoft.Playwright NuGet
-    # version in src/Directory.Packages.props. Drift surfaces via
-    # `bash scripts/check-playwright-pin.sh`.
-    build:
-      context: .
-      dockerfile: tests/DfE.CheckPerformanceData.E2ETests/Dockerfile
-    image: cypd_e2e_tests:latest
-    working_dir: /work
-    environment:
-      - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
-      - NUGET_PACKAGES=/root/.nuget/packages
-      - DOTNET_NOLOGO=1
-      - DOTNET_CLI_TELEMETRY_OPTOUT=1
-    # The bind-mount lets dotnet test see the full source tree and write
-    # diff PNGs back to the host on visual-regression failure. The named
-    # cpd-nuget-cache volume persists package restore across --rm runs so
-    # subsequent invocations start in seconds, not minutes.
-    volumes:
-      - ./:/work
-      - cpd-nuget-cache:/root/.nuget/packages
-    # depends_on uses default condition (service_started). PlaywrightFixture
-    # polls $CPD_E2E_BASE_URL/healthcheck (90s default, 2s interval) before
-    # any test exercises the web app — that is the authoritative readiness
-    # gate. (web service has no compose-level healthcheck today.) The web app
-    # self-seeds the rules-config blobs during its startup seeding (so the admin
-    # rules editor works in E2E without the rules_engine/azurite_init container).
-    depends_on:
-      - web
-    networks:
-      - cypd
-    command: ["sh", "-c", "dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release"]
+  # NOTE: the e2e-tests service is intentionally NOT defined here. Visual Studio's
+  # docker-compose orchestration loads ONLY this file (via the .dcproj, with an
+  # explicit `-f docker-compose.yaml` that ignores COMPOSE_FILE) and would try to
+  # manage the one-shot Playwright runner — failing with "Can not find the container
+  # for the service 'e2e-tests'" because it is gated to the 'e2e' profile and never
+  # starts under VS. The service lives in docker-compose.e2e.yml instead; the CLI
+  # merges it back in via COMPOSE_FILE in .env, so `make test-e2e` works unchanged.
 
 volumes:
   postgres_data:

@@ -46,6 +46,9 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("Amendment requests", titles);
 		Assert.Contains("Uncommitted requests", titles);
 		Assert.Contains("View logs", titles);
+		Assert.Contains("Window administration", titles);
+		Assert.Contains("Create new window", titles);
+		Assert.Contains("Manage windows", titles);
 	}
 
 	// --- Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec ---

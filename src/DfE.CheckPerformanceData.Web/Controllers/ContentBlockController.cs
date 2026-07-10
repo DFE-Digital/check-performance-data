@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
@@ -58,7 +59,7 @@ public sealed partial class ContentBlockController(
     public async Task<IActionResult> Save(SaveContentBlockFormModel model)
     {
         if (!ModelState.IsValid)
-            return Redirect(SafeLocalUrl(model.ReturnUrl));
+            return Redirect(LocalUrl.SafeOrNull(model.ReturnUrl) ?? "/");
 
         await contentBlockService.SaveAsync(new SaveContentBlockDto
         {
@@ -68,7 +69,7 @@ public sealed partial class ContentBlockController(
             OriginalValue = model.OriginalValue
         });
 
-        var returnUrl = RemoveEditParam(SafeLocalUrl(model.ReturnUrl));
+        var returnUrl = RemoveEditParam(LocalUrl.SafeOrNull(model.ReturnUrl) ?? "/");
         return Redirect(AppendAnchor(returnUrl, model.Anchor));
     }
 
@@ -107,15 +108,7 @@ public sealed partial class ContentBlockController(
     public async Task<IActionResult> Revert(string key, int versionId, string? returnUrl)
     {
         await contentBlockService.RevertToVersionAsync(key, versionId);
-        return Redirect(SafeLocalUrl(returnUrl));
-    }
-
-    private static string SafeLocalUrl(string? url)
-    {
-        if (string.IsNullOrEmpty(url)) return "/";
-        if (url[0] != '/') return "/";
-        if (url.Length > 1 && (url[1] == '/' || url[1] == '\\')) return "/";
-        return url;
+        return Redirect(LocalUrl.SafeOrNull(returnUrl) ?? "/");
     }
 
     private static string RemoveEditParam(string url)

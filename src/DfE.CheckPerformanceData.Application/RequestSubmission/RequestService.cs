@@ -21,6 +21,9 @@ public sealed class RequestService(
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
+    public Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn) =>
+        requestRepository.HasSubmittedRequestAsync(windowId, pupilId, organisationUrn);
+
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)

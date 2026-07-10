@@ -109,6 +109,9 @@ public class PupilSearchJourneyTests
         _flowService.GetPage(MergeConfig, "select-match-pupil").Returns(MatchSearchPage);
         _flowService.GetPage(MergeConfig, "reason").Returns(QuestionPage);
         _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST01");
+        _currentUserService.OrganisationUrn.Returns("100000");
+        _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
+            .Returns((string?)null);
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
@@ -116,7 +119,7 @@ public class PupilSearchJourneyTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, _analytics)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

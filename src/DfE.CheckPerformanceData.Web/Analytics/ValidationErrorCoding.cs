@@ -13,6 +13,7 @@ public static class ValidationErrorCoding
     public const string SamePupil = "same_pupil";
     public const string AtLeastOne = "at_least_one";
     public const string FileRequired = "file_required";
+    public const string Conflict = "conflict";
 
     /// <summary>Code for a question that failed validation. An unanswered required
     /// question is <c>required</c>; an answered-but-invalid one is classified by type.</summary>

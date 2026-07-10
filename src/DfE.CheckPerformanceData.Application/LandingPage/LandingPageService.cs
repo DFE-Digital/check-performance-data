@@ -19,7 +19,7 @@ public sealed class LandingPageService(ILandingPageRepository landingPageReposit
             return null;
         }
 
-        var organisation =
+        OrganisationDto? organisation =
             await dfESignInApiClient.GetOrganisationAsync(currentUserService.UserId, currentUserService.OrganisationId);
 
         if (organisation == null)

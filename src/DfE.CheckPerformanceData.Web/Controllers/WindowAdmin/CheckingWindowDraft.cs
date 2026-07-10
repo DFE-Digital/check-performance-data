@@ -1,11 +1,11 @@
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class CheckingWindowDraft 
-{
-    public string PostUrl { get; set; } = string.Empty;
+public class CheckingWindowDraft : AdminPage
+{ 
     public string? Title { get; set; }
     public string TitleLink(IUrlHelper url) => url.Action("New", "Title");
     public DateTime? StartDate { get; set; }
@@ -13,7 +13,7 @@ public class CheckingWindowDraft
     public DateTime? EndDate { get; set; }
     public string EndDateLink(IUrlHelper url) => url.Action("New", "EndDate");
     public CheckingWindowType? CheckingWindowType { get; set; }
-    public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("New", "CheckingWindowType");
+    public string CheckingWindowTypeLink(IUrlHelper url) => url.Action("New", "WindowType");
     public KeyStages? KeyStage { get; set; }
     public string KeyStageLink(IUrlHelper url) => url.Action("New", "KeyStage");
 

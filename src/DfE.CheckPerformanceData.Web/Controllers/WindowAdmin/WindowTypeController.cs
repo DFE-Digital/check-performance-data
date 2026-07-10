@@ -22,7 +22,6 @@ public class WindowTypeController(IWindowService windowService) : Controller
 
         WindowTypeItem model = new WindowTypeItem()
         {
-           // WindowId = Guid.NewGuid(),
             Types = Enum.GetValues<CheckingWindowType>(),
             PostUrl = Url.Action("Submit", "WindowType"),
             CancelUrl =  Url.Action("Index", "CancelCreation"),
@@ -44,7 +43,7 @@ public class WindowTypeController(IWindowService windowService) : Controller
 
         WindowTypeItem model = new WindowTypeItem()
         {
-           // WindowId = Guid.NewGuid(),
+            WindowId = id,
             Types = Enum.GetValues<CheckingWindowType>(),
             PostUrl = Url.Action("Update", "WindowType"),
             WindowType = window.CheckingWindowType
@@ -72,7 +71,7 @@ public class WindowTypeController(IWindowService windowService) : Controller
         draft.CheckingWindowType = model.WindowType;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", draft.NextController(Url));
+        return Redirect( draft.NextController(Url));
     }
     
     [HttpPost("admin/windows/{id:guid}/window-type")]

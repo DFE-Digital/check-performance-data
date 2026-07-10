@@ -6,7 +6,7 @@ DfeSignIn__Audience: signin.education.gov.uk
 DfeSignIn__MetadataAddress: https://oidc.signin.education.gov.uk/.well-known/openid-configuration
 DfeSignIn__ServiceId: 7596A9E4-C209-4C37-8113-BF1046858F33
 GoogleTagManager__Enabled: true
-GoogleTagManager__PreviewId: env-4
+GoogleTagManager__PreviewId: env-1
 Clarity__Enabled: true
 Clarity__ProjectId: wjs4rw6fei
 

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
@@ -18,7 +19,8 @@ public sealed class JourneyController(
     IRequestService requestService,
     ICheckYourPupilDataService pupilDataService,
     JourneyViewModelBuilder viewModelBuilder,
-    IAnalyticsService analytics) : Controller
+    IAnalyticsService analytics,
+    ICurrentUserService currentUserService) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -123,6 +125,28 @@ public sealed class JourneyController(
         }
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
+
+        if (page.PupilKey != JourneyPage.MatchKey)
+        {
+            var conflictRef = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
+            if (conflictRef is not null)
+            {
+                ModelState.AddModelError("selectedPupilId",
+                    "A request for this pupil has already been submitted.");
+                await analytics.TrackSafeAsync(new ValidationErrorEvent
+                {
+                    ErrorCount = 1,
+                    ErrorCodes = [ValidationErrorCoding.Conflict],
+                    WhatToChange = journey.SelectedWhatToChange?.ToString(),
+                });
+                var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
+                var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
+                vm.ConflictErrorReference = conflictRef;
+                vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{conflictRef}/view";
+                vm.ConflictPupilName = pupilName;
+                return View("PupilSearch", vm);
+            }
+        }
 
         if (page.PupilKey == JourneyPage.MatchKey)
         {

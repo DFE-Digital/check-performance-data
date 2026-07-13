@@ -13,6 +13,7 @@ public sealed class DfeSignInApiClient(
     IOptions<DfeSigninSettings> settings,
     ILogger<DfeSignInApiClient> logger) : IDfESignInApiClient
 {
+    private const string OverrideLaestab = "DSI/TEST";
     public async Task<OrganisationDto?> GetOrganisationAsync(string userId, string organisationId)
     {
         using var response = await httpClient.GetAsync($"users/{userId}/organisations");
@@ -46,6 +47,10 @@ public sealed class DfeSignInApiClient(
                 "(check for an id/casing mismatch between the sign-in token and the organisations list).",
                 userOrganisations?.Count ?? 0, userId, organisationId);
 
+        if (match.Laestab == OverrideLaestab)
+        {
+            logger.LogWarning("DfE Sign-in returned LAESTAB override for user {UserId}", userId);
+        }
         return match;
     }
 
@@ -126,18 +131,24 @@ public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto
     public override OrganisationDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
-        var root = document.RootElement;
+        JsonElement root = document.RootElement;
         
-        var dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+        OrganisationDto? dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
 
         if (!root.TryGetProperty("localAuthority", out var localAuthorityElement)) return dto!;
         
+        string? orgCode = localAuthorityElement.GetProperty("code").GetString();
+        string? orgId = root.GetProperty("establishmentNumber").GetString();
+
+        if (!string.IsNullOrEmpty(orgCode) && !string.IsNullOrEmpty(orgId))
+        {
+            dto?.Laestab = $"{orgCode}/{orgId}";    
+        }
+        else if (dto.Urn == "990082" && dto.Name == "DSI Test College")
+        {
+            dto.Laestab = "DSI/TEST";
+        }
         
-        var orgCode = localAuthorityElement.GetProperty("code").GetString();
-        var orgId = root.GetProperty("establishmentNumber").GetString();
-
-        dto?.Laestab = $"{orgCode}/{orgId}";
-
         return dto!;
     }
 

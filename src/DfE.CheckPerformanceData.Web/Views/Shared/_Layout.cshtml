@@ -82,7 +82,7 @@
                             var selectedWindowId = Context.Session.GetString("SelectedWindowId");
                         }
                         <li class="govuk-service-navigation__item">
-                            <a class="govuk-service-navigation__link" href="/help">Help</a>
+                            <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
                         </li>
                         @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
                         {
@@ -143,6 +143,7 @@
 }
 
 @Html.GovUkFrontendJsEnabledScript()
+@await Html.PartialAsync("_ContactUsBanner")
 @RenderBody()
 @Html.GovUkFrontendScriptImports()
 
@@ -173,7 +174,7 @@
             @await Component.InvokeAsync("EditableContent", new {
                 key = "footer-support-and-guidance",
                 defaultHtml = @"<h2 class=""govuk-heading-m"">Support and guidance</h2>
-<p>If you have a question, or you're having a problem using this service, you can <a href=""#"" class=""govuk-link"">send us a message</a> or call us on 0300 131 2762</p>
+<p>If you have a question, or you're having a problem using this service, you can <a href=""/contact"" class=""govuk-link"">send us a message</a> or call us on 0300 131 2762</p>
 <p>
     <a href=""#"" class=""govuk-footer__link"">Privacy</a>
     <a href=""/cookies"" class=""govuk-footer__link"">Cookies</a>

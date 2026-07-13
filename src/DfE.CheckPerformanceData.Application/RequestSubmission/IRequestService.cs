@@ -5,6 +5,9 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public interface IRequestService
 {
+    /// <summary>Returns the reference number of a submitted request for the given pupil, or null if none exists.</summary>
+    Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);
+
     Task ConfirmRequestAsync(Guid windowId, RequestState journey);
     Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status);
     Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber);

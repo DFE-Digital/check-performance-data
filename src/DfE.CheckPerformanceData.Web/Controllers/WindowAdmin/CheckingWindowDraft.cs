@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class CheckingWindowDraft : AdminPage
+public sealed class CheckingWindowDraft : AdminPage
 { 
     public string? Title { get; set; }
     public string TitleLink(IUrlHelper url) => url.Action("New", "Title");

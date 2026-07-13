@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class EndDateController(IWindowService windowService): Controller
+public sealed class EndDateController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/EndDate.cshtml";
 

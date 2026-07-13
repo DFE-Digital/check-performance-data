@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class IngressFileController(ILogger<IngressFileController> logger,
+public sealed class IngressFileController(ILogger<IngressFileController> logger,
     IWindowService windowService,
     IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {

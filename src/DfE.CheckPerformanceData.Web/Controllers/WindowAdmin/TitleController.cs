@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class TitleController(IWindowService windowService): Controller
+public sealed class TitleController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/Title.cshtml";
 

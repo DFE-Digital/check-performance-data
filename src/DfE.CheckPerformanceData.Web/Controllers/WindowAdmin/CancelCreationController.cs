@@ -1,10 +1,9 @@
-using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class CancelCreationController : Controller
+public sealed class CancelCreationController : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";
 

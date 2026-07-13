@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class SummaryController(IWindowService windowService): Controller
+public sealed class SummaryController(IWindowService windowService): Controller
 {
    
     [HttpGet("admin/windows/summary/{id}")]

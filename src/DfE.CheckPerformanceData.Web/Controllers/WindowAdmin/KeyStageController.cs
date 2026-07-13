@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class KeyStageController(IWindowService windowService): Controller
+public sealed class KeyStageController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/KeyStage.cshtml";
     

@@ -25,11 +25,6 @@ GoogleTagManager__PreviewId: env-4
 Clarity__Enabled: true
 Clarity__ProjectId: wjrp3ai9r0
 
-DfEAnalytics__DatasetId: cypmd_events_qa
-DfEAnalytics__ProjectId: check-performance-data
-DfEAnalytics__Environment: qa
-DfEAnalytics__Namespace: CYPMD
-
 # Rules Engine Worker configuration
 RulesEngineOptions__QueueName: change-requests
 RulesEngineOptions__RetryDelayMs: 5000

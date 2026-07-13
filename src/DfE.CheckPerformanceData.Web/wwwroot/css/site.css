@@ -1752,3 +1752,73 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   color: #505a5f;
   font-size: 1rem;
 }
+
+/* Back-to-top link, GDS design-guidance pattern (design-system.service.gov.uk). Sticky
+   positioning tracks the viewport bottom while the container is in its parent flow and
+   RELEASES at the natural end of the parent (so it stops just above the footer instead
+   of overlapping it). Styling matches the vanilla GDS example: transparent background,
+   arrow + underlined link, no chrome.
+
+   Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
+   has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
+   default state below. Until the reader scrolls past ~100 px, the link is opacity: 0 +
+   visibility: hidden. Past that threshold the module adds .is-visible on the container
+   and CSS transitions it in. Without JS neither the marker nor the .is-visible class
+   is ever set, so the link stays visible as a graceful accessibility fallback. */
+.app-back-to-top {
+  position: sticky;
+  bottom: 50px;
+  margin: 30px 0 0;
+  z-index: 20;
+  pointer-events: auto;
+}
+.app-back-to-top__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-back-to-top__icon {
+  flex: 0 0 auto;
+}
+
+[data-back-to-top-init="true"] .app-back-to-top {
+  opacity: 0;
+  visibility: hidden;
+  /* Collapse layout while hidden so the 30px margin-top doesn't leave a phantom gap
+     above the footer on short pages where sticky positioning never engages.
+     Careful: position: sticky (on the base class above) is only well-defined for a
+     non-zero-height element. Here sticky never engages while the container is
+     collapsed, because scroll-past-the-fold immediately flips .is-visible which
+     restores height: auto. If a future edit changes .is-visible to a transform or
+     opacity-only reveal without restoring height, Safari's sticky layout invariants
+     may keep sticky disengaged — restore the height in that path first. */
+  margin: 0;
+  height: 0;
+  overflow: hidden;
+  /* Fade-out: hold visibility on until after the opacity animation completes so the link
+     doesn't pop out of the tab order mid-fade. */
+  transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
+}
+[data-back-to-top-init="true"] .app-back-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  /* Restore the natural spacing when the link is revealed. */
+  margin: 30px 0 0;
+  height: auto;
+  /* Fade-in: flip visibility on immediately so the fade shows from the start. */
+  transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
+}
+
+/* Respect the user's motion preference — instant reveal, no fade. */
+@media (prefers-reduced-motion: reduce) {
+  [data-back-to-top-init="true"] .app-back-to-top,
+  [data-back-to-top-init="true"] .app-back-to-top.is-visible {
+    transition: none;
+  }
+}
+
+@media print {
+  .app-back-to-top {
+    display: none;
+  }
+}

@@ -1,0 +1,18 @@
+@* Back-to-top link for wiki/content pages. Sticky positioning keeps it 50px above the
+   viewport bottom and releases at the natural end of the content flow so it doesn't
+   overlap the footer. A tiny JS module (back-to-top.js) hides the link until the reader
+   has scrolled past the initial fold — matching the GDS design-guidance behaviour:
+   https://design-system.service.gov.uk/community/resources-and-tools/
+   The module only toggles a class; it never rewrites the DOM. Without JS the link stays
+   visible as a graceful fallback (users can still reach it by scrolling normally).
+   The <script src="~/js/back-to-top.js"> tag lives in _Layout.cshtml with defer set, so
+   it fetches once per page even if the partial appears in multiple regions, and the
+   fetch runs off the critical path (no FOUC of the yet-to-be-hidden link). *@
+<div class="app-back-to-top">
+    <a class="govuk-link govuk-link--no-visited-state app-back-to-top__link" href="#top">
+        <svg role="presentation" focusable="false" class="app-back-to-top__icon"
+             xmlns="http://www.w3.org/2000/svg" width="13" height="17" viewBox="0 0 13 17">
+            <path fill="currentColor" d="M6.5 0L0 6.5 1.4 8l4-4v12.7h2V4l4.3 4L13 6.4z"/>
+        </svg>Back to top
+    </a>
+</div>

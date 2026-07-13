@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
@@ -8,7 +10,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
 public sealed class SubmittedRequestController(
     ISubmittedRequestService service,
     IRequestService requestService,
-    IFileStorageService fileStorageService) : Controller
+    IFileStorageService fileStorageService,
+    IAnalyticsService analytics) : Controller
 {
     [Route("/{windowId}/AmendmentRequests/{referenceNumber}/view")]
     public Task<IActionResult> View(Guid windowId, string referenceNumber) =>
@@ -101,6 +104,21 @@ public sealed class SubmittedRequestController(
     public async Task<IActionResult> Delete(Guid windowId, string referenceNumber)
     {
         var result = await requestService.DeleteAsync(windowId, referenceNumber);
+
+        // Both amendment requests and data-correct confirmations post to this action;
+        // the deleted row's type picks the analytics event. No row found → no event.
+        if (result.RequestType is not null)
+        {
+            AnalyticsEvent deletedEvent = result.RequestType == RequestType.ConfirmCorrect
+                ? new ConfirmationDeletedEvent { ReferenceNumber = referenceNumber }
+                : new AmendmentRequestDeletedEvent
+                {
+                    ReferenceNumber = referenceNumber,
+                    WasHardDeleted = result.WasHardDeleted,
+                };
+            await analytics.TrackSafeAsync(deletedEvent);
+        }
+
         TempData["DeletedMessage"] = result.WasHardDeleted
             ? $"{result.PupilName} has been removed from your saved request"
             : $"{result.PupilName}(reference number - {referenceNumber}) has been removed from your submitted request.";

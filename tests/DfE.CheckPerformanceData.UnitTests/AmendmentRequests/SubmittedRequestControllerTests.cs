@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -19,11 +20,12 @@ public class SubmittedRequestControllerTests
     private readonly ISubmittedRequestService _service = Substitute.For<ISubmittedRequestService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IFileStorageService _fileStorage = Substitute.For<IFileStorageService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly SubmittedRequestController _sut;
 
     public SubmittedRequestControllerTests()
     {
-        _sut = new SubmittedRequestController(_service, _requestService, _fileStorage)
+        _sut = new SubmittedRequestController(_service, _requestService, _fileStorage, _analytics)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
@@ -232,5 +234,41 @@ public class SubmittedRequestControllerTests
         await _sut.Delete(WindowId, Reference);
 
         Assert.Equal($"Jane Smith(reference number - {Reference}) has been removed from your submitted request.", _sut.TempData["DeletedMessage"]);
+    }
+
+    [Fact]
+    public async Task Delete_Amendment_EmitsAmendmentRequestDeletedEvent()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(true, "Jane Smith", RequestType.Amendment));
+
+        await _sut.Delete(WindowId, Reference);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<AmendmentRequestDeletedEvent>(e =>
+                e.ReferenceNumber == Reference &&
+                e.WasHardDeleted),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Delete_Confirmation_EmitsConfirmationDeletedEvent()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith", RequestType.ConfirmCorrect));
+
+        await _sut.Delete(WindowId, Reference);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ConfirmationDeletedEvent>(e => e.ReferenceNumber == Reference),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Delete_WhenNoRowWasFound_EmitsNoEvent()
+    {
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "", null));
+
+        await _sut.Delete(WindowId, Reference);
+
+        await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
     }
 }

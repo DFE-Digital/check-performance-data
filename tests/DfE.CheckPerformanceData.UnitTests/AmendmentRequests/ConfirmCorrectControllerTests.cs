@@ -10,7 +10,7 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
-public class ConfirmCorrectControllerTests
+public sealed class ConfirmCorrectControllerTests
 {
     private static readonly Guid WindowId = Guid.Parse("55555555-5555-5555-5555-555555555555");
     private const string Reference = "CYPMD_KS4June_ABC1234";
@@ -48,5 +48,12 @@ public class ConfirmCorrectControllerTests
                 e.ReferenceNumber == Reference &&
                 e.CheckingWindowType == "KS4June"),
             Arg.Any<CancellationToken>());
+
+        // The event must fire only after the confirmation is persisted.
+        Received.InOrder(() =>
+        {
+            _ = _requestService.ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>());
+            _ = _analytics.TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
+        });
     }
 }

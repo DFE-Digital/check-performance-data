@@ -203,7 +203,7 @@ public class SubmittedRequestControllerTests
     [Fact]
     public async Task Delete_DeletesAndRedirectsToAmendmentRequests()
     {
-        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith"));
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith", RequestType.Amendment));
 
         var result = await _sut.Delete(WindowId, Reference);
 
@@ -217,7 +217,7 @@ public class SubmittedRequestControllerTests
     [Fact]
     public async Task Delete_WhenHardDeleted_SetsConfirmationMessage()
     {
-        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(true, "Jane Smith"));
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(true, "Jane Smith", RequestType.Amendment));
 
         await _sut.Delete(WindowId, Reference);
 
@@ -227,7 +227,7 @@ public class SubmittedRequestControllerTests
     [Fact]
     public async Task Delete_WhenWithdrawn_SetsSubmittedConfirmationMessage()
     {
-        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith"));
+        _requestService.DeleteAsync(WindowId, Reference).Returns(new RequestDeletionResult(false, "Jane Smith", RequestType.Amendment));
 
         await _sut.Delete(WindowId, Reference);
 

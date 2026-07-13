@@ -1,0 +1,10 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ValidationViewModel
+
+<p>Files Written: @Model.ProcessingResult?.FilesWritten</p>
+
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    <govuk-button type="submit">Run</govuk-button>
+</form>
+
+

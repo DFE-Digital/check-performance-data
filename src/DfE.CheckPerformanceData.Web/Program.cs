@@ -30,11 +30,13 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Newtonsoft.Json.Schema;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
@@ -259,6 +261,7 @@ try
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+    builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
     builder.Services.AddAntiforgery(options =>
     {

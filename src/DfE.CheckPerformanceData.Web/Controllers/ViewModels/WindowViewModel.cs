@@ -1,7 +1,4 @@
-using System.ComponentModel.DataAnnotations;
-using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
@@ -58,4 +55,23 @@ public class WindowEditItem
     public DateTime? ValidationDate { get; set; }
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
+    
+    private bool HasRequiredFiles =>
+        !string.IsNullOrWhiteSpace(IngressFile) &&
+        !string.IsNullOrWhiteSpace(SchemaFile);
+
+    private bool HasValidDates
+    {
+        get
+        {
+            var today = DateTime.UtcNow.Date;
+
+            return StartDate.Date >= today
+                   && EndDate.Date >= today
+                   && EndDate.Date >= StartDate.Date;
+        }
+    }
+
+    public bool IsValidatable => HasValidDates && HasRequiredFiles;
+        
 }

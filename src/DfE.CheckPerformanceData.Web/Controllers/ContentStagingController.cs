@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -23,8 +25,14 @@ public sealed class ContentStagingController(
     ILogger<ContentStagingController> logger,
     IConfiguration configuration,
     IHostEnvironment hostEnvironment,
-    ISettingService settingService) : Controller
+    ISettingService settingService,
+    IPortalDbContext? dbContext = null) : Controller
 {
+    // Nullable + defaulted so the pre-existing unit tests (which construct the controller
+    // with the required deps) keep compiling. Real DI wires the actual context in and the
+    // audit-write path activates.
+    private readonly IPortalDbContext? _dbContext = dbContext;
+
     // Clear-all wipes every page and content block in the environment: fine on a development or
     // throwaway environment, and it has no business being reachable on one holding content anyone
     // depends on.
@@ -267,6 +275,12 @@ public sealed class ContentStagingController(
                 TempData["ContentStagingError"] = string.Join("\n", result.Errors);
             if (result.Warnings.Count > 0)
                 TempData["ContentStagingWarnings"] = string.Join("\n", result.Warnings);
+
+            // Forensic trail — every bulk destructive admin action lands in AuditEntries so
+            // an incident-responder can reconstruct "who imported what, when" without
+            // grepping app logs. Only successful imports are recorded (failed imports have
+            // no net effect worth tracing). Matches QueueAdminController's audit pattern.
+            await WriteImportAuditAsync(result, model.BundleJson?.Length ?? 0);
         }
         catch (ContentImportConflictException ex)
         {
@@ -326,4 +340,37 @@ public sealed class ContentStagingController(
         $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +
         $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
+
+    // Records an AuditEntry for a successful content-staging import. NewValues carries a
+    // JSON summary of the mutation counts so an incident-responder can reconstruct "who
+    // changed how much" without replaying the bundle. Guarded on _dbContext so tests that
+    // construct the controller without a context (all pre-existing tests) don't NRE.
+    private async Task WriteImportAuditAsync(ContentImportResult result, int bundleJsonBytes)
+    {
+        if (_dbContext is null) return;
+
+        var summary = JsonSerializer.Serialize(new
+        {
+            result.PageNodesCreated,
+            result.PageNodesUpdated,
+            result.PageNodesSkipped,
+            result.ContentBlocksCreated,
+            result.ContentBlocksUpdated,
+            result.ContentBlocksSkipped,
+            WarningCount = result.Warnings.Count,
+            ErrorCount = result.Errors.Count,
+            BundleJsonBytes = bundleJsonBytes,
+        });
+
+        _dbContext.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = "ContentBundle",
+            EntityId = "import",
+            Action = "Import",
+            NewValues = summary,
+            Timestamp = DateTime.UtcNow,
+            UserId = currentUser?.UserId,
+        });
+        await _dbContext.SaveChangesAsync();
+    }
 }

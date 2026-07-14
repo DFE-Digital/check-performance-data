@@ -1,8 +1,10 @@
 using System.Reflection;
 using System.Text;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -10,6 +12,7 @@ using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -473,6 +476,105 @@ public sealed class ContentStagingControllerTests
             .GetMethod(nameof(ContentStagingController.ClearAll))!;
         Assert.NotNull(method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.ValidateAntiForgeryTokenAttribute>());
         Assert.NotNull(method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.HttpPostAttribute>());
+    }
+
+    // ── Audit logging on Import ──────────────────────────────────────────────
+    //
+    // Every destructive admin action in the codebase writes an AuditEntry (see
+    // QueueAdminController.WriteActionAuditAsync). Content-staging Import is a
+    // bulk destructive action that touches thousands of rows — and until now
+    // wrote zero audit rows. Pin the "one AuditEntry per successful import"
+    // contract with the summary shape stored in NewValues.
+
+    [Fact]
+    public async Task Import_Confirm_Successful_WritesAuditEntry_WithBundleSummary()
+    {
+        var (dbContext, audits) = SubstituteDbContext();
+        _currentUser.UserId.Returns("editor@education.gov.uk");
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult
+            {
+                PageNodesCreated = 3, PageNodesUpdated = 1, PageNodesSkipped = 0,
+                ContentBlocksCreated = 5, ContentBlocksUpdated = 2, ContentBlocksSkipped = 1,
+                Warnings = { "Sanitised HTML in 2 bundle item(s)..." },
+            });
+        var sut = NewSutWith(dbContext);
+
+        await sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        audits.Received(1).Add(Arg.Is<AuditEntry>(a =>
+            a.EntityType == "ContentBundle" &&
+            a.EntityId == "import" &&
+            a.Action == "Import" &&
+            a.UserId == "editor@education.gov.uk" &&
+            a.NewValues != null &&
+            a.NewValues.Contains("\"PageNodesCreated\":3") &&
+            a.NewValues.Contains("\"ContentBlocksCreated\":5") &&
+            a.NewValues.Contains("\"WarningCount\":1")));
+        await dbContext.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Import_Confirm_WhenServiceThrows_DoesNotWriteAuditEntry()
+    {
+        var (dbContext, audits) = SubstituteDbContext();
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns<ContentImportResult>(_ =>
+                throw new InvalidOperationException("db-blew-up"));
+        var sut = NewSutWith(dbContext);
+
+        await sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        // Failed import means no audit — we only record successful mutations to keep the
+        // audit trail a true record of "what changed", not "what was attempted".
+        audits.DidNotReceiveWithAnyArgs().Add(default!);
+    }
+
+    [Fact]
+    public async Task Import_Confirm_WhenDbContextIsNull_StillReturnsSuccess()
+    {
+        // Existing test-set constructs the controller without a db context; the audit
+        // write must gracefully no-op rather than NRE. Belt-and-braces mirror of the
+        // same pattern in QueueAdminController.
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+
+        var result = await _sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        Assert.IsType<RedirectResult>(result);
+        Assert.NotNull(_sut.TempData["ContentStagingResult"]);
+    }
+
+    private ContentStagingController NewSutWith(IPortalDbContext dbContext)
+    {
+        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, dbContext)
+        {
+            TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
+        };
+    }
+
+    private static (IPortalDbContext DbContext, DbSet<AuditEntry> Audits) SubstituteDbContext()
+    {
+        var dbContext = Substitute.For<IPortalDbContext>();
+        var audits = Substitute.For<DbSet<AuditEntry>>();
+        dbContext.AuditEntries.Returns(audits);
+        dbContext.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
+        return (dbContext, audits);
     }
 
     // The upload endpoint must reject requests with the wrong Content-Type early in the

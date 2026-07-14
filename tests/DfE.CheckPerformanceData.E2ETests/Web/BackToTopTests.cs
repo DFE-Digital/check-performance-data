@@ -14,7 +14,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 //   * On mobile (<= 40.0625em): the two-column layout collapses to one column and
 //     the sticky link then sits over article body text, so it gains an opaque
 //     white pill with a subtle shadow so the button reads as a button and the
-//     text underneath doesn't bleed through.
+//     text underneath doesn't bleed through. Aligned to the RIGHT edge of the
+//     viewport because prose paragraphs typically wrap short of the right edge,
+//     so the pill obscures less of the article body than a lower-left one would.
 //   * At the page bottom the link releases at the natural end of the content area
 //     so it sits above the footer instead of overlapping it.
 //   * Anchor href="#top" scrolls the window back to the top.
@@ -59,11 +61,13 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 
     // On mobile the sticky link overlays article text (single-column layout, no left
     // gutter to hide in) so the transparent GDS treatment becomes illegible. The
-    // mobile pill fix gives it an opaque white background, rounded pill shape, subtle
-    // shadow, and a light border so the button reads as a button. Pin those values
-    // so the readability fix can't silently regress.
+    // mobile fix: opaque white pill with a subtle shadow and light border so the
+    // button reads as a button and the text underneath doesn't bleed through, AND
+    // align it to the right edge because prose paragraphs typically wrap short of
+    // the right edge — the pill then obscures less of the body copy than a
+    // lower-left one would. Pin both properties so the fix can't silently regress.
     [Fact]
-    public async Task AtMobileViewport_LinkHasOpaquePill_ForContrastOverBodyContent()
+    public async Task AtMobileViewport_LinkHasOpaquePill_InLowerRight_ForContrastOverBodyContent()
     {
         await Page.SetViewportSizeAsync(375, 667);
         var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
@@ -72,19 +76,40 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 
         await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
 
-        var style = await Page.EvaluateAsync<StyleSnap>(@"() => {
+        // Scroll into content so the link is sticky-active and its bounding box is
+        // pinned near the viewport bottom, then read chrome + geometry in one hop.
+        await Page.EvaluateAsync("window.scrollTo(0, 800)");
+        await Page.WaitForFunctionAsync(@"() => {
+            const c = document.querySelector('.app-back-to-top');
+            return c && c.classList.contains('is-visible') && getComputedStyle(c).opacity === '1';
+        }");
+
+        var snap = await Page.EvaluateAsync<MobilePillSnap>(@"() => {
             const link = document.querySelector('.app-back-to-top__link');
             const cs = getComputedStyle(link);
+            const lr = link.getBoundingClientRect();
             return {
                 background: cs.backgroundColor,
                 boxShadow: cs.boxShadow,
-                borderRadius: cs.borderRadius
+                borderRadius: cs.borderRadius,
+                linkLeft: Math.round(lr.left),
+                linkRight: Math.round(lr.right),
+                viewportWidth: window.innerWidth
             };
         }");
 
-        Assert.Equal("rgb(255, 255, 255)", style.Background);
-        Assert.NotEqual("none", style.BoxShadow);
-        Assert.NotEqual("0px", style.BorderRadius);
+        // Pill chrome — opaque white background, rounded, with a subtle shadow.
+        Assert.Equal("rgb(255, 255, 255)", snap.Background);
+        Assert.NotEqual("none", snap.BoxShadow);
+        Assert.NotEqual("0px", snap.BorderRadius);
+
+        // Right-edge alignment — the link's right edge should be within a small
+        // gutter of the viewport's right edge, and its left edge should be in the
+        // right half of the viewport (i.e. clearly not sitting at the left).
+        Assert.True(snap.ViewportWidth - snap.LinkRight < 30,
+            $"pill should hug the right edge but linkRight={snap.LinkRight}, viewport={snap.ViewportWidth}");
+        Assert.True(snap.LinkLeft > snap.ViewportWidth / 2,
+            $"pill should be in the right half of the viewport but linkLeft={snap.LinkLeft}, viewport={snap.ViewportWidth}");
     }
 
     [Fact]
@@ -188,6 +213,16 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
         public string Background { get; set; } = "";
         public string BoxShadow { get; set; } = "";
         public string BorderRadius { get; set; } = "";
+    }
+
+    public sealed class MobilePillSnap
+    {
+        public string Background { get; set; } = "";
+        public string BoxShadow { get; set; } = "";
+        public string BorderRadius { get; set; } = "";
+        public int LinkLeft { get; set; }
+        public int LinkRight { get; set; }
+        public int ViewportWidth { get; set; }
     }
 
     public sealed class MidSnap

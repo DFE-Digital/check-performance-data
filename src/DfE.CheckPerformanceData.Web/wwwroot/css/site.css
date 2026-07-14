@@ -1824,10 +1824,16 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
    sticky link sits on TOP of the article body instead of the empty left sibling
    gutter it occupies on desktop/tablet. That produces a "double text" effect where
    the link's letters overlap paragraph text underneath. Give it an opaque white
-   pill on mobile so the text is readable and the button is clearly a button. Kept
-   in the lower-left corner via the base .app-back-to-top rules. Border matches the
-   GDS default link colour so the pill reads as an actionable control, not chrome. */
+   pill on mobile so the text is readable and the button is clearly a button.
+   Aligned to the RIGHT edge (text-align on the block container pushes the
+   inline-flex link across) because prose paragraphs typically wrap short of the
+   right edge, so an over-the-right-gutter pill obscures less of the body copy
+   than a lower-left one would. Border matches the GDS default link colour so
+   the pill reads as an actionable control, not chrome. */
 @media (max-width: 40.0625em) {
+  .app-back-to-top {
+    text-align: right;
+  }
   .app-back-to-top__link {
     background: #ffffff;
     padding: 8px 15px;

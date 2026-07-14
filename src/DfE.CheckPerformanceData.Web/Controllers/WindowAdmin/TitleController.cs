@@ -80,7 +80,7 @@ public sealed class TitleController(IWindowService windowService): Controller
             return NotFound();
         }
         
-        window.Title = model.Title;
+        window.Title = model.Title!;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", new { id = id});

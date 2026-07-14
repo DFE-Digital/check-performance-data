@@ -44,15 +44,14 @@ public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowC
 
         CheckingWindowDto checkingWindowDto = new CheckingWindowDto() 
         {
-             Title = draft.Title,
-             StartDate = draft.StartDate.Value,
-             EndDate = draft.EndDate.Value,
-             CheckingWindowType = draft.CheckingWindowType.Value,
-             KeyStage = draft.KeyStage.Value,
+             Title = draft.Title!,
+             StartDate = draft.StartDate!.Value,
+             EndDate = draft.EndDate!.Value,
+             CheckingWindowType = draft.CheckingWindowType!.Value,
+             KeyStage = draft.KeyStage!.Value,
          };
         CheckingWindowDto window = await windowService.CreateAsync(checkingWindowDto, cancellationToken);
         
-        //Temp patch to create the app container for file storage
         CreateWindowContainer(window.Id.ToString());
         return RedirectToAction("Index", "Summary", new { id = window.Id });
     }

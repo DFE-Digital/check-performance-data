@@ -13,7 +13,7 @@ public sealed class WindowAdminController(
     {
         PageResult? pageResult = await windowService.GetAllDataAsync(cancellationToken);
         List<WindowListItem> windowListItems = pageResult?.Windows.Select(_ => new WindowListItem() {Id = _.Id, Name = _.Title, IsOpen = true, IsPublished = true}).ToList();
-        WindowViewModel vm = new WindowViewModel(windowListItems);
+        WindowViewModel vm = new WindowViewModel(windowListItems!);
 
         return View( vm );
     }

@@ -94,7 +94,7 @@ public sealed class StartDateController(ILogger<StartDateController> logger, IWi
             return BadRequest();
         }
 
-        window.StartDate = model.DateValue.Value;
+        window.StartDate = model.DateValue!.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", id);

@@ -1855,6 +1855,17 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   }
 }
 
+/* Admin surfaces always right-align the pill inside the main content column.
+   The admin layout is a flex row (admin-rail | admin-main), so a left-aligned
+   pill inside .admin-main visually sits in the MIDDLE of the page — right at
+   the seam between the nav rail and the content column. Right-aligning inside
+   .admin-main puts the pill flush to the right edge of the content column,
+   which reads as a corner rather than a mid-page floater. Stays stable
+   regardless of whether the admin-nav-collapse button is expanded or collapsed. */
+.admin-main .app-back-to-top {
+  text-align: right;
+}
+
 @media print {
   .app-back-to-top {
     display: none;

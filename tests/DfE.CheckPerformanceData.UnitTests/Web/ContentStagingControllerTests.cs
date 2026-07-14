@@ -560,12 +560,81 @@ public sealed class ContentStagingControllerTests
         Assert.NotNull(_sut.TempData["ContentStagingResult"]);
     }
 
-    private ContentStagingController NewSutWith(IPortalDbContext dbContext)
+    private ContentStagingController NewSutWith(IPortalDbContext dbContext, IContentStagingLock? importLock = null)
     {
-        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, dbContext)
+        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, dbContext, importLock)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
+    }
+
+    // ── Concurrent-import advisory lock ──────────────────────────────────────
+
+    [Fact]
+    public async Task Import_Confirm_WhenLockUnavailable_SkipsImport_AndSurfacesBanner()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        var importLock = Substitute.For<IContentStagingLock>();
+        importLock.TryAcquireAsync(Arg.Any<CancellationToken>()).Returns(false);
+        var sut = NewSutWith(dbContext, importLock);
+
+        var result = await sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        Assert.Contains("Another import", sut.TempData["ContentStagingError"]?.ToString() ?? "");
+        // Import path must have been short-circuited before touching the service.
+        await _staging.DidNotReceiveWithAnyArgs().ImportAsync(default!, default, default!, default);
+        // And no attempt to release a lock we never acquired.
+        await importLock.DidNotReceive().ReleaseAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Import_Confirm_WhenLockAcquired_ReleasesInFinally_EvenOnFailure()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        var importLock = Substitute.For<IContentStagingLock>();
+        importLock.TryAcquireAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns<ContentImportResult>(_ =>
+                throw new InvalidOperationException("db-blew-up"));
+        var sut = NewSutWith(dbContext, importLock);
+
+        await sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        // Release must still fire — otherwise a crashed import leaks the lock and every
+        // subsequent import gets rejected until the DB session recycles.
+        await importLock.Received(1).ReleaseAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Import_Confirm_WhenLockAcquired_ReleasesAfterSuccess()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        var importLock = Substitute.For<IContentStagingLock>();
+        importLock.TryAcquireAsync(Arg.Any<CancellationToken>()).Returns(true);
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+        var sut = NewSutWith(dbContext, importLock);
+
+        await sut.Import(new ImportConfirmFormModel
+        {
+            BundleJson = ValidBundleJson(),
+            GlobalMode = ContentImportMode.Replace,
+        });
+
+        await importLock.Received(1).TryAcquireAsync(Arg.Any<CancellationToken>());
+        await importLock.Received(1).ReleaseAsync(Arg.Any<CancellationToken>());
     }
 
     private static (IPortalDbContext DbContext, DbSet<AuditEntry> Audits) SubstituteDbContext()

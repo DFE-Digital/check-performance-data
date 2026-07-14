@@ -26,12 +26,14 @@ public sealed class ContentStagingController(
     IConfiguration configuration,
     IHostEnvironment hostEnvironment,
     ISettingService settingService,
-    IPortalDbContext? dbContext = null) : Controller
+    IPortalDbContext? dbContext = null,
+    IContentStagingLock? importLock = null) : Controller
 {
     // Nullable + defaulted so the pre-existing unit tests (which construct the controller
     // with the required deps) keep compiling. Real DI wires the actual context in and the
     // audit-write path activates.
     private readonly IPortalDbContext? _dbContext = dbContext;
+    private readonly IContentStagingLock? _importLock = importLock;
 
     // Clear-all wipes every page and content block in the environment: fine on a development or
     // throwaway environment, and it has no business being reachable on one holding content anyone
@@ -267,6 +269,18 @@ public sealed class ContentStagingController(
             "Import controller: bundle={PageCount} pages / {BlockCount} blocks, collisionMode={Mode}, newItemMode={NewMode}, perItemDecisions={DecisionCount}",
             parsed!.PageNodes.Count, parsed.ContentBlocks.Count, model.GlobalMode, model.GlobalNewMode, decisions.Count);
 
+        // Cross-pod concurrency guard. Two admins hitting Import at the same second — one
+        // on each of two pods — would race on individual pages and produce a chaotic mixed
+        // outcome. Acquire a Postgres advisory lock first; if a peer holds it, surface a
+        // specific "another import is in progress" banner rather than let them collide.
+        var lockAcquired = _importLock is not null && await _importLock.TryAcquireAsync();
+        if (_importLock is not null && !lockAcquired)
+        {
+            TempData["ContentStagingError"] =
+                "Another import is already in progress. Wait for it to finish and try again.";
+            return Redirect("/admin/content-staging");
+        }
+
         try
         {
             var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions, model.GlobalNewMode);
@@ -303,6 +317,16 @@ public sealed class ContentStagingController(
             logger.LogError(ex, "Import controller: bundle import failed with an unhandled exception");
             TempData["ContentStagingError"] =
                 $"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace.";
+        }
+        finally
+        {
+            // Always release — even if the import threw, we must free the lock for the
+            // next caller. Advisory-lock release is scoped to the session we acquired on,
+            // so a peer's separate session is unaffected either way.
+            if (lockAcquired && _importLock is not null)
+            {
+                await _importLock.ReleaseAsync();
+            }
         }
 
         return Redirect("/admin/content-staging");

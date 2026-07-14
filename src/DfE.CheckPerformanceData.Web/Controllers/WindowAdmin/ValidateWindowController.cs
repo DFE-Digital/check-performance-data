@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
@@ -11,37 +12,73 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
     private const string PageView = "~/Views/WindowAdmin/Validate.cshtml";
 
     [HttpGet("admin/windows/{id:guid}/validate")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public IActionResult Index(Guid id)
     {
-        //step 1: get the window
-        //step 2: check the checksum on both files, ingressFile is in {id}/ingress/{ingressfile}, schemaFile is in {id}/schema/{schemafile}
-        //step 3: if the checksums return error on checksum clear the file and return to page asking to reupload file.
-        //step 4: if the checksums ok, display start checking page.
-        
-        ValidationViewModel model = new ValidationViewModel()
+        ValidationViewModel model = new ValidationViewModel
         {
             WindowId = id,
-            ProcessingResult = new ProcessingResult(0, 0, 0, new StringBuilder())
-            
+            StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id }),
+            PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id }),
         };
+
         return View(PageView, model);
     }
-    
+
+    // Live progress stream (step 1-7). EventSource can only issue GET, so validation runs here;
+    // the client opens this on demand from the Start button rather than on page load.
+    [HttpGet("admin/windows/{id:guid}/validate/stream")]
+    public IResult Stream(Guid id, CancellationToken cancellationToken)
+    {
+        return Results.ServerSentEvents(Run(id, cancellationToken), eventType: "progress");
+    }
+
+    // No-JS fallback: run to completion and render the final summary.
     [HttpPost("admin/windows/{id:guid}/validate")]
     public async Task<IActionResult> Validate(Guid id, CancellationToken cancellationToken)
     {
-        //step 1: grab the 2 files from storage
-        //step 2: validate the checksums
-        //step 3: if checksums fail, display Check sum failed and stop
-        //step 4: if checksums ok, display Check sum passed and stop.
-        CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
-        ProcessingResult result = await processor.ProcessAsync(window.Id, window.IngressFile, window.SchemaFile, cancellationToken);
-        ValidationViewModel model = new ValidationViewModel()
+        ValidationProgress? last = null;
+        await foreach (ValidationProgress progress in Run(id, cancellationToken))
+        {
+            last = progress;
+        }
+
+        ValidationViewModel model = new ValidationViewModel
         {
             WindowId = id,
-            ProcessingResult = result
-            
+            StreamUrl = Url.Action(nameof(Stream), "ValidateWindow", new { id }),
+            PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id }),
+            ProcessingResult = last is null
+                ? null
+                : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message)),
         };
+
         return View(PageView, model);
+    }
+
+    // Drives the processor and, on a clean finish, marks the window validated before the terminal
+    // event reaches the caller.
+    private async IAsyncEnumerable<ValidationProgress> Run(
+        Guid id,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
+
+        await foreach (ValidationProgress progress in processor.ProcessAsync(
+                           window.Id,
+                           window.IngressFile,
+                           window.IngressFileChecksum,
+                           window.SchemaFile,
+                           window.SchemaFileChecksum,
+                           cancellationToken))
+        {
+            if (progress is { IsComplete: true, IsError: false })
+            {
+                window.Validated = true;
+                window.ValidatedAt = DateTime.UtcNow;
+                await windowService.UpdateAsync(window, cancellationToken);
+            }
+
+            yield return progress;
+        }
     }
 }

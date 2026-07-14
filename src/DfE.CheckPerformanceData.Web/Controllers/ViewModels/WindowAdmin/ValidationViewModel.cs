@@ -4,5 +4,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 
 public class ValidationViewModel : AdminPage
 {
-    public ProcessingResult? ProcessingResult { get; set; }   
+    public string? StreamUrl { get; set; }
+
+    public ProcessingResult? ProcessingResult { get; set; }
 }

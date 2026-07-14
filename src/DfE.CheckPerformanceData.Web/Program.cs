@@ -263,6 +263,9 @@ try
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
     builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
+    var l = "5475-M7mFx9+Hp1qt2hY668yu3ULm+x+rNIdNJWdma3a6KFLs/aDmJWbcLL0IPYwd/SHCDpeJ1duxnl1IXi4HP1ZLoUJwp5dLPGmpgTWchLSaXHmaLENL9DPLU3yPznvXy1EpwISZTyzEigvCjbuutHQnKQ9jQszBFTNwI/Gcs2Uu/8J7IklkIjo1NDc1LCJFeHBpcnlEYXRlIjoiMjAyNS0xMC0xNlQxMzo1NTo1Ni4xNjA0MzkyWiIsIlR5cGUiOiJKc29uU2NoZW1hU2l0ZSJ9";
+
+
     builder.Services.AddAntiforgery(options =>
     {
         options.HeaderName = "X-XSRF-TOKEN";

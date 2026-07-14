@@ -1771,11 +1771,11 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 /* Back-to-top link, GDS design-guidance pattern (design-system.service.gov.uk). Sticky
    positioning tracks the viewport bottom while the container is in its parent flow and
    RELEASES at the natural end of the parent (so it stops just above the footer instead
-   of overlapping it). On desktop/tablet the link matches the vanilla GDS example
-   (transparent background, arrow + underlined link, no chrome) because it sits in the
-   empty left sibling gutter and doesn't overlay content. On mobile that gutter goes
-   away and the link would overlay article text, so a mobile-only rule near the bottom
-   of this block gives it an opaque white pill for readability.
+   of overlapping it). The link renders as an opaque white pill on every viewport — the
+   original vanilla-GDS chromeless treatment assumed the link sat in an empty gutter,
+   which turned out not to be true on layouts with a left sidebar (wiki pages, admin
+   pages) or on any narrow viewport. Pill everywhere means the button reads as a button
+   and the text underneath doesn't bleed through, regardless of what's behind it.
 
    Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
    has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
@@ -1794,6 +1794,15 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  /* Opaque pill so the link stays readable when its sticky container is over article
+     body, sidebar navigation, or dense admin content. See the section header for the
+     rationale. Border matches the GDS default link colour so the pill reads as an
+     actionable control, not chrome. */
+  background: #ffffff;
+  padding: 8px 15px;
+  border: 1px solid #b1b4b6;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(11, 12, 12, 0.15);
 }
 .app-back-to-top__icon {
   flex: 0 0 auto;
@@ -1835,26 +1844,14 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   }
 }
 
-/* On narrow viewports the two-column layout collapses to a single column, so the
-   sticky link sits on TOP of the article body instead of the empty left sibling
-   gutter it occupies on desktop/tablet. That produces a "double text" effect where
-   the link's letters overlap paragraph text underneath. Give it an opaque white
-   pill on mobile so the text is readable and the button is clearly a button.
-   Aligned to the RIGHT edge (text-align on the block container pushes the
-   inline-flex link across) because prose paragraphs typically wrap short of the
-   right edge, so an over-the-right-gutter pill obscures less of the body copy
-   than a lower-left one would. Border matches the GDS default link colour so
-   the pill reads as an actionable control, not chrome. */
+/* Mobile-only right-align. On tablet+ the link's natural inline-flex position sits
+   flush left inside its full-width block container, matching the GDS example and
+   the DfE service patterns. On mobile the article body is the whole viewport and
+   prose paragraphs typically wrap short of the right edge — a right-aligned pill
+   there obscures less of the body copy than a bottom-left one would. */
 @media (max-width: 40.0625em) {
   .app-back-to-top {
     text-align: right;
-  }
-  .app-back-to-top__link {
-    background: #ffffff;
-    padding: 8px 15px;
-    border: 1px solid #b1b4b6;
-    border-radius: 999px;
-    box-shadow: 0 2px 6px rgba(11, 12, 12, 0.15);
   }
 }
 

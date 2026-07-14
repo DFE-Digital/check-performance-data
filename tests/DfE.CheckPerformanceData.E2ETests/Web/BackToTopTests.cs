@@ -5,18 +5,17 @@ using Microsoft.Playwright.Xunit;
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
 // Pins the back-to-top link contract on a CMS content page:
-//   * Sticky-positioned bottom-left of the viewport, ~50px above the viewport bottom
-//     while its containing content column is in view.
-//   * On desktop/tablet: chromeless styling — no background box, no shadow, no
-//     border-radius. Just an up-arrow icon + govuk-link text, matching the vanilla
-//     GDS design-guidance example the ticket references. Sits in the empty left
-//     sibling gutter so it never overlays article body content.
-//   * On mobile (<= 40.0625em): the two-column layout collapses to one column and
-//     the sticky link then sits over article body text, so it gains an opaque
-//     white pill with a subtle shadow so the button reads as a button and the
-//     text underneath doesn't bleed through. Aligned to the RIGHT edge of the
-//     viewport because prose paragraphs typically wrap short of the right edge,
-//     so the pill obscures less of the article body than a lower-left one would.
+//   * Sticky-positioned near the viewport bottom, ~50px above it, while its
+//     containing content column is in view.
+//   * Universal opaque white pill — subtle shadow + light border so the button
+//     reads as a button on every viewport and the text underneath (article body,
+//     sidebar navigation, admin content) doesn't bleed through. Applied at all
+//     widths because layouts with a left sidebar (wiki pages, admin pages) or
+//     narrow viewports never actually give the sticky link an empty gutter to
+//     hide in.
+//   * On mobile (<= 40.0625em): additionally right-aligned because prose
+//     paragraphs typically wrap short of the right edge on narrow screens, so
+//     the pill obscures less of the article body than a lower-left one would.
 //   * At the page bottom the link releases at the natural end of the content area
 //     so it sits above the footer instead of overlapping it.
 //   * Anchor href="#top" scrolls the window back to the top.
@@ -32,10 +31,13 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 
     private const string TargetPath = "/wiki/wiki-sandbox";
 
-    [Fact]
-    public async Task StylingIsChromeless_MatchesGdsExample()
+    [Theory]
+    [InlineData(1280, 900, "desktop")]
+    [InlineData(768, 1024, "tablet")]
+    public async Task PillChromePresent_OnDesktopAndTablet_ForContrastOverBodyContent(int w, int h, string label)
     {
-        await Page.SetViewportSizeAsync(1280, 900);
+        _ = label;
+        await Page.SetViewportSizeAsync(w, h);
         var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
         Assert.NotNull(response);
         Assert.Equal(200, response!.Status);
@@ -52,11 +54,12 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
             };
         }");
 
-        // Transparent background, no shadow, no rounded corners — the ticket's example
-        // is a plain link + arrow with no chrome.
-        Assert.Equal("rgba(0, 0, 0, 0)", style.Background);
-        Assert.Equal("none", style.BoxShadow);
-        Assert.Equal("0px", style.BorderRadius);
+        // Universal pill: opaque white background, subtle shadow, rounded pill shape.
+        // Applied at every viewport because wiki/admin layouts have a left sidebar
+        // whose text would otherwise bleed through a transparent link.
+        Assert.Equal("rgb(255, 255, 255)", style.Background);
+        Assert.NotEqual("none", style.BoxShadow);
+        Assert.NotEqual("0px", style.BorderRadius);
     }
 
     // On mobile the sticky link overlays article text (single-column layout, no left

@@ -21,8 +21,11 @@ public sealed class RequestService(
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
-    public Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn) =>
-        requestRepository.HasSubmittedRequestAsync(windowId, pupilId, organisationUrn);
+    public async Task<DuplicateCheckResult> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn)
+    {
+        var userId = Guid.Parse(currentUserService.UserId);
+        return await requestRepository.CheckForConflictAsync(windowId, pupilId, organisationUrn, string.Empty, userId);
+    }
 
     public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
     {
@@ -31,8 +34,12 @@ public sealed class RequestService(
 
         var urnLong = OrganisationUrnLong;
         var refNum = journey.ReferenceNumber ?? string.Empty;
-        if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Id, urnLong, refNum))
-            throw new DuplicateRequestException();
+        var userId = Guid.Parse(currentUserService.UserId);
+        var conflict = await requestRepository.CheckForConflictAsync(windowId, journey.SelectedPupil.Id, urnLong, refNum, userId);
+        if (conflict is DuplicateCheckResult.SelfSubmitted)
+            throw new DuplicateRequestException(ConflictType.SelfSubmitted);
+        if (conflict is DuplicateCheckResult.OtherSubmitted)
+            throw new DuplicateRequestException(ConflictType.OtherSubmitted);
 
         var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)

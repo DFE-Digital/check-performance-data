@@ -282,14 +282,14 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted));
 
         var result = await _sut.SummaryConfirm(WindowId);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("Summary", view.ViewName);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("A request for this pupil has already been submitted. Select a different pupil.", vm.ConflictError);
+        Assert.Equal($"{DuplicateRequestMessages.SelfSubmittedSummary} {DuplicateRequestMessages.SelfSubmittedGuidance}", vm.ConflictError);
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public class JourneyControllerTests
         var state = ValidSession(history: ["page-1"]);
         SetupSession(state);
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted));
 
         await _sut.SummaryConfirm(WindowId);
 
@@ -361,7 +361,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns(_ => throw new DuplicateRequestException());
+            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted));
 
         await _sut.SummaryConfirm(WindowId);
 

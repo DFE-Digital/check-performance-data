@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public interface IRequestRepository
 {
-    Task<bool> HasConflictingRequestAsync(Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber);
+    Task<DuplicateCheckResult> CheckForConflictAsync(Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId);
 
     /// <summary>Returns the reference number of a submitted request for the given pupil, or null if none exists.</summary>
     Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);

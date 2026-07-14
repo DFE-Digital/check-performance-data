@@ -9,17 +9,25 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
-    // Keyed on the pupil's stable Id, not UPN: a UPN-less pupil has a blank UPN shared with every
-    // other UPN-less pupil, so UPN keying would both raise false conflicts between different pupils
-    // and (for null UPNs) fail to detect real ones.
-    public Task<bool> HasConflictingRequestAsync(
-        Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber) =>
-        db.ChangeRequests.AnyAsync(r =>
-            r.WindowId == windowId &&
-            r.PupilId == pupilId &&
-            r.OrganisationUrn == organisationUrn &&
-            r.ReferenceNumber != currentReferenceNumber &&
-            r.Status == RequestStatus.SubmittedUnCommitted);
+    public async Task<DuplicateCheckResult> CheckForConflictAsync(
+        Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
+    {
+        var conflict = await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.PupilId == pupilId
+                && r.OrganisationUrn == organisationUrn
+                && r.ReferenceNumber != currentReferenceNumber
+                && r.Status == RequestStatus.SubmittedUnCommitted)
+            .Select(r => new { r.SubmittedById, r.ReferenceNumber })
+            .FirstOrDefaultAsync();
+
+        if (conflict is null)
+            return new DuplicateCheckResult.NoConflict();
+
+        return conflict.SubmittedById == currentUserId
+            ? new DuplicateCheckResult.SelfSubmitted(conflict.ReferenceNumber)
+            : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber);
+    }
 
     public async Task<string?> HasSubmittedRequestAsync(
         Guid windowId, Guid pupilId, long organisationUrn) =>
@@ -62,6 +70,58 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         }
 
         var id = Guid.NewGuid();
+
+        // For SubmittedUnCommitted insertions, check for conflicts atomically within
+        // a serializable transaction. This prevents two concurrent submissions for the
+        // same pupil from both passing the TOCTOU gap between CheckForConflictAsync and
+        // UpsertAsync — one transaction will abort on commit if a concurrent one already
+        // inserted a conflicting row.
+        if (data.Status == RequestStatus.SubmittedUnCommitted)
+        {
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+
+                var conflict = await db.ChangeRequests
+                    .Where(r => r.WindowId == data.WindowId
+                        && r.PupilId == data.PupilId
+                        && r.OrganisationUrn == data.OrganisationUrn
+                        && r.Status == RequestStatus.SubmittedUnCommitted)
+                    .FirstOrDefaultAsync();
+
+                if (conflict is not null)
+                {
+                    throw new DuplicateRequestException(
+                        conflict.SubmittedById == data.SubmittedById
+                            ? ConflictType.SelfSubmitted
+                            : ConflictType.OtherSubmitted);
+                }
+
+                db.ChangeRequests.Add(new ChangeRequest
+                {
+                    Id = id,
+                    WindowId = data.WindowId,
+                    ReferenceNumber = data.ReferenceNumber,
+                    OrganisationUrn = data.OrganisationUrn,
+                    PupilId = data.PupilId,
+                    PupilUpn = data.PupilUpn,
+                    PupilFirstname = data.PupilFirstname,
+                    PupilSurname = data.PupilSurname,
+                    Submitted = timestamp,
+                    SubmittedById = data.SubmittedById,
+                    SubmittedByName = data.SubmittedByName,
+                    SubmittedByEmail = data.SubmittedByEmail,
+                    Status = data.Status,
+                    RequestType = data.RequestType,
+                    RequestTypeDescription = data.RequestTypeDescription
+                });
+                await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+            });
+            return id;
+        }
+
         await db.ChangeRequests.AddAsync(new ChangeRequest
         {
             Id = id,

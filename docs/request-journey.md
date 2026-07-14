@@ -290,7 +290,23 @@ From the Summary, the user can:
 
 ### What happens
 
-1. **Idempotency check** — `IRequestRepository.IsSubmittedAsync(referenceNumber)` — if a `ChangeRequest` row with this reference number already exists with `Status = Submitted`, return silently. This handles double-taps and back-button resubmits.
+1. **Duplicate-request check** — Before saving, `CheckForConflictAsync` queries `ChangeRequests` for an existing `SubmittedUnCommitted` row matching `WindowId + PupilId + OrganisationUrn` (excluding the current `ReferenceNumber`). If a conflict exists, it compares `SubmittedById` against the current user's ID and returns a discriminated result:
+
+- `NoConflict` — proceed with submission
+- `SelfSubmitted` — the current user already has a pending request
+- `OtherSubmitted` — another user at the same school has a pending request (identity not revealed)
+
+The controller renders a contextual validation message:
+- **Self-submitted**: "You already have a pending request for this pupil. You can view your existing request in your requests list."
+- **Other-submitted**: "Another user at your school has a pending request for this pupil. Please coordinate with colleagues or contact support if this appears to be in error."
+
+The check runs at two points in the journey:
+1. **Pupil selection** (`PupilSearchPost`) — before a new request is started
+2. **Final submission** (`SummaryConfirm`) — catches conflicts that arose between pupil selection and submission (e.g. another user submitted in a different browser tab)
+
+The `DuplicateRequestException` carries a `ConflictType` enum (`SelfSubmitted` / `OtherSubmitted`) so the error-path message is contextualised without re-querying.
+
+**Idempotency check** — `IRequestRepository.IsSubmittedAsync(referenceNumber)` — if a `ChangeRequest` row with this reference number already exists with `Status = Submitted`, return silently. This handles double-taps and back-button resubmits.
 
 2. **Build `RequestDocument`** — a structured document containing:
    - Reference number, submitted-at timestamp

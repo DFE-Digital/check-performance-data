@@ -45,22 +45,33 @@
         </div>
         <div class="govuk-notification-banner__content">
             <p class="govuk-notification-banner__heading">@result</p>
-            @if (warnings.Length > 0)
-            {
-                <details class="govuk-details">
-                    <summary class="govuk-details__summary">
-                        <span class="govuk-details__summary-text">@warnings.Length item(s) were skipped</span>
-                    </summary>
-                    <div class="govuk-details__text">
-                        <ul class="govuk-list govuk-list--bullet">
-                            @foreach (var w in warnings)
-                            {
-                                <li>@w</li>
-                            }
-                        </ul>
-                    </div>
-                </details>
-            }
+        </div>
+    </div>
+}
+
+@* Import warnings surface in their own default-variant (yellow) notification banner
+   rather than tucked inside a collapsed <details> of the success banner. Sanitisation
+   warnings ("N items had script tags removed on import") are exactly the kind of thing
+   an operator needs to see immediately, not click-to-expand. Every warning is listed
+   in full — the operator can eyeball the count in the heading and the specifics in
+   the body. *@
+@if (warnings.Length > 0)
+{
+    <div class="govuk-notification-banner" role="alert"
+         aria-labelledby="content-staging-warnings-title" data-module="govuk-notification-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="content-staging-warnings-title">Important</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">
+                @(warnings.Length == 1 ? "The import produced 1 warning." : $"The import produced {warnings.Length} warnings.")
+            </p>
+            <ul class="govuk-list govuk-list--bullet">
+                @foreach (var w in warnings)
+                {
+                    <li>@w</li>
+                }
+            </ul>
         </div>
     </div>
 }

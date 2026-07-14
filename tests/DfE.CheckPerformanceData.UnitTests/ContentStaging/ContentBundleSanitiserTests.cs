@@ -222,4 +222,93 @@ public sealed class ContentBundleSanitiserTests
         Assert.Equal(2, first);
         Assert.Equal(0, second);
     }
+
+    // ── Sanitiser bypass regression guards ────────────────────────────────────
+    //
+    // These payloads are the classic XSS-through-a-sanitiser vectors that need to
+    // stay dead. Each asserts on the OUTPUT never containing the executable
+    // signature (script tag, javascript: URL, event handler), rather than pinning
+    // the exact byte shape — a dependency-driven improvement to the sanitiser
+    // shouldn't have to update these tests.
+    //
+    // Uses the real Ganss.Xss HtmlRenderingService (as elsewhere in this suite) so
+    // a regression in the pinned package version surfaces here before it ships.
+
+    [Theory]
+    // SVG-embedded <script> — SVG is allowed for icons but its script element must not be.
+    [InlineData("<svg><script>alert(1)</script></svg>")]
+    // Inline event handler on <img> — the classic XSS one-liner.
+    [InlineData("<img src=x onerror=\"alert(1)\">")]
+    // javascript: URL on an <a> href — must be stripped or scheme-rewritten.
+    [InlineData("<a href=\"javascript:alert(1)\">click</a>")]
+    // Mixed-case javascript: URL to catch a case-sensitive-check bypass.
+    [InlineData("<a href=\"JaVaScRiPt:alert(1)\">click</a>")]
+    // data: URL for an <iframe> — a way to get JS-executing HTML into the DOM.
+    [InlineData("<iframe src=\"data:text/html,<script>alert(1)</script>\"></iframe>")]
+    // CSS @import to steal styles / attempt data exfil via unicode-range abuse.
+    [InlineData("<style>@import url('https://evil.example/x.css');</style>")]
+    // Mutation-XSS shape via <noscript> — parsers with mixed HTML/JS modes get this
+    // wrong; a spec-conformant one strips the <noscript> or the embedded handler.
+    [InlineData("<noscript><p title=\"</noscript><img src=x onerror=alert(1)>\">")]
+    // <object> and <embed> — legacy but still a script-run vector.
+    [InlineData("<object data=\"data:text/html,<script>alert(1)</script>\"></object>")]
+    // <base> tag hijack — changes the base URL for every relative link on the page.
+    [InlineData("<base href=\"https://evil.example/\">")]
+    // Attribute-namespace bypass: xlink:href on <use> can point to a data: URL.
+    [InlineData("<svg><use xlink:href=\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>\"/></svg>")]
+    public void KnownXssVectors_AreStrippedFromWikiPageContent(string payload)
+    {
+        var bundle = new ContentBundle
+        {
+            PageNodes = { WikiPage(payload) }
+        };
+
+        _sut.SanitiseInPlace(bundle);
+
+        var clean = bundle.PageNodes[0].Versions[0].Content;
+        AssertNoExecutableSignatures(clean, payload);
+    }
+
+    [Theory]
+    [InlineData("<svg><script>alert(1)</script></svg>")]
+    [InlineData("<img src=x onerror=\"alert(1)\">")]
+    [InlineData("<a href=\"javascript:alert(1)\">click</a>")]
+    [InlineData("<a href=\"JaVaScRiPt:alert(1)\">click</a>")]
+    [InlineData("<iframe src=\"data:text/html,<script>alert(1)</script>\"></iframe>")]
+    [InlineData("<style>@import url('https://evil.example/x.css');</style>")]
+    [InlineData("<noscript><p title=\"</noscript><img src=x onerror=alert(1)>\">")]
+    [InlineData("<object data=\"data:text/html,<script>alert(1)</script>\"></object>")]
+    [InlineData("<base href=\"https://evil.example/\">")]
+    public void KnownXssVectors_AreStrippedFromContentBlockValue(string payload)
+    {
+        var bundle = new ContentBundle
+        {
+            ContentBlocks = { ContentBlock(payload) }
+        };
+
+        _sut.SanitiseInPlace(bundle);
+
+        AssertNoExecutableSignatures(bundle.ContentBlocks[0].Value, payload);
+    }
+
+    // Reads the sanitised output for the signatures that would let script actually
+    // run in a browser: script tag anywhere, javascript: URL (case-insensitive),
+    // an on* event-handler attribute pattern, a data:text/html source that would
+    // execute inline HTML, and a <base> tag that would rewrite relative-URL context.
+    // No single string check catches everything; the combination is the barrier.
+    private static void AssertNoExecutableSignatures(string sanitised, string original)
+    {
+        var lower = sanitised.ToLowerInvariant();
+        Assert.False(lower.Contains("<script"),
+            $"sanitised output contains <script> for input: {original}\noutput: {sanitised}");
+        Assert.False(lower.Contains("javascript:"),
+            $"sanitised output contains javascript: URL for input: {original}\noutput: {sanitised}");
+        // on\w+= attribute handler pattern — onerror=, onload=, onclick=, etc.
+        Assert.False(System.Text.RegularExpressions.Regex.IsMatch(sanitised, @"\son[a-z]+\s*="),
+            $"sanitised output contains on*= handler for input: {original}\noutput: {sanitised}");
+        Assert.False(lower.Contains("data:text/html"),
+            $"sanitised output preserves data:text/html source for input: {original}\noutput: {sanitised}");
+        Assert.False(lower.Contains("<base"),
+            $"sanitised output contains <base> for input: {original}\noutput: {sanitised}");
+    }
 }

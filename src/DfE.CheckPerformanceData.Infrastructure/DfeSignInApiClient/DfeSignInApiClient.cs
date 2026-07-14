@@ -130,23 +130,26 @@ public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto
 {
     public override OrganisationDto Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        using var document = JsonDocument.ParseValue(ref reader);
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
         JsonElement root = document.RootElement;
         
         OrganisationDto? dto = JsonSerializer.Deserialize<OrganisationDto>(root.GetRawText(), new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
 
-        if (!root.TryGetProperty("localAuthority", out var localAuthorityElement)) return dto!;
+        if (dto?.Urn == "990082" && dto.Name == "DSI Test College")
+        {
+            dto.Laestab = "DSI/TEST";
+            return dto;
+        }
+
+        if (!root.TryGetProperty("localAuthority", out var localAuthorityElement)) 
+            return dto!;
         
         string? orgCode = localAuthorityElement.GetProperty("code").GetString();
         string? orgId = root.GetProperty("establishmentNumber").GetString();
-
+        
         if (!string.IsNullOrEmpty(orgCode) && !string.IsNullOrEmpty(orgId))
         {
             dto?.Laestab = $"{orgCode}/{orgId}";    
-        }
-        else if (dto.Urn == "990082" && dto.Name == "DSI Test College")
-        {
-            dto.Laestab = "DSI/TEST";
         }
         
         return dto!;

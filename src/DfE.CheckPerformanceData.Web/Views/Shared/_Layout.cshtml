@@ -145,6 +145,12 @@
 @Html.GovUkFrontendJsEnabledScript()
 @await Html.PartialAsync("_ContactUsBanner")
 @RenderBody()
+@* Universal back-to-top link. Rendered here (rather than per-view) so every long
+   page — search results, dashboards, admin lists, CMS content — gets it without
+   having to remember to include the partial. The script is hidden-until-scroll
+   so short pages never show it, and the container collapses to zero height while
+   hidden so no phantom footer gap. *@
+@await Html.PartialAsync("ContentPages/_BackToTop")
 @Html.GovUkFrontendScriptImports()
 
 @section Footer {
@@ -207,5 +213,11 @@
     <script src="~/js/cookies.js"></script>
     <script src="~/js/confirm-modal.js" defer></script>
     <script src="~/js/accessible-autocomplete.min.js"></script>
+    @* Back-to-top enhancement. Loaded here rather than inside _BackToTop.cshtml so
+       partial renders don't emit N script tags on pages that include the partial in
+       multiple regions, and so the fetch runs deferred off the critical path — no
+       flash of the yet-to-be-hidden link before the hide-until-init script runs.
+       The script no-ops on pages that don't render the .app-back-to-top container. *@
+    <script src="~/js/back-to-top.js" defer asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

@@ -192,6 +192,10 @@
         </button>
         <main class="admin-main" id="main-content">
             @RenderBody()
+            @* Universal back-to-top link — rendered inside <main> so its natural
+               position is below all page content in the admin column. Sticky until
+               the reader scrolls past the fold, then releases above the footer. *@
+            @await Html.PartialAsync("ContentPages/_BackToTop")
         </main>
     </div>
 }
@@ -209,6 +213,8 @@ else
             </button>
             <main class="admin-main" id="main-content">
                 @RenderBody()
+                @* Universal back-to-top link — see comment on the wide variant above. *@
+                @await Html.PartialAsync("ContentPages/_BackToTop")
             </main>
         </div>
     </div>
@@ -248,5 +254,10 @@ else
        responds to clicks — the shared _Layout also loads it, but admin views run under
        this layout instead. *@
     <script src="~/js/confirm-modal.js" defer></script>
+    @* Back-to-top reveal-on-scroll enhancement — loaded here for the same reason
+       as the shared _Layout: admin views don't inherit from _Layout, so the script
+       needs its own registration on the admin bundle. defer keeps the fetch off
+       the critical path. *@
+    <script src="~/js/back-to-top.js" defer asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

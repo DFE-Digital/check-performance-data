@@ -137,6 +137,7 @@ public sealed class ContentStagingController(
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(LargeBundleLimitBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = LargeBundleLimitBytes)]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> Preview(IFormFile? bundle)
     {
         if (bundle is null || bundle.Length == 0)
@@ -238,6 +239,7 @@ public sealed class ContentStagingController(
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(LargeBundleLimitBytes)]
     [RequestFormLimits(ValueLengthLimit = LargeBundleLimitBytes)]
+    [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
         ContentBundle? parsed = null;

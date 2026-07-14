@@ -178,6 +178,63 @@ public sealed class ContentBundleValidatorTests
         Assert.Contains(issues, i => i.Code == "BUNDLE_TOO_MANY_BLOCKS" && i.Severity == ValidationSeverity.Fatal);
     }
 
+    // ── Per-item size caps ────────────────────────────────────────────────────
+
+    [Fact]
+    public void PageVersionContent_OverCap_FailsWithCode()
+    {
+        var page = Page(type: "wiki");
+        page.Versions.Add(new PageNodeVersionBundleItem
+        {
+            Content = new string('a', ContentBundleValidator.MaxPageVersionContentBytes + 1),
+        });
+        var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
+        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void PageVersionContent_AtCap_ProducesNoIssue()
+    {
+        var page = Page(type: "wiki");
+        page.Versions.Add(new PageNodeVersionBundleItem
+        {
+            Content = new string('a', ContentBundleValidator.MaxPageVersionContentBytes),
+        });
+        var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
+        Assert.DoesNotContain(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE");
+    }
+
+    [Fact]
+    public void ContentBlockValue_OverCap_FailsWithCode()
+    {
+        var block = Block(type: "Content");
+        block = block with { Value = new string('a', ContentBundleValidator.MaxContentBlockValueBytes + 1) };
+        var issues = ContentBundleValidator.Validate(Bundle(blocks: new List<ContentBlockBundleItem> { block }));
+        Assert.Contains(issues, i => i.Code == "BLOCK_VALUE_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    [Fact]
+    public void ContentBlockValue_AtCap_ProducesNoIssue()
+    {
+        var block = Block(type: "Content");
+        block = block with { Value = new string('a', ContentBundleValidator.MaxContentBlockValueBytes) };
+        var issues = ContentBundleValidator.Validate(Bundle(blocks: new List<ContentBlockBundleItem> { block }));
+        Assert.DoesNotContain(issues, i => i.Code == "BLOCK_VALUE_TOO_LARGE");
+    }
+
+    [Fact]
+    public void TitleBlock_LargeValue_ProducesNoIssue()
+    {
+        // Title blocks render as plain text — the payload is bounded by UI intent, not by an
+        // HTML-sanitisation-cost concern. Only Content-type blocks pass through the render
+        // pipeline where a huge string would cost per-render CPU + memory. Keep the size
+        // cap scoped to Content blocks.
+        var block = Block(type: "Title");
+        block = block with { Value = new string('a', ContentBundleValidator.MaxContentBlockValueBytes + 1) };
+        var issues = ContentBundleValidator.Validate(Bundle(blocks: new List<ContentBlockBundleItem> { block }));
+        Assert.DoesNotContain(issues, i => i.Code == "BLOCK_VALUE_TOO_LARGE");
+    }
+
     // ── Exception plumbing ────────────────────────────────────────────────────
 
     [Fact]

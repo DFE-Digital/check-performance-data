@@ -475,6 +475,29 @@ public sealed class ContentStagingControllerTests
         Assert.NotNull(method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.HttpPostAttribute>());
     }
 
+    // The upload endpoint must reject requests with the wrong Content-Type early in the
+    // pipeline rather than accepting them and failing later. Pin the [Consumes] contract
+    // so a future refactor can't drop it.
+    [Fact]
+    public void Preview_OnlyConsumesMultipartFormData()
+    {
+        var method = typeof(ContentStagingController).GetMethod(nameof(ContentStagingController.Preview))!;
+        var consumes = method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.ConsumesAttribute>();
+        Assert.NotNull(consumes);
+        Assert.Contains("multipart/form-data", consumes!.ContentTypes);
+    }
+
+    // Same shape for Import: takes a form-urlencoded body (BundleJson + collision mode
+    // radios); reject anything else.
+    [Fact]
+    public void Import_OnlyConsumesFormUrlEncoded()
+    {
+        var method = typeof(ContentStagingController).GetMethod(nameof(ContentStagingController.Import))!;
+        var consumes = method.GetCustomAttribute<Microsoft.AspNetCore.Mvc.ConsumesAttribute>();
+        Assert.NotNull(consumes);
+        Assert.Contains("application/x-www-form-urlencoded", consumes!.ContentTypes);
+    }
+
     // An unexpected exception (e.g. DB error) inside ImportAsync used to bubble to a bare 500.
     // Now it's caught, logged, and surfaced to the user as a coherent error banner.
     [Fact]

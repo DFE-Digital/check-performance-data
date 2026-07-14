@@ -17,6 +17,14 @@ public static partial class ContentBundleValidator
     public const int MaxPageNodes = 5000;
     public const int MaxContentBlocks = 5000;
 
+    // Per-item size caps in characters. Wiki-page version bodies and Content-typed block
+    // values pass through the HTML sanitiser + render pipeline; per-item CPU cost scales
+    // roughly linearly with input size, so a small number of huge items evades the
+    // collection-count caps and slows every render. Sized well above realistic authored
+    // content — the DfE service authoring guidance targets < 20 KB per wiki page.
+    public const int MaxPageVersionContentBytes = 1_048_576;   // 1 MB per wiki version
+    public const int MaxContentBlockValueBytes = 262_144;      // 256 KB per Content block
+
     private static readonly HashSet<string> ValidPageTypes = new(StringComparer.Ordinal)
     {
         "folder", "content", "wiki"
@@ -104,6 +112,17 @@ public static partial class ContentBundleValidator
                 "SEGMENT_RESERVED",
                 $"Page '{label}' uses reserved Segment '{page.Segment}'."));
         }
+
+        foreach (var version in page.Versions)
+        {
+            if (version.Content.Length > MaxPageVersionContentBytes)
+            {
+                issues.Add(new ValidationIssue(
+                    ValidationSeverity.Fatal,
+                    "PAGE_VERSION_TOO_LARGE",
+                    $"Page '{label}' has a version with Content {version.Content.Length} chars; the limit is {MaxPageVersionContentBytes}."));
+            }
+        }
     }
 
     private static void ValidateBlock(ContentBlockBundleItem block, List<ValidationIssue> issues)
@@ -114,6 +133,16 @@ public static partial class ContentBundleValidator
                 ValidationSeverity.Fatal,
                 "BLOCK_TYPE_UNKNOWN",
                 $"Content block '{block.Key}' has unknown BlockType '{block.BlockType}' (expected: Content, Title)."));
+        }
+
+        // Only Content-type blocks pass through the HTML sanitiser + render pipeline;
+        // Title blocks render as plain text and don't share the per-render cost.
+        if (block.BlockType == "Content" && block.Value.Length > MaxContentBlockValueBytes)
+        {
+            issues.Add(new ValidationIssue(
+                ValidationSeverity.Fatal,
+                "BLOCK_VALUE_TOO_LARGE",
+                $"Content block '{block.Key}' has Value {block.Value.Length} chars; the limit is {MaxContentBlockValueBytes}."));
         }
     }
 

@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Infrastructure.Notify;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Notify;
@@ -16,6 +17,11 @@ public sealed class RequestNotificationServiceTests
     private readonly INotificationDispatcher _dispatcher = Substitute.For<INotificationDispatcher>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly IEmailLinkGenerator _emailLinkGenerator = Substitute.For<IEmailLinkGenerator>();
+    private readonly NotifySettings _settings = new()
+    {
+        ApiKey = "x",
+        BulkConsolidationThreshold = 5
+    };
     private readonly RequestNotificationService _sut;
 
     private static bool MatchWindowId(object o, Guid windowId)
@@ -29,11 +35,19 @@ public sealed class RequestNotificationServiceTests
             .FirstOrDefault(c => c.GetMethodInfo().Name == nameof(INotificationDispatcher.EnqueueAsync))
             ?.GetArguments()[0];
 
+    private IReadOnlyList<EmailNotification> AllCaptured() =>
+        _dispatcher.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(INotificationDispatcher.EnqueueAsync))
+            .Select(c => (EmailNotification)c.GetArguments()[0]!)
+            .ToList();
+
     public RequestNotificationServiceTests()
     {
         _currentUserService.Email.Returns(CurrentUserEmail);
         _currentUserService.Ukprn.Returns(Ukprn);
-        _sut = new RequestNotificationService(_currentUserService, _emailLinkGenerator, _dispatcher);
+        _sut = new RequestNotificationService(
+            _currentUserService, _emailLinkGenerator, _dispatcher,
+            Options.Create(_settings));
     }
 
     // ── NotifySubmissionConfirmedAsync ───────────────────────────────────────
@@ -142,5 +156,34 @@ public sealed class RequestNotificationServiceTests
 
         _emailLinkGenerator.DidNotReceive().GenerateLink(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object>(), Arg.Any<string>());
+    }
+
+    // ── NotifyBulkSubmissionConfirmedAsync ───────────────────────────────────
+
+    [Fact]
+    public async Task NotifyBulk_BelowThreshold_EnqueuesOneIndividualPerReference()
+    {
+        var refs = new[] { "R1", "R2", "R3", "R4" };
+
+        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs);
+
+        var all = AllCaptured();
+        Assert.Equal(4, all.Count);
+        Assert.All(all, m => Assert.Equal(NotificationType.SubmissionConfirmed, m.Type));
+        Assert.Equal(new[] { "R1", "R2", "R3", "R4" }, all.Select(m => m.ReferenceNumber));
+    }
+
+    [Fact]
+    public async Task NotifyBulk_AtThreshold_EnqueuesSingleConsolidated()
+    {
+        var refs = new[] { "R1", "R2", "R3", "R4", "R5" };
+
+        await _sut.NotifyBulkSubmissionConfirmedAsync(WindowId, EndDate, refs);
+
+        var all = AllCaptured();
+        Assert.Single(all);
+        Assert.Equal(NotificationType.BulkSubmissionConfirmed, all[0].Type);
+        Assert.Equal(refs, all[0].ReferenceNumbers);
+        Assert.True(all[0].IncludeOrganisationUsers);
     }
 }

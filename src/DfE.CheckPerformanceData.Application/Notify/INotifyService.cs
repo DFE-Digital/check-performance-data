@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Application.Notify;
 public enum NotificationType
 {
     SubmissionConfirmed,
+    BulkSubmissionConfirmed,
     DataCheckConfirmed,
     AmendmentWithdrawn,
     DataCheckWithdrawn
@@ -26,12 +27,18 @@ public interface INotifyService
     /// <param name="recipientEmails">Deduplicated recipient email addresses.</param>
     /// <param name="notificationType">Which notification template to use.</param>
     /// <param name="url">Optional URL (e.g. "submit others" or withdrawal link).</param>
+    /// <param name="referenceNumbers">
+    /// For a consolidated bulk submission email: every reference in the batch, listed in the
+    /// email body. Null/empty for single-reference notifications (which use
+    /// <paramref name="referenceNumber"/>).
+    /// </param>
     Task SendNotificationsAsync(
         string referenceNumber,
         string deadline,
         IReadOnlyCollection<string> recipientEmails,
         NotificationType notificationType,
-        string? url = null);
+        string? url = null,
+        IReadOnlyCollection<string>? referenceNumbers = null);
 
     /// <summary>
     /// Sends a dead-letter queue threshold alert.

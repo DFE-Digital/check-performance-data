@@ -8,6 +8,14 @@ public interface IRequestService
     /// <summary>Returns the reference number of a submitted request for the given pupil, or null if none exists.</summary>
     Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);
 
+    /// <summary>
+    /// Submits a request without sending the confirmation email: conflict check, upsert the
+    /// ChangeRequests row (SubmittedUnCommitted), enqueue the rules-engine document, and persist
+    /// the journey blob. Throws <see cref="DuplicateRequestException"/> on a conflicting request.
+    /// The email is the caller's responsibility (single path sends one; bulk path batches).
+    /// </summary>
+    Task SubmitRequestAsync(Guid windowId, RequestState journey);
+
     Task ConfirmRequestAsync(Guid windowId, RequestState journey);
     Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status);
     Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber);

@@ -89,7 +89,7 @@ public sealed class NotifyServiceRegistrationTests
 {
     private sealed class StubNotifyService : INotifyService
     {
-        public Task SendNotificationsAsync(string referenceNumber, string deadline, IReadOnlyCollection<string> recipientEmails, NotificationType notificationType, string? url = null) =>
+        public Task SendNotificationsAsync(string referenceNumber, string deadline, IReadOnlyCollection<string> recipientEmails, NotificationType notificationType, string? url = null, IReadOnlyCollection<string>? referenceNumbers = null) =>
             Task.CompletedTask;
         public Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold) =>
             Task.CompletedTask;

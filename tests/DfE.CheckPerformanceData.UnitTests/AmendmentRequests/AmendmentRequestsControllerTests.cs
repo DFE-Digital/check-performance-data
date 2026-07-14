@@ -12,6 +12,7 @@ using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
@@ -24,6 +25,8 @@ public class AmendmentRequestsControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IEditAdviceService _adviceService = Substitute.For<IEditAdviceService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly IBulkSubmissionService _bulkService = Substitute.For<IBulkSubmissionService>();
+    private readonly ICheckYourPupilDataService _checkYourPupilData = Substitute.For<ICheckYourPupilDataService>();
     private readonly FakeSession _session = new();
     private readonly AmendmentRequestsController _sut;
 
@@ -32,10 +35,11 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics)
+        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
+        _sut.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
     }
 
     // ── Index ────────────────────────────────────────────────────────────────
@@ -240,6 +244,32 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("This request is to remove a pupil. If this is not correct, go back and delete the request.", vm.AdviceText);
     }
 
+    [Fact]
+    public async Task Edit_Default_SetsBackUrlToIndex()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        var result = await _sut.Edit(WindowId, "REF001");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<EditAdviceViewModel>(view.Model);
+        Assert.Equal($"/{WindowId}/AmendmentRequests", vm.BackUrl);
+    }
+
+    [Fact]
+    public async Task Edit_FromBulk_SetsBackUrlToBulkReviewPage()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        var result = await _sut.Edit(WindowId, "REF001", fromBulk: true);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<EditAdviceViewModel>(view.Model);
+        Assert.Equal($"/{WindowId}/AmendmentRequests/bulk", vm.BackUrl);
+    }
+
     // ── Continue ───────────────────────────────────────────────────────────────
 
     [Fact]
@@ -303,6 +333,130 @@ public class AmendmentRequestsControllerTests
         await _sut.Edit(WindowId, "REF001");
 
         await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    // ── Bulk submission ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task BulkReview_NoSelection_RedisplaysIndexWithError()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(EmptyResult());
+
+        var result = await _sut.BulkReview(WindowId, Array.Empty<string>());
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Index", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+    }
+
+    [Fact]
+    public async Task BulkReview_WithSelection_StoresSelectionAndRedirectsToBulkReviewPage()
+    {
+        var result = await _sut.BulkReview(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.BulkReviewPage), redirect.ActionName);
+        Assert.Equal(new[] { "R1", "R2" }, _session.GetBulkSelection(WindowId));
+    }
+
+    [Fact]
+    public async Task BulkReviewPage_WithStoredSelection_RendersBulkReview()
+    {
+        _session.SetBulkSelection(WindowId, new[] { "R1" });
+        _bulkService.BuildReviewAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkReviewResult
+        {
+            Submittable = new[] { new BulkReviewItem { ReferenceNumber = "R1", PupilName = "Ann Alpha", RequestTypeDescription = "Remove pupil" } },
+            Duplicates = Array.Empty<BulkReviewItem>()
+        });
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 2026",
+            EndDate = endDate,
+            StartDate = endDate.AddMonths(-3),
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June
+        });
+
+        var result = await _sut.BulkReviewPage(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<BulkReviewViewModel>(view.Model);
+        Assert.Single(vm.Submittable);
+    }
+
+    [Fact]
+    public async Task BulkReviewPage_NoStoredSelection_RedirectsToIndex()
+    {
+        var result = await _sut.BulkReviewPage(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.Index), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task BulkSubmit_SubmitsAndRedirectsToConfirmation()
+    {
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = new[] { "R1", "R2" },
+            Skipped = Array.Empty<string>()
+        });
+
+        var result = await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.BulkConfirmation), redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+        Assert.Equal("R1,R2", _sut.TempData["BulkSubmittedRefs"]);
+    }
+
+    [Fact]
+    public async Task BulkSubmit_ClearsStoredBulkSelection()
+    {
+        _session.SetBulkSelection(WindowId, new[] { "R1", "R2" });
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = new[] { "R1", "R2" },
+            Skipped = Array.Empty<string>()
+        });
+
+        await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        Assert.Empty(_session.GetBulkSelection(WindowId));
+    }
+
+    [Fact]
+    public async Task BulkConfirmation_NoTempDataRefs_RedirectsToIndex()
+    {
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.Index), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task BulkConfirmation_WithRefs_RendersConfirmationWithLowercaseDeadline()
+    {
+        _sut.TempData["BulkSubmittedRefs"] = "R1,R2";
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 2026",
+            EndDate = endDate,
+            StartDate = endDate.AddMonths(-3),
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June
+        });
+
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<BulkConfirmationViewModel>(view.Model);
+        Assert.Equal(new[] { "R1", "R2" }, vm.ReferenceNumbers);
+        Assert.Contains("5pm", vm.WindowCloseLabel); // lowercase am/pm
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

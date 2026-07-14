@@ -30,6 +30,33 @@
     <p class="govuk-body">Submit all @Model.WindowTitle requests by <strong>@Model.DeadlineText</strong></p>
 </div>
 
+@{
+    var firstSelectableRef = Model.Rows.FirstOrDefault(r => r.Status == RequestStatus.ReadyToSubmit)?.ReferenceNumber;
+    var selectionError = ViewData.ModelState.TryGetValue("selectedReferences", out var refState) && refState.Errors.Count > 0
+        ? refState.Errors[0].ErrorMessage
+        : null;
+}
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    @foreach (var state in ViewData.ModelState.Values)
+                    {
+                        foreach (var error in state.Errors)
+                        {
+                            <li><a href="#select-@firstSelectableRef">@error.ErrorMessage</a></li>
+                        }
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+}
+
 @if (Model.Rows.Count == 0)
 {
     <div class="govuk-inset-text">
@@ -38,35 +65,62 @@
 }
 else
 {
-    <table class="govuk-table">
-        <thead class="govuk-table__head">
-            <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">Pupil</th>
-                <th scope="col" class="govuk-table__header">Request type</th>
-                <th scope="col" class="govuk-table__header">Status</th>
-                <th scope="col" class="govuk-table__header">Action</th>
-            </tr>
-        </thead>
-        <tbody class="govuk-table__body">
-            @foreach (var row in Model.Rows)
+    <form method="post" action="@Url.Action("BulkReview", "AmendmentRequests", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <div class="govuk-form-group @(selectionError is not null ? "govuk-form-group--error" : "")">
+            @if (selectionError is not null)
             {
-                <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">@row.PupilName</td>
-                    <td class="govuk-table__cell">@row.RequestTypeDescription</td>
-                    <td class="govuk-table__cell">
-                        <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
-                    </td>
-                    <td class="govuk-table__cell">
-                        @{
-                            var draftDeleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
-                        }
-                        <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit</a>
-                        <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
-                    </td>
-                </tr>
+                <p id="selectedReferences-error" class="govuk-error-message">
+                    <span class="govuk-visually-hidden">Error:</span> @selectionError
+                </p>
             }
-        </tbody>
-    </table>
+            <table class="govuk-table">
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Select</span></th>
+                    <th scope="col" class="govuk-table__header">Pupil</th>
+                    <th scope="col" class="govuk-table__header">Request type</th>
+                    <th scope="col" class="govuk-table__header">Status</th>
+                    <th scope="col" class="govuk-table__header">Action</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var row in Model.Rows)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">
+                            @if (row.Status == RequestStatus.ReadyToSubmit)
+                            {
+                                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                    <div class="govuk-checkboxes__item">
+                                        <input class="govuk-checkboxes__input" id="select-@row.ReferenceNumber"
+                                               name="selectedReferences" type="checkbox" value="@row.ReferenceNumber">
+                                        <label class="govuk-label govuk-checkboxes__label" for="select-@row.ReferenceNumber">
+                                            <span class="govuk-visually-hidden">Select @row.PupilName</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            }
+                        </td>
+                        <td class="govuk-table__cell">@row.PupilName</td>
+                        <td class="govuk-table__cell">@row.RequestTypeDescription</td>
+                        <td class="govuk-table__cell">
+                            <strong class="govuk-tag @row.TagClass">@row.TagLabel</strong>
+                        </td>
+                        <td class="govuk-table__cell">
+                            @{
+                                var draftDeleteAction = row.RequestType == RequestType.ConfirmCorrect ? "ConfirmDeleteConfirmation" : "ConfirmDelete";
+                            }
+                            <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Edit</a>
+                            <a class="govuk-link" href="@Url.Action(draftDeleteAction, "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = row.ReferenceNumber })">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            </table>
+        </div>
+        <button type="submit" class="govuk-button" data-module="govuk-button">Continue</button>
+    </form>
 }
 
 <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>

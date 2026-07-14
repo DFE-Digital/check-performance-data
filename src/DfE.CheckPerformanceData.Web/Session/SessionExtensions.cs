@@ -25,4 +25,18 @@ public static class SessionExtensions
 
     public static void ClearRequestState(this ISession session, Guid windowId) =>
         session.Remove(Key(windowId));
+
+    private static string BulkSelectionKey(Guid windowId) => $"bulk_selection_{windowId}";
+
+    public static void SetBulkSelection(this ISession session, Guid windowId, IReadOnlyList<string> references) =>
+        session.SetString(BulkSelectionKey(windowId), JsonSerializer.Serialize(references));
+
+    public static IReadOnlyList<string> GetBulkSelection(this ISession session, Guid windowId)
+    {
+        var json = session.GetString(BulkSelectionKey(windowId));
+        return json is null ? [] : JsonSerializer.Deserialize<List<string>>(json)!;
+    }
+
+    public static void ClearBulkSelection(this ISession session, Guid windowId) =>
+        session.Remove(BulkSelectionKey(windowId));
 }

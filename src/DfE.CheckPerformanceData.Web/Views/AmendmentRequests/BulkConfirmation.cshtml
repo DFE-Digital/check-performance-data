@@ -1,0 +1,32 @@
+@model DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests.BulkConfirmationViewModel
+
+@{
+    ViewBag.Title = "Requests submitted";
+    Layout = "_Layout";
+}
+
+<div class="govuk-panel govuk-panel--confirmation">
+    <h1 class="govuk-panel__title">Data change requests successfully submitted</h1>
+    <div class="govuk-panel__body">
+        Your reference numbers
+    </div>
+</div>
+
+<ul class="govuk-list govuk-list--bullet">
+    @foreach (var reference in Model.ReferenceNumbers)
+    {
+        <li><strong>@reference</strong></li>
+    }
+</ul>
+
+<p class="govuk-body">We have sent you an email to confirm that you have successfully submitted your requests.</p>
+
+<govuk-notification-banner>
+    You still have until <strong>@Model.WindowCloseLabel</strong> to request any further amendments if you need to.
+</govuk-notification-banner>
+
+<p class="govuk-body">
+    <a class="govuk-link" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Request another amendment</a>
+    or
+    <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">edit an existing request</a>
+</p>

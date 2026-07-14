@@ -5,7 +5,7 @@
     Layout = "_Layout";
 }
 
-<a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
+<a class="govuk-back-link" href="@Model.BackUrl">Back</a>
 
 @if (Model.EvidenceMessages.Count > 0)
 {

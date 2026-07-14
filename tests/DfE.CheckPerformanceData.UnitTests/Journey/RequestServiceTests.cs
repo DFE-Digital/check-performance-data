@@ -601,6 +601,34 @@ public class RequestServiceTests
             WindowId, journey.CheckingWindow.EndDate, journey.ReferenceNumber);
     }
 
+    [Fact]
+    public async Task SubmitRequestAsync_DoesNotSendSubmissionEmail()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.SubmitRequestAsync(WindowId, journey);
+
+        await _requestNotificationService.DidNotReceive()
+            .NotifySubmissionConfirmedAsync(Arg.Any<Guid>(), Arg.Any<DateTime>(), Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task ConfirmRequestAsync_SavesJourneyBlobBeforeSendingEmail()
+    {
+        var (journey, config) = MakeSubmission();
+        SetupConfig(config);
+
+        await _sut.ConfirmRequestAsync(WindowId, journey);
+
+        Received.InOrder(() =>
+        {
+            _requestStateBlobClient.SaveAsync(WindowId, Arg.Any<string>(), Arg.Any<RequestState>());
+            _requestNotificationService.NotifySubmissionConfirmedAsync(
+                WindowId, Arg.Any<DateTime>(), Arg.Any<string>());
+        });
+    }
+
     // ── ConfirmDataCorrectAsync ─────────────────────────────────────────────
 
     [Fact]

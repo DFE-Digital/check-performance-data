@@ -9,6 +9,8 @@ using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
+using DfE.CheckPerformanceData.Persistence.Contexts;
+using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.FileStorage;
@@ -325,6 +327,12 @@ try
 
     using (var scope = app.Services.CreateScope())
     {
+        // Countries back the country autocomplete and must exist in every environment,
+        // including Production. Seeded idempotently and content-aware: a no-op when the table
+        // already matches the embedded seed data, a full reseed when the CSV/entries change.
+        // Safe to run unconditionally on every startup, unlike the dev-only data seeding below.
+        await SeedCountries.ExecuteSeed(scope.ServiceProvider.GetRequiredService<IPortalDbContext>());
+
         await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
         await scope.ServiceProvider
             .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()

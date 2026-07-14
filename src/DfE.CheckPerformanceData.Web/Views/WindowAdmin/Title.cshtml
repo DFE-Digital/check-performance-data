@@ -1,12 +1,6 @@
-@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowTitleEditItem
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.WindowTitleEditItem
 
-@{
-    var postUrl = Model.WindowId == Guid.Empty
-        ? "/admin/windows/title"
-        : $"/admin/windows/{Model.WindowId}/title";
-}
-
-<form method="post" action="@postUrl" novalidate>
+<form method="post" action="@Model.PostUrl" novalidate>
     @Html.AntiForgeryToken()
     <input type="hidden" name="WindowId" value="@Model.WindowId" />
     
@@ -17,5 +11,5 @@
     </govuk-input>
     
     <govuk-button type="submit">Save and continue</govuk-button>
-    <a class="govuk-link" href="@Url.Action("Cancel", "CancelCreation")">Cancel</a>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
 </form>

@@ -1,19 +1,17 @@
-using System.Diagnostics;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class KeyStageController(ILogger<KeyStageController> logger, IWindowService windowService): Controller
+public sealed class KeyStageController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/KeyStage.cshtml";
     
-    [ActionName("New")]
     [HttpGet("admin/windows/key-stage")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> New(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -22,11 +20,12 @@ public class KeyStageController(ILogger<KeyStageController> logger, IWindowServi
             return BadRequest("No draft data");
         }
 
-        var model = new KeyStageItem()
+        KeyStageItem model = new KeyStageItem()
         {
             KeyStages = Enum.GetValues<KeyStages>(),
             KeyStage = draft.KeyStage,
-            PostUrl = "/admin/windows/key-stage"
+            PostUrl = Url.Action("Submit", "KeyStage"),
+            CancelUrl = Url.Action("Index", "CancelCreation")
         };
         
         return View(PageView, model);
@@ -34,7 +33,7 @@ public class KeyStageController(ILogger<KeyStageController> logger, IWindowServi
     
     [HttpPost("admin/windows/key-stage")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(KeyStageItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(KeyStageItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -55,7 +54,7 @@ public class KeyStageController(ILogger<KeyStageController> logger, IWindowServi
         {
             return RedirectToAction("New", "CreateCheckingWindow");
         }
-        return RedirectToAction("New", draft.NextController());
+        return Redirect(draft.NextController(Url));
     }
 
 }

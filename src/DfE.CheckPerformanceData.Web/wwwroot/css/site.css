@@ -1615,6 +1615,21 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
+/* On narrow viewports the button's intrinsic width (padding + "Search" text) is
+   large enough that flex-shrink can't leave the input more than one character
+   wide, so it looks and behaves like a broken field. Stack the row instead:
+   input on one line at full width, button on the line below. */
+@media (max-width: 40.0625em) {
+  .cypmd-search__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .cypmd-search__button {
+    align-self: flex-start;
+  }
+}
+
 /* Content-page breadcrumbs sit tight against the phase banner. main-wrapper padding-top is
    pinned near-zero because the govuk-frontend default reserves 40px above the breadcrumb — no
    amount of breadcrumb margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox

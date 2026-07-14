@@ -507,3 +507,5 @@ docs/superpowers/
 CLAUDE.md
 .claude/
 /.playwright-mcp
+.specify/
+.clinerules/

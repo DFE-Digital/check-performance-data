@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public sealed class StartDateController(ILogger<StartDateController> logger, IWindowService windowService): Controller
+public sealed class StartDateController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
 

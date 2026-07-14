@@ -65,4 +65,5 @@
   </row>
 </govuk-summary-list>
 
-<govuk-button disabled="!@Model.IsValidatable" type="submit" name="action">Validate Window</govuk-button>
+
+<govuk-button-link disabled="@(!Model.IsValidatable)" href="@Model.PostUrl">Validate Window</govuk-button-link>

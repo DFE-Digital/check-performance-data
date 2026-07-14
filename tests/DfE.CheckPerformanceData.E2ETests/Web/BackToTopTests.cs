@@ -7,9 +7,14 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // Pins the back-to-top link contract on a CMS content page:
 //   * Sticky-positioned bottom-left of the viewport, ~50px above the viewport bottom
 //     while its containing content column is in view.
-//   * Chromeless styling — no background box, no shadow, no border-radius. Just an
-//     up-arrow icon + govuk-link text, matching the vanilla GDS design-guidance
-//     example the ticket references.
+//   * On desktop/tablet: chromeless styling — no background box, no shadow, no
+//     border-radius. Just an up-arrow icon + govuk-link text, matching the vanilla
+//     GDS design-guidance example the ticket references. Sits in the empty left
+//     sibling gutter so it never overlays article body content.
+//   * On mobile (<= 40.0625em): the two-column layout collapses to one column and
+//     the sticky link then sits over article body text, so it gains an opaque
+//     white pill with a subtle shadow so the button reads as a button and the
+//     text underneath doesn't bleed through.
 //   * At the page bottom the link releases at the natural end of the content area
 //     so it sits above the footer instead of overlapping it.
 //   * Anchor href="#top" scrolls the window back to the top.
@@ -50,6 +55,36 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
         Assert.Equal("rgba(0, 0, 0, 0)", style.Background);
         Assert.Equal("none", style.BoxShadow);
         Assert.Equal("0px", style.BorderRadius);
+    }
+
+    // On mobile the sticky link overlays article text (single-column layout, no left
+    // gutter to hide in) so the transparent GDS treatment becomes illegible. The
+    // mobile pill fix gives it an opaque white background, rounded pill shape, subtle
+    // shadow, and a light border so the button reads as a button. Pin those values
+    // so the readability fix can't silently regress.
+    [Fact]
+    public async Task AtMobileViewport_LinkHasOpaquePill_ForContrastOverBodyContent()
+    {
+        await Page.SetViewportSizeAsync(375, 667);
+        var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
+        Assert.NotNull(response);
+        Assert.Equal(200, response!.Status);
+
+        await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
+
+        var style = await Page.EvaluateAsync<StyleSnap>(@"() => {
+            const link = document.querySelector('.app-back-to-top__link');
+            const cs = getComputedStyle(link);
+            return {
+                background: cs.backgroundColor,
+                boxShadow: cs.boxShadow,
+                borderRadius: cs.borderRadius
+            };
+        }");
+
+        Assert.Equal("rgb(255, 255, 255)", style.Background);
+        Assert.NotEqual("none", style.BoxShadow);
+        Assert.NotEqual("0px", style.BorderRadius);
     }
 
     [Fact]

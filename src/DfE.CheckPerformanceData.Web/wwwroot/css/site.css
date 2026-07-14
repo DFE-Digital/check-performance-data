@@ -1756,8 +1756,11 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 /* Back-to-top link, GDS design-guidance pattern (design-system.service.gov.uk). Sticky
    positioning tracks the viewport bottom while the container is in its parent flow and
    RELEASES at the natural end of the parent (so it stops just above the footer instead
-   of overlapping it). Styling matches the vanilla GDS example: transparent background,
-   arrow + underlined link, no chrome.
+   of overlapping it). On desktop/tablet the link matches the vanilla GDS example
+   (transparent background, arrow + underlined link, no chrome) because it sits in the
+   empty left sibling gutter and doesn't overlay content. On mobile that gutter goes
+   away and the link would overlay article text, so a mobile-only rule near the bottom
+   of this block gives it an opaque white pill for readability.
 
    Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
    has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
@@ -1814,6 +1817,23 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
   [data-back-to-top-init="true"] .app-back-to-top,
   [data-back-to-top-init="true"] .app-back-to-top.is-visible {
     transition: none;
+  }
+}
+
+/* On narrow viewports the two-column layout collapses to a single column, so the
+   sticky link sits on TOP of the article body instead of the empty left sibling
+   gutter it occupies on desktop/tablet. That produces a "double text" effect where
+   the link's letters overlap paragraph text underneath. Give it an opaque white
+   pill on mobile so the text is readable and the button is clearly a button. Kept
+   in the lower-left corner via the base .app-back-to-top rules. Border matches the
+   GDS default link colour so the pill reads as an actionable control, not chrome. */
+@media (max-width: 40.0625em) {
+  .app-back-to-top__link {
+    background: #ffffff;
+    padding: 8px 15px;
+    border: 1px solid #b1b4b6;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(11, 12, 12, 0.15);
   }
 }
 

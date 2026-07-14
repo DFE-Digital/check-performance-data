@@ -94,7 +94,67 @@
 
             summary.innerHTML = '';
             summary.appendChild(panel);
+
+            if (data.schoolSummary && data.schoolSummary.length) {
+                summary.appendChild(buildSummaryTable(data.schoolSummary));
+            }
+
             summary.classList.remove('govuk-!-display-none');
+        }
+
+        // Records-processed-per-LAESTAB table with a totals footer, mirroring the server-rendered
+        // no-JS summary.
+        function buildSummaryTable(schoolSummary) {
+            var table = document.createElement('table');
+            table.className = 'govuk-table';
+
+            var caption = document.createElement('caption');
+            caption.className = 'govuk-table__caption govuk-table__caption--m';
+            caption.textContent = 'Records processed per LAESTAB';
+            table.appendChild(caption);
+
+            var thead = document.createElement('thead');
+            thead.className = 'govuk-table__head';
+            thead.appendChild(row('th', [
+                { text: 'LAESTAB', className: 'govuk-table__header' },
+                { text: 'Records processed', className: 'govuk-table__header govuk-table__header--numeric' }
+            ]));
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            tbody.className = 'govuk-table__body';
+            var total = 0;
+            for (var i = 0; i < schoolSummary.length; i++) {
+                var school = schoolSummary[i];
+                total += school.recordCount;
+                tbody.appendChild(row('td', [
+                    { text: school.laestab, className: 'govuk-table__cell' },
+                    { text: school.recordCount, className: 'govuk-table__cell govuk-table__cell--numeric' }
+                ]));
+            }
+            table.appendChild(tbody);
+
+            var tfoot = document.createElement('tfoot');
+            tfoot.className = 'govuk-table__foot';
+            tfoot.appendChild(row('td', [
+                { text: 'Total LAESTAB: ' + schoolSummary.length, className: 'govuk-table__header' },
+                { text: total, className: 'govuk-table__cell govuk-table__cell--numeric' }
+            ]));
+            table.appendChild(tfoot);
+
+            return table;
+        }
+
+        function row(cellTag, cells) {
+            var tr = document.createElement('tr');
+            tr.className = 'govuk-table__row';
+            for (var i = 0; i < cells.length; i++) {
+                var cell = document.createElement(cellTag);
+                cell.className = cells[i].className;
+                cell.textContent = cells[i].text;
+                tr.appendChild(cell);
+            }
+            return tr;
         }
 
         function disableOtherButtons() {

@@ -14,4 +14,10 @@ public sealed record ValidationProgress(
     int FilesWritten,
     int ErrorCount,
     bool IsComplete,
-    bool IsError);
+    bool IsError,
+    IReadOnlyList<SchoolRecordCount>? SchoolSummary = null);
+
+/// <summary>
+/// Number of records processed for a single school (LAESTAB), used to build the run summary.
+/// </summary>
+public sealed record SchoolRecordCount(string Laestab, int RecordCount);

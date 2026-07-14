@@ -7,4 +7,6 @@ public class ValidationViewModel : AdminPage
     public string? StreamUrl { get; set; }
 
     public ProcessingResult? ProcessingResult { get; set; }
+
+    private bool ValidateOnly { get; set; } = true;
 }

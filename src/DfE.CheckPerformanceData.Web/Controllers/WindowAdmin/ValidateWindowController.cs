@@ -49,7 +49,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             PostUrl = Url.Action(nameof(Validate), "ValidateWindow", new { id }),
             ProcessingResult = last is null
                 ? null
-                : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message)),
+                : new ProcessingResult(last.RecordsRead, last.FilesWritten, last.ErrorCount, new StringBuilder(last.Message), last.SchoolSummary),
         };
 
         return View(PageView, model);
@@ -69,7 +69,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
                            window.IngressFileChecksum,
                            window.SchemaFile,
                            window.SchemaFileChecksum,
-                           cancellationToken))
+                           cancellationToken: cancellationToken))
         {
             if (progress is { IsComplete: true, IsError: false })
             {

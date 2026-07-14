@@ -25,6 +25,34 @@
             <dd class="govuk-summary-list__value">@Model.ProcessingResult.ErrorCount</dd>
         </div>
     </dl>
+
+    @if (Model.ProcessingResult.SchoolSummary is { Count: > 0 } schoolSummary)
+    {
+        <table class="govuk-table">
+            <caption class="govuk-table__caption govuk-table__caption--m">Records processed per LAESTAB</caption>
+            <thead class="govuk-table__head">
+                <tr class="govuk-table__row">
+                    <th scope="col" class="govuk-table__header">LAESTAB</th>
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric">Records processed</th>
+                </tr>
+            </thead>
+            <tbody class="govuk-table__body">
+                @foreach (var school in schoolSummary)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@school.Laestab</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@school.RecordCount</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot class="govuk-table__foot">
+                <tr class="govuk-table__row">
+                    <th scope="row" class="govuk-table__header">Total LAESTAB: @schoolSummary.Count</th>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@schoolSummary.Sum(s => s.RecordCount)</td>
+                </tr>
+            </tfoot>
+        </table>
+    }
 }
 
 <div class="validate-window" data-module="validate-progress" data-stream-url="@Model.StreamUrl">

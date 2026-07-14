@@ -188,6 +188,6 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
         window.IngressFileChecksum = checksum;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("index", "WindowAdmin", new { id });
+        return RedirectToAction("index", "Summary", new { id = id });
     }
 }

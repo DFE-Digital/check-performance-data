@@ -7,7 +7,7 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 public sealed class SummaryController(IWindowService windowService): Controller
 {
    
-    [HttpGet("admin/windows/summary/{id}")]
+    [HttpGet("admin/windows/summary/{id:guid}")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto w = await windowService.GetByIdAsync(id, cancellationToken);

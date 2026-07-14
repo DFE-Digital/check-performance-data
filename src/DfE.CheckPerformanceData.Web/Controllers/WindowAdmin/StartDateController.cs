@@ -97,7 +97,7 @@ public sealed class StartDateController(ILogger<StartDateController> logger, IWi
         window.StartDate = model.DateValue!.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", id);
+        return RedirectToAction("Index", "Summary", new { id = id });
     }
 
     public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)

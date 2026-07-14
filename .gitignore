@@ -509,3 +509,6 @@ CLAUDE.md
 /.playwright-mcp
 .specify/
 .clinerules/
+.opencode/
+opencode.json
+specs/

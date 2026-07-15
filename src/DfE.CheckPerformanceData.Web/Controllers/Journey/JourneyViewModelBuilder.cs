@@ -12,7 +12,7 @@ public sealed class JourneyViewModelBuilder(
     IWebHostEnvironment env)
 {
     public SummaryViewModel BuildSummaryVm(
-        Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null)
+        Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null, string? conflictErrorLink = null)
     {
         var pupilName = GetPupilName(journey);
         var rows = new List<SummaryRow>();
@@ -74,6 +74,7 @@ public sealed class JourneyViewModelBuilder(
             MaxEvidencePages = journeyService.MaxEvidencePages,
             DebugJson = debugJson,
             ConflictError = conflictError,
+            ConflictErrorLink = conflictErrorLink,
             PrimaryPupilPageId = primaryPupilPage?.Id,
             FirstRecordDisplay = firstRecordDisplay,
             SecondRecordDisplay = secondRecordDisplay,

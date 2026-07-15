@@ -132,12 +132,19 @@ public sealed class JourneyController(
             var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
             if (result is not DuplicateCheckResult.NoConflict)
             {
-                var message = result switch
+                var isSelf = result is DuplicateCheckResult.SelfSubmitted;
+                var conflictingReasonType = result switch
                 {
-                    DuplicateCheckResult.SelfSubmitted => $"{DuplicateRequestMessages.SelfSubmittedPupilSelection} {DuplicateRequestMessages.SelfSubmittedGuidance}",
-                    DuplicateCheckResult.OtherSubmitted => $"{DuplicateRequestMessages.OtherSubmittedPupilSelection} {DuplicateRequestMessages.OtherSubmittedGuidance}",
-                    _ => "A request for this pupil has already been submitted."
+                    DuplicateCheckResult.SelfSubmitted { ConflictingReasonType: var rt } => rt,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingReasonType: var rt } => rt,
+                    _ => string.Empty
                 };
+                var currentReasonType = flowService.ResolveRequestType(config, journey);
+                var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
+                    && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
+
+                var whatToChange = journey.SelectedWhatToChange ?? Application.CheckYourPupilData.WhatToChange.Remove;
+                var message = DuplicateRequestMessages.PupilSelectionMessage(isSelf, reasonsMatch, whatToChange);
 
                 ModelState.AddModelError("selectedPupilId", message);
                 await analytics.TrackSafeAsync(new ValidationErrorEvent
@@ -149,11 +156,12 @@ public sealed class JourneyController(
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
 
-                if (result is DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var refNum })
+                if (isSelf && result is DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var refNum })
                 {
                     vm.ConflictErrorReference = refNum;
                     vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{refNum}/view";
                     vm.ConflictPupilName = pupilName;
+                    vm.ConflictReasonType = conflictingReasonType;
                 }
 
                 return View("PupilSearch", vm);
@@ -569,17 +577,21 @@ public sealed class JourneyController(
                 CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
             });
 
-            var message = ex.ConflictType switch
-            {
-                ConflictType.SelfSubmitted => $"{DuplicateRequestMessages.SelfSubmittedSummary} {DuplicateRequestMessages.SelfSubmittedGuidance}",
-                ConflictType.OtherSubmitted => $"{DuplicateRequestMessages.OtherSubmittedSummary} {DuplicateRequestMessages.OtherSubmittedGuidance}",
-                _ => "A request for this pupil has already been submitted. Select a different pupil."
-            };
+            var whatToChange = journey.SelectedWhatToChange ?? Application.CheckYourPupilData.WhatToChange.Remove;
+            var message = DuplicateRequestMessages.SummaryMessage(
+                ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch, whatToChange);
 
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
+
+            string? conflictErrorLink = null;
+            if (DuplicateRequestMessages.ShowLink(ex.ConflictType == ConflictType.SelfSubmitted))
+            {
+                conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
+            }
+
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
-                conflictError: message));
+                conflictError: message, conflictErrorLink: conflictErrorLink));
         }
 
         await analytics.TrackSafeAsync(new RequestSubmittedEvent

@@ -72,7 +72,7 @@ public class RequestServiceTests
                 100000L,
                 journey.ReferenceNumber!,
                 userId)
-            .Returns(new DuplicateCheckResult.SelfSubmitted("REF-CONFLICT"));
+            .Returns(new DuplicateCheckResult.SelfSubmitted("REF-CONFLICT", ""));
 
         await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));

@@ -226,26 +226,26 @@ public sealed class DuplicateRequestValidationIntegrationTests
             service.ConfirmRequestAsync(windowId, journey));
     }
 
-    // ── T018: Guidance text ─────────────────────────────────────────────────
+    // ── Scenario messages ───────────────────────────────────────────────────
 
     [Fact]
     public void SelfSubmittedMessages_ContainGuidanceText()
     {
-        var pupilSelection = $"{DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SelfSubmittedPupilSelection} {DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SelfSubmittedGuidance}";
-        var summary = $"{DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SelfSubmittedSummary} {DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SelfSubmittedGuidance}";
+        var pupilSelection = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.PupilSelectionMessage(true, true, WhatToChange.Remove);
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, WhatToChange.Remove);
 
-        Assert.Contains("view your existing request", pupilSelection);
-        Assert.Contains("view your existing request", summary);
+        Assert.Contains("remove a pupil from data", pupilSelection);
+        Assert.Contains("Select a different pupil", summary);
     }
 
     [Fact]
     public void OtherSubmittedMessages_ContainGuidanceText()
     {
-        var pupilSelection = $"{DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.OtherSubmittedPupilSelection} {DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.OtherSubmittedGuidance}";
-        var summary = $"{DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.OtherSubmittedSummary} {DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.OtherSubmittedGuidance}";
+        var pupilSelection = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.PupilSelectionMessage(false, true, WhatToChange.Remove);
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, WhatToChange.Remove);
 
         Assert.Contains("coordinate with colleagues", pupilSelection);
-        Assert.Contains("coordinate with colleagues", summary);
+        Assert.Contains("Select a different pupil", summary);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

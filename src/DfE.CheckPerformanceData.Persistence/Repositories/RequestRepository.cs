@@ -9,6 +9,14 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 {
+    private static string ExtractConflictingReasonType(string requestTypeDescription)
+    {
+        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? requestTypeDescription[(separatorIndex + 3)..]
+            : requestTypeDescription;
+    }
+
     public async Task<DuplicateCheckResult> CheckForConflictAsync(
         Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
     {
@@ -18,15 +26,17 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber != currentReferenceNumber
                 && r.Status == RequestStatus.SubmittedUnCommitted)
-            .Select(r => new { r.SubmittedById, r.ReferenceNumber })
+            .Select(r => new { r.SubmittedById, r.ReferenceNumber, r.RequestTypeDescription })
             .FirstOrDefaultAsync();
 
         if (conflict is null)
             return new DuplicateCheckResult.NoConflict();
 
+        var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
+
         return conflict.SubmittedById == currentUserId
-            ? new DuplicateCheckResult.SelfSubmitted(conflict.ReferenceNumber)
-            : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber);
+            ? new DuplicateCheckResult.SelfSubmitted(conflict.ReferenceNumber, conflictingReasonType)
+            : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber, conflictingReasonType);
     }
 
     public async Task<string?> HasSubmittedRequestAsync(
@@ -92,10 +102,14 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
 
                 if (conflict is not null)
                 {
+                    var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
+                    var reasonsMatch = conflictingReasonType.Equals(
+                        ExtractConflictingReasonType(data.RequestTypeDescription), StringComparison.OrdinalIgnoreCase);
                     throw new DuplicateRequestException(
                         conflict.SubmittedById == data.SubmittedById
                             ? ConflictType.SelfSubmitted
-                            : ConflictType.OtherSubmitted);
+                            : ConflictType.OtherSubmitted,
+                        conflictingReasonType, reasonsMatch);
                 }
 
                 db.ChangeRequests.Add(new ChangeRequest

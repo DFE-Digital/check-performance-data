@@ -16,6 +16,12 @@
     <govuk-error-summary>
         <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
         <govuk-error-summary-item>@Model.ConflictError</govuk-error-summary-item>
+        @if (Model.ConflictErrorLink is not null)
+        {
+            <govuk-error-summary-item>
+                <a href="@Model.ConflictErrorLink" class="govuk-link">View existing request</a>
+            </govuk-error-summary-item>
+        }
     </govuk-error-summary>
 }
 

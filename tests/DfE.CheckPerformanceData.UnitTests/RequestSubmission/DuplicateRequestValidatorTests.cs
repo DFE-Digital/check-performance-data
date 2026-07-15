@@ -60,7 +60,7 @@ public sealed class DuplicateRequestValidatorTests
     public async Task CheckForConflictAsync_WhenSelfSubmitted_ReturnsSelfSubmittedWithReference()
     {
         _repository.CheckForConflictAsync(WindowId, PupilId, OrganisationUrn, string.Empty, CurrentUserId)
-            .Returns(new DuplicateCheckResult.SelfSubmitted(ExistingRef));
+            .Returns(new DuplicateCheckResult.SelfSubmitted(ExistingRef, ""));
 
         var result = await _sut.HasSubmittedRequestAsync(WindowId, PupilId, OrganisationUrn);
 
@@ -72,7 +72,7 @@ public sealed class DuplicateRequestValidatorTests
     public async Task CheckForConflictAsync_WhenOtherSubmitted_ReturnsOtherSubmittedWithReference()
     {
         _repository.CheckForConflictAsync(WindowId, PupilId, OrganisationUrn, string.Empty, CurrentUserId)
-            .Returns(new DuplicateCheckResult.OtherSubmitted(ExistingRef));
+            .Returns(new DuplicateCheckResult.OtherSubmitted(ExistingRef, ""));
 
         var result = await _sut.HasSubmittedRequestAsync(WindowId, PupilId, OrganisationUrn);
 
@@ -108,7 +108,7 @@ public sealed class DuplicateRequestValidatorTests
     {
         _repository.CheckForConflictAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>(),
                 Arg.Any<string>(), Arg.Any<Guid>())
-            .Returns(new DuplicateCheckResult.SelfSubmitted("REF-001"));
+            .Returns(new DuplicateCheckResult.SelfSubmitted("REF-001", ""));
 
         var result = await _sut.HasSubmittedRequestAsync(WindowId, PupilId, OrganisationUrn);
 
@@ -120,7 +120,7 @@ public sealed class DuplicateRequestValidatorTests
     {
         _repository.CheckForConflictAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>(),
                 Arg.Any<string>(), Arg.Any<Guid>())
-            .Returns(new DuplicateCheckResult.OtherSubmitted("REF-002"));
+            .Returns(new DuplicateCheckResult.OtherSubmitted("REF-002", ""));
 
         var result = await _sut.HasSubmittedRequestAsync(WindowId, PupilId, OrganisationUrn);
 
@@ -135,7 +135,7 @@ public sealed class DuplicateRequestValidatorTests
         var journey = ValidJourney();
         _repository.CheckForConflictAsync(WindowId, journey.SelectedPupil!.Id, OrganisationUrn,
                 journey.ReferenceNumber!, CurrentUserId)
-            .Returns(new DuplicateCheckResult.SelfSubmitted(ExistingRef));
+            .Returns(new DuplicateCheckResult.SelfSubmitted(ExistingRef, ""));
 
         var ex = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
@@ -149,7 +149,7 @@ public sealed class DuplicateRequestValidatorTests
         var journey = ValidJourney();
         _repository.CheckForConflictAsync(WindowId, journey.SelectedPupil!.Id, OrganisationUrn,
                 journey.ReferenceNumber!, CurrentUserId)
-            .Returns(new DuplicateCheckResult.OtherSubmitted(ExistingRef));
+            .Returns(new DuplicateCheckResult.OtherSubmitted(ExistingRef, ""));
 
         var ex = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
@@ -157,34 +157,50 @@ public sealed class DuplicateRequestValidatorTests
         Assert.Equal(ConflictType.OtherSubmitted, ex.ConflictType);
     }
 
-    // ── DuplicateRequestMessages guidance text (T017) ───────────────────────
+    // ── DuplicateRequestMessages scenario messages ──────────────────────────
 
     [Fact]
-    public void SelfSubmittedPupilSelectionMessage_IncludesGuidance()
+    public void SelfSubmittedPupilSelectionMessage_WhenReasonMatches_IncludesAction()
     {
-        var message = $"{DuplicateRequestMessages.SelfSubmittedPupilSelection} {DuplicateRequestMessages.SelfSubmittedGuidance}";
-        Assert.Contains("view your existing request", message);
+        var message = DuplicateRequestMessages.PupilSelectionMessage(true, true, WhatToChange.Remove);
+        Assert.Contains("remove a pupil from data", message);
     }
 
     [Fact]
-    public void OtherSubmittedPupilSelectionMessage_IncludesGuidance()
+    public void OtherSubmittedPupilSelectionMessage_WhenReasonMatches_IncludesAction()
     {
-        var message = $"{DuplicateRequestMessages.OtherSubmittedPupilSelection} {DuplicateRequestMessages.OtherSubmittedGuidance}";
+        var message = DuplicateRequestMessages.PupilSelectionMessage(false, true, WhatToChange.Remove);
+        Assert.Contains("remove a pupil from data", message);
+        Assert.Contains("coordinate with colleagues", message);
+    }
+
+    [Fact]
+    public void SelfSubmittedPupilSelectionMessage_WhenReasonDiffers_OmitsAction()
+    {
+        var message = DuplicateRequestMessages.PupilSelectionMessage(true, false, WhatToChange.Remove);
+        Assert.Contains("view your existing request", message);
+        Assert.DoesNotContain("remove a pupil from data", message);
+    }
+
+    [Fact]
+    public void OtherSubmittedPupilSelectionMessage_WhenReasonDiffers_UsesGeneric()
+    {
+        var message = DuplicateRequestMessages.PupilSelectionMessage(false, false, WhatToChange.Remove);
         Assert.Contains("coordinate with colleagues or contact support", message);
     }
 
     [Fact]
-    public void SelfSubmittedSummaryMessage_IncludesGuidance()
+    public void SummaryMessage_WhenSelfSubmittedAndReasonMatches_IncludesAction()
     {
-        var message = $"{DuplicateRequestMessages.SelfSubmittedSummary} {DuplicateRequestMessages.SelfSubmittedGuidance}";
-        Assert.Contains("view your existing request", message);
+        var message = DuplicateRequestMessages.SummaryMessage(true, true, WhatToChange.Remove);
+        Assert.Contains("remove a pupil from data", message);
     }
 
     [Fact]
-    public void OtherSubmittedSummaryMessage_IncludesGuidance()
+    public void SummaryMessage_WhenOtherSubmittedAndReasonMatches_IncludesAction()
     {
-        var message = $"{DuplicateRequestMessages.OtherSubmittedSummary} {DuplicateRequestMessages.OtherSubmittedGuidance}";
-        Assert.Contains("coordinate with colleagues or contact support", message);
+        var message = DuplicateRequestMessages.SummaryMessage(false, true, WhatToChange.Remove);
+        Assert.Contains("remove a pupil from data", message);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

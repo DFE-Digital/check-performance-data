@@ -17,4 +17,5 @@ public sealed class PupilSearchViewModel
     public string? ConflictErrorReference { get; set; }
     public string? ConflictErrorLink { get; set; }
     public string? ConflictPupilName { get; set; }
+    public string? ConflictReasonType { get; set; }
 }

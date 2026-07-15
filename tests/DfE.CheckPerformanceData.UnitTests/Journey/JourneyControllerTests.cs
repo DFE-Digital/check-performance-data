@@ -283,14 +283,14 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession(history: ["page-1"]));
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted));
+            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted, "", false));
 
         var result = await _sut.SummaryConfirm(WindowId);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("Summary", view.ViewName);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal($"{DuplicateRequestMessages.SelfSubmittedSummary} {DuplicateRequestMessages.SelfSubmittedGuidance}", vm.ConflictError);
+        Assert.Equal(DuplicateRequestMessages.SummaryMessage(true, false, WhatToChange.Remove), vm.ConflictError);
     }
 
     [Fact]
@@ -299,7 +299,7 @@ public class JourneyControllerTests
         var state = ValidSession(history: ["page-1"]);
         SetupSession(state);
         _requestService.ConfirmRequestAsync(WindowId, Arg.Any<RequestState>())
-            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted));
+            .Returns(_ => throw new DuplicateRequestException(ConflictType.SelfSubmitted, "", false));
 
         await _sut.SummaryConfirm(WindowId);
 

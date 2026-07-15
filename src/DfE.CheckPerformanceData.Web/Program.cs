@@ -108,7 +108,7 @@ try
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
     
     string? newtonsoftLicenseKey = configuration
-        .GetSection("Services:Newtonsoft:LicenseKey")
+        .GetSection("Newtonsoft:LicenseKey")
         .Get<string>() ?? null;
 
     if (newtonsoftLicenseKey is not null)

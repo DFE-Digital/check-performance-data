@@ -46,13 +46,14 @@ public sealed class DevPipelineController(
         Guid? pupilId = null,
         string? pupilUpn = null,
         string? pupilFirstName = null,
-        string? pupilSurname = null)
+        string? pupilSurname = null,
+        string? requestType = null)
     {
         if (!IsAllowed)
             return NotFound();
 
         var runner = new DevPipelineRunner(dbContext, queueService, submittedMetrics);
-        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname);
+        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname, requestType);
 
         return Json(new
         {

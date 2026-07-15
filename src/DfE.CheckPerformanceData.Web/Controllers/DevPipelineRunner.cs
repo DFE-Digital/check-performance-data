@@ -49,7 +49,8 @@ public sealed class DevPipelineRunner
         Guid? pupilId = null,
         string? pupilUpn = null,
         string? pupilFirstName = null,
-        string? pupilSurname = null)
+        string? pupilSurname = null,
+        string? requestType = null)
     {
         var preset = OutcomePresets.Resolve(outcome);
         var reference = $"DEV-{Guid.NewGuid():N}"[..16];
@@ -78,8 +79,8 @@ public sealed class DevPipelineRunner
             SubmittedByName = "Dev Harness",
             Status = RequestStatus.SubmittedUnCommitted,
             ReferenceNumber = reference,
-            RequestType = RequestType.Amendment, 
-            RequestTypeDescription = "Include"
+            RequestType = RequestType.Amendment,
+            RequestTypeDescription = requestType ?? preset.WhatToChange
         });
         await _dbContext.SaveChangesAsync(cancellationToken);
 

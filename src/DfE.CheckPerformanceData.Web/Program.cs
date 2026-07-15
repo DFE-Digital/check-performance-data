@@ -106,6 +106,15 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
+    
+    string? newtonsoftLicenseKey = configuration
+        .GetSection("Services:Newtonsoft:LicenseKey")
+        .Get<string>() ?? null;
+
+    if (newtonsoftLicenseKey is not null)
+    {
+        License.RegisterLicense(newtonsoftLicenseKey);
+    }
 
     // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
     // the admin Danger zone "Reset seed data" action.

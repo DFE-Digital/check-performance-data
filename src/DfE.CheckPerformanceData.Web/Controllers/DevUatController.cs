@@ -74,7 +74,7 @@ public sealed class DevUatController : Controller
         string? lastReference = null;
         for (var i = 0; i < batch; i++)
         {
-            var result = await _runner.SubmitAsync(outcome, null, null, cancellationToken);
+            var result = await _runner.SubmitAsync(outcome, null, null, cancellationToken, null, null, null, null);
             lastReference = result.Reference;
         }
 

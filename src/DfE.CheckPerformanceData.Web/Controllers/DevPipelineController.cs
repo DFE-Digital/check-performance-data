@@ -38,13 +38,21 @@ public sealed class DevPipelineController(
 
     [HttpGet("dev/queues/submit-request")]
     [HttpPost("dev/queues/submit-request")]
-    public async Task<IActionResult> SubmitRequest(string? outcome, Guid? windowId, long? urn, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitRequest(
+        string? outcome,
+        Guid? windowId,
+        long? urn,
+        CancellationToken cancellationToken,
+        Guid? pupilId = null,
+        string? pupilUpn = null,
+        string? pupilFirstName = null,
+        string? pupilSurname = null)
     {
         if (!IsAllowed)
             return NotFound();
 
         var runner = new DevPipelineRunner(dbContext, queueService, submittedMetrics);
-        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken);
+        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname);
 
         return Json(new
         {

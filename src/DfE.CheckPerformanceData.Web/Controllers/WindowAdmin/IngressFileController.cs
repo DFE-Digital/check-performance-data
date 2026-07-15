@@ -114,6 +114,7 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     }
 
     [HttpPost("admin/windows/{id:guid}/ingress-file")]
+    [RequestSizeLimit(100_000_000)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Select(Guid id, string selectedFile, CancellationToken cancellationToken)
     {

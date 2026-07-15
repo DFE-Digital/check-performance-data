@@ -270,6 +270,9 @@ try
     {
         options.HeaderName = "X-XSRF-TOKEN";
     });
+    
+    //Setting to null to allow controller config
+    builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
 
     builder.Services.AddControllersWithViews();
 

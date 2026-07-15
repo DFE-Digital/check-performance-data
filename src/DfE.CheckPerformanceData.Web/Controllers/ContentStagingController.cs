@@ -75,10 +75,23 @@ public sealed class ContentStagingController(
         return File(bytes, "application/json", fileName);
     }
 
+    // Content-staging bundles from a real environment are commonly 5–20 MB (they carry
+    // full version history and base64-embedded images). Raise the two ASP.NET default
+    // request-size limits that would otherwise reject a legitimate export with an empty-
+    // body 400 before the controller sees it:
+    //  * Kestrel MaxRequestBodySize default ~28.6 MB — bumped to 64 MB for the file upload.
+    //  * FormOptions ValueLengthLimit default ~4 MB per form value — bumped to 64 MB so the
+    //    round-tripped BundleJson hidden field between Preview and Import gets through.
+    // Attribute-scoped so the raised limits apply ONLY to these two endpoints, not the
+    // whole app.
+    private const int LargeBundleLimitBytes = 64 * 1024 * 1024;
+
     // Step 1 of import: read the uploaded file, analyse it against the current environment, and
     // show the preview so the administrator can see new vs colliding content and decide per item.
     [HttpPost("preview")]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(LargeBundleLimitBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = LargeBundleLimitBytes)]
     public async Task<IActionResult> Preview(IFormFile? bundle)
     {
         if (bundle is null || bundle.Length == 0)
@@ -130,9 +143,14 @@ public sealed class ContentStagingController(
     }
 
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
-    // overrides. The bundle round-trips through a hidden field so no server-side state is needed.
+    // overrides. The bundle round-trips through a hidden field so no server-side state is needed —
+    // that field is BundleJson and can easily exceed the 4 MB default ValueLengthLimit for a real
+    // environment export, so the form-limits attribute below has to raise the ceiling or the
+    // model binder rejects the request with an empty-body 400 before this action runs.
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(LargeBundleLimitBytes)]
+    [RequestFormLimits(ValueLengthLimit = LargeBundleLimitBytes)]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
         ContentBundle? parsed = null;

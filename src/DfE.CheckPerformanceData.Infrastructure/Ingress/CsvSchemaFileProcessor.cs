@@ -139,9 +139,15 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             int groupRecordCount = group.Count();
             List<string> schoolErrors = new List<string>();
 
-            string serializedPayload = JsonConvert.SerializeObject(group);
-            JArray jsonArray = JArray.Parse(serializedPayload);
+            //string serializedPayload = JsonConvert.SerializeObject(group);
+            //JArray jsonArray = JArray.Parse(serializedPayload);
 
+            JArray jsonArray = new();
+            foreach (var row in group)
+            {
+                jsonArray.Add(JObject.FromObject(row));
+            }
+            
             foreach (JObject record in jsonArray.Children<JObject>())
             {
                 RemoveFieldsNotInSchema(record, schema);

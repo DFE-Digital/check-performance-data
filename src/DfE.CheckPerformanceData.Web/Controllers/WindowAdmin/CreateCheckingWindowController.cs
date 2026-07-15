@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class CreateCheckingWindowController(ILogger<CreateCheckingWindowController> logger, IWindowService windowService, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
+public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowController> logger, IWindowService windowService, IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";
     
@@ -37,7 +37,7 @@ public class CreateCheckingWindowController(ILogger<CreateCheckingWindowControll
             return BadRequest("No draft data");
         }
 
-        if (draft.IsValid == false)
+        if (!draft.IsValid)
         {
             return BadRequest("Invalid data");
         }

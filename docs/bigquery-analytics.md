@@ -101,6 +101,9 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 | `evidence_continue` | `file_count`, `page_count`, `evidence_text_length` | `JourneyController.PagePost` (evidence page) | — |
 | `evidence_file_removed` | `files_before`, `files_after` | `JourneyController.RemoveFile` | — |
 | `pupil_data_search_results` | `result_count`, `active_tab` | `CheckYourPupilDataController` (when a search term is entered) | — |
+| `correct_data_confirmed` | `reference_number`, `checking_window_type` | `ConfirmCorrectController.Confirm` (successful POST) | `reference_number` |
+| `amendment_request_deleted` | `reference_number`, `was_hard_deleted` | `SubmittedRequestController.Delete` (amendment row) | `reference_number` |
+| `confirmation_deleted` | `reference_number` | `SubmittedRequestController.Delete` (ConfirmCorrect row) | `reference_number` |
 | `request_decision` | `decision_status`, `outcome_key`, `matched_rule_id`, `rules_version`, `request_type_code`, `checking_window_type`, `is_synthetic_fallback` | `RulesConsumer` (worker) | — |
 
 Plus the library-provided **`web_request`** event, emitted automatically per request and enriched with the user and organisation.

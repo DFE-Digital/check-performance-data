@@ -1615,6 +1615,21 @@ body.js-enabled .rules-condition__apply {
 .cypmd-search__input { flex: 1 1 auto; margin-bottom: 0; }
 .cypmd-search__button { flex: 0 0 auto; margin: 0; }
 
+/* On narrow viewports the button's intrinsic width (padding + "Search" text) is
+   large enough that flex-shrink can't leave the input more than one character
+   wide, so it looks and behaves like a broken field. Stack the row instead:
+   input on one line at full width, button on the line below. */
+@media (max-width: 40.0625em) {
+  .cypmd-search__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .cypmd-search__button {
+    align-self: flex-start;
+  }
+}
+
 /* Content-page breadcrumbs sit tight against the phase banner. main-wrapper padding-top is
    pinned near-zero because the govuk-frontend default reserves 40px above the breadcrumb — no
    amount of breadcrumb margin can undo a parent's padding. Uses :has() (Chrome 105+, Firefox
@@ -1751,4 +1766,108 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 .govuk-body figure em {
   color: #505a5f;
   font-size: 1rem;
+}
+
+/* Back-to-top link, GDS design-guidance pattern (design-system.service.gov.uk). Sticky
+   positioning tracks the viewport bottom while the container is in its parent flow and
+   RELEASES at the natural end of the parent (so it stops just above the footer instead
+   of overlapping it). The link renders as an opaque white pill on every viewport — the
+   original vanilla-GDS chromeless treatment assumed the link sat in an empty gutter,
+   which turned out not to be true on layouts with a left sidebar (wiki pages, admin
+   pages) or on any narrow viewport. Pill everywhere means the button reads as a button
+   and the text underneath doesn't bleed through, regardless of what's behind it.
+
+   Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
+   has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
+   default state below. Until the reader scrolls past ~100 px, the link is opacity: 0 +
+   visibility: hidden. Past that threshold the module adds .is-visible on the container
+   and CSS transitions it in. Without JS neither the marker nor the .is-visible class
+   is ever set, so the link stays visible as a graceful accessibility fallback. */
+.app-back-to-top {
+  position: sticky;
+  bottom: 50px;
+  margin: 30px 0 0;
+  z-index: 20;
+  pointer-events: auto;
+}
+.app-back-to-top__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* Opaque pill so the link stays readable when its sticky container is over article
+     body, sidebar navigation, or dense admin content. See the section header for the
+     rationale. Border matches the GDS default link colour so the pill reads as an
+     actionable control, not chrome. */
+  background: #ffffff;
+  padding: 8px 15px;
+  border: 1px solid #b1b4b6;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(11, 12, 12, 0.15);
+}
+.app-back-to-top__icon {
+  flex: 0 0 auto;
+}
+
+[data-back-to-top-init="true"] .app-back-to-top {
+  opacity: 0;
+  visibility: hidden;
+  /* Collapse layout while hidden so the 30px margin-top doesn't leave a phantom gap
+     above the footer on short pages where sticky positioning never engages.
+     Careful: position: sticky (on the base class above) is only well-defined for a
+     non-zero-height element. Here sticky never engages while the container is
+     collapsed, because scroll-past-the-fold immediately flips .is-visible which
+     restores height: auto. If a future edit changes .is-visible to a transform or
+     opacity-only reveal without restoring height, Safari's sticky layout invariants
+     may keep sticky disengaged — restore the height in that path first. */
+  margin: 0;
+  height: 0;
+  overflow: hidden;
+  /* Fade-out: hold visibility on until after the opacity animation completes so the link
+     doesn't pop out of the tab order mid-fade. */
+  transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
+}
+[data-back-to-top-init="true"] .app-back-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  /* Restore the natural spacing when the link is revealed. */
+  margin: 30px 0 0;
+  height: auto;
+  /* Fade-in: flip visibility on immediately so the fade shows from the start. */
+  transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
+}
+
+/* Respect the user's motion preference — instant reveal, no fade. */
+@media (prefers-reduced-motion: reduce) {
+  [data-back-to-top-init="true"] .app-back-to-top,
+  [data-back-to-top-init="true"] .app-back-to-top.is-visible {
+    transition: none;
+  }
+}
+
+/* Mobile-only right-align. On tablet+ the link's natural inline-flex position sits
+   flush left inside its full-width block container, matching the GDS example and
+   the DfE service patterns. On mobile the article body is the whole viewport and
+   prose paragraphs typically wrap short of the right edge — a right-aligned pill
+   there obscures less of the body copy than a bottom-left one would. */
+@media (max-width: 40.0625em) {
+  .app-back-to-top {
+    text-align: right;
+  }
+}
+
+/* Admin surfaces always right-align the pill inside the main content column.
+   The admin layout is a flex row (admin-rail | admin-main), so a left-aligned
+   pill inside .admin-main visually sits in the MIDDLE of the page — right at
+   the seam between the nav rail and the content column. Right-aligning inside
+   .admin-main puts the pill flush to the right edge of the content column,
+   which reads as a corner rather than a mid-page floater. Stays stable
+   regardless of whether the admin-nav-collapse button is expanded or collapsed. */
+.admin-main .app-back-to-top {
+  text-align: right;
+}
+
+@media print {
+  .app-back-to-top {
+    display: none;
+  }
 }

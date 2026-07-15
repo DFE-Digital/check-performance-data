@@ -59,37 +59,3 @@ public class WindowEditItem
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
 }
-
-public class WindowTitleEditItem
-{
-    public Guid WindowId { get; init; }
-    [Required(ErrorMessage = "Title can not be empty"), MaxLength(200, ErrorMessage = "Title must be 200 characters or less")]
-    public string Title { get; init; }
-}
-
-public class WindowDateEditItem
-{
-    public Guid WindowId { get; init; }
-    [Required(ErrorMessage = "Date can not be empty")]
-    public DateTime DateValue { get; init; }
-
-    public string PostUrl { get; init; } = string.Empty;
-}
-
-public class WindowTypeItem
-{
-    public Guid WindowId { get; init; }
-
-    public IEnumerable<CheckingWindowType> Types { get; set; } = [];
-    public CheckingWindowType? WindowType { get; set; }    
-    public string PostUrl { get; init; } = string.Empty;
-}
-
-public class KeyStageItem
-{
-    public Guid WindowId { get; init; }
-    public IEnumerable<KeyStages> KeyStages { get; set; } = [];
-    public KeyStages? KeyStage { get; set; }    
-    public string PostUrl { get; init; } = string.Empty;   
-}
-

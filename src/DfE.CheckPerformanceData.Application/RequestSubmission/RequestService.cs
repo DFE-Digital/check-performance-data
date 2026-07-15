@@ -132,7 +132,7 @@ public sealed class RequestService(
         {
             await requestRepository.DeleteAsync(windowId, urn, referenceNumber);
             await requestStateBlobClient.DeleteAsync(windowId, referenceNumber);
-            return new RequestDeletionResult(WasHardDeleted: true, pupilName);
+            return new RequestDeletionResult(WasHardDeleted: true, pupilName, row.RequestType);
         }
 
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
@@ -153,7 +153,7 @@ public sealed class RequestService(
             logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row?.RequestType , referenceNumber);
         }
 
-        return new RequestDeletionResult(WasHardDeleted: false, pupilName);
+        return new RequestDeletionResult(WasHardDeleted: false, pupilName, row?.RequestType);
     }
 
     private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)

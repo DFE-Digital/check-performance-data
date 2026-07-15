@@ -212,7 +212,7 @@ public class StartDateControllerTests
     }
 
     private static StartDateController BuildController(IWindowService windowService, HttpContext httpContext) =>
-        new(Substitute.For<ILogger<StartDateController>>(), windowService)
+        new(windowService)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };

@@ -49,7 +49,7 @@ public sealed class DevPipelinePresetRoutingTests
         {
             var queueService = new PostgresQueueService(context);
             var runner = new DevPipelineRunner(context, queueService);
-            var result = await runner.SubmitAsync(outcome, CancellationToken.None);
+            var result = await runner.SubmitAsync(outcome, null, null, CancellationToken.None);
             reference = result.Reference;
 
             // The preset must advertise the decision we expect, or the demo lies to the operator.

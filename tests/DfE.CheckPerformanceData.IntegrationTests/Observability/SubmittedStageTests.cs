@@ -43,7 +43,7 @@ public sealed class SubmittedStageTests
 
         var controller = new DevPipelineController(configuration, context, queueService, submittedMetrics: recorder);
 
-        var result = await controller.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await controller.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         // The action returns the generated reference; the Submitted metric must carry it.
         var json = Assert.IsType<JsonResult>(result);

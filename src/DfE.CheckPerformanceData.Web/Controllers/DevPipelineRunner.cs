@@ -38,19 +38,22 @@ public sealed class DevPipelineRunner
     // Creates one synthetic ChangeRequest for the resolved preset and enqueues its RequestDocument
     // for the rules consumer, recording the journey's first (Submitted) metric. Returns the minted
     // reference and the preset's expected outcome.
-    public async Task<DriveResult> SubmitAsync(string? outcome, CancellationToken cancellationToken)
+    public async Task<DriveResult> SubmitAsync(string? outcome, Guid? windowId, long? urn, CancellationToken cancellationToken)
     {
         var preset = OutcomePresets.Resolve(outcome);
         var reference = $"DEV-{Guid.NewGuid():N}"[..16];
         var changeRequestId = Guid.NewGuid();
+        var resolvedWindowId = windowId ?? DevWindowId;
+        var resolvedUrn = urn ?? 123456;
 
-        await EnsureCheckingWindowAsync(cancellationToken);
+        if (windowId is null)
+            await EnsureCheckingWindowAsync(cancellationToken);
 
         _dbContext.ChangeRequests.Add(new ChangeRequest
         {
             Id = changeRequestId,
-            WindowId = DevWindowId,
-            OrganisationUrn = 123456,
+            WindowId = resolvedWindowId,
+            OrganisationUrn = resolvedUrn,
             PupilUpn = "UPN1",
             PupilFirstname = "Bob",
             PupilSurname = "Smith",
@@ -66,7 +69,7 @@ public sealed class DevPipelineRunner
 
         // The queue stores a string payload verbatim (it only JSON-serialises non-strings), so the
         // pre-built RequestDocument JSON reaches the consumer exactly as shaped here.
-        var messageBody = BuildMessageJson(reference, preset, changeRequestId);
+        var messageBody = BuildMessageJson(reference, preset, changeRequestId, resolvedWindowId, resolvedUrn);
         var messageId = await _queueService.EnqueueAsync(
             QueueOptions.RulesEngineQueue, messageBody, cancellationToken);
 
@@ -101,21 +104,21 @@ public sealed class DevPipelineRunner
 
     // Builds the same queue-shaped RequestDocument the rules consumer expects. The Answers array
     // drives the rule evaluation, so the preset's answers determine the outcome.
-    private static string BuildMessageJson(string reference, OutcomePreset preset, Guid changeRequestId)
+    private static string BuildMessageJson(string reference, OutcomePreset preset, Guid changeRequestId, Guid windowId, long urn)
     {
         var answersJson = string.Join(",\n      ", preset.Answers.Select(a =>
             $"{{ \"QuestionId\": \"{a.QuestionId}\", \"QuestionTitle\": \"{a.QuestionId}\", \"Type\": \"text\", \"Value\": \"{a.Value}\" }}"));
 
-        var windowId = DevWindowId.ToString();
+        var windowIdStr = windowId.ToString();
         var submittedAt = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
 
         return $$"""
             {
               "ChangeRequestId": "{{changeRequestId}}",
-              "CheckingWindowId": "{{windowId}}",
+              "CheckingWindowId": "{{windowIdStr}}",
               "CheckingWindowType": "{{preset.CheckingWindowType}}",
               "RequestTypeCode": "{{preset.WhatToChange}}",
-              "School": { "Urn": "123456", "Name": "Dev Harness School" },
+              "School": { "Urn": "{{urn}}", "Name": "Dev Harness School" },
               "SubmittedBy": { "UserId": "dev", "DisplayName": "Dev Harness" },
               "Pupil": { "Id": "p1", "CypmdId": "c1", "Firstname": "Bob", "Surname": "Smith", "DateOfBirth": "01/01/2010", "Sex": "M", "Age": {{preset.PupilAge}}, "Upn": "UPN1", "Pincl": {{preset.Pincl}} },
               "Answers": [

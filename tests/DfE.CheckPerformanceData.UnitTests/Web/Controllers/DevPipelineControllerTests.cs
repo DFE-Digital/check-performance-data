@@ -31,7 +31,7 @@ public sealed class DevPipelineControllerTests
     {
         var sut = CreateSut(toolsEnabled: false);
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _queueService.DidNotReceive().EnqueueAsync(

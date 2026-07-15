@@ -37,7 +37,7 @@ public sealed class DevToolsGatingTests
     {
         var sut = CreatePipeline(Config(toolsEnabled: false));
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _queueService.DidNotReceive().EnqueueAsync(
@@ -49,7 +49,7 @@ public sealed class DevToolsGatingTests
     {
         var sut = CreatePipeline(Config(toolsEnabled: null));
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }

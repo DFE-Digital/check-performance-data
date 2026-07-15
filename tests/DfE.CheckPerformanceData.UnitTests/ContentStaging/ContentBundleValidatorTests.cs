@@ -181,24 +181,52 @@ public sealed class ContentBundleValidatorTests
     // ── Per-item size caps ────────────────────────────────────────────────────
 
     [Fact]
-    public void PageVersionContent_OverCap_FailsWithCode()
+    public void WikiPageVersion_OverCap_FailsWithCode()
     {
         var page = Page(type: "wiki");
         page.Versions.Add(new PageNodeVersionBundleItem
         {
-            Content = new string('a', ContentBundleValidator.MaxPageVersionContentBytes + 1),
+            Content = new string('a', ContentBundleValidator.MaxWikiPageVersionBytes + 1),
         });
         var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
         Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
     }
 
     [Fact]
-    public void PageVersionContent_AtCap_ProducesNoIssue()
+    public void WikiPageVersion_AtCap_ProducesNoIssue()
     {
         var page = Page(type: "wiki");
         page.Versions.Add(new PageNodeVersionBundleItem
         {
-            Content = new string('a', ContentBundleValidator.MaxPageVersionContentBytes),
+            Content = new string('a', ContentBundleValidator.MaxWikiPageVersionBytes),
+        });
+        var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
+        Assert.DoesNotContain(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE");
+    }
+
+    [Fact]
+    public void ContentPageVersion_OverCap_FailsWithCode()
+    {
+        var page = Page(type: "content");
+        page.Versions.Add(new PageNodeVersionBundleItem
+        {
+            Content = new string('a', ContentBundleValidator.MaxContentPageVersionBytes + 1),
+        });
+        var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
+        Assert.Contains(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE" && i.Severity == ValidationSeverity.Fatal);
+    }
+
+    // Content pages carry widget-tree JSON with base64-embedded images and are
+    // allowed to be well above the wiki cap — this is the "Editing with widgets"
+    // scenario at ~1.04 MB that the old shared cap wrongly rejected.
+    [Fact]
+    public void ContentPageVersion_AboveWikiCap_ButBelowContentCap_ProducesNoIssue()
+    {
+        var page = Page(type: "content");
+        page.Versions.Add(new PageNodeVersionBundleItem
+        {
+            // Halfway between the two caps — comfortably above the wiki cap, below the content cap.
+            Content = new string('a', ContentBundleValidator.MaxWikiPageVersionBytes * 2),
         });
         var issues = ContentBundleValidator.Validate(Bundle(new List<PageNodeBundleItem> { page }));
         Assert.DoesNotContain(issues, i => i.Code == "PAGE_VERSION_TOO_LARGE");

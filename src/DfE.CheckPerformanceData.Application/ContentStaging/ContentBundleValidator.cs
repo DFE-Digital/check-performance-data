@@ -17,12 +17,27 @@ public static partial class ContentBundleValidator
     public const int MaxPageNodes = 5000;
     public const int MaxContentBlocks = 5000;
 
-    // Per-item size caps in characters. Wiki-page version bodies and Content-typed block
-    // values pass through the HTML sanitiser + render pipeline; per-item CPU cost scales
-    // roughly linearly with input size, so a small number of huge items evades the
-    // collection-count caps and slows every render. Sized well above realistic authored
-    // content — the DfE service authoring guidance targets < 20 KB per wiki page.
-    public const int MaxPageVersionContentBytes = 1_048_576;   // 1 MB per wiki version
+    // Per-item size caps in characters. The two page-body caps are split by PageType
+    // because the cost model is different:
+    //
+    //   * wiki pages carry raw HTML that passes through Ganss.Xss on import AND on
+    //     every render — sanitiser cost scales roughly linearly with input size, so
+    //     the cap is tight (1 MB is generous compared to the DfE authoring guidance
+    //     target of ~20 KB, but bounded enough that a huge page can't slow reader
+    //     traffic).
+    //   * content pages carry a widget-tree JSON that is NOT sanitised whole at
+    //     import time (individual richtext widget bodies are sanitised at render).
+    //     Embedded images as base64 data URIs are a routine authoring pattern (the
+    //     "Editing with widgets" help page is ~1.04 MB from two embedded PNGs); an
+    //     8 MB cap covers realistic embed-heavy content and still bounds worst-case
+    //     storage cost per page well below the 50 MB per-bundle upload cap.
+    //
+    // Content blocks always carry HTML that renders through the sanitiser (Content
+    // block type only — Title is plain text), so their cap tracks the wiki page
+    // rationale at a smaller size (blocks are typically banners, footers, short
+    // callouts — a couple of paragraphs at most).
+    public const int MaxWikiPageVersionBytes = 1_048_576;      // 1 MB per wiki version
+    public const int MaxContentPageVersionBytes = 8_388_608;   // 8 MB per content-page version
     public const int MaxContentBlockValueBytes = 262_144;      // 256 KB per Content block
 
     private static readonly HashSet<string> ValidPageTypes = new(StringComparer.Ordinal)
@@ -113,14 +128,28 @@ public static partial class ContentBundleValidator
                 $"Page '{label}' uses reserved Segment '{page.Segment}'."));
         }
 
-        foreach (var version in page.Versions)
+        // Wiki pages carry HTML that hits the sanitiser + render pipeline; content pages
+        // carry widget-tree JSON that can legitimately include base64-encoded embedded
+        // images. Apply the right cap per PageType and skip the check for folders
+        // (which don't carry version bodies anyway).
+        var perVersionCap = page.PageType switch
         {
-            if (version.Content.Length > MaxPageVersionContentBytes)
+            "wiki"    => MaxWikiPageVersionBytes,
+            "content" => MaxContentPageVersionBytes,
+            _         => (int?)null, // folder or unknown-type: rely on PAGE_TYPE_UNKNOWN + no body check
+        };
+
+        if (perVersionCap is int cap)
+        {
+            foreach (var version in page.Versions)
             {
-                issues.Add(new ValidationIssue(
-                    ValidationSeverity.Fatal,
-                    "PAGE_VERSION_TOO_LARGE",
-                    $"Page '{label}' has a version with Content {version.Content.Length} chars; the limit is {MaxPageVersionContentBytes}."));
+                if (version.Content.Length > cap)
+                {
+                    issues.Add(new ValidationIssue(
+                        ValidationSeverity.Fatal,
+                        "PAGE_VERSION_TOO_LARGE",
+                        $"Page '{label}' has a version with Content {version.Content.Length} chars; the limit for {page.PageType} pages is {cap}."));
+                }
             }
         }
     }

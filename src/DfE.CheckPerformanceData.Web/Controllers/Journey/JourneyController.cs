@@ -18,7 +18,7 @@ public sealed class JourneyController(
     IFileStorageService fileStorageService,
     IRequestService requestService,
     ICheckYourPupilDataService pupilDataService,
-    JourneyViewModelBuilder viewModelBuilder,
+    IJourneyViewModelBuilder viewModelBuilder,
     IAnalyticsService analytics,
     ICurrentUserService currentUserService) : Controller
 {
@@ -513,7 +513,8 @@ public sealed class JourneyController(
         if (nextExpected is not null)
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
-        return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config));
+        var fromBulk = HttpContext.Session.IsBulkEditMode(windowId);
+        return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config, fromBulk: fromBulk));
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]

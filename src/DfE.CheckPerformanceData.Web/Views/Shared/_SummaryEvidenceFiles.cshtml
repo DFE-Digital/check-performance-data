@@ -1,0 +1,57 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model SummaryViewModel
+@{
+    // Change/remove actions are shown by default (the journey summary); the bulk cards pass false.
+    var showChangeLinks = ViewData["ShowChangeLinks"] as bool? ?? true;
+}
+
+@if (Model.FileRows.Count > 0)
+{
+    <h2 class="govuk-heading-m">Summary of uploaded documents</h2>
+    @if (Model.MaxEvidencePages > 0)
+    {
+        <p class="govuk-body">@Model.TotalPagesUsed @(Model.TotalPagesUsed == 1 ? "page" : "pages") of the @Model.MaxEvidencePages page evidence allowance used</p>
+    }
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">File name</th>
+                <th scope="col" class="govuk-table__header">File size</th>
+                <th scope="col" class="govuk-table__header">Type</th>
+                @if (showChangeLinks)
+                {
+                    <th scope="col" class="govuk-table__header">Action</th>
+                }
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var file in Model.FileRows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link"
+                           asp-action="DownloadEvidence" asp-controller="Journey"
+                           asp-route-windowId="@Model.WindowId"
+                           asp-route-storedFileName="@file.StoredFileName">
+                            @file.OriginalFileName
+                        </a>
+                    </td>
+                    <td class="govuk-table__cell">@file.FormattedFileSize</td>
+                    <td class="govuk-table__cell">@file.FileType</td>
+                    @if (showChangeLinks)
+                    {
+                        <td class="govuk-table__cell">
+                            <a class="govuk-link"
+                               asp-action="Page" asp-controller="Journey"
+                               asp-route-windowId="@Model.WindowId"
+                               asp-route-pageId="@file.Page.Id"
+                               asp-route-fromSummary="true">
+                                Change<span class="govuk-visually-hidden"> @file.OriginalFileName</span>
+                            </a>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}

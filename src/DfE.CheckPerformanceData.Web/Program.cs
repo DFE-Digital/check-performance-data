@@ -192,7 +192,7 @@ try
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
-    builder.Services.AddScoped<JourneyViewModelBuilder>();
+    builder.Services.AddScoped<IJourneyViewModelBuilder, JourneyViewModelBuilder>();
 
     builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
     builder.Services.AddScoped<IQueueService, PostgresQueueService>();

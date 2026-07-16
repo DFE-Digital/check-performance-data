@@ -39,4 +39,19 @@ public static class SessionExtensions
 
     public static void ClearBulkSelection(this ISession session, Guid windowId) =>
         session.Remove(BulkSelectionKey(windowId));
+
+    private static string BulkEditModeKey(Guid windowId) => $"bulk_edit_{windowId}";
+
+    /// <summary>
+    /// Marks the current journey as having been opened from the bulk review page, so the summary
+    /// links back to that page and hides its own submit/save actions (the batch is submitted as a whole).
+    /// </summary>
+    public static void SetBulkEditMode(this ISession session, Guid windowId) =>
+        session.SetString(BulkEditModeKey(windowId), "1");
+
+    public static bool IsBulkEditMode(this ISession session, Guid windowId) =>
+        session.GetString(BulkEditModeKey(windowId)) is not null;
+
+    public static void ClearBulkEditMode(this ISession session, Guid windowId) =>
+        session.Remove(BulkEditModeKey(windowId));
 }

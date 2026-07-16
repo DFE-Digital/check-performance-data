@@ -1,7 +1,9 @@
 using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +15,9 @@ public sealed class AmendmentRequestsController(
     IEditAdviceService adviceService,
     IAnalyticsService analytics,
     IBulkSubmissionService bulkService,
-    ICheckYourPupilDataService checkYourPupilDataService) : Controller
+    ICheckYourPupilDataService checkYourPupilDataService,
+    IQuestionFlowService flowService,
+    IJourneyViewModelBuilder viewModelBuilder) : Controller
 {
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
 
@@ -21,6 +25,8 @@ public sealed class AmendmentRequestsController(
     {
         var result = await service.GetAmendmentRequestsAsync(windowId);
         var deadline = result.WindowEndDate;
+        // Re-check the boxes that were selected before going into Continue A/B (kept in session).
+        var selected = HttpContext.Session.GetBulkSelection(windowId).ToHashSet(StringComparer.Ordinal);
         return new AmendmentRequestsViewModel
         {
             WindowId = windowId,
@@ -32,7 +38,8 @@ public sealed class AmendmentRequestsController(
                 RequestType = r.RequestType,
                 RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
-                ReferenceNumber = r.ReferenceNumber
+                ReferenceNumber = r.ReferenceNumber,
+                IsSelected = selected.Contains(r.ReferenceNumber)
             }).ToList(),
             SubmittedRows = result.SubmittedRows.Select(r => new SubmittedRequestRowViewModel
             {
@@ -69,6 +76,9 @@ public sealed class AmendmentRequestsController(
     [Route("/{windowId}/AmendmentRequests/bulk")]
     public async Task<IActionResult> BulkReviewPage(Guid windowId)
     {
+        // Returning to the batch review clears any per-request bulk-edit context set by Edit.
+        HttpContext.Session.ClearBulkEditMode(windowId);
+
         var selected = HttpContext.Session.GetBulkSelection(windowId);
         if (selected.Count == 0)
             return RedirectToAction(nameof(Index), new { windowId });
@@ -83,6 +93,73 @@ public sealed class AmendmentRequestsController(
             Submittable = review.Submittable.Select(ToItemVm).ToList(),
             Duplicates = review.Duplicates.Select(ToItemVm).ToList()
         });
+    }
+
+    // "Continue B": a parallel of BulkReview that renders each submittable request as a full
+    // journey-style summary (no change links) instead of a one-line row. Same selection, same
+    // duplicate classification, same submit target — only the presentation differs.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Route("/{windowId}/AmendmentRequests/bulk-detailed")]
+    public async Task<IActionResult> BulkReviewDetailed(Guid windowId, string[] selectedReferences)
+    {
+        if (selectedReferences is null || selectedReferences.Length == 0)
+        {
+            ModelState.AddModelError("selectedReferences", "Select the pupil(s) you want to submit");
+            return View("Index", await BuildIndexViewModelAsync(windowId));
+        }
+
+        HttpContext.Session.SetBulkSelection(windowId, selectedReferences);
+        return RedirectToAction(nameof(BulkReviewDetailedPage), new { windowId });
+    }
+
+    [HttpGet]
+    [Route("/{windowId}/AmendmentRequests/bulk-detailed")]
+    public async Task<IActionResult> BulkReviewDetailedPage(Guid windowId)
+    {
+        // Returning to the batch review clears any per-request bulk-edit context set by Edit.
+        HttpContext.Session.ClearBulkEditMode(windowId);
+
+        var selected = HttpContext.Session.GetBulkSelection(windowId);
+        if (selected.Count == 0)
+            return RedirectToAction(nameof(Index), new { windowId });
+
+        var review = await bulkService.BuildReviewAsync(windowId, selected);
+        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
+
+        var submittable = new List<BulkDetailedItemViewModel>();
+        foreach (var item in review.Submittable)
+        {
+            var summary = await BuildRequestSummaryAsync(windowId, item.ReferenceNumber);
+            if (summary is not null)
+                submittable.Add(new BulkDetailedItemViewModel
+                {
+                    ReferenceNumber = item.ReferenceNumber,
+                    Summary = summary
+                });
+        }
+
+        return View("BulkReviewDetailed", new BulkReviewDetailedViewModel
+        {
+            WindowId = windowId,
+            WindowTitle = window.Title,
+            Duplicates = review.Duplicates.Select(ToItemVm).ToList(),
+            Submittable = submittable
+        });
+    }
+
+    // Resumes a draft and projects its full journey summary. Returns null when the draft can no
+    // longer be resolved (missing/malformed) so the caller can skip it rather than fail the page.
+    private async Task<SummaryViewModel?> BuildRequestSummaryAsync(Guid windowId, string referenceNumber)
+    {
+        var journey = await requestService.ResumeDraftAsync(windowId, referenceNumber);
+        if (journey?.SelectedWhatToChange is null || journey.CheckingWindow is null
+            || journey.QuestionHistory.Count == 0)
+            return null;
+
+        var config = await flowService.GetConfigAsync(
+            journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+        return config is null ? null : viewModelBuilder.BuildSummaryVm(windowId, journey, config);
     }
 
     [HttpPost]
@@ -143,15 +220,26 @@ public sealed class AmendmentRequestsController(
             CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
         });
 
+        // From the bulk review page, skip the edit-advice interstitial and go straight to the
+        // journey summary (session state is now primed for it). The bulk-edit flag tells the
+        // summary to link back to the review page and hide its own submit/save actions.
+        if (fromBulk)
+        {
+            HttpContext.Session.SetBulkEditMode(windowId);
+            return RedirectToAction("Summary", "Journey", new { windowId });
+        }
+
+        // A normal edit clears any stale bulk-edit context so the summary shows its actions.
+        HttpContext.Session.ClearBulkEditMode(windowId);
+
         var advice = await adviceService.BuildAsync(windowId, referenceNumber, journey);
         if (advice is null)
             return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
 
-        // These mirror the [Route] templates on Index / BulkReviewPage (kept as literals to avoid
-        // IUrlHelper in unit tests). If you change those routes, update these too.
-        var backUrl = fromBulk
-            ? $"/{windowId}/AmendmentRequests/bulk"
-            : $"/{windowId}/AmendmentRequests";
+        // Mirrors the [Route] template on Index (kept as a literal to avoid IUrlHelper in unit
+        // tests). If you change that route, update this too. Reached only for non-bulk edits —
+        // the bulk path returns to the summary above.
+        var backUrl = $"/{windowId}/AmendmentRequests";
 
         return View("EditAdvice", new EditAdviceViewModel
         {

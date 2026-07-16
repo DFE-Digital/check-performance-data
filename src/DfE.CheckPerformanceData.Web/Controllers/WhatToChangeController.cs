@@ -42,6 +42,8 @@ public sealed class WhatToChangeController(
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
         });
+        // A freshly started journey is never a bulk edit.
+        HttpContext.Session.ClearBulkEditMode(windowId);
 
         await analytics.TrackSafeAsync(new ChangeTypeSelectedEvent
         {

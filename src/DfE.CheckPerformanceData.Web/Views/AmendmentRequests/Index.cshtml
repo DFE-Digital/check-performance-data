@@ -94,7 +94,8 @@ else
                                 <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
                                     <div class="govuk-checkboxes__item">
                                         <input class="govuk-checkboxes__input" id="select-@row.ReferenceNumber"
-                                               name="selectedReferences" type="checkbox" value="@row.ReferenceNumber">
+                                               name="selectedReferences" type="checkbox" value="@row.ReferenceNumber"
+                                               @(row.IsSelected ? "checked" : "")>
                                         <label class="govuk-label govuk-checkboxes__label" for="select-@row.ReferenceNumber">
                                             <span class="govuk-visually-hidden">Select @row.PupilName</span>
                                         </label>
@@ -119,7 +120,11 @@ else
             </tbody>
             </table>
         </div>
-        <button type="submit" class="govuk-button" data-module="govuk-button">Continue</button>
+        <div class="govuk-button-group">
+            <button type="submit" class="govuk-button" data-module="govuk-button">Continue A</button>
+            <button type="submit" class="govuk-button" data-module="govuk-button"
+                    formaction="@Url.Action("BulkReviewDetailed", "AmendmentRequests", new { windowId = Model.WindowId })">Continue B</button>
+        </div>
     </form>
 }
 

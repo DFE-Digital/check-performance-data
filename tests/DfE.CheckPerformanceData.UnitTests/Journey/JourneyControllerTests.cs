@@ -26,7 +26,6 @@ public class JourneyControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
-    private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
@@ -78,7 +77,6 @@ public class JourneyControllerTests
 
     public JourneyControllerTests()
     {
-        _env.EnvironmentName.Returns("Production");
 
         _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Config);
         _flowService.GetPage(Config, "page-1").Returns(Config.Pages[0]);
@@ -93,7 +91,7 @@ public class JourneyControllerTests
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
-            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)

@@ -1,0 +1,65 @@
+@using DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model BulkReviewDetailedViewModel
+
+@{
+    ViewBag.Title = "Review requests to submit";
+    Layout = "_Layout";
+    // Passed to the evidence-files partial so it renders read-only (no change/remove actions).
+    var noChangeLinks = new ViewDataDictionary(ViewData) { ["ShowChangeLinks"] = false };
+}
+
+<a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
+
+<span class="govuk-caption-l">Amendment requests</span>
+<h1 class="govuk-heading-xl">Review requests to submit</h1>
+
+<partial name="_BulkDuplicatesWarning" model="Model.Duplicates" />
+
+@if (Model.Submittable.Count == 0)
+{
+    <div class="govuk-inset-text">
+        <p class="govuk-body">None of the selected requests can be submitted. Resolve the duplicates above and try again.</p>
+    </div>
+    <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Return to requests</a>
+}
+else
+{
+    <h2 class="govuk-heading-m">Requests to submit</h2>
+    @foreach (var item in Model.Submittable)
+    {
+        @* The summary-list rows are inline (not from _SummaryDetails): the GOV.UK card/list tag
+           helpers pass context via TagHelperContext.Items, which does not cross a partial boundary.
+           The row data is shared via item.Summary.Lines; the change links are omitted here. *@
+        <govuk-summary-card>
+            <govuk-summary-card-title>Check details for the @item.Summary.WhatToChangeNoun of @item.Summary.PupilName</govuk-summary-card-title>
+            <govuk-summary-card-actions>
+                <govuk-summary-card-action href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = item.ReferenceNumber, fromBulk = true })">
+                    Edit
+                </govuk-summary-card-action>
+            </govuk-summary-card-actions>
+            <govuk-summary-list>
+                @foreach (var line in item.Summary.Lines)
+                {
+                    <govuk-summary-list-row>
+                        <govuk-summary-list-row-key>@line.Key</govuk-summary-list-row-key>
+                        <govuk-summary-list-row-value>@line.Value</govuk-summary-list-row-value>
+                    </govuk-summary-list-row>
+                }
+            </govuk-summary-list>
+        </govuk-summary-card>
+        @await Html.PartialAsync("_SummaryEvidenceFiles", item.Summary, noChangeLinks)
+    }
+
+    <form method="post" action="@Url.Action("BulkSubmit", "AmendmentRequests", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        @foreach (var item in Model.Submittable)
+        {
+            <input type="hidden" name="references" value="@item.ReferenceNumber" />
+        }
+        <div class="govuk-button-group">
+            <button type="submit" class="govuk-button" data-module="govuk-button">Submit requests</button>
+            <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Save and continue later</a>
+        </div>
+    </form>
+}

@@ -1,0 +1,25 @@
+@using DfE.CheckPerformanceData.Web.Controllers.Journey
+@model SummaryViewModel
+@{
+    // Change links are shown by default (the journey summary); the bulk detailed cards pass false.
+    var showChangeLinks = ViewData["ShowChangeLinks"] as bool? ?? true;
+}
+
+<govuk-summary-list>
+    @foreach (var line in Model.Lines)
+    {
+        <govuk-summary-list-row>
+            <govuk-summary-list-row-key>@line.Key</govuk-summary-list-row-key>
+            <govuk-summary-list-row-value>@line.Value</govuk-summary-list-row-value>
+            @if (showChangeLinks && line.HasChange)
+            {
+                var href = line.IsPageChange
+                    ? Url.Action("Page", "Journey", new { windowId = Model.WindowId, pageId = line.ChangePageId, fromSummary = true })
+                    : Url.Action("PupilSearchPage", "Journey", new { windowId = Model.WindowId, pageId = line.ChangePageId });
+                <govuk-summary-list-row-actions>
+                    <govuk-summary-list-row-action href="@href" visually-hidden-text="@line.ChangeHiddenText">Change</govuk-summary-list-row-action>
+                </govuk-summary-list-row-actions>
+            }
+        </govuk-summary-list-row>
+    }
+</govuk-summary-list>

@@ -225,7 +225,28 @@
                                         Unpublished pages are always hidden from menus.
                                     </div>
                                 </div>
+                                <div class="govuk-checkboxes__item">
+                                    <input class="govuk-checkboxes__input" id="cpb-appearinsearch" type="checkbox"
+                                           name="appearInSearch" value="true" aria-describedby="cpb-appearinsearch-hint"
+                                           @(Model.AppearInSearch ? "checked" : null) />
+                                    <input type="hidden" name="appearInSearch" value="false" />
+                                    <label class="govuk-label govuk-checkboxes__label" for="cpb-appearinsearch">Appear in search</label>
+                                    <div id="cpb-appearinsearch-hint" class="govuk-hint govuk-checkboxes__hint">
+                                        Uncheck to hide this page from help-search results. The page URL
+                                        still works and direct links / nav still find it.
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-keywords">Search keywords</label>
+                            <div id="cpb-keywords-hint" class="govuk-hint">
+                                Extra terms this page should surface for in help-search. Whitespace-separated,
+                                weighted higher than the title. Use to catch synonyms (e.g. "helpdesk phone email"
+                                on a Contact page).
+                            </div>
+                            <input class="govuk-input" id="cpb-keywords" name="keywords"
+                                   value="@Model.Keywords" aria-describedby="cpb-keywords-hint" />
                         </div>
                         <div class="govuk-button-group">
                             <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">

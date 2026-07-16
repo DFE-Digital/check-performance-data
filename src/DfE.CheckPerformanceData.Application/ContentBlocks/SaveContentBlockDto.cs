@@ -6,4 +6,6 @@ public sealed class SaveContentBlockDto
     public string BlockType { get; init; } = string.Empty;
     public string Value { get; init; } = string.Empty;
     public string? OriginalValue { get; init; }
+    public bool AppearInSearch { get; init; } = true;
+    public string? Keywords { get; init; }
 }

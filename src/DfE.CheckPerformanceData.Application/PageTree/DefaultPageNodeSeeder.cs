@@ -31,7 +31,8 @@ public sealed class DefaultPageNodeSeeder(
                 await pageNodeRepository.CreateNodeForStagingAsync(
                     id, parentId: null, segment, path: segment,
                     title, subtitle: null, pageName: null,
-                    pageType: "content", sortOrder, userId: "system");
+                    pageType: "content", sortOrder,
+                    appearInSearch: true, keywords: null, userId: "system");
             }
             else if (existing.PageType == "folder")
             {
@@ -55,7 +56,8 @@ public sealed class DefaultPageNodeSeeder(
                 DefaultPageNodeRoots.HelpNotFoundId,
                 parentId: help.Id, segment: "not-found", path: "help/not-found",
                 title: "Page not found", subtitle: null, pageName: null,
-                pageType: "content", sortOrder: 0, userId: "system");
+                pageType: "content", sortOrder: 0,
+                appearInSearch: true, keywords: null, userId: "system");
 
             // Seed with a starter rich-text widget so authors have something to customise
             // rather than a blank canvas.

@@ -66,6 +66,7 @@ public sealed class SiteSearchService(
                 Title = r.Title,
                 Subtitle = r.Subtitle,
                 SnippetHtml = BuildSnippet(r.BodyPlainText, term, r.Title, r.Subtitle),
+                Rank = r.Rank,
             })
             .ToList();
     }

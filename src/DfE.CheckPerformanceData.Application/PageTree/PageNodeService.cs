@@ -96,6 +96,12 @@ public sealed class PageNodeService(IPageNodeRepository repository) : IPageNodeS
     public Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId) =>
         repository.SetShowInMenuAsync(nodeId, showInMenu, userId);
 
+    public Task SetAppearInSearchAsync(Guid nodeId, bool appearInSearch, string? userId) =>
+        repository.SetAppearInSearchAsync(nodeId, appearInSearch, userId);
+
+    public Task SetKeywordsAsync(Guid nodeId, string? keywords, string? userId) =>
+        repository.SetKeywordsAsync(nodeId, keywords, userId);
+
     public Task RestoreAsync(Guid nodeId, string? userId) => repository.RestoreAsync(nodeId, userId);
 
     public async Task<MoveNodeResult> MoveNodeAsync(

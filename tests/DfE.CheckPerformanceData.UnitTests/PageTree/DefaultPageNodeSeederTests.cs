@@ -35,7 +35,7 @@ public class DefaultPageNodeSeederTests
         repo.CreateNodeForStagingAsync(
                 Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
                 Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(),
-                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
             .Returns(ci => StubDto((string)ci[2], "content", (Guid)ci[0]));
 
         // Retype-upgrade path: after SetPageType flips to content, seeder checks versions and only
@@ -58,7 +58,7 @@ public class DefaultPageNodeSeederTests
             await repo.Received(1).CreateNodeForStagingAsync(
                 id, null, segment, segment, title,
                 Arg.Any<string?>(), Arg.Any<string?>(),
-                "content", Arg.Any<int>(), "system");
+                "content", Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), "system");
         }
     }
 
@@ -76,7 +76,7 @@ public class DefaultPageNodeSeederTests
         await repo.Received(1).CreateNodeForStagingAsync(
             expectedId, null, segment, segment, Arg.Any<string>(),
             Arg.Any<string?>(), Arg.Any<string?>(),
-            "content", Arg.Any<int>(), "system");
+            "content", Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), "system");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class DefaultPageNodeSeederTests
         await new DefaultPageNodeSeeder(svc, repo).SeedAsync();
 
         await repo.DidNotReceiveWithAnyArgs().CreateNodeForStagingAsync(
-            default, default, default!, default!, default!, default, default, default!, default, default);
+            default, default, default!, default!, default!, default, default, default!, default, default, default, default);
         await repo.DidNotReceiveWithAnyArgs().SetPageTypeAsync(default, default!, default);
     }
 
@@ -112,16 +112,16 @@ public class DefaultPageNodeSeederTests
 
         await repo.Received(1).CreateNodeForStagingAsync(
             supportId, null, "support", "support", Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), "system");
+            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), "system");
         await repo.Received(1).CreateNodeForStagingAsync(
             wikiId, null, "wiki", "wiki", Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), "system");
+            Arg.Any<string?>(), Arg.Any<string?>(), "content", Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), "system");
         await repo.DidNotReceive().CreateNodeForStagingAsync(
             helpId, Arg.Any<Guid?>(), "help", Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
         await repo.DidNotReceive().CreateNodeForStagingAsync(
             guidanceId, Arg.Any<Guid?>(), "guidance", Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class DefaultPageNodeSeederTests
         repo.CreateNodeForStagingAsync(
                 Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
                 Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(),
-                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>())
+                Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>())
             .Returns(ci => StubDto((string)ci[2], "content", (Guid)ci[0]));
         repo.GetVersionsAsync(supportId).Returns([]);
 

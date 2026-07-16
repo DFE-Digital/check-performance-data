@@ -213,6 +213,8 @@ public class PageNodeContentEditorTests
         public Task RestoreAsync(Guid nodeId, string? userId) => throw new NotSupportedException();
         public Task<MoveNodeResult> MoveNodeAsync(Guid nodeId, Guid? newParentId, int newSortOrder, string? userId) => throw new NotSupportedException();
         public Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId) => throw new NotSupportedException();
+        public Task SetAppearInSearchAsync(Guid nodeId, bool appearInSearch, string? userId) => throw new NotSupportedException();
+        public Task SetKeywordsAsync(Guid nodeId, string? keywords, string? userId) => throw new NotSupportedException();
         public Task MoveAsync(Guid nodeId, string direction) => throw new NotSupportedException();
         public Task<PageNodeDto?> CopyPageAsync(Guid sourceId, string? userId) => throw new NotSupportedException();
 

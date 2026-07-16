@@ -91,6 +91,8 @@
             <ul class="govuk-list govuk-!-margin-bottom-6">
                 @foreach (var r in Model.ContentResults)
                 {
+                    @* Debug: ts_rank score on ContentBlock.SearchVector (Keywords A + ValuePlainText B). *@
+                    @:<!-- rank: @r.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
                     <li class="govuk-!-margin-bottom-4">
                         <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                             <a class="govuk-link" href="@r.Url">@r.PageTitle</a>

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
@@ -23,17 +24,14 @@ public sealed class DevPipelineController(
     IConfiguration configuration,
     IPortalDbContext dbContext,
     IQueueService queueService,
+    IPupilDataBlobClient pupilBlob,
     IHostEnvironment? hostEnvironment = null,
     SubmittedMetricRecorder? submittedMetrics = null) : Controller
 {
-    // The surface is gated on the config flag AND a hard production guard: even if a
-    // production deploy leaves Dev:ToolsEnabled true, IsProduction short-circuits to 404.
     private bool IsAllowed =>
         configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
         && hostEnvironment?.IsProduction() != true;
 
-    // The Zendesk-styled preview additionally requires the fake Zendesk path to be active, so a
-    // captured outbox row is only ever rendered while no real Zendesk push is happening.
     private bool IsFakeZendesk => configuration.GetValue<bool>(SettingKeys.ZendeskUseFake);
 
     [HttpGet("dev/queues/submit-request")]
@@ -47,13 +45,16 @@ public sealed class DevPipelineController(
         string? pupilUpn = null,
         string? pupilFirstName = null,
         string? pupilSurname = null,
-        string? requestType = null)
+        string? requestType = null,
+        string? laestab = null,
+        string? userEmail = null,
+        Guid? userId = null)
     {
         if (!IsAllowed)
             return NotFound();
 
-        var runner = new DevPipelineRunner(dbContext, queueService, submittedMetrics);
-        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname, requestType);
+        var runner = new DevPipelineRunner(dbContext, queueService, pupilBlob, submittedMetrics);
+        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname, requestType, laestab, userEmail, userId);
 
         return Json(new
         {
@@ -80,11 +81,6 @@ public sealed class DevPipelineController(
         return View("Outbox", rows);
     }
 
-    // Renders one captured outbox row as a faithful Zendesk-styled simulation (subject,
-    // requester, priority/status badges, body, custom fields, tags, attachments) rather than
-    // raw JSON — a "what we'll send" artefact until real Zendesk is wired. Gated on
-    // Dev:ToolsEnabled AND Zendesk:UseFake so it is only reachable when the pipeline is faking
-    // Zendesk; it reaches no real Zendesk instance.
     [HttpGet("dev/zendesk/preview/{id:guid}")]
     public async Task<IActionResult> ZendeskPreview(Guid id, CancellationToken cancellationToken)
     {

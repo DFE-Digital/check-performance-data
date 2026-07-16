@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -17,20 +18,21 @@ public sealed class DevPipelineRunner
 {
     private readonly IPortalDbContext _dbContext;
     private readonly IQueueService _queueService;
+    private readonly IPupilDataBlobClient _pupilBlob;
     private readonly SubmittedMetricRecorder? _submittedMetrics;
 
     public DevPipelineRunner(
         IPortalDbContext dbContext,
         IQueueService queueService,
+        IPupilDataBlobClient pupilBlob,
         SubmittedMetricRecorder? submittedMetrics = null)
     {
         _dbContext = dbContext;
         _queueService = queueService;
+        _pupilBlob = pupilBlob;
         _submittedMetrics = submittedMetrics;
     }
 
-    // A stable dev checking window the synthetic requests hang off; upserted on demand so the
-    // ChangeRequest foreign key is always satisfied without manual seeding.
     private static readonly Guid DevWindowId = Guid.Parse("dddddddd-0000-0000-0000-000000000001");
 
     public sealed record DriveResult(string Reference, string PresetName, string ExpectedDecision);
@@ -41,6 +43,9 @@ public sealed class DevPipelineRunner
     // Pupil parameters are optional — when omitted the old hardcoded "Bob Smith"/"UPN1" values
     // are used and PupilId is left null (no conflict matching); supply them to target a real pupil
     // for conflict-detection testing.
+    // When pupilUpn is provided together with windowId and laestab, the pupil is looked up from
+    // blob storage so PupilId and name fields reflect the real record (overriding any explicit
+    // pupilId/pupilFirstName/pupilSurname values).
     public async Task<DriveResult> SubmitAsync(
         string? outcome,
         Guid? windowId,
@@ -50,17 +55,33 @@ public sealed class DevPipelineRunner
         string? pupilUpn = null,
         string? pupilFirstName = null,
         string? pupilSurname = null,
-        string? requestType = null)
+        string? requestType = null,
+        string? laestab = null,
+        string? userEmail = null,
+        Guid? userId = null)
     {
         var preset = OutcomePresets.Resolve(outcome);
         var reference = $"DEV-{Guid.NewGuid():N}"[..16];
         var changeRequestId = Guid.NewGuid();
         var resolvedWindowId = windowId ?? DevWindowId;
         var resolvedUrn = urn ?? 123456;
-        var resolvedPupilId = pupilId;
-        var resolvedPupilUpn = pupilUpn ?? "UPN1";
-        var resolvedPupilFirstname = pupilFirstName ?? "Bob";
-        var resolvedPupilSurname = pupilSurname ?? "Smith";
+
+        // Try to look up the real pupil from blob storage when we have enough context.
+        // This gives us the true PupilId (needed for conflict matching) and verified names.
+        PupilRecord? matchedPupil = null;
+        if (pupilUpn is not null && windowId is not null && laestab is not null)
+        {
+            var pupils = await _pupilBlob.GetPupilsAsync(resolvedWindowId, laestab);
+            matchedPupil = pupils?.FirstOrDefault(p =>
+                p.Upn.Equals(pupilUpn, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var resolvedPupilId = matchedPupil?.Id ?? pupilId;
+        var resolvedPupilUpn = matchedPupil?.Upn ?? pupilUpn ?? "UPN1";
+        var resolvedPupilFirstname = matchedPupil?.Firstname ?? pupilFirstName ?? "Bob";
+        var resolvedPupilSurname = matchedPupil?.Surname ?? pupilSurname ?? "Smith";
+        var resolvedSubmittedById = userId ?? Guid.NewGuid();
+        var resolvedUserEmail = userEmail ?? "dev.harness@education.gov.uk";
 
         if (windowId is null)
             await EnsureCheckingWindowAsync(cancellationToken);
@@ -75,8 +96,9 @@ public sealed class DevPipelineRunner
             PupilFirstname = resolvedPupilFirstname,
             PupilSurname = resolvedPupilSurname,
             Submitted = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified),
-            SubmittedById = Guid.NewGuid(),
+            SubmittedById = resolvedSubmittedById,
             SubmittedByName = "Dev Harness",
+            SubmittedByEmail = resolvedUserEmail,
             Status = RequestStatus.SubmittedUnCommitted,
             ReferenceNumber = reference,
             RequestType = RequestType.Amendment,
@@ -101,9 +123,6 @@ public sealed class DevPipelineRunner
 
     private async Task EnsureCheckingWindowAsync(CancellationToken cancellationToken)
     {
-        // Look the dev window up by primary key (FindAsync) rather than a LINQ AnyAsync: the result
-        // is identical against the real context, and the by-key lookup is unit-testable without an
-        // async query provider.
         if (await _dbContext.CheckingWindows.FindAsync(new object?[] { DevWindowId }, cancellationToken) is not null)
             return;
 
@@ -119,8 +138,6 @@ public sealed class DevPipelineRunner
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Builds the same queue-shaped RequestDocument the rules consumer expects. The Answers array
-    // drives the rule evaluation, so the preset's answers determine the outcome.
     private static string BuildMessageJson(string reference, OutcomePreset preset, Guid changeRequestId, Guid windowId, long urn, Guid? pupilId, string pupilUpn, string pupilFirstname, string pupilSurname)
     {
         var answersJson = string.Join(",\n      ", preset.Answers.Select(a =>

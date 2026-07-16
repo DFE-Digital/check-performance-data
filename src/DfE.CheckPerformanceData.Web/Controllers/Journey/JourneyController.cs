@@ -155,8 +155,15 @@ public sealed class JourneyController(
                 });
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
-
-                if (isSelf && result is DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var refNum })
+                
+                
+                var refNum = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var r } => r,
+                    DuplicateCheckResult.OtherSubmitted { ReferenceNumber: var r } => r,
+                    _ => string.Empty
+                };
+                //if (isSelf && result is DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var refNum }) // todo - clairfy if the link sould only be shown if self.
                 {
                     vm.ConflictErrorReference = refNum;
                     vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{refNum}/view";

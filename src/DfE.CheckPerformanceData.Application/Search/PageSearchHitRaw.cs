@@ -9,4 +9,8 @@ public sealed class PageSearchHitRaw
     public required string Title { get; init; }
     public string? Subtitle { get; init; }
     public required string BodyPlainText { get; init; }
+
+    /// <summary>Combined ts_rank score across the PageNode + live-version search vectors.
+    /// Zero for calls that don't come through the full-text search path.</summary>
+    public float Rank { get; init; }
 }

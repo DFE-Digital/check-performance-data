@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
@@ -23,7 +24,7 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
         ctx = _fixture.CreateContext();
         var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        return new ContentStagingService(pageRepo, blockRepo);
+        return new ContentStagingService(pageRepo, blockRepo, new HtmlRenderingService());
     }
 
     private async Task ResetAsync()
@@ -61,9 +62,9 @@ public sealed class ContentStagingRoundTripTests(PostgresFixture fixture)
 
         await blockRepo.ExecuteInTransactionAsync(async () =>
         {
-            var banner = await blockRepo.AddBlockAsync("banner", "Content", "hello", Guid.NewGuid());
+            var banner = await blockRepo.AddBlockAsync("banner", "Content", "hello", "hello", Guid.NewGuid());
             await blockRepo.AddVersionAsync(banner.Id, "hello", 1);
-            var footer = await blockRepo.AddBlockAsync("footer", "Content", "© crown", Guid.NewGuid());
+            var footer = await blockRepo.AddBlockAsync("footer", "Content", "© crown", "© crown", Guid.NewGuid());
             await blockRepo.AddVersionAsync(footer.Id, "© crown", 1);
         });
     }

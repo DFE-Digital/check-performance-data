@@ -66,7 +66,9 @@ public sealed partial class ContentBlockController(
             Key = model.Key,
             BlockType = model.BlockType,
             Value = model.Value,
-            OriginalValue = model.OriginalValue
+            OriginalValue = model.OriginalValue,
+            AppearInSearch = model.AppearInSearch,
+            Keywords = model.Keywords
         });
 
         var returnUrl = RemoveEditParam(LocalUrl.SafeOrNull(model.ReturnUrl) ?? "/");

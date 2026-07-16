@@ -9,4 +9,16 @@ public sealed record ContentBlockBundleItem
     public string Key { get; init; } = string.Empty;
     public string BlockType { get; init; } = string.Empty;
     public string Value { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Whether the block appears in help-search. Defaults to true so bundles produced by earlier
+    /// exporters (without this field) round-trip as searchable, matching the DB default.
+    /// </summary>
+    public bool AppearInSearch { get; init; } = true;
+
+    /// <summary>
+    /// Free-text search keywords. Nullable — older bundles omit this field and it round-trips
+    /// as null (matching the DB default). Weighted highest in the search index at import time.
+    /// </summary>
+    public string? Keywords { get; init; }
 }

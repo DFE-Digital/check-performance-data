@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260715135054_AddAppearInSearch")]
+    partial class AddAppearInSearch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -494,20 +497,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Keywords")
-                        .HasColumnType("text");
-
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("LastSeenPath")
                         .HasColumnType("text");
-
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasComputedColumnSql("setweight(to_tsvector('english', coalesce(\"Keywords\", '')), 'A') || setweight(to_tsvector('english', coalesce(\"ValuePlainText\", '')), 'B')", true);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -519,12 +513,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("ValuePlainText")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("");
-
                     b.HasKey("Id");
 
                     b.HasIndex("ContentId")
@@ -532,10 +520,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
 
                     b.HasIndex("Key")
                         .IsUnique();
-
-                    b.HasIndex("SearchVector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.ToTable("ContentBlocks");
                 });
@@ -730,9 +714,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime?>("DeletedDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Keywords")
-                        .HasColumnType("text");
-
                     b.Property<string>("PageName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -749,12 +730,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(2048)
                         .HasColumnType("character varying(2048)");
-
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasComputedColumnSql("setweight(to_tsvector('english', coalesce(\"Keywords\", '')), 'A') || setweight(to_tsvector('english', coalesce(\"Title\", '')), 'B') || setweight(to_tsvector('english', coalesce(\"Subtitle\", '')), 'C')", true);
 
                     b.Property<string>("Segment")
                         .IsRequired()
@@ -788,10 +763,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasIndex("Path")
                         .IsUnique()
                         .HasFilter("\"DeletedDate\" IS NULL");
-
-                    b.HasIndex("SearchVector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.ToTable("PageNodes");
                 });
@@ -834,12 +805,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<DateTime?>("PublishTo")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<NpgsqlTsVector>("SearchVector")
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("tsvector")
-                        .HasComputedColumnSql("setweight(to_tsvector('english', coalesce(\"BodyPlainText\", '')), 'D')", true);
-
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
@@ -850,10 +815,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("SearchVector");
-
-                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("SearchVector"), "gin");
 
                     b.HasIndex("PageNodeId", "IsCurrent");
 

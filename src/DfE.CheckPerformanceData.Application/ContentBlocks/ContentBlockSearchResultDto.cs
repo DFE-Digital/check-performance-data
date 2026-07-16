@@ -12,4 +12,7 @@ public sealed record ContentBlockSearchResultDto
 
     /// <summary>Safe snippet HTML: tag-stripped plain text, the matched term wrapped in &lt;mark&gt;.</summary>
     public required string SnippetHtml { get; init; }
+
+    /// <summary>ts_rank score of the block's search vector. Surfaced in an HTML comment on the search view for debugging.</summary>
+    public float Rank { get; init; }
 }

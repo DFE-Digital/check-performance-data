@@ -6,6 +6,8 @@ public sealed class SaveContentBlockFormModel
     public string BlockType { get; set; } = string.Empty;
     public string Value { get; set; } = string.Empty;
     public string? OriginalValue { get; set; }
+    public bool AppearInSearch { get; set; } = true;
+    public string? Keywords { get; set; }
     public string? ReturnUrl { get; set; }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using NpgsqlTypes;
+
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
 // The single hierarchy for all CMS pages. Self-referencing (ParentId), GUID-keyed. Path is the
@@ -27,6 +29,23 @@ public sealed class PageNode
     // still shows the page — hiding it from admin would strand any editor who wanted to
     // find it. Default true so existing pages stay visible.
     public bool ShowInMenu { get; set; } = true;
+
+    // Whether the page should surface in help-search results. false lets an editor keep a page
+    // published (so its URL still works and direct links / nav still find it) while suppressing
+    // it from /help/search. Default true so existing pages stay searchable; the setting toggles
+    // both the page's own hit and any content-block resolver hit that would land on this page.
+    public bool AppearInSearch { get; set; } = true;
+
+    // Editor-provided keywords / search terms — free text, whitespace-separated. Indexed with
+    // weight A (higher than title, subtitle or body). Lets the editor pin a page as the top
+    // hit for terms that don't appear in the title or body (e.g. a page titled "Get support"
+    // that should also come up for "helpdesk", "email", "phone number").
+    public string? Keywords { get; set; }
+
+    // Generated tsvector combining Keywords (A), Title (B) and Subtitle (C). Postgres writes
+    // this as a stored generated column on insert/update; the app reads but never sets it.
+    // Body text is indexed on PageNodeVersion.SearchVector so the two ranks sum at query time.
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
 
     public DateTime CreatedDate { get; set; }
     public string? CreatedBy { get; set; }

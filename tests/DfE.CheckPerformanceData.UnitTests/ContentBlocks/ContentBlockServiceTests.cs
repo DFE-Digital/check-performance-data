@@ -17,6 +17,14 @@ public class ContentBlockServiceTests
 
         _repository.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
             .Returns(ci => ((Func<Task>)ci[0])());
+
+        // Pass-through so PlainTextOf() (used by SaveAsync/EnsureAsync to derive ValuePlainText
+        // from Value) returns a deterministic non-null string in tests. RenderHtml overrides in
+        // individual tests still win for ValueHtml assertions.
+        _htmlRenderer.RenderHtml(Arg.Any<string?>())
+            .Returns(ci => (string?)ci[0]);
+        _htmlRenderer.StripTagsToPlainText(Arg.Any<string?>())
+            .Returns(ci => (string?)ci[0] ?? string.Empty);
     }
 
     // --- EnsureAsync ---
@@ -26,7 +34,7 @@ public class ContentBlockServiceTests
     {
         _repository.GetByKeyAsync("footer-support-and-guidance").ReturnsNull();
         var created = MakeBlock(id: 7, key: "footer-support-and-guidance", value: "<h2>Support</h2>");
-        _repository.AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>")
+        _repository.AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>())
             .Returns(created);
         _htmlRenderer.RenderHtml("<h2>Support</h2>").Returns("<h2>Support</h2>");
 
@@ -35,7 +43,7 @@ public class ContentBlockServiceTests
 
         Assert.Equal(7, result.Id);
         await _repository.Received(1)
-            .AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>");
+            .AddBlockAsync("footer-support-and-guidance", "Content", "<h2>Support</h2>", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
         await _repository.Received(1).AddVersionAsync(7, "<h2>Support</h2>", 1);
         await _repository.Received(1)
             .SetLastSeenAsync("footer-support-and-guidance", "/some-page", Arg.Any<DateTime>());
@@ -53,7 +61,7 @@ public class ContentBlockServiceTests
         Assert.Equal(3, result.Id);
         Assert.Equal("<p>kept</p>", result.ValueHtml);
         // Existing block: default value must not overwrite it, LastSeen unchanged, no new version.
-        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
         await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
         await _repository.DidNotReceive().SetLastSeenAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>());
     }
@@ -69,7 +77,7 @@ public class ContentBlockServiceTests
 
         Assert.Equal(3, result.Id);
         await _repository.Received(1).SetLastSeenAsync("k", "/new-page", Arg.Any<DateTime>());
-        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
+        await _repository.DidNotReceive().AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
         await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
     }
 
@@ -161,14 +169,14 @@ public class ContentBlockServiceTests
         var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "New value");
 
         _repository.GetByKeyAsync("new-key").ReturnsNull();
-        _repository.AddBlockAsync("new-key", "Content", "New value").Returns(created);
+        _repository.AddBlockAsync("new-key", "Content", "New value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(created);
         _htmlRenderer.RenderHtml("New value").Returns("<p>New value</p>");
 
         var result = await _sut.SaveAsync(dto);
 
         Assert.Equal(1, result.Id);
         Assert.Equal("<p>New value</p>", result.ValueHtml);
-        await _repository.Received(1).AddBlockAsync("new-key", "Content", "New value");
+        await _repository.Received(1).AddBlockAsync("new-key", "Content", "New value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
         await _repository.Received(1).AddVersionAsync(1, "New value", 1);
     }
 
@@ -185,11 +193,11 @@ public class ContentBlockServiceTests
         var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Edited value");
 
         _repository.GetByKeyAsync("new-key").ReturnsNull();
-        _repository.AddBlockAsync("new-key", "Content", "Edited value").Returns(created);
+        _repository.AddBlockAsync("new-key", "Content", "Edited value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(created);
 
         await _sut.SaveAsync(dto);
 
-        await _repository.Received(1).AddBlockAsync("new-key", "Content", "Edited value");
+        await _repository.Received(1).AddBlockAsync("new-key", "Content", "Edited value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
         Received.InOrder(() =>
         {
             _repository.AddVersionAsync(1, "Default value", 1);
@@ -210,7 +218,7 @@ public class ContentBlockServiceTests
         var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Same value");
 
         _repository.GetByKeyAsync("new-key").ReturnsNull();
-        _repository.AddBlockAsync("new-key", "Content", "Same value").Returns(created);
+        _repository.AddBlockAsync("new-key", "Content", "Same value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(created);
 
         await _sut.SaveAsync(dto);
 
@@ -231,7 +239,7 @@ public class ContentBlockServiceTests
         var created = MakeBlock(id: 1, key: "new-key", blockType: "Content", value: "Edited value");
 
         _repository.GetByKeyAsync("new-key").ReturnsNull();
-        _repository.AddBlockAsync("new-key", "Content", "Edited value").Returns(created);
+        _repository.AddBlockAsync("new-key", "Content", "Edited value", Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>()).Returns(created);
 
         await _sut.SaveAsync(dto);
 
@@ -251,7 +259,7 @@ public class ContentBlockServiceTests
         var result = await _sut.SaveAsync(dto);
 
         Assert.Equal(5, result.Id);
-        await _repository.DidNotReceive().UpdateValueAsync(Arg.Any<int>(), Arg.Any<string>());
+        await _repository.DidNotReceive().UpdateValueAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<string>());
         await _repository.DidNotReceive().AddVersionAsync(Arg.Any<int>(), Arg.Any<string>(), Arg.Any<int>());
     }
 
@@ -269,7 +277,7 @@ public class ContentBlockServiceTests
         var result = await _sut.SaveAsync(dto);
 
         Assert.Equal("<p>New</p>", result.ValueHtml);
-        await _repository.Received(1).UpdateValueAsync(3, "New");
+        await _repository.Received(1).UpdateValueAsync(3, "New", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(3, "New", 3);
     }
 
@@ -285,7 +293,7 @@ public class ContentBlockServiceTests
 
         await _sut.SaveAsync(dto);
 
-        await _repository.Received(1).UpdateValueAsync(3, "Edited");
+        await _repository.Received(1).UpdateValueAsync(3, "Edited", Arg.Any<string>());
         Received.InOrder(() =>
         {
             _repository.AddVersionAsync(3, "Original", 1);
@@ -360,7 +368,7 @@ public class ContentBlockServiceTests
         var result = await _sut.RevertToVersionAsync("k", 5);
 
         Assert.Equal("<p>Old value</p>", result.ValueHtml);
-        await _repository.Received(1).UpdateValueAsync(10, "Old value");
+        await _repository.Received(1).UpdateValueAsync(10, "Old value", Arg.Any<string>());
         await _repository.Received(1).AddVersionAsync(10, "Old value", 4);
     }
 

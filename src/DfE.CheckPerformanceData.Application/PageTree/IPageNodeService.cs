@@ -75,6 +75,12 @@ public interface IPageNodeService
     /// <summary>Sets the public menu visibility flag on <paramref name="nodeId"/>.</summary>
     Task SetShowInMenuAsync(Guid nodeId, bool showInMenu, string? userId);
 
+    /// <summary>Sets the search visibility flag on <paramref name="nodeId"/>.</summary>
+    Task SetAppearInSearchAsync(Guid nodeId, bool appearInSearch, string? userId);
+
+    /// <summary>Sets the free-text search Keywords on <paramref name="nodeId"/>.</summary>
+    Task SetKeywordsAsync(Guid nodeId, string? keywords, string? userId);
+
     /// <summary>
     /// Moves the node up or down among its siblings by swapping <c>SortOrder</c> with the
     /// adjacent sibling in the requested <paramref name="direction"/> ("up" or "down").

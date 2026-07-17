@@ -66,14 +66,28 @@ public sealed class DevPipelineRunner
         var resolvedWindowId = windowId ?? DevWindowId;
         var resolvedUrn = urn ?? 123456;
 
-        // Try to look up the real pupil from blob storage when we have enough context.
-        // This gives us the true PupilId (needed for conflict matching) and verified names.
+        // Derive laestab from the UPN when not explicitly provided.
+        // UPN format: ALLLEEEESSSSC (13 chars) — A + 3-digit LEA + 4-digit school + serial + check.
+        if (laestab is null && pupilUpn is not null && pupilUpn.Length >= 13)
+            laestab = $"{pupilUpn.Substring(1, 3)}/{pupilUpn.Substring(4, 4)}";
+
+        // Look up the real pupil from blob storage so we get the true PupilId (needed for
+        // conflict matching), verified name fields, etc. Supports both UPN and name-based
+        // matching — the caller can supply either.
         PupilRecord? matchedPupil = null;
-        if (pupilUpn is not null && windowId is not null && laestab is not null)
+        if (windowId is not null && laestab is not null)
         {
             var pupils = await _pupilBlob.GetPupilsAsync(resolvedWindowId, laestab);
-            matchedPupil = pupils?.FirstOrDefault(p =>
-                p.Upn.Equals(pupilUpn, StringComparison.OrdinalIgnoreCase));
+            if (pupils is not null)
+            {
+                if (pupilUpn is not null)
+                    matchedPupil = pupils.FirstOrDefault(p =>
+                        p.Upn.Equals(pupilUpn, StringComparison.OrdinalIgnoreCase));
+                else if (pupilFirstName is not null && pupilSurname is not null)
+                    matchedPupil = pupils.FirstOrDefault(p =>
+                        p.Firstname.Equals(pupilFirstName, StringComparison.OrdinalIgnoreCase) &&
+                        p.Surname.Equals(pupilSurname, StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         var resolvedPupilId = matchedPupil?.Id ?? pupilId;

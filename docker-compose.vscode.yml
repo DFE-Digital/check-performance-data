@@ -17,3 +17,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - Dev__ToolsEnabled=true
+    healthcheck:
+      test: ["CMD", "dotnet", "--info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

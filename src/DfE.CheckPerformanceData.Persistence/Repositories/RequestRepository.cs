@@ -17,6 +17,14 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             : requestTypeDescription;
     }
 
+    private static string ExtractRequestCategory(string requestTypeDescription)
+    {
+        var separatorIndex = requestTypeDescription.IndexOf(" - ", StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? requestTypeDescription[..separatorIndex]
+            : requestTypeDescription;
+    }
+
     public async Task<DuplicateCheckResult> CheckForConflictAsync(
         Guid windowId, Guid pupilId, long organisationUrn, string currentReferenceNumber, Guid currentUserId)
     {
@@ -26,17 +34,18 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber != currentReferenceNumber
                 && r.Status == RequestStatus.SubmittedUnCommitted)
-            .Select(r => new { r.SubmittedById, r.ReferenceNumber, r.RequestTypeDescription })
+            .Select(r => new { r.SubmittedById, r.ReferenceNumber, r.RequestTypeDescription, r.SubmittedByName })
             .FirstOrDefaultAsync();
 
         if (conflict is null)
             return new DuplicateCheckResult.NoConflict();
 
         var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
+        var conflictingCategory = ExtractRequestCategory(conflict.RequestTypeDescription);
 
         return conflict.SubmittedById == currentUserId
-            ? new DuplicateCheckResult.SelfSubmitted(conflict.ReferenceNumber, conflictingReasonType)
-            : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber, conflictingReasonType);
+            ? new DuplicateCheckResult.SelfSubmitted(conflict.ReferenceNumber, conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty)
+            : new DuplicateCheckResult.OtherSubmitted(conflict.ReferenceNumber, conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty);
     }
 
     public async Task<string?> HasSubmittedRequestAsync(
@@ -103,13 +112,14 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 if (conflict is not null)
                 {
                     var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
+                    var conflictingCategory = ExtractRequestCategory(conflict.RequestTypeDescription);
                     var reasonsMatch = conflictingReasonType.Equals(
                         ExtractConflictingReasonType(data.RequestTypeDescription), StringComparison.OrdinalIgnoreCase);
                     throw new DuplicateRequestException(
                         conflict.SubmittedById == data.SubmittedById
                             ? ConflictType.SelfSubmitted
                             : ConflictType.OtherSubmitted,
-                        conflictingReasonType, reasonsMatch);
+                        conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty, reasonsMatch);
                 }
 
                 db.ChangeRequests.Add(new ChangeRequest

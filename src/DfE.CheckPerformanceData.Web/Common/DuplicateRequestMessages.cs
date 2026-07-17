@@ -1,51 +1,66 @@
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-
 namespace DfE.CheckPerformanceData.Web.Common;
 
 public static class DuplicateRequestMessages
 {
-    public static string FriendlyAction(WhatToChange whatToChange) => whatToChange switch
+    private static string TopLevelRequestLabel(string requestCategory) => requestCategory switch
     {
-        WhatToChange.Remove => "remove a pupil from data",
-        WhatToChange.Include => "include a pupil in data",
-        WhatToChange.Merge => "merge duplicate pupil records",
-        _ => throw new ArgumentOutOfRangeException(nameof(whatToChange), whatToChange, null)
+        "Remove" => "pupil removal request",
+        "Include" => "pupil inclusion request",
+        "Merge" => "pupil merge request",
+        _ => requestCategory.ToLowerInvariant()
     };
 
-    public static string PupilSelectionMessage(bool isSelf, bool reasonsMatch, WhatToChange whatToChange)
+    public static string AttentionBannerHtml(
+        bool isSelf, bool reasonsMatch, string requestCategory, string pupilName,
+        string referenceNumber, string linkUrl, string userName)
     {
-        var action = FriendlyAction(whatToChange);
+        var topLevelRequest = TopLevelRequestLabel(requestCategory);
+        var link = $"<a class=\"govuk-link\" href=\"{linkUrl}\" target=\"_blank\" rel=\"noreferrer noopener\">View submitted request (opens in a new browser window)</a>";
 
+        string message;
         if (isSelf && reasonsMatch)
-            return $"You already have a pending request to {action} for this pupil.";
+        {
+            message = $"You have already submitted a {topLevelRequest} for {pupilName}. Reference {referenceNumber} {link}.";
+            message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
+        }
+        else if (!isSelf && reasonsMatch)
+        {
+            message = $"Your colleague {userName} has already submitted a {topLevelRequest} for {pupilName}. Reference {referenceNumber} {link}.";
+            message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
+        }
+        else if (isSelf && !reasonsMatch)
+        {
+            message = $"You have already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {referenceNumber} {link}.";
+            message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
+        }
+        else
+        {
+            message = $"Your colleague {userName} has already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {referenceNumber} {link}.";
+            message += "<br><br>To raise a new request check with your colleague, and if you want to proceed, delete the previously submitted request. Then return to this page to continue.";
+        }
 
-        if (!isSelf && reasonsMatch)
-            return $"Another user at your school has already submitted a request to {action} for this pupil. "
-                   + "Please coordinate with colleagues before submitting a new request.";
-
-        if (isSelf && !reasonsMatch)
-            return "You already have a pending request for this pupil. You can view your existing request.";
-
-        return "Another user at your school has a pending request for this pupil. "
-               + "Please coordinate with colleagues or contact support if this appears to be in error.";
+        return message;
     }
 
-    public static string SummaryMessage(bool isSelf, bool reasonsMatch, WhatToChange whatToChange)
+    public static string ErrorSummaryMessage => "A request has already been submitted for this pupil";
+
+    public static string FieldErrorMessage => "Choose another pupil";
+
+    public static string SummaryMessage(bool isSelf, bool reasonsMatch, string requestCategory, string userName)
     {
-        var action = FriendlyAction(whatToChange);
+        var topLevelRequest = TopLevelRequestLabel(requestCategory);
 
         if (isSelf && reasonsMatch)
-            return $"You already have a pending request to {action} for this pupil. Select a different pupil.";
+            return $"You have already submitted a {topLevelRequest} for this pupil.";
 
         if (!isSelf && reasonsMatch)
-            return $"Another user at your school has already submitted a request to {action} for this pupil. "
-                   + "Select a different pupil.";
+            return $"A colleague at your school has already submitted a {topLevelRequest} for this pupil.";
 
         if (isSelf && !reasonsMatch)
-            return "You already have a pending request for this pupil. Select a different pupil.";
+            return $"You have already submitted a request of a different type ({topLevelRequest}) for this pupil.";
 
-        return "Another user at your school has a pending request for this pupil. Select a different pupil.";
+        return $"A colleague at your school has already submitted a request of a different type ({topLevelRequest}) for this pupil.";
     }
 
-    public static bool ShowLink(bool isSelf) => isSelf;
+    public static bool ShowLink() => true;
 }

@@ -139,14 +139,24 @@ public sealed class JourneyController(
                     DuplicateCheckResult.OtherSubmitted { ConflictingReasonType: var rt } => rt,
                     _ => string.Empty
                 };
+                var conflictingCategory = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    _ => string.Empty
+                };
+                var conflictingUserName = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingUserName: var un } => un,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingUserName: var un } => un,
+                    _ => string.Empty
+                };
                 var currentReasonType = flowService.ResolveRequestType(config, journey);
                 var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
                     && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
 
-                var whatToChange = journey.SelectedWhatToChange ?? Application.CheckYourPupilData.WhatToChange.Remove;
-                var message = DuplicateRequestMessages.PupilSelectionMessage(isSelf, reasonsMatch, whatToChange);
-
-                ModelState.AddModelError("selectedPupilId", message);
+                ModelState.AddModelError("selectedPupilId", DuplicateRequestMessages.FieldErrorMessage);
+                ModelState.AddModelError(string.Empty, DuplicateRequestMessages.ErrorSummaryMessage);
                 await analytics.TrackSafeAsync(new ValidationErrorEvent
                 {
                     ErrorCount = 1,
@@ -155,21 +165,21 @@ public sealed class JourneyController(
                 });
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
-                
-                
+
                 var refNum = result switch
                 {
                     DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var r } => r,
                     DuplicateCheckResult.OtherSubmitted { ReferenceNumber: var r } => r,
                     _ => string.Empty
                 };
-                //if (isSelf && result is DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var refNum }) // todo - clairfy if the link sould only be shown if self.
-                {
-                    vm.ConflictErrorReference = refNum;
-                    vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{refNum}/view";
-                    vm.ConflictPupilName = pupilName;
-                    vm.ConflictReasonType = conflictingReasonType;
-                }
+                var linkUrl = $"/{windowId}/AmendmentRequests/{refNum}/view";
+                vm.ConflictErrorReference = refNum;
+                vm.ConflictErrorLink = linkUrl;
+                vm.ConflictPupilName = pupilName;
+                vm.ConflictReasonType = conflictingReasonType;
+                vm.ConflictUserName = conflictingUserName;
+                vm.ConflictAttentionHtml = DuplicateRequestMessages.AttentionBannerHtml(
+                    isSelf, reasonsMatch, conflictingCategory, pupilName, refNum, linkUrl, conflictingUserName);
 
                 return View("PupilSearch", vm);
             }
@@ -584,15 +594,15 @@ public sealed class JourneyController(
                 CheckingWindowType = journey.CheckingWindow?.CheckingWindowType.ToString() ?? "",
             });
 
-            var whatToChange = journey.SelectedWhatToChange ?? Application.CheckYourPupilData.WhatToChange.Remove;
-            var message = DuplicateRequestMessages.SummaryMessage(
-                ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch, whatToChange);
-
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
 
+            var message = DuplicateRequestMessages.SummaryMessage(
+                ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch,
+                ex.ConflictingRequestCategory, ex.ConflictingUserName);
+
             string? conflictErrorLink = null;
-            if (DuplicateRequestMessages.ShowLink(ex.ConflictType == ConflictType.SelfSubmitted))
+            if (DuplicateRequestMessages.ShowLink())
             {
                 conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
             }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.RulesEngine.Json;
@@ -48,7 +49,7 @@ public sealed class DevPipelinePresetRoutingTests
         await using (var context = _fixture.CreateContext())
         {
             var queueService = new PostgresQueueService(context);
-            var runner = new DevPipelineRunner(context, queueService);
+            var runner = new DevPipelineRunner(context, queueService, Substitute.For<IPupilDataBlobClient>());
             var result = await runner.SubmitAsync(outcome, null, null, CancellationToken.None);
             reference = result.Reference;
 

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -19,6 +20,7 @@ public sealed class DevUatGatingTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IPupilDataBlobClient _pupilBlob = Substitute.For<IPupilDataBlobClient>();
 
     private static IConfiguration Config(bool? toolsEnabled)
     {
@@ -37,7 +39,7 @@ public sealed class DevUatGatingTests
 
     private DevUatController CreateSut(bool? toolsEnabled, string environmentName = "Development")
     {
-        var runner = new DevPipelineRunner(_dbContext, _queueService);
+        var runner = new DevPipelineRunner(_dbContext, _queueService, _pupilBlob);
         var sut = new DevUatController(Config(toolsEnabled), _queueService, runner, Env(environmentName));
         // The Index view-render path is not exercised here; gating tests assert the result type
         // before any view executes, so a minimal TempData is enough for the redirect actions.

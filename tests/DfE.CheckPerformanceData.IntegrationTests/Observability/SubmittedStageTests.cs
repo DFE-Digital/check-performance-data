@@ -1,8 +1,10 @@
 using System.Text.Json;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using NSubstitute;
 using DfE.CheckPerformanceData.Persistence.Observability;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
@@ -41,7 +43,7 @@ public sealed class SubmittedStageTests
             })
             .Build();
 
-        var controller = new DevPipelineController(configuration, context, queueService, submittedMetrics: recorder);
+        var controller = new DevPipelineController(configuration, context, queueService, Substitute.For<IPupilDataBlobClient>(), submittedMetrics: recorder);
 
         var result = await controller.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 

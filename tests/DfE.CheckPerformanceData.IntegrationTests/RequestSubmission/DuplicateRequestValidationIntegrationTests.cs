@@ -231,21 +231,23 @@ public sealed class DuplicateRequestValidationIntegrationTests
     [Fact]
     public void SelfSubmittedMessages_ContainGuidanceText()
     {
-        var pupilSelection = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.PupilSelectionMessage(true, true, WhatToChange.Remove);
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, WhatToChange.Remove);
+        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "");
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, "Remove", "");
 
-        Assert.Contains("remove a pupil from data", pupilSelection);
-        Assert.Contains("Select a different pupil", summary);
+        Assert.Contains("pupil removal request", attentionHtml);
+        Assert.Contains("CYPMD_001", attentionHtml);
+        Assert.Contains("pupil removal request", summary);
     }
 
     [Fact]
     public void OtherSubmittedMessages_ContainGuidanceText()
     {
-        var pupilSelection = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.PupilSelectionMessage(false, true, WhatToChange.Remove);
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, WhatToChange.Remove);
+        var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins");
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, "Remove", "Sarah Jenkins");
 
-        Assert.Contains("coordinate with colleagues", pupilSelection);
-        Assert.Contains("Select a different pupil", summary);
+        Assert.Contains("Sarah Jenkins", attentionHtml);
+        Assert.Contains("pupil removal request", attentionHtml);
+        Assert.Contains("pupil removal request", summary);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

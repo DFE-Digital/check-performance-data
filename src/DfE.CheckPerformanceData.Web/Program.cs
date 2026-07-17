@@ -217,7 +217,7 @@ try
     builder.Services.AddScoped<PageNodePathValidator>();
 
     // ASP.NET Core Data Protection key ring. Production runs multiple web replicas, so the
-    // key ring MUST be shared across pods: the OIDC 'state' and correlation cookie are
+    // key ring MUST be shared across all web replicas: the OIDC 'state' and correlation cookie are
     // protected when the user is redirected TO DfE Sign-in and unprotected on the /auth/callback
     // return. With the default in-memory keys, each pod has its own ring, so a callback that
     // load-balances to a different pod fails with "Unable to unprotect the message.State." and
@@ -272,15 +272,12 @@ try
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
     builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
-    var l = "5475-M7mFx9+Hp1qt2hY668yu3ULm+x+rNIdNJWdma3a6KFLs/aDmJWbcLL0IPYwd/SHCDpeJ1duxnl1IXi4HP1ZLoUJwp5dLPGmpgTWchLSaXHmaLENL9DPLU3yPznvXy1EpwISZTyzEigvCjbuutHQnKQ9jQszBFTNwI/Gcs2Uu/8J7IklkIjo1NDc1LCJFeHBpcnlEYXRlIjoiMjAyNS0xMC0xNlQxMzo1NTo1Ni4xNjA0MzkyWiIsIlR5cGUiOiJKc29uU2NoZW1hU2l0ZSJ9";
-
-
     builder.Services.AddAntiforgery(options =>
     {
         options.HeaderName = "X-XSRF-TOKEN";
     });
     
-    //Setting to null to allow controller config
+    // Setting to null to allow controller-level request size limits
     builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
 
     builder.Services.AddControllersWithViews();

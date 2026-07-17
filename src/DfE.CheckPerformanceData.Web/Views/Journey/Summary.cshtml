@@ -8,7 +8,11 @@
 
 @if (Model.FromBulk)
 {
-    <a href="/@Model.WindowId/AmendmentRequests/bulk" class="govuk-back-link">Back</a>
+    <a href="/@Model.WindowId/AmendmentRequests/bulk-detailed" class="govuk-back-link">Back</a>
+}
+else if (Model.FromEdit)
+{
+    <a href="/@Model.WindowId/AmendmentRequests" class="govuk-back-link">Back</a>
 }
 else
 {
@@ -33,13 +37,15 @@ else
 
 <partial name="_SummaryEvidenceFiles" model="Model" />
 
-@if (!Model.FromBulk)
-{
-    <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
-        @Html.AntiForgeryToken()
+<form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    @* The batch is submitted as a whole, so a bulk edit hides Submit request but still needs
+       Save and continue later so in-batch edits can be persisted. *@
+    @if (!Model.FromBulk)
+    {
         <govuk-button type="submit">Submit request</govuk-button>
-        <govuk-button type="submit"
-            formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
-            class="govuk-button--secondary">Save and continue later</govuk-button>
-    </form>
-}
+    }
+    <govuk-button type="submit"
+        formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
+        class="govuk-button--secondary">Save and continue later</govuk-button>
+</form>

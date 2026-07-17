@@ -514,7 +514,8 @@ public sealed class JourneyController(
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
         var fromBulk = HttpContext.Session.IsBulkEditMode(windowId);
-        return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config, fromBulk: fromBulk));
+        var fromEdit = HttpContext.Session.IsSingleEditMode(windowId);
+        return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config, fromBulk: fromBulk, fromEdit: fromEdit));
     }
 
     [Route("/Journey/{windowId}/evidence/{storedFileName}")]
@@ -561,7 +562,9 @@ public sealed class JourneyController(
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
-                conflictError: "A request for this pupil has already been submitted. Select a different pupil."));
+                conflictError: "A request for this pupil has already been submitted. Select a different pupil.",
+                fromBulk: HttpContext.Session.IsBulkEditMode(windowId),
+                fromEdit: HttpContext.Session.IsSingleEditMode(windowId)));
         }
 
         await analytics.TrackSafeAsync(new RequestSubmittedEvent
@@ -584,6 +587,7 @@ public sealed class JourneyController(
             s.QuestionAnswers.Clear();
             s.QuestionHistory.Clear();
         });
+        HttpContext.Session.ClearSingleEditMode(windowId);
 
         return RedirectToAction(nameof(Confirmation), new { windowId });
     }
@@ -639,8 +643,17 @@ public sealed class JourneyController(
             ReferenceNumber = journey.ReferenceNumber ?? "",
         });
 
+        // A draft saved mid-bulk-submit returns to the batch review rather than the list, so the
+        // user can carry on submitting the batch. Capture the flag before clearing session state.
+        var fromBulk = HttpContext.Session.IsBulkEditMode(windowId);
+
         HttpContext.Session.ClearRequestState(windowId);
-        return RedirectToAction("Index", "AmendmentRequests", new { windowId });
+        HttpContext.Session.ClearBulkEditMode(windowId);
+        HttpContext.Session.ClearSingleEditMode(windowId);
+
+        return fromBulk
+            ? RedirectToAction("BulkReviewDetailedPage", "AmendmentRequests", new { windowId })
+            : RedirectToAction("Index", "AmendmentRequests", new { windowId });
     }
 
     private RequestStatus DetermineStatus(string? pageId, JourneyPage? page, RequestState journey)

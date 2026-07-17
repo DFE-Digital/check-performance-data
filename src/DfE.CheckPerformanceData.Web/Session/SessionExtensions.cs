@@ -54,4 +54,20 @@ public static class SessionExtensions
 
     public static void ClearBulkEditMode(this ISession session, Guid windowId) =>
         session.Remove(BulkEditModeKey(windowId));
+
+    private static string SingleEditModeKey(Guid windowId) => $"single_edit_{windowId}";
+
+    /// <summary>
+    /// Marks the current journey as having been opened by editing a single request from the
+    /// Amendment Requests page, so the summary links back there rather than into the journey.
+    /// The submit/save actions remain available (unlike a bulk edit).
+    /// </summary>
+    public static void SetSingleEditMode(this ISession session, Guid windowId) =>
+        session.SetString(SingleEditModeKey(windowId), "1");
+
+    public static bool IsSingleEditMode(this ISession session, Guid windowId) =>
+        session.GetString(SingleEditModeKey(windowId)) is not null;
+
+    public static void ClearSingleEditMode(this ISession session, Guid windowId) =>
+        session.Remove(SingleEditModeKey(windowId));
 }

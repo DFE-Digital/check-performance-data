@@ -273,6 +273,31 @@ public class JourneyControllerTests
         Assert.IsType<ViewResult>(result);
     }
 
+    [Fact]
+    public async Task Summary_WhenSingleEditMode_SetsFromEditOnViewModel()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _session.SetSingleEditMode(WindowId);
+
+        var result = await _sut.Summary(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.True(vm.FromEdit);
+    }
+
+    [Fact]
+    public async Task Summary_WhenNotSingleEditMode_FromEditIsFalse()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+
+        var result = await _sut.Summary(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.False(vm.FromEdit);
+    }
+
     // ── SummaryConfirm ───────────────────────────────────────────────────────
 
     [Fact]
@@ -584,13 +609,26 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task SaveDraft_AlwaysRedirectsToAmendmentRequests()
+    public async Task SaveDraft_WhenNotBulkEdit_RedirectsToAmendmentRequestsIndex()
     {
         SetupSession(ValidSession());
 
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToAmendmentRequests(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WhenBulkEdit_RedirectsToBulkDetailedReview()
+    {
+        SetupSession(ValidSession());
+        _session.SetBulkEditMode(WindowId);
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
+        Assert.Equal("BulkReviewDetailedPage", redirect.ActionName);
     }
 
     [Fact]

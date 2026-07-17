@@ -20,7 +20,7 @@ using Microsoft.Extensions.Hosting;
 namespace DfE.CheckPerformanceData.IntegrationTests.AmendmentRequests;
 
 // Renders Views/Shared/_SummaryDetails.cshtml through the real Razor view engine to prove the
-// shared partial compiles and that ShowChangeLinks=false (the bulk "Continue B" detailed page)
+// shared partial compiles and that ShowChangeLinks=false (the bulk detailed-review page)
 // suppresses every "Change" link while still rendering the answers and uploaded-file rows.
 // The ShowChangeLinks=true path is the unchanged journey-Summary markup; its "Change" anchors use
 // asp-action tag helpers that need full endpoint routing to generate URLs, so they are not

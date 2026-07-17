@@ -183,6 +183,26 @@ public class JourneyViewModelBuilderTests
     }
 
     [Fact]
+    public void BuildSummaryVm_FromEditFalseByDefault()
+    {
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
+
+        Assert.False(vm.FromEdit);
+    }
+
+    [Fact]
+    public void BuildSummaryVm_FromEditPassedThrough()
+    {
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, Config, fromEdit: true);
+
+        Assert.True(vm.FromEdit);
+    }
+
+    [Fact]
     public void BuildSummaryVm_ConflictErrorPassedThrough()
     {
         var journey = JourneyWithHistory(["select-pupil", "q1"]);

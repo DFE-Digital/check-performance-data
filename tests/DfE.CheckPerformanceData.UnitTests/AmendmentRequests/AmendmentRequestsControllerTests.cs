@@ -313,6 +313,29 @@ public class AmendmentRequestsControllerTests
     }
 
     [Fact]
+    public async Task Edit_NotFromBulk_SetsSingleEditMode()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        await _sut.Edit(WindowId, "REF001");
+
+        // The summary uses this flag to link back to the Amendment Requests page.
+        Assert.True(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Edit_FromBulk_ClearsSingleEditMode()
+    {
+        _session.SetSingleEditMode(WindowId);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+
+        await _sut.Edit(WindowId, "REF001", fromBulk: true);
+
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
     public async Task Edit_FromBulk_PrimesSessionForSummary()
     {
         _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
@@ -390,65 +413,7 @@ public class AmendmentRequestsControllerTests
 
     // ── Bulk submission ────────────────────────────────────────────────────────
 
-    [Fact]
-    public async Task BulkReview_NoSelection_RedisplaysIndexWithError()
-    {
-        _service.GetAmendmentRequestsAsync(WindowId).Returns(EmptyResult());
-
-        var result = await _sut.BulkReview(WindowId, Array.Empty<string>());
-
-        var view = Assert.IsType<ViewResult>(result);
-        Assert.Equal("Index", view.ViewName);
-        Assert.False(_sut.ModelState.IsValid);
-    }
-
-    [Fact]
-    public async Task BulkReview_WithSelection_StoresSelectionAndRedirectsToBulkReviewPage()
-    {
-        var result = await _sut.BulkReview(WindowId, new[] { "R1", "R2" });
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(nameof(AmendmentRequestsController.BulkReviewPage), redirect.ActionName);
-        Assert.Equal(new[] { "R1", "R2" }, _session.GetBulkSelection(WindowId));
-    }
-
-    [Fact]
-    public async Task BulkReviewPage_WithStoredSelection_RendersBulkReview()
-    {
-        _session.SetBulkSelection(WindowId, new[] { "R1" });
-        _bulkService.BuildReviewAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkReviewResult
-        {
-            Submittable = new[] { new BulkReviewItem { ReferenceNumber = "R1", PupilName = "Ann Alpha", RequestTypeDescription = "Remove pupil" } },
-            Duplicates = Array.Empty<BulkReviewItem>()
-        });
-        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
-        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
-        {
-            Id = WindowId,
-            Title = "KS4 2026",
-            EndDate = endDate,
-            StartDate = endDate.AddMonths(-3),
-            KeyStage = KeyStages.KS4,
-            CheckingWindowType = CheckingWindowType.KS4June
-        });
-
-        var result = await _sut.BulkReviewPage(WindowId);
-
-        var view = Assert.IsType<ViewResult>(result);
-        var vm = Assert.IsType<BulkReviewViewModel>(view.Model);
-        Assert.Single(vm.Submittable);
-    }
-
-    [Fact]
-    public async Task BulkReviewPage_NoStoredSelection_RedirectsToIndex()
-    {
-        var result = await _sut.BulkReviewPage(WindowId);
-
-        var redirect = Assert.IsType<RedirectToActionResult>(result);
-        Assert.Equal(nameof(AmendmentRequestsController.Index), redirect.ActionName);
-    }
-
-    // ── BulkReviewDetailed ("Continue B") ────────────────────────────────────
+    // ── BulkReviewDetailed ────────────────────────────────────────────────────
 
     [Fact]
     public async Task BulkReviewDetailed_NoSelection_ReturnsIndexWithError()

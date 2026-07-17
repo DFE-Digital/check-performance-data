@@ -25,7 +25,7 @@ public sealed class AmendmentRequestsController(
     {
         var result = await service.GetAmendmentRequestsAsync(windowId);
         var deadline = result.WindowEndDate;
-        // Re-check the boxes that were selected before going into Continue A/B (kept in session).
+        // Re-check the boxes that were selected before going into the bulk review (kept in session).
         var selected = HttpContext.Session.GetBulkSelection(windowId).ToHashSet(StringComparer.Ordinal);
         return new AmendmentRequestsViewModel
         {
@@ -57,47 +57,8 @@ public sealed class AmendmentRequestsController(
     public async Task<IActionResult> Index(Guid windowId) =>
         View(await BuildIndexViewModelAsync(windowId));
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Route("/{windowId}/AmendmentRequests/bulk")]
-    public async Task<IActionResult> BulkReview(Guid windowId, string[] selectedReferences)
-    {
-        if (selectedReferences is null || selectedReferences.Length == 0)
-        {
-            ModelState.AddModelError("selectedReferences", "Select the pupil(s) you want to submit");
-            return View("Index", await BuildIndexViewModelAsync(windowId));
-        }
-
-        HttpContext.Session.SetBulkSelection(windowId, selectedReferences);
-        return RedirectToAction(nameof(BulkReviewPage), new { windowId });
-    }
-
-    [HttpGet]
-    [Route("/{windowId}/AmendmentRequests/bulk")]
-    public async Task<IActionResult> BulkReviewPage(Guid windowId)
-    {
-        // Returning to the batch review clears any per-request bulk-edit context set by Edit.
-        HttpContext.Session.ClearBulkEditMode(windowId);
-
-        var selected = HttpContext.Session.GetBulkSelection(windowId);
-        if (selected.Count == 0)
-            return RedirectToAction(nameof(Index), new { windowId });
-
-        var review = await bulkService.BuildReviewAsync(windowId, selected);
-        var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-
-        return View("BulkReview", new BulkReviewViewModel
-        {
-            WindowId = windowId,
-            WindowTitle = window.Title,
-            Submittable = review.Submittable.Select(ToItemVm).ToList(),
-            Duplicates = review.Duplicates.Select(ToItemVm).ToList()
-        });
-    }
-
-    // "Continue B": a parallel of BulkReview that renders each submittable request as a full
-    // journey-style summary (no change links) instead of a one-line row. Same selection, same
-    // duplicate classification, same submit target — only the presentation differs.
+    // Renders each submittable request as a full journey-style summary (no change links) rather
+    // than a one-line row, with duplicates shown in a compact warning table.
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/{windowId}/AmendmentRequests/bulk-detailed")]
@@ -117,8 +78,9 @@ public sealed class AmendmentRequestsController(
     [Route("/{windowId}/AmendmentRequests/bulk-detailed")]
     public async Task<IActionResult> BulkReviewDetailedPage(Guid windowId)
     {
-        // Returning to the batch review clears any per-request bulk-edit context set by Edit.
+        // Returning to the batch review clears any per-request edit context set by Edit.
         HttpContext.Session.ClearBulkEditMode(windowId);
+        HttpContext.Session.ClearSingleEditMode(windowId);
 
         var selected = HttpContext.Session.GetBulkSelection(windowId);
         if (selected.Count == 0)
@@ -226,11 +188,14 @@ public sealed class AmendmentRequestsController(
         if (fromBulk)
         {
             HttpContext.Session.SetBulkEditMode(windowId);
+            HttpContext.Session.ClearSingleEditMode(windowId);
             return RedirectToAction("Summary", "Journey", new { windowId });
         }
 
-        // A normal edit clears any stale bulk-edit context so the summary shows its actions.
+        // A normal edit clears any stale bulk-edit context so the summary shows its actions, and
+        // marks single-edit mode so the summary links back to the Amendment Requests page.
         HttpContext.Session.ClearBulkEditMode(windowId);
+        HttpContext.Session.SetSingleEditMode(windowId);
 
         var advice = await adviceService.BuildAsync(windowId, referenceNumber, journey);
         if (advice is null)

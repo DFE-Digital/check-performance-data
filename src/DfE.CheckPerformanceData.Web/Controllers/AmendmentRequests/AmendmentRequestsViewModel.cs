@@ -46,7 +46,7 @@ public sealed class AmendmentRequestRowViewModel
     public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
 
-    /// <summary>True when this row was in the bulk selection last taken into Continue A/B, so the
+    /// <summary>True when this row was in the bulk selection last taken into the bulk review, so the
     /// checkbox stays checked when the user comes back to the list.</summary>
     public bool IsSelected { get; init; }
 

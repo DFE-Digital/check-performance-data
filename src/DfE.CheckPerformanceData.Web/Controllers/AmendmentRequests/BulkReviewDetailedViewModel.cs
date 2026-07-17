@@ -3,9 +3,8 @@ using DfE.CheckPerformanceData.Web.Controllers.Journey;
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
 /// <summary>
-/// Alternative "Continue B" bulk review page: each submittable request is shown as a full
-/// journey-style summary (no change links) rather than a one-line row. Duplicates keep the
-/// same compact warning table as the "Continue A" page.
+/// Bulk review page: each submittable request is shown as a full journey-style summary (no
+/// change links) rather than a one-line row, with duplicates in a compact warning table.
 /// </summary>
 public sealed class BulkReviewDetailedViewModel
 {

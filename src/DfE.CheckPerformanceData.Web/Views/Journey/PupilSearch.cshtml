@@ -20,20 +20,6 @@ else
     <a asp-action="Index" asp-controller="WhatToChange" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
 }
 
-@if (hasError)
-{
-    <govuk-error-summary>
-        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-        @if (!string.IsNullOrEmpty(ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage))
-        {
-            <govuk-error-summary-item>@ViewData.ModelState[string.Empty].Errors.FirstOrDefault()?.ErrorMessage</govuk-error-summary-item>
-        }
-        <govuk-error-summary-item href="#pupil-search">@fieldErrorMessage</govuk-error-summary-item>
-    </govuk-error-summary>
-}
-
-<h1 class="govuk-heading-xl">@Model.Title</h1>
-
 @if (Model.ConflictAttentionHtml is not null)
 {
     <div role="region" class="moj-alert moj-alert--warning moj-alert--with-heading" aria-label="warning: There is a problem" data-module="moj-alert">
@@ -48,6 +34,20 @@ else
         </div>
     </div>
 }
+
+@if (hasError)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        @if (!string.IsNullOrEmpty(ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage))
+        {
+            <govuk-error-summary-item>@ViewData.ModelState[string.Empty].Errors.FirstOrDefault()?.ErrorMessage</govuk-error-summary-item>
+        }
+        <govuk-error-summary-item href="#pupil-search">@fieldErrorMessage</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+<h1 class="govuk-heading-xl">@Model.Title</h1>
 
 <form method="post" action="@Url.Action("PupilSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
     @Html.AntiForgeryToken()

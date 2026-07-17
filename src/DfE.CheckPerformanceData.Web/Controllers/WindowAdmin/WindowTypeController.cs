@@ -95,7 +95,7 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
             return BadRequest();
         }
 
-        window.CheckingWindowType = model.WindowType.Value;
+        window.CheckingWindowType = model.WindowType!.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", id);

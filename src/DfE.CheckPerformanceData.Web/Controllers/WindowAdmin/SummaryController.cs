@@ -7,21 +7,21 @@ namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 public sealed class SummaryController(IWindowService windowService): Controller
 {
    
-    [HttpGet("admin/windows/summary/{id}")]
+    [HttpGet("admin/windows/summary/{id:guid}")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto w = await windowService.GetByIdAsync(id, cancellationToken);
         WindowEditItem vm = new WindowEditItem
         {
-            Id = w.Id,
+            WindowId = w.Id,
             Title = w.Title,
             StartDate = w.StartDate,
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
             IngressFile = w.IngressFile,
-            SchemaFile = w.SchemaFile
-            
+            SchemaFile = w.SchemaFile,
+            PostUrl = Url.Action("Index", "ValidateWindow", new {id = w.Id})
         };
         return View("~/Views/WindowAdmin/Summary.cshtml", vm);
     }

@@ -53,6 +53,9 @@
                 <ul class="govuk-list govuk-list--spaced cypmd-search-results">
                     @foreach (var hit in Model.PageHits)
                     {
+                        @* Debug: ts_rank score (Keywords A + Title B + Subtitle C on PageNode.SearchVector,
+                           plus BodyPlainText D on PageNodeVersion.SearchVector — summed).                  *@
+                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
                         <li>
                             <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                                 <a class="govuk-link" href="/@hit.Path">@hit.Title</a>
@@ -73,6 +76,8 @@
                 <ul class="govuk-list govuk-list--spaced cypmd-search-results">
                     @foreach (var hit in Model.ContentBlockHits)
                     {
+                        @* Debug: ts_rank score on ContentBlock.SearchVector (Keywords A + ValuePlainText B). *@
+                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
                         <li>
                             <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                                 <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>

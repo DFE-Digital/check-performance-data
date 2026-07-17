@@ -40,9 +40,9 @@ public sealed class GuidanceSectionTests
     [Fact]
     public void Ks4Manifest_EveryHeadingKey_IsBodyKeyPlusHeadingSuffix()
     {
-        // ContentBlockLocations derives a section's deep-link anchor by stripping the
-        // "-heading" suffix off the heading key — so this suffix relationship is a
-        // contract the search deep-links depend on.
+        // GuidancePage's section rendering derives each heading anchor by stripping the
+        // "-heading" suffix off the heading block key, so this suffix relationship is a
+        // contract the guidance section rendering depends on.
         Assert.All(GuidancePage.Ks4June2026.Sections,
             s => Assert.Equal(s.BlockKey + "-heading", s.HeadingBlockKey));
     }

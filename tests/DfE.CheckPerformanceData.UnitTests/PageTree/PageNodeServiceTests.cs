@@ -836,6 +836,14 @@ public class PageNodeServiceTests
                     .Select(ToNodeDto)
                     .FirstOrDefault());
 
+        public Task<PublishedPageInfoDto?> GetPublishedByPathAsync(string path) =>
+            Task.FromResult(
+                _nodes
+                    .Where(n => n.Path == path && !n.IsDeleted &&
+                                _versions.Any(v => v.NodeId == n.Id && v.IsCurrent))
+                    .Select(n => new PublishedPageInfoDto(n.Path, n.Title))
+                    .FirstOrDefault());
+
         public Task<List<DfE.CheckPerformanceData.Application.Search.PageSearchHitRaw>> SearchPagesAsync(
             string term, string? scopePath, int max)
             => Task.FromResult(new List<DfE.CheckPerformanceData.Application.Search.PageSearchHitRaw>());
@@ -967,6 +975,8 @@ public class PageNodeServiceTests
         }
 
         public Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId) => Task.CompletedTask;
+        public Task SetAppearInSearchAsync(Guid id, bool appearInSearch, string? userId) => Task.CompletedTask;
+        public Task SetKeywordsAsync(Guid id, string? keywords, string? userId) => Task.CompletedTask;
 
         public Task<PageNodeDto?> CopyNodeAsync(Guid sourceId, string newSegment, string newTitle, string? userId)
         {
@@ -1036,11 +1046,13 @@ public class PageNodeServiceTests
         // fake is only used by PageNodeService tests so the staging path is not reached here.
         public Task<PageNodeDto> CreateNodeForStagingAsync(
             Guid id, Guid? parentId, string segment, string path,
-            string title, string? subtitle, string? pageName, string pageType, int sortOrder, string? userId) =>
+            string title, string? subtitle, string? pageName, string pageType, int sortOrder,
+            bool appearInSearch, string? keywords, string? userId) =>
             throw new NotSupportedException("staging");
 
         public Task UpdateNodeForStagingAsync(
-            Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder, string? userId) =>
+            Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder,
+            bool appearInSearch, string? keywords, string? userId) =>
             throw new NotSupportedException("staging");
 
         public Task ReplaceAllVersionsForStagingAsync(

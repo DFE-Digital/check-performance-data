@@ -1,3 +1,5 @@
+using NpgsqlTypes;
+
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
 // A versioned content snapshot for a node. Content is the type-specific payload (widget JSON for
@@ -15,6 +17,12 @@ public sealed class PageNodeVersion
     public int MinorVersion { get; set; }
     public string Content { get; set; } = string.Empty;
     public string BodyPlainText { get; set; } = string.Empty;
+
+    // Generated tsvector over BodyPlainText at weight D (lower than title/subtitle/keywords
+    // on the parent PageNode). SearchPagesAsync ranks live-version + node vectors together so
+    // a body hit still contributes to the overall score.
+    public NpgsqlTsVector SearchVector { get; set; } = null!;
+
     public DateTime CreatedDate { get; set; }
     public string? CreatedBy { get; set; }
     public DateTime UpdatedDate { get; set; }

@@ -209,23 +209,48 @@
                         <div class="govuk-form-group">
                             <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
                                 <div class="govuk-checkboxes__item">
-                                    @* Checkbox first, hidden second — same pattern ASP.NET Core's
-                                       asp-for tag helper uses for booleans. When ticked, the form
-                                       posts showInMenu=true&showInMenu=false and the model binder
-                                       takes the first parseable value (true). When unticked, only
-                                       the hidden false is posted. Reversing this order silently
-                                       clobbers the flag to false every time you save. *@
+                                    @* Order matters twice over. (1) Model binding: checkbox emits
+                                       first so the browser posts showInMenu=true&showInMenu=false
+                                       when ticked; first-value-wins gives true. Only false is
+                                       posted when unticked. (2) GDS CSS: the tick mark and focus
+                                       ring are drawn by :checked+label:after / :focus+label:before,
+                                       which need the label to be the *adjacent* sibling of the
+                                       checkbox. Any element between them (including a hidden input)
+                                       kills the visual feedback — the state toggles but nothing
+                                       renders, so users think the box is broken. Put the hidden
+                                       AFTER the label to keep both invariants. *@
                                     <input class="govuk-checkboxes__input" id="cpb-showinmenu" type="checkbox"
                                            name="showInMenu" value="true" aria-describedby="cpb-showinmenu-hint"
                                            @(Model.ShowInMenu ? "checked" : null) />
-                                    <input type="hidden" name="showInMenu" value="false" />
                                     <label class="govuk-label govuk-checkboxes__label" for="cpb-showinmenu">Show in menu</label>
+                                    <input type="hidden" name="showInMenu" value="false" />
                                     <div id="cpb-showinmenu-hint" class="govuk-hint govuk-checkboxes__hint">
                                         Uncheck to hide this page from the public side navigation.
                                         Unpublished pages are always hidden from menus.
                                     </div>
                                 </div>
+                                <div class="govuk-checkboxes__item">
+                                    <input class="govuk-checkboxes__input" id="cpb-appearinsearch" type="checkbox"
+                                           name="appearInSearch" value="true" aria-describedby="cpb-appearinsearch-hint"
+                                           @(Model.AppearInSearch ? "checked" : null) />
+                                    <label class="govuk-label govuk-checkboxes__label" for="cpb-appearinsearch">Appear in search</label>
+                                    <input type="hidden" name="appearInSearch" value="false" />
+                                    <div id="cpb-appearinsearch-hint" class="govuk-hint govuk-checkboxes__hint">
+                                        Uncheck to hide this page from help-search results. The page URL
+                                        still works and direct links / nav still find it.
+                                    </div>
+                                </div>
                             </div>
+                        </div>
+                        <div class="govuk-form-group">
+                            <label class="govuk-label govuk-label--s" for="cpb-keywords">Search keywords</label>
+                            <div id="cpb-keywords-hint" class="govuk-hint">
+                                Extra terms this page should surface for in help-search. Whitespace-separated,
+                                weighted higher than the title. Use to catch synonyms (e.g. "helpdesk phone email"
+                                on a Contact page).
+                            </div>
+                            <input class="govuk-input" id="cpb-keywords" name="keywords"
+                                   value="@Model.Keywords" aria-describedby="cpb-keywords-hint" />
                         </div>
                         <div class="govuk-button-group">
                             <button type="submit" class="govuk-button govuk-button--secondary" data-module="govuk-button">

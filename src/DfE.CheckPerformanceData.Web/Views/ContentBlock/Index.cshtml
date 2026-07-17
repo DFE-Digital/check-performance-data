@@ -123,6 +123,39 @@ else
                                     }
                                 </div>
 
+                                <div class="govuk-form-group">
+                                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                        <div class="govuk-checkboxes__item">
+                                            @* Hidden AFTER the label, not between. GDS's :checked+label:after
+                                               and :focus+label:before selectors need the label adjacent to the
+                                               checkbox — a hidden input between them breaks tick and focus-ring
+                                               rendering (state still toggles, users just can't see it). Same
+                                               reason as ContentPage/Edit.cshtml. First-value-wins model binding
+                                               still resolves true when checked because the checkbox is emitted
+                                               first in DOM order. *@
+                                            <input class="govuk-checkboxes__input" id="cb-appearinsearch-@b.Key" type="checkbox"
+                                                   name="AppearInSearch" value="true" aria-describedby="cb-appearinsearch-@b.Key-hint"
+                                                   @(b.AppearInSearch ? "checked" : null) />
+                                            <label class="govuk-label govuk-checkboxes__label" for="cb-appearinsearch-@b.Key">Appear in search</label>
+                                            <input type="hidden" name="AppearInSearch" value="false" />
+                                            <div id="cb-appearinsearch-@b.Key-hint" class="govuk-hint govuk-checkboxes__hint">
+                                                Uncheck to hide this block from help-search results. The block still
+                                                renders on every page that uses it.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="govuk-form-group">
+                                    <label class="govuk-label" for="cb-keywords-@b.Key">Search keywords</label>
+                                    <div id="cb-keywords-@b.Key-hint" class="govuk-hint">
+                                        Extra terms this block should surface for in help-search. Whitespace-separated,
+                                        weighted higher than the block content.
+                                    </div>
+                                    <input class="govuk-input" id="cb-keywords-@b.Key" name="Keywords" type="text"
+                                           value="@b.Keywords" aria-describedby="cb-keywords-@b.Key-hint" />
+                                </div>
+
                                 <div class="govuk-button-group">
                                     <button type="submit" class="govuk-button" data-module="govuk-button">Save</button>
                                     <a href="/admin/content-blocks" class="govuk-link">Cancel</a>

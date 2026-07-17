@@ -15,6 +15,14 @@ public interface IPageNodeRepository
 
     Task<PageNodeDto?> GetByPathAsync(string path);
 
+    /// <summary>
+    /// Returns the page at <paramref name="path"/> only if it currently has a live
+    /// (IsCurrent = true) version and is not soft-deleted. Returns null otherwise
+    /// (unknown path, draft-only, or unpublished). Used by help-search to keep
+    /// unpublished pages out of results.
+    /// </summary>
+    Task<PublishedPageInfoDto?> GetPublishedByPathAsync(string path);
+
     Task<PageNodeDto?> GetByIdAsync(Guid id);
 
     Task<PageNodeDto> CreateNodeAsync(
@@ -90,6 +98,12 @@ public interface IPageNodeRepository
 
     Task SetShowInMenuAsync(Guid id, bool showInMenu, string? userId);
 
+    /// <summary>Sets the AppearInSearch flag on <paramref name="id"/> and stamps the audit fields.</summary>
+    Task SetAppearInSearchAsync(Guid id, bool appearInSearch, string? userId);
+
+    /// <summary>Sets the free-text search Keywords on <paramref name="id"/> and stamps the audit fields.</summary>
+    Task SetKeywordsAsync(Guid id, string? keywords, string? userId);
+
     /// <summary>
     /// Clones a page as a sibling of the source: a fresh Guid, a segment/path derived from
     /// <paramref name="newSegment"/> under the source's parent, every version copied verbatim
@@ -113,7 +127,8 @@ public interface IPageNodeRepository
     /// </summary>
     Task<PageNodeDto> CreateNodeForStagingAsync(
         Guid id, Guid? parentId, string segment, string path,
-        string title, string? subtitle, string? pageName, string pageType, int sortOrder, string? userId);
+        string title, string? subtitle, string? pageName, string pageType, int sortOrder,
+        bool appearInSearch, string? keywords, string? userId);
 
     /// <summary>
     /// Updates an existing node's mutable header fields (segment, title, subtitle, path, sortOrder).
@@ -122,7 +137,8 @@ public interface IPageNodeRepository
     /// <see cref="ReplaceAllVersionsForStagingAsync"/>.
     /// </summary>
     Task UpdateNodeForStagingAsync(
-        Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder, string? userId);
+        Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder,
+        bool appearInSearch, string? keywords, string? userId);
 
     /// <summary>
     /// Replaces every version on <paramref name="nodeId"/> with the supplied bundle versions.

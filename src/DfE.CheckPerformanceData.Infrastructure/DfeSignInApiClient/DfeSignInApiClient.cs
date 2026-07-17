@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -138,6 +139,8 @@ public sealed class OrganisationDtoJsonConverter : JsonConverter<OrganisationDto
         if (dto?.Urn == "990082" && dto.Name == "DSI Test College")
         {
             dto.Laestab = "DSI/TEST";
+            dto.StatutoryLowAge = 11;
+            dto.StatutoryHighAge = 16;
             return dto;
         }
 

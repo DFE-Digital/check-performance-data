@@ -26,18 +26,46 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     public async Task<List<ContentBlockDto>> SearchAsync(string query, int take)
     {
-        // Escape LIKE wildcards in the user term, then case-insensitive contains. Exclude
+        // Full-text ranked search over the Keywords (A) + ValuePlainText (B) vector. Exclude
         // e2e seed blocks and the guidance nav block (it lists every section title).
-        var escaped = query.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
-        var pattern = $"%{escaped}%";
-
+        // websearch_to_tsquery tolerates any input; sanitisation is done upstream via the
+        // short-query short-circuit in SiteSearchService / ContentBlockSearchService.
+        //
+        // Whitespace between plain words is turned into OR so "merge booga" doesn't hit zero
+        // when "booga" isn't in the corpus. Queries that already use websearch operators
+        // (OR / "phrase" / -negation) are passed through untouched.
+        //
+        // Manual Select (not ProjectToDto) because ContentBlockDto.Rank needs the row's
+        // ts_rank result and Mapperly can't compose that with the entity mapping.
+        var normalisedQuery = Application.Search.SearchTermNormalizer.OrJoinWhitespace(query);
         return await context.ContentBlocks
             .AsNoTracking()
             .Where(b => !b.Key.StartsWith("e2e-") && b.Key != "guidance-ks4-2026-nav")
-            .Where(b => EF.Functions.ILike(b.Value, pattern, "\\"))
-            .OrderBy(b => b.Key)
+            .Where(b => b.AppearInSearch)
+            .Where(b => b.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)))
+            .Select(b => new
+            {
+                Block = b,
+                Rank = b.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery))
+            })
+            .OrderByDescending(x => x.Rank)
+            .ThenBy(x => x.Block.Key)  // stable tie-break
             .Take(take)
-            .ProjectToDto()
+            .Select(x => new ContentBlockDto
+            {
+                Id = x.Block.Id,
+                ContentId = x.Block.ContentId,
+                Key = x.Block.Key,
+                BlockType = x.Block.BlockType,
+                Value = x.Block.Value,
+                LastSeenPath = x.Block.LastSeenPath,
+                LastSeenAt = x.Block.LastSeenAt,
+                AppearInSearch = x.Block.AppearInSearch,
+                Keywords = x.Block.Keywords,
+                Rank = x.Rank,
+                CreatedAt = x.Block.CreatedAt,
+                UpdatedAt = x.Block.UpdatedAt,
+            })
             .ToListAsync();
     }
 
@@ -70,13 +98,16 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     // Commands — work with tracked entities internally
 
-    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value, Guid? contentId = null)
+    public async Task<ContentBlockDto> AddBlockAsync(string key, string blockType, string value, string valuePlainText, Guid? contentId = null, bool appearInSearch = true, string? keywords = null)
     {
         var entity = new ContentBlock
         {
             Key = key,
             BlockType = blockType,
             Value = value,
+            ValuePlainText = valuePlainText,
+            AppearInSearch = appearInSearch,
+            Keywords = keywords,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -93,7 +124,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
 
     // Content-staging Replace: overwrite an existing block in place — including a Key/type change
     // (a "rename") and reconciling its cross-environment identity — matched by row id.
-    public async Task UpdateForStagingAsync(int id, string key, string blockType, string value, Guid contentId)
+    public async Task UpdateForStagingAsync(int id, string key, string blockType, string value, string valuePlainText, Guid contentId, bool appearInSearch, string? keywords)
     {
         var entity = await context.ContentBlocks.FindAsync(id)
             ?? throw new InvalidOperationException($"Content block {id} not found.");
@@ -101,6 +132,9 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         entity.Key = key;
         entity.BlockType = blockType;
         entity.Value = value;
+        entity.ValuePlainText = valuePlainText;
+        entity.AppearInSearch = appearInSearch;
+        entity.Keywords = keywords;
         if (contentId != Guid.Empty)
             entity.ContentId = contentId;
         entity.UpdatedAt = DateTime.UtcNow;
@@ -133,13 +167,34 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
         await context.SaveChangesAsync();
     }
 
-    public async Task UpdateValueAsync(int id, string newValue)
+    public async Task UpdateValueAsync(int id, string newValue, string newValuePlainText)
     {
         var entity = await context.ContentBlocks.FindAsync(id)
             ?? throw new InvalidOperationException($"Content block {id} not found.");
 
         entity.Value = newValue;
+        entity.ValuePlainText = newValuePlainText;
         entity.UpdatedAt = DateTime.UtcNow;
+    }
+
+    public async Task SetAppearInSearchAsync(int id, bool appearInSearch)
+    {
+        var entity = await context.ContentBlocks.FindAsync(id)
+            ?? throw new InvalidOperationException($"Content block {id} not found.");
+
+        entity.AppearInSearch = appearInSearch;
+        entity.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+    }
+
+    public async Task SetKeywordsAsync(int id, string? keywords)
+    {
+        var entity = await context.ContentBlocks.FindAsync(id)
+            ?? throw new InvalidOperationException($"Content block {id} not found.");
+
+        entity.Keywords = string.IsNullOrWhiteSpace(keywords) ? null : keywords.Trim();
+        entity.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
     }
 
     public async Task SaveChangesAsync() =>

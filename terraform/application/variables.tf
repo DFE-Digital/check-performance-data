@@ -87,6 +87,11 @@ variable "replicas" {
   type    = number
 }
 
+variable "max_memory" {
+    type = string
+    default = "4Gi"    
+}
+
 variable "worker_docker_image" {
   type        = string
   description = "Docker image for the Rules Engine Worker. Includes docker registry, repository and tag."

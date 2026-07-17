@@ -12,8 +12,8 @@ public sealed class WindowAdminController(
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         PageResult? pageResult = await windowService.GetAllDataAsync(cancellationToken);
-        List<WindowListItem> windowListItems = pageResult?.Windows.Select(_ => new WindowListItem() {Id = _.Id, Name = _.Title, IsOpen = true, IsPublished = true}).ToList();
-        WindowViewModel vm = new WindowViewModel(windowListItems);
+        List<WindowListItem> windowListItems = pageResult?.Windows.Select(wli => new WindowListItem() {Id = wli.Id, Name = wli.Title, IsOpen = true, IsPublished = true}).ToList()!;
+        WindowViewModel vm = new WindowViewModel(windowListItems!);
 
         return View( vm );
     }

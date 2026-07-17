@@ -30,11 +30,13 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Newtonsoft.Json.Schema;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
@@ -104,6 +106,15 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
+    
+    string? newtonsoftLicenseKey = configuration
+        .GetSection("NewtonsoftLicenseKey")
+        .Get<string>() ?? null;
+
+    if (newtonsoftLicenseKey is not null)
+    {
+        License.RegisterLicense(newtonsoftLicenseKey);
+    }
 
     // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
     // the admin Danger zone "Reset seed data" action.
@@ -206,7 +217,7 @@ try
     builder.Services.AddScoped<PageNodePathValidator>();
 
     // ASP.NET Core Data Protection key ring. Production runs multiple web replicas, so the
-    // key ring MUST be shared across pods: the OIDC 'state' and correlation cookie are
+    // key ring MUST be shared across all web replicas: the OIDC 'state' and correlation cookie are
     // protected when the user is redirected TO DfE Sign-in and unprotected on the /auth/callback
     // return. With the default in-memory keys, each pod has its own ring, so a callback that
     // load-balances to a different pod fails with "Unable to unprotect the message.State." and
@@ -259,11 +270,15 @@ try
     builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
     builder.Services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+    builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
     builder.Services.AddAntiforgery(options =>
     {
         options.HeaderName = "X-XSRF-TOKEN";
     });
+    
+    // Setting to null to allow controller-level request size limits
+    builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
 
     builder.Services.AddControllersWithViews();
 

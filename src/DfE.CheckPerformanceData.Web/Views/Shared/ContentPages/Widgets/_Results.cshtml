@@ -1,0 +1,94 @@
+@using DfE.CheckPerformanceData.Application.ContentPages
+@using DfE.CheckPerformanceData.Application.Search
+@model WidgetNode
+@inject ISiteSearchService SearchService
+@{
+    // Widget-level defaults (all editor-configurable).
+    var widgetScope    = (Model.GetString("scope") ?? string.Empty).Trim().Trim('/');
+    var includePages   = Model.GetBool("includePages") ?? true;
+    var includeBlocks  = Model.GetBool("includeContentBlocks") ?? true;
+    var maxPerType     = Model.GetInt("maxPerType") ?? 20;
+    var emptyText      = Model.GetString("emptyText") ?? "No results found.";
+
+    // Read query + scope from the current URL. URL scope wins when set, so a site-wide
+    // /search entry point can override a page-scoped widget; otherwise the widget's own
+    // scope is authoritative for direct visits (e.g. someone bookmarking /help/search).
+    var query = ViewContext.HttpContext.Request.Query;
+    var q     = query.TryGetValue("q", out var qv)
+                ? qv.ToString().Trim()
+                : string.Empty;
+    var urlScope = query.TryGetValue("scope", out var sv)
+                ? sv.ToString().Trim().Trim('/')
+                : string.Empty;
+    var effectiveScope = !string.IsNullOrEmpty(urlScope) ? urlScope : widgetScope;
+
+    SiteSearchResult? result = null;
+    if (!string.IsNullOrEmpty(q))
+    {
+        result = await SearchService.SearchAsync(new SiteSearchQuery(
+            q,
+            ScopePath: string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope,
+            IncludePages: includePages,
+            IncludeContentBlocks: includeBlocks,
+            MaxPerType: maxPerType));
+    }
+
+    var scopeSuffix = string.IsNullOrEmpty(effectiveScope) ? string.Empty : $" in /{effectiveScope}";
+}
+<div class="cypmd-search-results">
+    @if (string.IsNullOrEmpty(q))
+    {
+        <p class="govuk-body">Enter a search term to begin.</p>
+    }
+    else if (result?.InvalidReason == SearchInvalidReason.BelowMinimumLength)
+    {
+        <p class="govuk-body">Enter at least 2 characters.</p>
+    }
+    else if (result is null || result.TotalHits == 0)
+    {
+        <p class="govuk-body">@emptyText</p>
+    }
+    else
+    {
+        <p class="govuk-body">
+            @result.TotalHits result@(result.TotalHits == 1 ? "" : "s") for
+            <strong>@q</strong>@(scopeSuffix).
+        </p>
+
+        @if (result.PageHits.Count > 0)
+        {
+            <h2 class="govuk-heading-l">Pages (@result.PageHits.Count)</h2>
+            <ul class="govuk-list govuk-list--spaced">
+                @foreach (var hit in result.PageHits)
+                {
+                    <li>
+                        <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
+                            <a class="govuk-link" href="/@hit.Path">@hit.Title</a>
+                        </h3>
+                        @if (!string.IsNullOrEmpty(hit.Subtitle))
+                        {
+                            <p class="govuk-body-s govuk-!-margin-bottom-1"><em>@hit.Subtitle</em></p>
+                        }
+                        <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (result.ContentBlockHits.Count > 0)
+        {
+            <h2 class="govuk-heading-l">Content blocks (@result.ContentBlockHits.Count)</h2>
+            <ul class="govuk-list govuk-list--spaced">
+                @foreach (var hit in result.ContentBlockHits)
+                {
+                    <li>
+                        <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
+                            <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>
+                        </h3>
+                        <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</div>

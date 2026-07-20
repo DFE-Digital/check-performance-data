@@ -33,11 +33,13 @@ public class NotifyService : INotifyService
         string deadline,
         IReadOnlyCollection<string> recipientEmails,
         NotificationType notificationType,
-        string? url = null)
+        string? url = null,
+        IReadOnlyCollection<string>? referenceNumbers = null)
     {
         var templateId = notificationType switch
         {
             NotificationType.SubmissionConfirmed => _settings.SubmissionNotificationTemplateId,
+            NotificationType.BulkSubmissionConfirmed => _settings.BulkSubmissionNotificationTemplateId,
             NotificationType.DataCheckConfirmed => _settings.PupilDataCheckConfirmTemplateId,
             NotificationType.AmendmentWithdrawn => _settings.WithdrawNotificationTemplateId,
             NotificationType.DataCheckWithdrawn => _settings.PupilDataCheckWithdrawTemplateId,
@@ -52,7 +54,7 @@ public class NotifyService : INotifyService
         {
             try
             {
-                await SendEmailAsync(email, referenceNumber, deadline, templateId, url);
+                await SendEmailAsync(email, referenceNumber, deadline, templateId, url, referenceNumbers);
             }
             catch (Exception ex)
             {
@@ -97,7 +99,8 @@ public class NotifyService : INotifyService
         string refNumber,
         string deadline,
         string templateId,
-        string? url)
+        string? url,
+        IReadOnlyCollection<string>? referenceNumbers = null)
     {
         var personalisation = new Dictionary<string, object>
         {
@@ -109,6 +112,12 @@ public class NotifyService : INotifyService
         if (!string.IsNullOrEmpty(url))
         {
             personalisation["submit others url"] = url;
+        }
+
+        if (referenceNumbers is { Count: > 0 })
+        {
+            // Notify renders newline-joined text as separate lines / bullet items.
+            personalisation["references"] = string.Join("\n", referenceNumbers);
         }
 
         if (_resiliencePipeline is not null)

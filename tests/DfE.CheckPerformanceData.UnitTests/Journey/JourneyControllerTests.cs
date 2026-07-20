@@ -26,7 +26,6 @@ public class JourneyControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
-    private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
@@ -78,7 +77,6 @@ public class JourneyControllerTests
 
     public JourneyControllerTests()
     {
-        _env.EnvironmentName.Returns("Production");
 
         _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>()).Returns(Config);
         _flowService.GetPage(Config, "page-1").Returns(Config.Pages[0]);
@@ -93,7 +91,7 @@ public class JourneyControllerTests
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
-            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
@@ -273,6 +271,31 @@ public class JourneyControllerTests
         var result = await _sut.Summary(WindowId);
 
         Assert.IsType<ViewResult>(result);
+    }
+
+    [Fact]
+    public async Task Summary_WhenSingleEditMode_SetsFromEditOnViewModel()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _session.SetSingleEditMode(WindowId);
+
+        var result = await _sut.Summary(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.True(vm.FromEdit);
+    }
+
+    [Fact]
+    public async Task Summary_WhenNotSingleEditMode_FromEditIsFalse()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+
+        var result = await _sut.Summary(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<SummaryViewModel>(view.Model);
+        Assert.False(vm.FromEdit);
     }
 
     // ── SummaryConfirm ───────────────────────────────────────────────────────
@@ -586,13 +609,26 @@ public class JourneyControllerTests
     }
 
     [Fact]
-    public async Task SaveDraft_AlwaysRedirectsToAmendmentRequests()
+    public async Task SaveDraft_WhenNotBulkEdit_RedirectsToAmendmentRequestsIndex()
     {
         SetupSession(ValidSession());
 
         var result = await _sut.SaveDraft(WindowId, pageId: null);
 
         AssertRedirectToAmendmentRequests(result);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WhenBulkEdit_RedirectsToBulkDetailedReview()
+    {
+        SetupSession(ValidSession());
+        _session.SetBulkEditMode(WindowId);
+
+        var result = await _sut.SaveDraft(WindowId, pageId: null);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("AmendmentRequests", redirect.ControllerName);
+        Assert.Equal("BulkReviewDetailedPage", redirect.ActionName);
     }
 
     [Fact]

@@ -24,7 +24,7 @@ public sealed class RequestService(
     public Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn) =>
         requestRepository.HasSubmittedRequestAsync(windowId, pupilId, organisationUrn);
 
-    public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
+    public async Task SubmitRequestAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
@@ -61,13 +61,17 @@ public sealed class RequestService(
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
-        await requestNotificationService.NotifySubmissionConfirmedAsync(
-            windowId, journey.CheckingWindow.EndDate, refNum);
-
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
         // the enqueued RequestDocument is bound for the queue and not retained.
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
+    }
+
+    public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
+    {
+        await SubmitRequestAsync(windowId, journey);
+        await requestNotificationService.NotifySubmissionConfirmedAsync(
+            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)

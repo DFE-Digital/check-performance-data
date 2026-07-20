@@ -42,6 +42,9 @@ public sealed class WhatToChangeController(
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
         });
+        // A freshly started journey is never an edit of an existing request.
+        HttpContext.Session.ClearBulkEditMode(windowId);
+        HttpContext.Session.ClearSingleEditMode(windowId);
 
         await analytics.TrackSafeAsync(new ChangeTypeSelectedEvent
         {

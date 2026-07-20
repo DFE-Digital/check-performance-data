@@ -315,6 +315,9 @@ public static class DependencyManager
         if (NotifyServiceRegistration.ShouldUseFake(config))
         {
             services.AddSingleton<INotifyService, DevConsoleNotifyService>();
+            // Bind settings without validation so bulk-email threshold/config resolves in dev/fake mode.
+            services.AddOptions<NotifySettings>()
+                .Bind(config.GetSection(NotifySettings.SectionName));
             return services;
         }
 

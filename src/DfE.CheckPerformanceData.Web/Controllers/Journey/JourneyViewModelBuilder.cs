@@ -8,11 +8,11 @@ public sealed class JourneyViewModelBuilder(
     IQuestionFlowService flowService,
     IJourneyValidationService journeyService,
     IOptionVisibilityService optionVisibilityService,
-    ICurrentUserService currentUserService,
-    IWebHostEnvironment env)
+    ICurrentUserService currentUserService) : IJourneyViewModelBuilder
 {
     public SummaryViewModel BuildSummaryVm(
-        Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null)
+        Guid windowId, RequestState journey, QuestionFlowConfig config,
+        string? conflictError = null, bool fromBulk = false, bool fromEdit = false)
     {
         var pupilName = GetPupilName(journey);
         var rows = new List<SummaryRow>();
@@ -40,10 +40,6 @@ public sealed class JourneyViewModelBuilder(
 
         var backPageId = journey.QuestionHistory.Last();
         var backPage = flowService.GetPage(config, backPageId);
-        var debugJson = env.IsDevelopment()
-            ? System.Text.Json.JsonSerializer.Serialize(journey,
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true })
-            : null;
 
         var primaryPupilPage = config.Pages.FirstOrDefault(
             p => p.Type == PageType.PupilSearch && p.PupilKey == JourneyPage.PrimaryKey);
@@ -72,8 +68,9 @@ public sealed class JourneyViewModelBuilder(
             FileRows = fileRows,
             BackPageId = backPageId,
             MaxEvidencePages = journeyService.MaxEvidencePages,
-            DebugJson = debugJson,
             ConflictError = conflictError,
+            FromBulk = fromBulk,
+            FromEdit = fromEdit,
             PrimaryPupilPageId = primaryPupilPage?.Id,
             FirstRecordDisplay = firstRecordDisplay,
             SecondRecordDisplay = secondRecordDisplay,

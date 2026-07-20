@@ -31,6 +31,17 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Select(r => r.ReferenceNumber)
             .FirstOrDefaultAsync();
 
+    public async Task<IReadOnlyList<Guid>> GetSubmittedPupilIdsAsync(
+        Guid windowId, long organisationUrn) =>
+        await db.ChangeRequests
+            .Where(r => r.WindowId == windowId
+                && r.OrganisationUrn == organisationUrn
+                && r.Status == RequestStatus.SubmittedUnCommitted
+                && r.PupilId != null)
+            .Select(r => r.PupilId!.Value)
+            .Distinct()
+            .ToListAsync();
+
     public async Task<Guid> UpsertAsync(ChangeRequestData data)
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
@@ -94,6 +105,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .ThenBy(r => r.PupilFirstname)
             .Select(r => new AmendmentRequestData
             {
+                PupilId = r.PupilId,
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestType = r.RequestType,
@@ -131,6 +143,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.ReferenceNumber == referenceNumber)
             .Select(r => new AmendmentRequestData
             {
+                PupilId = r.PupilId,
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
                 RequestType = r.RequestType,

@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Notify;
+using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.Infrastructure.Notify;
 
@@ -14,7 +15,8 @@ namespace DfE.CheckPerformanceData.Infrastructure.Notify;
 public sealed class RequestNotificationService(
     ICurrentUserService currentUserService,
     IEmailLinkGenerator emailLinkGenerator,
-    INotificationDispatcher dispatcher) : IRequestNotificationService
+    INotificationDispatcher dispatcher,
+    IOptions<NotifySettings> notifySettings) : IRequestNotificationService
 {
     public async Task NotifySubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, string referenceNumber)
     {
@@ -26,6 +28,49 @@ public sealed class RequestNotificationService(
             Type = NotificationType.SubmissionConfirmed,
             ReferenceNumber = referenceNumber,
             Deadline = FormatDeadline(deadlineDate),
+            LinkUrl = linkUrl,
+            Ukprn = currentUserService.Ukprn,
+            OriginatorEmail = currentUserService.Email,
+            IncludeOrganisationUsers = true
+        });
+    }
+
+    public async Task NotifyBulkSubmissionConfirmedAsync(
+        Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers)
+    {
+        if (referenceNumbers.Count == 0) return;
+
+        var linkUrl = emailLinkGenerator.GenerateLink(
+            "WhatToChange", "Index", new { windowId }, "SubmissionNotification");
+        var deadline = FormatDeadline(deadlineDate);
+        var threshold = notifySettings.Value.BulkConsolidationThreshold;
+
+        if (referenceNumbers.Count < threshold)
+        {
+            // Parity with individual submissions: one SubmissionConfirmed email per reference.
+            foreach (var reference in referenceNumbers)
+            {
+                await dispatcher.EnqueueAsync(new EmailNotification
+                {
+                    Type = NotificationType.SubmissionConfirmed,
+                    ReferenceNumber = reference,
+                    Deadline = deadline,
+                    LinkUrl = linkUrl,
+                    Ukprn = currentUserService.Ukprn,
+                    OriginatorEmail = currentUserService.Email,
+                    IncludeOrganisationUsers = true
+                });
+            }
+            return;
+        }
+
+        // One consolidated email listing every reference in the batch.
+        await dispatcher.EnqueueAsync(new EmailNotification
+        {
+            Type = NotificationType.BulkSubmissionConfirmed,
+            ReferenceNumber = string.Empty,
+            ReferenceNumbers = referenceNumbers,
+            Deadline = deadline,
             LinkUrl = linkUrl,
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,

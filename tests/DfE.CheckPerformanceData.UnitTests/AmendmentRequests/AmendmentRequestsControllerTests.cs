@@ -8,10 +8,12 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
+using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
@@ -24,6 +26,10 @@ public class AmendmentRequestsControllerTests
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IEditAdviceService _adviceService = Substitute.For<IEditAdviceService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly IBulkSubmissionService _bulkService = Substitute.For<IBulkSubmissionService>();
+    private readonly ICheckYourPupilDataService _checkYourPupilData = Substitute.For<ICheckYourPupilDataService>();
+    private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
+    private readonly IJourneyViewModelBuilder _viewModelBuilder = Substitute.For<IJourneyViewModelBuilder>();
     private readonly FakeSession _session = new();
     private readonly AmendmentRequestsController _sut;
 
@@ -32,10 +38,11 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics)
+        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData, _flowService, _viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
+        _sut.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
     }
 
     // ── Index ────────────────────────────────────────────────────────────────
@@ -59,6 +66,29 @@ public class AmendmentRequestsControllerTests
         await _sut.Index(WindowId);
 
         await _service.Received(1).GetAmendmentRequestsAsync(WindowId);
+    }
+
+    [Fact]
+    public async Task Index_MarksRowsSelectedFromStoredBulkSelection()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(new AmendmentRequestsResult
+        {
+            WindowEndDate = new DateTime(2026, 6, 26, 17, 0, 0),
+            WindowTitle = "Key stage 4",
+            Rows =
+            [
+                new AmendmentRequestDto { PupilName = "Ann Alpha", RequestType = RequestType.Amendment, RequestTypeDescription = "Remove pupil", Status = RequestStatus.ReadyToSubmit, ReferenceNumber = "R1" },
+                new AmendmentRequestDto { PupilName = "Bob Beta", RequestType = RequestType.Amendment, RequestTypeDescription = "Remove pupil", Status = RequestStatus.ReadyToSubmit, ReferenceNumber = "R2" }
+            ],
+            SubmittedRows = []
+        });
+        _session.SetBulkSelection(WindowId, new[] { "R1" });
+
+        var result = await _sut.Index(WindowId);
+
+        var vm = Assert.IsType<AmendmentRequestsViewModel>(((ViewResult)result).Model);
+        Assert.True(vm.Rows.Single(r => r.ReferenceNumber == "R1").IsSelected);
+        Assert.False(vm.Rows.Single(r => r.ReferenceNumber == "R2").IsSelected);
     }
 
     [Fact]
@@ -240,6 +270,82 @@ public class AmendmentRequestsControllerTests
         Assert.Equal("This request is to remove a pupil. If this is not correct, go back and delete the request.", vm.AdviceText);
     }
 
+    [Fact]
+    public async Task Edit_Default_SetsBackUrlToIndex()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        var result = await _sut.Edit(WindowId, "REF001");
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<EditAdviceViewModel>(view.Model);
+        Assert.Equal($"/{WindowId}/AmendmentRequests", vm.BackUrl);
+    }
+
+    [Fact]
+    public async Task Edit_FromBulk_RedirectsToJourneySummaryBypassingAdvice()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+
+        var result = await _sut.Edit(WindowId, "REF001", fromBulk: true);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Summary", redirect.ActionName);
+        Assert.Equal("Journey", redirect.ControllerName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+        // The edit-advice interstitial is skipped entirely on the bulk path.
+        await _adviceService.DidNotReceive().BuildAsync(WindowId, "REF001", Arg.Any<RequestState>());
+        // The summary uses this flag to link back to the batch and hide its submit/save actions.
+        Assert.True(_session.IsBulkEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Edit_NotFromBulk_ClearsBulkEditMode()
+    {
+        _session.SetBulkEditMode(WindowId);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        await _sut.Edit(WindowId, "REF001");
+
+        Assert.False(_session.IsBulkEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Edit_NotFromBulk_SetsSingleEditMode()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+
+        await _sut.Edit(WindowId, "REF001");
+
+        // The summary uses this flag to link back to the Amendment Requests page.
+        Assert.True(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Edit_FromBulk_ClearsSingleEditMode()
+    {
+        _session.SetSingleEditMode(WindowId);
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+
+        await _sut.Edit(WindowId, "REF001", fromBulk: true);
+
+        Assert.False(_session.IsSingleEditMode(WindowId));
+    }
+
+    [Fact]
+    public async Task Edit_FromBulk_PrimesSessionForSummary()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+
+        await _sut.Edit(WindowId, "REF001", fromBulk: true);
+
+        var restored = _session.GetRequestState(WindowId);
+        Assert.Equal("REF001", restored.ReferenceNumber);
+    }
+
     // ── Continue ───────────────────────────────────────────────────────────────
 
     [Fact]
@@ -305,6 +411,150 @@ public class AmendmentRequestsControllerTests
         await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
     }
 
+    // ── Bulk submission ────────────────────────────────────────────────────────
+
+    // ── BulkReviewDetailed ────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task BulkReviewDetailed_NoSelection_ReturnsIndexWithError()
+    {
+        _service.GetAmendmentRequestsAsync(WindowId).Returns(EmptyResult());
+
+        var result = await _sut.BulkReviewDetailed(WindowId, Array.Empty<string>());
+
+        Assert.IsType<ViewResult>(result);
+        Assert.False(_sut.ModelState.IsValid);
+    }
+
+    [Fact]
+    public async Task BulkReviewDetailed_WithSelection_StoresSelectionAndRedirectsToDetailedPage()
+    {
+        var result = await _sut.BulkReviewDetailed(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.BulkReviewDetailedPage), redirect.ActionName);
+        Assert.Equal(new[] { "R1", "R2" }, _session.GetBulkSelection(WindowId));
+    }
+
+    [Fact]
+    public async Task BulkReviewDetailedPage_NoStoredSelection_RedirectsToIndex()
+    {
+        var result = await _sut.BulkReviewDetailedPage(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.Index), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task BulkReviewDetailedPage_BuildsSummaryPerSubmittableAndKeepsDuplicates()
+    {
+        _session.SetBulkSelection(WindowId, new[] { "R1", "DUP1" });
+        _bulkService.BuildReviewAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkReviewResult
+        {
+            Submittable = new[] { new BulkReviewItem { ReferenceNumber = "R1", PupilName = "Ann Alpha", RequestTypeDescription = "Remove pupil" } },
+            Duplicates = new[] { new BulkReviewItem { ReferenceNumber = "DUP1", PupilName = "Bob Beta", RequestTypeDescription = "Remove pupil", DuplicateReason = "Already submitted" } }
+        });
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(SampleWindow());
+
+        var journey = SampleJourney();
+        journey.QuestionHistory.Add("reason");
+        _requestService.ResumeDraftAsync(WindowId, "R1").Returns(journey);
+        var config = new QuestionFlowConfig { FirstPageId = "reason", Pages = [] };
+        _flowService.GetConfigAsync(WhatToChange.Remove, CheckingWindowType.KS4June).Returns(config);
+        _viewModelBuilder.BuildSummaryVm(WindowId, journey, config).Returns(SampleSummaryVm());
+
+        var result = await _sut.BulkReviewDetailedPage(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<BulkReviewDetailedViewModel>(view.Model);
+        var item = Assert.Single(vm.Submittable);
+        Assert.Equal("R1", item.ReferenceNumber);
+        Assert.Single(vm.Duplicates);
+    }
+
+    [Fact]
+    public async Task BulkReviewDetailedPage_SkipsSubmittableWhoseDraftCannotBeResumed()
+    {
+        _session.SetBulkSelection(WindowId, new[] { "R1" });
+        _bulkService.BuildReviewAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkReviewResult
+        {
+            Submittable = new[] { new BulkReviewItem { ReferenceNumber = "R1", PupilName = "Ann Alpha", RequestTypeDescription = "Remove pupil" } },
+            Duplicates = Array.Empty<BulkReviewItem>()
+        });
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(SampleWindow());
+        _requestService.ResumeDraftAsync(WindowId, "R1").Returns((RequestState?)null);
+
+        var result = await _sut.BulkReviewDetailedPage(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<BulkReviewDetailedViewModel>(view.Model);
+        Assert.Empty(vm.Submittable);
+    }
+
+    [Fact]
+    public async Task BulkSubmit_SubmitsAndRedirectsToConfirmation()
+    {
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = new[] { "R1", "R2" },
+            Skipped = Array.Empty<string>()
+        });
+
+        var result = await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.BulkConfirmation), redirect.ActionName);
+        Assert.Equal(WindowId, redirect.RouteValues!["windowId"]);
+        Assert.Equal("R1,R2", _sut.TempData["BulkSubmittedRefs"]);
+    }
+
+    [Fact]
+    public async Task BulkSubmit_ClearsStoredBulkSelection()
+    {
+        _session.SetBulkSelection(WindowId, new[] { "R1", "R2" });
+        _bulkService.SubmitAsync(WindowId, Arg.Any<IReadOnlyList<string>>()).Returns(new BulkSubmissionResult
+        {
+            Submitted = new[] { "R1", "R2" },
+            Skipped = Array.Empty<string>()
+        });
+
+        await _sut.BulkSubmit(WindowId, new[] { "R1", "R2" });
+
+        Assert.Empty(_session.GetBulkSelection(WindowId));
+    }
+
+    [Fact]
+    public async Task BulkConfirmation_NoTempDataRefs_RedirectsToIndex()
+    {
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(AmendmentRequestsController.Index), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task BulkConfirmation_WithRefs_RendersConfirmationWithLowercaseDeadline()
+    {
+        _sut.TempData["BulkSubmittedRefs"] = "R1,R2";
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        _checkYourPupilData.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 2026",
+            EndDate = endDate,
+            StartDate = endDate.AddMonths(-3),
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June
+        });
+
+        var result = await _sut.BulkConfirmation(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<BulkConfirmationViewModel>(view.Model);
+        Assert.Equal(new[] { "R1", "R2" }, vm.ReferenceNumbers);
+        Assert.Contains("5pm", vm.WindowCloseLabel); // lowercase am/pm
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static AmendmentRequestsResult EmptyResult() => new()
@@ -313,6 +563,31 @@ public class AmendmentRequestsControllerTests
         WindowTitle = "Key stage 4",
         Rows = [],
         SubmittedRows = []
+    };
+
+    private static CheckingWindowDto SampleWindow()
+    {
+        var endDate = new DateTime(2026, 6, 26, 17, 0, 0);
+        return new CheckingWindowDto
+        {
+            Id = WindowId,
+            Title = "KS4 2026",
+            EndDate = endDate,
+            StartDate = endDate.AddMonths(-3),
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June
+        };
+    }
+
+    private static SummaryViewModel SampleSummaryVm() => new()
+    {
+        WindowId = WindowId,
+        WhatToChange = WhatToChange.Remove,
+        PupilName = "Ann Alpha",
+        Rows = [],
+        FileRows = [],
+        BackPageId = "reason",
+        MaxEvidencePages = 6
     };
 
     private static RequestState SampleJourney() => new()

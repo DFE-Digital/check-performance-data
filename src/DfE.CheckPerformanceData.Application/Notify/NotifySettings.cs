@@ -21,6 +21,14 @@ public class NotifySettings
     public string WithdrawNotificationTemplateId { get; set; } = null!;
     public string DlqThresholdTemplateId { get; set; } = null!;
 
+    public string BulkSubmissionNotificationTemplateId { get; set; } = null!;
+
+    /// <summary>
+    /// Batch size at or above which a single consolidated submission email is sent instead of one
+    /// email per request. Below it, individual emails are sent (parity with single submissions).
+    /// </summary>
+    public int BulkConsolidationThreshold { get; set; } = 5;
+
 
     public string? LinkBaseUrl { get; set; }
 

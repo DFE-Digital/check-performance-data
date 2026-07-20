@@ -145,12 +145,6 @@
 @Html.GovUkFrontendJsEnabledScript()
 @await Html.PartialAsync("_ContactUsBanner")
 @RenderBody()
-@* Universal back-to-top link. Rendered here (rather than per-view) so every long
-   page — search results, dashboards, admin lists, CMS content — gets it without
-   having to remember to include the partial. The script is hidden-until-scroll
-   so short pages never show it, and the container collapses to zero height while
-   hidden so no phantom footer gap. *@
-@await Html.PartialAsync("ContentPages/_BackToTop")
 @Html.GovUkFrontendScriptImports()
 
 @section Footer {

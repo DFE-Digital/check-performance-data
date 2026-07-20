@@ -19,7 +19,7 @@ public sealed class SiteSearchResult
 {
     public required string CurrentQuery { get; init; }
     public required string? ScopePath { get; init; }
-    public required Wiki.SearchInvalidReason? InvalidReason { get; init; }
+    public required SearchInvalidReason? InvalidReason { get; init; }
     public required IReadOnlyList<PageSearchHitDto> PageHits { get; init; }
     public required IReadOnlyList<ContentBlocks.ContentBlockSearchResultDto> ContentBlockHits { get; init; }
     public int TotalHits => PageHits.Count + ContentBlockHits.Count;

@@ -1,7 +1,6 @@
 using System.Net;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
-using DfE.CheckPerformanceData.Application.Wiki;
 
 namespace DfE.CheckPerformanceData.Application.Search;
 

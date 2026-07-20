@@ -3,7 +3,6 @@ using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Countries;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -46,7 +45,6 @@ public static class DependencyManager
         services.AddMemoryCache();
 
         services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
-        services.AddScoped<IWikiRepository, WikiRepository>();
         services.AddScoped<Application.Settings.ISettingRepository, Repositories.SettingRepository>();
         services.AddScoped<IContentBlockRepository, ContentBlockRepository>();
         services.AddScoped<ILandingPageRepository, LandingPageRepository>();

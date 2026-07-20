@@ -57,35 +57,35 @@
     </div>
 }
 
-@if (Model.Rows.Count == 0)
-{
-    <div class="govuk-inset-text">
-        <p class="govuk-body">You have no amendment requests for this window.</p>
-    </div>
-}
-else
-{
-    <form method="post" action="@Url.Action("BulkReviewDetailed", "AmendmentRequests", new { windowId = Model.WindowId })">
-        @Html.AntiForgeryToken()
-        <div class="govuk-form-group @(selectionError is not null ? "govuk-form-group--error" : "")">
-            @if (selectionError is not null)
+<form method="post" action="@Url.Action("BulkReviewDetailed", "AmendmentRequests", new { windowId = Model.WindowId })">
+    @Html.AntiForgeryToken()
+    <div class="govuk-form-group @(selectionError is not null ? "govuk-form-group--error" : "")">
+        @if (selectionError is not null)
+        {
+            <p id="selectedReferences-error" class="govuk-error-message">
+                <span class="govuk-visually-hidden">Error:</span> @selectionError
+            </p>
+        }
+        <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Select</span></th>
+                <th scope="col" class="govuk-table__header">Pupil</th>
+                <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Status</th>
+                <th scope="col" class="govuk-table__header">Action</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @if (Model.Rows.Count == 0)
             {
-                <p id="selectedReferences-error" class="govuk-error-message">
-                    <span class="govuk-visually-hidden">Error:</span> @selectionError
-                </p>
-            }
-            <table class="govuk-table">
-            <thead class="govuk-table__head">
                 <tr class="govuk-table__row">
-                    <th scope="col" class="govuk-table__header"><span class="govuk-visually-hidden">Select</span></th>
-                    <th scope="col" class="govuk-table__header">Pupil</th>
-                    <th scope="col" class="govuk-table__header">Request type</th>
-                    <th scope="col" class="govuk-table__header">Status</th>
-                    <th scope="col" class="govuk-table__header">Action</th>
+                    <td class="govuk-table__cell govuk-!-text-align-centre" colspan="5">There are no saved amendment requests for @Model.WindowTitle window</td>
                 </tr>
-            </thead>
-            <tbody class="govuk-table__body">
-                @foreach (var row in Model.Rows)
+            }
+            else
+            {
+                foreach (var row in Model.Rows)
                 {
                     <tr class="govuk-table__row">
                         <td class="govuk-table__cell">
@@ -117,16 +117,18 @@ else
                         </td>
                     </tr>
                 }
-            </tbody>
-            </table>
-        </div>
-        <div class="govuk-button-group">
-            <button type="submit" class="govuk-button" data-module="govuk-button">Submit Selected Requests</button>
-        </div>
-    </form>
-}
-
-<a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
+            }
+        </tbody>
+        </table>
+    </div>
+    <div class="govuk-button-group">
+        @if (Model.Rows.Count > 0)
+        {
+            <button type="submit" class="govuk-button" data-module="govuk-button">Submit selected requests</button>
+        }
+        <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
+    </div>
+</form>
 
 <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible">
 
@@ -137,14 +139,6 @@ else
         <div class="govuk-inset-text">
             <p class="govuk-body">You can edit your @Model.WindowTitle requests any time before <strong>@Model.DeadlineText</strong></p>
         </div>
-        @if (Model.SubmittedRows.Count == 0)
-        {
-            <div class="govuk-inset-text">
-                <p class="govuk-body">You have no submitted requests for this window.</p>
-            </div>
-        }
-        else
-        {
             <table class="govuk-table">
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
@@ -157,6 +151,14 @@ else
                     </tr>
                 </thead>
                 <tbody class="govuk-table__body">
+                    @if (Model.SubmittedRows.Count == 0)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell govuk-!-text-align-centre" colspan="6">There are no submitted amendment requests for @Model.WindowTitle window</td>
+                        </tr>
+                    }
+                    else
+                    {
                     @foreach (var row in Model.SubmittedRows)
                     {
                         <tr class="govuk-table__row">
@@ -180,8 +182,8 @@ else
                             </td>
                         </tr>
                     }
+                    }
                 </tbody>
             </table>
-        }
     </govuk-tabs-item>
 </govuk-tabs>

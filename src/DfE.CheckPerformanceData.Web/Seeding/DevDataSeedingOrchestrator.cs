@@ -42,7 +42,7 @@ public sealed class DevDataSeedingOrchestrator(
 
         try
         {
-            await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
+            //await SeedChangeRequests.ExecuteSeedAsync(pupilDataBlobClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
         }
         catch (Azure.RequestFailedException ex) when (environment.IsDevelopment())
         {

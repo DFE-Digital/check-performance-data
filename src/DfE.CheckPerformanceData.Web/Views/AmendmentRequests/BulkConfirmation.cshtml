@@ -6,18 +6,18 @@
 }
 
 <div class="govuk-panel govuk-panel--confirmation">
-    <h1 class="govuk-panel__title">Data change requests successfully submitted</h1>
+    <h1 class="govuk-panel__title">Data amendment requests submitted</h1>
+    @* Reference numbers use <br> + <strong> (the canonical GOV.UK confirmation-panel pattern)
+       rather than a govuk-list: govuk-list sets an explicit dark color that overrides the white
+       the panel passes down by inheritance, which would render the references black. *@
     <div class="govuk-panel__body">
         Your reference numbers
+        @foreach (var reference in Model.ReferenceNumbers)
+        {
+            <br><strong>@reference</strong>
+        }
     </div>
 </div>
-
-<ul class="govuk-list govuk-list--bullet">
-    @foreach (var reference in Model.ReferenceNumbers)
-    {
-        <li><strong>@reference</strong></li>
-    }
-</ul>
 
 <p class="govuk-body">We have sent you an email to confirm that you have successfully submitted your requests.</p>
 

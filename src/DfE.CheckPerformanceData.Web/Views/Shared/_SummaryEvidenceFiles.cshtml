@@ -3,6 +3,10 @@
 @{
     // Change/remove actions are shown by default (the journey summary); the bulk cards pass false.
     var showChangeLinks = ViewData["ShowChangeLinks"] as bool? ?? true;
+    // Download links default to the session-based Journey route (an in-progress journey holds the
+    // file in session). When a ReferenceNumber is supplied (the bulk review cards, which are drafts
+    // loaded by reference and not in session), link to the by-reference SubmittedRequest route.
+    var referenceNumber = ViewData["ReferenceNumber"] as string;
 }
 
 @if (Model.FileRows.Count > 0)
@@ -29,12 +33,25 @@
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">
-                        <a class="govuk-link"
-                           asp-action="DownloadEvidence" asp-controller="Journey"
-                           asp-route-windowId="@Model.WindowId"
-                           asp-route-storedFileName="@file.StoredFileName">
-                            @file.OriginalFileName
-                        </a>
+                        @if (referenceNumber is not null)
+                        {
+                            <a class="govuk-link"
+                               asp-action="DownloadEvidence" asp-controller="SubmittedRequest"
+                               asp-route-windowId="@Model.WindowId"
+                               asp-route-referenceNumber="@referenceNumber"
+                               asp-route-storedFileName="@file.StoredFileName">
+                                @file.OriginalFileName
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="govuk-link"
+                               asp-action="DownloadEvidence" asp-controller="Journey"
+                               asp-route-windowId="@Model.WindowId"
+                               asp-route-storedFileName="@file.StoredFileName">
+                                @file.OriginalFileName
+                            </a>
+                        }
                     </td>
                     <td class="govuk-table__cell">@file.FormattedFileSize</td>
                     <td class="govuk-table__cell">@file.FileType</td>

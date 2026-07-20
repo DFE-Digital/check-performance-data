@@ -29,22 +29,9 @@
 <div class="govuk-width-container">
     <main class="govuk-main-wrapper" id="main-content">
         @RenderBody()
-        @* Universal back-to-top link — long share pages (aggregate dashboards, replays)
-           benefit from a jump-to-top; the partial is hidden-until-scroll so short pages
-           see nothing. No dependency on the admin nav / GTM the rest of this layout
-           deliberately omits — just an anchor + a small enhancement script. *@
-        @await Html.PartialAsync("ContentPages/_BackToTop")
     </main>
 </div>
 @Html.GovUkFrontendScriptImports()
-
-@section BodyEnd {
-    @* Back-to-top reveal-on-scroll enhancement. Share layout otherwise runs script-
-       light (no cookies.js, no admin bundles) — this one enhancement script is
-       small and defers off the critical path so the tokened share page renders
-       fast even on constrained networks. *@
-    <script src="~/js/back-to-top.js" defer asp-append-version="true"></script>
-}
 
 @section Footer {
     <footer class="govuk-footer">

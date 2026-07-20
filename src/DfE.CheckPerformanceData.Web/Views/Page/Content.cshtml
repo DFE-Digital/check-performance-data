@@ -82,7 +82,7 @@
 }
 @await Html.PartialAsync("ContentPages/_ContentNodes", content)
 
-@* Back-to-top now lives in _Layout.cshtml so every page gets it universally. *@
+@await Html.PartialAsync("ContentPages/_BackToTop")
 
 @* Equalise the height of dfe-cards that live as direct grandchildren of a govuk-grid-row.
    Flex-wrap keeps cards in the same VISUAL row equal, but cards that wrap to a new row are

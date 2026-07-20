@@ -37,14 +37,22 @@ else
 
 @if (hasError)
 {
-    <govuk-error-summary>
-        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
-        @if (!string.IsNullOrEmpty(ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage))
-        {
-            <govuk-error-summary-item>@ViewData.ModelState[string.Empty].Errors.FirstOrDefault()?.ErrorMessage</govuk-error-summary-item>
-        }
-        <govuk-error-summary-item href="#pupil-search">@fieldErrorMessage</govuk-error-summary-item>
-    </govuk-error-summary>
+    var modelError = ViewData.ModelState[string.Empty]?.Errors.FirstOrDefault()?.ErrorMessage;
+    if (!string.IsNullOrEmpty(modelError))
+    {
+        <govuk-error-summary>
+            <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+            <govuk-error-summary-item>@modelError</govuk-error-summary-item>
+            <govuk-error-summary-item href="#pupil-search">@fieldErrorMessage</govuk-error-summary-item>
+        </govuk-error-summary>
+    }
+    else
+    {
+        <govuk-error-summary>
+            <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+            <govuk-error-summary-item href="#pupil-search">@fieldErrorMessage</govuk-error-summary-item>
+        </govuk-error-summary>
+    }
 }
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>

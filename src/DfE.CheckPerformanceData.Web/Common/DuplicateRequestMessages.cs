@@ -15,7 +15,7 @@ public static class DuplicateRequestMessages
         string referenceNumber, string linkUrl, string userName)
     {
         var topLevelRequest = TopLevelRequestLabel(requestCategory);
-        var link = $"<a class=\"govuk-link\" href=\"{linkUrl}\" target=\"_blank\" rel=\"noreferrer noopener\">View submitted request (opens in a new browser window)</a>";
+        var link = $"<a class=\"govuk-link\" href=\"{linkUrl}\" target=\"_blank\" rel=\"noreferrer noopener\">View submitted request (opens in new tab)</a>";
 
         string message;
         if (isSelf && reasonsMatch)

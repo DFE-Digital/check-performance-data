@@ -66,7 +66,7 @@ public sealed class AmendmentRequestsController(
     {
         if (selectedReferences is null || selectedReferences.Length == 0)
         {
-            ModelState.AddModelError("selectedReferences", "Select the pupil(s) you want to submit");
+            ModelState.AddModelError("selectedReferences", "Select the amendment request(s) you would like to submit");
             return View("Index", await BuildIndexViewModelAsync(windowId));
         }
 

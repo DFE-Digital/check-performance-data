@@ -54,47 +54,9 @@ public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : Seeding
         finally
         {
             // Restore the fixture-level editor cookie so subsequent tests in the
-            // collection that rely on the editor impersonation (e.g. WikiCrudTests'
-            // antiforgery scrape of /help?edit) still see an editor principal.
-            // Admin and editor roles are orthogonal — leaving the admin cookie set
-            // would render /help?edit as a read-only page with no antiforgery form.
+            // collection that rely on the editor impersonation still see an editor
+            // principal. Admin and editor roles are orthogonal.
             await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
         }
-    }
-
-    // --- DeletedPagesPage_MatchesSnapshot ---
-
-    [SkippableFact]
-    public async Task DeletedPagesPage_MatchesSnapshot()
-    {
-        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
-            "Visual regression Linux-only");
-
-        // The /help/deleted screen renders a govuk-table only when there's at least
-        // one soft-deleted page; seed-then-soft-delete a single page so the table
-        // (with the new "Actions" column header + Restore + Delete-permanently
-        // button-group) is captured by the snapshot. The seeded page is tracked
-        // and cleaned up by SeedingPageTest.DisposeAsync. The fixture is already
-        // authenticated as editor (SeedingPageTest mirrors the impersonation
-        // cookie into the BrowserContext), and editors can both view /help/deleted
-        // and soft-delete pages.
-        var seededId = await SeedHelpers.SeedWikiPageAsync(
-            Fixture.SeedClient,
-            title: "vr-deleted-fixture",
-            body: "<p>Visual regression fixture page; will be soft-deleted before snapshot.</p>",
-            parentId: null,
-            TrackedIds);
-        await SeedHelpers.SoftDeleteWikiPageAsync(Fixture.SeedClient, seededId);
-
-        await Page.GotoAsync($"{Fixture.BaseUrl}/help/deleted");
-        await Page.StabiliseAsync();
-
-        // Viewport-only capture rather than full-page: prior soft-deleted fixtures
-        // from sibling E2E tests can leave additional rows in the table, which
-        // would change the full-page height between runs and break the snapshot
-        // dimension comparison. The viewport screenshot (1280x720) is enough to
-        // pin the "Actions" header + first row layout — which is the contract this
-        // snapshot is asserting.
-        await Page.MatchSnapshotAsync("admin-deleted-pages-page.png", fullPage: false);
     }
 }

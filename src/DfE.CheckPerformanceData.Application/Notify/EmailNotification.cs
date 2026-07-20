@@ -32,4 +32,10 @@ public sealed record EmailNotification
     /// set in addition to the originator. When false, only the originator is notified.
     /// </summary>
     public bool IncludeOrganisationUsers { get; init; }
+
+    /// <summary>
+    /// For a consolidated bulk submission email: every reference in the batch. Null/empty for
+    /// single-reference notifications (which use <see cref="ReferenceNumber"/>).
+    /// </summary>
+    public IReadOnlyList<string>? ReferenceNumbers { get; init; }
 }

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -10,7 +11,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class ConfirmCorrectController(
     ICheckYourPupilDataService service,
     IJourneyValidationService journeyService,
-    IRequestService requestService) : Controller
+    IRequestService requestService,
+    IAnalyticsService analytics) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(Guid windowId)
@@ -26,6 +28,13 @@ public sealed class ConfirmCorrectController(
         var window = await service.GetCheckingWindowAsync(windowId);
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
         await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate);
+
+        await analytics.TrackSafeAsync(new CorrectDataConfirmedEvent
+        {
+            ReferenceNumber = reference,
+            CheckingWindowType = window.CheckingWindowType.ToString(),
+        });
+
         var confirmedVw = new ConfirmedCorrectViewModel(window.EndDate.ToString("htt 'on' dddd d MMMM"), reference);
         return View(confirmedVw);
     }

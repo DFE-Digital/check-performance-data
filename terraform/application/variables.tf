@@ -87,6 +87,11 @@ variable "replicas" {
   type    = number
 }
 
+variable "max_memory" {
+    type = string
+    default = "4Gi"    
+}
+
 variable "worker_docker_image" {
   type        = string
   description = "Docker image for the Rules Engine Worker. Includes docker registry, repository and tag."
@@ -151,8 +156,28 @@ variable "enable_postgres_high_availability" {
   default = false
 }
 
+variable "enable_dfe_analytics_federated_auth" {
+  description = "Create the resources in Google cloud for federated authentication and enable in application"
+  default     = false
+}
+
+variable "gcp_table_deletion_protection" {
+  description = "Prevents deletion of the event table. Default: true"
+  default     = true
+}
+
 locals {
   azure_storage_account_name = module.storage_private.name
   azure_storage_access_key   = module.storage_private.primary_access_key
   azure_storage_container    = module.storage_private.primary_blob_endpoint
+  federated_auth_configmap = var.enable_dfe_analytics_federated_auth ? {
+    DfeAnalytics__Environment = var.environment
+    DfeAnalytics__TableId     = module.dfe_analytics[0].bigquery_table_name
+    DfeAnalytics__DatasetId   = module.dfe_analytics[0].bigquery_dataset
+    DfeAnalytics__ProjectId   = module.dfe_analytics[0].bigquery_project_id
+  } : {}
+
+  federated_auth_secrets = var.enable_dfe_analytics_federated_auth ? {
+    DfeAnalytics__CredentialsJson = module.dfe_analytics[0].google_cloud_credentials
+  } : {}
 }

@@ -22,7 +22,7 @@ public sealed class AmendmentRequestsService(
             WindowTitle = window.Title,
             Rows = requests.Select(r => new AmendmentRequestDto
             {
-                PupilName = BuildPupilName(r.PupilFirstname, r.PupilSurname),
+                PupilName = PupilNameFormatter.Format(r.PupilFirstname, r.PupilSurname),
                 RequestType = r.RequestType,
                 RequestTypeDescription = r.RequestTypeDescription,
                 Status = r.Status,
@@ -30,7 +30,7 @@ public sealed class AmendmentRequestsService(
             }).ToList(),
             SubmittedRows = submitted.Select(r => new SubmittedRequestDto
             {
-                PupilName = BuildPupilName(r.PupilFirstname, r.PupilSurname),
+                PupilName = PupilNameFormatter.Format(r.PupilFirstname, r.PupilSurname),
                 RequestType = r.RequestType,
                 RequestTypeDescription = r.RequestTypeDescription,
                 ReferenceNumber = r.ReferenceNumber,
@@ -38,11 +38,5 @@ public sealed class AmendmentRequestsService(
                 Submitted = r.Submitted
             }).ToList()
         };
-    }
-
-    private static string BuildPupilName(string? firstname, string? surname)
-    {
-        var name = $"{firstname} {surname}".Trim();
-        return string.IsNullOrWhiteSpace(name) ? "N/A" : name;
     }
 }

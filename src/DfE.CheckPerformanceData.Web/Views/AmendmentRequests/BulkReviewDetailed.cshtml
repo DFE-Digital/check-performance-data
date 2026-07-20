@@ -1,0 +1,78 @@
+@using DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@model BulkReviewDetailedViewModel
+
+@{
+    ViewBag.Title = "Review requests to submit";
+    Layout = "_Layout";
+}
+
+<a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
+
+<span class="govuk-caption-l">Amendment requests</span>
+<h1 class="govuk-heading-xl">Review requests to submit</h1>
+
+<partial name="_BulkDuplicatesWarning" model="Model.Duplicates" />
+
+@if (Model.Submittable.Count == 0)
+{
+    <div class="govuk-inset-text">
+        <p class="govuk-body">None of the selected requests can be submitted. Resolve the duplicates above and try again.</p>
+    </div>
+    <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Return to requests</a>
+}
+else
+{
+    <h2 class="govuk-heading-m">Requests to submit</h2>
+    @foreach (var item in Model.Submittable)
+    {
+        @* The card is hand-rolled from the GOV.UK summary-card markup (rather than the
+           <govuk-summary-card> tag helper) so the uploaded-documents table can live inside
+           govuk-summary-card__content: the tag helper rebuilds its own HTML from the
+           title/actions/summary-list context and discards any other child content, so a
+           nested partial would not render. The summary-list rows are inline (not from
+           _SummaryDetails) because the list tag helper's context does not cross a partial
+           boundary; the row data is shared via item.Summary.Lines. *@
+        <div class="govuk-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Check details for the @item.Summary.WhatToChangeNoun of @item.Summary.PupilName</h2>
+                <div class="govuk-summary-card__actions">
+                    <a class="govuk-link" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = item.ReferenceNumber, fromBulk = true })">
+                        Edit<span class="govuk-visually-hidden"> (Check details for the @item.Summary.WhatToChangeNoun of @item.Summary.PupilName)</span>
+                    </a>
+                </div>
+            </div>
+            <div class="govuk-summary-card__content">
+                <govuk-summary-list>
+                    @foreach (var line in item.Summary.Lines)
+                    {
+                        <govuk-summary-list-row>
+                            <govuk-summary-list-row-key>@line.Key</govuk-summary-list-row-key>
+                            <govuk-summary-list-row-value>@line.Value</govuk-summary-list-row-value>
+                        </govuk-summary-list-row>
+                    }
+                </govuk-summary-list>
+                @* Render read-only (no change/remove actions) and route downloads by reference
+                   number: these cards are drafts loaded from blob, not the in-session journey. *@
+                @await Html.PartialAsync("_SummaryEvidenceFiles", item.Summary,
+                    new ViewDataDictionary(ViewData)
+                    {
+                        ["ShowChangeLinks"] = false,
+                        ["ReferenceNumber"] = item.ReferenceNumber
+                    })
+            </div>
+        </div>
+    }
+
+    <form method="post" action="@Url.Action("BulkSubmit", "AmendmentRequests", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        @foreach (var item in Model.Submittable)
+        {
+            <input type="hidden" name="references" value="@item.ReferenceNumber" />
+        }
+        <div class="govuk-button-group">
+            <button type="submit" class="govuk-button" data-module="govuk-button">Submit requests</button>
+            <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Save and continue later</a>
+        </div>
+    </form>
+}

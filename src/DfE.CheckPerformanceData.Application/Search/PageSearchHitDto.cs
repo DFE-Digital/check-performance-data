@@ -9,4 +9,7 @@ public sealed class PageSearchHitDto
     public required string Title { get; init; }
     public string? Subtitle { get; init; }
     public required string SnippetHtml { get; init; }
+
+    /// <summary>Combined ts_rank score. Surfaced in an HTML comment on the search view for debugging.</summary>
+    public float Rank { get; init; }
 }

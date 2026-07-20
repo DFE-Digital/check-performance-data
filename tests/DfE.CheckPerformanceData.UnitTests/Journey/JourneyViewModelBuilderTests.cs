@@ -4,7 +4,6 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NSubstitute;
 
@@ -16,7 +15,6 @@ public class JourneyViewModelBuilderTests
     private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
-    private readonly IWebHostEnvironment _env = Substitute.For<IWebHostEnvironment>();
     private readonly JourneyViewModelBuilder _sut;
 
     private static readonly Guid WindowId = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -60,7 +58,6 @@ public class JourneyViewModelBuilderTests
 
     public JourneyViewModelBuilderTests()
     {
-        _env.EnvironmentName.Returns("Production");
         _journeyService.MaxEvidencePages.Returns(6);
 
         _flowService.GetPage(Config, "select-pupil").Returns(PupilSearchPageConfig);
@@ -73,7 +70,7 @@ public class JourneyViewModelBuilderTests
             .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
 
         _sut = new JourneyViewModelBuilder(
-            _flowService, _journeyService, _optionVisibilityService, _currentUserService, _env);
+            _flowService, _journeyService, _optionVisibilityService, _currentUserService);
     }
 
     // ── BuildSummaryVm ───────────────────────────────────────────────────────
@@ -166,25 +163,43 @@ public class JourneyViewModelBuilderTests
     }
 
     [Fact]
-    public void BuildSummaryVm_InProduction_DebugJsonIsNull()
+    public void BuildSummaryVm_FromBulkFalseByDefault()
     {
-        _env.EnvironmentName.Returns("Production");
         var journey = JourneyWithHistory(["select-pupil", "q1"]);
 
         var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
 
-        Assert.Null(vm.DebugJson);
+        Assert.False(vm.FromBulk);
     }
 
     [Fact]
-    public void BuildSummaryVm_InDevelopment_DebugJsonIsNotNull()
+    public void BuildSummaryVm_FromBulkPassedThrough()
     {
-        _env.EnvironmentName.Returns("Development");
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, Config, fromBulk: true);
+
+        Assert.True(vm.FromBulk);
+    }
+
+    [Fact]
+    public void BuildSummaryVm_FromEditFalseByDefault()
+    {
         var journey = JourneyWithHistory(["select-pupil", "q1"]);
 
         var vm = _sut.BuildSummaryVm(WindowId, journey, Config);
 
-        Assert.NotNull(vm.DebugJson);
+        Assert.False(vm.FromEdit);
+    }
+
+    [Fact]
+    public void BuildSummaryVm_FromEditPassedThrough()
+    {
+        var journey = JourneyWithHistory(["select-pupil", "q1"]);
+
+        var vm = _sut.BuildSummaryVm(WindowId, journey, Config, fromEdit: true);
+
+        Assert.True(vm.FromEdit);
     }
 
     [Fact]

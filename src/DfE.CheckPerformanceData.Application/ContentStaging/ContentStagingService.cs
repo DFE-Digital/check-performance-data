@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 public sealed class ContentStagingService(
     IPageNodeRepository pageNodeRepository,
     IContentBlockRepository contentBlockRepository,
+    IHtmlRenderingService htmlRenderer,
     ILogger<ContentStagingService>? logger = null) : IContentStagingService
 {
     private const int MaxDepth = 10;
@@ -46,6 +48,8 @@ public sealed class ContentStagingService(
                 PageName = node.PageName,
                 PageType = node.PageType,
                 SortOrder = node.SortOrder,
+                AppearInSearch = node.AppearInSearch,
+                Keywords = node.Keywords,
                 Versions = versions
                     .OrderBy(v => v.VersionId)
                     .Select(v => new PageNodeVersionBundleItem
@@ -63,7 +67,7 @@ public sealed class ContentStagingService(
 
         var blocks = await contentBlockRepository.GetAllAsync();
         var blockItems = blocks
-            .Select(b => new ContentBlockBundleItem { Id = b.ContentId, Key = b.Key, BlockType = b.BlockType, Value = b.Value })
+            .Select(b => new ContentBlockBundleItem { Id = b.ContentId, Key = b.Key, BlockType = b.BlockType, Value = b.Value, AppearInSearch = b.AppearInSearch, Keywords = b.Keywords })
             .OrderBy(b => b.Key, StringComparer.Ordinal)
             .ToList();
 
@@ -236,7 +240,8 @@ public sealed class ContentStagingService(
                     else
                     {
                         await pageNodeRepository.UpdateNodeForStagingAsync(
-                            effectiveId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder, userId: null);
+                            effectiveId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.SortOrder,
+                            page.AppearInSearch, page.Keywords, userId: null);
                         if (page.PageType != "folder")
                             await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                                 effectiveId, MapVersions(page.Versions), userId: null);
@@ -274,7 +279,8 @@ public sealed class ContentStagingService(
                     effectiveParentId = localParent;
 
                 var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                    page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder, userId: null);
+                    page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
+                    page.AppearInSearch, page.Keywords, userId: null);
                 if (page.PageType != "folder")
                     await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
                         created.Id, MapVersions(page.Versions), userId: null);
@@ -327,7 +333,8 @@ public sealed class ContentStagingService(
                     {
                         var maxVersion = await contentBlockRepository.GetMaxVersionNumberAsync(existing.Id);
                         await contentBlockRepository.UpdateForStagingAsync(
-                            existing.Id, block.Key, block.BlockType, block.Value, block.Id);
+                            existing.Id, block.Key, block.BlockType, block.Value, PlainTextOf(block.Value),
+                            block.Id, block.AppearInSearch, block.Keywords);
                         await contentBlockRepository.AddVersionAsync(existing.Id, block.Value, maxVersion + 1);
                     });
                     result.ContentBlocksUpdated++;
@@ -346,7 +353,8 @@ public sealed class ContentStagingService(
                 await contentBlockRepository.ExecuteInTransactionAsync(async () =>
                 {
                     var created = await contentBlockRepository.AddBlockAsync(
-                        block.Key, block.BlockType, block.Value, block.Id);
+                        block.Key, block.BlockType, block.Value, PlainTextOf(block.Value),
+                        block.Id, block.AppearInSearch, block.Keywords);
                     await contentBlockRepository.AddVersionAsync(created.Id, block.Value, 1);
                 });
                 result.ContentBlocksCreated++;
@@ -438,6 +446,12 @@ public sealed class ContentStagingService(
 
         return resolvable;
     }
+
+    // Mirrors ContentBlockService.PlainTextOf — render → strip so the ValuePlainText column
+    // gets the same clean plaintext the on-page save path writes. Keeps the search vector's
+    // tokens matching between "editor saved this block" and "staging imported this block".
+    private string PlainTextOf(string? html) =>
+        htmlRenderer.StripTagsToPlainText(htmlRenderer.RenderHtml(html));
 
     private static List<PageNodeVersionDto> MapVersions(IEnumerable<PageNodeVersionBundleItem> versions) =>
         versions

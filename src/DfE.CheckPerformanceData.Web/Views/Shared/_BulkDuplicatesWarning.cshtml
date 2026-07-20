@@ -1,0 +1,32 @@
+@using DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests
+@model IReadOnlyList<BulkReviewItemViewModel>
+
+@if (Model.Count > 0)
+{
+    <div class="govuk-warning-text">
+        <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+        <strong class="govuk-warning-text__text">
+            <span class="govuk-visually-hidden">Warning</span>
+            The following requests will not be submitted because there is a duplicate for the pupil.
+        </strong>
+    </div>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Pupil name</th>
+                <th scope="col" class="govuk-table__header">Request type</th>
+                <th scope="col" class="govuk-table__header">Reason</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var item in Model)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@item.PupilName</td>
+                    <td class="govuk-table__cell">@item.RequestTypeDescription</td>
+                    <td class="govuk-table__cell">@item.DuplicateReason</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

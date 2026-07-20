@@ -12,11 +12,11 @@ module "application_configuration" {
   # Delete for non rails apps
   is_rails_application = false
 
-  config_variables = {
+  config_variables = merge({
     ENVIRONMENT_NAME = var.environment
     PGSSLMODE        = local.postgres_ssl_mode
-  }
-  secret_variables = {
+  }, local.federated_auth_configmap)
+  secret_variables = merge({
     DATABASE_URL                       = module.postgres.url
     ConnectionStrings__Postgres        = module.postgres.dotnet_connection_string
     ConnectionStrings__AzureStorage    = module.storage.primary_connection_string
@@ -24,8 +24,9 @@ module "application_configuration" {
     AZURE_STORAGE_ACCOUNT_NAME         = local.azure_storage_account_name
     AZURE_STORAGE_ACCESS_KEY           = local.azure_storage_access_key
     AZURE_STORAGE_CONTAINER            = local.azure_storage_container
-  }
+  }, local.federated_auth_secrets)
 }
+
 
 module "web_application" {
   source = "./vendor/modules/aks//aks/application"
@@ -36,6 +37,7 @@ module "web_application" {
   environment  = var.environment
   service_name = var.service_name
   replicas     = var.replicas
+  max_memory   = var.max_memory
 
   cluster_configuration_map  = module.cluster_data.configuration_map
   kubernetes_config_map_name = module.application_configuration.kubernetes_config_map_name
@@ -46,6 +48,8 @@ module "web_application" {
   web_port     = 8080
 
   send_traffic_to_maintenance_page = var.send_traffic_to_maintenance_page
+
+  enable_gcp_wif                   = var.enable_dfe_analytics_federated_auth
 }
 
 locals {

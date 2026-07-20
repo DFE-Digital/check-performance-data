@@ -10,4 +10,7 @@ public sealed class EditAdviceViewModel
 
     /// <summary>The removal reason's display label, shown only for Remove requests; null otherwise.</summary>
     public string? ReasonForRemoval { get; init; }
+
+    /// <summary>Where the Back link returns to (Amendment requests index, or the bulk review page when editing from a batch).</summary>
+    public required string BackUrl { get; init; }
 }

@@ -49,6 +49,7 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<UncommittedRequests.IAdminRequestsService, UncommittedRequests.AdminRequestsService>();

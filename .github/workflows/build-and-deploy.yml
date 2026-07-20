@@ -10,33 +10,33 @@ on:
         type: choice
         default: review
         options:
-        - development
-        - qa
-        - preproduction
-        - production
+          - development
+          - qa
+          - preproduction
+          - production
       docker-image-tag:
-         description: "Docker image tag to deploy (optional)"
-         required: true
-         type: string
+        description: "Docker image tag to deploy (optional)"
+        required: true
+        type: string
       worker-docker-image-tag:
-         description: "Worker docker image tag to deploy (optional)"
-         required: false
-         type: string
+        description: "Worker docker image tag to deploy (optional)"
+        required: false
+        type: string
       pull-request-number:
         description: "Pull request number (required for review environment)"
         required: false
         type: string
   push:
-   branches:
-    - main
+    branches:
+      - main
   pull_request:
     branches:
-    - main
+      - main
     types: [opened, reopened, synchronize, labeled]
 
 env:
   TERRAFORM_BASE: terraform/application
-  HEALTHCHECK_CMD: 'healthcheck'
+  HEALTHCHECK_CMD: "healthcheck"
 
 jobs:
   build:
@@ -54,32 +54,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      name: Checkout
+      - uses: actions/checkout@v4
+        name: Checkout
 
-    - name: Build and push docker image
-      id: build-image
-      uses: DFE-Digital/github-actions/build-docker-image@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        context: ./src
-        dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
-        docker-repository: ${{ env.DOCKER_REPOSITORY }}
-        max-cache: true
-        reuse-cache: true
-        snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - name: Build and push docker image
+        id: build-image
+        uses: DFE-Digital/github-actions/build-docker-image@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          context: ./src
+          dockerfile-path: ./src/DfE.CheckPerformanceData.Web/Dockerfile
+          docker-repository: ${{ env.DOCKER_REPOSITORY }}
+          max-cache: true
+          reuse-cache: true
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
 
-    - name: Build and push worker docker image
-      id: build-worker-image
-      uses: DFE-Digital/github-actions/build-docker-image@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        context: ./src
-        dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
-        docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
-        max-cache: true
-        reuse-cache: true
-        snyk-token: ${{ secrets.SNYK_TOKEN }}
+      - name: Build and push worker docker image
+        id: build-worker-image
+        uses: DFE-Digital/github-actions/build-docker-image@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          context: ./src
+          dockerfile-path: ./src/DfE.CheckPerformanceData.RulesEngineWorker/Dockerfile
+          docker-repository: ${{ env.WORKER_DOCKER_REPOSITORY }}
+          max-cache: true
+          reuse-cache: true
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
 
   e2e:
     name: E2E Tests
@@ -97,41 +97,41 @@ jobs:
       CPD_E2E_BASE_URL: ${{ needs.deploy-review-app.outputs.environment_url }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
 
-    - uses: actions/cache@v4
-      id: playwright-cache
-      with:
-        path: ~/.cache/ms-playwright
-        key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('src/Directory.Packages.props') }}
 
-    - name: Build E2E test project
-      run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release
+      - name: Build E2E test project
+        run: dotnet build tests/DfE.CheckPerformanceData.E2ETests/ -c Release
 
-    - name: Install Playwright browsers
-      run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - name: Install Playwright browsers
+        run: pwsh tests/DfE.CheckPerformanceData.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
 
-    - name: Run E2E tests
-      # Skip visual regression: baselines are captured against the local containerised
-      # Linux-Chromium web (Phase 2.4 unified rendering). The deployed AKS review app
-      # serves a different surface (fonts, CSP, seed timing) so identical pixels are
-      # not expected. Visual regression stays a local concern, run via `make test-e2e`.
-      run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
+      - name: Run E2E tests
+        # Skip visual regression: baselines are captured against the local containerised
+        # Linux-Chromium web (Phase 2.4 unified rendering). The deployed AKS review app
+        # serves a different surface (fonts, CSP, seed timing) so identical pixels are
+        # not expected. Visual regression stays a local concern, run via `make test-e2e`.
+        run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
 
-    # Surface the snapshot tree on failure so the "delete .png + push twice"
-    # update workflow can retrieve the regenerated PNG. Snapshots live under the
-    # source tree (resolved via project marker walk in PageSnapshotExtensions),
-    # not under bin/, so the path here points at the source location.
-    - uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: e2e-snapshots
-        path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
-        retention-days: 14
+      # Surface the snapshot tree on failure so the "delete .png + push twice"
+      # update workflow can retrieve the regenerated PNG. Snapshots live under the
+      # source tree (resolved via project marker walk in PageSnapshotExtensions),
+      # not under bin/, so the path here points at the source location.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-snapshots
+          path: tests/DfE.CheckPerformanceData.E2ETests/Snapshots/
+          retention-days: 14
 
   deploy-review-app:
     name: Deployment To Review
@@ -149,28 +149,30 @@ jobs:
       pull-requests: write
 
     steps:
-    - name: Deploy App to Review
-      id: deploy_review
-      uses: DFE-Digital/github-actions/deploy-to-aks@master
-      env:
-        # deploy-to-aks@master does not yet declare a `worker-sha` input, so
-        # passing it via `with:` is silently dropped. Set the Terraform variable
-        # directly. Remove this env block once the upstream action accepts
-        # `worker-sha` and add the `worker-sha:` line back into `with:` below.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
-      with:
-        azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        environment: review
-        pr-number: ${{ github.event.pull_request.number }}
-        sha: ${{ needs.build.outputs.docker-image-tag }}
-        terraform-base: ${{ env.TERRAFORM_BASE }}
-        healthcheck: ${{ env.HEALTHCHECK_CMD }}
-        # db-seed: true
-        # smoke-test: true
-#        gcp-wip: ${{ vars.GCP_WIP }}
-#        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
+      - name: Deploy App to Review
+        id: deploy_review
+        uses: DFE-Digital/github-actions/deploy-to-aks@master
+        env:
+          # deploy-to-aks@master does not yet declare a `worker-sha` input, so
+          # passing it via `with:` is silently dropped. Set the Terraform variable
+          # directly. Remove this env block once the upstream action accepts
+          # `worker-sha` and add the `worker-sha:` line back into `with:` below.
+          TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
+        with:
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          environment: review
+          pr-number: ${{ github.event.pull_request.number }}
+          sha: ${{ needs.build.outputs.docker-image-tag }}
+          terraform-base: ${{ env.TERRAFORM_BASE }}
+          healthcheck: ${{ env.HEALTHCHECK_CMD }}
+          gcp-wip: ${{ vars.GCP_WIP }}
+          gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
+          # db-seed: true
+          # smoke-test: true
+  #        gcp-wip: ${{ vars.GCP_WIP }}
+  #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 
   deploy:
     name: Deploy environments
@@ -191,25 +193,25 @@ jobs:
         environment: [development, qa, preproduction, production]
 
     steps:
-    - name: Deploy app to ${{ matrix.environment }}
-      id: deploy_app
-      uses: DFE-Digital/github-actions/deploy-to-aks@master
-      env:
-        # See note on the review-app deploy step.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
-      with:
-        azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        environment: ${{ matrix.environment }}
-        sha: ${{ needs.build.outputs.docker-image-tag }}
-        terraform-base: ${{ env.TERRAFORM_BASE }}
-        healthcheck: ${{ env.HEALTHCHECK_CMD }}
-        teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
-        # smoke-test: true
-#        gcp-wip: ${{ vars.GCP_WIP }}
-#        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
+      - name: Deploy app to ${{ matrix.environment }}
+        id: deploy_app
+        uses: DFE-Digital/github-actions/deploy-to-aks@master
+        env:
+          # See note on the review-app deploy step.
+          TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ needs.build.outputs.worker-docker-image-tag }}
+        with:
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          environment: ${{ matrix.environment }}
+          sha: ${{ needs.build.outputs.docker-image-tag }}
+          terraform-base: ${{ env.TERRAFORM_BASE }}
+          healthcheck: ${{ env.HEALTHCHECK_CMD }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+          # smoke-test: true
+          gcp-wip: ${{ vars.GCP_WIP }}
+          gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 
   manual_deploy:
     name: Manual deploy
@@ -223,27 +225,27 @@ jobs:
       pull-requests: write
 
     steps:
-    - name: Deploy app to ${{ inputs.environment }}
-      id: deploy_manual
-      uses: DFE-Digital/github-actions/deploy-to-aks@master
-      env:
-        # See note on the review-app deploy step.
-        TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ inputs.worker-docker-image-tag }}
-      with:
-        azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        environment: ${{ inputs.environment }}
-        pr-number: ${{ inputs.pull-request-number }}
-        sha: ${{ inputs.docker-image-tag }}
-        terraform-base: ${{ env.TERRAFORM_BASE }}
-        healthcheck: ${{ env.HEALTHCHECK_CMD }}
-        teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
-#        smoke-test: true
-#         db-seed: ${{ inputs.environment == 'review' && 'true' || 'false' }}
-# #        gcp-wip: ${{ vars.GCP_WIP }}
-# #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
+      - name: Deploy app to ${{ inputs.environment }}
+        id: deploy_manual
+        uses: DFE-Digital/github-actions/deploy-to-aks@master
+        env:
+          # See note on the review-app deploy step.
+          TF_VAR_worker_docker_image: ghcr.io/dfe-digital/check-performance-data-worker:${{ inputs.worker-docker-image-tag }}
+        with:
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          environment: ${{ inputs.environment }}
+          pr-number: ${{ inputs.pull-request-number }}
+          sha: ${{ inputs.docker-image-tag }}
+          terraform-base: ${{ env.TERRAFORM_BASE }}
+          healthcheck: ${{ env.HEALTHCHECK_CMD }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+  #        smoke-test: true
+  #         db-seed: ${{ inputs.environment == 'review' && 'true' || 'false' }}
+  # #        gcp-wip: ${{ vars.GCP_WIP }}
+  # #        gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
 
   deploy_domains_infra:
     name: Deploy Domains Infrastructure
@@ -257,14 +259,14 @@ jobs:
       id-token: write
 
     steps:
-    - name: Deploy Domains Infrastructure
-      uses: DFE-Digital/github-actions/deploy-domains-infra@master
-      with:
-        azure-client-id:  ${{ secrets.AZURE_CLIENT_ID  }}
-        azure-tenant-id:  ${{ secrets.AZURE_TENANT_ID   }}
-        azure-subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID   }}
-        teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+      - name: Deploy Domains Infrastructure
+        uses: DFE-Digital/github-actions/deploy-domains-infra@master
+        with:
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID  }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID   }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID   }}
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
 
   deploy_domains_env:
     name: Deploy Domains to ${{ matrix.domain_environment }} environment
@@ -282,13 +284,13 @@ jobs:
       id-token: write
 
     steps:
-    - name: Deploy Domains Environment
-      uses: DFE-Digital/github-actions/deploy-domains-env@master
-      with:
-        azure-client-id:  ${{ secrets.AZURE_CLIENT_ID  }}
-        azure-tenant-id:  ${{ secrets.AZURE_TENANT_ID   }}
-        azure-subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID   }}
-        environment: ${{ matrix.domain_environment }}
-        healthcheck: healthcheck
-        teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}
+      - name: Deploy Domains Environment
+        uses: DFE-Digital/github-actions/deploy-domains-env@master
+        with:
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID  }}
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID   }}
+          azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID   }}
+          environment: ${{ matrix.domain_environment }}
+          healthcheck: healthcheck
+          teams-webhook-url: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          service: ${{ vars.TEAMS_MSG_SERVICE_NAME }}

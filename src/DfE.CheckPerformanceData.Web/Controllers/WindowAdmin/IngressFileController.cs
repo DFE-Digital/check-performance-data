@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class IngressFileController(ILogger<IngressFileController> logger,
+public sealed class IngressFileController(ILogger<IngressFileController> logger,
     IWindowService windowService,
     IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {
@@ -114,6 +114,7 @@ public class IngressFileController(ILogger<IngressFileController> logger,
     }
 
     [HttpPost("admin/windows/{id:guid}/ingress-file")]
+    [RequestSizeLimit(100_000_000)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Select(Guid id, string selectedFile, CancellationToken cancellationToken)
     {
@@ -188,6 +189,6 @@ public class IngressFileController(ILogger<IngressFileController> logger,
         window.IngressFileChecksum = checksum;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("index", "WindowAdmin", new { id });
+        return RedirectToAction("index", "Summary", new { id = id });
     }
 }

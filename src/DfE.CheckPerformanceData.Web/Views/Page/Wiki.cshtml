@@ -28,3 +28,9 @@
         @Html.Raw(Renderer.RenderHtml(Model.WikiHtml))
     </div>
 </div>
+
+@* Placed OUTSIDE the govuk-grid-row so its natural position is below all page content —
+   position:sticky needs the natural position to sit below the viewport for the pin to
+   engage. Rendering it here (rather than inside the one-third column) makes the wiki
+   layout behave identically to the full-width Content.cshtml pages. *@
+@await Html.PartialAsync("ContentPages/_BackToTop")

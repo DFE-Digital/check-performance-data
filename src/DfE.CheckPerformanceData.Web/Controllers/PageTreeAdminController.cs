@@ -338,17 +338,28 @@ public sealed class PageTreeAdminController(
     // POST fires so the change is deliberate.
     [HttpPost("/admin/pages/{id:guid}/rename")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Rename(Guid id, string? segment, string? title, string? subtitle, string? pageName, bool? showInMenu)
+    public async Task<IActionResult> Rename(
+        Guid id, string? segment, string? title, string? subtitle, string? pageName,
+        bool? showInMenu, bool? appearInSearch, string? keywords)
     {
         var result = await pageNodeService.RenameNodeAsync(
             id, segment ?? string.Empty, title ?? string.Empty, subtitle, pageName, User?.Identity?.Name);
 
-        // The details form always posts a showInMenu value (hidden false input + optional true
-        // checkbox). Save the visibility flag alongside the rename outcome; a rename failure
-        // still leaves the menu-visibility unchanged, which is the safe direction.
+        // The details form always posts showInMenu + appearInSearch values (hidden false input +
+        // optional true checkbox) and Keywords (an <input type=text>, possibly empty). Save all
+        // three alongside the rename outcome; a rename failure still leaves them unchanged,
+        // which is the safe direction.
         if (result == RenameNodeResult.Ok && showInMenu.HasValue)
         {
             await pageNodeService.SetShowInMenuAsync(id, showInMenu.Value, User?.Identity?.Name);
+        }
+        if (result == RenameNodeResult.Ok && appearInSearch.HasValue)
+        {
+            await pageNodeService.SetAppearInSearchAsync(id, appearInSearch.Value, User?.Identity?.Name);
+        }
+        if (result == RenameNodeResult.Ok)
+        {
+            await pageNodeService.SetKeywordsAsync(id, keywords, User?.Identity?.Name);
         }
 
         TempData["RenameResult"] = result switch
@@ -584,6 +595,8 @@ public sealed class PageTreeAdminController(
             Subtitle          = node.Subtitle,
             PageName          = node.PageName,
             ShowInMenu        = node.ShowInMenu,
+            AppearInSearch    = node.AppearInSearch,
+            Keywords          = node.Keywords,
             Content           = tree,
             PagePath          = node.Path,
             ShowInlinePublish = false,

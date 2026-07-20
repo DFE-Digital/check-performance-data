@@ -1,4 +1,4 @@
-@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.KeyStageItem
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.KeyStageItem
 
 <form method="post" action="@Model.PostUrl" novalidate> 
     @Html.AntiForgeryToken()
@@ -23,5 +23,5 @@
     </govuk-radios>
     
     <govuk-button type="submit">Save and continue</govuk-button>
-    <a class="govuk-link" href="@Url.Action("Cancel", "CancelCreation")">Cancel</a>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
 </form> 

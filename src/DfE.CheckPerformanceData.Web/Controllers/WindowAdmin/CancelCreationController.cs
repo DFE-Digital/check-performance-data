@@ -1,14 +1,12 @@
-using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class CancelCreationController : Controller
+public sealed class CancelCreationController : Controller
 {
     private const string PageView = "~/Views/WindowAdmin/CheckingWindow.cshtml";
 
-    [ActionName("Cancel")]
     [HttpGet("admin/windows/cancel-creation")]
     public IActionResult Index()
     {
@@ -24,7 +22,7 @@ public class CancelCreationController : Controller
     }
     
     [HttpPost("admin/windows/cancel-creation")]
-    public IActionResult Cancel(CheckingWindowDraft draft, string action)
+    public IActionResult Submit(CheckingWindowDraft draft, string action)
     {
         if (action == "cancel")
         {
@@ -32,6 +30,6 @@ public class CancelCreationController : Controller
             return RedirectToAction("Index", "Admin");
         }
         
-        return RedirectToAction("New", draft.NextController());
+        return RedirectToAction("New", draft.NextController(Url));
     }
 }

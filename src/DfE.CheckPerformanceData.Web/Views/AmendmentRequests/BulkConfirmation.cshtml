@@ -1,0 +1,32 @@
+@model DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests.BulkConfirmationViewModel
+
+@{
+    ViewBag.Title = "Requests submitted";
+    Layout = "_Layout";
+}
+
+<div class="govuk-panel govuk-panel--confirmation">
+    <h1 class="govuk-panel__title">Data amendment requests submitted</h1>
+    @* Reference numbers use <br> + <strong> (the canonical GOV.UK confirmation-panel pattern)
+       rather than a govuk-list: govuk-list sets an explicit dark color that overrides the white
+       the panel passes down by inheritance, which would render the references black. *@
+    <div class="govuk-panel__body">
+        Your reference numbers
+        @foreach (var reference in Model.ReferenceNumbers)
+        {
+            <br><strong>@reference</strong>
+        }
+    </div>
+</div>
+
+<p class="govuk-body">We have sent you an email to confirm that you have successfully submitted your requests.</p>
+
+<govuk-notification-banner>
+    You still have until <strong>@Model.WindowCloseLabel</strong> to request any further amendments if you need to.
+</govuk-notification-banner>
+
+<p class="govuk-body">
+    <a class="govuk-link" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Request another amendment</a>
+    or
+    <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">edit an existing request</a>
+</p>

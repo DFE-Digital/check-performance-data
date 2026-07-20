@@ -9,8 +9,9 @@ public sealed class DevDataSeeder(IPortalDbContext dbContext)
 
     public async Task SeedAsync()
     {
-        await SeedCountries.ExecuteSeed(dbContext);
-
+        // Countries are seeded unconditionally on startup in every environment (see Program.cs),
+        // idempotently via SeedCountries.ExecuteSeed. They are not window-specific, so they are
+        // deliberately not part of the destructive dev/reset seed here.
         await SeedCheckingWindows.ExecuteSeed(dbContext, KeyStage4JuneCheckingWindowId, ClosedKeyStage4JuneCheckingWindowId);
 
         // Pupil data is no longer stored in the database — it is seeded into blob storage

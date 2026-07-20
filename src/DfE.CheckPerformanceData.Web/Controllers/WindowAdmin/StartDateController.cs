@@ -1,17 +1,16 @@
 using DfE.CheckPerformanceData.Application.WindowManagement;
-using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.WindowAdmin;
 
-public class StartDateController(ILogger<StartDateController> logger, IWindowService windowService): Controller
+public sealed class StartDateController(IWindowService windowService): Controller
 {
     private const string PageView = "~/Views/WindowAdmin/StartDate.cshtml";
 
-    [ActionName("Edit")]
     [HttpGet("admin/windows/{id:guid}/start-date")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -24,15 +23,15 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         {
             WindowId = window.Id,
             DateValue = window.StartDate,
-            PostUrl = $"/admin/windows/{window.Id}/start-date"
+            PostUrl = Url.Action("Update", "StartDate", new { id = window.Id}),
+            CancelUrl = Url.Action("Index", "Summary", new { id = window.Id})
         };
 
         return View(PageView, model);
     }
     
-    [ActionName("New")]
     [HttpGet("admin/windows/start-date")]
-    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    public async Task<IActionResult> New(CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -44,8 +43,10 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         WindowDateEditItem model = new WindowDateEditItem()
         {
             WindowId = Guid.Empty,
-            DateValue = DateTime.UtcNow.AddMonths(1),
-            PostUrl =  $"/admin/windows/start-date"
+            DateValue = draft.StartDate,
+            PostUrl =  Url.Action("Submit", "StartDate"),
+            CancelUrl =  Url.Action("Index", "CancelCreation")
+            
         };
 
         return View(PageView, model);
@@ -53,7 +54,7 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
     
     [HttpPost("admin/windows/start-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDraft? draft = HttpContext.Session.GetObject<CheckingWindowDraft>("CheckingWindowDraft");
 
@@ -72,12 +73,12 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
         draft.StartDate = model.DateValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
-        return RedirectToAction("New", draft.NextController());
+        return Redirect(draft.NextController(Url));
     }
 
     [HttpPost("admin/windows/{id:guid}/start-date")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(Guid id, WindowDateEditItem model, CancellationToken cancellationToken)
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -93,18 +94,18 @@ public class StartDateController(ILogger<StartDateController> logger, IWindowSer
             return BadRequest();
         }
 
-        window.StartDate = model.DateValue;
+        window.StartDate = model.DateValue!.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", id);
+        return RedirectToAction("Index", "Summary", new { id = id });
     }
 
     public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)
     {
-        // if (model.DateValue < DateTime.UtcNow)
-        // {
-        //     ModelState.AddModelError(nameof(model.DateValue), "Start date can not occur in the past.");
-        // }
+        if (model.DateValue < DateTime.UtcNow.Date)
+        {
+            ModelState.AddModelError(nameof(model.DateValue), "Start date can not occur in the past.");
+        }
 
         if (windowDto != null && model.DateValue > windowDto.EndDate)
         {

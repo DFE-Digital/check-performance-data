@@ -30,6 +30,12 @@ public sealed class ContentPageEditViewModel
     /// <summary>Public menu visibility (from PageNode.ShowInMenu).</summary>
     public bool ShowInMenu { get; init; } = true;
 
+    /// <summary>Search visibility (from PageNode.AppearInSearch).</summary>
+    public bool AppearInSearch { get; init; } = true;
+
+    /// <summary>Free-text search keywords (from PageNode.Keywords). Highest search weight.</summary>
+    public string? Keywords { get; init; }
+
     public string Layout { get; init; } = string.Empty;
     public required IReadOnlyList<ContentNode> Content { get; init; }
 

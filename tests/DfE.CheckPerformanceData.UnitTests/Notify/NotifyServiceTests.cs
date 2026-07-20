@@ -16,7 +16,8 @@ public sealed class NotifyServiceTests
         PupilDataCheckConfirmTemplateId = "confirm-template-id",
         PupilDataCheckWithdrawTemplateId = "withdraw-template-id",
         WithdrawNotificationTemplateId = "withdraw-notif-template-id",
-        DlqThresholdTemplateId = "dlq-template-id"
+        DlqThresholdTemplateId = "dlq-template-id",
+        BulkSubmissionNotificationTemplateId = "bulk-template-id"
     };
     private const string DeadlineText = "28 February 2025";
     private readonly ILogger<Infrastructure.Notify.NotifyService> _logger =
@@ -105,6 +106,34 @@ public sealed class NotifyServiceTests
             Arg.Any<string>(),
             Arg.Is<Dictionary<string, object>>(p =>
                 p.ContainsKey("submit others url") && p["submit others url"].ToString() == url));
+    }
+
+    [Fact]
+    public async Task SendNotificationsAsync_BulkSubmission_UsesBulkTemplateAndListsReferences()
+    {
+        var settings = new NotifySettings
+        {
+            ApiKey = "x",
+            BulkSubmissionNotificationTemplateId = "bulk-template-id"
+        };
+        var client = Substitute.For<INotifyEmailClient>();
+        var sut = new Infrastructure.Notify.NotifyService(client, Options.Create(settings), _logger);
+
+        await sut.SendNotificationsAsync(
+            referenceNumber: "",
+            deadline: "5pm on Friday 26 June 2026",
+            recipientEmails: new[] { "a@x.gov.uk" },
+            notificationType: NotificationType.BulkSubmissionConfirmed,
+            url: "https://link",
+            referenceNumbers: new[] { "REF001", "REF002" });
+
+        await client.Received(1).SendEmailAsync(
+            "a@x.gov.uk",
+            "bulk-template-id",
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.ContainsKey("references") &&
+                ((string)p["references"]).Contains("REF001") &&
+                ((string)p["references"]).Contains("REF002")));
     }
 
     [Fact]

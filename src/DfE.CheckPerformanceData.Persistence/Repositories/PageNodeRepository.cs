@@ -27,6 +27,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 PageName = n.PageName,
                 PageType = n.PageType,
                 ShowInMenu = n.ShowInMenu,
+                AppearInSearch = n.AppearInSearch,
+                Keywords = n.Keywords,
                 HasLiveVersion = n.Versions.Any(v => v.IsCurrent)
             })
             .ToListAsync();
@@ -38,37 +40,69 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .Select(NodeProjection)
             .FirstOrDefaultAsync();
 
+    public Task<PublishedPageInfoDto?> GetPublishedByPathAsync(string path) =>
+        context.PageNodes
+            .AsNoTracking()
+            // Skip pages the editor has toggled out of search — the content-block resolver
+            // shouldn't turn a "hide from search" page into a search destination via a block hit.
+            .Where(n => n.Path == path && n.DeletedDate == null && n.AppearInSearch)
+            .Where(n => n.Versions.Any(v => v.IsCurrent))
+            .Select(n => new PublishedPageInfoDto(n.Path, n.Title))
+            .FirstOrDefaultAsync();
+
     public Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
     {
-        // ILIKE via EF.Functions.ILike is Postgres-specific but this project pins Postgres
-        // everywhere (Testcontainers + prod), so it's safe. Wildcards are added at the edges;
-        // callers pass raw terms.
-        var pattern = "%" + term + "%";
+        // Full-text ranked search across two vectors — PageNode.SearchVector (Keywords A, Title
+        // B, Subtitle C) and PageNodeVersion.SearchVector (BodyPlainText D). A row matches if
+        // either vector matches; the two ts_rank scores are summed so a page with a keyword hit
+        // AND a body hit outranks either alone.
+        //
+        // websearch_to_tsquery NEVER raises syntax errors on user input — accepts empty strings,
+        // punctuation, unbalanced operators. Sanitisation is not required here; short/empty
+        // terms are guarded upstream in SiteSearchService.
+        //
+        // EF.Functions.WebSearchToTsQuery MUST appear inline inside each expression tree that
+        // uses it — its `config` argument is [NotParameterized], so the Npgsql translator only
+        // recognises direct call sites. Hoisting to a local forces client-evaluation and throws.
+        //
+        // Whitespace between plain words is turned into OR so "merge booga" doesn't hit zero
+        // when "booga" isn't in the corpus. Queries that already use websearch operators
+        // (OR / "phrase" / -negation) are passed through untouched.
+        var normalisedTerm = SearchTermNormalizer.OrJoinWhitespace(term);
         var scopePrefix = string.IsNullOrEmpty(scopePath) ? null : scopePath + "/";
 
         var query = context.PageNodes
             .AsNoTracking()
             .Where(n => n.DeletedDate == null)
             // Folder pages are containers only — nothing to render, nothing to link to.
-            // Skip them so search results only point at real pages.
             .Where(n => n.PageType != "folder")
+            // Editors can hide a page from search while leaving it published — respect that here.
+            .Where(n => n.AppearInSearch)
             .Where(n => scopePath == null || n.Path == scopePath || n.Path.StartsWith(scopePrefix!))
             .Select(n => new
             {
                 Node = n,
                 Live = n.Versions
                     .Where(v => v.IsCurrent)
-                    .Select(v => new { v.BodyPlainText })
+                    .Select(v => new { v.BodyPlainText, v.SearchVector })
                     .FirstOrDefault()
             })
-            // Only surface pages that are actually live at the moment of the search — a draft
-            // saved but not published shouldn't appear in public results.
+            // A draft-only page has no IsCurrent version — skip it so unpublished drafts stay
+            // out of public results.
             .Where(x => x.Live != null)
             .Where(x =>
-                EF.Functions.ILike(x.Node.Title, pattern)
-                || (x.Node.Subtitle != null && EF.Functions.ILike(x.Node.Subtitle, pattern))
-                || (x.Live != null && EF.Functions.ILike(x.Live.BodyPlainText, pattern)))
-            .OrderBy(x => x.Node.Path)
+                x.Node.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+                || x.Live!.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)))
+            .Select(x => new
+            {
+                x.Node,
+                x.Live,
+                Rank =
+                    x.Node.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+                    + x.Live!.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+            })
+            .OrderByDescending(x => x.Rank)
+            .ThenBy(x => x.Node.Path)  // stable tie-break
             .Take(max)
             .Select(x => new PageSearchHitRaw
             {
@@ -76,7 +110,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 Path = x.Node.Path,
                 Title = x.Node.Title,
                 Subtitle = x.Node.Subtitle,
-                BodyPlainText = x.Live != null ? x.Live.BodyPlainText : string.Empty,
+                BodyPlainText = x.Live!.BodyPlainText,
+                Rank = x.Rank,
             });
 
         return query.ToListAsync();
@@ -393,6 +428,28 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         await context.SaveChangesAsync();
     }
 
+    public async Task SetAppearInSearchAsync(Guid id, bool appearInSearch, string? userId)
+    {
+        var entity = await context.PageNodes.FindAsync(id)
+            ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+        entity.AppearInSearch = appearInSearch;
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
+    public async Task SetKeywordsAsync(Guid id, string? keywords, string? userId)
+    {
+        var entity = await context.PageNodes.FindAsync(id)
+            ?? throw new InvalidOperationException($"Page node {id} not found.");
+
+        entity.Keywords = string.IsNullOrWhiteSpace(keywords) ? null : keywords.Trim();
+        entity.UpdatedDate = DateTime.UtcNow;
+        entity.UpdatedBy = userId;
+        await context.SaveChangesAsync();
+    }
+
     public async Task<PageNodeDto?> CopyNodeAsync(Guid sourceId, string newSegment, string newTitle, string? userId)
     {
         var source = await context.PageNodes
@@ -472,7 +529,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
 
     public async Task<PageNodeDto> CreateNodeForStagingAsync(
         Guid id, Guid? parentId, string segment, string path,
-        string title, string? subtitle, string? pageName, string pageType, int sortOrder, string? userId)
+        string title, string? subtitle, string? pageName, string pageType, int sortOrder,
+        bool appearInSearch, string? keywords, string? userId)
     {
         var now = DateTime.UtcNow;
         var entity = new PageNode
@@ -486,6 +544,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             Subtitle = subtitle,
             PageName = pageName,
             PageType = pageType,
+            AppearInSearch = appearInSearch,
+            Keywords = keywords,
             CreatedDate = now,
             UpdatedDate = now,
             CreatedBy = userId,
@@ -497,7 +557,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     }
 
     public async Task UpdateNodeForStagingAsync(
-        Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder, string? userId)
+        Guid id, string segment, string path, string title, string? subtitle, string? pageName, int sortOrder,
+        bool appearInSearch, string? keywords, string? userId)
     {
         var entity = await context.PageNodes.FindAsync(id)
             ?? throw new InvalidOperationException($"Page node {id} not found.");
@@ -508,6 +569,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         entity.Subtitle = subtitle;
         entity.PageName = pageName;
         entity.SortOrder = sortOrder;
+        entity.AppearInSearch = appearInSearch;
+        entity.Keywords = keywords;
         entity.UpdatedDate = DateTime.UtcNow;
         entity.UpdatedBy = userId;
         await context.SaveChangesAsync();
@@ -563,6 +626,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             PageName = n.PageName,
             PageType = n.PageType,
             ShowInMenu = n.ShowInMenu,
+            AppearInSearch = n.AppearInSearch,
+            Keywords = n.Keywords,
             DeletedDate = n.DeletedDate,
             DeletedBy = n.DeletedBy,
         };
@@ -600,6 +665,9 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         Title = n.Title,
         Subtitle = n.Subtitle,
         PageName = n.PageName,
-        PageType = n.PageType
+        PageType = n.PageType,
+        ShowInMenu = n.ShowInMenu,
+        AppearInSearch = n.AppearInSearch,
+        Keywords = n.Keywords
     };
 }

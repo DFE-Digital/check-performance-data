@@ -36,6 +36,7 @@ public sealed class NotificationSender(
             notification.Deadline,
             recipients,
             notification.Type,
-            notification.LinkUrl);
+            notification.LinkUrl,
+            notification.ReferenceNumbers);
     }
 }

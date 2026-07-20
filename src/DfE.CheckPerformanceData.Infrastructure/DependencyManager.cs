@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
 using DfE.CheckPerformanceData.Infrastructure.DfeSignInApiClient;
+using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Infrastructure.Resilience;
 using DfE.CheckPerformanceData.Infrastructure.RulesEngine;
 using DfE.CheckPerformanceData.Infrastructure.ZendeskClient;
@@ -107,7 +108,7 @@ public static class DependencyManager
         services.AddSingleton<BlobRulesProvider>();
         services.AddSingleton<IRulesProvider>(sp => sp.GetRequiredService<BlobRulesProvider>());
         services.AddHostedService(sp => sp.GetRequiredService<BlobRulesProvider>());
-
+        
         services.AddHealthChecks()
             .AddCheck<RulesProviderHealthCheck>("rules-provider");
 
@@ -314,6 +315,9 @@ public static class DependencyManager
         if (NotifyServiceRegistration.ShouldUseFake(config))
         {
             services.AddSingleton<INotifyService, DevConsoleNotifyService>();
+            // Bind settings without validation so bulk-email threshold/config resolves in dev/fake mode.
+            services.AddOptions<NotifySettings>()
+                .Bind(config.GetSection(NotifySettings.SectionName));
             return services;
         }
 

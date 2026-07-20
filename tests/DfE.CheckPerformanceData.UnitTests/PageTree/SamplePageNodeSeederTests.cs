@@ -45,7 +45,7 @@ public class SamplePageNodeSeederTests
     }
 
     [Fact]
-    public async Task WhenAllRootsPresent_SeedsThreePagesUnderEachRoot()
+    public async Task WhenAllRootsPresent_SeedsExpectedPagesUnderEachRoot()
     {
         var wiki     = Root("wiki");
         var help     = Root("help");
@@ -55,8 +55,10 @@ public class SamplePageNodeSeederTests
 
         var created = await new SamplePageNodeSeeder(svc).SeedAsync();
 
-        Assert.Equal(12, created);   // 3 per root × 4 roots
+        // 4 under /wiki (3 content + 1 wiki-typed) + 3 under each of the other three roots.
+        Assert.Equal(13, created);
         await svc.Received(3).CreatePageAsync(wiki.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
+        await svc.Received(1).CreatePageAsync(wiki.Id,     "wiki-sandbox",    Arg.Any<string>(), "wiki",    "system");
         await svc.Received(3).CreatePageAsync(help.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
         await svc.Received(3).CreatePageAsync(support.Id,  Arg.Any<string>(), Arg.Any<string>(), "content", "system");
         await svc.Received(3).CreatePageAsync(guidance.Id, Arg.Any<string>(), Arg.Any<string>(), "content", "system");
@@ -70,9 +72,9 @@ public class SamplePageNodeSeederTests
         await new SamplePageNodeSeeder(svc).SeedAsync();
 
         // Every created page has both a working-content save and a publish call.
-        await svc.Received(12).SaveWorkingContentAsync(
+        await svc.Received(13).SaveWorkingContentAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), "system");
-        await svc.Received(12).PublishDraftAsync(Arg.Any<Guid>(), "system");
+        await svc.Received(13).PublishDraftAsync(Arg.Any<Guid>(), "system");
     }
 
     [Fact]
@@ -83,14 +85,16 @@ public class SamplePageNodeSeederTests
 
         var created = await new SamplePageNodeSeeder(svc).SeedAsync();
 
-        Assert.Equal(3, created);
+        Assert.Equal(4, created);   // 3 content + 1 wiki under /wiki
         await svc.Received(3).CreatePageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), "content", "system");
+        await svc.Received(1).CreatePageAsync(Arg.Any<Guid>(), "wiki-sandbox",    Arg.Any<string>(), "wiki",    "system");
     }
 
     [Fact]
     public async Task IsIdempotent_SkipsSamplesWhosePathAlreadyExists()
     {
-        // /wiki/dsi-roles already exists. The seeder should skip that one and create the other two.
+        // /wiki/dsi-roles already exists. The seeder should skip that one and create the rest of
+        // the /wiki set — 4 samples minus the pre-existing one.
         var svc = Substitute.For<IPageNodeService>();
         var wiki = Root("wiki");
         var existing = new PageNodeDto
@@ -110,7 +114,7 @@ public class SamplePageNodeSeederTests
 
         var created = await new SamplePageNodeSeeder(svc).SeedAsync();
 
-        Assert.Equal(2, created);   // 3 samples under /wiki minus the one that already exists
+        Assert.Equal(3, created);
         await svc.DidNotReceive().CreatePageAsync(wiki.Id, "dsi-roles", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
     }
 

@@ -26,4 +26,10 @@ public interface IRequestRepository
     /// Scoped by window + org + reference so a school cannot delete another school's request.
     /// </summary>
     Task DeleteAsync(Guid windowId, long organisationUrn, string referenceNumber);
+
+    /// <summary>
+    /// Returns the distinct pupil ids that already have a submitted (SubmittedUnCommitted)
+    /// request for the window/org. Used to flag bulk-selected drafts whose pupil is already submitted.
+    /// </summary>
+    Task<IReadOnlyList<Guid>> GetSubmittedPupilIdsAsync(Guid windowId, long organisationUrn);
 }

@@ -6,10 +6,21 @@
     Layout = "_Layout";
 }
 
-<a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
-   asp-route-windowId="@Model.WindowId"
-   asp-route-pageId="@Model.BackPageId"
-   class="govuk-back-link">Back</a>
+@if (Model.FromBulk)
+{
+    <a href="/@Model.WindowId/AmendmentRequests/bulk-detailed" class="govuk-back-link">Back</a>
+}
+else if (Model.FromEdit)
+{
+    <a href="/@Model.WindowId/AmendmentRequests" class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId"
+       asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
 
 @if (Model.ConflictError is not null)
 {
@@ -28,143 +39,19 @@
 <h1 class="govuk-heading-xl">Summary of amendment request</h1>
 <h2 class="govuk-heading-m">Check details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
 
-<dl class="govuk-summary-list">
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">What pupil data would you like to change?</dt>
-        <dd class="govuk-summary-list__value">@Model.WhatToChangeLabel</dd>
-        <dd class="govuk-summary-list__actions">
-        </dd>
-    </div>
-    @if (Model.SecondRecordDisplay is not null)
-    {
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">First record to merge</dt>
-            <dd class="govuk-summary-list__value">@Model.FirstRecordDisplay</dd>
-            <dd class="govuk-summary-list__actions">
-                @if (Model.PrimaryPupilPageId is not null)
-                {
-                    <a class="govuk-link"
-                       asp-action="PupilSearchPage" asp-controller="Journey"
-                       asp-route-windowId="@Model.WindowId"
-                       asp-route-pageId="@Model.PrimaryPupilPageId">
-                        Change<span class="govuk-visually-hidden"> first record to merge</span>
-                    </a>
-                }
-            </dd>
-        </div>
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">Second record to merge</dt>
-            <dd class="govuk-summary-list__value">@Model.SecondRecordDisplay</dd>
-            <dd class="govuk-summary-list__actions">
-                @if (Model.MatchedPupilPageId is not null)
-                {
-                    <a class="govuk-link"
-                       asp-action="PupilSearchPage" asp-controller="Journey"
-                       asp-route-windowId="@Model.WindowId"
-                       asp-route-pageId="@Model.MatchedPupilPageId">
-                        Change<span class="govuk-visually-hidden"> second record to merge</span>
-                    </a>
-                }
-            </dd>
-        </div>
-    }
-    else
-    {
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">Pupil name</dt>
-            <dd class="govuk-summary-list__value">@Model.PupilName</dd>
-            <dd class="govuk-summary-list__actions">
-                @if (Model.PrimaryPupilPageId is not null)
-                {
-                    <a class="govuk-link"
-                       asp-action="PupilSearchPage" asp-controller="Journey"
-                       asp-route-windowId="@Model.WindowId"
-                       asp-route-pageId="@Model.PrimaryPupilPageId">
-                        Change<span class="govuk-visually-hidden"> pupil name</span>
-                    </a>
-                }
-            </dd>
-        </div>
-    }
-    @foreach (var row in Model.Rows)
-    {
-        <div class="govuk-summary-list__row">
-            <dt class="govuk-summary-list__key">@row.ResolvedTitle</dt>
-            <dd class="govuk-summary-list__value">@row.DisplayAnswer</dd>
-            <dd class="govuk-summary-list__actions">
-                <a class="govuk-link"
-                   asp-action="Page" asp-controller="Journey"
-                   asp-route-windowId="@Model.WindowId"
-                   asp-route-pageId="@row.Page.Id"
-                   asp-route-fromSummary="true">
-                    Change<span class="govuk-visually-hidden"> @row.ResolvedTitle.ToLower()</span>
-                </a>
-            </dd>
-        </div>
-    }
-</dl>
+<partial name="_SummaryDetails" model="Model" />
 
-@if (Model.FileRows.Count > 0)
-{
-    <h2 class="govuk-heading-m">Summary of uploaded documents</h2>
-    @if (Model.MaxEvidencePages > 0)
-    {
-        <p class="govuk-body">@Model.TotalPagesUsed @(Model.TotalPagesUsed == 1 ? "page" : "pages") of the @Model.MaxEvidencePages page evidence allowance used</p>
-    }
-    <table class="govuk-table">
-        <thead class="govuk-table__head">
-            <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">File name</th>
-                <th scope="col" class="govuk-table__header">File size</th>
-                <th scope="col" class="govuk-table__header">Type</th>
-                <th scope="col" class="govuk-table__header">Action</th>
-            </tr>
-        </thead>
-        <tbody class="govuk-table__body">
-            @foreach (var file in Model.FileRows)
-            {
-                <tr class="govuk-table__row">
-                    <td class="govuk-table__cell">
-                        <a class="govuk-link"
-                           asp-action="DownloadEvidence" asp-controller="Journey"
-                           asp-route-windowId="@Model.WindowId"
-                           asp-route-storedFileName="@file.StoredFileName">
-                            @file.OriginalFileName
-                        </a>
-                    </td>
-                    <td class="govuk-table__cell">@file.FormattedFileSize</td>
-                    <td class="govuk-table__cell">@file.FileType</td>
-                    <td class="govuk-table__cell">
-                        <a class="govuk-link"
-                           asp-action="Page" asp-controller="Journey"
-                           asp-route-windowId="@Model.WindowId"
-                           asp-route-pageId="@file.Page.Id"
-                           asp-route-fromSummary="true">
-                            Change<span class="govuk-visually-hidden"> @file.OriginalFileName</span>
-                        </a>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+<partial name="_SummaryEvidenceFiles" model="Model" />
 
 <form method="post" action="@Url.Action("SummaryConfirm", "Journey", new { windowId = Model.WindowId })">
     @Html.AntiForgeryToken()
-    <govuk-button type="submit">Submit request</govuk-button>
+    @* The batch is submitted as a whole, so a bulk edit hides Submit request but still needs
+       Save and continue later so in-batch edits can be persisted. *@
+    @if (!Model.FromBulk)
+    {
+        <govuk-button type="submit">Submit request</govuk-button>
+    }
     <govuk-button type="submit"
         formaction="@Url.Action("SaveDraft", "Journey", new { windowId = Model.WindowId })"
         class="govuk-button--secondary">Save and continue later</govuk-button>
 </form>
-
-@if (Model.DebugJson is not null)
-{
-    <details class="govuk-details govuk-!-margin-top-6">
-        <summary class="govuk-details__summary">
-            <span class="govuk-details__summary-text">Debug: Journey State</span>
-        </summary>
-        <div class="govuk-details__text">
-            <pre style="font-size: 0.8rem; overflow-x: auto; background: #f3f2f1; padding: 1rem; border-left: 4px solid #b1b4b6;">@Model.DebugJson</pre>
-        </div>
-    </details>
-}

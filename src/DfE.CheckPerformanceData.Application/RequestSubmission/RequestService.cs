@@ -38,7 +38,7 @@ public sealed class RequestService(
         return await requestRepository.CheckForConflictAsync(windowId, pupilId, organisationUrn, string.Empty, userId);
     }
 
-    public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
+    public async Task SubmitRequestAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
@@ -88,13 +88,17 @@ public sealed class RequestService(
         // picks it up, evaluates it and writes the decision back to the row.
         await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
 
-        await requestNotificationService.NotifySubmissionConfirmedAsync(
-            windowId, journey.CheckingWindow.EndDate, refNum);
-
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —
         // the enqueued RequestDocument is bound for the queue and not retained.
         await requestStateBlobClient.SaveAsync(windowId, journey.ReferenceNumber ?? string.Empty, journey);
+    }
+
+    public async Task ConfirmRequestAsync(Guid windowId, RequestState journey)
+    {
+        await SubmitRequestAsync(windowId, journey);
+        await requestNotificationService.NotifySubmissionConfirmedAsync(
+            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty);
     }
 
     public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)
@@ -155,7 +159,7 @@ public sealed class RequestService(
         {
             await requestRepository.DeleteAsync(windowId, urn, referenceNumber);
             await requestStateBlobClient.DeleteAsync(windowId, referenceNumber);
-            return new RequestDeletionResult(WasHardDeleted: true, pupilName);
+            return new RequestDeletionResult(WasHardDeleted: true, pupilName, row.RequestType);
         }
 
         await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
@@ -176,7 +180,7 @@ public sealed class RequestService(
             logger.LogWarning("Unexpected request type {RequestType} for ref {RefNumber} - withdrawal notification skipped", row?.RequestType , referenceNumber);
         }
 
-        return new RequestDeletionResult(WasHardDeleted: false, pupilName);
+        return new RequestDeletionResult(WasHardDeleted: false, pupilName, row?.RequestType);
     }
 
     private string BuildRequestTypeDescription(RequestState journey, QuestionFlowConfig? config)

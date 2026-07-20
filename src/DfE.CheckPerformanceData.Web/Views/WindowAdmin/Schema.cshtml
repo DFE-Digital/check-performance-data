@@ -1,0 +1,27 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.SchemaItem
+@{
+    var error = ViewData.ModelState["Schema"]?.Errors.FirstOrDefault()?.ErrorMessage;
+}
+
+@if (error is not null)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        <govuk-error-summary-item href="#Schema">@error</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+<form method="post" action="@Model.PostUrl" enctype="multipart/form-data" novalidate>
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+    
+    <input type="hidden" name="WindowId" value="@Model.WindowId" />
+
+    <govuk-file-upload name="Schema" id="Schema" class="govuk-file-upload">
+        <govuk-file-upload-label is-page-heading="true" class="govuk-label--l">Upload a JSON schema file</govuk-file-upload-label>
+        <govuk-file-upload-error-message asp-validation-for="@Model.Schema" />
+    </govuk-file-upload>
+
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

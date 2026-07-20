@@ -16,8 +16,8 @@ public sealed class OrganisationDto
     public required string Urn { get; init; }
     
     public string? Ukprn { get; init; }
-    public int? StatutoryLowAge { get; init; }
-    public int? StatutoryHighAge { get; init; }
+    public int? StatutoryLowAge { get; set; }
+    public int? StatutoryHighAge { get; set; }
 
     /// <summary>GIAS establishment type, from the API field <c>$.type</c>.</summary>
     public OrganisationTypeDto? Type { get; init; }

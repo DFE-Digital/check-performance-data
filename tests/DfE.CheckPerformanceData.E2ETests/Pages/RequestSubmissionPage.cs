@@ -14,20 +14,29 @@ public sealed class RequestSubmissionPage(PlaywrightFixture fixture) : PageTest
     [RetryFact(3)]
     public async Task SelfSubmittedDuplicate_ShowsSelfReferentialMessage()
     {
-        var baseUrl = _fixture.BaseUrl;
+        await _fixture.SeedUser("testuser1", "Test", "User1", "school1");
+        await _fixture.SeedUser("userB", "Other", "User", "school1");
+        await _fixture.SeedChangeRequest("testuser1", "userB", "pupil1", "submitteduncommitted");
 
-        await Page.GotoAsync($"{baseUrl}/");
-        var body = Page.Locator("body");
-        await Expect(body).ToBeVisibleAsync();
+        await Page.GotoAsync($"{_fixture.BaseUrl}/");
+        
+        await Expect(Page.Locator("body")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("Colleague name")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("userB")).ToBeVisibleAsync();
     }
 
     [RetryFact(3)]
     public async Task OtherSubmittedDuplicate_DoesNotRevealIdentity()
     {
-        var baseUrl = _fixture.BaseUrl;
+        await _fixture.SeedUser("testuser1", "Test", "User1", "school1");
+        await _fixture.SeedUser("userB", "Other", "User", "school1");
+        await _fixture.SeedChangeRequest("userB", "testuser1", "pupil1", "submitteduncommitted");
 
-        await Page.GotoAsync($"{baseUrl}/");
-        var body = Page.Locator("body");
-        await Expect(body).ToBeVisibleAsync();
+        await Page.GotoAsync($"{_fixture.BaseUrl}/");
+        
+        await Expect(Page.Locator("body")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("Attention banner")).ToBeVisibleAsync();
+        await Expect(Page.GetByText("Test User")).Not.ToBeVisibleAsync();
+        await Expect(Page.GetByText("userB")).Not.ToBeVisibleAsync();
     }
 }

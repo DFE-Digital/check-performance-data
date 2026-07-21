@@ -1588,7 +1588,58 @@ body.js-enabled .rules-condition__apply {
 }
 
 /* Guidance cards use the canonical dfe-card component (whole-card link, hover/focus
-   states) from dfefrontend — no bespoke card CSS here. */
+   states) from dfefrontend 2.0.0. The rules below correct that component's focus state;
+   everything else about the card is the vendor's. Both defects are the vendor's own and
+   are worth raising upstream at DFE-Digital/dfe-frontend so this block can be deleted. */
+
+/* dfefrontend turns the whole card navy on :focus-within, while a separate vendor rule
+   (.dfe-card-container .dfe-card-link--header:focus) wins on specificity and forces the
+   title black. Black on #003a69 is about 1.6:1 and fails WCAG 2.2 AA. That rule hard-codes
+   the text half of GOV.UK's focus pair without the yellow background half, which only works
+   if the link also carries .govuk-link; the cards authored in the CMS use
+   .dfe-card-link--header on its own, so the black lands straight on the navy.
+   Keep the title white, as it already is on hover (11.6:1). */
+.dfe-card:focus-within .dfe-card-link--header:focus {
+  color: #ffffff;
+}
+
+/* The same blanket white-text rule hits the other card variant the opposite way: a card link
+   that also carries .govuk-link gets GOV.UK's yellow focus highlight, and white on #fd0 is
+   1.35:1. The yellow highlight is designed to pair with black text — restore that (14.6:1). */
+.dfe-card:focus-within .govuk-link:focus {
+  color: #0b0c0c;
+}
+
+/* The navy fill and yellow outline are driven by :focus-within, so a mouse click leaves the
+   card stuck in its focused appearance — and it comes back on browser Back, when focus is
+   restored to the link. Confine that appearance to keyboard focus so pointer users only ever
+   see hover; :not(:hover) keeps the hover state intact while the pointer is still on the card.
+   Browsers without :has() drop this whole block and keep the vendor behaviour. */
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) {
+  background-color: #ffffff;
+  outline: 0;
+}
+/* Dropping the card outline would otherwise leave the focused link with no indicator at all —
+   it has no underline or outline of its own — so anyone whose focus lands here without
+   :focus-visible matching (returning via Alt+Left, programmatic focus, some switch access)
+   would lose track of where they are. Underline it instead: quiet enough not to read as a
+   stuck highlight, but still a cue. */
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) .dfe-card-link--header:focus {
+  text-decoration: underline;
+}
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) .govuk-heading-m,
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) .dfe-card-link--header:focus {
+  color: #347ca9;
+}
+/* The vendor's blanket .dfe-card:focus-within a{color:#fff} still applies to any OTHER link in
+   the card — a body link a CMS author added — which would be white on the white card we just
+   restored. :not(:focus) leaves the focused link to the rules above. */
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) a:not(:focus) {
+  color: #347ca9;
+}
+.dfe-card:focus-within:not(:hover):not(:has(:focus-visible)) p {
+  color: #0b0c0c;
+}
 
 /* GDS "Dos and don'ts": colour-coded top rule + tick/cross icon, no background fill.
    Colour is never the only signal — the "Do"/"Do not" heading text and the icon carry

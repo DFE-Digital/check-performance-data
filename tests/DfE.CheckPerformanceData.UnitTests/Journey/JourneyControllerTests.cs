@@ -313,7 +313,7 @@ public class JourneyControllerTests
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("Summary", view.ViewName);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal(DuplicateRequestMessages.SummaryMessage(true, false, "", ""), vm.ConflictError);
+        Assert.Equal(DuplicateRequestMessages.SummaryMessage(true, false, ""), vm.ConflictError);
     }
 
     [Fact]

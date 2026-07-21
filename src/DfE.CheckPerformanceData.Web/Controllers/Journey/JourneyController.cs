@@ -601,13 +601,9 @@ public sealed class JourneyController(
 
             var message = DuplicateRequestMessages.SummaryMessage(
                 ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch,
-                ex.ConflictingRequestCategory, ex.ConflictingUserName);
+                ex.ConflictingRequestCategory);
 
-            string? conflictErrorLink = null;
-            if (DuplicateRequestMessages.ShowLink())
-            {
-                conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
-            }
+            string? conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
 
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
                 conflictError: message, conflictErrorLink: conflictErrorLink,

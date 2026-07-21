@@ -54,7 +54,7 @@ public static class DuplicateRequestMessages
 
     public static string FieldErrorMessage => "Choose another pupil";
 
-    public static string SummaryMessage(bool isSelf, bool reasonsMatch, string requestCategory, string userName)
+    public static string SummaryMessage(bool isSelf, bool reasonsMatch, string requestCategory)
     {
         var topLevelRequest = TopLevelRequestLabel(requestCategory);
 
@@ -69,6 +69,4 @@ public static class DuplicateRequestMessages
 
         return $"A colleague at your school has already submitted a request of a different type ({topLevelRequest}) for this pupil.";
     }
-
-    public static bool ShowLink() => true;
 }

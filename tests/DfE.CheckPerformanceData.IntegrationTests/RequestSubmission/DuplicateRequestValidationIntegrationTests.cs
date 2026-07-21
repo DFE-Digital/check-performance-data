@@ -232,7 +232,7 @@ public sealed class DuplicateRequestValidationIntegrationTests
     public void SelfSubmittedMessages_ContainGuidanceText()
     {
         var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(true, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "");
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, "Remove", "");
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(true, true, "Remove");
 
         Assert.Contains("pupil removal request", attentionHtml);
         Assert.Contains("CYPMD_001", attentionHtml);
@@ -243,7 +243,7 @@ public sealed class DuplicateRequestValidationIntegrationTests
     public void OtherSubmittedMessages_ContainGuidanceText()
     {
         var attentionHtml = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.AttentionBannerHtml(false, true, "Remove", "Jane Smith", "CYPMD_001", "/link", "Sarah Jenkins");
-        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, "Remove", "Sarah Jenkins");
+        var summary = DfE.CheckPerformanceData.Web.Common.DuplicateRequestMessages.SummaryMessage(false, true, "Remove");
 
         Assert.Contains("Sarah Jenkins", attentionHtml);
         Assert.Contains("pupil removal request", attentionHtml);

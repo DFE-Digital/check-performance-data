@@ -250,14 +250,14 @@ public sealed class DuplicateRequestValidatorTests
     [Fact]
     public void SummaryMessage_WhenSelfSubmittedAndReasonMatches_IncludesRequestType()
     {
-        var message = DuplicateRequestMessages.SummaryMessage(true, true, "Remove", "");
+        var message = DuplicateRequestMessages.SummaryMessage(true, true, "Remove");
         Assert.Contains("pupil removal request", message);
     }
 
     [Fact]
     public void SummaryMessage_WhenOtherSubmittedAndReasonMatches_IncludesRequestType()
     {
-        var message = DuplicateRequestMessages.SummaryMessage(false, true, "Remove", "");
+        var message = DuplicateRequestMessages.SummaryMessage(false, true, "Remove");
         Assert.Contains("pupil removal request", message);
     }
 
@@ -271,12 +271,6 @@ public sealed class DuplicateRequestValidatorTests
     public void FieldErrorMessage_IsCorrect()
     {
         Assert.Equal("Choose another pupil", DuplicateRequestMessages.FieldErrorMessage);
-    }
-
-    [Fact]
-    public void ShowLink_ReturnsTrue()
-    {
-        Assert.True(DuplicateRequestMessages.ShowLink());
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

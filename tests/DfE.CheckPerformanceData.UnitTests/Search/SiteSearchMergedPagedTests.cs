@@ -18,6 +18,12 @@ public sealed class SiteSearchMergedPagedTests
     public SiteSearchMergedPagedTests()
     {
         _sut = new SiteSearchService(_pageRepo, _blockSearch);
+        // Fallback: any un-configured call returns empty rather than the substitute
+        // default of null (which would NRE inside BuildBlockHitsAsync's LINQ).
+        _pageRepo.SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>())
+            .Returns(_ => new List<PageSearchHitRaw>());
+        _blockSearch.SearchAsync(Arg.Any<string?>(), Arg.Any<int>())
+            .Returns(_ => new List<ContentBlockSearchResultDto>());
     }
 
     [Fact]
@@ -92,6 +98,88 @@ public sealed class SiteSearchMergedPagedTests
         Assert.Equal(10, result.Items.Count);
         Assert.Equal("Page 11", result.Items.First().Title);
         Assert.Equal("Page 20", result.Items.Last().Title);
+    }
+
+    [Fact]
+    public async Task ScopePath_IsPassedThroughToTheUnderlyingSearch()
+    {
+        // Manual step 18: a widget-configured scope narrows the merge input.
+        _pageRepo.SearchPagesAsync("pupil", "help", Arg.Any<int>())
+            .Returns([]);
+
+        await _sut.SearchMergedPagedAsync(
+            new SiteSearchQuery(Query: "pupil", ScopePath: "help"),
+            page: 0,
+            pageSize: 20);
+
+        await _pageRepo.Received(1)
+            .SearchPagesAsync("pupil", "help", Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task PageBeyondRange_ReturnsEmptyItems_ButAccurateTotalCount()
+    {
+        _pageRepo.SearchPagesAsync("wide", null, Arg.Any<int>())
+            .Returns(Enumerable.Range(1, 5)
+                .Select(i => Page(rank: 100f - i, path: $"p/{i}", title: $"Page {i}"))
+                .ToList());
+        _blockSearch.SearchAsync("wide", Arg.Any<int>()).Returns([]);
+
+        // Ask for page 5 (zero-indexed) — beyond the 5 total hits at pageSize 10.
+        var result = await _sut.SearchMergedPagedAsync(
+            new SiteSearchQuery("wide"), page: 5, pageSize: 10);
+
+        Assert.Equal(5, result.TotalCount);
+        Assert.Equal(1, result.TotalPages);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task ZeroTotalCount_YieldsZeroTotalPages()
+    {
+        _pageRepo.SearchPagesAsync("nothing", null, Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("nothing", Arg.Any<int>()).Returns([]);
+
+        var result = await _sut.SearchMergedPagedAsync(
+            new SiteSearchQuery("nothing"), page: 0, pageSize: 20);
+
+        Assert.Equal(0, result.TotalCount);
+        Assert.Equal(0, result.TotalPages);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
+    public async Task NonPositivePageSize_ClampsToOne()
+    {
+        _pageRepo.SearchPagesAsync("xy", null, Arg.Any<int>())
+            .Returns([
+                Page(rank: 1.0f, path: "a", title: "A"),
+                Page(rank: 0.9f, path: "b", title: "B"),
+            ]);
+        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns([]);
+
+        var result = await _sut.SearchMergedPagedAsync(
+            new SiteSearchQuery("xy"), page: 0, pageSize: 0);
+
+        // pageSize clamped to 1 -> two pages of one hit each -> first slice has one hit.
+        Assert.Equal(1, result.PageSize);
+        Assert.Equal(2, result.TotalPages);
+        Assert.Single(result.Items);
+        Assert.Equal("A", result.Items[0].Title);
+    }
+
+    [Fact]
+    public async Task ContentBlockUrls_AreUsedVerbatim_NoLeadingSlashPrepended()
+    {
+        // Content blocks already carry a full URL (they may point at an anchor within a page).
+        _pageRepo.SearchPagesAsync("xy", null, Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("xy", Arg.Any<int>())
+            .Returns([Block(rank: 1.0f, url: "/help/faq#anchor", pageTitle: "FAQ")]);
+
+        var result = await _sut.SearchMergedPagedAsync(
+            new SiteSearchQuery("xy"), page: 0, pageSize: 20);
+
+        Assert.Equal("/help/faq#anchor", result.Items.Single().Url);
     }
 
     [Fact]

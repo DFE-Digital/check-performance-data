@@ -13,7 +13,7 @@ public class WidgetRegistryTests
         var types = WidgetRegistry.All.Select(w => w.Type).ToList();
 
         Assert.Equal(
-            ["heading", "richtext", "divider", "card", "summarylist", "published", "search", "pagenav"],
+            ["heading", "richtext", "divider", "card", "summarylist", "published", "search", "results", "pagenav"],
             types);
     }
 
@@ -25,6 +25,7 @@ public class WidgetRegistryTests
     [InlineData("summarylist")]
     [InlineData("published")]
     [InlineData("search")]
+    [InlineData("results")]
     [InlineData("pagenav")]
     public void IsKnown_IsTrue_ForEveryRegisteredType(string type) =>
         Assert.True(WidgetRegistry.IsKnown(type));

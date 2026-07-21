@@ -179,37 +179,13 @@
                                 <input class="govuk-input" id="rs-@Model.Path" name="props[scope]" value="@w.GetString("scope")" />
                             </div>
                             <div class="govuk-form-group">
-                                @* Hidden false fallback AFTER each label — GDS relies on + adjacent-sibling
-                                   CSS for tick/focus, and MVC uses first-value-wins so a checked box submits
-                                   true (first), unchecked submits only the hidden false. *@
-                                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-                                    <div class="govuk-checkboxes__item">
-                                        <input class="govuk-checkboxes__input" id="rip-@Model.Path" name="props[includePages]" type="checkbox" value="true"
-                                               @((w.GetBool("includePages") ?? true) ? "checked" : null) />
-                                        <label class="govuk-label govuk-checkboxes__label" for="rip-@Model.Path">
-                                            Include pages
-                                        </label>
-                                        <input type="hidden" name="props[includePages]" value="false" />
-                                    </div>
-                                    <div class="govuk-checkboxes__item">
-                                        <input class="govuk-checkboxes__input" id="ricb-@Model.Path" name="props[includeContentBlocks]" type="checkbox" value="true"
-                                               @((w.GetBool("includeContentBlocks") ?? true) ? "checked" : null) />
-                                        <label class="govuk-label govuk-checkboxes__label" for="ricb-@Model.Path">
-                                            Include content blocks
-                                        </label>
-                                        <input type="hidden" name="props[includeContentBlocks]" value="false" />
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="govuk-form-group">
-                                <label class="govuk-label" for="rm-@Model.Path">Maximum hits per type</label>
-                                <input class="govuk-input govuk-input--width-3" id="rm-@Model.Path" name="props[maxPerType]" type="number" min="1" max="100"
-                                       value="@(w.GetInt("maxPerType") ?? 20)" />
-                            </div>
-                            <div class="govuk-form-group">
                                 <label class="govuk-label" for="re-@Model.Path">Empty-state text</label>
                                 <input class="govuk-input" id="re-@Model.Path" name="props[emptyText]" value="@w.GetString("emptyText")" />
                             </div>
+                            <p class="govuk-body govuk-body-s">
+                                Results per page is controlled by the <strong>Wiki:PageLength</strong>
+                                setting on the admin Settings page (default 20).
+                            </p>
                             break;
                     }
 

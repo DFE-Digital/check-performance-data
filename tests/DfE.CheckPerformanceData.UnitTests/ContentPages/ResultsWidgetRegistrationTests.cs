@@ -18,28 +18,18 @@ public sealed class ResultsWidgetRegistrationTests
     }
 
     [Fact]
-    public void Registry_ResultsWidget_HasScopeProp()
+    public void Registry_ResultsWidget_HasScopeAndEmptyTextOnly()
     {
+        // Include-toggles and max-per-type are deliberately absent: the widget renders one
+        // merged list (no page/block distinction), and its page size comes from the
+        // Wiki:PageLength setting rather than a widget prop.
         var props = WidgetRegistry.CreateDefaultProps("results");
         Assert.NotNull(props);
         Assert.True(props!.ContainsKey("scope"));
-    }
-
-    [Fact]
-    public void Registry_ResultsWidget_HasIncludeToggles()
-    {
-        var props = WidgetRegistry.CreateDefaultProps("results");
-        Assert.NotNull(props);
-        Assert.True(props!.ContainsKey("includePages"));
-        Assert.True(props.ContainsKey("includeContentBlocks"));
-    }
-
-    [Fact]
-    public void Registry_ResultsWidget_HasMaxPerType()
-    {
-        var props = WidgetRegistry.CreateDefaultProps("results");
-        Assert.NotNull(props);
-        Assert.True(props!.ContainsKey("maxPerType"));
+        Assert.True(props.ContainsKey("emptyText"));
+        Assert.False(props.ContainsKey("includePages"));
+        Assert.False(props.ContainsKey("includeContentBlocks"));
+        Assert.False(props.ContainsKey("maxPerType"));
     }
 
     [Fact]

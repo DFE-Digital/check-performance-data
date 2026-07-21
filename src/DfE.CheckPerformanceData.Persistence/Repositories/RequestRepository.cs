@@ -73,12 +73,6 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
     {
         var timestamp = DateTime.SpecifyKind(data.Timestamp, DateTimeKind.Local);
 
-        // ReferenceNumber is unique, so at most one row matches.
-        var existingId = await db.ChangeRequests
-            .Where(r => r.ReferenceNumber == data.ReferenceNumber)
-            .Select(r => r.Id)
-            .FirstOrDefaultAsync();
-
         // For SubmittedUnCommitted, check for conflicts atomically within a serializable
         // transaction covering both insert and update paths. This closes the TOCTOU gap
         // between CheckForConflictAsync and UpsertAsync — two concurrent submissions for
@@ -89,6 +83,15 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             return await strategy.ExecuteAsync(async () =>
             {
                 await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+
+                // ReferenceNumber is unique, so at most one row matches.
+                // Lookup is inside the serializable transaction to close the TOCTOU gap
+                // between the lookup and the write — a concurrent transaction that inserts
+                // a row with the same ReferenceNumber will be visible on retry.
+                var existingId = await db.ChangeRequests
+                    .Where(r => r.ReferenceNumber == data.ReferenceNumber)
+                    .Select(r => r.Id)
+                    .FirstOrDefaultAsync();
 
                 var conflictQuery = db.ChangeRequests
                     .Where(r => r.WindowId == data.WindowId
@@ -166,10 +169,15 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
         }
 
         // Draft save path (non-SubmittedUnCommitted) — no conflict guard needed.
-        if (existingId != Guid.Empty)
+        var draftExistingId = await db.ChangeRequests
+            .Where(r => r.ReferenceNumber == data.ReferenceNumber)
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        if (draftExistingId != Guid.Empty)
         {
             await db.ChangeRequests
-                .Where(r => r.Id == existingId)
+                .Where(r => r.Id == draftExistingId)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(r => r.Status, data.Status)
                     .SetProperty(r => r.Submitted, timestamp)
@@ -183,7 +191,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
                     .SetProperty(r => r.RequestType, data.RequestType)
                     .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription));
-            return existingId;
+            return draftExistingId;
         }
 
         var newId = Guid.NewGuid();

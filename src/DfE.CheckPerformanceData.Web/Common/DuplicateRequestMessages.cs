@@ -1,3 +1,5 @@
+using System.Text.Encodings.Web;
+
 namespace DfE.CheckPerformanceData.Web.Common;
 
 public static class DuplicateRequestMessages
@@ -14,28 +16,34 @@ public static class DuplicateRequestMessages
         bool isSelf, bool reasonsMatch, string requestCategory, string pupilName,
         string referenceNumber, string linkUrl, string userName)
     {
+        var enc = HtmlEncoder.Default;
         var topLevelRequest = TopLevelRequestLabel(requestCategory);
-        var link = $"<a class=\"govuk-link\" href=\"{linkUrl}\" target=\"_blank\" rel=\"noreferrer noopener\">View submitted request (opens in new tab)</a>";
+        var link = $"<a class=\"govuk-link\" href=\"{enc.Encode(linkUrl)}\" target=\"_blank\" rel=\"noreferrer noopener\">View submitted request (opens in new tab)</a>";
+
+        var encPupilName = enc.Encode(pupilName);
+        var encUserName = enc.Encode(userName);
+        var encRefNum = enc.Encode(referenceNumber);
+        var encTopLevelRequest = enc.Encode(topLevelRequest);
 
         string message;
         if (isSelf && reasonsMatch)
         {
-            message = $"You have already submitted a {topLevelRequest} for {pupilName}. Reference {referenceNumber} {link}.";
+            message = $"You have already submitted a {encTopLevelRequest} for {encPupilName}. Reference {encRefNum} {link}.";
             message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
         }
         else if (!isSelf && reasonsMatch)
         {
-            message = $"Your colleague {userName} has already submitted a {topLevelRequest} for {pupilName}. Reference {referenceNumber} {link}.";
+            message = $"Your colleague {encUserName} has already submitted a {encTopLevelRequest} for {encPupilName}. Reference {encRefNum} {link}.";
             message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
         }
         else if (isSelf && !reasonsMatch)
         {
-            message = $"You have already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {referenceNumber} {link}.";
+            message = $"You have already submitted a request of a different type ({encTopLevelRequest}) for {encPupilName}. Reference {encRefNum} {link}.";
             message += "<br><br>To raise a new request, delete the previously submitted request. Then return to this page to continue.";
         }
         else
         {
-            message = $"Your colleague {userName} has already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {referenceNumber} {link}.";
+            message = $"Your colleague {encUserName} has already submitted a request of a different type ({encTopLevelRequest}) for {encPupilName}. Reference {encRefNum} {link}.";
             message += "<br><br>To raise a new request check with your colleague, and if you want to proceed, delete the previously submitted request. Then return to this page to continue.";
         }
 

@@ -23,6 +23,7 @@ public sealed class DuplicateRequestValidatorTests
 
     private readonly IRequestRepository _repository = Substitute.For<IRequestRepository>();
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
+    private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly RequestService _sut;
 
     public DuplicateRequestValidatorTests()
@@ -32,14 +33,13 @@ public sealed class DuplicateRequestValidatorTests
         _currentUser.Email.Returns("test.user@education.gov.uk");
         _currentUser.OrganisationUrn.Returns(OrganisationUrn.ToString());
 
-        var flowService = Substitute.For<IQuestionFlowService>();
         var requestStateBlobClient = Substitute.For<IRequestStateBlobClient>();
         var logger = Substitute.For<Microsoft.Extensions.Logging.ILogger<RequestService>>();
         var queueService = Substitute.For<IQueueService>();
         var requestNotificationService = Substitute.For<IRequestNotificationService>();
         var checkYourPupilDataService = Substitute.For<ICheckYourPupilDataService>();
 
-        _sut = new RequestService(flowService, requestStateBlobClient, _repository, _currentUser,
+        _sut = new RequestService(_flowService, requestStateBlobClient, _repository, _currentUser,
             logger, queueService, requestNotificationService, checkYourPupilDataService);
     }
 
@@ -155,6 +155,57 @@ public sealed class DuplicateRequestValidatorTests
             _sut.ConfirmRequestAsync(WindowId, journey));
 
         Assert.Equal(ConflictType.OtherSubmitted, ex.ConflictType);
+    }
+
+    // ── T003: Service-layer propagation of UpsertAsync-level DuplicateRequestException ──
+
+    [Fact]
+    public async Task SubmitRequestAsync_WhenUpsertThrowsDuplicateRequestException_PropagatesWithOtherSubmitted()
+    {
+        var journey = ValidJourney();
+        var config = new QuestionFlowConfig { FirstPageId = "test", Pages = [] };
+
+        _repository.CheckForConflictAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>(),
+                Arg.Any<string>(), Arg.Any<Guid>())
+            .Returns(new DuplicateCheckResult.NoConflict());
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
+            .Returns(config);
+        _flowService.ResolveRequestType(config, journey).Returns("Remove");
+
+        _repository.UpsertAsync(Arg.Any<ChangeRequestData>())
+            .Returns(Task.FromException<Guid>(new DuplicateRequestException(
+                ConflictType.OtherSubmitted, "Remove", "Remove", "Other User", false)));
+
+        var ex = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
+            _sut.SubmitRequestAsync(WindowId, journey));
+
+        Assert.Equal(ConflictType.OtherSubmitted, ex.ConflictType);
+        Assert.Equal("Remove", ex.ConflictingReasonType);
+        Assert.Equal("Other User", ex.ConflictingUserName);
+    }
+
+    [Fact]
+    public async Task SubmitRequestAsync_WhenUpsertThrowsDuplicateRequestExceptionWithSelfSubmitted_PropagatesSelfSubmitted()
+    {
+        var journey = ValidJourney();
+        var config = new QuestionFlowConfig { FirstPageId = "test", Pages = [] };
+
+        _repository.CheckForConflictAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>(),
+                Arg.Any<string>(), Arg.Any<Guid>())
+            .Returns(new DuplicateCheckResult.NoConflict());
+        _flowService.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
+            .Returns(config);
+        _flowService.ResolveRequestType(config, journey).Returns("Remove");
+
+        _repository.UpsertAsync(Arg.Any<ChangeRequestData>())
+            .Returns(Task.FromException<Guid>(new DuplicateRequestException(
+                ConflictType.SelfSubmitted, "Remove", "Remove", CurrentUserId.ToString(), true)));
+
+        var ex = await Assert.ThrowsAsync<DuplicateRequestException>(() =>
+            _sut.SubmitRequestAsync(WindowId, journey));
+
+        Assert.Equal(ConflictType.SelfSubmitted, ex.ConflictType);
+        Assert.True(ex.ReasonsMatch);
     }
 
     // ── DuplicateRequestMessages scenario messages ──────────────────────────

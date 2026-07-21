@@ -79,6 +79,93 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             .Select(r => r.Id)
             .FirstOrDefaultAsync();
 
+        // For SubmittedUnCommitted, check for conflicts atomically within a serializable
+        // transaction covering both insert and update paths. This closes the TOCTOU gap
+        // between CheckForConflictAsync and UpsertAsync — two concurrent submissions for
+        // the same pupil cannot both succeed.
+        if (data.Status == RequestStatus.SubmittedUnCommitted)
+        {
+            var strategy = db.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+
+                var conflictQuery = db.ChangeRequests
+                    .Where(r => r.WindowId == data.WindowId
+                        && r.PupilId == data.PupilId
+                        && r.OrganisationUrn == data.OrganisationUrn
+                        && r.Status == RequestStatus.SubmittedUnCommitted);
+
+                // When updating an existing row, exclude the current row from conflict
+                // detection so a user can re-submit or update their own draft.
+                if (existingId != Guid.Empty)
+                    conflictQuery = conflictQuery.Where(r => r.Id != existingId);
+
+                var conflict = await conflictQuery.FirstOrDefaultAsync();
+
+                if (conflict is not null)
+                {
+                    var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
+                    var conflictingCategory = ExtractRequestCategory(conflict.RequestTypeDescription);
+                    var reasonsMatch = conflictingReasonType.Equals(
+                        ExtractConflictingReasonType(data.RequestTypeDescription), StringComparison.OrdinalIgnoreCase);
+                    throw new DuplicateRequestException(
+                        conflict.SubmittedById == data.SubmittedById
+                            ? ConflictType.SelfSubmitted
+                            : ConflictType.OtherSubmitted,
+                        conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty, reasonsMatch);
+                }
+
+                Guid id;
+                if (existingId != Guid.Empty)
+                {
+                    id = existingId;
+                    await db.ChangeRequests
+                        .Where(r => r.Id == existingId)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(r => r.Status, data.Status)
+                            .SetProperty(r => r.Submitted, timestamp)
+                            .SetProperty(r => r.OrganisationUrn, data.OrganisationUrn)
+                            .SetProperty(r => r.PupilId, data.PupilId)
+                            .SetProperty(r => r.PupilUpn, data.PupilUpn)
+                            .SetProperty(r => r.PupilFirstname, data.PupilFirstname)
+                            .SetProperty(r => r.PupilSurname, data.PupilSurname)
+                            .SetProperty(r => r.SubmittedById, data.SubmittedById)
+                            .SetProperty(r => r.SubmittedByName, data.SubmittedByName)
+                            .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
+                            .SetProperty(r => r.RequestType, data.RequestType)
+                            .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription));
+                }
+                else
+                {
+                    id = Guid.NewGuid();
+                    db.ChangeRequests.Add(new ChangeRequest
+                    {
+                        Id = id,
+                        WindowId = data.WindowId,
+                        ReferenceNumber = data.ReferenceNumber,
+                        OrganisationUrn = data.OrganisationUrn,
+                        PupilId = data.PupilId,
+                        PupilUpn = data.PupilUpn,
+                        PupilFirstname = data.PupilFirstname,
+                        PupilSurname = data.PupilSurname,
+                        Submitted = timestamp,
+                        SubmittedById = data.SubmittedById,
+                        SubmittedByName = data.SubmittedByName,
+                        SubmittedByEmail = data.SubmittedByEmail,
+                        Status = data.Status,
+                        RequestType = data.RequestType,
+                        RequestTypeDescription = data.RequestTypeDescription
+                    });
+                    await db.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+                return id;
+            });
+        }
+
+        // Draft save path (non-SubmittedUnCommitted) — no conflict guard needed.
         if (existingId != Guid.Empty)
         {
             await db.ChangeRequests
@@ -99,67 +186,10 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             return existingId;
         }
 
-        var id = Guid.NewGuid();
-
-        // For SubmittedUnCommitted insertions, check for conflicts atomically within
-        // a serializable transaction. This prevents two concurrent submissions for the
-        // same pupil from both passing the TOCTOU gap between CheckForConflictAsync and
-        // UpsertAsync — one transaction will abort on commit if a concurrent one already
-        // inserted a conflicting row.
-        if (data.Status == RequestStatus.SubmittedUnCommitted)
-        {
-            var strategy = db.Database.CreateExecutionStrategy();
-            await strategy.ExecuteAsync(async () =>
-            {
-                await using var transaction = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-
-                var conflict = await db.ChangeRequests
-                    .Where(r => r.WindowId == data.WindowId
-                        && r.PupilId == data.PupilId
-                        && r.OrganisationUrn == data.OrganisationUrn
-                        && r.Status == RequestStatus.SubmittedUnCommitted)
-                    .FirstOrDefaultAsync();
-
-                if (conflict is not null)
-                {
-                    var conflictingReasonType = ExtractConflictingReasonType(conflict.RequestTypeDescription);
-                    var conflictingCategory = ExtractRequestCategory(conflict.RequestTypeDescription);
-                    var reasonsMatch = conflictingReasonType.Equals(
-                        ExtractConflictingReasonType(data.RequestTypeDescription), StringComparison.OrdinalIgnoreCase);
-                    throw new DuplicateRequestException(
-                        conflict.SubmittedById == data.SubmittedById
-                            ? ConflictType.SelfSubmitted
-                            : ConflictType.OtherSubmitted,
-                        conflictingReasonType, conflictingCategory, conflict.SubmittedByName ?? string.Empty, reasonsMatch);
-                }
-
-                db.ChangeRequests.Add(new ChangeRequest
-                {
-                    Id = id,
-                    WindowId = data.WindowId,
-                    ReferenceNumber = data.ReferenceNumber,
-                    OrganisationUrn = data.OrganisationUrn,
-                    PupilId = data.PupilId,
-                    PupilUpn = data.PupilUpn,
-                    PupilFirstname = data.PupilFirstname,
-                    PupilSurname = data.PupilSurname,
-                    Submitted = timestamp,
-                    SubmittedById = data.SubmittedById,
-                    SubmittedByName = data.SubmittedByName,
-                    SubmittedByEmail = data.SubmittedByEmail,
-                    Status = data.Status,
-                    RequestType = data.RequestType,
-                    RequestTypeDescription = data.RequestTypeDescription
-                });
-                await db.SaveChangesAsync();
-                await transaction.CommitAsync();
-            });
-            return id;
-        }
-
+        var newId = Guid.NewGuid();
         await db.ChangeRequests.AddAsync(new ChangeRequest
         {
-            Id = id,
+            Id = newId,
             WindowId = data.WindowId,
             ReferenceNumber = data.ReferenceNumber,
             OrganisationUrn = data.OrganisationUrn,
@@ -176,7 +206,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             RequestTypeDescription = data.RequestTypeDescription
         });
         await db.SaveChangesAsync();
-        return id;
+        return newId;
     }
 
     public async Task<IReadOnlyList<AmendmentRequestData>> GetAmendmentRequestsAsync(

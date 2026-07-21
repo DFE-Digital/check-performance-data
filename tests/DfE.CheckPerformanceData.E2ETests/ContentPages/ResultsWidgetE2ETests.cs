@@ -59,6 +59,31 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         return (id, $"/help/{segment}", segment);
     }
 
+    // Seeds `count` PageNodes under /help whose titles all contain a fresh unique token,
+    // then returns the token. A search for that token is guaranteed to hit exactly those
+    // pages — makes the pagination tests independent of whatever content the deployed env
+    // happens to carry (review-app envs may have far fewer live pages than the local dev
+    // stack). Each seeded page's Title contributes to PageNode.SearchVector at weight B.
+    private async Task<string> SeedSearchableFixturesAsync(int count)
+    {
+        // Lowercase hex chunk: tsvector-safe (no stopword collision) and short enough to
+        // keep the test title readable.
+        var token = "cypde2e" + Guid.NewGuid().ToString("N")[..12].ToLowerInvariant();
+        for (int i = 0; i < count; i++)
+        {
+            var segment = $"e2e-fixture-{i}-{Guid.NewGuid():N}";
+            var id = await CmsSeedHelpers.CreatePageNodeAsync(
+                Fixture.SeedClient,
+                parentId: CmsSeedHelpers.HelpRootId,
+                pageType: "content",
+                segment: segment,
+                title: $"E2E fixture {token} number {i}");
+            _createdPages.Add(id);
+            await CmsSeedHelpers.PublishDraftAsync(Fixture.SeedClient, id);
+        }
+        return token;
+    }
+
     // Creates /help/{segment} with a search-input widget targeting the given action URL.
     private async Task<(Guid Id, string UrlPath)> SeedSearchInputPageAsync(string actionUrl)
     {
@@ -117,20 +142,21 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
 
     // ============================================================
     // 2. Pagination component appears + navigating changes the URL and result set.
-    // Shrinks CMS:PageLength=3 so that any real-content term with >3 hits paginates —
-    // avoids brittleness against the exact hit count (which is affected by the block
-    // search's dedup-by-URL + admin-path filtering, not just tsvector matches).
+    // Seeds 9 PageNodes with a unique token in their titles + shrinks CMS:PageLength to 3
+    // so the search hits fill exactly 3 pages regardless of what content the deployed
+    // env already carries (review-app corpora can be much smaller than local dev).
     // ============================================================
     [Fact]
     public async Task PaginationAppearsAndNavigates_ForMultiPageTerm()
     {
         var (_, url, _) = await SeedResultsPageAsync();
+        var searchToken = await SeedSearchableFixturesAsync(count: 9);
 
         try
         {
             await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "3");
 
-            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={HighVolumeTerm}");
+            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
 
             // Pagination is present at all — the __list is only rendered when TotalPages > 1.
             await Expect(Page.Locator(".govuk-pagination__list")).ToBeVisibleAsync();
@@ -191,26 +217,29 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     public async Task SettingChange_AdjustsResultsPerPage()
     {
         var (_, url, _) = await SeedResultsPageAsync();
+        // Seed exactly 10 fixtures so the assertion below can pin the exact page count:
+        //   pageSize=10 → 1 page (0 pagination page-links).
+        //   pageSize=2  → 5 pages (max page link = 5).
+        var searchToken = await SeedSearchableFixturesAsync(count: 10);
 
-        // Baseline at default (20). Read whatever the real hit count is — the block-search
-        // dedup + admin-path filter means the effective total is smaller than the raw
-        // tsvector match count.
-        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={HighVolumeTerm}");
-        var baselineItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
-        Assert.True(baselineItems > 0, "Expected at least one hit for the high-volume term at baseline.");
-
-        // Shrink to 2 — guaranteed to force multiple pages for any reasonable hit count.
+        // Baseline at pageSize=10: the fixture set fits in a single page.
         try
         {
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "10");
+            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
+            var baselineItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
+            Assert.Equal(10, baselineItems);
+
+            // Shrink to 2 — 10 hits => exactly 5 pages.
             await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "2");
 
-            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={HighVolumeTerm}");
+            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
             var newItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
             Assert.Equal(2, newItems);
 
-            // The pagination must now reference more pages than at baseline. Use the
-            // highest page number referenced in a pagination link href — a direct read
-            // of result.TotalPages that survives GDS's ellipsis collapsing.
+            // The pagination must now reference more pages than at baseline. Read the
+            // highest page number referenced in a pagination link href — a direct read of
+            // result.TotalPages that survives GDS's ellipsis collapsing.
             var maxPageOnLinks = await Page.Locator(".govuk-pagination__link[href*='page=']")
                 .EvaluateAllAsync<int>(@"elements => elements.length === 0 ? 0 : Math.max(...elements.map(e => {
                     const m = e.getAttribute('href').match(/[?&]page=(\d+)/);

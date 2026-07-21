@@ -24,9 +24,11 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     // future test runs would then collide with.
     private readonly List<Guid> _createdPages = [];
 
-    // Base's DisposeAsync is `public new` (shadowed, not virtual). Shadow again to
-    // interpose our teardown, then delegate to the base for the Playwright cleanup.
-    public new async Task DisposeAsync()
+    // Overrides SeedingPageTest.DisposeAsync (new virtual against PageTest's non-virtual
+    // Playwright teardown) — using `override` instead of `new` keeps the xUnit1013
+    // analyzer quiet (it flags public non-Fact methods on test classes but exempts
+    // override methods).
+    public override async Task DisposeAsync()
     {
         foreach (var id in _createdPages)
         {

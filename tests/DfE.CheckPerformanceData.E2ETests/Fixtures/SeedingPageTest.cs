@@ -41,7 +41,7 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
         await SeedAsync();
     }
 
-    public new Task DisposeAsync() => base.DisposeAsync();
+    public new virtual Task DisposeAsync() => base.DisposeAsync();
 
     // Override to seed per-test data. Default: no-op.
     protected virtual Task SeedAsync() => Task.CompletedTask;

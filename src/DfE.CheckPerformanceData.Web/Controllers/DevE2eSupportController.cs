@@ -1,9 +1,11 @@
 using System.Text.Encodings.Web;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Application.Wiki;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
@@ -31,7 +33,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 public sealed class DevE2eSupportController(
     IConfiguration configuration,
     IHostEnvironment env,
-    IWikiService wikiService) : Controller
+    IWikiService wikiService,
+    IPortalDbContext dbContext) : Controller
 {
     private const string E2eSlugPrefix = "e2e-";
 
@@ -91,5 +94,27 @@ public sealed class DevE2eSupportController(
             if (node.Children is { Count: > 0 })
                 Collect(node.Children, ids);
         }
+    }
+
+    // Deletes every ChangeRequest whose referenceNumber starts with "DEV-" so duplicate-detection
+    // E2E tests don't leave stale conflicts that poison subsequent tests.
+    [AllowAnonymous]
+    [HttpPost("dev/queues/cleanup-e2e-requests")]
+    public async Task<IActionResult> CleanupE2eRequests()
+    {
+        if (!IsAllowed) return NotFound();
+
+        var prefix = "DEV-";
+        var devRequests = await dbContext.ChangeRequests
+            .Where(cr => cr.ReferenceNumber.StartsWith(prefix))
+            .ToListAsync();
+
+        if (devRequests.Count > 0)
+        {
+            dbContext.ChangeRequests.RemoveRange(devRequests);
+            await dbContext.SaveChangesAsync();
+        }
+
+        return Ok(new { deleted = devRequests.Count });
     }
 }

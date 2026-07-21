@@ -22,7 +22,7 @@ public sealed class ResultsWidgetRegistrationTests
     {
         // Include-toggles and max-per-type are deliberately absent: the widget renders one
         // merged list (no page/block distinction), and its page size comes from the
-        // Wiki:PageLength setting rather than a widget prop.
+        // CMS:PageLength setting rather than a widget prop.
         var props = WidgetRegistry.CreateDefaultProps("results");
         Assert.NotNull(props);
         Assert.True(props!.ContainsKey("scope"));

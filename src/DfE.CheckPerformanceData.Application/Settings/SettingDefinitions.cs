@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Application.Settings;
 // rejected on save, so the settings form cannot be used to write arbitrary key/value rows.
 public static class SettingKeys
 {
-    public const string WikiPageLength = "Wiki:PageLength";
+    public const string CmsPageLength = "CMS:PageLength";
 
     public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
@@ -49,7 +49,7 @@ public static class SettingDefinitions
 {
     public static readonly IReadOnlyList<SettingDefinition> All =
     [
-        new(SettingKeys.WikiPageLength,
+        new(SettingKeys.CmsPageLength,
             "Number of rows shown per page on paged lists.",
             "20",
             SettingKind.Int),

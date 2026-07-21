@@ -25,10 +25,10 @@ public sealed class WidgetEditorContractTests
     }
 
     [Fact]
-    public void Results_EditorMentionsWikiPageLengthSetting()
+    public void Results_EditorMentionsCmsPageLengthSetting()
     {
         // Manual step 3: the editor tells the author where results-per-page is controlled.
-        Assert.Contains("Wiki:PageLength", ResultsBranch());
+        Assert.Contains("CMS:PageLength", ResultsBranch());
     }
 
     [Fact]

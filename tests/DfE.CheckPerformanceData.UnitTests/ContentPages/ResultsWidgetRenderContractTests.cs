@@ -93,10 +93,10 @@ public sealed class ResultsWidgetRenderContractTests
     // ----- Setting-driven page size -----
 
     [Fact]
-    public void PageSize_ComesFromWikiPageLengthSetting()
+    public void PageSize_ComesFromCmsPageLengthSetting()
     {
         // Manual step 13-15: results per page follows the admin setting, not a widget prop.
-        Assert.Contains("SettingKeys.WikiPageLength", View);
+        Assert.Contains("SettingKeys.CmsPageLength", View);
         Assert.Contains("SettingService.GetIntAsync", View);
     }
 

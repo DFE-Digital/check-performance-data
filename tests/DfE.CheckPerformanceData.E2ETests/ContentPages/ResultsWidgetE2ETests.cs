@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     // Term with enough real-content hits to guarantee multi-page pagination at the
-    // default Wiki:PageLength of 20 (currently ~59 combined page+block hits).
+    // default CMS:PageLength of 20 (currently ~59 combined page+block hits).
     private const string HighVolumeTerm = "pupil";
 
     // Track seeded pages for teardown so a failing test doesn't leave orphans that
@@ -117,7 +117,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
 
     // ============================================================
     // 2. Pagination component appears + navigating changes the URL and result set.
-    // Shrinks Wiki:PageLength=3 so that any real-content term with >3 hits paginates —
+    // Shrinks CMS:PageLength=3 so that any real-content term with >3 hits paginates —
     // avoids brittleness against the exact hit count (which is affected by the block
     // search's dedup-by-URL + admin-path filtering, not just tsvector matches).
     // ============================================================
@@ -128,7 +128,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
 
         try
         {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "Wiki:PageLength", "3");
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "3");
 
             await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={HighVolumeTerm}");
 
@@ -156,7 +156,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         }
         finally
         {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "Wiki:PageLength", "20");
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "20");
         }
     }
 
@@ -185,7 +185,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
     }
 
     // ============================================================
-    // 4. Wiki:PageLength setting drives the effective page size.
+    // 4. CMS:PageLength setting drives the effective page size.
     // ============================================================
     [Fact]
     public async Task SettingChange_AdjustsResultsPerPage()
@@ -202,7 +202,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         // Shrink to 2 — guaranteed to force multiple pages for any reasonable hit count.
         try
         {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "Wiki:PageLength", "2");
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "2");
 
             await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={HighVolumeTerm}");
             var newItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
@@ -221,7 +221,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         }
         finally
         {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "Wiki:PageLength", "20");
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "20");
         }
     }
 

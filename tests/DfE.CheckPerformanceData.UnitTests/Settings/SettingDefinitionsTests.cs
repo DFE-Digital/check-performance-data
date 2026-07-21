@@ -43,7 +43,7 @@ public sealed class SettingDefinitionsTests
     [Theory]
     [InlineData("Dlq:AlertThreshold", SettingKind.Int)]
     [InlineData("Dlq:RetentionDays", SettingKind.Int)]
-    [InlineData("Wiki:PageLength", SettingKind.Int)]
+    [InlineData("CMS:PageLength", SettingKind.Int)]
     [InlineData("Dlq:AlertRecipients", SettingKind.String)]
     public void NonBoolSettings_HaveExpectedKind(string key, SettingKind expected)
     {

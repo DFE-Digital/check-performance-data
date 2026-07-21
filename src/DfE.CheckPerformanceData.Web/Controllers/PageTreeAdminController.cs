@@ -57,7 +57,7 @@ public sealed class PageTreeAdminController(
         var totalCount = filtered.Count;
 
         // Paging.
-        var rawSize = await settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var rawSize = await settingService.GetIntAsync(SettingKeys.CmsPageLength);
         var pageSize = rawSize > 0 ? rawSize : DefaultPageLength;
         var safePage = page < 1 ? 1 : page;
         var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling((double)totalCount / pageSize);

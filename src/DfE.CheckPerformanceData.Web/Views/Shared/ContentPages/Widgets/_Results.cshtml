@@ -23,7 +23,7 @@
     var effectiveScope = !string.IsNullOrEmpty(urlScope) ? urlScope : widgetScope;
 
     // --- Page size from settings ---
-    var pageSize = await SettingService.GetIntAsync(SettingKeys.WikiPageLength);
+    var pageSize = await SettingService.GetIntAsync(SettingKeys.CmsPageLength);
     if (pageSize < 1) pageSize = 20;
 
     // --- Search ---

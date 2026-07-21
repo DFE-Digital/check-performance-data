@@ -41,8 +41,8 @@ public sealed class AdminSettingsControllerTests
     [Fact]
     public async Task Save_NonBoolSetting_UsesTextValue()
     {
-        await _sut.Save(SettingKeys.WikiPageLength, value: "40", boolValue: null);
+        await _sut.Save(SettingKeys.CmsPageLength, value: "40", boolValue: null);
 
-        await _settings.Received(1).SaveAsync(SettingKeys.WikiPageLength, "40");
+        await _settings.Received(1).SaveAsync(SettingKeys.CmsPageLength, "40");
     }
 }

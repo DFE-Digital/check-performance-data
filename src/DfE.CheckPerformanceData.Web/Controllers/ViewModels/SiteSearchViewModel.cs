@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Search;
-using DfE.CheckPerformanceData.Application.Wiki;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 

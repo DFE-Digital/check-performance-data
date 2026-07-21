@@ -29,7 +29,7 @@ public sealed class AdminSettingsTests(PlaywrightFixture fixture)
 
             var body = await response.Content.ReadAsStringAsync();
             Assert.Contains("System settings", body);
-            Assert.Contains("Wiki:PageLength", body);
+            Assert.Contains("CMS:PageLength", body);
         }
         finally
         {

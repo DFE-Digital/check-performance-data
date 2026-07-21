@@ -14,10 +14,6 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
 {
     protected PlaywrightFixture Fixture { get; } = fixture;
 
-    // Wiki page ids accumulated by SeedAsync overrides. DisposeAsync soft-deletes
-    // each one in reverse insertion order so child pages drop before their parents.
-    protected List<int> TrackedIds { get; } = [];
-
     public new async Task InitializeAsync()
     {
         await base.InitializeAsync();
@@ -25,8 +21,8 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
         // Mirror the fixture-level impersonation cookie into the Playwright browser
         // context so Page.GotoAsync(...) requests authenticate as editor. Without this
         // the seed HttpClient is impersonating but the headless Chromium that drives
-        // the assertions isn't, and any editor-gated route (/help/deleted,
-        // /content-block/versions/{key}, etc.) 302s to DfE Sign-In during the test.
+        // the assertions isn't, and any editor-gated route (/content-block/versions/{key},
+        // /admin/*, etc.) 302s to DfE Sign-In during the test.
         var impersonation = TestHttpClients.ImpersonationCookieHeader;
         if (!string.IsNullOrEmpty(impersonation))
         {
@@ -45,21 +41,7 @@ public abstract class SeedingPageTest(PlaywrightFixture fixture) : PageTest, IAs
         await SeedAsync();
     }
 
-    public new async Task DisposeAsync()
-    {
-        foreach (var id in TrackedIds.AsEnumerable().Reverse())
-        {
-            try
-            {
-                await SeedHelpers.SoftDeleteWikiPageAsync(Fixture.SeedClient, id);
-            }
-            catch
-            {
-                // Best-effort cleanup; failure must not mask the test outcome.
-            }
-        }
-        await base.DisposeAsync();
-    }
+    public new virtual Task DisposeAsync() => base.DisposeAsync();
 
     // Override to seed per-test data. Default: no-op.
     protected virtual Task SeedAsync() => Task.CompletedTask;

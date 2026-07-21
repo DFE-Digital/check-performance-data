@@ -347,7 +347,7 @@ public sealed class ObservabilityControllerTests
             Arg.Any<CancellationToken>());
     }
 
-    // --- The full transactions page is paged by the Wiki:PageLength setting ---
+    // --- The full transactions page is paged by the CMS:PageLength setting ---
 
     [Fact]
     public async Task Transactions_PagesByTheConfiguredPageLength()
@@ -358,7 +358,7 @@ public sealed class ObservabilityControllerTests
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 15));
 
         var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(15);
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(15);
 
         var controller = BuildController(query, settings: settings);
 
@@ -367,7 +367,7 @@ public sealed class ObservabilityControllerTests
         var view = Assert.IsType<ViewResult>(result);
         Assert.IsType<TransactionsViewModel>(view.Model);
 
-        // The page size comes from Wiki:PageLength, not a hard-coded constant.
+        // The page size comes from CMS:PageLength, not a hard-coded constant.
         await query.Received(1).GetTransactionsAsync(
             2, 15, Arg.Any<DateTime?>(), Arg.Any<DateTime?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>());
     }
@@ -381,7 +381,7 @@ public sealed class ObservabilityControllerTests
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 41, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var controller = BuildController(query, settings: settings);
 
@@ -402,7 +402,7 @@ public sealed class ObservabilityControllerTests
             .Returns(new TransactionsPage(Array.Empty<TransactionRow>(), 0, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var controller = BuildController(query, settings: settings);
 
@@ -434,7 +434,7 @@ public sealed class ObservabilityControllerTests
             Arg.Is<DateTime>(d => d == from), Arg.Is<DateTime>(d => d == to), Arg.Any<CancellationToken>());
     }
 
-    // --- The submissions picker is admin-gated and paged by Wiki:PageLength ---
+    // --- The submissions picker is admin-gated and paged by CMS:PageLength ---
 
     [Fact]
     public async Task Submissions_PagesByTheConfiguredPageLength_AndDefaultsToARecentWindow()
@@ -445,7 +445,7 @@ public sealed class ObservabilityControllerTests
             .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var controller = BuildController(query, settings: settings);
 
@@ -469,7 +469,7 @@ public sealed class ObservabilityControllerTests
             .Returns(new SubmissionsPage(Array.Empty<SubmissionRow>(), 0, 1, 20));
 
         var settings = Substitute.For<ISettingService>();
-        settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var controller = BuildController(query, settings: settings);
 

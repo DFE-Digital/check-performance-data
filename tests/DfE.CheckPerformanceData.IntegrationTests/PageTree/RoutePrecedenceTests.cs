@@ -12,8 +12,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 //   1. PageController.Show is the ONLY catch-all (wildcard) GET endpoint in the Web assembly.
 //   2. That catch-all carries Order = int.MaxValue so the MVC routing engine always evaluates
 //      it last, after every other endpoint has had the opportunity to match.
-//   3. Known routes (/admin, /help/search, /CheckYourPupilData/{windowId}) are served by
-//      their own controllers, confirming that those controllers define explicit route templates
+//   3. Known routes (/admin, /CheckYourPupilData/{windowId}) are served by their own
+//      controllers, confirming that those controllers define explicit route templates
 //      that will win over the catch-all in normal operation.
 //
 // Pattern matches AzureQueueCutoverGuardTests — assembly-level reflection requires no running
@@ -60,7 +60,6 @@ public sealed class RoutePrecedenceTests
     // the expected path prefix, confirming it owns those URLs explicitly — not via the catch-all.
     [Theory]
     [InlineData(typeof(AdminController),                "admin")]
-    [InlineData(typeof(HelpController),                 "help/search")]
     [InlineData(typeof(CheckYourPupilDataController),   "CheckYourPupilData/")]
     public void KnownControllers_HaveExplicitRouteTemplates_UnderTheirOwnPrefix(
         Type controllerType, string expectedPrefix)

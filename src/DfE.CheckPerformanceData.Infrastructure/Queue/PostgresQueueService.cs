@@ -226,7 +226,7 @@ RETURNING id, queue_name, payload, attempts, enqueued_at_utc, visible_after_utc,
 
     public async Task<QueueMessagesPage> GetQueueMessagesPageAsync(string queueName, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        // Defensive clamps: the view resolves pageSize from Wiki:PageLength, but the query never
+        // Defensive clamps: the view resolves pageSize from CMS:PageLength, but the query never
         // trusts it — a page below 1 or a non-positive size would produce a negative Skip or an
         // unbounded read.
         if (page < 1) page = 1;

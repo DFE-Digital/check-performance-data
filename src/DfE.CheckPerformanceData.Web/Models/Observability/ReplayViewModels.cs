@@ -4,7 +4,7 @@ namespace DfE.CheckPerformanceData.Web.Models.Observability;
 
 // The submissions picker: a paged, newest-first list of distinct references that entered the
 // pipeline, each selectable with a checkbox. Selecting rows and pressing Play opens the
-// walkthrough for those references. Paged by Wiki:PageLength; a date/time filter (defaulting to a
+// walkthrough for those references. Paged by CMS:PageLength; a date/time filter (defaulting to a
 // recent window) narrows the list.
 public sealed class SubmissionsViewModel
 {

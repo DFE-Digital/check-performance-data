@@ -1,7 +1,6 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Search;
-using DfE.CheckPerformanceData.Application.Wiki;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Search;

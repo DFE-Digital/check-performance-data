@@ -423,12 +423,6 @@ try
 
     app.MapStaticAssets().AllowAnonymous();
 
-    // Wiki is retired: /help and its descendants now resolve via PageController's
-    // catch-all against the PageNode tree (e.g. help/not-found is the default 404 page).
-    // Wiki management endpoints on HelpController (help/create, help/search, help/deleted,
-    // help/versions/{id}, etc.) still work — they use explicit HttpGet/HttpPost attribute
-    // routes, so removing the catch-all map here doesn't affect them.
-
     app.MapControllerRoute(
             name: "default",
             pattern: "{controller=Home}/{action=Index}/{id?}")

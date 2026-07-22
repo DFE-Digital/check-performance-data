@@ -512,3 +512,4 @@ CLAUDE.md
 .opencode/
 opencode.json
 specs/
+tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/

@@ -106,7 +106,13 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
-    
+
+    // Gates the /search <!-- rank: N --> debug comment. Singleton because both deps
+    // (IConfiguration + IHostEnvironment) are singletons and the accessor is a pure read.
+    builder.Services.AddSingleton<
+        DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
+        DfE.CheckPerformanceData.Web.Search.SearchDebugOptions>();
+
     string? newtonsoftLicenseKey = configuration
         .GetSection("NewtonsoftLicenseKey")
         .Get<string>() ?? null;

@@ -9,11 +9,11 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Search;
 
-// Service-tier tests for the seven PRD §9.1 silent-filter invariants. Each [Fact] carries
-// method-level [Trait("prd-filter", <slug>)] and [Trait("prd-case", <letter>)] so the PRD
-// case-matrix and filter-coverage meta-tests can enumerate coverage via either dimension.
-// Method-level traits only (class-level traits do not inherit unless the assertion opts in
-// with inherit: true).
+// Service-tier tests for the seven silent-filter invariants. Each [Fact] carries method-level
+// [Trait("search-filter", <slug>)] and [Trait("search-case", <slug>)] so the case-coverage
+// and filter-coverage meta-tests can enumerate coverage via either dimension. Method-level
+// traits only (class-level traits do not inherit unless the assertion opts in with
+// inherit: true).
 //
 // Each test seeds one "control" row (that should appear) and one "suppressed" row (that
 // should be filtered). Both share the query term "widget" so the tsquery matches both at
@@ -138,8 +138,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     // ── Block-tier filters ───────────────────────────────────────────────────
 
     [Fact]
-    [Trait("prd-filter", "admin-path")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "admin-path")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_ContentBlockLastSeenOnAdminPath_IsExcluded()
     {
         await TruncateAsync();
@@ -156,8 +156,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-filter", "e2e-key")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "e2e-key")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_ContentBlockWithE2eKeyPrefix_IsExcluded()
     {
         await TruncateAsync();
@@ -172,8 +172,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-filter", "guidance-ks4-2026-nav-key")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "guidance-ks4-2026-nav-key")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_GuidanceKs4NavContentBlock_IsExcluded()
     {
         await TruncateAsync();
@@ -188,8 +188,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-filter", "contentblock-appearinsearch-false")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "contentblock-appearinsearch-false")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_ContentBlockWithAppearInSearchFalse_IsExcluded()
     {
         await TruncateAsync();
@@ -204,8 +204,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-filter", "unpublished-target")]
-    [Trait("prd-case", "N")]
+    [Trait("search-filter", "unpublished-target")]
+    [Trait("search-case", "unpublished-target")]
     public async Task SearchAsync_ContentBlockLastSeenPathPointsToUnpublishedPage_IsExcluded()
     {
         await TruncateAsync();
@@ -226,8 +226,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     // ── Page-tier filters ────────────────────────────────────────────────────
 
     [Fact]
-    [Trait("prd-filter", "pagenode-appearinsearch-false")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "pagenode-appearinsearch-false")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_PageNodeWithAppearInSearchFalse_IsExcluded()
     {
         await TruncateAsync();
@@ -242,8 +242,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-filter", "draft-page")]
-    [Trait("prd-case", "N")]
+    [Trait("search-filter", "draft-page")]
+    [Trait("search-case", "unpublished-target")]
     public async Task SearchAsync_DraftOrSoftDeletedPageNode_IsExcluded()
     {
         await TruncateAsync();

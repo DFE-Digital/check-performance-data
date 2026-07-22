@@ -19,42 +19,38 @@ namespace DfE.CheckPerformanceData.Application.Search;
 /// <c>HasComputedColumnSql</c> literal would turn every future weight edit into an EF
 /// Core migration diff, so the constants stay in step with the SQL via a source-file
 /// drift-detection unit test (SearchWeightsTests) rather than by construction.
-/// See the ranking-contract weight table (PRD §7.1) for the rationale behind each
-/// letter.
 /// </remarks>
 public static class SearchWeights
 {
     /// <summary>
     /// Keywords column weight. Highest confidence signal — editor-declared aliases
     /// live here. Applied to <c>PageNode.Keywords</c> and <c>ContentBlock.Keywords</c>.
-    /// PRD §7.1.
     /// </summary>
     public const char KeywordsWeight = 'A';
 
     /// <summary>
     /// Title column weight. Direct label of the page — high confidence but less
     /// specific than editor-declared keywords. Applied to <c>PageNode.Title</c>.
-    /// PRD §7.1.
     /// </summary>
     public const char TitleWeight = 'B';
 
     /// <summary>
     /// Subtitle column weight. Descriptive — useful context but not the primary
-    /// label. Applied to <c>PageNode.Subtitle</c>. PRD §7.1.
+    /// label. Applied to <c>PageNode.Subtitle</c>.
     /// </summary>
     public const char SubtitleWeight = 'C';
 
     /// <summary>
     /// Body column weight. Long-form live-version body text; a match here is a
     /// weaker signal than a match in a labelled field. Applied to
-    /// <c>PageNodeVersion.BodyPlainText</c>. PRD §7.1.
+    /// <c>PageNodeVersion.BodyPlainText</c>.
     /// </summary>
     public const char BodyWeight = 'D';
 
     /// <summary>
     /// Value (plain text) column weight. The block's actual display text — no
     /// separate title exists, so this sits at the same weight as PageNode.Title.
-    /// Applied to <c>ContentBlock.ValuePlainText</c>. PRD §7.1.
+    /// Applied to <c>ContentBlock.ValuePlainText</c>.
     /// </summary>
     public const char ValueWeight = 'B';
 }

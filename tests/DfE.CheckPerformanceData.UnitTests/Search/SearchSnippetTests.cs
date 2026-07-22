@@ -14,7 +14,7 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
 // leaked through. Both halves are load-bearing.
 public sealed class SearchSnippetTests
 {
-    // Six rows without a prd-case trait: apostrophe, angle-bracket <b>, straight quote,
+    // Six rows without a search-case trait: apostrophe, angle-bracket <b>, straight quote,
     // nested quote+apostrophe, already-HTML-encoded input, match at very end.
     [Theory]
     [InlineData(
@@ -50,20 +50,19 @@ public sealed class SearchSnippetTests
             Assert.DoesNotContain(mustNotContainRaw, result);
     }
 
-    // PRD case J (special-character / XSS-shaped input): the <script> row proves the raw
-    // tag is scrubbed AND the encoded form is emitted; the Unicode row proves CJK survives
-    // the encode + mark wrap unmodified. Trait attaches at method level so the meta
-    // PrdCaseCoverageTests reflection walk sees it (class-level traits don't inherit
-    // unless the walker opts in — Landmine L-L).
+    // Special-character / XSS-shaped input: the <script> row proves the raw tag is scrubbed
+    // AND the encoded form is emitted; the Unicode row proves CJK survives the encode +
+    // mark wrap unmodified. Trait attaches at method level so the coverage meta-test's
+    // reflection walk sees it (class-level traits don't inherit unless the walker opts in).
     [Theory]
-    [Trait("prd-case", "J")]
+    [Trait("search-case", "special-chars")]
     [InlineData(
         "Hello <script>alert(1)</script> widget", "widget",
         "<mark>widget</mark>", "&lt;script&gt;", "<script>")]
     [InlineData(
         "日本 widget", "widget",
         "<mark>widget</mark>", "日本", "")]
-    public void BuildWindow_ScriptOrUnicodeInput_EncodesSurroundingText_AndWrapsOnlyMatchInMark_CaseJ(
+    public void BuildWindow_ScriptOrUnicodeInput_EncodesSurroundingText_AndWrapsOnlyMatchInMark_SpecialChars(
         string body, string term, string expectedMarkWrap, string mustContainEncoded, string mustNotContainRaw)
     {
         var result = SearchSnippet.BuildWindow(body, term);

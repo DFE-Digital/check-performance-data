@@ -9,14 +9,14 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Search;
 
-// Service-tier ranking regression fixture — proves the SEARCH-R-03 contract that a PageNode
-// with the query term only in Keywords outranks a PageNode with the same term only in Body.
+// Service-tier ranking regression fixture — pins the contract that a PageNode with the
+// query term only in Keywords outranks a PageNode with the same term only in Body.
 // Keywords is weight A on PageNode.SearchVector; Body is weight D on PageNodeVersion.SearchVector.
 // The combined ts_rank sum for a Keywords-only hit must exceed a Body-only hit; if the weight
 // table is edited to invert this ordering the test fails.
 //
 // Relative-ordering assertions only — absolute ts_rank floats are corpus-dependent and must
-// never be asserted (see PATTERNS.md Landmine L-O).
+// never be asserted.
 [Collection(nameof(PostgresCollection))]
 public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
 {
@@ -89,7 +89,7 @@ public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "M")]
+    [Trait("search-case", "keywords-boost")]
     public async Task SearchAsync_PageWithWidgetInKeywordsOnly_OutranksPageWithWidgetInBodyOnly()
     {
         await TruncateAsync();
@@ -106,7 +106,7 @@ public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
         Assert.Equal(2, result.PageHits.Count);
         Assert.Equal(pageA.Id, result.PageHits[0].PageId);
         Assert.Equal(pageB.Id, result.PageHits[1].PageId);
-        // Relative comparison only per Landmine L-O — never assert absolute ts_rank floats.
+        // Relative comparison only — never assert absolute ts_rank floats.
         Assert.True(result.PageHits[0].Rank > result.PageHits[1].Rank);
     }
 }

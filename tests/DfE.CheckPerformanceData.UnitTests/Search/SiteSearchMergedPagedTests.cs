@@ -27,8 +27,8 @@ public sealed class SiteSearchMergedPagedTests
     }
 
     [Fact]
-    [Trait("prd-case", "I")]
-    [Trait("prd-case", "P")]
+    [Trait("search-case", "empty-or-whitespace")]
+    [Trait("search-case", "invalid-query")]
     public async Task InvalidQuery_ReturnsEmptyPagedResult_WithReason()
     {
         var result = await _sut.SearchMergedPagedAsync(

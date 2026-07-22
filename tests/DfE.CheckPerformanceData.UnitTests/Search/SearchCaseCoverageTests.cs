@@ -3,50 +3,68 @@ using Xunit.Sdk;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
 
-// PrdCaseCoverageTests reflection-walks both search test assemblies and asserts every
-// PRD §6 case letter A through P (excluding AC-P4, owned by Phase 1.10 SEARCH-X-01) has
-// at least one method-level [Trait("prd-case", <letter>)] test. Companion Fact does the
-// same for the seven PRD §9.1 [Trait("prd-filter", <slug>)] slugs. Any future test
-// deletion, rename, or trait removal that would silently drop a PRD case from coverage
-// fails CI naming the missing letter(s).
+// SearchCaseCoverageTests reflection-walks both search test assemblies and asserts every
+// documented search-behaviour case has at least one method-level
+// [Trait("search-case", <slug>)] test. A companion fact does the same for the seven
+// [Trait("search-filter", <slug>)] silent-filter invariants. Any future test deletion,
+// rename, or trait removal that would silently drop a behaviour from coverage fails CI
+// naming the missing slug(s).
 //
-// PRD §6 case letter → intent map (as of 2026-07-22):
-//   A single-word           SearchTermNormalizerTests + PageNodeRepositorySearchTests
-//   B multi-word OR         SearchTermNormalizerTests + PageNodeRepositorySearchTests
-//   C multi-word AND / OR   SearchTermNormalizerTests
-//   D quoted phrase         SearchTermNormalizerTests + PageNodeRepositorySearchTests
-//   E negation              SearchTermNormalizerTests + PageNodeRepositorySearchTests
-//   F numbers / hyphens     PageNodeRepositorySearchTests + ContentBlockRepositorySearchTests
-//   G very-short (<2)       SiteSearchServiceTests + ContentBlockSearchServiceTests
-//   H long / 100-char cap   SearchControllerTests
-//   I whitespace / empty    SearchTermNormalizerTests + SiteSearchMergedPagedTests + ContentBlockSearchServiceTests
-//   J special / HTML        SearchTermNormalizerTests + SearchSnippetTests + ContentBlockRepositorySearchTests + ContentBlockSearchServiceTests
-//   K duplicate blocks      ContentBlockRepositorySearchTests
-//   L editor-suppressed     ContentBlockRepositorySearchTests + SiteSearchServiceFilterTests + ContentBlockSearchServiceTests
-//   M keywords boost        PageNodeRepositorySearchTests + SiteSearchServiceRankingTests
-//   N unpublished-target    PageNodeRepositorySearchTests + SiteSearchServiceFilterTests + ContentBlockSearchServiceTests
-//   O scope filter          SiteSearchServiceTests
-//   P degenerate / error    SiteSearchMergedPagedTests
+// Search-behaviour case slug → intent map:
+//   single-word          SearchTermNormalizerTests + PageNodeRepositorySearchTests
+//   multi-word-or        SearchTermNormalizerTests + PageNodeRepositorySearchTests
+//   explicit-or          SearchTermNormalizerTests
+//   phrase               SearchTermNormalizerTests + PageNodeRepositorySearchTests
+//   negation             SearchTermNormalizerTests + PageNodeRepositorySearchTests
+//   numeric-hyphenated   PageNodeRepositorySearchTests + ContentBlockRepositorySearchTests
+//   very-short           SiteSearchServiceTests + ContentBlockSearchServiceTests
+//   long-query           SearchControllerTests
+//   empty-or-whitespace  SearchTermNormalizerTests + SiteSearchMergedPagedTests + ContentBlockSearchServiceTests
+//   special-chars        SearchTermNormalizerTests + SearchSnippetTests + ContentBlockRepositorySearchTests + ContentBlockSearchServiceTests
+//   duplicate-blocks     ContentBlockRepositorySearchTests
+//   editor-suppressed    ContentBlockRepositorySearchTests + SiteSearchServiceFilterTests + ContentBlockSearchServiceTests
+//   keywords-boost       PageNodeRepositorySearchTests + SiteSearchServiceRankingTests
+//   unpublished-target   PageNodeRepositorySearchTests + SiteSearchServiceFilterTests + ContentBlockSearchServiceTests
+//   scope-filter         SiteSearchServiceTests
+//   invalid-query        SiteSearchMergedPagedTests
 //
-// AC-P4 (DB unavailable → GDS 503) is deliberately NOT in ExpectedCases. Phase 1.10
-// SEARCH-X-01 owns the integration coverage for that acceptance criterion.
+// DB-unavailable behaviour (search should return a graceful 503 rather than throw) is
+// deliberately excluded — that behaviour is covered separately by a resilience-focused
+// test suite that exercises DB-outage paths.
 //
-// Landmine L-L: attributes are enumerated at the method level only via
+// Attributes are enumerated at the method level only via
 // GetMethods(...).GetCustomAttributesData(). Class-level [Trait] attributes are invisible
 // to this walk. Every relevant [Fact] / [Theory] must carry the trait on the method
 // itself. Reading is via CustomAttributeData (not GetCustomAttributes<TraitAttribute>())
 // because Xunit.TraitAttribute (2.9.3) does not expose Name/Value as public members —
 // the ctor args are consumed only by the TraitDiscoverer at test-discovery time.
-public sealed class PrdCaseCoverageTests
+public sealed class SearchCaseCoverageTests
 {
     private const string TraitAttributeFullName = "Xunit.TraitAttribute";
 
-    // PRD §6.1 – §6.16 case letters (minus AC-P4 which Phase 1.10 SEARCH-X-01 owns).
+    // The set of documented search-behaviour cases; each must have ≥ 1 traited test.
     private static readonly HashSet<string> ExpectedCases =
         new(StringComparer.Ordinal)
-        { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P" };
+        {
+            "single-word",
+            "multi-word-or",
+            "explicit-or",
+            "phrase",
+            "negation",
+            "numeric-hyphenated",
+            "very-short",
+            "long-query",
+            "empty-or-whitespace",
+            "special-chars",
+            "duplicate-blocks",
+            "editor-suppressed",
+            "keywords-boost",
+            "unpublished-target",
+            "scope-filter",
+            "invalid-query",
+        };
 
-    // PRD §9.1 silent-filter slugs. Each must have ≥1 [Trait("prd-filter", <slug>)] test
+    // Silent-filter slugs. Each must have ≥1 [Trait("search-filter", <slug>)] test
     // proving the filter removes the target row(s) from search results.
     private static readonly HashSet<string> ExpectedFilters =
         new(StringComparer.Ordinal)
@@ -61,32 +79,32 @@ public sealed class PrdCaseCoverageTests
         };
 
     [Fact]
-    public void EveryPrdCase_A_Through_P_HasAtLeastOneTraitedTest_ExcludingAcP4()
+    public void EverySearchCase_HasAtLeastOneTraitedTest()
     {
         var observed = SearchTestAssemblies()
             .SelectMany(asm => TraitPairs(asm))
-            .Where(t => t.Name == "prd-case")
+            .Where(t => t.Name == "search-case")
             .Select(t => t.Value)
             .ToHashSet(StringComparer.Ordinal);
 
         var missing = ExpectedCases.Except(observed).ToList();
         Assert.True(missing.Count == 0,
-            $"PRD §6 cases without any [Trait(\"prd-case\", \"X\")] test: {string.Join(", ", missing)}. " +
-            "AC-P4 (DB unavailable) is deliberately excluded — owned by Phase 1.10 SEARCH-X-01.");
+            $"Search-behaviour cases without any [Trait(\"search-case\", \"<slug>\")] test: {string.Join(", ", missing)}. " +
+            "The DB-unavailable case is deliberately excluded — covered separately by resilience tests.");
     }
 
     [Fact]
-    public void AllSevenPrdFilters_HaveAtLeastOneTraitedTest()
+    public void EverySilentFilter_HasAtLeastOneTraitedTest()
     {
         var observed = SearchTestAssemblies()
             .SelectMany(asm => TraitPairs(asm))
-            .Where(t => t.Name == "prd-filter")
+            .Where(t => t.Name == "search-filter")
             .Select(t => t.Value)
             .ToHashSet(StringComparer.Ordinal);
 
         var missing = ExpectedFilters.Except(observed).ToList();
         Assert.True(missing.Count == 0,
-            $"PRD §9.1 filters without any [Trait(\"prd-filter\", \"<slug>\")] test: {string.Join(", ", missing)}.");
+            $"Silent filters without any [Trait(\"search-filter\", \"<slug>\")] test: {string.Join(", ", missing)}.");
     }
 
     private static IEnumerable<Assembly> SearchTestAssemblies() =>
@@ -95,9 +113,9 @@ public sealed class PrdCaseCoverageTests
         LoadIntegrationTestsAssembly(),
     ];
 
-    // Landmine L-C: the IntegrationTests DLL is not a project reference of UnitTests, so it
-    // does not ship into the UnitTests test-host bin folder. Plain Assembly.Load(name) will
-    // throw FileNotFoundException. Locate the sibling bin manually and load from disk.
+    // The IntegrationTests DLL is not a project reference of UnitTests, so it does not
+    // ship into the UnitTests test-host bin folder. Plain Assembly.Load(name) will throw
+    // FileNotFoundException. Locate the sibling bin manually and load from disk.
     private static Assembly LoadIntegrationTestsAssembly()
     {
         try
@@ -109,9 +127,9 @@ public sealed class PrdCaseCoverageTests
             // Fall through — probe the sibling project's parallel bin/{Config}/{TFM} layout.
         }
 
-        var unitBinDir = new FileInfo(typeof(PrdCaseCoverageTests).Assembly.Location).Directory
+        var unitBinDir = new FileInfo(typeof(SearchCaseCoverageTests).Assembly.Location).Directory
             ?? throw new XunitException(
-                "PrdCaseCoverageTests: could not determine UnitTests bin directory from Assembly.Location.");
+                "SearchCaseCoverageTests: could not determine UnitTests bin directory from Assembly.Location.");
 
         // Expected: <repo>/tests/DfE.CheckPerformanceData.UnitTests/bin/{Config}/net10.0
         var tfmDir = unitBinDir.Name;
@@ -135,10 +153,10 @@ public sealed class PrdCaseCoverageTests
         if (!File.Exists(candidate))
         {
             throw new XunitException(
-                "PrdCaseCoverageTests could not resolve the IntegrationTests assembly. Tried:\n" +
+                "SearchCaseCoverageTests could not resolve the IntegrationTests assembly. Tried:\n" +
                 $"  1. Assembly.Load(\"DfE.CheckPerformanceData.IntegrationTests\") — FileNotFoundException\n" +
                 $"  2. sibling bin path: {candidate} — not present\n" +
-                "Landmine L-C fallback: move PrdCaseCoverageTests.cs to " +
+                "Fallback: move SearchCaseCoverageTests.cs to " +
                 "tests/DfE.CheckPerformanceData.IntegrationTests/Search/ and add a project reference " +
                 "from IntegrationTests -> UnitTests so typeof(SearchTermNormalizerTests).Assembly resolves.");
         }
@@ -147,9 +165,8 @@ public sealed class PrdCaseCoverageTests
     }
 
     private static XunitException NotResolvable(string binDir) => new(
-        $"PrdCaseCoverageTests could not walk up from UnitTests bin dir '{binDir}' to locate the sibling " +
-        "IntegrationTests project. Apply Landmine L-C fallback: move the file to IntegrationTests and add " +
-        "a reverse project reference.");
+        $"SearchCaseCoverageTests could not walk up from UnitTests bin dir '{binDir}' to locate the sibling " +
+        "IntegrationTests project. Fallback: move the file to IntegrationTests and add a reverse project reference.");
 
     // Verbatim from tests/DfE.CheckPerformanceData.IntegrationTests/Architecture/AzureQueueCutoverGuardTests.cs.
     private static IEnumerable<Type> SafeGetTypes(Assembly asm)

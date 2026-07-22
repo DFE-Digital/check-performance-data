@@ -33,8 +33,8 @@ public sealed class ContentBlockSearchServiceTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("a")]
-    [Trait("prd-case", "G")]
-    [Trait("prd-case", "I")]
+    [Trait("search-case", "very-short")]
+    [Trait("search-case", "empty-or-whitespace")]
     public async Task SearchAsync_ShortOrEmptyQuery_ReturnsEmpty_AndDoesNotHitRepository(string? query)
     {
         var result = await _sut.SearchAsync(query);
@@ -83,8 +83,8 @@ public sealed class ContentBlockSearchServiceTests
     }
 
     [Fact]
-    [Trait("prd-filter", "admin-path")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "admin-path")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_SkipsBlocksLastRenderedOnAdminPage()
     {
         // Admin/editor renders should never leak into public search — the block was seen
@@ -98,8 +98,8 @@ public sealed class ContentBlockSearchServiceTests
     }
 
     [Fact]
-    [Trait("prd-filter", "unpublished-target")]
-    [Trait("prd-case", "N")]
+    [Trait("search-filter", "unpublished-target")]
+    [Trait("search-case", "unpublished-target")]
     public async Task SearchAsync_SkipsBlocksWhoseLastSeenPathIsNoLongerAPublishedPage()
     {
         // Page has since been unpublished / soft-deleted / never had a live version.
@@ -136,8 +136,8 @@ public sealed class ContentBlockSearchServiceTests
     }
 
     [Fact]
-    [Trait("prd-filter", "pagenode-appearinsearch-false")]
-    [Trait("prd-case", "L")]
+    [Trait("search-filter", "pagenode-appearinsearch-false")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_WhenPageAtLastSeenPath_HasAppearInSearch_False_TheBlockIsHidden()
     {
         // GetPublishedByPathAsync already applies the AppearInSearch filter server-side, so a page
@@ -194,7 +194,7 @@ public sealed class ContentBlockSearchServiceTests
     // --- Snippet building: the security-relevant <mark> + HTML-encode contract ---
 
     [Fact]
-    [Trait("prd-case", "J")]
+    [Trait("search-case", "special-chars")]
     public async Task SearchAsync_Snippet_HtmlEncodesSurroundingText_AndWrapsMatchInMark()
     {
         var path = "/guidance/ks4-june-2026-publish";

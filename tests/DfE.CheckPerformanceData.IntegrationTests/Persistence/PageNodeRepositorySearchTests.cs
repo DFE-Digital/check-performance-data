@@ -5,12 +5,12 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
-// Repository-tier FTS regression cases. Each [Fact] carries [Trait("prd-case", <letter>)] so the
-// PRD §6 case-matrix meta-test can enumerate coverage. Method-level traits only (class-level
-// traits do not inherit unless the assertion opts in with inherit: true).
+// Repository-tier FTS regression cases. Each [Fact] carries [Trait("search-case", <slug>)] so
+// the coverage meta-test can enumerate them. Method-level traits only (class-level traits do
+// not inherit unless the assertion opts in with inherit: true).
 //
-// Case K (duplicate-block dedup) is not exercised here — dedup lives in ContentBlockSearchService
-// at the service tier and is covered by SiteSearchServiceFilterTests.
+// Duplicate-block dedup is not exercised here — dedup lives in ContentBlockSearchService at
+// the service tier and is covered by SiteSearchServiceFilterTests.
 //
 // Ranking assertions are relative-ordering only (Assert.Equal(topId, hits[0].PageId) or
 // Assert.True(hits.IndexOf(a) < hits.IndexOf(b))). Absolute ts_rank floats are corpus-dependent
@@ -86,7 +86,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "A")]
+    [Trait("search-case", "single-word")]
     public async Task SearchPagesAsync_SingleWordQuery_ReturnsMatchingPageAsTopHit()
     {
         await TruncateAsync();
@@ -101,7 +101,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "B")]
+    [Trait("search-case", "multi-word-or")]
     public async Task SearchPagesAsync_MultiWordBareQuery_ReturnsUnionOfWordMatches()
     {
         await TruncateAsync();
@@ -118,7 +118,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "D")]
+    [Trait("search-case", "phrase")]
     public async Task SearchPagesAsync_QuotedPhraseQuery_ReturnsOnlyAdjacentLexemes()
     {
         await TruncateAsync();
@@ -136,7 +136,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "E")]
+    [Trait("search-case", "negation")]
     public async Task SearchPagesAsync_NegationQuery_ExcludesRowsMatchingNegatedTerm()
     {
         await TruncateAsync();
@@ -153,7 +153,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "F")]
+    [Trait("search-case", "numeric-hyphenated")]
     public async Task SearchPagesAsync_SpaceSeparatedSlugWords_MatchesTitleTokens()
     {
         await TruncateAsync();
@@ -169,10 +169,11 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     // websearch_to_tsquery('english', 'check-your-pupil-data') produces a compound-lexeme
     // phrase query that requires the hyphenated slug to be indexed as-is; the current
     // tsvector for "Check your pupil data" holds only the individual word lexemes, so the
-    // whole query fails to match. Parked per D-08 as known baseline gap.
-    [Fact(Skip = "Known baseline gap — case-f-slug")]
-    [Trait("prd-case", "F")]
-    [Trait("known-bug", "case-f-slug")]
+    // whole query fails to match. Known baseline gap parked as a skipped test with a
+    // known-bug trait so future work can find it.
+    [Fact(Skip = "Known baseline gap — hyphenated-slug-query")]
+    [Trait("search-case", "numeric-hyphenated")]
+    [Trait("known-bug", "hyphenated-slug-query")]
     public async Task SearchPagesAsync_HyphenatedSlugQuery_MatchesTitleTokens()
     {
         await TruncateAsync();
@@ -186,13 +187,13 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "M")]
+    [Trait("search-case", "keywords-boost")]
     public async Task SearchPagesAsync_KeywordsOnlyMatch_OutranksBodyOnlyMatch()
     {
         await TruncateAsync();
         // Keywords is weight A on the PageNode search vector. Body is weight D on the
         // PageNodeVersion vector. Combined ts_rank for a Keywords-only hit outranks a
-        // Body-only hit — relative ordering only per Landmine L-O.
+        // Body-only hit — relative ordering only; absolute ts_rank floats are corpus-dependent.
         var keywordsHit = BuildPage("alpha-page", "Alpha page", keywords: "widget");
         var bodyHit = BuildPage("beta-page", "Beta page");
         await SeedAsync((keywordsHit, string.Empty), (bodyHit, "widget content here"));
@@ -205,7 +206,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "N")]
+    [Trait("search-case", "unpublished-target")]
     public async Task SearchPagesAsync_SoftDeletedPage_IsExcludedFromResults()
     {
         await TruncateAsync();

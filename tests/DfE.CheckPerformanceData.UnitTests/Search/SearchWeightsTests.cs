@@ -68,7 +68,7 @@ public sealed class SearchWeightsTests
     }
 
     [Fact]
-    public void SearchWeights_EachConstant_HasXmlSummaryCitingPrdSection_7_1()
+    public void SearchWeights_EachConstant_HasSubstantiveXmlSummary()
     {
         var source = ReadApplicationSource("Search", "SearchWeights.cs");
 
@@ -101,12 +101,17 @@ public sealed class SearchWeightsTests
                 summaryMatches.Count > 0,
                 $"Expected an XML `<summary>` doc block preceding `{name}` in SearchWeights.cs.");
 
+            // The doc block must actually explain the weight (not be a placeholder). Assert
+            // the summary references the "weight" concept AND names the target column via the
+            // relevant entity property, so a future edit that shortens the doc into a one-word
+            // stub still trips the assertion.
             var lastSummary = summaryMatches[^1].Groups[1].Value;
-            var citesPrd = lastSummary.Contains("PRD §7.1") || lastSummary.Contains("PRD 7.1");
+            var substantive = lastSummary.Contains("weight", StringComparison.OrdinalIgnoreCase)
+                              && lastSummary.Contains("Applied to");
             Assert.True(
-                citesPrd,
-                $"Expected the `<summary>` doc block for `{name}` to cite `PRD §7.1` "
-                + $"(or ASCII fallback `PRD 7.1`). Last summary body was:{Environment.NewLine}{lastSummary}");
+                substantive,
+                $"Expected the `<summary>` doc block for `{name}` to describe the weight "
+                + $"and name the column it applies to. Last summary body was:{Environment.NewLine}{lastSummary}");
         }
     }
 

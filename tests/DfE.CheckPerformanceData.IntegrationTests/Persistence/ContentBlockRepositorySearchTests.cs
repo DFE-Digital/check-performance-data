@@ -7,8 +7,8 @@ using Npgsql;
 namespace DfE.CheckPerformanceData.IntegrationTests.Persistence;
 
 // Repository-tier FTS regression cases for ContentBlock corpus. Each [Fact]/[Theory] carries
-// [Trait("prd-case", <letter>)] so the PRD §6 case-matrix meta-test can enumerate coverage.
-// Method-level traits only.
+// [Trait("search-case", <slug>)] so the coverage meta-test can enumerate them. Method-level
+// traits only.
 //
 // Ranking assertions are relative-ordering only. Absolute ts_rank floats are corpus-dependent
 // and must never be asserted.
@@ -57,7 +57,7 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "F")]
+    [Trait("search-case", "numeric-hyphenated")]
     public async Task SearchAsync_QuotedNumberAndWordPhrase_MatchesAdjacentLexemes()
     {
         await TruncateAsync();
@@ -75,7 +75,7 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Theory]
-    [Trait("prd-case", "J")]
+    [Trait("search-case", "special-chars")]
     [InlineData("<script>alert(1)</script>")]
     [InlineData("'; DROP TABLE \"ContentBlocks\";--")]
     public async Task SearchAsync_MaliciousInput_DoesNotThrow_AndTableSurvives(string malicious)
@@ -94,7 +94,7 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "K")]
+    [Trait("search-case", "duplicate-blocks")]
     public async Task SearchAsync_KeywordsMatchOnly_OutranksValueOnlyMatch()
     {
         await TruncateAsync();
@@ -111,7 +111,7 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
     }
 
     [Fact]
-    [Trait("prd-case", "L")]
+    [Trait("search-case", "editor-suppressed")]
     public async Task SearchAsync_BlockWithAppearInSearchFalse_IsExcluded()
     {
         await TruncateAsync();

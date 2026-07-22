@@ -53,6 +53,7 @@ public class SiteSearchServiceTests
 
     // Below-minimum queries return an InvalidReason without touching either search backend.
     [Fact]
+    [Trait("prd-case", "G")]
     public async Task SearchAsync_BelowMinimumLengthQuery_ShortCircuits_WithoutHittingSearchBackends()
     {
         var result = await _sut.SearchAsync(new SiteSearchQuery(
@@ -69,6 +70,7 @@ public class SiteSearchServiceTests
     // Guards the KS4-split-page use case where a scoped Search widget must not surface blocks
     // that live on unrelated pages.
     [Fact]
+    [Trait("prd-case", "O")]
     public async Task SearchAsync_WithScopePath_KeepsOnlyContentBlocksUnderThatSubtree()
     {
         _blockSearch.SearchAsync("ks4", Arg.Any<int>()).Returns(new List<ContentBlockSearchResultDto>
@@ -92,6 +94,7 @@ public class SiteSearchServiceTests
     // Content-block hits must not accidentally match on shared prefixes: /guidance-foo/x is not
     // inside /guidance. Only /guidance or /guidance/ prefixes count.
     [Fact]
+    [Trait("prd-case", "O")]
     public async Task SearchAsync_WithScopePath_DoesNotAcceptPrefixCollisionsFromSiblings()
     {
         _blockSearch.SearchAsync("x", Arg.Any<int>()).Returns(new List<ContentBlockSearchResultDto>

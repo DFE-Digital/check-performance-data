@@ -34,8 +34,11 @@ internal sealed class PageNodeConfiguration : IEntityTypeConfiguration<PageNode>
         builder.Property(n => n.SearchVector)
             .HasColumnType("tsvector")
             .HasComputedColumnSql(
+                // Weight 'A' — see SearchWeights.KeywordsWeight
                 @"setweight(to_tsvector('english', coalesce(""Keywords"", '')), 'A') || "
+                // Weight 'B' — see SearchWeights.TitleWeight
                 + @"setweight(to_tsvector('english', coalesce(""Title"", '')), 'B') || "
+                // Weight 'C' — see SearchWeights.SubtitleWeight
                 + @"setweight(to_tsvector('english', coalesce(""Subtitle"", '')), 'C')",
                 stored: true);
 

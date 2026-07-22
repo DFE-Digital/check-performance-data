@@ -174,9 +174,24 @@ public static class SeedHelpers
         using var request = new HttpRequestMessage(
             HttpMethod.Post, new Uri(baseAddress, "/dev/queues/cleanup-e2e-requests"));
         using var response = await TestHttpClients.SendAsync(request);
-        // Best-effort: ignore failures (endpoint might not exist on older deploys)
-        if (!response.IsSuccessStatusCode) { }
+
+        var body = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"Cleanup dev requests failed with {(int)response.StatusCode} {response.StatusCode}: {body}");
+        }
+
+        var match = DeletedCountPattern.Match(body);
+        if (!match.Success)
+        {
+            throw new InvalidOperationException(
+                $"Could not parse deleted count from cleanup response: {body}");
+        }
     }
+
+    private static readonly Regex DeletedCountPattern =
+        new("\"deleted\"\\s*:\\s*(\\d+)", RegexOptions.Compiled);
 
     private static Task<HttpResponseMessage> SendWithoutFollowingRedirects(
         HttpClient client,

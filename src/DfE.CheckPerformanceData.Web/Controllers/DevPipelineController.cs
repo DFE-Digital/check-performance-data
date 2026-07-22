@@ -66,6 +66,31 @@ public sealed class DevPipelineController(
         });
     }
 
+    [HttpPost("dev/queues/cleanup-e2e-requests")]
+    public async Task<IActionResult> CleanupE2eRequests(CancellationToken cancellationToken)
+    {
+        if (!IsAllowed)
+            return NotFound();
+
+        // EF Core/Npgsql cannot translate StartsWith in either SELECT or ExecuteDelete.
+        // Use EF.Functions.Like which maps to PostgreSQL's LIKE operator, then delete
+        // by the fetched IDs using Contains which EF Core can translate as IN (...).
+        var devIds = await dbContext.ChangeRequests
+            .Where(r => EF.Functions.Like(r.ReferenceNumber, "DEV-%"))
+            .Select(r => r.Id)
+            .ToListAsync(cancellationToken);
+
+        var deleted = devIds.Count;
+        if (devIds.Count > 0)
+        {
+            deleted = await dbContext.ChangeRequests
+                .Where(r => devIds.Contains(r.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        return Json(new { deleted });
+    }
+
     [HttpGet("dev/zendesk/outbox")]
     public async Task<IActionResult> Outbox(CancellationToken cancellationToken)
     {

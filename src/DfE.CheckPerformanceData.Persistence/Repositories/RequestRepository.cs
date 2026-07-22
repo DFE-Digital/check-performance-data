@@ -34,6 +34,7 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber != currentReferenceNumber
                 && r.Status == RequestStatus.SubmittedUnCommitted)
+            .OrderByDescending(r => r.Submitted)
             .Select(r => new { r.SubmittedById, r.ReferenceNumber, r.RequestTypeDescription, r.SubmittedByName })
             .FirstOrDefaultAsync();
 

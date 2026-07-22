@@ -1,5 +1,6 @@
 @using DfE.CheckPerformanceData.Application.Search
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SiteSearchViewModel
+@inject DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions SearchDebugOptions
 @{
     ViewData["Title"] = string.IsNullOrEmpty(Model.Query)
         ? "Search"
@@ -55,7 +56,10 @@
                     {
                         @* Debug: ts_rank score (Keywords A + Title B + Subtitle C on PageNode.SearchVector,
                            plus BodyPlainText D on PageNodeVersion.SearchVector — summed).                  *@
-                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
+                        @if (SearchDebugOptions.ShowSearchDebug)
+                        {
+                            @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
+                        }
                         <li>
                             <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                                 <a class="govuk-link" href="/@hit.Path">@hit.Title</a>
@@ -77,7 +81,10 @@
                     @foreach (var hit in Model.ContentBlockHits)
                     {
                         @* Debug: ts_rank score on ContentBlock.SearchVector (Keywords A + ValuePlainText B). *@
-                        @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
+                        @if (SearchDebugOptions.ShowSearchDebug)
+                        {
+                            @:<!-- rank: @hit.Rank.ToString("F6", System.Globalization.CultureInfo.InvariantCulture) -->
+                        }
                         <li>
                             <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                                 <a class="govuk-link" href="@hit.Url">@hit.PageTitle</a>

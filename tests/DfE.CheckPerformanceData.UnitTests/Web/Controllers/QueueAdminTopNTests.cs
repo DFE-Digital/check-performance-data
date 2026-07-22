@@ -100,7 +100,7 @@ public sealed class QueueAdminTopNTests
         Assert.Equal(2, model.Messages.Count);
     }
 
-    // --- The per-queue view-all pages by the Wiki:PageLength setting, not an unbounded list ---
+    // --- The per-queue view-all pages by the CMS:PageLength setting, not an unbounded list ---
 
     [Fact]
     public async Task QueueList_PagesByTheConfiguredPageLength()
@@ -110,7 +110,7 @@ public sealed class QueueAdminTopNTests
             .Returns(new QueueMessagesPage(Array.Empty<QueueMessageSummary>(), 55, 2, 15));
 
         var settings = Substitute.For<DfE.CheckPerformanceData.Application.Settings.ISettingService>();
-        settings.GetIntAsync(DfE.CheckPerformanceData.Application.Settings.SettingKeys.WikiPageLength).Returns(15);
+        settings.GetIntAsync(DfE.CheckPerformanceData.Application.Settings.SettingKeys.CmsPageLength).Returns(15);
 
         var controller = new QueueAdminController(adminService, settingService: settings);
 
@@ -121,7 +121,7 @@ public sealed class QueueAdminTopNTests
         Assert.Equal(55, model.TotalCount);
         Assert.Equal(4, model.TotalPages); // ceil(55 / 15)
 
-        // The page size came from Wiki:PageLength and the page index was honoured — never an
+        // The page size came from CMS:PageLength and the page index was honoured — never an
         // unbounded read.
         await adminService.Received(1).GetQueueMessagesPageAsync(
             QueueOptions.ZendeskQueue, 2, 15, Arg.Any<CancellationToken>());

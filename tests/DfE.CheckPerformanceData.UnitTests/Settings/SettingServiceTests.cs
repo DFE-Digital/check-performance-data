@@ -17,9 +17,9 @@ public sealed class SettingServiceTests
     [Fact]
     public async Task GetValueAsync_ReturnsCodeDefault_WhenNotStored()
     {
-        _repository.GetValueAsync(SettingKeys.WikiPageLength).Returns((string?)null);
+        _repository.GetValueAsync(SettingKeys.CmsPageLength).Returns((string?)null);
 
-        var value = await _sut.GetValueAsync(SettingKeys.WikiPageLength);
+        var value = await _sut.GetValueAsync(SettingKeys.CmsPageLength);
 
         Assert.Equal("20", value);
     }
@@ -27,9 +27,9 @@ public sealed class SettingServiceTests
     [Fact]
     public async Task GetValueAsync_ReturnsStoredValue_WhenPresent()
     {
-        _repository.GetValueAsync(SettingKeys.WikiPageLength).Returns("35");
+        _repository.GetValueAsync(SettingKeys.CmsPageLength).Returns("35");
 
-        var value = await _sut.GetValueAsync(SettingKeys.WikiPageLength);
+        var value = await _sut.GetValueAsync(SettingKeys.CmsPageLength);
 
         Assert.Equal("35", value);
     }
@@ -37,34 +37,34 @@ public sealed class SettingServiceTests
     [Fact]
     public async Task GetIntAsync_ParsesStoredValue()
     {
-        _repository.GetValueAsync(SettingKeys.WikiPageLength).Returns("35");
+        _repository.GetValueAsync(SettingKeys.CmsPageLength).Returns("35");
 
-        Assert.Equal(35, await _sut.GetIntAsync(SettingKeys.WikiPageLength));
+        Assert.Equal(35, await _sut.GetIntAsync(SettingKeys.CmsPageLength));
     }
 
     [Fact]
     public async Task GetIntAsync_FallsBackToDefault_WhenStoredValueNotNumeric()
     {
-        _repository.GetValueAsync(SettingKeys.WikiPageLength).Returns("not-a-number");
+        _repository.GetValueAsync(SettingKeys.CmsPageLength).Returns("not-a-number");
 
-        Assert.Equal(20, await _sut.GetIntAsync(SettingKeys.WikiPageLength));
+        Assert.Equal(20, await _sut.GetIntAsync(SettingKeys.CmsPageLength));
     }
 
     [Fact]
     public async Task SaveAsync_UpsertsTrimmedValue_WhenProvided()
     {
-        await _sut.SaveAsync(SettingKeys.WikiPageLength, "  50 ");
+        await _sut.SaveAsync(SettingKeys.CmsPageLength, "  50 ");
 
-        await _repository.Received(1).UpsertAsync(SettingKeys.WikiPageLength, "50");
+        await _repository.Received(1).UpsertAsync(SettingKeys.CmsPageLength, "50");
         await _repository.DidNotReceive().DeleteAsync(Arg.Any<string>());
     }
 
     [Fact]
     public async Task SaveAsync_DeletesSetting_WhenValueBlank_RevertingToDefault()
     {
-        await _sut.SaveAsync(SettingKeys.WikiPageLength, "   ");
+        await _sut.SaveAsync(SettingKeys.CmsPageLength, "   ");
 
-        await _repository.Received(1).DeleteAsync(SettingKeys.WikiPageLength);
+        await _repository.Received(1).DeleteAsync(SettingKeys.CmsPageLength);
         await _repository.DidNotReceive().UpsertAsync(Arg.Any<string>(), Arg.Any<string>());
     }
 
@@ -82,7 +82,7 @@ public sealed class SettingServiceTests
 
         var items = await _sut.GetAllWithValuesAsync();
 
-        var pageLength = Assert.Single(items, i => i.Key == SettingKeys.WikiPageLength);
+        var pageLength = Assert.Single(items, i => i.Key == SettingKeys.CmsPageLength);
         Assert.Equal("20", pageLength.Value);
         Assert.True(pageLength.IsDefault);
     }
@@ -91,11 +91,11 @@ public sealed class SettingServiceTests
     public async Task GetAllWithValuesAsync_MarksStoredSettings_AsNotDefault()
     {
         _repository.GetAllAsync().Returns(
-            new Dictionary<string, string> { [SettingKeys.WikiPageLength] = "40" });
+            new Dictionary<string, string> { [SettingKeys.CmsPageLength] = "40" });
 
         var items = await _sut.GetAllWithValuesAsync();
 
-        var pageLength = Assert.Single(items, i => i.Key == SettingKeys.WikiPageLength);
+        var pageLength = Assert.Single(items, i => i.Key == SettingKeys.CmsPageLength);
         Assert.Equal("40", pageLength.Value);
         Assert.False(pageLength.IsDefault);
     }
@@ -108,7 +108,7 @@ public sealed class SettingServiceTests
         var boolItem = Assert.Single(items, i => i.Key == SettingKeys.DlqFullPayloadEnabled);
         Assert.Equal(SettingKind.Bool, boolItem.Kind);
 
-        var intItem = Assert.Single(items, i => i.Key == SettingKeys.WikiPageLength);
+        var intItem = Assert.Single(items, i => i.Key == SettingKeys.CmsPageLength);
         Assert.Equal(SettingKind.Int, intItem.Kind);
     }
 }

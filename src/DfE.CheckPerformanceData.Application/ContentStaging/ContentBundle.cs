@@ -7,9 +7,8 @@ namespace DfE.CheckPerformanceData.Application.ContentStaging;
 // the Schema / SchemaVersion / ExportedAtUtc / ExportedBy header fields are metadata only and
 // are not considered when comparing two bundles for round-trip integrity.
 //
-// v2 replaces the v1 WikiPages collection with PageNodes, so the whole page tree (folders,
-// content pages, wiki pages) round-trips through the same shape and legacy wiki-only bundles
-// are no longer accepted.
+// v2 is the current shape: every page (folder, content, wiki-typed) is a PageNode, so the
+// whole page tree round-trips through the same shape. Legacy v1 bundles are not accepted.
 public sealed class ContentBundle
 {
     public const string CurrentSchema = "cpd-content-v2";

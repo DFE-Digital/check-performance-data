@@ -28,7 +28,7 @@ public sealed class AppLogsController(
         // Shared "rows per page" setting used by Help/Search, the deleted-pages list, and
         // every other paged admin surface. Bounded to a sensible minimum so a misconfigured
         // value can't produce a divide-by-zero on the paging math.
-        var pageSize = Math.Max(1, await settings.GetIntAsync(SettingKeys.WikiPageLength));
+        var pageSize = Math.Max(1, await settings.GetIntAsync(SettingKeys.CmsPageLength));
         var pageNumber = Math.Max(1, page);
         var skip = (pageNumber - 1) * pageSize;
 

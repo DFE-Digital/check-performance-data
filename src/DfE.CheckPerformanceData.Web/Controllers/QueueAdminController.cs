@@ -101,7 +101,7 @@ public sealed class QueueAdminController : Controller
 
         if (page < 1) page = 1;
 
-        // The view-all list is paged by the generic Wiki:PageLength setting (the same rows-per-page
+        // The view-all list is paged by the generic CMS:PageLength setting (the same rows-per-page
         // knob the deleted-pages list and search use) so a deep queue never renders an unbounded
         // list. Paging is done in SQL (Skip/Take + COUNT) in the service.
         var pageSize = await ResolvePageSizeAsync();
@@ -120,7 +120,7 @@ public sealed class QueueAdminController : Controller
         });
     }
 
-    // The rows-per-page for the paged admin lists, read from the generic Wiki:PageLength setting.
+    // The rows-per-page for the paged admin lists, read from the generic CMS:PageLength setting.
     // Falls back to 20 when no settings service is wired (bare unit construction) or the stored
     // value is non-positive.
     private const int DefaultPageLength = 20;
@@ -130,7 +130,7 @@ public sealed class QueueAdminController : Controller
         if (_settingService is null)
             return DefaultPageLength;
 
-        var size = await _settingService.GetIntAsync(SettingKeys.WikiPageLength);
+        var size = await _settingService.GetIntAsync(SettingKeys.CmsPageLength);
         return size > 0 ? size : DefaultPageLength;
     }
 

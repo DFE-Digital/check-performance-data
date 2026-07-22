@@ -262,7 +262,7 @@ ORDER BY recorded_at_utc, id;";
         CancellationToken cancellationToken = default)
     {
         // Defensive clamps: a page below 1 or a non-positive size would produce a negative OFFSET
-        // or an unbounded read. The view resolves pageSize from Wiki:PageLength, but the query
+        // or an unbounded read. The view resolves pageSize from CMS:PageLength, but the query
         // never trusts that — it floors page at 1 and the size at 1.
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;

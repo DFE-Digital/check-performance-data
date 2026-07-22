@@ -26,11 +26,11 @@ public sealed class SettingRepositoryTests(PostgresFixture fixture)
     {
         await TruncateSettingsAsync();
 
-        await NewRepo().UpsertAsync("Wiki:PageLength", "30");
-        Assert.Equal("30", await NewRepo().GetValueAsync("Wiki:PageLength"));
+        await NewRepo().UpsertAsync("CMS:PageLength", "30");
+        Assert.Equal("30", await NewRepo().GetValueAsync("CMS:PageLength"));
 
-        await NewRepo().UpsertAsync("Wiki:PageLength", "45");
-        Assert.Equal("45", await NewRepo().GetValueAsync("Wiki:PageLength"));
+        await NewRepo().UpsertAsync("CMS:PageLength", "45");
+        Assert.Equal("45", await NewRepo().GetValueAsync("CMS:PageLength"));
     }
 
     [Fact]
@@ -38,29 +38,29 @@ public sealed class SettingRepositoryTests(PostgresFixture fixture)
     {
         await TruncateSettingsAsync();
 
-        Assert.Null(await NewRepo().GetValueAsync("Wiki:PageLength"));
+        Assert.Null(await NewRepo().GetValueAsync("CMS:PageLength"));
     }
 
     [Fact]
     public async Task Delete_RemovesStoredValue()
     {
         await TruncateSettingsAsync();
-        await NewRepo().UpsertAsync("Wiki:PageLength", "99");
+        await NewRepo().UpsertAsync("CMS:PageLength", "99");
 
-        await NewRepo().DeleteAsync("Wiki:PageLength");
+        await NewRepo().DeleteAsync("CMS:PageLength");
 
-        Assert.Null(await NewRepo().GetValueAsync("Wiki:PageLength"));
+        Assert.Null(await NewRepo().GetValueAsync("CMS:PageLength"));
     }
 
     [Fact]
     public async Task GetAll_ReturnsStoredKeyValuePairs()
     {
         await TruncateSettingsAsync();
-        await NewRepo().UpsertAsync("Wiki:PageLength", "25");
+        await NewRepo().UpsertAsync("CMS:PageLength", "25");
 
         var all = await NewRepo().GetAllAsync();
 
-        Assert.True(all.ContainsKey("Wiki:PageLength"));
-        Assert.Equal("25", all["Wiki:PageLength"]);
+        Assert.True(all.ContainsKey("CMS:PageLength"));
+        Assert.Equal("25", all["CMS:PageLength"]);
     }
 }

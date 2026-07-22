@@ -1,47 +1,15 @@
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.TagHelpers;
 
-// Source-file regression guard. The 3 destructive-action confirmations across the wiki and
-// content-block surfaces must be served by the GovukConfirmModalTagHelper, never by inline
-// browser-native confirm() calls. If a future view edit re-introduces confirm(), this fails.
+// Source-file regression guard. Destructive-action confirmations on the content-block surface
+// must be served by the GovukConfirmModalTagHelper, never by inline browser-native confirm()
+// calls. If a future view edit re-introduces confirm(), this fails.
 public sealed class ConfirmSweepTests
 {
-    // --- AllInlineConfirmCalls_AreSweptFromViews ---
-
-    [Fact]
-    public void HelpWikiTree_HasNoInlineConfirmCall()
-    {
-        var view = ReadView("Help/_WikiTree.cshtml");
-        Assert.DoesNotContain("onclick=\"return confirm(", view);
-    }
-
-    [Fact]
-    public void HelpVersions_HasNoInlineConfirmCall()
-    {
-        var view = ReadView("Help/Versions.cshtml");
-        Assert.DoesNotContain("onclick=\"return confirm(", view);
-    }
-
     [Fact]
     public void ContentBlockVersions_HasNoInlineConfirmCall()
     {
         var view = ReadView("ContentBlock/Versions.cshtml");
         Assert.DoesNotContain("onclick=\"return confirm(", view);
-    }
-
-    // --- AllSweptViews_InvokeGovukConfirmModalTagHelper ---
-
-    [Fact]
-    public void HelpWikiTree_InvokesConfirmModalTagHelper()
-    {
-        var view = ReadView("Help/_WikiTree.cshtml");
-        Assert.Contains("<govuk-confirm-modal", view);
-    }
-
-    [Fact]
-    public void HelpVersions_InvokesConfirmModalTagHelper()
-    {
-        var view = ReadView("Help/Versions.cshtml");
-        Assert.Contains("<govuk-confirm-modal", view);
     }
 
     [Fact]
@@ -50,8 +18,6 @@ public sealed class ConfirmSweepTests
         var view = ReadView("ContentBlock/Versions.cshtml");
         Assert.Contains("<govuk-confirm-modal", view);
     }
-
-    // --- helpers ---
 
     private static string ReadView(string relativePath)
     {

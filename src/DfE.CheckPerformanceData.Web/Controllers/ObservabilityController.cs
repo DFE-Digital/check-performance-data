@@ -217,7 +217,7 @@ public sealed class ObservabilityController : Controller
     // The full transactions list: a paged, newest-first table of every recorded queue metric event
     // (timestamp, reference, stage, queue, decision, latency). The "Recent transitions" panel on
     // the dashboard caps at ~10 and links here for the complete history. Paging is by the
-    // Wiki:PageLength setting and done in SQL (Skip/Take + COUNT) — the whole table is never loaded
+    // CMS:PageLength setting and done in SQL (Skip/Take + COUNT) — the whole table is never loaded
     // into memory. An optional from/to window narrows the list. Role-gated cypmd_admin.
     [HttpGet("admin/observability/transactions")]
     public async Task<IActionResult> Transactions(
@@ -259,7 +259,7 @@ public sealed class ObservabilityController : Controller
     // that entered the pipeline, each with a checkbox and a Play button. A date/time filter narrows
     // the list; with no filter the picker opens on a recent window (the last DefaultWindow) so it
     // shows the latest submissions rather than every reference ever recorded. Paged by the
-    // Wiki:PageLength setting (default 20), in SQL. Role-gated cypmd_admin.
+    // CMS:PageLength setting (default 20), in SQL. Role-gated cypmd_admin.
     [HttpGet("admin/observability/submissions")]
     public async Task<IActionResult> Submissions(
         int page = 1,
@@ -452,7 +452,7 @@ public sealed class ObservabilityController : Controller
         return TimeSpan.FromSeconds(seconds);
     }
 
-    // The rows-per-page for the paged admin lists, read from the generic Wiki:PageLength setting
+    // The rows-per-page for the paged admin lists, read from the generic CMS:PageLength setting
     // (the same setting the deleted-pages list and search use) so all paged lists share one knob.
     // Falls back to 20 when no settings service is wired (bare unit construction) or the stored
     // value is non-positive.
@@ -463,7 +463,7 @@ public sealed class ObservabilityController : Controller
         if (_settings is null)
             return DefaultPageLength;
 
-        var size = await _settings.GetIntAsync(SettingKeys.WikiPageLength);
+        var size = await _settings.GetIntAsync(SettingKeys.CmsPageLength);
         return size > 0 ? size : DefaultPageLength;
     }
 

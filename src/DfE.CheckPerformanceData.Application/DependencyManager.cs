@@ -13,7 +13,6 @@ using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Search;
-using DfE.CheckPerformanceData.Application.Wiki;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,8 +34,6 @@ public static class DependencyManager
         services.AddScoped<SamplePageNodeSeeder>();
         services.AddScoped<ContentStaging.IContentStagingService, ContentStaging.ContentStagingService>();
         services.AddScoped<IHtmlRenderingService, HtmlRenderingService>();
-        services.AddScoped<IWikiService, WikiService>();
-        services.AddScoped<WikiSeeder>();
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IWindowService, WindowService>();

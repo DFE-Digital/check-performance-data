@@ -64,7 +64,7 @@ public sealed class PageTreeAdminControllerTests
             // child of rootId1 — must NOT appear at root level
             new() { Id = childId, ParentId = rootId1, Segment = "sub", Path = "home/sub", Title = "Sub", PageType = "content", SortOrder = 1 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(null, null, 1);
 
@@ -100,7 +100,7 @@ public sealed class PageTreeAdminControllerTests
             // grandchild of parentId — must NOT appear in the direct-children listing
             new() { Id = grandId,  ParentId = childId1,  Segment = "grand",  Path = "section/page-a/grand", Title = "Grand", PageType = "content", SortOrder = 1 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(parentId, null, 1);
 
@@ -148,7 +148,7 @@ public sealed class PageTreeAdminControllerTests
             // does NOT match
             new() { Id = noMatchId, ParentId = parentId, Segment = "about",      Path = "parent/about",      Title = "About us",   PageType = "wiki",    SortOrder = 3 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(parentId, "ks4", 1);
 
@@ -182,7 +182,7 @@ public sealed class PageTreeAdminControllerTests
             Title = $"Page {i + 1}", PageType = "content", SortOrder = i + 1
         }).ToList());
         // Stub page size = 2
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(2);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(2);
 
         var result = await Sut().Index(parentId, null, 1);
 
@@ -211,7 +211,7 @@ public sealed class PageTreeAdminControllerTests
             Id = id, ParentId = parentId, Segment = $"page-{i + 1}", Path = $"root/page-{i + 1}",
             Title = $"Page {i + 1}", PageType = "content", SortOrder = i + 1
         }).ToList());
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(2);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(2);
 
         var result = await Sut().Index(parentId, null, 2);
 
@@ -234,7 +234,7 @@ public sealed class PageTreeAdminControllerTests
         {
             new() { Id = Guid.NewGuid(), ParentId = parentId, Segment = "a", Path = "root/a", Title = "A", PageType = "content", SortOrder = 1 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(parentId, null, -5);
 
@@ -258,7 +258,7 @@ public sealed class PageTreeAdminControllerTests
             new() { Id = liveId,  ParentId = parentId, Segment = "live",  Path = "root/live",  Title = "Live",  PageType = "content", SortOrder = 1, HasLiveVersion = true },
             new() { Id = draftId, ParentId = parentId, Segment = "draft", Path = "root/draft", Title = "Draft", PageType = "content", SortOrder = 2, HasLiveVersion = false }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(parentId, null, 1);
 
@@ -282,7 +282,7 @@ public sealed class PageTreeAdminControllerTests
             new() { Id = Guid.NewGuid(), ParentId = parentId, Segment = "a", Path = "root/a", Title = "A", PageType = "content", SortOrder = 1 }
         });
         // Setting service returns 0 → should fall back to DefaultPageLength (20)
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(0);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(0);
 
         var result = await Sut().Index(parentId, null, 1);
 
@@ -1113,7 +1113,7 @@ public sealed class PageTreeAdminControllerTests
     public async Task Index_Root_HasEmptyBreadcrumb()
     {
         _service.GetTreeAsync().Returns(new List<PageNodeTreeItemDto>());
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(null, null, 1);
 
@@ -1136,7 +1136,7 @@ public sealed class PageTreeAdminControllerTests
             new() { Id = nodeId, Segment = "support", Path = "support", Title = "Support",
                     PageType = "folder", SortOrder = 1 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(nodeId, null, 1);
 
@@ -1163,7 +1163,7 @@ public sealed class PageTreeAdminControllerTests
             new() { Id = sectionId, ParentId = rootId,    Segment = "section", Path = "support/section", Title = "Section", PageType = "folder",  SortOrder = 1 },
             new() { Id = faqId,     ParentId = sectionId, Segment = "faq",     Path = "support/section/faq", Title = "FAQ",     PageType = "wiki",    SortOrder = 1 }
         });
-        _settings.GetIntAsync(SettingKeys.WikiPageLength).Returns(20);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
 
         var result = await Sut().Index(faqId, null, 1);
 

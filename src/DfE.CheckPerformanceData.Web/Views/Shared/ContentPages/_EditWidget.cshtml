@@ -159,6 +159,33 @@
                                 <label class="govuk-label" for="sb-@Model.Path">Button text</label>
                                 <input class="govuk-input" id="sb-@Model.Path" name="props[buttonText]" value="@w.GetString("buttonText")" />
                             </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="ss-@Model.Path">Scope path (optional)</label>
+                                <div class="govuk-hint">
+                                    Restrict results to descendants of this path (e.g. <code>help</code>).
+                                    Leave blank to search everything.
+                                </div>
+                                <input class="govuk-input" id="ss-@Model.Path" name="props[scope]" value="@w.GetString("scope")" />
+                            </div>
+                            break;
+
+                        case "results":
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="rs-@Model.Path">Scope path (optional)</label>
+                                <div class="govuk-hint">
+                                    Restrict results to descendants of this path (e.g. <code>help</code>).
+                                    Overridden by <code>?scope=</code> on the URL if present.
+                                </div>
+                                <input class="govuk-input" id="rs-@Model.Path" name="props[scope]" value="@w.GetString("scope")" />
+                            </div>
+                            <div class="govuk-form-group">
+                                <label class="govuk-label" for="re-@Model.Path">Empty-state text</label>
+                                <input class="govuk-input" id="re-@Model.Path" name="props[emptyText]" value="@w.GetString("emptyText")" />
+                            </div>
+                            <p class="govuk-body govuk-body-s">
+                                Results per page is controlled by the <strong>CMS:PageLength</strong>
+                                setting on the admin Settings page (default 20).
+                            </p>
                             break;
                     }
 

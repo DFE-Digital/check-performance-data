@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Testcontainers.PostgreSql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -36,15 +35,6 @@ public sealed class PostgresFixture : IAsyncLifetime
             .UseNpgsql(ConnectionString, npgsql => npgsql.EnableRetryOnFailure())
             .Options;
         return new PortalDbContext(options, new FakeCurrentUserService());
-    }
-
-    public async Task ResetAsync()
-    {
-        await using var conn = new NpgsqlConnection(ConnectionString);
-        await conn.OpenAsync();
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"TRUNCATE ""WikiPages"" RESTART IDENTITY CASCADE;";
-        await cmd.ExecuteNonQueryAsync();
     }
 }
 

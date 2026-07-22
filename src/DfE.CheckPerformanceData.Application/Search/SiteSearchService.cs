@@ -1,4 +1,3 @@
-using System.Net;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 
@@ -146,9 +145,9 @@ public sealed class SiteSearchService(
             .ToList();
     }
 
-    // Build a 200-char window around the first case-insensitive hit in the body; fall back to
-    // the title/subtitle if the body has no direct match. Everything is HTML-encoded and the
-    // matched term wrapped in <mark> — the only markup that reaches the results page.
+    // Pick a source with a direct case-insensitive match, preferring body, then subtitle,
+    // then title, falling back to body if none contain the term. Windowing + HTML-encoding
+    // + <mark>-wrap logic lives on the shared SearchSnippet helper.
     private static string BuildSnippet(string body, string term, string title, string? subtitle)
     {
         var source = FirstMatchSource(body, term)
@@ -156,25 +155,7 @@ public sealed class SiteSearchService(
             ?? FirstMatchSource(title, term)
             ?? body;
 
-        var idx = source.IndexOf(term, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0)
-        {
-            var head = source.Length <= 200 ? source : source[..200] + "…";
-            return WebUtility.HtmlEncode(head);
-        }
-
-        var start = Math.Max(0, idx - 60);
-        var length = Math.Min(source.Length - start, 200);
-        var window = source.Substring(start, length);
-        var wi = window.IndexOf(term, StringComparison.OrdinalIgnoreCase);
-
-        var before = WebUtility.HtmlEncode(window[..wi]);
-        var match = WebUtility.HtmlEncode(window.Substring(wi, term.Length));
-        var after = WebUtility.HtmlEncode(window[(wi + term.Length)..]);
-
-        var prefix = start > 0 ? "…" : string.Empty;
-        var suffix = start + length < source.Length ? "…" : string.Empty;
-        return $"{prefix}{before}<mark>{match}</mark>{after}{suffix}";
+        return SearchSnippet.BuildWindow(source, term);
     }
 
     private static string? FirstMatchSource(string text, string term)

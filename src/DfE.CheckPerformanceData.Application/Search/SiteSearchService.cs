@@ -119,7 +119,11 @@ public sealed class SiteSearchService(
     private async Task<IReadOnlyList<PageSearchHitDto>> BuildPageHitsAsync(string term, string? scope, int max)
     {
         var raw = await pageRepository.SearchPagesAsync(term, scope, max);
+        // Transitional: excluded rows now arrive from the widened repository projection —
+        // the next wave threads them into telemetry via a per-row exclusion event. This
+        // defensive filter preserves the shipped hit set until then.
         return raw
+            .Where(r => r.ExcludedBy == null)
             .Select(r => new PageSearchHitDto
             {
                 PageId = r.PageId,

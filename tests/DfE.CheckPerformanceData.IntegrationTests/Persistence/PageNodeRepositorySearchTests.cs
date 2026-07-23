@@ -219,4 +219,104 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
         Assert.Single(hits);
         Assert.Equal(live.Id, hits[0].PageId);
     }
+
+    // ── Widened-projection extension facts ─────────────────────────────────
+    // The widened SearchPagesAsync returns kept rows (ExcludedBy == null) alongside rows
+    // the SQL-tier CASE tagged as excluded — service-tier consumers filter excluded rows
+    // out of user-facing results and into telemetry. The facts below pin the widened
+    // shape: per-field ranks populated on kept rows, exclusion slugs matching Phase 1.06's
+    // seven-slug taxonomy on the corresponding excluded rows, and an excluded-cap of
+    // max * 3 so a high-exclusion corpus can't starve exclusion visibility.
+
+    private static PageNode BuildPageAt(string slug, string title, string? keywords = null, string? subtitle = null, bool appearInSearch = true)
+        => BuildPage(slug, title, keywords: keywords, subtitle: subtitle, appearInSearch: appearInSearch);
+
+    [Fact]
+    [Trait("search-case", "rank-breakdown-telemetry")]
+    public async Task SearchPagesAsync_KeptRowFromWidenedQuery_CarriesFourPerFieldRankValues()
+    {
+        await TruncateAsync();
+        var page = BuildPageAt("widget-carrier", "Widget carrier", keywords: "widget", subtitle: "widget subtitle");
+        await SeedAsync((page, "widget in body"));
+
+        var hits = await Repo().SearchPagesAsync("widget", null, 10);
+
+        Assert.Single(hits);
+        var row = hits[0];
+        Assert.Null(row.ExcludedBy);
+        Assert.NotNull(row.RankKeywords);
+        Assert.True(row.RankKeywords!.Value > 0f, $"RankKeywords: {row.RankKeywords}");
+        Assert.NotNull(row.RankTitle);
+        Assert.NotNull(row.RankSubtitle);
+        Assert.NotNull(row.RankBody);
+    }
+
+    [Fact]
+    [Trait("search-filter", "pagenode-appearinsearch-false")]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchPagesAsync_AppearInSearchFalsePage_ReturnsExcludedRow_TaggedWithPagenodeAppearInSearchFalse()
+    {
+        await TruncateAsync();
+        var visible = BuildPageAt("widget-visible", "Widget visible", keywords: "widget", appearInSearch: true);
+        var hidden = BuildPageAt("widget-hidden", "Widget hidden", keywords: "widget", appearInSearch: false);
+        await SeedAsync((visible, "body copy"), (hidden, "body copy"));
+
+        var hits = await Repo().SearchPagesAsync("widget", null, 10);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Single(hits, h => h.ExcludedBy == null && h.PageId == visible.Id);
+        Assert.Single(hits, h => h.ExcludedBy == "pagenode-appearinsearch-false" && h.PageId == hidden.Id);
+    }
+
+    [Fact]
+    [Trait("search-filter", "draft-page")]
+    [Trait("search-case", "unpublished-target")]
+    public async Task SearchPagesAsync_DraftPage_ReturnsExcludedRow_TaggedWithDraftPage()
+    {
+        await TruncateAsync();
+        var published = BuildPageAt("widget-published", "Widget published", keywords: "widget");
+        var draft = BuildPageAt("widget-draft", "Widget draft", keywords: "widget");
+
+        await using (var ctx = _fixture.CreateContext())
+        {
+            ctx.PageNodes.Add(published);
+            ctx.PageNodes.Add(draft);
+            ctx.PageNodeVersions.Add(BuildLiveVersion(published.Id, "body copy"));
+            var draftVersion = BuildLiveVersion(draft.Id, "body copy");
+            draftVersion.IsCurrent = false;
+            draftVersion.MinorVersion = 1;
+            ctx.PageNodeVersions.Add(draftVersion);
+            await ctx.SaveChangesAsync();
+        }
+
+        var hits = await Repo().SearchPagesAsync("widget", null, 10);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Single(hits, h => h.ExcludedBy == null && h.PageId == published.Id);
+        Assert.Single(hits, h => h.ExcludedBy == "draft-page" && h.PageId == draft.Id);
+    }
+
+    [Fact]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchPagesAsync_ExcludedRowsCappedAtMaxTimesThree()
+    {
+        await TruncateAsync();
+        var seeds = new List<(PageNode, string)>();
+        for (var i = 0; i < 5; i++)
+        {
+            seeds.Add((BuildPageAt($"widget-kept-{i:D2}", $"Widget kept {i}", keywords: "widget"), "body"));
+        }
+        for (var i = 0; i < 20; i++)
+        {
+            seeds.Add((BuildPageAt($"widget-hidden-{i:D2}", $"Widget hidden {i}", keywords: "widget", appearInSearch: false), "body"));
+        }
+        await SeedAsync(seeds.ToArray());
+
+        var hits = await Repo().SearchPagesAsync("widget", null, 5);
+
+        var keptCount = hits.Count(h => h.ExcludedBy == null);
+        var excludedCount = hits.Count(h => h.ExcludedBy != null);
+        Assert.Equal(5, keptCount);
+        Assert.Equal(15, excludedCount);
+    }
 }

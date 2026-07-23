@@ -113,6 +113,19 @@ try
         DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
         DfE.CheckPerformanceData.Web.Search.SearchDebugOptions>();
 
+    // Emits a structured log per search request (Info summary, Debug per-hit + per-exclusion,
+    // Warn zero-result). Singleton because ILogger<T> resolution is thread-safe and the sink
+    // holds no per-request state.
+    builder.Services.AddSingleton<
+        DfE.CheckPerformanceData.Application.Search.ISearchTelemetry,
+        DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
+
+    // Process-lifetime counter of zero-result searches. Interlocked-backed; safe under
+    // concurrent request throughput. Read out-of-band by diagnostic surfaces.
+    builder.Services.AddSingleton<
+        DfE.CheckPerformanceData.Application.Search.ISearchZeroResultsCounter,
+        DfE.CheckPerformanceData.Application.Search.SearchZeroResultsCounter>();
+
     string? newtonsoftLicenseKey = configuration
         .GetSection("NewtonsoftLicenseKey")
         .Get<string>() ?? null;

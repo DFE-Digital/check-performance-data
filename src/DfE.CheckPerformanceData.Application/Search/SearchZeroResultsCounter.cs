@@ -1,13 +1,17 @@
 namespace DfE.CheckPerformanceData.Application.Search;
 
-// Compile-only stub — the real Interlocked-backed implementation lands in a follow-on
-// commit. This shape exists purely so the whole solution compiles while the counter
-// unit tests run RED against NotImplementedException rather than against a missing type
-// (which would surface as a compile error and mask the failing-test signal). Delete this
-// stub the moment the real implementation lands.
+// In-process, DI-Singleton counter of "search returned zero hits" events. Backed by an
+// instance long incremented via Interlocked.Increment and read back via Interlocked.Read so
+// concurrent search requests can bump the counter without lock contention and readers see
+// a full memory-barrier view of the running total. The counter is not persisted, is not
+// exported to any external metrics backend, and does not survive a process restart — it is
+// a diagnostic-only accessor for out-of-band inspection (unit tests, any future admin
+// surface). No Reset method is provided by design: the process lifetime IS the reset seam.
 public sealed class SearchZeroResultsCounter : ISearchZeroResultsCounter
 {
-    public void Increment() => throw new NotImplementedException();
+    private long _count;
 
-    public long Read() => throw new NotImplementedException();
+    public void Increment() => Interlocked.Increment(ref _count);
+
+    public long Read() => Interlocked.Read(ref _count);
 }

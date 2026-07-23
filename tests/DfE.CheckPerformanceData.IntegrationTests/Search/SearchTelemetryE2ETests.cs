@@ -354,4 +354,83 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
             secondary.RecordSearch(evt);
         }
     }
+
+    // ── Advisory latency probe over a representative synthetic corpus ─────────
+
+    // Seeds 100 tsquery-matching pages (50 visible + 50 hidden) and 200 tsquery-matching
+    // blocks (100 visible + 50 e2e-key + 49 hidden + 1 guidance-nav) so the widened repo
+    // queries have to project + rank + tag every one of ~300 rows. Runs the top-level
+    // SearchAsync 30 times against the composed service graph and reads LatencyMsTotal off
+    // the captured event each iteration. Sorts ascending and takes index 29 as the 95th
+    // percentile per the plan's simple 30-sample rule (also equal to the max — the most
+    // conservative reading for a small sample size). Asserts p95 < 300ms to honour the
+    // read-latency budget captured in the search PRD.
+    //
+    // The probe is self-diagnostic: it exists so a future widening or index-drop that
+    // pushes latency over budget trips this fact rather than being noticed in production.
+    // If it fires, follow-on scope is a resilience wave (per-corpus timeout wrapping),
+    // not a same-plan hot-fix — the fact records the numbers so the operator knows how far
+    // over budget the current shape is.
+    [Fact]
+    [Trait("search-case", "rank-breakdown-telemetry")]
+    public async Task SearchAsync_WidenedQuery_P95LatencyBelow300ms()
+    {
+        await TruncateAsync();
+
+        // 100 pages, all matching "widget" via title + keywords + body.
+        // 50 visible, 50 AppearInSearch=false → the widened page repo returns both sets tagged.
+        var pageRows = new List<(PageNode Page, string Body, bool IsCurrent)>();
+        for (var i = 0; i < 50; i++)
+        {
+            var visible = BuildPage($"widget-visible-p-{i}", $"Widget visible page {i}", keywords: "widget", appearInSearch: true);
+            pageRows.Add((visible, $"widget body copy {i}", true));
+        }
+        for (var i = 0; i < 50; i++)
+        {
+            var hidden = BuildPage($"widget-hidden-p-{i}", $"Widget hidden page {i}", keywords: "widget", appearInSearch: false);
+            pageRows.Add((hidden, $"widget body copy hidden {i}", true));
+        }
+        await SeedPagesAsync(pageRows.ToArray());
+
+        // 200 blocks, all matching "widget" via keywords + default valuePlainText.
+        // 100 visible under a whitelisted static-route path, 50 e2e-key trippers, 49 hidden
+        // trippers, and the singleton guidance-nav trip row.
+        var blocks = new List<ContentBlock>();
+        for (var i = 0; i < 100; i++)
+            blocks.Add(BuildBlock($"visible-widget-b-{i}", keywords: "widget", lastSeenPath: "/check-your-pupil-data"));
+        for (var i = 0; i < 50; i++)
+            blocks.Add(BuildBlock($"e2e-widget-b-{i}", keywords: "widget", lastSeenPath: "/check-your-pupil-data"));
+        for (var i = 0; i < 49; i++)
+            blocks.Add(BuildBlock($"hidden-widget-b-{i}", keywords: "widget", lastSeenPath: "/check-your-pupil-data", appearInSearch: false));
+        blocks.Add(BuildBlock("guidance-ks4-2026-nav", keywords: "widget", lastSeenPath: "/check-your-pupil-data"));
+        await SeedBlocksAsync(blocks.ToArray());
+
+        var (sut, fake, _) = BuildSut();
+
+        // Warmup iteration — the first EF Core query compilation + Npgsql plan cache
+        // population + JIT of the hot paths together add 500ms on a cold container even
+        // though the warm path settles around 25ms. Discarding one sample keeps the probe
+        // measuring the warm case that production actually runs.
+        await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
+
+        var samples = new List<long>();
+        for (var iter = 0; iter < 30; iter++)
+        {
+            await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
+            samples.Add(fake.LastEvent.LatencyMsTotal);
+        }
+
+        samples.Sort();
+        // 30-sample percentile mapping per plan: p95 = index 29 (max of the warm samples).
+        // p50 and the true 95th percentile are computed alongside and logged in the
+        // assertion message so a failure surfaces the shape of the distribution, not just
+        // the max.
+        var p50 = samples[14];
+        var truePct95 = samples[28];
+        var p95 = samples[29];
+
+        Assert.True(
+            p95 < 300L,
+            $"Widened-query p95 latency {p95}ms exceeded 300ms budget (p50={p50}ms, true-95th-percentile={truePct95}ms, samples=[{string.Join(",", samples)}]ms).");
+    }
 }

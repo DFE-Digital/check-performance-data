@@ -109,7 +109,7 @@ public class PupilSearchJourneyTests
         _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST01");
         _currentUserService.OrganisationUrn.Returns("100000");
         _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
-            .Returns((string?)null);
+            .Returns(new DuplicateCheckResult.NoConflict());
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 

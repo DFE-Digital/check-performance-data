@@ -61,16 +61,18 @@ public class RequestServiceTests
     }
 
     [Fact]
-    public async Task ConfirmRequestAsync_WhenConflictingRequestExists_ThrowsDuplicateRequestException()
+    public async Task ConfirmRequestAsync_WhenSelfSubmittedConflict_ThrowsDuplicateRequestException()
     {
         var journey = ValidJourney();
+        var userId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         _requestRepository
-            .HasConflictingRequestAsync(
+            .CheckForConflictAsync(
                 WindowId,
                 journey.SelectedPupil!.Id,
                 100000L,
-                journey.ReferenceNumber!)
-            .Returns(true);
+                journey.ReferenceNumber!,
+                userId)
+            .Returns(new DuplicateCheckResult.SelfSubmitted("REF-CONFLICT", "", "", ""));
 
         await Assert.ThrowsAsync<DuplicateRequestException>(() =>
             _sut.ConfirmRequestAsync(WindowId, journey));
@@ -82,7 +84,10 @@ public class RequestServiceTests
     [Fact]
     public async Task ConfirmRequestAsync_WhenNoConflictingRequest_DoesNotThrow()
     {
-        // HasConflictingRequestAsync returns false by default (NSubstitute default for bool)
+        _requestRepository
+            .CheckForConflictAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>(),
+                Arg.Any<string>(), Arg.Any<Guid>())
+            .Returns(new DuplicateCheckResult.NoConflict());
         var (journey, config) = MakeSubmission();
         SetupConfig(config);
 

@@ -6,6 +6,34 @@ using Xunit.Sdk;
 
 namespace DfE.CheckPerformanceData.E2ETests.Helpers;
 
+public static class Snapshots
+{
+    private const string FailuresDirRelative = "Snapshots/failures";
+    private const string TestProjectMarker = "DfE.CheckPerformanceData.E2ETests.csproj";
+
+    public static string FailuresDir
+    {
+        get
+        {
+            var current = new DirectoryInfo(AppContext.BaseDirectory);
+            while (current is not null)
+            {
+                var marker = Path.Combine(current.FullName, TestProjectMarker);
+                if (File.Exists(marker))
+                {
+                    var dir = Path.Combine(current.FullName, FailuresDirRelative);
+                    Directory.CreateDirectory(dir);
+                    return dir;
+                }
+                current = current.Parent;
+            }
+
+            throw new InvalidOperationException(
+                $"Could not locate {TestProjectMarker} ancestor of {AppContext.BaseDirectory}.");
+        }
+    }
+}
+
 public static class PageSnapshotExtensions
 {
     private const string SnapshotsRootRelative = "Snapshots/linux-chromium";

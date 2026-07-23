@@ -290,7 +290,34 @@ From the Summary, the user can:
 
 ### What happens
 
-1. **Idempotency check** — `IRequestRepository.IsSubmittedAsync(referenceNumber)` — if a `ChangeRequest` row with this reference number already exists with `Status = Submitted`, return silently. This handles double-taps and back-button resubmits.
+1. **Duplicate-request check** — `HasSubmittedRequestAsync` (called from `PupilSearchPost`) / `CheckForConflictAsync` (called from `ConfirmRequestAsync`) queries `ChangeRequests` for an existing `SubmittedUnCommitted` row matching `WindowId + PupilId + OrganisationUrn` (excluding the current `ReferenceNumber` when one exists). Returns a `DuplicateCheckResult` discriminated record:
+
+   - `NoConflict` — no conflicting request exists, proceed
+   - `SelfSubmitted(ReferenceNumber, ConflictingReasonType, ConflictingRequestCategory, ConflictingUserName)` — the current user already has a submitted request
+   - `OtherSubmitted(ReferenceNumber, ConflictingReasonType, ConflictingRequestCategory, ConflictingUserName)` — a colleague has a submitted request (identity revealed via `ConflictingUserName`)
+
+   The check runs at two points:
+
+   1. **Pupil selection** (`PupilSearchPost`) — after the user selects a pupil and clicks Continue. Only runs on non-`MatchKey` pages (skipped for the second pupil selector in Merge flows). On conflict, re-renders the page with:
+      - A GDS error summary: **"A request has already been submitted for this pupil"** (top-level) + **"Choose another pupil"** (field-level)
+      - A MOJ attention banner with a contextual message and a link to the existing request
+
+   2. **Final submission** (`SummaryConfirm`) — catches conflicts that arose between pupil selection and submission (e.g. another user submitted in a different tab). On conflict, re-renders the Summary page with a contextual error message (no banner).
+
+   Both check points produce messages from a 2×2 matrix of **`isSelf` × `reasonsMatch`** (whether the current request's reason type matches the conflicting request's):
+
+   | Scenario | Pupil-search attention banner | Summary error message |
+   |---|---|---|
+   | **Self + same reason** | "You have already submitted a {topLevelRequest} for {pupilName}. Reference {refNum} [link]. To raise a new request, delete the previously submitted request. Then return to this page to continue." | "You have already submitted a {topLevelRequest} for this pupil." |
+   | **Other + same reason** | "Your colleague {userName} has already submitted a {topLevelRequest} for {pupilName}. Reference {refNum} [link]. To raise a new request, delete the previously submitted request. Then return to this page to continue." | "A colleague at your school has already submitted a {topLevelRequest} for this pupil." |
+   | **Self + different reason** | "You have already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {refNum} [link]. To raise a new request, delete the previously submitted request. Then return to this page to continue." | "You have already submitted a request of a different type ({topLevelRequest}) for this pupil." |
+   | **Other + different reason** | "Your colleague {userName} has already submitted a request of a different type ({topLevelRequest}) for {pupilName}. Reference {refNum} [link]. To raise a new request check with your colleague, and if you want to proceed, delete the previously submitted request. Then return to this page to continue." | "A colleague at your school has already submitted a request of a different type ({topLevelRequest}) for this pupil." |
+
+   `{topLevelRequest}` is mapped from the request category: `"Remove"` → `"pupil removal request"`, `"Include"` → `"pupil inclusion request"`, `"Merge"` → `"pupil merge request"`.
+
+   The `DuplicateRequestException` carries `ConflictType` (`SelfSubmitted` / `OtherSubmitted`) plus `ConflictingReasonType`, `ConflictingRequestCategory`, `ConflictingUserName`, and `ReasonsMatch` so the error message is contextualised without re-querying.
+
+   Idempotency is provided by the reference-number exclusion in `CheckForConflictAsync` (passing the actual `ReferenceNumber` at submit time avoids self-conflict) and the upsert's overwrite behaviour on the existing row.
 
 2. **Build `RequestDocument`** — a structured document containing:
    - Reference number, submitted-at timestamp

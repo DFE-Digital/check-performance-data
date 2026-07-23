@@ -507,3 +507,9 @@ docs/superpowers/
 CLAUDE.md
 .claude/
 /.playwright-mcp
+.specify/
+.clinerules/
+.opencode/
+opencode.json
+specs/
+tests/DfE.CheckPerformanceData.E2ETests/Snapshots/failures/

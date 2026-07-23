@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -19,6 +20,7 @@ public sealed class DevUatActionTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IPupilDataBlobClient _pupilBlob = Substitute.For<IPupilDataBlobClient>();
 
     private DevUatController CreateSut(bool ajax = false)
     {
@@ -27,7 +29,7 @@ public sealed class DevUatActionTests
             .Build();
         var env = Substitute.For<IHostEnvironment>();
         env.EnvironmentName = "Development";
-        var runner = new DevPipelineRunner(_dbContext, _queueService);
+        var runner = new DevPipelineRunner(_dbContext, _queueService, _pupilBlob);
         var httpContext = new DefaultHttpContext();
         if (ajax)
             httpContext.Request.Headers["X-Requested-With"] = "XMLHttpRequest";

@@ -8,6 +8,7 @@
 /Snapshots/**/*.actual.png
 /Snapshots/**/*.expected.png
 /Snapshots/diffs/
+/Snapshots/failures/**.png
 
 # Any non-canonical baseline directory (e.g. baselines accidentally generated
 # outside the container on Windows/macOS native) — keep untracked so they

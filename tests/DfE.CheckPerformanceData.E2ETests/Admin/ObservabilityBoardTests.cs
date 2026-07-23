@@ -153,12 +153,23 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
             Assert.Equal(1, await liveRegion.CountAsync());
             Assert.Equal("polite", await liveRegion.GetAttributeAsync("aria-live"));
 
-            // Drive a snapshot through the engine directly (the live SSE feed depends on traffic
-            // that may not exist in the test environment); the engine must render a focusable,
-            // labelled token and update the live region — the board's behavioural contract.
-            await Page.EvaluateAsync(@"() => {
+            // Clear any real SSE data that may have arrived, then drive a controlled snapshot
+            // through the engine. The live SSE feed from the running server can pollute the
+            // live region with real transition data (DEV-*) before our test snapshot arrives,
+            // so we must clear the DOM first and wait for the engine to be ready.
+            // Use an async IIFE because Page.EvaluateAsync passes a plain (non-async) function string.
+            await Page.EvaluateAsync(@"async () => {
                 const root = document.querySelector('[data-obs-board]');
+                // Clear any existing tokens from real SSE data
+                for (const token of root.querySelectorAll('.obs-board__token')) {
+                    token.remove();
+                }
+                // Clear the live region
+                const liveRegion = root.querySelector('[data-obs-transitions]');
+                if (liveRegion) liveRegion.textContent = '';
                 const engine = window.ObservabilityBoard.start(root, { subscribe: () => {} });
+                // Small delay to ensure the engine is fully initialized before driving snapshot
+                await new Promise(r => setTimeout(r, 100));
                 engine.onSnapshot({
                     depths: [{ queueName: 'rules-engine', depth: 2 }],
                     recentTransitions: [

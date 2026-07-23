@@ -116,109 +116,117 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
     }
 
     [Fact]
-    public async Task HasConflictingRequest_TrueForSamePupilId_InSameWindowAndOrg()
+    public async Task CheckForConflict_ReturnsSelfSubmitted_ForSamePupilId_InSameWindowAndOrg()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-1", pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-1", pupilId: pupilId, submittedById: userId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-OTHER", userId);
 
-        Assert.True(conflict);
+        Assert.IsType<DuplicateCheckResult.SelfSubmitted>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_FalseForDifferentPupilId_EvenWhenUpnMatches()
+    public async Task CheckForConflict_ReturnsNoConflict_ForDifferentPupilId_EvenWhenUpnMatches()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
+        var userId = Guid.NewGuid();
         // Two different pupils that share a (blank) UPN. A request for one must not conflict the other.
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-2", pupilId: Guid.NewGuid(), pupilUpn: ""));
+            .UpsertAsync(Data(windowId, "REF-CONF-2", pupilId: Guid.NewGuid(), pupilUpn: "", submittedById: userId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, Guid.NewGuid(), 100000, "REF-CONF-3");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, Guid.NewGuid(), 100000, "REF-CONF-3", Guid.NewGuid());
 
-        Assert.False(conflict);
+        Assert.IsType<DuplicateCheckResult.NoConflict>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_FalseForSamePupilButSameReference()
+    public async Task CheckForConflict_ReturnsNoConflict_ForSamePupilButSameReference()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-4", pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-4", pupilId: pupilId, submittedById: userId));
 
         // Re-submitting the same reference (the current draft) is not a conflict with itself.
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-4");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-4", userId);
 
-        Assert.False(conflict);
+        Assert.IsType<DuplicateCheckResult.NoConflict>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_FalseWhenExistingRequestWithdrawn()
+    public async Task CheckForConflict_ReturnsNoConflict_WhenExistingRequestWithdrawn()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-5", RequestStatus.Withdrawn, pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-5", RequestStatus.Withdrawn, pupilId: pupilId, submittedById: userId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-6");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-6", Guid.NewGuid());
 
-        Assert.False(conflict);
+        Assert.IsType<DuplicateCheckResult.NoConflict>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_ReturnsFalse_WhenOnlyInProgressRequestExists()
+    public async Task CheckForConflict_ReturnsNoConflict_WhenOnlyInProgressRequestExists()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-INPROG", RequestStatus.InProgress, pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-INPROG", RequestStatus.InProgress, pupilId: pupilId, submittedById: userId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-OTHER", Guid.NewGuid());
 
-        Assert.False(conflict);
+        Assert.IsType<DuplicateCheckResult.NoConflict>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_ReturnsFalse_WhenOnlyWithdrawnRequestExists()
+    public async Task CheckForConflict_ReturnsNoConflict_WhenOnlyWithdrawnRequestExists()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-WD", RequestStatus.Withdrawn, pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-WD", RequestStatus.Withdrawn, pupilId: pupilId, submittedById: userId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-OTHER", Guid.NewGuid());
 
-        Assert.False(conflict);
+        Assert.IsType<DuplicateCheckResult.NoConflict>(result);
     }
 
     [Fact]
-    public async Task HasConflictingRequest_ReturnsTrue_WhenSubmittedUnCommittedRequestExists()
+    public async Task CheckForConflict_ReturnsOtherSubmitted_WhenSubmittedUnCommittedRequestExists()
     {
         await TruncateAsync();
         var windowId = await SeedWindowAsync();
         var pupilId = Guid.NewGuid();
+        var submitterUserId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
         await new RequestRepository(_fixture.CreateContext())
-            .UpsertAsync(Data(windowId, "REF-CONF-SUBMITTED", RequestStatus.SubmittedUnCommitted, pupilId: pupilId));
+            .UpsertAsync(Data(windowId, "REF-CONF-SUBMITTED", RequestStatus.SubmittedUnCommitted, pupilId: pupilId, submittedById: submitterUserId));
 
-        var conflict = await new RequestRepository(_fixture.CreateContext())
-            .HasConflictingRequestAsync(windowId, pupilId, 100000, "REF-CONF-OTHER");
+        var result = await new RequestRepository(_fixture.CreateContext())
+            .CheckForConflictAsync(windowId, pupilId, 100000, "REF-CONF-OTHER", currentUserId);
 
-        Assert.True(conflict);
+        Assert.IsType<DuplicateCheckResult.OtherSubmitted>(result);
     }
 
     [Fact]
@@ -239,7 +247,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
 
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
-        long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1") =>
+        long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null) =>
         new()
         {
             WindowId = windowId,
@@ -250,7 +258,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
             PupilFirstname = "Jane",
             PupilSurname = "Smith",
             Timestamp = DateTime.UtcNow,
-            SubmittedById = Guid.NewGuid(),
+            SubmittedById = submittedById ?? Guid.NewGuid(),
             SubmittedByName = "Test User",
             Status = status,
             RequestType = RequestType.Amendment,

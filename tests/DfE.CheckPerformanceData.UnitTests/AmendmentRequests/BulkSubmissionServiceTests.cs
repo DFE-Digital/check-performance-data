@@ -168,7 +168,7 @@ public sealed class BulkSubmissionServiceTests
         SetupDraft("R1");
         SetupDraft("R2");
         _requestService.SubmitRequestAsync(WindowId, Arg.Is<RequestState>(s => s.ReferenceNumber == "R1"))
-            .Returns(Task.FromException(new DuplicateRequestException()));
+            .Returns(Task.FromException(new DuplicateRequestException(ConflictType.SelfSubmitted)));
 
         var result = await _sut.SubmitAsync(WindowId, new[] { "R1", "R2" });
 
@@ -224,7 +224,7 @@ public sealed class BulkSubmissionServiceTests
         SetupDraft("R1");
         SetupDraft("R2");
         _requestService.SubmitRequestAsync(WindowId, Arg.Is<RequestState>(s => s.ReferenceNumber == "R1"))
-            .Returns(Task.FromException(new DuplicateRequestException())); // R1 conflicts, only R2 submits
+            .Returns(Task.FromException(new DuplicateRequestException(ConflictType.SelfSubmitted))); // R1 conflicts, only R2 submits
 
         await _sut.SubmitAsync(WindowId, new[] { "R1", "R2" });
 

@@ -1,0 +1,25 @@
+# VS Code Docker Compose debug override — targets the vscode-debug stage in the
+# Dockerfile so the container includes vsdbg for .NET debugging. Add this to
+# COMPOSE_FILE or reference explicitly when attaching VS Code's debugger.
+#
+# Usage via launch.json (automatic):
+#   The "Docker Compose: Debug Web" launch configuration in .vscode/launch.json
+#   merges this file automatically when starting the debug session.
+#
+# Usage via CLI (manual):
+#   docker compose -f docker-compose.yaml -f docker-compose.vscode.yml up -d web
+services:
+  web:
+    build:
+      target: debug-runtime
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Dev__ToolsEnabled=true
+    healthcheck:
+      test: ["CMD", "dotnet", "--info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

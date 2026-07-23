@@ -12,7 +12,7 @@ public interface IJourneyViewModelBuilder
 {
     SummaryViewModel BuildSummaryVm(
         Guid windowId, RequestState journey, QuestionFlowConfig config,
-        string? conflictError = null, bool fromBulk = false, bool fromEdit = false);
+        string? conflictError = null, string? conflictErrorLink = null, bool fromBulk = false, bool fromEdit = false);
 
     PageViewModel BuildPageVm(
         Guid windowId,

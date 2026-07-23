@@ -5,8 +5,8 @@ namespace DfE.CheckPerformanceData.Application.RequestSubmission;
 
 public interface IRequestService
 {
-    /// <summary>Returns the reference number of a submitted request for the given pupil, or null if none exists.</summary>
-    Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);
+    /// <summary>Checks whether a submitted request already exists for the given pupil. Returns <see cref="DuplicateCheckResult"/> discriminating between no conflict, self-submitted, and other-submitted.</summary>
+    Task<DuplicateCheckResult> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn);
 
     /// <summary>
     /// Submits a request without sending the confirmation email: conflict check, upsert the

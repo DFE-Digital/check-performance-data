@@ -21,7 +21,8 @@ public sealed class JourneyController(
     ICheckYourPupilDataService pupilDataService,
     IJourneyViewModelBuilder viewModelBuilder,
     IAnalyticsService analytics,
-    ICurrentUserService currentUserService) : Controller
+    ICurrentUserService currentUserService,
+    IOptionVisibilityService optionVisibilityService) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -242,6 +243,7 @@ public sealed class JourneyController(
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
+        var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
 
         // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
         // Continue with a file staged should attach it rather than report "upload a file".
@@ -275,10 +277,26 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                // visibleWhen is a render-only gate: radio values are not validated against
-                // the visible-options set here. A user who hand-crafts a hidden option value
-                // will be routed into that branch and their request will reach Zendesk staff,
-                // who review all submissions before acting on them.
+
+                // visibleWhen gates selection as well as rendering: a posted radio value
+                // that is not among this user's visible options (hidden by a condition,
+                // or not a defined option at all) is rejected with the question's own
+                // validation message, exactly as if nothing was selected. This backs the
+                // add-back policy restriction (PBI 292525) server-side.
+                if (question.Type == QuestionType.Radio && question.Options is { Count: > 0 }
+                    && journeyService.IsAnswered(question, answer)
+                    && optionVisibilityService.GetVisibleOptions(question, conditionContext)
+                        .All(o => o.Value != answer.TextValue))
+                {
+                    var hiddenFailure = question.ValidationFailure is not null
+                        ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName)
+                        : "Select an option";
+                    ModelState.AddModelError(question.Id, hiddenFailure);
+                    isValid = false;
+                    newAnswers[question.Id] = answer;
+                    continue;
+                }
+
                 // Required answers are validated unconditionally; optional answers are
                 // still format-checked (char limit, real date) when they have been filled in.
                 if (!question.Optional || journeyService.IsAnswered(question, answer))

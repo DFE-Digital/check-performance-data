@@ -36,7 +36,7 @@ public class OptionVisibilityServiceTests
     public void OptionWithConditionTrue_IsShown()
     {
         var sut = new OptionVisibilityService([new FakeCondition("Flag", true)]);
-        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = "Flag" });
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["Flag"] });
 
         var result = sut.GetVisibleOptions(question, Ctx);
 
@@ -48,7 +48,7 @@ public class OptionVisibilityServiceTests
     public void OptionWithConditionFalse_IsHidden()
     {
         var sut = new OptionVisibilityService([new FakeCondition("Flag", false)]);
-        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = "Flag" });
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["Flag"] });
 
         var result = sut.GetVisibleOptions(question, Ctx);
 
@@ -59,7 +59,7 @@ public class OptionVisibilityServiceTests
     public void OptionWithUnknownCondition_IsHidden()
     {
         var sut = new OptionVisibilityService([new FakeCondition("Other", true)]);
-        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = "Missing" });
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["Missing"] });
 
         var result = sut.GetVisibleOptions(question, Ctx);
 
@@ -72,7 +72,7 @@ public class OptionVisibilityServiceTests
         var sut = new OptionVisibilityService([new FakeCondition("Flag", false)]);
         var question = RadioWith(
             new QuestionOption { Value = "first", Label = "First" },
-            new QuestionOption { Value = "hidden", Label = "Hidden", VisibleWhen = "Flag" },
+            new QuestionOption { Value = "hidden", Label = "Hidden", VisibleWhen = ["Flag"] },
             new QuestionOption { Value = "last", Label = "Last" });
 
         var result = sut.GetVisibleOptions(question, Ctx);
@@ -86,7 +86,7 @@ public class OptionVisibilityServiceTests
         var sut = new OptionVisibilityService([new FakeCondition("Flag", false)]);
         var question = RadioWith(
             new QuestionOption { Value = "a", Label = "A" },
-            new QuestionOption { Value = "b", Label = "B", VisibleWhen = "Flag" });
+            new QuestionOption { Value = "b", Label = "B", VisibleWhen = ["Flag"] });
 
         sut.GetVisibleOptions(question, Ctx);
 
@@ -98,6 +98,39 @@ public class OptionVisibilityServiceTests
     {
         var sut = new OptionVisibilityService([]);
         var question = new Question { Id = "q", Type = QuestionType.FreeText, Title = "Q" };
+
+        var result = sut.GetVisibleOptions(question, Ctx);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void MultipleConditions_AllTrue_IsShown()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("A", true), new FakeCondition("B", true)]);
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["A", "B"] });
+
+        var result = sut.GetVisibleOptions(question, Ctx);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void MultipleConditions_OneFalse_IsHidden()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("A", true), new FakeCondition("B", false)]);
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["A", "B"] });
+
+        var result = sut.GetVisibleOptions(question, Ctx);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void MultipleConditions_OneUnregistered_IsHidden()
+    {
+        var sut = new OptionVisibilityService([new FakeCondition("A", true)]);
+        var question = RadioWith(new QuestionOption { Value = "a", Label = "A", VisibleWhen = ["A", "Missing"] });
 
         var result = sut.GetVisibleOptions(question, Ctx);
 

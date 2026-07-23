@@ -95,7 +95,8 @@ public class JourneyControllerTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
+            _optionVisibilityService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -513,6 +514,50 @@ public class JourneyControllerTests
                     ? "year-group-change-higher-lower"
                     : "pupil-died";
             });
+    }
+
+    // ── PagePost — hidden-option server-side gate ────────────────────────────
+
+    [Fact]
+    public async Task PagePost_RadioValueForHiddenOption_IsRejectedWithTheQuestionsValidationMessage()
+    {
+        SetupReasonBranchPage();
+        // Simulate the option being filtered out for this user/pupil: the
+        // visibility service returns every option EXCEPT year-group-change.
+        _optionVisibilityService.GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
+            .Returns(ci => (IReadOnlyList<QuestionOption>)(ci.Arg<Question>().Options?
+                .Where(o => o.Value != "year-group-change").ToList() ?? []));
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
+        SetupSession(ValidSession(history: ["select-pupil", "reason"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "year-group-change"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Page", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+        // The saved journey must not advance into the hidden branch.
+        Assert.DoesNotContain("year-group-change",
+            _session.GetRequestState(WindowId).QuestionHistory);
+    }
+
+    [Fact]
+    public async Task PagePost_RadioValueForVisibleOption_StillProceeds()
+    {
+        SetupReasonBranchPage();
+        SetupSession(ValidSession(history: ["select-pupil", "reason"]));
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_reason"] = "pupil-died"
+        });
+
+        var result = await _sut.PagePost(WindowId, "reason", fromSummary: false);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
     }
 
     [Fact]

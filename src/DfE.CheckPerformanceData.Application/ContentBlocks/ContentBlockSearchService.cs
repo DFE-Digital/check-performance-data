@@ -9,30 +9,42 @@ public sealed class ContentBlockSearchService(
     IPageNodeRepository pageNodeRepository,
     IHtmlRenderingService htmlRenderingService) : IContentBlockSearchService
 {
-    public async Task<List<ContentBlockSearchResultDto>> SearchAsync(string? query, int max = 20)
+    public async Task<ContentBlockSearchOutcome> SearchAsync(string? query, int max = 20)
     {
         var term = (query ?? string.Empty).Trim();
-        if (term.Length < 2) return [];
+        if (term.Length < 2) return new ContentBlockSearchOutcome([], []);
 
         // Over-fetch so de-duplication by page still yields up to `max` results.
         var blocks = await repository.SearchAsync(term, max * 3);
 
-        // Transitional: excluded rows arrive from the widened repository — the next wave
-        // consumes them via the outcome shape. This defensive filter preserves the shipped
-        // hit set until then.
-        blocks = blocks.Where(b => b.ExcludedBy == null).ToList();
-
         var results = new List<ContentBlockSearchResultDto>();
+        var exclusions = new List<FilterExclusion>();
         var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var block in blocks)
         {
+            // Repository-tier exclusions ride the widened projection: the row matched the
+            // tsquery but the SQL-tier silent filter dropped it. Surface the breadcrumb; the
+            // row does not participate in dedup or the kept-count cap.
+            if (block.ExcludedBy is not null)
+            {
+                exclusions.Add(new FilterExclusion("block", block.ExcludedBy, block.Key));
+                continue;
+            }
+
             var path = block.LastSeenPath;
             // Never rendered anywhere: hide from search — the previous static-map fallback
-            // pointed these at a URL that no longer existed, producing 404 links.
+            // pointed these at a URL that no longer existed, producing 404 links. No filter
+            // slug exists for this branch (nothing dropped it — the row simply has no target
+            // URL), so we skip silently rather than emit an exclusion breadcrumb.
             if (string.IsNullOrEmpty(path)) continue;
+
             // Admin / editor renders are not user-facing destinations.
-            if (path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase)) continue;
+            if (path.StartsWith("/admin/", StringComparison.OrdinalIgnoreCase))
+            {
+                exclusions.Add(new FilterExclusion("block", "admin-path", block.Key));
+                continue;
+            }
 
             if (!seenUrls.Add(path)) continue;
 
@@ -41,7 +53,11 @@ public sealed class ContentBlockSearchService(
             // currently-published PageNode (title from the node) or it's a static route
             // baked into a Razor view (title derived from the last segment). If neither,
             // we drop it: better to hide the block than to link to a 404.
-            if (pageTitle is null) continue;
+            if (pageTitle is null)
+            {
+                exclusions.Add(new FilterExclusion("block", "unpublished-target", block.Key));
+                continue;
+            }
 
             var plain = htmlRenderingService.StripTagsToPlainText(
                 htmlRenderingService.RenderHtml(block.Value));
@@ -53,12 +69,14 @@ public sealed class ContentBlockSearchService(
                 PageTitle = pageTitle,
                 SnippetHtml = BuildSnippet(plain, term),
                 Rank = block.Rank,
+                RankKeywords = block.RankKeywords,
+                RankValue = block.RankValue,
             });
 
             if (results.Count >= max) break;
         }
 
-        return results;
+        return new ContentBlockSearchOutcome(results, exclusions);
     }
 
     private async Task<string?> ResolvePublishedPageTitleAsync(string path)

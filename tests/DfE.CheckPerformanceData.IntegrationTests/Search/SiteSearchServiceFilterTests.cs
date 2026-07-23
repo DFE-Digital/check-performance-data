@@ -50,7 +50,7 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
         htmlRender.RenderHtml(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>());
         htmlRender.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>() ?? string.Empty);
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
-        return new SiteSearchService(pageRepo, blockSearch);
+        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry());
     }
 
     private static ContentBlock BuildBlock(

@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Application.Search;
+using DfE.CheckPerformanceData.Application.UnitTests.Search.TestDoubles;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
@@ -17,13 +18,13 @@ public sealed class SiteSearchMergedPagedTests
 
     public SiteSearchMergedPagedTests()
     {
-        _sut = new SiteSearchService(_pageRepo, _blockSearch);
+        _sut = new SiteSearchService(_pageRepo, _blockSearch, new FakeSearchTelemetry());
         // Fallback: any un-configured call returns empty rather than the substitute
         // default of null (which would NRE inside BuildBlockHitsAsync's LINQ).
         _pageRepo.SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>())
             .Returns(_ => new List<PageSearchHitRaw>());
         _blockSearch.SearchAsync(Arg.Any<string?>(), Arg.Any<int>())
-            .Returns(_ => new List<ContentBlockSearchResultDto>());
+            .Returns(_ => new ContentBlockSearchOutcome([], []));
     }
 
     [Fact]
@@ -51,10 +52,12 @@ public sealed class SiteSearchMergedPagedTests
                 Page(rank: 0.9f,  path: "guidance/top",  title: "Guidance top"),
             ]);
         _blockSearch.SearchAsync("pupil", Arg.Any<int>())
-            .Returns([
-                Block(rank: 0.7f, url: "/help/faq#a",     pageTitle: "Help — FAQ"),
-                Block(rank: 0.3f, url: "/help/faq#b",     pageTitle: "Help — FAQ tail"),
-            ]);
+            .Returns(new ContentBlockSearchOutcome(
+                [
+                    Block(rank: 0.7f, url: "/help/faq#a",     pageTitle: "Help — FAQ"),
+                    Block(rank: 0.3f, url: "/help/faq#b",     pageTitle: "Help — FAQ tail"),
+                ],
+                []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("pupil"),
@@ -74,7 +77,7 @@ public sealed class SiteSearchMergedPagedTests
     {
         _pageRepo.SearchPagesAsync("xy", null, Arg.Any<int>())
             .Returns([Page(rank: 1.0f, path: "guidance/overview", title: "Overview")]);
-        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("xy"), page: 0, pageSize: 20);
@@ -89,7 +92,7 @@ public sealed class SiteSearchMergedPagedTests
             .Returns(Enumerable.Range(1, 30)
                 .Select(i => Page(rank: 100f - i, path: $"p/{i}", title: $"Page {i:D2}"))
                 .ToList());
-        _blockSearch.SearchAsync("wide", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("wide", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         // Second page (zero-indexed), size 10 — expects hits 11..20.
         var result = await _sut.SearchMergedPagedAsync(
@@ -125,7 +128,7 @@ public sealed class SiteSearchMergedPagedTests
             .Returns(Enumerable.Range(1, 5)
                 .Select(i => Page(rank: 100f - i, path: $"p/{i}", title: $"Page {i}"))
                 .ToList());
-        _blockSearch.SearchAsync("wide", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("wide", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         // Ask for page 5 (zero-indexed) — beyond the 5 total hits at pageSize 10.
         var result = await _sut.SearchMergedPagedAsync(
@@ -140,7 +143,7 @@ public sealed class SiteSearchMergedPagedTests
     public async Task ZeroTotalCount_YieldsZeroTotalPages()
     {
         _pageRepo.SearchPagesAsync("nothing", null, Arg.Any<int>()).Returns([]);
-        _blockSearch.SearchAsync("nothing", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("nothing", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("nothing"), page: 0, pageSize: 20);
@@ -158,7 +161,7 @@ public sealed class SiteSearchMergedPagedTests
                 Page(rank: 1.0f, path: "a", title: "A"),
                 Page(rank: 0.9f, path: "b", title: "B"),
             ]);
-        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("xy"), page: 0, pageSize: 0);
@@ -176,7 +179,9 @@ public sealed class SiteSearchMergedPagedTests
         // Content blocks already carry a full URL (they may point at an anchor within a page).
         _pageRepo.SearchPagesAsync("xy", null, Arg.Any<int>()).Returns([]);
         _blockSearch.SearchAsync("xy", Arg.Any<int>())
-            .Returns([Block(rank: 1.0f, url: "/help/faq#anchor", pageTitle: "FAQ")]);
+            .Returns(new ContentBlockSearchOutcome(
+                [Block(rank: 1.0f, url: "/help/faq#anchor", pageTitle: "FAQ")],
+                []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("xy"), page: 0, pageSize: 20);
@@ -189,7 +194,7 @@ public sealed class SiteSearchMergedPagedTests
     {
         _pageRepo.SearchPagesAsync("xy", null, Arg.Any<int>())
             .Returns([Page(rank: 1.0f, path: "p/1", title: "P1")]);
-        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns([]);
+        _blockSearch.SearchAsync("xy", Arg.Any<int>()).Returns(new ContentBlockSearchOutcome([], []));
 
         var result = await _sut.SearchMergedPagedAsync(
             new SiteSearchQuery("xy"), page: -5, pageSize: 10);

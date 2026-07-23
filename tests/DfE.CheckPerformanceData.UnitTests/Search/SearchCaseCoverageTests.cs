@@ -62,6 +62,8 @@ public sealed class SearchCaseCoverageTests
             "unpublished-target",
             "scope-filter",
             "invalid-query",
+            "zero-result-telemetry",
+            "rank-breakdown-telemetry",
         };
 
     // Silent-filter slugs. Each must have ≥1 [Trait("search-filter", <slug>)] test

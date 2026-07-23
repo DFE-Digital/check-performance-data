@@ -17,6 +17,11 @@ public sealed class ContentBlockSearchService(
         // Over-fetch so de-duplication by page still yields up to `max` results.
         var blocks = await repository.SearchAsync(term, max * 3);
 
+        // Transitional: excluded rows arrive from the widened repository — the next wave
+        // consumes them via the outcome shape. This defensive filter preserves the shipped
+        // hit set until then.
+        blocks = blocks.Where(b => b.ExcludedBy == null).ToList();
+
         var results = new List<ContentBlockSearchResultDto>();
         var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

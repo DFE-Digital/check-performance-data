@@ -119,9 +119,90 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
         var hidden = BuildBlock("hidden-widget", "widget content", appearInSearch: false);
         await SeedAsync(visible, hidden);
 
+        // The repository now returns the hidden block tagged with an exclusion slug alongside
+        // the kept row; the user-facing hit set is the kept subset. This test still pins the
+        // "hidden block never surfaces in the kept subset" invariant.
+        var hits = await Repo().SearchAsync("widget", 10);
+        var kept = hits.Where(h => h.ExcludedBy == null).ToList();
+
+        Assert.Single(kept);
+        Assert.Equal("visible-widget", kept[0].Key);
+    }
+
+    // ── Widened-projection extension facts ─────────────────────────────────
+    // The widened SearchAsync returns kept rows (ExcludedBy == null) alongside rows the
+    // SQL-tier CASE tagged as excluded. Service-tier consumers apply a defensive filter
+    // to drop excluded rows out of user-facing results; the next wave threads them into
+    // telemetry. The facts below pin the widened shape: per-field ranks populated on
+    // kept rows and exclusion slugs matching Phase 1.06's three block-corpus SQL-tier
+    // filter slugs on the corresponding excluded rows.
+
+    [Fact]
+    [Trait("search-case", "rank-breakdown-telemetry")]
+    public async Task SearchAsync_KeptRowFromWidenedQuery_CarriesTwoPerFieldRankValues()
+    {
+        await TruncateAsync();
+        var block = BuildBlock("widget-carrier", "widget in value", keywords: "widget");
+        await SeedAsync(block);
+
         var hits = await Repo().SearchAsync("widget", 10);
 
         Assert.Single(hits);
-        Assert.Equal("visible-widget", hits[0].Key);
+        var row = hits[0];
+        Assert.Null(row.ExcludedBy);
+        Assert.NotNull(row.RankKeywords);
+        Assert.True(row.RankKeywords!.Value > 0f, $"RankKeywords: {row.RankKeywords}");
+        Assert.NotNull(row.RankValue);
+    }
+
+    [Fact]
+    [Trait("search-filter", "e2e-key")]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchAsync_E2eKeyPrefixBlock_ReturnsExcludedRow_TaggedWithE2eKey()
+    {
+        await TruncateAsync();
+        var visible = BuildBlock("visible-widget-a", "widget content");
+        var suppressed = BuildBlock("e2e-widget-a", "widget content");
+        await SeedAsync(visible, suppressed);
+
+        var hits = await Repo().SearchAsync("widget", 10);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Single(hits, h => h.ExcludedBy == null && h.Key == "visible-widget-a");
+        Assert.Single(hits, h => h.ExcludedBy == "e2e-key" && h.Key == "e2e-widget-a");
+    }
+
+    [Fact]
+    [Trait("search-filter", "guidance-ks4-2026-nav-key")]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchAsync_GuidanceNavBlock_ReturnsExcludedRow_TaggedWithGuidanceKs4Nav()
+    {
+        await TruncateAsync();
+        var visible = BuildBlock("visible-widget-b", "widget content");
+        var suppressed = BuildBlock("guidance-ks4-2026-nav", "widget content");
+        await SeedAsync(visible, suppressed);
+
+        var hits = await Repo().SearchAsync("widget", 10);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Single(hits, h => h.ExcludedBy == null && h.Key == "visible-widget-b");
+        Assert.Single(hits, h => h.ExcludedBy == "guidance-ks4-2026-nav-key" && h.Key == "guidance-ks4-2026-nav");
+    }
+
+    [Fact]
+    [Trait("search-filter", "contentblock-appearinsearch-false")]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchAsync_AppearInSearchFalseBlock_ReturnsExcludedRow_TaggedWithContentBlockAppearInSearchFalse()
+    {
+        await TruncateAsync();
+        var visible = BuildBlock("visible-widget-c", "widget content", appearInSearch: true);
+        var suppressed = BuildBlock("hidden-widget-c", "widget content", appearInSearch: false);
+        await SeedAsync(visible, suppressed);
+
+        var hits = await Repo().SearchAsync("widget", 10);
+
+        Assert.Equal(2, hits.Count);
+        Assert.Single(hits, h => h.ExcludedBy == null && h.Key == "visible-widget-c");
+        Assert.Single(hits, h => h.ExcludedBy == "contentblock-appearinsearch-false" && h.Key == "hidden-widget-c");
     }
 }

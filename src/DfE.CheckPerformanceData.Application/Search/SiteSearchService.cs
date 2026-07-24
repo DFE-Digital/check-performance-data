@@ -71,28 +71,6 @@ public sealed class SiteSearchService(
 
         swTotal.Stop();
 
-        var hitEvents = new List<SearchHitEvent>(pageHits.Count + blockHits.Count);
-        foreach (var p in pageHits) hitEvents.Add(ToHitEvent(p));
-        foreach (var b in blockHits) hitEvents.Add(ToHitEvent(b));
-
-        var exclusionEvents = new List<FilterExclusion>(pageExclusions.Count + blockExclusions.Count);
-        exclusionEvents.AddRange(pageExclusions);
-        exclusionEvents.AddRange(blockExclusions);
-
-        var evt = new SearchTelemetryEvent(
-            SearchId: Guid.NewGuid(),
-            UtcTimestamp: DateTime.UtcNow,
-            QueryRaw: query.Query ?? string.Empty,
-            QueryNormalised: SearchTermNormalizer.OrJoinWhitespace(term),
-            Scope: scope,
-            LatencyMsTotal: swTotal.ElapsedMilliseconds,
-            LatencyMsPages: pageMs,
-            LatencyMsBlocks: blockMs,
-            Hits: hitEvents,
-            FilterExclusions: exclusionEvents);
-
-        telemetry.RecordSearch(evt);
-
         // Fold pages + blocks into one canonical hit list keyed by URL. Duplicate URLs
         // (a page + N blocks on the same route, or multiple blocks on one page) collapse
         // to a single row with the MAX contributor rank as the primary sort key.
@@ -119,6 +97,53 @@ public sealed class SiteSearchService(
         }
 
         var hits = canonicaliser.Canonicalise(pageContribs, blockContribs);
+
+        // Per-canonical telemetry: one SearchHitEvent per URL the user actually sees. The
+        // winning contributor for each canonical row supplies the per-field rank breakdown
+        // — page contributors bring RankKeywords/Title/Subtitle/Body (RankValue null);
+        // block contributors bring RankKeywords/RankValue (the three page-only ranks null).
+        // Winner is the highest-raw-rank contributor for the URL; ties go to the page
+        // (matches the canonicaliser's snippet-selection tie-break).
+        var pageByUrl = new Dictionary<string, PageSearchHitDto>(pageHits.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var p in pageHits)
+        {
+            pageByUrl["/" + p.Path] = p;
+        }
+
+        var blocksByUrl = new Dictionary<string, List<ContentBlockSearchResultDto>>(blockHits.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var b in blockHits)
+        {
+            if (!blocksByUrl.TryGetValue(b.Url, out var bucket))
+            {
+                bucket = new List<ContentBlockSearchResultDto>();
+                blocksByUrl[b.Url] = bucket;
+            }
+            bucket.Add(b);
+        }
+
+        var hitEvents = new List<SearchHitEvent>(hits.Count);
+        foreach (var h in hits)
+        {
+            hitEvents.Add(BuildHitEvent(h, pageByUrl, blocksByUrl));
+        }
+
+        var exclusionEvents = new List<FilterExclusion>(pageExclusions.Count + blockExclusions.Count);
+        exclusionEvents.AddRange(pageExclusions);
+        exclusionEvents.AddRange(blockExclusions);
+
+        var evt = new SearchTelemetryEvent(
+            SearchId: Guid.NewGuid(),
+            UtcTimestamp: DateTime.UtcNow,
+            QueryRaw: query.Query ?? string.Empty,
+            QueryNormalised: SearchTermNormalizer.OrJoinWhitespace(term),
+            Scope: scope,
+            LatencyMsTotal: swTotal.ElapsedMilliseconds,
+            LatencyMsPages: pageMs,
+            LatencyMsBlocks: blockMs,
+            Hits: hitEvents,
+            FilterExclusions: exclusionEvents);
+
+        telemetry.RecordSearch(evt);
 
         return new SiteSearchResult
         {
@@ -234,33 +259,63 @@ public sealed class SiteSearchService(
         return (scoped, outcome.Exclusions);
     }
 
-    // Per-corpus asymmetry lives here rather than at the caller so the assembly site
-    // reads as a flat concat. Page hits carry Title/Subtitle/Body ranks; RankValue is
-    // null (blocks-only field). Block hits carry Keywords/Value ranks; the three
-    // title/subtitle/body ranks are null (pages-only fields).
-    private static SearchHitEvent ToHitEvent(PageSearchHitDto p) => new(
-        Corpus: "page",
-        RowId: p.PageId.ToString(),
-        Url: "/" + p.Path,
-        Title: p.Title,
-        RankTotal: p.Rank,
-        RankKeywords: p.RankKeywords,
-        RankTitle: p.RankTitle,
-        RankSubtitle: p.RankSubtitle,
-        RankBody: p.RankBody,
-        RankValue: null);
+    // Build the per-canonical SearchHitEvent for a single URL row. Winning contributor is
+    // the one with the highest raw ts_rank on that URL; ties resolve to the page (matches
+    // the snippet-selection tie-break inside SearchResultCanonicaliser). Winner's per-field
+    // ranks flow onto the event; the corpus-orthogonal fields (RankValue on a page winner,
+    // RankTitle/Subtitle/Body on a block winner) stay null by design so the downstream sink
+    // can tell "not applicable" apart from "unknown".
+    private static SearchHitEvent BuildHitEvent(
+        CanonicalSearchHit hit,
+        Dictionary<string, PageSearchHitDto> pageByUrl,
+        Dictionary<string, List<ContentBlockSearchResultDto>> blocksByUrl)
+    {
+        pageByUrl.TryGetValue(hit.Url, out var page);
+        blocksByUrl.TryGetValue(hit.Url, out var blocks);
 
-    private static SearchHitEvent ToHitEvent(ContentBlockSearchResultDto b) => new(
-        Corpus: "block",
-        RowId: b.Key,
-        Url: b.Url,
-        Title: b.PageTitle,
-        RankTotal: b.Rank,
-        RankKeywords: b.RankKeywords,
-        RankTitle: null,
-        RankSubtitle: null,
-        RankBody: null,
-        RankValue: b.RankValue);
+        // Determine the highest-ranked block contributor for this URL (if any).
+        ContentBlockSearchResultDto? topBlock = null;
+        if (blocks is not null)
+        {
+            foreach (var b in blocks)
+            {
+                if (topBlock is null || b.Rank > topBlock.Rank) topBlock = b;
+            }
+        }
+
+        var pageWins = page is not null && (topBlock is null || page.Rank >= topBlock.Rank);
+
+        if (pageWins && page is not null)
+        {
+            return new SearchHitEvent(
+                Url: hit.Url,
+                Title: hit.Title,
+                RankTotal: hit.AggregateRank,
+                PageContributed: hit.PageContributorCount > 0,
+                BlockContributorCount: hit.BlockContributorCount,
+                ContributingBlockKeys: hit.ContributingBlockKeys,
+                RankKeywords: page.RankKeywords,
+                RankTitle: page.RankTitle,
+                RankSubtitle: page.RankSubtitle,
+                RankBody: page.RankBody,
+                RankValue: null);
+        }
+
+        // Block-sourced winner (or page absent). topBlock is non-null here because a row
+        // reaches the canonicaliser only if it has at least one contributor.
+        return new SearchHitEvent(
+            Url: hit.Url,
+            Title: hit.Title,
+            RankTotal: hit.AggregateRank,
+            PageContributed: hit.PageContributorCount > 0,
+            BlockContributorCount: hit.BlockContributorCount,
+            ContributingBlockKeys: hit.ContributingBlockKeys,
+            RankKeywords: topBlock?.RankKeywords,
+            RankTitle: null,
+            RankSubtitle: null,
+            RankBody: null,
+            RankValue: topBlock?.RankValue);
+    }
 
     // Pick a source with a direct case-insensitive match, preferring body, then subtitle,
     // then title, falling back to body if none contain the term. Windowing + HTML-encoding

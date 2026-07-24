@@ -5,10 +5,12 @@ namespace DfE.CheckPerformanceData.Application.Search;
 // Default ISearchTelemetry sink. Every RecordSearch call fans one SearchTelemetryEvent out
 // to four MEL log tiers:
 //
-//   Info    — one summary line per request. Carries SearchId, QueryRaw, per-corpus result
-//             counts, filter-exclusion count, and the latency breakdown so a single log
-//             entry answers "what happened to this request?" without joining lines.
-//   Debug/  — one line per kept hit carrying the per-field rank breakdown.
+//   Info    — one summary line per request. Carries SearchId, QueryRaw, the canonical
+//             results count, filter-exclusion count, and the latency breakdown so a single
+//             log entry answers "what happened to this request?" without joining lines.
+//   Debug/  — one line per kept canonical hit carrying the per-URL contributor breakdown
+//             (PageContributed / BlockContributorCount / ContributingBlockKeys) and the
+//             winning contributor's per-field rank breakdown.
 //   Info    — Debug by default; promoted to Info when ISearchDebugOptions.ShowSearchDebug
 //             is true (i.e. the CMS:SearchDebugOn setting is on). This lets ops flip
 //             visibility from the admin settings page without lowering the process-wide
@@ -17,8 +19,8 @@ namespace DfE.CheckPerformanceData.Application.Search;
 //   Info    — Same Debug-to-Info promotion rule as per-hit lines.
 //   Warn    — zero-result line, gated on evt.Hits.Count == 0 and preceded by a counter bump.
 //
-// All user-controlled strings (QueryRaw, QueryNormalised, RowId, Url, Title, RowKey, Kind)
-// are passed as DISCRETE MEL templated-placeholder arguments so Serilog's JSON formatter
+// All user-controlled strings (QueryRaw, QueryNormalised, Url, Title, RowKey, Kind) are
+// passed as DISCRETE MEL templated-placeholder arguments so Serilog's JSON formatter
 // escapes embedded newlines / control characters on the argument side. The format
 // strings are plain compile-time constants — no string-interpolation prefix and no
 // concatenation of user input at any log-emitting call site — and the field labels
@@ -43,20 +45,11 @@ public sealed class LoggerSearchTelemetry(
                 evt.Scope ?? "(none)");
         }
 
-        var resultsPages = 0;
-        var resultsBlocks = 0;
-        foreach (var hit in evt.Hits)
-        {
-            if (hit.Corpus == "page") resultsPages++;
-            else if (hit.Corpus == "block") resultsBlocks++;
-        }
-
         logger.LogInformation(
-            "Search completed SearchId={SearchId} QueryRaw={QueryRaw} ResultsPages={ResultsPages} ResultsBlocks={ResultsBlocks} FilterExclusionsCount={FilterExclusionsCount} LatencyMsTotal={LatencyMsTotal}ms LatencyMsPages={LatencyMsPages}ms LatencyMsBlocks={LatencyMsBlocks}ms",
+            "Search completed SearchId={SearchId} QueryRaw={QueryRaw} ResultsHits={ResultsHits} FilterExclusionsCount={FilterExclusionsCount} LatencyMsTotal={LatencyMsTotal}ms LatencyMsPages={LatencyMsPages}ms LatencyMsBlocks={LatencyMsBlocks}ms",
             evt.SearchId,
             evt.QueryRaw,
-            resultsPages,
-            resultsBlocks,
+            evt.Hits.Count,
             evt.FilterExclusions.Count,
             evt.LatencyMsTotal,
             evt.LatencyMsPages,
@@ -70,12 +63,14 @@ public sealed class LoggerSearchTelemetry(
         {
             logger.Log(
                 breadcrumbLevel,
-                "Search {SearchId} hit {Corpus}:{RowId} url={Url} rank_total={RankTotal:F4} rank_kw={RankKeywords:F4} rank_title={RankTitle:F4} rank_sub={RankSubtitle:F4} rank_body={RankBody:F4} rank_value={RankValue:F4}",
+                "Search {SearchId} hit {Url} title=\"{Title}\" rank_total={RankTotal:F4} page_contrib={PageContributed} block_count={BlockContributorCount} block_keys={ContributingBlockKeys} rank_kw={RankKeywords:F4} rank_title={RankTitle:F4} rank_sub={RankSubtitle:F4} rank_body={RankBody:F4} rank_value={RankValue:F4}",
                 evt.SearchId,
-                hit.Corpus,
-                hit.RowId,
                 hit.Url,
+                hit.Title,
                 hit.RankTotal,
+                hit.PageContributed,
+                hit.BlockContributorCount,
+                hit.ContributingBlockKeys,
                 hit.RankKeywords,
                 hit.RankTitle,
                 hit.RankSubtitle,

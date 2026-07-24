@@ -110,15 +110,19 @@ try
     // Gates the /search <!-- rank: N --> debug comment AND the log-level promotion of
     // per-hit / per-exclusion telemetry breadcrumbs. Backed by the CMS settings store so
     // operators can flip CMS:SearchDebugOn from the admin settings page without a
-    // container restart. Lifetime is swapped to Scoped below alongside LoggerSearchTelemetry.
-    builder.Services.AddSingleton<
+    // container restart. Scoped because it captures ISettingService (Scoped) — registering
+    // as Singleton would pin the first request's settings-repository to the process lifetime
+    // and starve subsequent requests of the current toggle value.
+    builder.Services.AddScoped<
         DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
         DfE.CheckPerformanceData.Application.Search.CmsSettingsSearchDebugOptions>();
 
-    // Emits a structured log per search request (Info summary, Debug per-hit + per-exclusion,
-    // Warn zero-result). Singleton because ILogger<T> resolution is thread-safe and the sink
-    // holds no per-request state.
-    builder.Services.AddSingleton<
+    // Emits a structured log per search request (Info summary, Debug/Info per-hit and
+    // per-exclusion depending on the debug toggle, Warn zero-result). Scoped rather than
+    // Singleton because it now depends on Scoped ISearchDebugOptions — a Scoped service
+    // captured inside a Singleton would leak the first request's toggle read across
+    // every subsequent request.
+    builder.Services.AddScoped<
         DfE.CheckPerformanceData.Application.Search.ISearchTelemetry,
         DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
 

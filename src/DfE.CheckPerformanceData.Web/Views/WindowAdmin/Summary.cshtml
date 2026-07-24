@@ -24,14 +24,14 @@
   </row>
   <row>
     <key>Start Date</key>
-    <value>@Model.StartDate.ToShortDateString()</value>
+    <value>@Model.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
     <row-actions>
       <action href="@Model.StartDateLink" visually-hidden-text="Start Date">Change</action>
     </row-actions>
   </row>
   <row>
     <key>End Date</key>
-    <value>@Model.EndDate.ToShortDateString()</value>
+    <value>@Model.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
     <row-actions>
       <action href="@Model.EndDateLink" visually-hidden-text="End date">Change</action>
     </row-actions>

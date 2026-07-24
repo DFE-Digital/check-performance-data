@@ -17,10 +17,31 @@
             <govuk-date-input-hint>
                 For example, @exampleDate
             </govuk-date-input-hint>
-            <govuk-date-input-error-message asp-validation-for="Title" />
+            <govuk-date-input-error-message asp-validation-for="DateValue" />
         </govuk-date-input-fieldset>
     </govuk-date-input>
-    
+
+    <govuk-fieldset role="group">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--m">
+            What time will the window close?
+        </govuk-fieldset-legend>
+        <govuk-fieldset-hint>Use the 24-hour clock, for example 09 30 or 17 00.</govuk-fieldset-hint>
+        <div class="govuk-date-input">
+            <div class="govuk-date-input__item">
+                <govuk-input for="Hour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Hour" />
+                </govuk-input>
+            </div>
+            <div class="govuk-date-input__item">
+                <govuk-input for="Minute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="Minute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
     <govuk-button type="submit">Save and continue</govuk-button>
     <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
 </form>

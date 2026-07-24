@@ -8,5 +8,6 @@ public interface ISettingService
     Task<List<SettingViewItem>> GetAllWithValuesAsync();
     Task<string> GetValueAsync(string key);
     Task<int> GetIntAsync(string key);
+    Task<bool> GetBoolAsync(string key);
     Task SaveAsync(string key, string? value);
 }

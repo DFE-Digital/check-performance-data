@@ -64,6 +64,19 @@
                         <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                             <a class="govuk-link" href="@hit.Url">@hit.Title</a>
                         </h3>
+                        @if (SearchDebugOptions.ShowSearchDebug && hit.BlockContributorCount > 0)
+                        {
+                            <p class="govuk-body-s govuk-!-margin-bottom-1">
+                                @if (hit.PageContributorCount == 0)
+                                {
+                                    <span class="govuk-tag govuk-tag--grey">Content block</span>
+                                }
+                                else
+                                {
+                                    <span class="govuk-tag govuk-tag--grey">Blocks: @hit.BlockContributorCount</span>
+                                }
+                            </p>
+                        }
                         <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
                     </li>
                 }

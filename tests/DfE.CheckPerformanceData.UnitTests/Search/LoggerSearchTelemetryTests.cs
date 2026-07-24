@@ -50,22 +50,24 @@ public sealed class LoggerSearchTelemetryTests
     // ── Sample-event factory ────────────────────────────────────────────────────
     //
     // Small builder with sensible defaults so each fact overrides only what it needs.
-    // Corpus-appropriate rank fields are populated as if the row came from PageNode
-    // (RankKeywords/Title/Subtitle/Body) — RankValue stays null for page hits.
-
+    // Default winning contributor is the page — RankKeywords/Title/Subtitle/Body populated,
+    // RankValue null. Set pageContributed=false + blockContributorCount>=1 to model a
+    // pure-block-sourced canonical row (the caller usually flips the per-field ranks too).
     private static SearchHitEvent SampleHit(
-        string corpus = "page",
-        string? rowId = null,
         string url = "/help/getting-started",
         string title = "Getting started",
-        float rankTotal = 0.15f)
+        float rankTotal = 0.15f,
+        bool pageContributed = true,
+        int blockContributorCount = 0,
+        IReadOnlyList<string>? contributingBlockKeys = null)
     {
         return new SearchHitEvent(
-            Corpus: corpus,
-            RowId: rowId ?? Guid.NewGuid().ToString(),
             Url: url,
             Title: title,
             RankTotal: rankTotal,
+            PageContributed: pageContributed,
+            BlockContributorCount: blockContributorCount,
+            ContributingBlockKeys: contributingBlockKeys ?? [],
             RankKeywords: 0.05f,
             RankTitle: 0.05f,
             RankSubtitle: 0.02f,
@@ -108,7 +110,10 @@ public sealed class LoggerSearchTelemetryTests
 
     // Info-level summary line, one per request. Every mandatory field carried by
     // SearchTelemetryEvent must appear as a PascalCase placeholder in the template so
-    // downstream log queries can filter on it as a structured property.
+    // downstream log queries can filter on it as a structured property. The per-corpus
+    // ResultsPages/ResultsBlocks pair collapses to a single ResultsHits placeholder — the
+    // /search view now renders per-canonical rows, not per-contributor rows, so the count
+    // that matters is the number of URLs the user saw.
     [Fact]
     [Trait("search-case", "rank-breakdown-telemetry")]
     public void RecordSearch_EmitsInfoSummaryWithAllExpectedFields()
@@ -116,9 +121,10 @@ public sealed class LoggerSearchTelemetryTests
         var evt = BuildEvent(
             hits:
             [
-                SampleHit(corpus: "page", rowId: "page-1"),
-                SampleHit(corpus: "page", rowId: "page-2"),
-                SampleHit(corpus: "block", rowId: "block-1"),
+                SampleHit(url: "/url-a"),
+                SampleHit(url: "/url-b"),
+                SampleHit(url: "/url-c", pageContributed: false, blockContributorCount: 1,
+                          contributingBlockKeys: ["block-1"]),
             ],
             exclusions: [SampleExclusion()]);
 
@@ -129,8 +135,7 @@ public sealed class LoggerSearchTelemetryTests
             Arg.Any<EventId>(),
             Arg.Is<object>(o =>
                 o.ToString()!.Contains("SearchId") &&
-                o.ToString()!.Contains("ResultsPages") &&
-                o.ToString()!.Contains("ResultsBlocks") &&
+                o.ToString()!.Contains("ResultsHits") &&
                 o.ToString()!.Contains("FilterExclusionsCount") &&
                 o.ToString()!.Contains("LatencyMsTotal") &&
                 o.ToString()!.Contains("LatencyMsPages") &&
@@ -184,17 +189,23 @@ public sealed class LoggerSearchTelemetryTests
             Arg.Any<Func<object, Exception?, string>>());
     }
 
-    // Per-hit Debug fan-out — exactly one Debug line per kept hit, carrying the rank
-    // breakdown placeholders. Three hits in, three Debug calls out.
+    // Per-hit Debug fan-out — exactly one Debug line per kept canonical hit, carrying the
+    // per-canonical contributor breakdown + winning-contributor rank placeholders. Three
+    // hits in, three Debug calls out. New placeholders {PageContributed},
+    // {BlockContributorCount}, {ContributingBlockKeys} sit alongside the pre-existing
+    // per-field rank set — the whole template is asserted through its human-readable
+    // labels rather than the raw brace expression so a placeholder-only rename still
+    // trips this fact.
     [Fact]
     [Trait("search-case", "rank-breakdown-telemetry")]
     public void RecordSearch_WithHits_EmitsPerHitDebugLineForEachHit()
     {
         var evt = BuildEvent(hits:
         [
-            SampleHit(rowId: "hit-1"),
-            SampleHit(rowId: "hit-2"),
-            SampleHit(rowId: "hit-3"),
+            SampleHit(url: "/hit-1"),
+            SampleHit(url: "/hit-2"),
+            SampleHit(url: "/hit-3", pageContributed: false, blockContributorCount: 2,
+                      contributingBlockKeys: ["k1", "k2"]),
         ]);
 
         _sut.RecordSearch(evt);
@@ -204,7 +215,10 @@ public sealed class LoggerSearchTelemetryTests
             Arg.Any<EventId>(),
             Arg.Is<object>(o =>
                 o.ToString()!.Contains("hit") &&
-                o.ToString()!.Contains("rank_total")),
+                o.ToString()!.Contains("rank_total") &&
+                o.ToString()!.Contains("page_contrib") &&
+                o.ToString()!.Contains("block_count") &&
+                o.ToString()!.Contains("block_keys")),
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }
@@ -259,7 +273,7 @@ public sealed class LoggerSearchTelemetryTests
 
     // Debug-toggle ON: per-hit rank breakdowns are promoted from Debug to Information so
     // operators can see them without lowering the process-wide log level. Three hits in,
-    // three Information calls out carrying the per-hit template.
+    // three Information calls out carrying the per-canonical hit template.
     [Fact]
     [Trait("search-case", "rank-breakdown-telemetry")]
     public void RecordSearch_WhenShowSearchDebugTrue_EmitsPerHitAtInfoLevel()
@@ -269,9 +283,10 @@ public sealed class LoggerSearchTelemetryTests
             new FakeSearchDebugOptions { ShowSearchDebug = true });
         var evt = BuildEvent(hits:
         [
-            SampleHit(rowId: "hit-1"),
-            SampleHit(rowId: "hit-2"),
-            SampleHit(rowId: "hit-3"),
+            SampleHit(url: "/hit-1"),
+            SampleHit(url: "/hit-2"),
+            SampleHit(url: "/hit-3", pageContributed: false, blockContributorCount: 1,
+                      contributingBlockKeys: ["k1"]),
         ]);
 
         sut.RecordSearch(evt);
@@ -281,7 +296,9 @@ public sealed class LoggerSearchTelemetryTests
             Arg.Any<EventId>(),
             Arg.Is<object>(o =>
                 o.ToString()!.Contains("hit") &&
-                o.ToString()!.Contains("rank_total")),
+                o.ToString()!.Contains("rank_total") &&
+                o.ToString()!.Contains("page_contrib") &&
+                o.ToString()!.Contains("block_count")),
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
         logger.DidNotReceive().Log(

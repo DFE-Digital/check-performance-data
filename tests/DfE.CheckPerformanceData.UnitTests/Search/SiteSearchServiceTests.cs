@@ -223,21 +223,26 @@ public class SiteSearchServiceTests
 
         await _sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
+        // Per-canonical emission: page URL and block URL differ, so two evt.Hits — one
+        // page-only canonical (PageContributed=true, BlockContributorCount=0) with the
+        // page's per-field ranks, and one block-only canonical (PageContributed=false,
+        // BlockContributorCount=1) with the block's per-field ranks. The block's key is
+        // preserved on ContributingBlockKeys.
         var evt = Assert.Single(_telemetry.Events);
         Assert.Equal(2, evt.Hits.Count);
 
-        var pageHit = Assert.Single(evt.Hits, h => h.Corpus == "page");
-        Assert.Equal(pageId.ToString(), pageHit.RowId);
+        var pageHit = Assert.Single(evt.Hits, h => h.PageContributed && h.BlockContributorCount == 0);
         Assert.Equal("/guidance/one", pageHit.Url);
+        Assert.Empty(pageHit.ContributingBlockKeys);
         Assert.Equal(0.1f, pageHit.RankKeywords);
         Assert.Equal(0.2f, pageHit.RankTitle);
         Assert.Equal(0.05f, pageHit.RankSubtitle);
         Assert.Equal(0.15f, pageHit.RankBody);
         Assert.Null(pageHit.RankValue);
 
-        var blockHit = Assert.Single(evt.Hits, h => h.Corpus == "block");
-        Assert.Equal("b1", blockHit.RowId);
+        var blockHit = Assert.Single(evt.Hits, h => !h.PageContributed && h.BlockContributorCount > 0);
         Assert.Equal("/guidance/one#a", blockHit.Url);
+        Assert.Contains("b1", blockHit.ContributingBlockKeys);
         Assert.Equal(0.11f, blockHit.RankKeywords);
         Assert.Equal(0.19f, blockHit.RankValue);
         Assert.Null(blockHit.RankTitle);

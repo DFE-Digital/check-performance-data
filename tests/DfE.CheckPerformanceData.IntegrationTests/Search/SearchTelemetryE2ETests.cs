@@ -277,9 +277,13 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
     public async Task SearchAsync_KeptPageHit_CarriesFourPerFieldRanksInEvent()
     {
         await TruncateAsync();
-        // One visible page + one visible block, both matching "widget" — so evt.Hits carries
-        // one entry per corpus and the assertion can prove the page corpus null-on-RankValue
-        // asymmetry against the block corpus null-on-RankTitle/Subtitle/Body asymmetry.
+        // One visible page + one visible block, on DIFFERENT URLs, both matching "widget".
+        // Under the canonical-hit emission model each URL is its own SearchHitEvent — the
+        // page URL's event has PageContributed=true + BlockContributorCount=0 and carries
+        // the page's per-field ranks (RankKeywords/Title/Subtitle/Body populated, RankValue
+        // null). The block URL's event has PageContributed=false + BlockContributorCount=1
+        // and carries the block's per-field ranks (RankKeywords/RankValue populated, the
+        // three page-only ranks null).
         var page = BuildPage("widget-rank-page", "Widget rank page", keywords: "widget");
         await SeedPagesAsync((page, "widget appears in body", true));
         var block = BuildBlock("widget-rank-block", keywords: "widget", lastSeenPath: "/check-your-pupil-data");
@@ -291,19 +295,21 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var evt = Assert.Single(fake.Events);
         Assert.Equal(2, evt.Hits.Count);
 
-        var pageHit = Assert.Single(evt.Hits, h => h.Corpus == "page");
+        var pageHit = Assert.Single(evt.Hits, h => h.PageContributed && h.BlockContributorCount == 0);
         Assert.NotNull(pageHit.RankKeywords);
         Assert.NotNull(pageHit.RankTitle);
         Assert.NotNull(pageHit.RankSubtitle);
         Assert.NotNull(pageHit.RankBody);
         Assert.Null(pageHit.RankValue);
+        Assert.Empty(pageHit.ContributingBlockKeys);
 
-        var blockHit = Assert.Single(evt.Hits, h => h.Corpus == "block");
+        var blockHit = Assert.Single(evt.Hits, h => !h.PageContributed && h.BlockContributorCount > 0);
         Assert.NotNull(blockHit.RankKeywords);
         Assert.NotNull(blockHit.RankValue);
         Assert.Null(blockHit.RankTitle);
         Assert.Null(blockHit.RankSubtitle);
         Assert.Null(blockHit.RankBody);
+        Assert.Contains("widget-rank-block", blockHit.ContributingBlockKeys);
     }
 
     // ── Zero-result branch: empty Hits + counter side-effect ──────────────────

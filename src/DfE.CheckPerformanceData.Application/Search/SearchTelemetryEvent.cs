@@ -23,21 +23,30 @@ public sealed record SearchTelemetryEvent(
     IReadOnlyList<SearchHitEvent> Hits,
     IReadOnlyList<FilterExclusion> FilterExclusions);
 
-// One entry per hit kept after filtering. Corpus is a discriminator ("page" or "block")
-// because the two corpora share the event surface but have different natural row keys and
-// per-field weightings.
+// One entry per canonical URL kept after filtering — the same set of rows the /search view
+// renders. Two blocks on the same page URL fold into ONE SearchHitEvent (with
+// BlockContributorCount = 2); a page + block on the same URL fold into ONE SearchHitEvent
+// (with PageContributed = true AND BlockContributorCount = 1). The URL is the identity;
+// there is no separate row-id field.
 //
-// RankTotal is the combined ts_rank the ordering step already uses; per-field ranks are
-// the additive components projected alongside so downstream analysis can answer "why did
-// this rank above that". Any per-field rank is nullable because the field may not apply
-// to the corpus (e.g. RankValue is only meaningful for content blocks; RankBody is only
-// meaningful for pages) — a null means "not applicable in this row's corpus", NOT "unknown".
+// RankTotal is the canonical row's aggregate rank (MAX of contributor raw ts_ranks — the
+// ordering key the /search view uses). Per-field ranks are the WINNING contributor's
+// per-field breakdown — the contributor whose snippet the canonicaliser picked. Because
+// the winner may be a page (Value N/A) or a block (Title/Subtitle/Body N/A), every
+// per-field rank is nullable — a null means "not applicable in the winning contributor's
+// corpus", NOT "unknown".
+//
+// PageContributed is true when a page-corpus row contributed to this canonical URL
+// (max 1 page contributor per URL, so a bool captures it). BlockContributorCount is the
+// count of block-corpus contributors folded in (0..N). ContributingBlockKeys lists those
+// block keys in input order — an empty list when the row is pure-page-sourced.
 public sealed record SearchHitEvent(
-    string Corpus,
-    string RowId,
     string Url,
     string Title,
     float RankTotal,
+    bool PageContributed,
+    int BlockContributorCount,
+    IReadOnlyList<string> ContributingBlockKeys,
     float? RankKeywords,
     float? RankTitle,
     float? RankSubtitle,

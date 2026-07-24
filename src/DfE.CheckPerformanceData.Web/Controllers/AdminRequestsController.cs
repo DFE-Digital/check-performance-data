@@ -5,9 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Read-only admin list of SubmittedUnCommitted change requests for the current open
-// checking window, showing each one's rules-engine outcome. Gated by the uncommitted-requests
-// section grant.
+// Read-only admin list of change requests across every checking window, showing each
+// one's rules-engine outcome. Gated by the uncommitted-requests section grant.
 [RequireAdminSection(AdminNavKeys.UncommittedRequests)]
 public sealed class AdminRequestsController(IAdminRequestsService service) : Controller
 {

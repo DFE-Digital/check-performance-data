@@ -134,41 +134,38 @@ public sealed class SearchCanonicalisationE2ETests(PostgresFixture fixture)
     {
         await TruncateAsync();
 
-        // Seed a page whose Body / Title / Keywords do NOT match "canonicalise" so the
-        // page corpus contributes nothing. Two blocks on the same URL match instead.
-        var page = BuildPage("guidance/canon-test", "Canon Test");
-        await SeedPagesAsync((page, "unrelated body copy"));
-
-        // Different Keywords sets so the two blocks' ts_ranks differ — the MAX-scan is
-        // testable rather than a coincidental tie.
+        // Both blocks live at /check-your-pupil-data — the block resolver picks up the
+        // title from the static-route whitelist (no PageNode needed). Different keyword
+        // repetition drives different ts_ranks so the MAX-scan is testable rather than
+        // a coincidental tie.
         var strong = BuildBlock(
-            "hero-canon",
-            keywords: "canonicalise canonicalise canonicalise",
-            lastSeenPath: "/guidance/canon-test",
-            valuePlainText: "canonicalise here in the hero block");
+            "hero-widget-fold",
+            keywords: "widgetfold widgetfold widgetfold",
+            lastSeenPath: "/check-your-pupil-data",
+            valuePlainText: "widgetfold appears prominently in the hero block");
         var weak = BuildBlock(
-            "footer-canon",
+            "footer-widget-fold",
             keywords: "other-term",
-            lastSeenPath: "/guidance/canon-test",
-            valuePlainText: "the footer briefly mentions canonicalise");
+            lastSeenPath: "/check-your-pupil-data",
+            valuePlainText: "the footer briefly mentions widgetfold once");
         await SeedBlocksAsync(strong, weak);
 
-        var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "canonicalise"));
+        var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widgetfold"));
 
         var hit = Assert.Single(result.Hits);
-        Assert.Equal("/guidance/canon-test", hit.Url);
+        Assert.Equal("/check-your-pupil-data", hit.Url);
         Assert.Equal(0, hit.PageContributorCount);
         Assert.Equal(2, hit.BlockContributorCount);
-        Assert.Contains("hero-canon", hit.ContributingBlockKeys);
-        Assert.Contains("footer-canon", hit.ContributingBlockKeys);
+        Assert.Contains("hero-widget-fold", hit.ContributingBlockKeys);
+        Assert.Contains("footer-widget-fold", hit.ContributingBlockKeys);
 
         // Aggregate rank must be the MAX of the two block raw ranks, not the SUM.
         // Fetch the raw block ranks and compare.
         await using var ctx = _fixture.CreateContext();
         var blockRepo = new ContentBlockRepository(ctx);
-        var rawBlocks = await blockRepo.SearchAsync("canonicalise", 20);
-        var strongRank = rawBlocks.First(b => b.Key == "hero-canon").Rank;
-        var weakRank = rawBlocks.First(b => b.Key == "footer-canon").Rank;
+        var rawBlocks = await blockRepo.SearchAsync("widgetfold", 20);
+        var strongRank = rawBlocks.First(b => b.Key == "hero-widget-fold").Rank;
+        var weakRank = rawBlocks.First(b => b.Key == "footer-widget-fold").Rank;
         var expectedMax = Math.Max(strongRank, weakRank);
         Assert.Equal(expectedMax, hit.AggregateRank);
 
@@ -184,31 +181,33 @@ public sealed class SearchCanonicalisationE2ETests(PostgresFixture fixture)
     {
         await TruncateAsync();
 
-        // Page and block both match "mixed-widget-term"; both live at the same URL.
-        var page = BuildPage("guidance/mixed-test", "Mixed Test", keywords: "mixed-widget-term");
-        await SeedPagesAsync((page, "the mixed-widget-term appears in the body"));
+        // Page's URL derives from PageContribution as "/" + page.Path — so a page with
+        // Path = "check-your-pupil-data" produces URL "/check-your-pupil-data" which is
+        // the same URL the block's static-route lookup resolves to.
+        var page = BuildPage("check-your-pupil-data", "Check your pupil data", keywords: "mixedwidgetterm");
+        await SeedPagesAsync((page, "the mixedwidgetterm appears in the page body"));
 
         var block = BuildBlock(
             "sidebar-mixed",
-            keywords: "mixed-widget-term",
-            lastSeenPath: "/guidance/mixed-test",
-            valuePlainText: "sidebar also mentions mixed-widget-term");
+            keywords: "mixedwidgetterm",
+            lastSeenPath: "/check-your-pupil-data",
+            valuePlainText: "sidebar also mentions mixedwidgetterm");
         await SeedBlocksAsync(block);
 
-        var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "mixed-widget-term"));
+        var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "mixedwidgetterm"));
 
         var hit = Assert.Single(result.Hits);
-        Assert.Equal("/guidance/mixed-test", hit.Url);
+        Assert.Equal("/check-your-pupil-data", hit.Url);
         Assert.Equal(1, hit.PageContributorCount);
         Assert.Equal(1, hit.BlockContributorCount);
-        Assert.Equal("Mixed Test", hit.Title);
+        Assert.Equal("Check your pupil data", hit.Title);
 
         // Aggregate rank = MAX(pageRank, blockRank).
         await using var ctx = _fixture.CreateContext();
         var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        var rawPages = await pageRepo.SearchPagesAsync("mixed-widget-term", scopePath: null, max: 20);
-        var rawBlocks = await blockRepo.SearchAsync("mixed-widget-term", 20);
+        var rawPages = await pageRepo.SearchPagesAsync("mixedwidgetterm", scopePath: null, max: 20);
+        var rawBlocks = await blockRepo.SearchAsync("mixedwidgetterm", 20);
         var pageRank = rawPages.First(p => p.PageId == page.Id).Rank;
         var blockRank = rawBlocks.First(b => b.Key == "sidebar-mixed").Rank;
         var expectedMax = Math.Max(pageRank, blockRank);

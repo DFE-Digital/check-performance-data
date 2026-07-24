@@ -75,4 +75,74 @@ public sealed class SearchIndexViewTests
 		Assert.Contains("MAX", view);
 		Assert.Contains("Application/Search/SearchWeights.cs", view);
 	}
+
+	// --- SearchIndex_CorpusBadge_IsGatedOnShowSearchDebug ---
+
+	[Fact]
+	public void SearchIndex_CorpusBadge_IsGatedOnShowSearchDebug()
+	{
+		var view = ReadSearchIndexView();
+
+		// Contract: the corpus badge markup that leans on hit.BlockContributorCount
+		// only renders when SearchDebugOptions.ShowSearchDebug is true. Real users
+		// must never see it. Structurally: an @if (SearchDebugOptions.ShowSearchDebug)
+		// gate wraps (directly or transitively) at least one reference to
+		// hit.BlockContributorCount inside the same block. We assert this with a
+		// dot-all regex that requires the gate to appear before a subsequent
+		// hit.BlockContributorCount reference within a reasonable window (the whole
+		// file is small — a lazy match across the file body suffices).
+		var gateThenBlockContributor = new Regex(
+			@"@if\s*\(SearchDebugOptions\.ShowSearchDebug\)[\s\S]*?hit\.BlockContributorCount",
+			RegexOptions.Multiline);
+		Assert.True(gateThenBlockContributor.IsMatch(view),
+			"Expected an @if (SearchDebugOptions.ShowSearchDebug) gate to wrap a hit.BlockContributorCount reference (badge markup); no such gate-then-BlockContributorCount sequence found.");
+	}
+
+	// --- SearchIndex_PureBlockCorpusBadge_UsesContentBlockLabel ---
+
+	[Fact]
+	public void SearchIndex_PureBlockCorpusBadge_UsesContentBlockLabel()
+	{
+		var view = ReadSearchIndexView();
+
+		// Contract: rows whose only contributor is a block (BlockContributorCount > 0
+		// AND PageContributorCount == 0) render a GDS grey tag with the literal label
+		// "Content block". Source-file heuristic: both substrings must be present.
+		Assert.Contains("govuk-tag govuk-tag--grey", view);
+		Assert.Contains("Content block", view);
+		Assert.Contains("PageContributorCount == 0", view);
+	}
+
+	// --- SearchIndex_HybridCorpusBadge_UsesBlocksNCountLabel ---
+
+	[Fact]
+	public void SearchIndex_HybridCorpusBadge_UsesBlocksNCountLabel()
+	{
+		var view = ReadSearchIndexView();
+
+		// Contract: rows with both a page contributor and one or more block
+		// contributors render a GDS grey tag with the literal label
+		// "Blocks: @hit.BlockContributorCount" (e.g. "Blocks: 3"). Source-file
+		// heuristic: the exact Razor substring plus the govuk-tag class.
+		Assert.Contains("govuk-tag govuk-tag--grey", view);
+		Assert.Contains("Blocks: @hit.BlockContributorCount", view);
+	}
+
+	// --- SearchIndex_AggregateRankComment_UsesF6InvariantCulture ---
+
+	[Fact]
+	public void SearchIndex_AggregateRankComment_UsesF6InvariantCulture()
+	{
+		var view = ReadSearchIndexView();
+
+		// Contract: the <!-- rank: --> HTML comment reads the canonical row's
+		// AggregateRank (not hit.Rank — that accessor doesn't exist on
+		// CanonicalSearchHit) and formats it with the "F6" specifier under
+		// System.Globalization.CultureInfo.InvariantCulture so the debug output stays
+		// stable across culture / locale.
+		Assert.Contains("hit.AggregateRank", view);
+		Assert.Contains("\"F6\"", view);
+		Assert.Contains("System.Globalization.CultureInfo.InvariantCulture", view);
+		Assert.DoesNotContain("hit.Rank.ToString", view);
+	}
 }

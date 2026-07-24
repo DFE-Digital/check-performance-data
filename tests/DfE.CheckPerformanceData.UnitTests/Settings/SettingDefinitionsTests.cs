@@ -52,4 +52,15 @@ public sealed class SettingDefinitionsTests
         Assert.NotNull(definition);
         Assert.Equal(expected, definition!.Kind);
     }
+
+    [Fact]
+    public void SearchDebugOn_IsRegistered_AsBool_OffByDefault()
+    {
+        var definition = SettingDefinitions.Find(SettingKeys.SearchDebugOn);
+
+        Assert.NotNull(definition);
+        Assert.Equal("CMS:SearchDebugOn", definition!.Key);
+        Assert.Equal(SettingKind.Bool, definition.Kind);
+        Assert.Equal("false", definition.DefaultValue);
+    }
 }

@@ -5,6 +5,7 @@ namespace DfE.CheckPerformanceData.Application.Settings;
 public static class SettingKeys
 {
     public const string CmsPageLength = "CMS:PageLength";
+    public const string SearchDebugOn = "CMS:SearchDebugOn";
 
     public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
@@ -100,6 +101,10 @@ public static class SettingDefinitions
         new(SettingKeys.NotifyUseFake,
             "When true, the Notify email service is replaced with a dev-only fake that logs email details to the console instead of sending real emails. Defaults to true when not configured.",
             "true",
+            SettingKind.Bool),
+        new(SettingKeys.SearchDebugOn,
+            "When true, per-hit rank breakdowns and per-exclusion filter breadcrumbs are logged at Info level and the /search page renders the internal rank as an HTML comment. Editors and ops use it to debug why a page didn't appear. Off by default.",
+            "false",
             SettingKind.Bool)
     ];
 

@@ -36,7 +36,13 @@
     <caption class="govuk-table__caption govuk-visually-hidden">Service settings</caption>
     <thead class="govuk-table__head">
         <tr class="govuk-table__row">
-            <th scope="col" class="govuk-table__header">Setting</th>
+            <th scope="col" class="govuk-table__header"
+                aria-sort="@(Model.SortDirection == SettingSortDirection.KeyAscending ? "ascending" : "descending")">
+                <a class="govuk-link govuk-link--no-visited-state"
+                   href="/admin/settings?sort=@Model.ReverseSortQuery">
+                    Setting <span aria-hidden="true">@(Model.SortDirection == SettingSortDirection.KeyAscending ? "▲" : "▼")</span>
+                </a>
+            </th>
             <th scope="col" class="govuk-table__header">Value</th>
         </tr>
     </thead>

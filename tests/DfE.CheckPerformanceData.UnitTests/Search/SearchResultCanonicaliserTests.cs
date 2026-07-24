@@ -188,7 +188,16 @@ public sealed class SearchResultCanonicaliserTests
         Assert.Equal(first.Count, second.Count);
         for (var i = 0; i < first.Count; i++)
         {
-            Assert.Equal(first[i], second[i]);
+            // Compare property-wise: records equal by value, but their
+            // IReadOnlyList<string> field would compare by reference and the
+            // canonicaliser materialises a fresh array per call by design.
+            Assert.Equal(first[i].Url, second[i].Url);
+            Assert.Equal(first[i].Title, second[i].Title);
+            Assert.Equal(first[i].SnippetHtml, second[i].SnippetHtml);
+            Assert.Equal(first[i].AggregateRank, second[i].AggregateRank);
+            Assert.Equal(first[i].PageContributorCount, second[i].PageContributorCount);
+            Assert.Equal(first[i].BlockContributorCount, second[i].BlockContributorCount);
+            Assert.True(first[i].ContributingBlockKeys.SequenceEqual(second[i].ContributingBlockKeys));
         }
     }
 

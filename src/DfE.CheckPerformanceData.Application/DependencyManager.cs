@@ -53,6 +53,7 @@ public static class DependencyManager
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();
+        services.AddSingleton<ISearchResultCanonicaliser, SearchResultCanonicaliser>();
 
         services.AddRulesEngineDependencies();
 

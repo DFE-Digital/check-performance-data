@@ -15,10 +15,26 @@ public sealed class AdminSettingsController(ISettingService settings) : Controll
     private const string IndexView = "~/Views/Admin/Settings/Index.cshtml";
 
     [HttpGet("admin/settings")]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? sort = null)
     {
+        // Query string is the source of truth for the sort direction. Only "key-desc" flips
+        // to descending; anything else (null, empty, "key-asc", unrecognised strings) falls
+        // back to the ascending default. The URL is user-typeable so malformed values must
+        // not throw — silent coercion keeps the page robust.
+        var direction = string.Equals(sort, "key-desc", StringComparison.OrdinalIgnoreCase)
+            ? SettingSortDirection.KeyDescending
+            : SettingSortDirection.KeyAscending;
+
         var items = await settings.GetAllWithValuesAsync();
-        return View(IndexView, new AdminSettingsViewModel { Settings = items });
+        var sorted = direction == SettingSortDirection.KeyDescending
+            ? items.OrderByDescending(i => i.Key, StringComparer.OrdinalIgnoreCase).ToList()
+            : items.OrderBy(i => i.Key, StringComparer.OrdinalIgnoreCase).ToList();
+
+        return View(IndexView, new AdminSettingsViewModel
+        {
+            Settings = sorted,
+            SortDirection = direction,
+        });
     }
 
     [HttpPost("admin/settings/save")]

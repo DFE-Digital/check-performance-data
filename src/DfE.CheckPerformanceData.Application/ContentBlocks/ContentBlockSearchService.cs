@@ -14,12 +14,12 @@ public sealed class ContentBlockSearchService(
         var term = (query ?? string.Empty).Trim();
         if (term.Length < 2) return new ContentBlockSearchOutcome([], []);
 
-        // Over-fetch so de-duplication by page still yields up to `max` results.
+        // Over-fetch so downstream URL-folding still yields up to `max` distinct URLs
+        // when the incoming block set has many hits on the same page.
         var blocks = await repository.SearchAsync(term, max * 3);
 
         var results = new List<ContentBlockSearchResultDto>();
         var exclusions = new List<FilterExclusion>();
-        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var block in blocks)
         {
@@ -46,8 +46,6 @@ public sealed class ContentBlockSearchService(
                 continue;
             }
 
-            if (!seenUrls.Add(path)) continue;
-
             var pageTitle = await ResolvePublishedPageTitleAsync(path);
             // The path resolves to something publicly linkable if either it matches a
             // currently-published PageNode (title from the node) or it's a static route
@@ -73,6 +71,9 @@ public sealed class ContentBlockSearchService(
                 RankValue = block.RankValue,
             });
 
+            // Cap semantics: this now bounds "kept blocks" rather than "distinct URLs kept".
+            // URL-level dedup lives downstream in the canonicaliser — multiple blocks on the
+            // same page all pass through here.
             if (results.Count >= max) break;
         }
 

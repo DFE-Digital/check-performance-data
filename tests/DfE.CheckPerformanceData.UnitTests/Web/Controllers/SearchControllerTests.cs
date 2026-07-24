@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Web.Controllers;
 using NSubstitute;
@@ -35,8 +34,7 @@ public sealed class SearchControllerTests
             CurrentQuery = query.Query ?? string.Empty,
             ScopePath = query.ScopePath,
             InvalidReason = null,
-            PageHits = Array.Empty<PageSearchHitDto>(),
-            ContentBlockHits = Array.Empty<ContentBlockSearchResultDto>(),
+            Hits = Array.Empty<CanonicalSearchHit>(),
         };
 
     // A query at the documented 100-char boundary is a no-op for the controller: it flows

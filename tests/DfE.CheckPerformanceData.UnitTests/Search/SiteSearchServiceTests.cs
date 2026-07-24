@@ -20,7 +20,7 @@ public class SiteSearchServiceTests
 
     public SiteSearchServiceTests()
     {
-        _sut = new SiteSearchService(_pageRepo, _blockSearch, _telemetry);
+        _sut = new SiteSearchService(_pageRepo, _blockSearch, _telemetry, new SearchResultCanonicaliser());
         _pageRepo.SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>())
             .Returns([]);
         _blockSearch.SearchAsync(Arg.Any<string?>(), Arg.Any<int>())
@@ -92,9 +92,15 @@ public class SiteSearchServiceTests
             IncludePages: false,
             IncludeContentBlocks: true));
 
-        Assert.Collection(result.ContentBlockHits.OrderBy(h => h.Key),
-            h => Assert.Equal("in", h.Key),
-            h => Assert.Equal("root", h.Key));
+        // Scope filter drops "out"; the two remaining blocks each canonicalise to their
+        // own URL row (distinct URLs → distinct canonical hits). Contributing keys ride
+        // on the row so scope enforcement is still asserted per source block.
+        var byUrl = result.Hits.OrderBy(h => h.Url).ToList();
+        Assert.Equal(2, byUrl.Count);
+        Assert.Equal("/guidance", byUrl[0].Url);
+        Assert.Contains("root", byUrl[0].ContributingBlockKeys);
+        Assert.Equal("/guidance/ks4-june-2026-overview", byUrl[1].Url);
+        Assert.Contains("in", byUrl[1].ContributingBlockKeys);
     }
 
     // Content-block hits must not accidentally match on shared prefixes: /guidance-foo/x is not
@@ -116,7 +122,7 @@ public class SiteSearchServiceTests
             IncludePages: false,
             IncludeContentBlocks: true));
 
-        Assert.Empty(result.ContentBlockHits);
+        Assert.Empty(result.Hits);
     }
 
     // ── Telemetry emission contract ────────────────────────────────────────────

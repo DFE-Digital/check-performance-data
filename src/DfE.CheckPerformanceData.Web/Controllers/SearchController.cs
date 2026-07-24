@@ -30,8 +30,7 @@ public sealed class SearchController(ISiteSearchService searchService) : Control
             Query = result.CurrentQuery,
             Scope = result.ScopePath,
             InvalidReason = result.InvalidReason,
-            PageHits = result.PageHits,
-            ContentBlockHits = result.ContentBlockHits,
+            Hits = result.Hits,
             IncludePages = includePages ?? true,
             IncludeContentBlocks = includeContentBlocks ?? true,
         });

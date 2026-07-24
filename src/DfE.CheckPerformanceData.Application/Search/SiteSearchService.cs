@@ -7,7 +7,8 @@ namespace DfE.CheckPerformanceData.Application.Search;
 public sealed class SiteSearchService(
     IPageNodeRepository pageRepository,
     IContentBlockSearchService contentBlockSearch,
-    ISearchTelemetry telemetry) : ISiteSearchService
+    ISearchTelemetry telemetry,
+    ISearchResultCanonicaliser canonicaliser) : ISiteSearchService
 {
     private const int MinTermLength = 2;
     // Upper bound on how many hits per corpus SearchMergedPagedAsync fetches to feed its
@@ -37,8 +38,7 @@ public sealed class SiteSearchService(
                 CurrentQuery = term,
                 ScopePath = scope,
                 InvalidReason = invalidReason,
-                PageHits = [],
-                ContentBlockHits = [],
+                Hits = [],
             };
         }
 
@@ -93,13 +93,39 @@ public sealed class SiteSearchService(
 
         telemetry.RecordSearch(evt);
 
+        // Fold pages + blocks into one canonical hit list keyed by URL. Duplicate URLs
+        // (a page + N blocks on the same route, or multiple blocks on one page) collapse
+        // to a single row with the MAX contributor rank as the primary sort key.
+        var pageContribs = new List<PageContribution>(pageHits.Count);
+        foreach (var p in pageHits)
+        {
+            pageContribs.Add(new PageContribution(
+                Url: "/" + p.Path,
+                Title: p.Title,
+                SnippetHtml: p.SnippetHtml,
+                Rank: p.Rank,
+                PageId: p.PageId));
+        }
+
+        var blockContribs = new List<BlockContribution>(blockHits.Count);
+        foreach (var b in blockHits)
+        {
+            blockContribs.Add(new BlockContribution(
+                Url: b.Url,
+                PageTitle: b.PageTitle,
+                SnippetHtml: b.SnippetHtml,
+                Rank: b.Rank,
+                BlockKey: b.Key));
+        }
+
+        var hits = canonicaliser.Canonicalise(pageContribs, blockContribs);
+
         return new SiteSearchResult
         {
             CurrentQuery = term,
             ScopePath = scope,
             InvalidReason = null,
-            PageHits = pageHits,
-            ContentBlockHits = blockHits,
+            Hits = hits,
         };
     }
 
@@ -130,20 +156,17 @@ public sealed class SiteSearchService(
             };
         }
 
-        var merged = raw.PageHits
-            .Select(p => new SiteSearchHit(
-                Title: p.Title,
-                Url: "/" + p.Path,
-                Subtitle: p.Subtitle,
-                SnippetHtml: p.SnippetHtml,
-                Rank: p.Rank))
-            .Concat(raw.ContentBlockHits.Select(b => new SiteSearchHit(
-                Title: b.PageTitle,
-                Url: b.Url,
+        // raw.Hits is already URL-canonicalised and aggregate-rank ordered. Project each
+        // canonical hit onto the widget's SiteSearchHit contract and paginate. The
+        // canonical DTO does not carry Subtitle (pages historically surfaced it but the
+        // merged widget does not) — the field is null on every item here.
+        var merged = raw.Hits
+            .Select(h => new SiteSearchHit(
+                Title: h.Title,
+                Url: h.Url,
                 Subtitle: null,
-                SnippetHtml: b.SnippetHtml,
-                Rank: b.Rank)))
-            .OrderByDescending(h => h.Rank)
+                SnippetHtml: h.SnippetHtml,
+                Rank: h.AggregateRank))
             .ToList();
 
         var slice = merged

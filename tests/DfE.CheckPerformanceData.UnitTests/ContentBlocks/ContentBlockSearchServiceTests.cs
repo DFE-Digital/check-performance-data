@@ -44,12 +44,15 @@ public sealed class ContentBlockSearchServiceTests
         await _repository.DidNotReceive().SearchAsync(Arg.Any<string>(), Arg.Any<int>());
     }
 
-    // --- Over-fetch + de-duplication by resolved URL ---
+    // --- Over-fetch (URL-level dedup lives in the canonicaliser, not here) ---
 
     [Fact]
-    public async Task SearchAsync_OverFetchesByThree_ThenDeduplicatesByLastSeenPath()
+    public async Task SearchAsync_OverFetchesByThree_AndReturnsAllBlocks_IncludingMultiplePerUrl()
     {
-        // Two blocks that were both last rendered on the same public page.
+        // Two blocks on the same public page: this service no longer folds by URL —
+        // both flow through and the canonicaliser downstream collapses them into one
+        // canonical hit. The kept-block cap still bounds total block count, but URL
+        // duplicates no longer disappear at this layer.
         var path = "/guidance/ks4-june-2026-key-dates";
         _pageNodeRepository.GetPublishedByPathAsync(path)
             .Returns(new PublishedPageInfoDto(path, "Key dates — KS4 June 2026"));
@@ -62,8 +65,10 @@ public sealed class ContentBlockSearchServiceTests
 
         var outcome = await _sut.SearchAsync("key", max: 3);
 
-        Assert.Single(outcome.Hits);
-        // Over-fetch: repo asked for max * 3 so dedupe still yields up to `max`.
+        Assert.Equal(2, outcome.Hits.Count);
+        Assert.All(outcome.Hits, h => Assert.Equal(path, h.Url));
+        // Over-fetch: repo asked for max * 3 so the widened result set covers the
+        // downstream canonicaliser's URL-fold with headroom.
         await _repository.Received(1).SearchAsync("key", 9);
     }
 

@@ -50,7 +50,7 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
         htmlRender.RenderHtml(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>());
         htmlRender.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>() ?? string.Empty);
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
-        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry());
+        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), new SearchResultCanonicaliser());
     }
 
     private static ContentBlock BuildBlock(
@@ -151,8 +151,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-a");
-        Assert.DoesNotContain(result.ContentBlockHits, h => h.Key == "admin-widget-a");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-a"));
+        Assert.DoesNotContain(result.Hits, h => h.ContributingBlockKeys.Contains("admin-widget-a"));
     }
 
     [Fact]
@@ -167,8 +167,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-b");
-        Assert.DoesNotContain(result.ContentBlockHits, h => h.Key == "e2e-widget-b");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-b"));
+        Assert.DoesNotContain(result.Hits, h => h.ContributingBlockKeys.Contains("e2e-widget-b"));
     }
 
     [Fact]
@@ -183,8 +183,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-c");
-        Assert.DoesNotContain(result.ContentBlockHits, h => h.Key == "guidance-ks4-2026-nav");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-c"));
+        Assert.DoesNotContain(result.Hits, h => h.ContributingBlockKeys.Contains("guidance-ks4-2026-nav"));
     }
 
     [Fact]
@@ -199,8 +199,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-d");
-        Assert.DoesNotContain(result.ContentBlockHits, h => h.Key == "hidden-widget-d");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-d"));
+        Assert.DoesNotContain(result.Hits, h => h.ContributingBlockKeys.Contains("hidden-widget-d"));
     }
 
     [Fact]
@@ -219,8 +219,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-e");
-        Assert.DoesNotContain(result.ContentBlockHits, h => h.Key == "orphan-widget-e");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-e"));
+        Assert.DoesNotContain(result.Hits, h => h.ContributingBlockKeys.Contains("orphan-widget-e"));
     }
 
     // ── Page-tier filters ────────────────────────────────────────────────────
@@ -237,8 +237,8 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.PageHits, h => h.PageId == visible.Id);
-        Assert.DoesNotContain(result.PageHits, h => h.PageId == hidden.Id);
+        Assert.Contains(result.Hits, h => h.Url == "/widget-visible" && h.PageContributorCount == 1);
+        Assert.DoesNotContain(result.Hits, h => h.Url == "/widget-hidden");
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public sealed class SiteSearchServiceFilterTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.PageHits, h => h.PageId == published.Id);
-        Assert.DoesNotContain(result.PageHits, h => h.PageId == draft.Id);
+        Assert.Contains(result.Hits, h => h.Url == "/widget-published" && h.PageContributorCount == 1);
+        Assert.DoesNotContain(result.Hits, h => h.Url == "/widget-draft");
     }
 }

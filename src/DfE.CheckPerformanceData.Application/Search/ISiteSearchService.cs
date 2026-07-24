@@ -25,9 +25,12 @@ public sealed class SiteSearchResult
     public required string CurrentQuery { get; init; }
     public required string? ScopePath { get; init; }
     public required SearchInvalidReason? InvalidReason { get; init; }
-    public required IReadOnlyList<PageSearchHitDto> PageHits { get; init; }
-    public required IReadOnlyList<ContentBlocks.ContentBlockSearchResultDto> ContentBlockHits { get; init; }
-    public int TotalHits => PageHits.Count + ContentBlockHits.Count;
+    // Single canonical hit list, one row per URL. Any block that resolves to a URL
+    // shared with a page (or another block) folds into that URL's row via the
+    // canonicaliser; the rendered result is always a list of URLs, never a mix of
+    // page hits and standalone block hits.
+    public required IReadOnlyList<CanonicalSearchHit> Hits { get; init; }
+    public int TotalHits => Hits.Count;
 }
 
 // One hit in the merged, container-agnostic view. Title/Url/Snippet mirror what the split

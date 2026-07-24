@@ -3,8 +3,8 @@ using System.Text.RegularExpressions;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Views;
 
 // Source-file assertion pattern: reads Views/Search/Index.cshtml from disk and asserts
-// static Razor-source facts about the ISearchDebugOptions gate on the two <!-- rank: -->
-// HTML comment emissions (page-hit loop + content-block-hit loop). Mirrors the
+// static Razor-source facts about the ISearchDebugOptions gate on the <!-- rank: -->
+// HTML comment emission inside the single merged canonical-hit loop. Mirrors the
 // read-helper + Assert.Contains style of AdminLandingViewTests. No WebApplicationFactory,
 // no RazorProjectEngine — just the .cshtml text on disk.
 public sealed class SearchIndexViewTests
@@ -50,12 +50,13 @@ public sealed class SearchIndexViewTests
 		// Contract 2: the accessor's ShowSearchDebug member is what the gate reads.
 		Assert.Contains("SearchDebugOptions.ShowSearchDebug", view);
 
-		// Contract 3: both emissions (page-hit + content-block-hit) are wrapped in a
-		// distinct @if (SearchDebugOptions.ShowSearchDebug) block. Two matches proves
-		// the gate is applied at each of the two hit loops, not just one.
+		// Contract 3: the emission inside the merged canonical-hit loop is wrapped in an
+		// @if (SearchDebugOptions.ShowSearchDebug) block. One match is sufficient after
+		// the split-list rewrite — the two per-corpus loops became one loop and the
+		// gate lives inside it.
 		var gateMatches = Regex.Matches(view, @"@if \(SearchDebugOptions\.ShowSearchDebug\)").Count;
-		Assert.True(gateMatches >= 2,
-			$"Expected @if (SearchDebugOptions.ShowSearchDebug) to wrap both <!-- rank: --> emissions (>= 2 matches); found {gateMatches}.");
+		Assert.True(gateMatches >= 1,
+			$"Expected @if (SearchDebugOptions.ShowSearchDebug) to wrap the <!-- rank: --> emission (>= 1 match); found {gateMatches}.");
 	}
 
 	// --- SearchIndex_RazorDocumentationComments_ArePreserved ---
@@ -65,16 +66,13 @@ public sealed class SearchIndexViewTests
 	{
 		var view = ReadSearchIndexView();
 
-		// Contract: the Razor @* ... *@ documentation comments above each emission
-		// document the ranking weight semantics (Keywords A, Title B, Subtitle C,
-		// BodyPlainText D on page hits; Keywords A + ValuePlainText B on content
-		// blocks). They never render to HTML — they exist for future readers — and
-		// the gate edit must not delete them.
-		Assert.Contains(
-			"Debug: ts_rank score (Keywords A + Title B + Subtitle C on PageNode.SearchVector",
-			view);
-		Assert.Contains(
-			"Debug: ts_rank score on ContentBlock.SearchVector (Keywords A + ValuePlainText B).",
-			view);
+		// Contract: the Razor @* ... *@ documentation comment above the single merged
+		// canonical-hit loop documents the aggregation rule (AggregateRank = MAX of
+		// contributor raw ts_ranks) and points readers at SearchWeights.cs for the
+		// per-field weight semantics. It never renders to HTML — it exists for future
+		// readers — and the gate / loop edit must not delete it.
+		Assert.Contains("AggregateRank", view);
+		Assert.Contains("MAX", view);
+		Assert.Contains("Application/Search/SearchWeights.cs", view);
 	}
 }

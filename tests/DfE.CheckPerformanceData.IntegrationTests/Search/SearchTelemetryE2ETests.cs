@@ -53,7 +53,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
         var fake = new FakeSearchTelemetry();
         var counter = new SearchZeroResultsCounter();
-        var sut = new SiteSearchService(pageRepo, blockSearch, fake);
+        var sut = new SiteSearchService(pageRepo, blockSearch, fake, new SearchResultCanonicaliser());
         return (sut, fake, counter);
     }
 
@@ -153,7 +153,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-admin");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-admin"));
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "block" && e.Kind == "admin-path" && e.RowKey == "admin-widget-trip");
@@ -171,7 +171,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-e2e");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-e2e"));
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "block" && e.Kind == "e2e-key" && e.RowKey == "e2e-widget-trip");
@@ -189,7 +189,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-nav");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-nav"));
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "block" && e.Kind == "guidance-ks4-2026-nav-key" && e.RowKey == "guidance-ks4-2026-nav");
@@ -207,7 +207,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-cb");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-cb"));
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "block" && e.Kind == "contentblock-appearinsearch-false" && e.RowKey == "hidden-widget-trip");
@@ -225,7 +225,10 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.PageHits, h => h.PageId == visible.Id);
+        // Page-tier filter proof: the visible page's URL appears as a canonical hit,
+        // and per-URL page-contributor-count is 1 (so the page itself contributed to
+        // the row, not just a downstream block).
+        Assert.Contains(result.Hits, h => h.Url == "/widget-visible-page" && h.PageContributorCount == 1);
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "page" && e.Kind == "pagenode-appearinsearch-false" && e.RowKey == "widget-hidden-page");
@@ -243,7 +246,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.PageHits, h => h.PageId == published.Id);
+        Assert.Contains(result.Hits, h => h.Url == "/widget-published-page" && h.PageContributorCount == 1);
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "page" && e.Kind == "draft-page" && e.RowKey == "widget-draft-page");
@@ -261,7 +264,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var (sut, fake, _) = BuildSut();
         var result = await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Contains(result.ContentBlockHits, h => h.Key == "visible-widget-orphan");
+        Assert.Contains(result.Hits, h => h.ContributingBlockKeys.Contains("visible-widget-orphan"));
         var evt = Assert.Single(fake.Events);
         Assert.Contains(evt.FilterExclusions,
             e => e.Corpus == "block" && e.Kind == "unpublished-target" && e.RowKey == "orphan-widget-trip");
@@ -333,7 +336,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var fake = new FakeSearchTelemetry();
         var fanout = new FanoutTelemetry(loggerSink, fake);
 
-        var sut = new SiteSearchService(pageRepo, blockSearch, fanout);
+        var sut = new SiteSearchService(pageRepo, blockSearch, fanout, new SearchResultCanonicaliser());
 
         Assert.Equal(0L, counter.Read());
         await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));

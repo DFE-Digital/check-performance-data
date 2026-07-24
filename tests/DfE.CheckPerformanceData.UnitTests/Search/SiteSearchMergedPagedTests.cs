@@ -18,7 +18,7 @@ public sealed class SiteSearchMergedPagedTests
 
     public SiteSearchMergedPagedTests()
     {
-        _sut = new SiteSearchService(_pageRepo, _blockSearch, new FakeSearchTelemetry());
+        _sut = new SiteSearchService(_pageRepo, _blockSearch, new FakeSearchTelemetry(), new SearchResultCanonicaliser());
         // Fallback: any un-configured call returns empty rather than the substitute
         // default of null (which would NRE inside BuildBlockHitsAsync's LINQ).
         _pageRepo.SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>())

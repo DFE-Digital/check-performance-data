@@ -40,7 +40,7 @@ public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
         htmlRender.RenderHtml(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>());
         htmlRender.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>() ?? string.Empty);
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
-        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry());
+        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), new SearchResultCanonicaliser());
     }
 
     private static PageNode BuildPage(string slug, string title, string? keywords = null)
@@ -103,10 +103,13 @@ public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
 
         var result = await BuildSut().SearchAsync(new SiteSearchQuery(Query: "widget"));
 
-        Assert.Equal(2, result.PageHits.Count);
-        Assert.Equal(pageA.Id, result.PageHits[0].PageId);
-        Assert.Equal(pageB.Id, result.PageHits[1].PageId);
+        // Two distinct URLs → two canonical hits. AggregateRank equals the page-only
+        // contributor's raw ts_rank (no block contributors were seeded), so the
+        // Keywords-beats-Body pin still holds under the canonicalisation reshape.
+        Assert.Equal(2, result.Hits.Count);
+        Assert.Equal("/alpha-page", result.Hits[0].Url);
+        Assert.Equal("/beta-page", result.Hits[1].Url);
         // Relative comparison only — never assert absolute ts_rank floats.
-        Assert.True(result.PageHits[0].Rank > result.PageHits[1].Rank);
+        Assert.True(result.Hits[0].AggregateRank > result.Hits[1].AggregateRank);
     }
 }

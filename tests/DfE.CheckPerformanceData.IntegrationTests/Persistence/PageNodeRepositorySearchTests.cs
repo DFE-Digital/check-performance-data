@@ -319,4 +319,27 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
         Assert.Equal(5, keptCount);
         Assert.Equal(15, excludedCount);
     }
+
+    [Fact]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchPagesAsync_ExcludedRowsAreDeterministicallyOrdered()
+    {
+        await TruncateAsync();
+        // Seed 20 hidden rows in reverse-alphabetical insertion order — the returned 15
+        // excluded rows must come back in Path ASC order (the widened query's tie-break
+        // when RankTotal is equal across all matches). If insertion order leaks through,
+        // this fails.
+        var seeds = new List<(PageNode, string)>();
+        for (var i = 19; i >= 0; i--)
+        {
+            seeds.Add((BuildPageAt($"widget-hidden-{i:D2}", $"Widget hidden {i}", keywords: "widget", appearInSearch: false), "body"));
+        }
+        await SeedAsync(seeds.ToArray());
+
+        var hits = await Repo().SearchPagesAsync("widget", null, 5);
+        var excludedPaths = hits.Where(h => h.ExcludedBy != null).Select(h => h.Path).ToList();
+
+        var expected = Enumerable.Range(0, 15).Select(i => $"widget-hidden-{i:D2}").ToList();
+        Assert.Equal(expected, excludedPaths);
+    }
 }

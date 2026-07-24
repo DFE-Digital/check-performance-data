@@ -159,9 +159,14 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             });
 
         // Excluded rows soft-capped at max * 3 — visibility for telemetry without a runaway
-        // scan when a corpus has thousands of hidden-from-search rows.
+        // scan when a corpus has thousands of hidden-from-search rows. Same ORDER BY as
+        // the kept subquery so the top-ranked exclusions surface first (most diagnostically
+        // interesting: rows that came close to being a hit) and the subset is deterministic
+        // between runs.
         var excludedQuery = widened
             .Where(x => x.ExcludedBy != null)
+            .OrderByDescending(x => x.RankTotal)
+            .ThenBy(x => x.Node.Path)
             .Take(max * 3)
             .Select(x => new PageSearchHitRaw
             {

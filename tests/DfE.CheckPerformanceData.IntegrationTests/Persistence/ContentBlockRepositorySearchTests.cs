@@ -205,4 +205,26 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
         Assert.Single(hits, h => h.ExcludedBy == null && h.Key == "visible-widget-c");
         Assert.Single(hits, h => h.ExcludedBy == "contentblock-appearinsearch-false" && h.Key == "hidden-widget-c");
     }
+
+    [Fact]
+    [Trait("search-case", "editor-suppressed")]
+    public async Task SearchAsync_ExcludedRowsAreDeterministicallyOrdered()
+    {
+        await TruncateAsync();
+        // Seed 20 hidden blocks in reverse-alphabetical insertion order — the returned 15
+        // excluded rows must come back in Key ASC order (the widened query's tie-break
+        // when Rank is equal across all matches). If insertion order leaks through, this
+        // fails.
+        var seeds = Enumerable.Range(0, 20)
+            .Reverse()
+            .Select(i => BuildBlock($"widget-hidden-{i:D2}", "widget content", appearInSearch: false))
+            .ToArray();
+        await SeedAsync(seeds);
+
+        var hits = await Repo().SearchAsync("widget", 5);
+        var excludedKeys = hits.Where(h => h.ExcludedBy != null).Select(h => h.Key).ToList();
+
+        var expected = Enumerable.Range(0, 15).Select(i => $"widget-hidden-{i:D2}").ToList();
+        Assert.Equal(expected, excludedKeys);
+    }
 }

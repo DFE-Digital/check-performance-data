@@ -100,9 +100,14 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             });
 
         // Excluded rows soft-capped at take * 3 — visibility for telemetry without a
-        // runaway scan when a corpus has thousands of hidden-from-search rows.
+        // runaway scan when a corpus has thousands of hidden-from-search rows. Same ORDER
+        // BY as the kept subquery so the top-ranked exclusions surface first (most
+        // diagnostically interesting: rows that came close to being a hit) and the subset
+        // is deterministic between runs.
         var excludedQuery = widened
             .Where(x => x.ExcludedBy != null)
+            .OrderByDescending(x => x.Rank)
+            .ThenBy(x => x.Block.Key)
             .Take(take * 3)
             .Select(x => new ContentBlockDto
             {

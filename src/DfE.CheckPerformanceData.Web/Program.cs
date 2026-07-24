@@ -107,11 +107,13 @@ try
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
 
-    // Gates the /search <!-- rank: N --> debug comment. Singleton because both deps
-    // (IConfiguration + IHostEnvironment) are singletons and the accessor is a pure read.
+    // Gates the /search <!-- rank: N --> debug comment AND the log-level promotion of
+    // per-hit / per-exclusion telemetry breadcrumbs. Backed by the CMS settings store so
+    // operators can flip CMS:SearchDebugOn from the admin settings page without a
+    // container restart. Lifetime is swapped to Scoped below alongside LoggerSearchTelemetry.
     builder.Services.AddSingleton<
         DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
-        DfE.CheckPerformanceData.Web.Search.SearchDebugOptions>();
+        DfE.CheckPerformanceData.Application.Search.CmsSettingsSearchDebugOptions>();
 
     // Emits a structured log per search request (Info summary, Debug per-hit + per-exclusion,
     // Warn zero-result). Singleton because ILogger<T> resolution is thread-safe and the sink

@@ -324,7 +324,9 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
 
         var counter = new SearchZeroResultsCounter();
         var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<LoggerSearchTelemetry>.Instance;
-        var loggerSink = new LoggerSearchTelemetry(logger, counter);
+        var debugOff = Substitute.For<ISearchDebugOptions>();
+        debugOff.ShowSearchDebug.Returns(false);
+        var loggerSink = new LoggerSearchTelemetry(logger, counter, debugOff);
 
         // Also compose a fake so the assertion body can read the emitted event fields.
         // Fan the emission out to both sinks via a small pass-through.

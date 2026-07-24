@@ -27,6 +27,15 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
 //                               properties, including the log-injection escape shape).
 public sealed class LoggerSearchTelemetryTests
 {
+    // Tiny fake for ISearchDebugOptions so the existing facts can construct the SUT
+    // with the debug toggle explicitly OFF (their assertions expect LogDebug per-hit
+    // and per-exclusion lines). The extra facts below build a second SUT with the
+    // toggle ON and assert those lines get promoted to LogInformation.
+    private sealed class FakeSearchDebugOptions : ISearchDebugOptions
+    {
+        public bool ShowSearchDebug { get; init; }
+    }
+
     private readonly ILogger<LoggerSearchTelemetry> _logger =
         Substitute.For<ILogger<LoggerSearchTelemetry>>();
     private readonly SearchZeroResultsCounter _counter = new();
@@ -34,7 +43,8 @@ public sealed class LoggerSearchTelemetryTests
 
     public LoggerSearchTelemetryTests()
     {
-        _sut = new LoggerSearchTelemetry(_logger, _counter);
+        _sut = new LoggerSearchTelemetry(_logger, _counter,
+            new FakeSearchDebugOptions { ShowSearchDebug = false });
     }
 
     // ── Sample-event factory ────────────────────────────────────────────────────
@@ -243,6 +253,78 @@ public sealed class LoggerSearchTelemetryTests
             Arg.Any<LogLevel>(),
             Arg.Any<EventId>(),
             Arg.Is<object>(o => o.ToString()!.Contains(raw)),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    // Debug-toggle ON: per-hit rank breakdowns are promoted from Debug to Information so
+    // operators can see them without lowering the process-wide log level. Three hits in,
+    // three Information calls out carrying the per-hit template.
+    [Fact]
+    [Trait("search-case", "rank-breakdown-telemetry")]
+    public void RecordSearch_WhenShowSearchDebugTrue_EmitsPerHitAtInfoLevel()
+    {
+        var logger = Substitute.For<ILogger<LoggerSearchTelemetry>>();
+        var sut = new LoggerSearchTelemetry(logger, new SearchZeroResultsCounter(),
+            new FakeSearchDebugOptions { ShowSearchDebug = true });
+        var evt = BuildEvent(hits:
+        [
+            SampleHit(rowId: "hit-1"),
+            SampleHit(rowId: "hit-2"),
+            SampleHit(rowId: "hit-3"),
+        ]);
+
+        sut.RecordSearch(evt);
+
+        logger.Received(3).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o =>
+                o.ToString()!.Contains("hit") &&
+                o.ToString()!.Contains("rank_total")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+        logger.DidNotReceive().Log(
+            LogLevel.Debug,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o =>
+                o.ToString()!.Contains("hit") &&
+                o.ToString()!.Contains("rank_total")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    // Debug-toggle ON: per-exclusion filter breadcrumbs promoted from Debug to
+    // Information for the same reason. Two exclusions in, two Information calls out.
+    [Fact]
+    [Trait("search-case", "rank-breakdown-telemetry")]
+    public void RecordSearch_WhenShowSearchDebugTrue_EmitsPerExclusionAtInfoLevel()
+    {
+        var logger = Substitute.For<ILogger<LoggerSearchTelemetry>>();
+        var sut = new LoggerSearchTelemetry(logger, new SearchZeroResultsCounter(),
+            new FakeSearchDebugOptions { ShowSearchDebug = true });
+        var evt = BuildEvent(exclusions:
+        [
+            SampleExclusion(kind: "admin-path", rowKey: "admin-block-a"),
+            SampleExclusion(kind: "e2e-key", rowKey: "e2e-block-b"),
+        ]);
+
+        sut.RecordSearch(evt);
+
+        logger.Received(2).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o =>
+                o.ToString()!.Contains("excluded") &&
+                o.ToString()!.Contains("by")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+        logger.DidNotReceive().Log(
+            LogLevel.Debug,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o =>
+                o.ToString()!.Contains("excluded") &&
+                o.ToString()!.Contains("by")),
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }

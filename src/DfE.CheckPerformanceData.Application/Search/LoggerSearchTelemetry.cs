@@ -5,12 +5,17 @@ namespace DfE.CheckPerformanceData.Application.Search;
 // Default ISearchTelemetry sink. Every RecordSearch call fans one SearchTelemetryEvent out
 // to four MEL log tiers:
 //
-//   Info  — one summary line per request. Carries SearchId, QueryRaw, per-corpus result
-//           counts, filter-exclusion count, and the latency breakdown so a single log
-//           entry answers "what happened to this request?" without joining lines.
-//   Debug — one line per kept hit carrying the per-field rank breakdown.
-//   Debug — one line per FilterExclusion carrying the exclusion kind + row key.
-//   Warn  — zero-result line, gated on evt.Hits.Count == 0 and preceded by a counter bump.
+//   Info    — one summary line per request. Carries SearchId, QueryRaw, per-corpus result
+//             counts, filter-exclusion count, and the latency breakdown so a single log
+//             entry answers "what happened to this request?" without joining lines.
+//   Debug/  — one line per kept hit carrying the per-field rank breakdown.
+//   Info    — Debug by default; promoted to Info when ISearchDebugOptions.ShowSearchDebug
+//             is true (i.e. the CMS:SearchDebugOn setting is on). This lets ops flip
+//             visibility from the admin settings page without lowering the process-wide
+//             log level.
+//   Debug/  — one line per FilterExclusion carrying the exclusion kind + row key.
+//   Info    — Same Debug-to-Info promotion rule as per-hit lines.
+//   Warn    — zero-result line, gated on evt.Hits.Count == 0 and preceded by a counter bump.
 //
 // All user-controlled strings (QueryRaw, QueryNormalised, RowId, Url, Title, RowKey, Kind)
 // are passed as DISCRETE MEL templated-placeholder arguments so Serilog's JSON formatter
@@ -22,7 +27,8 @@ namespace DfE.CheckPerformanceData.Application.Search;
 // the format string itself.
 public sealed class LoggerSearchTelemetry(
     ILogger<LoggerSearchTelemetry> logger,
-    ISearchZeroResultsCounter counter) : ISearchTelemetry
+    ISearchZeroResultsCounter counter,
+    ISearchDebugOptions debug) : ISearchTelemetry
 {
     public void RecordSearch(SearchTelemetryEvent evt)
     {
@@ -56,9 +62,14 @@ public sealed class LoggerSearchTelemetry(
             evt.LatencyMsPages,
             evt.LatencyMsBlocks);
 
+        // Debug knob resolved once per RecordSearch call so a mid-call toggle flip cannot
+        // split a single event's per-hit lines across two log levels.
+        var breadcrumbLevel = debug.ShowSearchDebug ? LogLevel.Information : LogLevel.Debug;
+
         foreach (var hit in evt.Hits)
         {
-            logger.LogDebug(
+            logger.Log(
+                breadcrumbLevel,
                 "Search {SearchId} hit {Corpus}:{RowId} url={Url} rank_total={RankTotal:F4} rank_kw={RankKeywords:F4} rank_title={RankTitle:F4} rank_sub={RankSubtitle:F4} rank_body={RankBody:F4} rank_value={RankValue:F4}",
                 evt.SearchId,
                 hit.Corpus,
@@ -74,7 +85,8 @@ public sealed class LoggerSearchTelemetry(
 
         foreach (var excl in evt.FilterExclusions)
         {
-            logger.LogDebug(
+            logger.Log(
+                breadcrumbLevel,
                 "Search {SearchId} excluded {Corpus}:{RowKey} by {FilterKind}",
                 evt.SearchId,
                 excl.Corpus,

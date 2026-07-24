@@ -20,7 +20,7 @@ else
         <thead class="govuk-table__head">
         <tr class="govuk-table__row">
             <th scope="col" class="govuk-table__header">Name</th>
-            <th scope="col" class="govuk-table__header">Active</th>
+            <th scope="col" class="govuk-table__header">Status</th>
             <th scope="col" class="govuk-table__header">Published</th>
             <th scope="col" class="govuk-table__header">Actions</th>
         </tr>
@@ -30,7 +30,16 @@ else
         {
             <tr class="govuk-table__row">
                 <td class="govuk-table__cell">@window.Name</td>
-                <td class="govuk-table__cell">@window.IsOpen</td>
+                <td class="govuk-table__cell">
+                    @if (window.IsOpen)
+                    {
+                        <strong class="govuk-tag govuk-tag--green">Open</strong>
+                    }
+                    else
+                    {
+                        <strong class="govuk-tag govuk-tag--grey">Closed</strong>
+                    }
+                </td>
                 <td class="govuk-table__cell">@window.IsPublished</td>
                 <td class="govuk-table__cell">
                     <a class="govuk-link" href="/admin/windows/summary/@window.Id">Edit</a>

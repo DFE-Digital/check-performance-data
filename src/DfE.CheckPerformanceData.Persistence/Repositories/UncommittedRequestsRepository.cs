@@ -7,25 +7,17 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncommittedRequestsRepository
 {
-    public async Task<IReadOnlyList<UncommittedRequestRow>> GetForOpenWindowsAsync(
-        DateTime now, CancellationToken cancellationToken)
-    {
-        var openWindowIds = await db.CheckingWindows
+    public async Task<IReadOnlyList<UncommittedRequestRow>> GetAllAsync(CancellationToken cancellationToken) =>
+        await db.ChangeRequests
             .AsNoTracking()
-            .Where(w => w.StartDate <= now && w.EndDate >= now)
-            .Select(w => w.Id)
-            .ToListAsync(cancellationToken);
-
-        if (openWindowIds.Count == 0)
-            return [];
-
-        return await db.ChangeRequests
-            .AsNoTracking()
-            .Where(r => openWindowIds.Contains(r.WindowId))
             .OrderByDescending(r => r.Submitted)
             .Select(r => new UncommittedRequestRow
             {
                 ReferenceNumber = r.ReferenceNumber,
+                WindowTitle = db.CheckingWindows
+                    .Where(w => w.Id == r.WindowId)
+                    .Select(w => w.Title)
+                    .FirstOrDefault(),
                 OrganisationUrn = r.OrganisationUrn,
                 PupilFirstname = r.PupilFirstname,
                 PupilSurname = r.PupilSurname,
@@ -39,7 +31,6 @@ public sealed class UncommittedRequestsRepository(IPortalDbContext db) : IUncomm
                 CrmId = r.CrmId
             })
             .ToListAsync(cancellationToken);
-    }
 
     public async Task<IReadOnlyList<ReplayRequestRow>> GetRequestsForOpenWindowsAsync(
         DateTime now, CancellationToken cancellationToken)

@@ -3,12 +3,13 @@ using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UncommittedRequests;
 
-// One row on the admin "Current window requests" page: a change request in a
-// currently-open checking window, with the rules-engine decision fields
-// (all null until the rules engine has run).
+// One row on the admin "All requests" page: a change request in any checking
+// window, with the rules-engine decision fields (all null until the rules engine
+// has run).
 public sealed record UncommittedRequestRow
 {
     public required string ReferenceNumber { get; init; }
+    public string? WindowTitle { get; init; }
     public required long OrganisationUrn { get; init; }
     public string? PupilFirstname { get; init; }
     public string? PupilSurname { get; init; }

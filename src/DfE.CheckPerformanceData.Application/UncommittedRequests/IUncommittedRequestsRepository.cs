@@ -4,10 +4,8 @@ namespace DfE.CheckPerformanceData.Application.UncommittedRequests;
 
 public interface IUncommittedRequestsRepository
 {
-    // SubmittedUnCommitted change requests whose window is open at <paramref name="now"/>,
-    // most recently submitted first. Returns empty when no window is open.
-    Task<IReadOnlyList<UncommittedRequestRow>> GetForOpenWindowsAsync(
-        DateTime now, CancellationToken cancellationToken);
+    // All change requests across every checking window, most recently submitted first.
+    Task<IReadOnlyList<UncommittedRequestRow>> GetAllAsync(CancellationToken cancellationToken);
 
     // Replay projection of the SubmittedUnCommitted rows in currently-open windows,
     // used to rebuild RequestDocuments for the manual "send to Zendesk" admin action.

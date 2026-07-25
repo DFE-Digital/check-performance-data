@@ -116,7 +116,7 @@ public sealed class SearchControllerPaginationTests
         await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 25));
     }
 
-    // Below-floor ?pageSize is silently promoted to 10 (SEARCH-P-02); nothing is rejected.
+    // Below-floor ?pageSize is silently promoted to 10; nothing is rejected.
     [Fact]
     [Trait("search-case", "pagination")]
     public async Task Index_PageSizeBelow10_ClampsTo10()
@@ -128,7 +128,7 @@ public sealed class SearchControllerPaginationTests
         await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 10));
     }
 
-    // Above-ceiling ?pageSize is silently capped at 50 (SEARCH-P-02) — a pathologically large
+    // Above-ceiling ?pageSize is silently capped at 50 — a pathologically large
     // request never inflates the per-corpus fetch.
     [Fact]
     [Trait("search-case", "pagination")]

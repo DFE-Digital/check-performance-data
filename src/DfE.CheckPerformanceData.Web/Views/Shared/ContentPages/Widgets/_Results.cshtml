@@ -32,14 +32,21 @@
     var effectiveScope = !string.IsNullOrEmpty(urlScope) ? urlScope : widgetScope;
 
     // --- Page size resolution ---
-    // ?pageSize on the URL overrides the shared admin knob. Fallback ordering mirrors the
-    // /search controller; the [10, 50] clamp lands last so a bad admin setting AND a
-    // ?pageSize=999 both resolve inside the allowed window.
+    // ?pageSize on the URL is untrusted per-request input and clamped to [10, 50] as an
+    // anti-abuse guard. The admin CmsPageLength setting is trusted (same convention as the
+    // other admin paged views) — honoured as-is with a floor of 1.
     int? pageSizeOverride = null;
-    if (int.TryParse(query["pageSize"], out var psParsed)) pageSizeOverride = psParsed;
-    var pageSize = pageSizeOverride ?? await SettingService.GetIntAsync(SettingKeys.CmsPageLength);
-    if (pageSize < 1) pageSize = 20;
-    pageSize = Math.Clamp(pageSize, 10, 50);
+    int pageSize;
+    if (int.TryParse(query["pageSize"], out var psParsed))
+    {
+        pageSizeOverride = Math.Clamp(psParsed, 10, 50);
+        pageSize = pageSizeOverride.Value;
+    }
+    else
+    {
+        var adminPageSize = await SettingService.GetIntAsync(SettingKeys.CmsPageLength);
+        pageSize = adminPageSize > 0 ? adminPageSize : 20;
+    }
 
     // --- Search ---
     SiteSearchPagedResult? result = null;

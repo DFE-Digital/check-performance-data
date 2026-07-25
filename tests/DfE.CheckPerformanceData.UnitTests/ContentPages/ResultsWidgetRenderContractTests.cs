@@ -124,7 +124,7 @@ public sealed class ResultsWidgetRenderContractTests
     public void PageSize_HasSafeFallbackWhenSettingIsInvalid()
     {
         // Widget must not divide by zero if the setting is 0/negative.
-        Assert.Matches("pageSize\\s*<\\s*1", View);
+        Assert.Matches("adminPageSize\\s*>\\s*0\\s*\\?\\s*adminPageSize\\s*:\\s*20", View);
     }
 
     // ----- Scope precedence -----

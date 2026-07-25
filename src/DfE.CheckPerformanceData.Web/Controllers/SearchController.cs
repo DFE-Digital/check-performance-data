@@ -52,16 +52,22 @@ public sealed class SearchController(
             }
         }
 
-        // PageSize resolution: query-string overrides the shared admin setting; the setting's
-        // default (20) covers the unset case, but a defence-in-depth guard mirrors the widget
-        // in case a bad value slips past the settings pipeline. Clamp comes last so an admin
-        // knob of 60 or a ?pageSize=999 both land inside [10, 50].
-        var effectivePageSize = pageSize ?? await settings.GetIntAsync(SettingKeys.CmsPageLength);
-        if (effectivePageSize < 1)
+        // PageSize resolution.
+        //   ?pageSize on the URL is untrusted per-request input and clamped to [10, 50] as
+        //   an anti-abuse guard so a pathological value cannot inflate the per-corpus fetch.
+        //   The admin CmsPageLength setting is trusted (same convention as PageTreeAdmin,
+        //   QueueAdmin, AppLogs, and Observability) — honoured as-is with a floor of 1 so a
+        //   0 / negative stored value cannot divide-by-zero the paging math.
+        int effectivePageSize;
+        if (pageSize is int urlPageSize)
         {
-            effectivePageSize = 20;
+            effectivePageSize = Math.Clamp(urlPageSize, 10, 50);
         }
-        effectivePageSize = Math.Clamp(effectivePageSize, 10, 50);
+        else
+        {
+            var adminPageSize = await settings.GetIntAsync(SettingKeys.CmsPageLength);
+            effectivePageSize = adminPageSize > 0 ? adminPageSize : 20;
+        }
 
         // Page is one-indexed at the URL boundary (?page=1 = first page); the total-based
         // upper clamp cannot land until the service reports TotalPages.

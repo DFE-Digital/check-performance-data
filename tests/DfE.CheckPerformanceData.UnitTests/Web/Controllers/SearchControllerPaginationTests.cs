@@ -12,11 +12,13 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 // Unit-tier verification of SearchController.Index's paging + resilience surface.
 //
 // The controller resolves pageSize in this order per request:
-//   1. Explicit ?pageSize query-string wins.
-//   2. Otherwise ISettingService.GetIntAsync(SettingKeys.CmsPageLength) supplies the shared
-//      admin knob.
-//   3. Anything less than 1 falls back to 20 (defence-in-depth).
-//   4. Whatever survives the fallbacks is Math.Clamp'd into [10, 50].
+//   1. Explicit ?pageSize query-string is untrusted per-request input and clamped to
+//      [10, 50] as an anti-abuse guard.
+//   2. Otherwise ISettingService.GetIntAsync(SettingKeys.CmsPageLength) supplies the
+//      admin knob, honoured as-is with a floor of 1 (matches the convention of the
+//      other paged admin views: PageTreeAdmin, QueueAdmin, AppLogs, Observability).
+//   3. A zero or negative stored setting falls back to 20 (defence-in-depth for
+//      divide-by-zero on the paging math).
 //
 // The ?page query-string is clamped to at least 1 up front; the upper clamp cannot land
 // until the service reports TotalPages, so an over-clamp forces a second SearchAsync call
@@ -141,17 +143,45 @@ public sealed class SearchControllerPaginationTests
         await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 50));
     }
 
-    // An admin knob above the shared ceiling gets clamped at read time — the setting is not
-    // a super-power, just a default. Pins the clamp-after-fallback ordering.
+    // The admin setting is trusted — a value above the URL-override ceiling still rides
+    // through. Consistent with PageTreeAdmin / QueueAdmin / AppLogs / Observability which
+    // all read CmsPageLength without a ceiling.
     [Fact]
     [Trait("search-case", "pagination")]
-    public async Task Index_PageSizeSettingValue60_ClampsTo50()
+    public async Task Index_PageSizeSettingValue60_HonoursSetting()
     {
         var sut = CreateSut(cmsPageLength: 60);
 
         _ = await sut.Index("demo", scope: null, includePages: null, includeContentBlocks: null, page: null, pageSize: null);
 
-        await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 50));
+        await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 60));
+    }
+
+    // The admin setting is trusted below the URL-override floor too — a small value
+    // like 5 must be honoured verbatim. Regression guard for the earlier iteration that
+    // clamped the setting-derived value to 10, silently ignoring the admin's intent.
+    [Fact]
+    [Trait("search-case", "pagination")]
+    public async Task Index_PageSizeSettingValue5_HonoursSetting()
+    {
+        var sut = CreateSut(cmsPageLength: 5);
+
+        _ = await sut.Index("demo", scope: null, includePages: null, includeContentBlocks: null, page: null, pageSize: null);
+
+        await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 5));
+    }
+
+    // A zero or negative stored setting falls back to the code default (20) so the
+    // paging math cannot divide by zero. Nothing thrown, nothing surfaced to the user.
+    [Fact]
+    [Trait("search-case", "pagination")]
+    public async Task Index_PageSizeSettingZero_FallsBackTo20()
+    {
+        var sut = CreateSut(cmsPageLength: 0);
+
+        _ = await sut.Index("demo", scope: null, includePages: null, includeContentBlocks: null, page: null, pageSize: null);
+
+        await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.PageSize == 20));
     }
 
     // --- page clamp ---

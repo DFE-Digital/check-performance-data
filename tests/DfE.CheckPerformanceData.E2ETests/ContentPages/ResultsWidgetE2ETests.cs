@@ -208,8 +208,9 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
 
     // ============================================================
     // 4. CMS:PageLength setting drives the effective page size.
-    // The shared resolver clamps to [10, 50], so this test walks between the
-    // default (20) and the clamped floor (10) to prove the setting-driven change.
+    // The admin setting is trusted — small values like 5 are honoured verbatim, and a
+    // value above the URL-override ceiling still rides through. Walks between the
+    // default (20) and a below-URL-clamp value (5) to prove both branches.
     // ============================================================
     [Fact]
     public async Task SettingChange_AdjustsResultsPerPage()
@@ -218,7 +219,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         // Seed 25 fixtures so both branches show pagination and both page counts
         // are pinnable:
         //   pageSize=20 → 2 pages, 20 items on page 1.
-        //   pageSize=10 → 3 pages, 10 items on page 1 (max page link >= 3).
+        //   pageSize=5  → 5 pages, 5 items on page 1 (max page link >= 5).
         var searchToken = await SeedSearchableFixturesAsync(count: 25);
 
         try
@@ -229,12 +230,13 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
             var baselineItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
             Assert.Equal(20, baselineItems);
 
-            // Shrink to 10 (the clamped floor) — 25 hits => at least 3 pages.
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "10");
+            // Shrink to 5 — the admin setting is trusted below the URL-override floor;
+            // 25 hits => 5 pages of 5.
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "5");
 
             await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
             var newItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
-            Assert.Equal(10, newItems);
+            Assert.Equal(5, newItems);
 
             // The pagination must now reference more pages than at baseline. Read the
             // highest page number referenced in a pagination link href — a direct read of
@@ -244,8 +246,8 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
                     const m = e.getAttribute('href').match(/[?&]page=(\d+)/);
                     return m ? parseInt(m[1], 10) : 0;
                 }))");
-            Assert.True(maxPageOnLinks >= 3,
-                $"Expected pagination to reference >= page 3 with pageSize=10, got max page={maxPageOnLinks}.");
+            Assert.True(maxPageOnLinks >= 5,
+                $"Expected pagination to reference >= page 5 with pageSize=5, got max page={maxPageOnLinks}.");
         }
         finally
         {

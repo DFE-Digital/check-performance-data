@@ -167,13 +167,13 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     }
 
     // websearch_to_tsquery('english', 'check-your-pupil-data') produces a compound-lexeme
-    // phrase query that requires the hyphenated slug to be indexed as-is; the current
-    // tsvector for "Check your pupil data" holds only the individual word lexemes, so the
-    // whole query fails to match. Known baseline gap parked as a skipped test with a
-    // known-bug trait so future work can find it.
-    [Fact(Skip = "Known baseline gap — hyphenated-slug-query")]
+    // phrase query that requires the hyphenated slug to be indexed as-is; the tsvector for
+    // "Check your pupil data" holds only the individual word lexemes, so the whole query
+    // fails to match on the primary run. SearchPagesAsync retries once with hyphens
+    // replaced by spaces when the primary returns zero kept rows on a hyphen-bearing
+    // non-operator query — this test pins that fallback.
+    [Fact]
     [Trait("search-case", "numeric-hyphenated")]
-    [Trait("known-bug", "hyphenated-slug-query")]
     public async Task SearchPagesAsync_HyphenatedSlugQuery_MatchesTitleTokens()
     {
         await TruncateAsync();

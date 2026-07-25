@@ -1,17 +1,18 @@
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
-// Pins the long-query behaviour at the /search controller boundary. Two of the three
-// expected behaviours hold at HEAD (a 100-char query passes through untouched; a 100-char
-// single-word query does the same and does not blow up the tokeniser). A 500-char query
-// silently trimmed to first 100 chars is a known baseline gap — SearchController.Index does
-// not currently enforce any length cap. Parked as [Fact(Skip=…)] + [Trait("known-bug", …)]
-// so the long-query behaviour trait is still discovered by the coverage meta-test while the
-// fix waits on a dedicated ticket.
+// Pins the long-query behaviour at the /search controller boundary. Three expected
+// behaviours hold: a 100-char query passes through untouched; a 100-char single-word query
+// does the same and does not blow up the tokeniser; a 500-char query is silently trimmed to
+// the leading 100 chars before the SiteSearchQuery is constructed (whitespace-first, then
+// hard slice). No user-visible hint, no error summary — the cap is invisible unless the
+// caller inspects what the service received.
 //
 // Method-level [Trait("search-case", "long-query")] on all three tests is load-bearing — the
 // downstream coverage meta-test enumerates that trait across the search test assemblies.
@@ -28,7 +29,16 @@ public sealed class SearchControllerTests
             .SearchAsync(Arg.Any<SiteSearchQuery>())
             .Returns(callInfo => Task.FromResult(EmptyResultFor(callInfo.Arg<SiteSearchQuery>())));
         _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
-        return new SearchController(_searchService, _settings);
+        return new SearchController(_searchService, _settings)
+        {
+            // The 503 branch writes Response.StatusCode; even the happy-path tests keep the
+            // context wired so a future assertion that reaches Response cannot NRE on a null
+            // HttpContext.
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext(),
+            },
+        };
     }
 
     private static SiteSearchPagedResult EmptyResultFor(SiteSearchQuery query) =>
@@ -82,17 +92,13 @@ public sealed class SearchControllerTests
             Arg.Is<SiteSearchQuery>(q => q.Query != null && q.Query.Length == 100 && !q.Query.Contains(' ')));
     }
 
-    // Known baseline gap. SearchController currently does NOT trim `q` to 100 chars before
-    // constructing the SiteSearchQuery, so a 500-char input reaches the FTS layer verbatim.
-    // The assertion body carries the shape the test WILL take once the cap lands (Query.Length
-    // == 100 after the controller trims), so re-enabling this test after the fix is a
-    // single-line change: drop the Skip argument. The known-bug slug is the audit-trail key —
-    // a follow-on record under that slug tracks the fix owner.
-    //
-    // Skip string is a slug-only sentence — no path or external reference.
-    [Fact(Skip = "Known baseline gap — query-length-cap")]
+    // The controller now trims over-100-char inputs at the entry boundary before constructing
+    // the SiteSearchQuery, so a 500-char paste never reaches the FTS layer verbatim. The trim
+    // is silent — no user-visible hint, no error summary. The equality check on the leading
+    // substring pins "leading 100 chars" (not "any 100 chars"), matching the shipped
+    // whitespace-first-then-slice controller pattern.
+    [Fact]
     [Trait("search-case", "long-query")]
-    [Trait("known-bug", "query-length-cap")]
     public async Task Index_500CharQuery_TrimsToLeading100Chars_BeforeService()
     {
         var query = new string('a', 500);
@@ -100,9 +106,6 @@ public sealed class SearchControllerTests
 
         _ = await sut.Index(query, scope: null, includePages: null, includeContentBlocks: null);
 
-        // When the cap ships, this assertion is the contract: the controller must trim to
-        // the first 100 characters before the query hits SiteSearchService. The equality
-        // check on the leading substring guarantees "leading 100 chars" (not "any 100 chars").
         await _searchService.Received(1).SearchAsync(
             Arg.Is<SiteSearchQuery>(q =>
                 q.Query != null

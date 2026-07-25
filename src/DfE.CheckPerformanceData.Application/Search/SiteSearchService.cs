@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Diagnostics;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.Search;
@@ -73,12 +74,19 @@ public sealed class SiteSearchService(
 
             return primaryResult;
         }
-        // Catch the DbException base (fully qualified for grep-audit; the type is aliased via
-        // the using at the top of file) rather than NpgsqlException — keeps this tier free of
-        // the Npgsql import and preserves onion layering. The failure is surfaced as a data
-        // value on the paged result; callers pick their own UX and the telemetry sink stays
-        // honest about "actually reached the DB and completed".
-        catch (System.Data.Common.DbException ex)
+        // Catch DbException at the Application boundary (fully qualified for grep-audit).
+        // The persistence layer registers PortalDbContext with EnableRetryOnFailure, which
+        // installs NpgsqlRetryingExecutionStrategy. When retries are exhausted the strategy
+        // wraps the terminal DbException in RetryLimitExceededException; catching only the
+        // bare DbException here would miss the retry-strategy path and let the wrapper
+        // propagate. Catch both — the untangled DbException for the no-retry case (e.g.
+        // tests that opt out of retry), and RetryLimitExceededException whose InnerException
+        // carries the same DbException for the production retry path. Either way we return
+        // DataStoreUnavailable on the paged result rather than throw. Callers pick their
+        // own UX; the telemetry sink stays honest about "actually reached the DB and
+        // completed" (the DB-unavailable branch emits zero events).
+        catch (Exception ex) when (ex is System.Data.Common.DbException
+                                   || (ex is RetryLimitExceededException && ex.InnerException is System.Data.Common.DbException))
         {
             logger.LogWarning(
                 ex,

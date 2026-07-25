@@ -11,11 +11,17 @@
     // Preserves q + scope + pageSize on every pager link so the paginator survives a query
     // refinement or a per-page-size change without dropping the user's context. Url.Action
     // is used so a future route rename does not strand pagination URLs.
+    //
+    // pageSize is only echoed back into the pager URL when the current request supplied one
+    // explicitly via ?pageSize=. Without this guard the admin CmsPageLength setting would
+    // round-trip as a URL override on page 2+ and hit the [10, 50] anti-abuse clamp,
+    // silently overriding a below-floor admin setting like 5.
+    var hasExplicitPageSize = ViewContext.HttpContext.Request.Query.ContainsKey("pageSize");
     string PageUrl(int oneIndexed) => Url.Action("Index", "Search", new
     {
         q = Model.Query,
         scope = Model.Scope,
-        pageSize = Model.PageSize,
+        pageSize = hasExplicitPageSize ? (int?)Model.PageSize : null,
         page = oneIndexed > 1 ? (int?)oneIndexed : null,
     }) ?? "/search";
 }

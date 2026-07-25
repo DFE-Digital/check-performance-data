@@ -128,6 +128,24 @@ public sealed class SearchIndexViewTests
 		Assert.Contains("Blocks: @hit.BlockContributorCount", view);
 	}
 
+	// --- SearchIndex_PagerUrl_OnlyEchoesPageSizeWhenExplicitlyOnQueryString ---
+
+	[Fact]
+	public void SearchIndex_PagerUrl_OnlyEchoesPageSizeWhenExplicitlyOnQueryString()
+	{
+		var view = ReadSearchIndexView();
+
+		// Contract: the pager URL builder must only carry pageSize= into subsequent page
+		// links when the incoming request supplied one via ?pageSize=. If the current
+		// page size came from the admin CmsPageLength setting, echoing it back would let
+		// the URL round-trip through the [10, 50] anti-abuse clamp on page 2+, silently
+		// overriding a below-floor admin setting like 5. The view resolves this by
+		// checking Request.Query for "pageSize" and only passing the value through when
+		// the caller opted in.
+		Assert.Contains("Request.Query.ContainsKey(\"pageSize\")", view);
+		Assert.Matches(@"pageSize\s*=\s*hasExplicitPageSize\s*\?\s*\(int\?\)Model\.PageSize\s*:\s*null", view);
+	}
+
 	// --- SearchIndex_AggregateRankComment_UsesF6InvariantCulture ---
 
 	[Fact]

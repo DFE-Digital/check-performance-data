@@ -53,7 +53,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
         var fake = new FakeSearchTelemetry();
         var counter = new SearchZeroResultsCounter();
-        var sut = new SiteSearchService(pageRepo, blockSearch, fake, new SearchResultCanonicaliser());
+        var sut = new SiteSearchService(pageRepo, blockSearch, fake, new SearchResultCanonicaliser(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SiteSearchService>.Instance);
         return (sut, fake, counter);
     }
 
@@ -342,7 +342,7 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
         var fake = new FakeSearchTelemetry();
         var fanout = new FanoutTelemetry(loggerSink, fake);
 
-        var sut = new SiteSearchService(pageRepo, blockSearch, fanout, new SearchResultCanonicaliser());
+        var sut = new SiteSearchService(pageRepo, blockSearch, fanout, new SearchResultCanonicaliser(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SiteSearchService>.Instance);
 
         Assert.Equal(0L, counter.Read());
         await sut.SearchAsync(new SiteSearchQuery(Query: "widget"));

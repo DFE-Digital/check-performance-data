@@ -20,7 +20,7 @@ public class SiteSearchServiceTests
 
     public SiteSearchServiceTests()
     {
-        _sut = new SiteSearchService(_pageRepo, _blockSearch, _telemetry, new SearchResultCanonicaliser());
+        _sut = new SiteSearchService(_pageRepo, _blockSearch, _telemetry, new SearchResultCanonicaliser(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SiteSearchService>.Instance);
         _pageRepo.SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>())
             .Returns([]);
         _blockSearch.SearchAsync(Arg.Any<string?>(), Arg.Any<int>())
@@ -256,17 +256,6 @@ public class SiteSearchServiceTests
         await _sut.SearchAsync(new SiteSearchQuery(Query: ""));
 
         Assert.Empty(_telemetry.Events);
-    }
-
-    [Fact]
-    [Trait("search-case", "rank-breakdown-telemetry")]
-    public async Task SearchMergedPagedAsync_EmitsExactlyOneEventPerCall()
-    {
-        await _sut.SearchMergedPagedAsync(new SiteSearchQuery(Query: "widget"), page: 0, pageSize: 20);
-
-        // The inner SearchAsync emits — the outer SearchMergedPagedAsync must not add a
-        // second event, otherwise a single user request produces two telemetry rows.
-        Assert.Single(_telemetry.Events);
     }
 
     private static PageSearchHitRaw Page(Guid id, string path, string title) => new()

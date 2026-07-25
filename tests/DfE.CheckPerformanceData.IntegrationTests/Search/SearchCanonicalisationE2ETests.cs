@@ -45,7 +45,7 @@ public sealed class SearchCanonicalisationE2ETests(PostgresFixture fixture)
         htmlRender.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>() ?? string.Empty);
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
         var canonicaliser = new SearchResultCanonicaliser();
-        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), canonicaliser);
+        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), canonicaliser, Microsoft.Extensions.Logging.Abstractions.NullLogger<SiteSearchService>.Instance);
     }
 
     private static ContentBlock BuildBlock(

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Search;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
 using NSubstitute;
 
@@ -19,22 +20,27 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 public sealed class SearchControllerTests
 {
     private readonly ISiteSearchService _searchService = Substitute.For<ISiteSearchService>();
+    private readonly ISettingService _settings = Substitute.For<ISettingService>();
 
     private SearchController CreateSut()
     {
         _searchService
             .SearchAsync(Arg.Any<SiteSearchQuery>())
             .Returns(callInfo => Task.FromResult(EmptyResultFor(callInfo.Arg<SiteSearchQuery>())));
-        return new SearchController(_searchService);
+        _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
+        return new SearchController(_searchService, _settings);
     }
 
-    private static SiteSearchResult EmptyResultFor(SiteSearchQuery query) =>
+    private static SiteSearchPagedResult EmptyResultFor(SiteSearchQuery query) =>
         new()
         {
             CurrentQuery = query.Query ?? string.Empty,
             ScopePath = query.ScopePath,
             InvalidReason = null,
             Hits = Array.Empty<CanonicalSearchHit>(),
+            TotalCount = 0,
+            Page = Math.Max(1, query.Page),
+            PageSize = Math.Max(1, query.PageSize),
         };
 
     // A query at the documented 100-char boundary is a no-op for the controller: it flows

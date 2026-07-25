@@ -40,7 +40,7 @@ public sealed class SiteSearchServiceRankingTests(PostgresFixture fixture)
         htmlRender.RenderHtml(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>());
         htmlRender.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => ci.Arg<string?>() ?? string.Empty);
         var blockSearch = new ContentBlockSearchService(blockRepo, pageRepo, htmlRender);
-        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), new SearchResultCanonicaliser());
+        return new SiteSearchService(pageRepo, blockSearch, new FakeSearchTelemetry(), new SearchResultCanonicaliser(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SiteSearchService>.Instance);
     }
 
     private static PageNode BuildPage(string slug, string title, string? keywords = null)

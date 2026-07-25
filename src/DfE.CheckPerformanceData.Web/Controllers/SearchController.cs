@@ -27,8 +27,8 @@ public sealed class SearchController(
         string? scope,
         bool? includePages,
         bool? includeContentBlocks,
-        int? page,
-        int? pageSize,
+        int? page = null,
+        int? pageSize = null,
         CancellationToken ct = default)
         => RenderAsync(q, scope, includePages, includeContentBlocks, page, pageSize, ct);
 

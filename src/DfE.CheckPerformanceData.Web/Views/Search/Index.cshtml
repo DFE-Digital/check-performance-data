@@ -7,6 +7,17 @@
         : $"Search results for “{Model.Query}”";
     var scopeSuffix = string.IsNullOrEmpty(Model.Scope) ? string.Empty : $" in /{Model.Scope}";
     var formAction = "/search";
+
+    // Preserves q + scope + pageSize on every pager link so the paginator survives a query
+    // refinement or a per-page-size change without dropping the user's context. Url.Action
+    // is used so a future route rename does not strand pagination URLs.
+    string PageUrl(int oneIndexed) => Url.Action("Index", "Search", new
+    {
+        q = Model.Query,
+        scope = Model.Scope,
+        pageSize = Model.PageSize,
+        page = oneIndexed > 1 ? (int?)oneIndexed : null,
+    }) ?? "/search";
 }
 
 <div class="govuk-grid-row">
@@ -37,14 +48,14 @@
         {
             <p class="govuk-body">Enter at least 2 characters.</p>
         }
-        else if (Model.TotalHits == 0)
+        else if (Model.TotalCount == 0)
         {
             <p class="govuk-body">No results found for <strong>@Model.Query</strong>@(scopeSuffix).</p>
         }
         else
         {
             <p class="govuk-body">
-                @Model.TotalHits result@(Model.TotalHits == 1 ? "" : "s") for
+                @Model.TotalCount result@(Model.TotalCount == 1 ? "" : "s") for
                 <strong>@Model.Query</strong>@(scopeSuffix).
             </p>
 
@@ -81,6 +92,24 @@
                     </li>
                 }
             </ul>
+
+            @if (Model.TotalPages > 1)
+            {
+                <govuk-pagination>
+                    @if (Model.Page > 1)
+                    {
+                        <govuk-pagination-previous href="@PageUrl(Model.Page - 1)" />
+                    }
+                    @for (var i = 1; i <= Model.TotalPages; i++)
+                    {
+                        <govuk-pagination-item href="@PageUrl(i)" current="@(i == Model.Page)">@i</govuk-pagination-item>
+                    }
+                    @if (Model.Page < Model.TotalPages)
+                    {
+                        <govuk-pagination-next href="@PageUrl(Model.Page + 1)" />
+                    }
+                </govuk-pagination>
+            }
         }
     </div>
 </div>

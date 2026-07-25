@@ -1,0 +1,21 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SiteSearchViewModel
+@{
+    ViewData["Title"] = "Search is temporarily unavailable";
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <h1 class="govuk-heading-l">Search is temporarily unavailable</h1>
+
+        <p class="govuk-body">Please try again in a few minutes.</p>
+
+        @* Url.Action (not a hard-coded /search?q=…) so a future route refactor does not
+           strand the retry link. Model.Query survives the round-trip so the user does
+           not lose what they typed. *@
+        <a class="govuk-button" href="@Url.Action("Index", "Search", new { q = Model.Query })">Try again</a>
+
+        <div class="govuk-inset-text">
+            Or you can <a class="govuk-link" href="@Url.Content("~/")">browse pages instead</a>.
+        </div>
+    </div>
+</div>

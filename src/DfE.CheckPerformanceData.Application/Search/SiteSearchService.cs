@@ -24,17 +24,54 @@ public sealed class SiteSearchService(
 
         try
         {
-            var (result, evt) = await SearchOnceAsync(query, term, scope, pageOneIx, pageSize);
+            var (primaryResult, primaryEvent) = await SearchOnceAsync(query, term, scope, pageOneIx, pageSize);
 
-            // hyphen-fallback branch placeholder
+            // Zero-result queries that contain a hyphen and are not operator-only trigger a
+            // single retry with hyphens replaced by spaces — closes the URL-slug matching gap
+            // where websearch_to_tsquery emits a compound-lexeme phrase clause that misses the
+            // per-word tsvector. Zero cost when the primary already matched; only kicks in when
+            // the user would otherwise see the zero-results screen. Operator-bearing inputs are
+            // exempt so an explicit -negation or "phrase" isn't second-guessed.
+            var shouldFallback = primaryResult.Hits.Count == 0
+                                 && !string.IsNullOrEmpty(term)
+                                 && term.Contains('-')
+                                 && !SearchTermNormalizer.ContainsWebSearchOperator(term);
 
-            if (evt is not null)
+            if (shouldFallback)
             {
-                // Single telemetry emission per user-facing request that reached the backends.
-                telemetry.RecordSearch(evt);
+                var replacedTerm = term.Replace('-', ' ');
+                var (fallbackResult, fallbackEvent) = await SearchOnceAsync(query, replacedTerm, scope, pageOneIx, pageSize);
+
+                if (fallbackResult.Hits.Count > 0)
+                {
+                    if (fallbackEvent is not null)
+                    {
+                        // Single telemetry emission per user-facing request: reflects what the
+                        // user actually experienced (the successful fallback), not the primary.
+                        telemetry.RecordSearch(fallbackEvent);
+                    }
+
+                    logger.LogInformation(
+                        "Search hyphen-fallback rescued SearchId={SearchId} QueryRaw={QueryRaw} QueryHyphenReplaced={QueryHyphenReplaced} ResultsHits={ResultsHits}",
+                        fallbackEvent?.SearchId ?? Guid.Empty,
+                        term,
+                        replacedTerm,
+                        fallbackResult.Hits.Count);
+
+                    return fallbackResult;
+                }
+
+                // Fallback also returned zero — fall through to the primary-emission path so
+                // the zero-result Warn from the sink still fires on the user's original query.
             }
 
-            return result;
+            if (primaryEvent is not null)
+            {
+                // Single telemetry emission per user-facing request that reached the backends.
+                telemetry.RecordSearch(primaryEvent);
+            }
+
+            return primaryResult;
         }
         // Catch the DbException base (fully qualified for grep-audit; the type is aliased via
         // the using at the top of file) rather than NpgsqlException — keeps this tier free of

@@ -10,41 +10,57 @@
     var emptyText   = Model.GetString("emptyText") ?? "No results found.";
 
     // --- URL params ---
-    // page is one-indexed at the URL boundary (?page=1 = first) to match the other paged
-    // admin views; converted to zero-indexed for the service call.
+    // page is one-indexed at the URL boundary (?page=1 = first) to match the /search route
+    // and the shared _Pagination admin views; the service now accepts the same one-indexed
+    // shape so no page-index conversion is needed at the call site.
     var query = ViewContext.HttpContext.Request.Query;
     var q         = query.TryGetValue("q", out var qv)      ? qv.ToString().Trim() : string.Empty;
     var urlScope  = query.TryGetValue("scope", out var sv)  ? sv.ToString().Trim().Trim('/') : string.Empty;
     var pageOneIx = query.TryGetValue("page", out var pv) && int.TryParse(pv, out var pp) && pp >= 1
         ? pp : 1;
 
+    // Query-length trim mirrors the /search controller: whitespace-first so a trailing
+    // space on a 101-char paste does not count against the cap, then a hard leading-100
+    // slice. Silent — no user hint.
+    if (q.Length > 0)
+    {
+        if (q.Length > 100) q = q[..100];
+    }
+
     // URL scope wins over widget-configured scope so a site-wide entry point can override
     // a section widget; the widget's own scope is authoritative for direct visits.
     var effectiveScope = !string.IsNullOrEmpty(urlScope) ? urlScope : widgetScope;
 
-    // --- Page size from settings ---
-    var pageSize = await SettingService.GetIntAsync(SettingKeys.CmsPageLength);
+    // --- Page size resolution ---
+    // ?pageSize on the URL overrides the shared admin knob. Fallback ordering mirrors the
+    // /search controller; the [10, 50] clamp lands last so a bad admin setting AND a
+    // ?pageSize=999 both resolve inside the allowed window.
+    int? pageSizeOverride = null;
+    if (int.TryParse(query["pageSize"], out var psParsed)) pageSizeOverride = psParsed;
+    var pageSize = pageSizeOverride ?? await SettingService.GetIntAsync(SettingKeys.CmsPageLength);
     if (pageSize < 1) pageSize = 20;
+    pageSize = Math.Clamp(pageSize, 10, 50);
 
     // --- Search ---
     SiteSearchPagedResult? result = null;
     if (!string.IsNullOrEmpty(q))
     {
-        result = await SearchService.SearchMergedPagedAsync(
+        result = await SearchService.SearchAsync(
             new SiteSearchQuery(
                 q,
-                ScopePath: string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope),
-            page: pageOneIx - 1,
-            pageSize: pageSize);
+                ScopePath: string.IsNullOrEmpty(effectiveScope) ? null : effectiveScope,
+                Page: pageOneIx,
+                PageSize: pageSize));
     }
 
-    // --- Pagination URL builder: preserves q + urlScope, sets ?page=N. ---
+    // --- Pagination URL builder: preserves q + urlScope + pageSize, sets ?page=N. ---
     string PageUrl(int oneIndexed)
     {
         var path = ViewContext.HttpContext.Request.Path.Value ?? "/";
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(q))         parts.Add($"q={Uri.EscapeDataString(q)}");
         if (!string.IsNullOrEmpty(urlScope))  parts.Add($"scope={Uri.EscapeDataString(urlScope)}");
+        if (pageSizeOverride is not null)     parts.Add($"pageSize={pageSize}");
         if (oneIndexed > 1)                    parts.Add($"page={oneIndexed}");
         return parts.Count == 0 ? path : $"{path}?{string.Join("&", parts)}";
     }
@@ -58,6 +74,19 @@
     {
         <p class="govuk-body">Enter at least 2 characters.</p>
     }
+    else if (result?.InvalidReason == SearchInvalidReason.DataStoreUnavailable)
+    {
+        @* Host page stays HTTP 200 — a widget failure should not vaporise an editorial
+           page. The inline warning is the user-facing signal that this widget's data
+           source is currently unreachable. *@
+        <div class="govuk-warning-text">
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text">
+                <span class="govuk-visually-hidden">Warning</span>
+                Search is temporarily unavailable — please try again in a few minutes.
+            </strong>
+        </div>
+    }
     else if (result is null || result.TotalCount == 0)
     {
         <p class="govuk-body">@emptyText</p>
@@ -69,16 +98,12 @@
         </p>
 
         <ul class="govuk-list govuk-list--spaced">
-            @foreach (var hit in result.Items)
+            @foreach (var hit in result.Hits)
             {
                 <li>
                     <h3 class="govuk-heading-s govuk-!-margin-bottom-1">
                         <a class="govuk-link" href="@hit.Url">@hit.Title</a>
                     </h3>
-                    @if (!string.IsNullOrEmpty(hit.Subtitle))
-                    {
-                        <p class="govuk-body-s govuk-!-margin-bottom-1"><em>@hit.Subtitle</em></p>
-                    }
                     <p class="govuk-body-s govuk-!-margin-bottom-0">@Html.Raw(hit.SnippetHtml)</p>
                 </li>
             }

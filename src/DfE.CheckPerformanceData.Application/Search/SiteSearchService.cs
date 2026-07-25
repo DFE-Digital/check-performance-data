@@ -18,7 +18,15 @@ public sealed class SiteSearchService(
 
     public async Task<SiteSearchPagedResult> SearchAsync(SiteSearchQuery query)
     {
-        var term = (query.Query ?? string.Empty).Trim();
+        // Strip embedded null bytes before anything else touches the term. Postgres text
+        // parameters cannot carry U+0000 (the wire protocol rejects them outright), so a
+        // stray null-byte in user input would otherwise cascade into an ArgumentException
+        // from Npgsql that ultimately surfaces as DataStoreUnavailable via the retry
+        // strategy. Strip them so a null-byte-bearing input degrades to a clean "search
+        // over the surviving characters" rather than a spurious unavailable response.
+        var rawTerm = (query.Query ?? string.Empty);
+        if (rawTerm.IndexOf('\0') >= 0) rawTerm = rawTerm.Replace("\0", string.Empty);
+        var term = rawTerm.Trim();
         var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
         var pageOneIx = Math.Max(1, query.Page);
         var pageSize = Math.Max(1, query.PageSize);

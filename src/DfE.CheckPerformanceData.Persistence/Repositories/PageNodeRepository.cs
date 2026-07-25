@@ -50,7 +50,36 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .Select(n => new PublishedPageInfoDto(n.Path, n.Title))
             .FirstOrDefaultAsync();
 
-    public Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
+    public async Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
+    {
+        var primary = await SearchPagesOnceAsync(term, scopePath, max);
+
+        // Zero-result hyphen fallback: if the primary websearch_to_tsquery run returned no
+        // KEPT rows and the term contains a hyphen (and isn't operator-only), retry once
+        // with hyphens replaced by spaces. Mirrors the SiteSearchService.SearchAsync fallback
+        // so direct repository callers get the same URL-slug matching (websearch_to_tsquery
+        // on a hyphenated slug emits a compound-lexeme phrase clause that misses the
+        // per-word tsvector; the space-normalised retry catches those). Zero cost when the
+        // primary already matched; exempts operator-bearing inputs so an explicit -negation
+        // or "phrase" isn't second-guessed.
+        var hasKept = false;
+        for (int i = 0; i < primary.Count; i++)
+        {
+            if (primary[i].ExcludedBy is null) { hasKept = true; break; }
+        }
+
+        if (!hasKept
+            && !string.IsNullOrEmpty(term)
+            && term.Contains('-')
+            && !SearchTermNormalizer.ContainsWebSearchOperator(term))
+        {
+            return await SearchPagesOnceAsync(term.Replace('-', ' '), scopePath, max);
+        }
+
+        return primary;
+    }
+
+    private Task<List<PageSearchHitRaw>> SearchPagesOnceAsync(string term, string? scopePath, int max)
     {
         // Full-text ranked search across two vectors — PageNode.SearchVector (Keywords A, Title
         // B, Subtitle C) and PageNodeVersion.SearchVector (BodyPlainText D). A row matches if

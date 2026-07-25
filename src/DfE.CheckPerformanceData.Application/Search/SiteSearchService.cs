@@ -1,6 +1,8 @@
+using System.Data.Common;
 using System.Diagnostics;
 using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.PageTree;
+using Microsoft.Extensions.Logging;
 
 namespace DfE.CheckPerformanceData.Application.Search;
 
@@ -8,19 +10,72 @@ public sealed class SiteSearchService(
     IPageNodeRepository pageRepository,
     IContentBlockSearchService contentBlockSearch,
     ISearchTelemetry telemetry,
-    ISearchResultCanonicaliser canonicaliser) : ISiteSearchService
+    ISearchResultCanonicaliser canonicaliser,
+    ILogger<SiteSearchService> logger) : ISiteSearchService
 {
     private const int MinTermLength = 2;
-    // Upper bound on how many hits per corpus SearchMergedPagedAsync fetches to feed its
-    // in-memory merge. For the current CMS corpus (<200 pages, <500 blocks) this covers
-    // any conceivable term. For substantially larger deployments the merge should move to
-    // a DB-level UNION with LIMIT/OFFSET rather than growing this cap.
-    private const int MergedFetchCap = 500;
 
-    public async Task<SiteSearchResult> SearchAsync(SiteSearchQuery query)
+    public async Task<SiteSearchPagedResult> SearchAsync(SiteSearchQuery query)
     {
         var term = (query.Query ?? string.Empty).Trim();
         var scope = string.IsNullOrWhiteSpace(query.ScopePath) ? null : query.ScopePath.Trim().Trim('/');
+        var pageOneIx = Math.Max(1, query.Page);
+        var pageSize = Math.Max(1, query.PageSize);
+
+        try
+        {
+            var (result, evt) = await SearchOnceAsync(query, term, scope, pageOneIx, pageSize);
+
+            // hyphen-fallback branch placeholder
+
+            if (evt is not null)
+            {
+                // Single telemetry emission per user-facing request that reached the backends.
+                telemetry.RecordSearch(evt);
+            }
+
+            return result;
+        }
+        // Catch the DbException base (fully qualified for grep-audit; the type is aliased via
+        // the using at the top of file) rather than NpgsqlException — keeps this tier free of
+        // the Npgsql import and preserves onion layering. The failure is surfaced as a data
+        // value on the paged result; callers pick their own UX and the telemetry sink stays
+        // honest about "actually reached the DB and completed".
+        catch (System.Data.Common.DbException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Search failed data store unavailable QueryRaw={QueryRaw} QueryNormalised={QueryNormalised} Scope={Scope}",
+                term,
+                SearchTermNormalizer.OrJoinWhitespace(term),
+                scope ?? "(none)");
+
+            return new SiteSearchPagedResult
+            {
+                CurrentQuery = term,
+                ScopePath = scope,
+                InvalidReason = SearchInvalidReason.DataStoreUnavailable,
+                Hits = Array.Empty<CanonicalSearchHit>(),
+                TotalCount = 0,
+                Page = pageOneIx - 1,
+                PageSize = pageSize,
+            };
+        }
+    }
+
+    // Runs one canonicalised search pass and builds (but does not emit) the telemetry event.
+    // The public SearchAsync decides when to call telemetry.RecordSearch so a DB-unavailable
+    // branch produces zero events and a future hyphen-fallback re-invocation still emits
+    // exactly one event for the user-facing request.
+    private async Task<(SiteSearchPagedResult Result, SearchTelemetryEvent? Event)> SearchOnceAsync(
+        SiteSearchQuery query,
+        string term,
+        string? scope,
+        int oneIndexedPage,
+        int pageSize)
+    {
+        var safePage = Math.Max(1, oneIndexedPage);
+        var safeSize = Math.Max(1, pageSize);
 
         SearchInvalidReason? invalidReason = term.Length switch
         {
@@ -33,13 +88,16 @@ public sealed class SiteSearchService(
         {
             // Invalid requests didn't "actually run" a search, so we don't emit an event —
             // the telemetry contract is per search request that reached the backends.
-            return new SiteSearchResult
+            return (new SiteSearchPagedResult
             {
                 CurrentQuery = term,
                 ScopePath = scope,
                 InvalidReason = invalidReason,
-                Hits = [],
-            };
+                Hits = Array.Empty<CanonicalSearchHit>(),
+                TotalCount = 0,
+                Page = safePage - 1,
+                PageSize = safeSize,
+            }, null);
         }
 
         var swTotal = Stopwatch.StartNew();
@@ -71,6 +129,18 @@ public sealed class SiteSearchService(
 
         swTotal.Stop();
 
+        if (pageHits.Count == query.MaxPerType || blockHits.Count == query.MaxPerType)
+        {
+            // Either corpus fetched exactly the cap — the merged view may be silently
+            // truncated. Warn so ops can spot corpus growth pushing past the ceiling.
+            logger.LogWarning(
+                "Search merge cap reached QueryRaw={QueryRaw} PageHitsCount={PageHitsCount} BlockHitsCount={BlockHitsCount} MergedFetchCap={MergedFetchCap}",
+                term,
+                pageHits.Count,
+                blockHits.Count,
+                query.MaxPerType);
+        }
+
         // Fold pages + blocks into one canonical hit list keyed by URL. Duplicate URLs
         // (a page + N blocks on the same route, or multiple blocks on one page) collapse
         // to a single row with the MAX contributor rank as the primary sort key.
@@ -96,7 +166,7 @@ public sealed class SiteSearchService(
                 BlockKey: b.Key));
         }
 
-        var hits = canonicaliser.Canonicalise(pageContribs, blockContribs);
+        var canonicalised = canonicaliser.Canonicalise(pageContribs, blockContribs);
 
         // Per-canonical telemetry: one SearchHitEvent per URL the user actually sees. The
         // winning contributor for each canonical row supplies the per-field rank breakdown
@@ -121,8 +191,8 @@ public sealed class SiteSearchService(
             bucket.Add(b);
         }
 
-        var hitEvents = new List<SearchHitEvent>(hits.Count);
-        foreach (var h in hits)
+        var hitEvents = new List<SearchHitEvent>(canonicalised.Count);
+        foreach (var h in canonicalised)
         {
             hitEvents.Add(BuildHitEvent(h, pageByUrl, blocksByUrl));
         }
@@ -143,72 +213,26 @@ public sealed class SiteSearchService(
             Hits: hitEvents,
             FilterExclusions: exclusionEvents);
 
-        telemetry.RecordSearch(evt);
+        // In-memory pagination on the canonicalised URL list. TotalCount is the accurate
+        // post-canonicalisation count (up to the per-corpus fetch cap); Skip/Take carves
+        // the requested page out of that ordered list.
+        var pagedHits = canonicalised
+            .Skip((safePage - 1) * safeSize)
+            .Take(safeSize)
+            .ToArray();
 
-        return new SiteSearchResult
+        var result = new SiteSearchPagedResult
         {
             CurrentQuery = term,
             ScopePath = scope,
             InvalidReason = null,
-            Hits = hits,
-        };
-    }
-
-    public async Task<SiteSearchPagedResult> SearchMergedPagedAsync(SiteSearchQuery query, int page, int pageSize)
-    {
-        var safePage = Math.Max(0, page);
-        var safeSize = Math.Max(1, pageSize);
-
-        // Ask the underlying search for a merge-window worth of hits from each corpus so
-        // we can rank across them before paging. Callers pass their own MaxPerType which
-        // we deliberately override — the merged window is what feeds the widget's pager.
-        // Delegating to SearchAsync is also what keeps the telemetry contract to exactly
-        // one emission per top-level request — do NOT emit again from this method.
-        var fetch = query with { MaxPerType = MergedFetchCap };
-        var raw = await SearchAsync(fetch);
-
-        if (raw.InvalidReason is not null)
-        {
-            return new SiteSearchPagedResult
-            {
-                CurrentQuery = raw.CurrentQuery,
-                ScopePath = raw.ScopePath,
-                InvalidReason = raw.InvalidReason,
-                Items = [],
-                TotalCount = 0,
-                Page = safePage,
-                PageSize = safeSize,
-            };
-        }
-
-        // raw.Hits is already URL-canonicalised and aggregate-rank ordered. Project each
-        // canonical hit onto the widget's SiteSearchHit contract and paginate. The
-        // canonical DTO does not carry Subtitle (pages historically surfaced it but the
-        // merged widget does not) — the field is null on every item here.
-        var merged = raw.Hits
-            .Select(h => new SiteSearchHit(
-                Title: h.Title,
-                Url: h.Url,
-                Subtitle: null,
-                SnippetHtml: h.SnippetHtml,
-                Rank: h.AggregateRank))
-            .ToList();
-
-        var slice = merged
-            .Skip(safePage * safeSize)
-            .Take(safeSize)
-            .ToList();
-
-        return new SiteSearchPagedResult
-        {
-            CurrentQuery = raw.CurrentQuery,
-            ScopePath = raw.ScopePath,
-            InvalidReason = null,
-            Items = slice,
-            TotalCount = merged.Count,
-            Page = safePage,
+            Hits = pagedHits,
+            TotalCount = canonicalised.Count,
+            Page = safePage - 1,
             PageSize = safeSize,
         };
+
+        return (result, evt);
     }
 
     private async Task<(IReadOnlyList<PageSearchHitDto> Hits, IReadOnlyList<FilterExclusion> Exclusions)>

@@ -14,9 +14,12 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
 //   single-word          SearchTermNormalizerTests + PageNodeRepositorySearchTests
 //   multi-word-or        SearchTermNormalizerTests + PageNodeRepositorySearchTests
 //   explicit-or          SearchTermNormalizerTests
+//   fuzz-safety          SearchFuzzInputTests (integration; curated hazards + deterministic random)
 //   phrase               SearchTermNormalizerTests + PageNodeRepositorySearchTests
 //   negation             SearchTermNormalizerTests + PageNodeRepositorySearchTests
 //   numeric-hyphenated   PageNodeRepositorySearchTests + ContentBlockRepositorySearchTests
+//   operator-only        SearchFuzzInputTests OperatorOnly Theory subset (integration; operator-only inputs resolve to zero results without throwing)
+//   pagination           SearchPaginationTests (integration) + SearchControllerPaginationTests (unit); page/pageSize routing and silent clamps
 //   very-short           SiteSearchServiceTests + ContentBlockSearchServiceTests
 //   long-query           SearchControllerTests
 //   empty-or-whitespace  SearchTermNormalizerTests + SiteSearchMergedPagedTests + ContentBlockSearchServiceTests
@@ -29,8 +32,8 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Search;
 //   invalid-query        SiteSearchMergedPagedTests
 //
 // DB-unavailable behaviour (search should return a graceful 503 rather than throw) is
-// deliberately excluded — that behaviour is covered separately by a resilience-focused
-// test suite that exercises DB-outage paths.
+// deliberately excluded — that behaviour is covered separately by
+// tests/DfE.CheckPerformanceData.IntegrationTests/Search/SearchResilienceTests.cs.
 //
 // Attributes are enumerated at the method level only via
 // GetMethods(...).GetCustomAttributesData(). Class-level [Trait] attributes are invisible
@@ -49,9 +52,12 @@ public sealed class SearchCaseCoverageTests
             "single-word",
             "multi-word-or",
             "explicit-or",
+            "fuzz-safety",
             "phrase",
             "negation",
             "numeric-hyphenated",
+            "operator-only",
+            "pagination",
             "very-short",
             "long-query",
             "empty-or-whitespace",

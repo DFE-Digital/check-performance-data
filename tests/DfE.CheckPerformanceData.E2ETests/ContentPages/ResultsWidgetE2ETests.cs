@@ -198,8 +198,10 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         await Expect(Page.Locator(".cypmd-search-results"))
             .ToContainTextAsync("Enter at least 2 characters.");
 
-        // Nonsense q that produces no matches → widget emptyText (default).
-        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q=zzzzzz-no-such-term");
+        // Nonsense q that produces no matches → widget emptyText (default). Deliberately
+        // hyphen-free so the shared hyphen-fallback path can't widen the query into
+        // whitespace-separated stopwords and re-hit actual content.
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q=zzzzzznosuchtermxyzzy");
         await Expect(Page.Locator(".cypmd-search-results"))
             .ToContainTextAsync("No results found.");
     }

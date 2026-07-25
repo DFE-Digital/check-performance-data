@@ -70,6 +70,28 @@ public class SiteSearchServiceTests
         await _blockSearch.DidNotReceive().SearchAsync(Arg.Any<string?>(), Arg.Any<int>());
     }
 
+    // Empty and whitespace-only inputs are the "invalid query" branch of SearchAsync — the
+    // service must surface SearchInvalidReason.EmptyQuery on the paged result and short-circuit
+    // BEFORE either backend runs. Pins the invariant that an invalid query never counts as a
+    // real search hitting the corpus — the telemetry contract elsewhere depends on it.
+    [Theory]
+    [Trait("search-case", "invalid-query")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SearchAsync_EmptyOrWhitespaceQuery_ReturnsEmptyQueryInvalidReason_WithoutHittingBackends(string input)
+    {
+        var result = await _sut.SearchAsync(new SiteSearchQuery(
+            Query: input,
+            IncludePages: true,
+            IncludeContentBlocks: true));
+
+        Assert.Equal(SearchInvalidReason.EmptyQuery, result.InvalidReason);
+        Assert.Empty(result.Hits);
+        Assert.Equal(0, result.TotalCount);
+        await _pageRepo.DidNotReceive().SearchPagesAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<int>());
+        await _blockSearch.DidNotReceive().SearchAsync(Arg.Any<string?>(), Arg.Any<int>());
+    }
+
     // Scoping content-block hits: only URLs equal to /{scope} or starting /{scope}/ survive.
     // Guards the KS4-split-page use case where a scoped Search widget must not surface blocks
     // that live on unrelated pages.

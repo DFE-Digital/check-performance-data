@@ -99,7 +99,10 @@ public sealed class SessionDrillInTests
         Assert.Contains("session-render-abcdef0123", html);
         Assert.Contains("widget", html);
         Assert.Contains("Delete this session's data", html);
-        Assert.Contains("govuk-confirm-modal", html);
+        // The govuk-confirm-modal tag helper emits a native <dialog> — assert on the
+        // rendered id + destructive form action rather than the source tag name.
+        Assert.Contains("id=\"session-purge-modal\"", html);
+        Assert.Contains("<dialog", html);
         Assert.Contains("action=\"/admin/Search/Session/session-render-abcdef0123/Delete\"", html);
         // Related messages list links back to the messages inbox for each message id.
         Assert.Contains("/admin/Messages/Inbox/101", html);

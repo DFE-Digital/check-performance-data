@@ -584,6 +584,18 @@ public sealed class JourneyController(
         if (nextExpected is not null)
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
+        // Evidence optionality is conditional (PBI 292266), so an answer changed from this page
+        // — First language, say — can turn a waived evidence page back into a mandatory one
+        // without the user passing through it again. Nothing between here and submission
+        // re-validates, so re-check and send them back. Only for a page already visited:
+        // GetNavigationGuard bounces an unvisited page back here once the journey is complete,
+        // which would loop.
+        var evidencePage = flowService.GetReachableEvidencePage(config, journey.QuestionAnswers);
+        if (evidencePage is not null
+            && journey.QuestionHistory.Contains(evidencePage.Id)
+            && !IsEvidencePageValid(evidencePage, journey, JourneyViewModelBuilder.GetPupilName(journey)))
+            return RedirectToAction(nameof(Page), new { windowId, pageId = evidencePage.Id });
+
         var fromBulk = HttpContext.Session.IsBulkEditMode(windowId);
         var fromEdit = HttpContext.Session.IsSingleEditMode(windowId);
         return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config, fromBulk: fromBulk, fromEdit: fromEdit));

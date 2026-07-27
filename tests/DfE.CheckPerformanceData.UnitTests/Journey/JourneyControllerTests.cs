@@ -305,6 +305,69 @@ public class JourneyControllerTests
         Assert.False(vm.FromEdit);
     }
 
+    // ── Summary evidence re-validation (PBI 292266) ──────────────────────────
+
+    [Fact]
+    public async Task Summary_WhenReachableEvidencePageNoLongerValid_RedirectsToIt()
+    {
+        // Changing an answer from the Summary (e.g. First language) can revoke a
+        // conditionally-waived evidence page without the user passing through it again.
+        // Nothing else re-validates before submission, so the Summary must send them back.
+        SetupSession(ValidSession(history: ["page-1", "page-2", "evidence-page"]));
+        // Unstubbed string-returning calls yield string.Empty under NSubstitute, not null,
+        // which the completeness guard would read as "there is a next page".
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+        _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
+                Arg.Any<IReadOnlySet<string>?>())
+            .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
+
+        var result = await _sut.Summary(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+        Assert.Equal("evidence-page", redirect.RouteValues!["pageId"]);
+    }
+
+    [Fact]
+    public async Task Summary_WhenReachableEvidencePageStillValid_RendersView()
+    {
+        SetupSession(ValidSession(history: ["page-1", "page-2", "evidence-page"]));
+        // Unstubbed string-returning calls yield string.Empty under NSubstitute, not null,
+        // which the completeness guard would read as "there is a next page".
+        _flowService.GetNextPageId(Config, "evidence-page", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+        _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
+                Arg.Any<IReadOnlySet<string>?>())
+            .Returns((EvidenceValidationResult?)null);
+
+        var result = await _sut.Summary(WindowId);
+
+        Assert.IsType<ViewResult>(result);
+    }
+
+    [Fact]
+    public async Task Summary_WhenInvalidEvidencePageNotYetVisited_DoesNotRedirect()
+    {
+        // Guards against a redirect loop: GetNavigationGuard bounces an unvisited page back
+        // to the Summary once the journey is complete, so the Summary must not bounce the
+        // user onto an evidence page they have never reached.
+        SetupSession(ValidSession(history: ["page-1", "page-2"]));
+        _flowService.GetReachableEvidencePage(Config, Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns(EvidencePage);
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(),
+                Arg.Any<IReadOnlySet<string>?>())
+            .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
+
+        var result = await _sut.Summary(WindowId);
+
+        Assert.IsType<ViewResult>(result);
+    }
+
     // ── SummaryConfirm ───────────────────────────────────────────────────────
 
     [Fact]

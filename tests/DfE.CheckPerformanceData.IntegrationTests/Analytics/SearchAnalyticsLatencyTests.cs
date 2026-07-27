@@ -18,13 +18,13 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // 100k-row corpus. Runs each of the four dashboard reads 30 times per fresh controller
 // scope, captures per-call latency via Stopwatch, computes p95 and asserts against the
 // documented budgets. Also captures EXPLAIN (ANALYZE, BUFFERS) plan output for each
-// aggregate SQL and writes it to .planning/phases/01.11-search-analytics-dashboard/
-// 01.11-VERIFICATION.md so the plan file records the plans as they landed.
+// aggregate SQL and writes it to the sibling search-analytics-dashboard folder under
+// the out-of-repo planning tree, so the plan file records the plans as they landed.
 //
 // Categorised Slow: excluded from the fast inner-loop test run, includes ~100k COPY seed
 // + 4 × 30 read iterations + 4 EXPLAIN captures — total wall time under ~30s on the
-// current CI Postgres image. The plan's <threat_model> called out DoS risk from a long
-// EXPLAIN blocking other tests; the Slow trait moves it to a dedicated pre-close pass.
+// current CI Postgres image. The threat register called out DoS risk from a long EXPLAIN
+// blocking other tests; the Slow trait moves it to a dedicated pre-close pass.
 [Collection(nameof(PostgresCollection))]
 [Trait("Category", "Slow")]
 public sealed class SearchAnalyticsLatencyTests
@@ -380,10 +380,11 @@ LIMIT 20;";
     // --- VERIFICATION.md ---------------------------------------------------
 
     // Resolves the worktree root by walking up from the test-assembly base directory until
-    // finding a folder that contains src/ — the git worktree top. Writes VERIFICATION.md
-    // to <worktree>/.planning/phases/01.11-search-analytics-dashboard/. Creates directories
-    // as needed. Fails-open: a missing directory prompts a warning to test output rather
-    // than an assertion failure — the p95 numbers are the invariant.
+    // finding a folder that contains src/ — the git worktree top. Discovers the sibling
+    // search-analytics-dashboard folder under the out-of-repo planning tree (its name is
+    // owned by the planner, not this test) and writes VERIFICATION.md into it. Fails-open:
+    // a missing folder prompts a warning to test output rather than an assertion failure —
+    // the p95 numbers are the invariant.
     private async Task WriteVerificationFileAsync(
         long landingP95, long queriesP95, long zeroP95, long pagesP95,
         IReadOnlyList<ExplainPlan> plans)
@@ -391,14 +392,13 @@ LIMIT 20;";
         var worktreeRoot = FindWorktreeRoot();
         if (worktreeRoot is null)
         {
-            _output.WriteLine("WARNING: could not resolve worktree root; skipping VERIFICATION.md write.");
+            _output.WriteLine("WARNING: could not resolve worktree root; skipping verification file write.");
             return;
         }
 
-        var planningDir = Path.Combine(worktreeRoot,
-            ".planning", "phases", "01.11-search-analytics-dashboard");
-        Directory.CreateDirectory(planningDir);
-        var path = Path.Combine(planningDir, "01.11-VERIFICATION.md");
+        var planningDir = FindOrCreatePlanningDir(worktreeRoot);
+        var basename = ComputeVerificationFilename(planningDir);
+        var path = Path.Combine(planningDir, basename);
 
         var sb = new StringBuilder();
         sb.AppendLine("# Search analytics — verification (EXPLAIN plans + p95 latencies)");
@@ -447,5 +447,35 @@ LIMIT 20;";
             dir = dir.Parent;
         }
         return null;
+    }
+
+    // Finds an existing phase folder under .planning/phases/ whose name ends with the
+    // search-analytics-dashboard suffix (the phase-directory naming pattern is owned by
+    // the planner — this test discovers it rather than hardcoding the numeric prefix).
+    // If no matching folder exists on disk, creates one at .planning/phases/search-analytics-dashboard.
+    private static string FindOrCreatePlanningDir(string worktreeRoot)
+    {
+        var phasesRoot = Path.Combine(worktreeRoot, ".planning", "phases");
+        if (Directory.Exists(phasesRoot))
+        {
+            var match = Directory.GetDirectories(phasesRoot)
+                .FirstOrDefault(d => d.EndsWith("search-analytics-dashboard", StringComparison.Ordinal));
+            if (match is not null) return match;
+        }
+        var fallback = Path.Combine(phasesRoot, "search-analytics-dashboard");
+        Directory.CreateDirectory(fallback);
+        return fallback;
+    }
+
+    // Reuses the discovered phase folder's numeric prefix so the file basename matches the
+    // existing plan+summary naming pattern (e.g. XX-VERIFICATION.md alongside XX-YY-SUMMARY.md).
+    // If the folder name has no numeric prefix we fall back to a plain VERIFICATION.md.
+    private static string ComputeVerificationFilename(string planningDir)
+    {
+        var folder = new DirectoryInfo(planningDir).Name;
+        var dashIndex = folder.IndexOf('-');
+        if (dashIndex <= 0) return "VERIFICATION.md";
+        var prefix = folder[..dashIndex];
+        return $"{prefix}-VERIFICATION.md";
     }
 }

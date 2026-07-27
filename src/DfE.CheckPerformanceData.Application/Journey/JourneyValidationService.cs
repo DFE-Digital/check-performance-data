@@ -102,8 +102,12 @@ public sealed class JourneyValidationService(
         return $"CYPMD_{type}_{uniqueId}";
     }
 
-    public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName)
+    public EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
+        IReadOnlySet<string>? conditionallyOptionalQuestionIds = null)
     {
+        bool IsOptional(Question q) =>
+            q.Optional || (conditionallyOptionalQuestionIds?.Contains(q.Id) ?? false);
+
         var messages = new List<string>();
 
         foreach (var question in page.Questions)
@@ -111,14 +115,14 @@ public sealed class JourneyValidationService(
             if (question.Type == QuestionType.FileUpload)
             {
                 journey.QuestionAnswers.TryGetValue(question.Id, out var existing);
-                if (!question.Optional && (existing?.FileValues ?? []).Count == 0)
+                if (!IsOptional(question) && (existing?.FileValues ?? []).Count == 0)
                     messages.Add("Upload at least one file before continuing");
             }
             else
             {
                 journey.QuestionAnswers.TryGetValue(question.Id, out var answer);
                 answer ??= new QuestionAnswer();
-                if (!question.Optional || IsAnswered(question, answer))
+                if (!IsOptional(question) || IsAnswered(question, answer))
                 {
                     // Mirror PagePost: surface the config's validationFailure (with {pupilName}
                     // resolved) so the edit page shows the same message as the live journey.

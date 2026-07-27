@@ -742,8 +742,12 @@ public sealed class JourneyController(
         return IsEvidencePageValid(page, journey, pupilName) ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
     }
 
-    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName) =>
-        journeyService.ValidateEvidencePage(page, journey, pupilName) is null;
+    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
+    {
+        var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, ctx);
+        return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional) is null;
+    }
 
     // ── Confirmation ───────────────────────────────────────────────────────
 

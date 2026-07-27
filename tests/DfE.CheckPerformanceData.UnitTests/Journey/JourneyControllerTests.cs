@@ -747,7 +747,7 @@ public class JourneyControllerTests
     {
         SetupSession(ValidSession());
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
-        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
         _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
         RequestStatus? capturedStatus = null;
@@ -787,7 +787,7 @@ public class JourneyControllerTests
         // resumes on the evidence page rather than skipping past it to the Summary.
         SetupSession(ValidSession(history: ["select-pupil", "select-match-pupil"]));
         _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
-        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+        _journeyService.ValidateEvidencePage(EvidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
         _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
         RequestState? capturedJourney = null;

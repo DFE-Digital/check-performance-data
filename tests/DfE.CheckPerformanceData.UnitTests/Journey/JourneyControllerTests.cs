@@ -26,6 +26,8 @@ public class JourneyControllerTests
     private readonly IFileStorageService _fileStorageService = Substitute.For<IFileStorageService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
+    private readonly IQuestionOptionalityService _optionalityService = Substitute.For<IQuestionOptionalityService>();
+    private readonly IOriginCountryLanguageCapture _languageCapture = Substitute.For<IOriginCountryLanguageCapture>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
@@ -89,6 +91,9 @@ public class JourneyControllerTests
             .GetVisibleOptions(Arg.Any<Question>(), Arg.Any<JourneyConditionContext>())
             .Returns(ci => ci.Arg<Question>().Options ?? (IReadOnlyList<QuestionOption>)[]);
 
+        _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
+            .Returns(new HashSet<string>());
+
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
@@ -96,7 +101,7 @@ public class JourneyControllerTests
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
-            _optionVisibilityService)
+            _optionVisibilityService, _optionalityService, _languageCapture)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())
@@ -936,6 +941,69 @@ public class JourneyControllerTests
         var view = Assert.IsType<ViewResult>(result);
         Assert.Equal("EvidenceUpload", view.ViewName);
         Assert.True(_sut.ModelState.ContainsKey("evidence"));
+    }
+
+    [Fact]
+    public async Task PagePost_EvidenceMandatory_WhenNotConditionallyOptional_ErrorsOnEmpty()
+    {
+        // Fixture default: _optionalityService returns an empty conditionally-optional set,
+        // so both the FileUpload and TextArea questions on the shared evidence page stay
+        // mandatory (PBI 292266 — the common case, no EAL auto-reject predicted).
+        SetupSession(ValidSession(history: ["evidence-with-text"]));
+        _flowService.GetPage(Config, "evidence-with-text").Returns(EvidenceWithTextPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter something");
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(false);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-with-text", fromSummary: false, fileUpload: null);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EvidenceUpload", view.ViewName);
+        Assert.True(_sut.ModelState.ContainsKey("evidence"));
+        Assert.True(_sut.ModelState.ContainsKey("explanation"));
+    }
+
+    [Fact]
+    public async Task PagePost_EvidenceOptional_WhenConditionallyOptional_ContinuesOnEmpty()
+    {
+        // When the EalWouldBeAutoRejected condition (approximated via the mocked
+        // optionality service here) says the request would be auto-rejected, both
+        // evidence questions become optional and an empty submission proceeds.
+        _optionalityService.GetConditionallyOptionalQuestionIds(EvidenceWithTextPage, Arg.Any<JourneyConditionContext>())
+            .Returns(new HashSet<string> { "evidence", "explanation" });
+        SetupSession(ValidSession(history: ["evidence-with-text"]));
+        _flowService.GetPage(Config, "evidence-with-text").Returns(EvidenceWithTextPage);
+        _flowService.GetNextPageId(Config, "evidence-with-text", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns((string?)null);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-with-text", fromSummary: false, fileUpload: null);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.True(_sut.ModelState.IsValid);
+    }
+
+    [Fact]
+    public async Task PagePost_InvokesLanguageCapture_WithPostedAnswers()
+    {
+        // The capture hook runs after every successful page validation (not just the
+        // country details page) — OriginCountryLanguageCapture itself is a no-op unless
+        // the posted answers contain the country question, and that's exercised in
+        // OriginCountryLanguageCaptureTests. Here we just confirm PagePost wires it in.
+        SetupSession(ValidSession(history: ["page-1"]));
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_q2"] = "My explanation"
+        });
+
+        var result = await _sut.PagePost(WindowId, "page-2", fromSummary: false);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _languageCapture.Received(1).ApplyAsync(Arg.Any<RequestState>(),
+            Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

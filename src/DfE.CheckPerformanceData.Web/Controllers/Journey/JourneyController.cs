@@ -22,7 +22,9 @@ public sealed class JourneyController(
     IJourneyViewModelBuilder viewModelBuilder,
     IAnalyticsService analytics,
     ICurrentUserService currentUserService,
-    IOptionVisibilityService optionVisibilityService) : Controller
+    IOptionVisibilityService optionVisibilityService,
+    IQuestionOptionalityService optionalityService,
+    IOriginCountryLanguageCapture originCountryLanguageCapture) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -244,6 +246,8 @@ public sealed class JourneyController(
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
         var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
+        bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id);
 
         // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
         // Continue with a file staged should attach it rather than report "upload a file".
@@ -264,7 +268,7 @@ public sealed class JourneyController(
                 // When a staged file failed validation the upload error already explains the
                 // problem — don't also tell the user to upload a file for the same field.
                 var explainedByUploadError = pendingUploadError is not null && question.Id == fileQuestion?.Id;
-                if (files.Count == 0 && !question.Optional && !explainedByUploadError)
+                if (files.Count == 0 && IsMandatory(question) && !explainedByUploadError)
                 {
                     ModelState.AddModelError(question.Id, "Upload at least one file before continuing");
                     isValid = false;
@@ -299,7 +303,7 @@ public sealed class JourneyController(
 
                 // Required answers are validated unconditionally; optional answers are
                 // still format-checked (char limit, real date) when they have been filled in.
-                if (!question.Optional || journeyService.IsAnswered(question, answer))
+                if (IsMandatory(question) || journeyService.IsAnswered(question, answer))
                 {
                     var resolvedValidationFailure = question.ValidationFailure is not null
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
@@ -371,6 +375,11 @@ public sealed class JourneyController(
             });
         }
 
+        // Store the origin country's official languages whenever this page (re-)answers
+        // the country question, so the evidence page's optionality condition and the
+        // rules engine read consistent facts (PBI 292266).
+        await originCountryLanguageCapture.ApplyAsync(journey, newAnswers, HttpContext.RequestAborted);
+
         if (fromSummary)
         {
             var oldNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
@@ -378,7 +387,12 @@ public sealed class JourneyController(
             foreach (var (qId, answer) in newAnswers)
                 journey.QuestionAnswers[qId] = answer;
 
-            HttpContext.Session.SaveRequestState(windowId, s => s.QuestionAnswers = journey.QuestionAnswers);
+            HttpContext.Session.SaveRequestState(windowId, s =>
+            {
+                s.QuestionAnswers = journey.QuestionAnswers;
+                s.OriginCountryCode = journey.OriginCountryCode;
+                s.OriginCountryLanguages = journey.OriginCountryLanguages;
+            });
 
             var newNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
 
@@ -419,6 +433,8 @@ public sealed class JourneyController(
         {
             s.QuestionAnswers = journey.QuestionAnswers;
             s.QuestionHistory = journey.QuestionHistory;
+            s.OriginCountryCode = journey.OriginCountryCode;
+            s.OriginCountryLanguages = journey.OriginCountryLanguages;
         });
 
         return nextId is null

@@ -1,16 +1,12 @@
 namespace DfE.CheckPerformanceData.Application.Analytics;
 
-// Read-side over search_events. This is the single query surface the search-analytics
-// admin dashboard reads through: aggregate tiles, the top-N tables, an empty-state
-// row-count guard, and a helper the feedback form uses to pre-fill "what did you
-// actually get?" from the last search in the current session. Aggregation is
-// database-side; every window bound is a server-owned DateTime and every SQL parameter
-// binds via Npgsql so the read path has no injection surface.
-//
-// Later plans extend this surface (a volume-over-time bucketed read, a top-pages
-// read grouped by search_event_results.result_key, and a session-scoped history
-// projection) — those additions are additive; the four members below carry the
-// landing dashboard on their own.
+// Read-side over search_events (and search_event_results for the top-pages drill-in). This
+// is the single query surface the search-analytics admin dashboard reads through: aggregate
+// tiles, top-N tables, a volume-over-time chart, the three paged drill-in tables, an empty-
+// state row-count guard, and a helper the feedback form uses to pre-fill "what did you
+// actually get?" from the last search in the current session. Aggregation is database-side;
+// every window bound is a server-owned DateTime and every SQL parameter binds via Npgsql so
+// the read path has no injection surface.
 public interface ISearchAnalyticsQueryService
 {
     // The 4-tile summary for the landing dashboard: total searches, distinct session
@@ -53,5 +49,46 @@ public interface ISearchAnalyticsQueryService
     // support flow needs the last search in the session's lifetime.
     Task<SearchEventForPrefill?> GetLatestSearchForSessionAsync(
         string sessionId,
+        CancellationToken cancellationToken = default);
+
+    // Bucketed search + unique-session count over the window, used by the volume-over-time
+    // chart. Windows of 48 hours or less bucket by hour; anything wider buckets by day.
+    // Every bucket in the range is returned — empty buckets are zero-filled via a
+    // generate_series LEFT JOIN so the chart's X axis is continuous even for a window
+    // with no data.
+    Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetTopQueriesAsync: returns one page of the ordered top queries
+    // together with the total distinct-query count so the view can render pagination.
+    // The COUNT and the page share the identical WHERE / GROUP BY so the total matches
+    // the pageable set exactly.
+    Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopQueriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetTopZeroResultQueriesAsync — same shape as GetPagedTopQueriesAsync,
+    // filtered to zero_results = true.
+    Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopZeroResultQueriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Top pages by impression count in the window. Reads search_event_results joined to
+    // search_events, groups by result_key (URL), returns pages ordered by impressions DESC.
+    // UniqueQueryCount is the number of distinct parent search events that returned the page
+    // — the "how many different searches surfaced this page" figure.
+    Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopPagesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
         CancellationToken cancellationToken = default);
 }

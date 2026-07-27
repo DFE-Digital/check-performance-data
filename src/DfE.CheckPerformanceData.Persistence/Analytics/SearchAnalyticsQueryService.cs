@@ -180,6 +180,44 @@ LIMIT @limit;";
         return row;
     }
 
+    public Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopQueriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopZeroResultQueriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopPagesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
     // Opens (or borrows) the DbContext's underlying Npgsql connection, runs the SQL, and
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read
     // services share the layering pattern and a copy here keeps the sibling boundary

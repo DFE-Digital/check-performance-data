@@ -71,14 +71,23 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
-    public async Task RendersVolumeChartPlaceholder_ForNextPlanToReplace()
+    public async Task RendersVolumeChart_WhenHasDataIsTrue()
     {
-        var model = ViewModelWithData(totalCount: 100, uniqueSessions: 20, zeroRate: 10.0, p95: 50);
+        var now = DateTime.UtcNow;
+        var buckets = new List<VolumeBucket>();
+        for (var i = 0; i < 6; i++)
+            buckets.Add(new VolumeBucket(now.AddHours(-6 + i), 10 + i, 5 + i));
+
+        var model = ViewModelWithData(
+            totalCount: 100, uniqueSessions: 20, zeroRate: 10.0, p95: 50,
+            volumeSeries: buckets);
 
         var html = await RenderIndexAsync(model);
 
-        // The placeholder marker the next plan replaces with a real chart partial.
-        Assert.Contains("sa-chart-placeholder", html);
+        // Real chart replaces the P03 placeholder — SVG root + WCAG 1.1.1 details fallback.
+        Assert.Contains("<svg", html);
+        Assert.Contains("sa-chart", html);
+        Assert.Contains("<details class=\"govuk-details\"", html);
     }
 
     [Fact]
@@ -180,7 +189,8 @@ public sealed class SearchAnalyticsIndexViewRenderTests
         double zeroRate,
         int p95,
         IReadOnlyList<TopQueryRow>? topQueries = null,
-        IReadOnlyList<TopQueryRow>? topZero = null)
+        IReadOnlyList<TopQueryRow>? topZero = null,
+        IReadOnlyList<VolumeBucket>? volumeSeries = null)
     {
         var now = DateTime.UtcNow;
         return new SearchAnalyticsIndexViewModel
@@ -188,6 +198,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             Summary = new SearchAnalyticsSummary(totalCount, uniqueSessions, zeroRate, p95),
             TopQueries = topQueries ?? Array.Empty<TopQueryRow>(),
             TopZeroResultQueries = topZero ?? Array.Empty<TopQueryRow>(),
+            VolumeSeries = volumeSeries ?? Array.Empty<VolumeBucket>(),
             FromUtc = now.AddDays(-7),
             ToUtc = now,
             RangeKey = "7d",
@@ -204,6 +215,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             Summary = new SearchAnalyticsSummary(totalRowCount, 0, 0d, 0),
             TopQueries = Array.Empty<TopQueryRow>(),
             TopZeroResultQueries = Array.Empty<TopQueryRow>(),
+            VolumeSeries = Array.Empty<VolumeBucket>(),
             FromUtc = now.AddDays(-7),
             ToUtc = now,
             RangeKey = "7d",

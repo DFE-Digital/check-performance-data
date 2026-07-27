@@ -1,0 +1,93 @@
+/* Search-analytics admin dashboard styles. GDS palette only — no new colour, font or spacing
+   tokens. Raw px is used only inside the bespoke chart / tile constructs (GDS has no component
+   for these); spacing around them stays on the GDS scale via govuk-!-* classes in the markup. */
+
+/* --- Tiles ---------------------------------------------------------------- */
+
+/* Mirrors .obs-tile from observability.css. Bottom-margin between tile rows uses the
+   16px bespoke off-scale value (declared in the UI spec spacing scale) — sits between
+   GDS -3 (15px) and -4 (20px). */
+.sa-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.sa-tile {
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-bottom: 4px solid #1d70b8;
+    padding: 16px;
+    min-width: 200px;
+}
+
+.sa-tile__value {
+    margin-bottom: 4px;
+}
+
+.sa-tile__label {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* --- Chart panel ---------------------------------------------------------- */
+
+.sa-chart-panel {
+    border: 1px solid #f3f2f1;
+    padding: 16px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.sa-chart {
+    width: 100%;
+    height: auto;
+    background: #ffffff;
+}
+
+/* Chart legend sits above the SVG. Series glyphs are shape + colour, not colour alone:
+   a blue rect for Y1 and a green circle for Y2 (matches the SVG markers). */
+.sa-chart__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+}
+
+.sa-chart__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sa-chart__legend-glyph--square {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #1d70b8;
+}
+
+.sa-chart__legend-glyph--circle {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #00703c;
+    border-radius: 50%;
+}
+
+/* --- Filter form + drill-in text-filter ---------------------------------- */
+
+.sa-filters {
+    padding: 16px 0;
+    margin-bottom: 24px;
+}
+
+/* Filter input above a drill-in table. The JS filter hides <tr[data-filter-key]> rows
+   whose key does not include the input value. Server rendering shows all rows by default. */
+.sa-filter-input {
+    max-width: 20em;
+    margin-bottom: 8px;
+}

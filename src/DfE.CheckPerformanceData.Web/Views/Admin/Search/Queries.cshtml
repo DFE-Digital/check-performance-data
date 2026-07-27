@@ -1,0 +1,94 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsQueryDrillInViewModel
+@{
+    ViewData["Title"] = "Top queries";
+    var rangeQs = "range=" + Uri.EscapeDataString(Model.RangeKey);
+    string PageLink(int p) => $"/admin/Search/Queries?{rangeQs}&page={p}";
+    const string tableId = "sa-queries-table";
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Top queries</h1>
+<p class="govuk-body">
+    Every distinct search normalised query in the selected window, ordered by search volume.
+</p>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No queries recorded in this window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount quer@(Model.TotalCount == 1 ? "y" : "ies").
+    </p>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="sa-queries-filter">Filter loaded rows</label>
+        <div class="govuk-hint">Instant filter, no server round-trip.</div>
+        <input class="govuk-input sa-filter-input" id="sa-queries-filter"
+               type="search" data-filter-target="@tableId" autocomplete="off" />
+    </div>
+
+    <table class="govuk-table" id="@tableId">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top queries</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Query</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Searches</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric">Zero-result count</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row" data-filter-key="@row.QueryNormalised">
+                    <td class="govuk-table__cell">@row.QueryNormalised</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+            @if (Model.Page > 1)
+            {
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            }
+            <ul class="govuk-pagination__list">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    var current = p == Model.Page;
+                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
+                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
+                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
+                    </li>
+                }
+            </ul>
+            @if (Model.Page < Model.TotalPages)
+            {
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                    </a>
+                </div>
+            }
+        </nav>
+    }
+}
+
+@section Scripts {
+    <script src="~/js/search-analytics.js" asp-append-version="true"></script>
+}

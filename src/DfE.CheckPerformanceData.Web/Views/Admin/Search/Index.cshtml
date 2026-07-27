@@ -10,6 +10,8 @@
         value.ToString("0.0", CultureInfo.InvariantCulture) + "%";
 }
 
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
 <h1 class="govuk-heading-xl">Search analytics</h1>
 
 <p class="govuk-body-l">
@@ -107,10 +109,7 @@ else
         </div>
     </div>
 
-    @* Placeholder for the volume-over-time chart the next plan will slot in via a partial. *@
-    <div class="sa-chart-placeholder govuk-!-margin-top-6 govuk-!-margin-bottom-6">
-        <p class="govuk-body-s govuk-hint">Volume chart lands in the next plan.</p>
-    </div>
+    @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.VolumeSeries)
 
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-one-half">
@@ -141,6 +140,7 @@ else
                         }
                     </tbody>
                 </table>
+                <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?range=@Model.RangeKey">View all top queries &rarr;</a></p>
             }
         </div>
         <div class="govuk-grid-column-one-half">
@@ -169,7 +169,10 @@ else
                         }
                     </tbody>
                 </table>
+                <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?range=@Model.RangeKey">View all zero-result queries &rarr;</a></p>
             }
         </div>
     </div>
+
+    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Pages?range=@Model.RangeKey">View top pages by search impressions &rarr;</a></p>
 }

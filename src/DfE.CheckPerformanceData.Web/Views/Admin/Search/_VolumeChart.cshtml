@@ -1,0 +1,118 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model IReadOnlyList<VolumeBucket>
+@{
+    // Dual-axis line chart, server-rendered inline SVG. Y1 (searches) is blue with a square marker;
+    // Y2 (unique sessions) is green with a circle marker — series are distinguished by SHAPE + colour,
+    // never colour alone (WCAG 1.4.1). Every chart carries a <details><table> data-table fallback
+    // (WCAG 1.1.1). No client-side chart library — the SVG is the whole rendered surface.
+    var buckets = Model ?? Array.Empty<VolumeBucket>();
+
+    const int width = 600;
+    const int height = 200;
+    const int padLeft = 44;
+    const int padBottom = 28;
+    const int padTop = 8;
+    const int padRight = 44;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var maxSearches = buckets.Count == 0 ? 0 : buckets.Max(b => b.SearchCount);
+    var maxUnique = buckets.Count == 0 ? 0 : buckets.Max(b => b.UniqueSessionCount);
+    var safeSearches = maxSearches == 0 ? 1 : maxSearches;
+    var safeUnique = maxUnique == 0 ? 1 : maxUnique;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y1(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeSearches)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y2(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeUnique)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    var searchPoints = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y1(b.SearchCount)}"));
+    var sessionPoints = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y2(b.UniqueSessionCount)}"));
+
+    var ariaLabel = buckets.Count == 0
+        ? "Search volume over the selected window: no data."
+        : $"Search volume over the selected window: peak {maxSearches} searches, {buckets[^1].SearchCount} in the most recent bucket. Unique sessions peak {maxUnique}.";
+}
+
+<div class="sa-chart-panel">
+    <h2 class="govuk-heading-m">Volume over time</h2>
+
+    @if (buckets.Count == 0)
+    {
+        <p class="govuk-body">No data to chart for this window.</p>
+    }
+    else
+    {
+        <ul class="sa-chart__legend">
+            <li class="sa-chart__legend-item">
+                <span class="sa-chart__legend-glyph--square" aria-hidden="true"></span>
+                <span class="govuk-body-s">Searches</span>
+            </li>
+            <li class="sa-chart__legend-item">
+                <span class="sa-chart__legend-glyph--circle" aria-hidden="true"></span>
+                <span class="govuk-body-s">Unique sessions</span>
+            </li>
+        </ul>
+
+        <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false">
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@(padLeft + plotW)" y1="@padTop" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@searchPoints" aria-hidden="true" />
+            <polyline fill="none" stroke="#00703c" stroke-width="2" points="@sessionPoints" aria-hidden="true" />
+
+            @* Y1 markers are 4×4 rects (blue); Y2 markers are r=3 circles (green). Series
+               distinguished by shape as well as colour so the chart is legible without colour. *@
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <rect x="@X(i)" y="@Y1(buckets[i].SearchCount)" width="4" height="4"
+                      transform="translate(-2,-2)" fill="#1d70b8" aria-hidden="true" />
+            }
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <circle cx="@X(i)" cy="@Y2(buckets[i].UniqueSessionCount)" r="3"
+                        fill="#00703c" aria-hidden="true" />
+            }
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View volume data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Search volume per bucket</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Searches</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Unique sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var bucket in buckets)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.UniqueSessionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    }
+</div>

@@ -1,6 +1,7 @@
 using System.Reflection;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Web.Admin;
@@ -9,6 +10,7 @@ using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
@@ -204,7 +206,9 @@ public sealed class SearchAnalyticsControllerTests
     {
         var context = _fixture.CreateContext();
         var query = new SearchAnalyticsQueryService(context);
-        return new SearchAnalyticsController(query);
+        var settings = Substitute.For<ISettingService>();
+        settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
+        return new SearchAnalyticsController(query, settings);
     }
 
     private static SearchAnalyticsIndexViewModel AssertViewModel(IActionResult result)

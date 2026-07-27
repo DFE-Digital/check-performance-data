@@ -1,0 +1,296 @@
+using DfE.CheckPerformance.Persistence.Entities;
+using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using DfE.CheckPerformanceData.Persistence.Analytics;
+using DfE.CheckPerformanceData.Web.Controllers;
+using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
+
+// Read-side tests for the volume-over-time chart feed. The chart reads a bucketed count of
+// search events + unique sessions per bucket, gap-filled to zero via a generate_series spine
+// so a window with no rows in a bucket still emits that bucket at 0. Windows of 48 hours or
+// less bucket by hour; anything wider buckets by day. Every bucket bound + generate_series
+// step is server-computed and parameterised — the read path has no injection surface.
+[Collection(nameof(PostgresCollection))]
+[Trait("Category", "W0")]
+public sealed class SearchAnalyticsChartTests
+{
+    private readonly PostgresFixture _fixture;
+
+    public SearchAnalyticsChartTests(PostgresFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    // --- 24-hour window buckets by hour ---
+
+    [Fact]
+    public async Task GetVolumeOverTime_TwentyFourHourWindow_ReturnsTwentyFourHourBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        // Anchor the window on hour-aligned boundaries so the assertion counts hour-buckets, not
+        // partial hours at either end (a request straddling a bucket edge would emit 25 buckets).
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-24);
+
+        // 10 sessions posting one event per hour inside the window = 240 rows / 10 per bucket.
+        // Plus 10 sessions posting one event per hour in the 24h BEFORE the window = 240 rows
+        // strictly outside; the bucketed count must ignore them.
+        var events = new List<SearchEvent>();
+        for (var h = 0; h < 24; h++)
+        {
+            for (var s = 0; s < 10; s++)
+            {
+                // +30 min offsets the event to the middle of the bucket so it lands unambiguously.
+                events.Add(NewEvent(from.AddHours(h).AddMinutes(30), $"s-{s}", "q", results: 1, latency: 10));
+            }
+        }
+        // Rows just OUTSIDE the window that must NOT be counted.
+        for (var h = 0; h < 24; h++)
+            events.Add(NewEvent(from.AddHours(-h - 1), $"s-out-{h}", "old", results: 0, latency: 5));
+
+        await SeedAsync(events.ToArray());
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(24, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(10, b.SearchCount));
+        Assert.All(buckets, b => Assert.Equal(10, b.UniqueSessionCount));
+    }
+
+    // --- Wider window buckets by day ---
+
+    [Fact]
+    public async Task GetVolumeOverTime_ThirtyDayWindow_ReturnsThirtyDayBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = DayAligned(DateTime.UtcNow);
+        var from = now.AddDays(-30);
+
+        // One event per day for 30 days from 3 distinct sessions.
+        var events = new List<SearchEvent>();
+        for (var d = 0; d < 30; d++)
+        {
+            for (var s = 0; s < 3; s++)
+            {
+                events.Add(NewEvent(from.AddDays(d).AddHours(6), $"day-s-{s}", "q", results: 1, latency: 10));
+            }
+        }
+
+        await SeedAsync(events.ToArray());
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(30, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(3, b.SearchCount));
+        Assert.All(buckets, b => Assert.Equal(3, b.UniqueSessionCount));
+    }
+
+    // --- Empty buckets in the middle of the range must be zero-filled ---
+
+    [Fact]
+    public async Task GetVolumeOverTime_MiddleBucketWithNoRows_IsZeroFilledViaGenerateSeries()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-6);
+
+        // Rows only in the first and last hour buckets — the four buckets between MUST render as 0.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(15), "s-early", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(45), "s-early-2", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(5).AddMinutes(15), "s-late", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(6, buckets.Count);
+        Assert.Equal(2, buckets[0].SearchCount);
+        Assert.Equal(2, buckets[0].UniqueSessionCount);
+        Assert.Equal(0, buckets[1].SearchCount);
+        Assert.Equal(0, buckets[2].SearchCount);
+        Assert.Equal(0, buckets[3].SearchCount);
+        Assert.Equal(0, buckets[4].SearchCount);
+        Assert.Equal(1, buckets[5].SearchCount);
+        Assert.Equal(1, buckets[5].UniqueSessionCount);
+    }
+
+    // --- 48-hour boundary picks hour-granularity; 49 hours picks day-granularity ---
+
+    [Fact]
+    public async Task GetVolumeOverTime_FortyEightHourWindow_UsesHourBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-48);
+
+        await SeedAsync(NewEvent(from.AddMinutes(15), "s-a", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(48, buckets.Count);
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_FortyNineHourWindow_UsesDayBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = DayAligned(DateTime.UtcNow);
+        var from = now.AddHours(-49);
+
+        await SeedAsync(NewEvent(from.AddMinutes(15), "s-a", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(from, now, CancellationToken.None);
+
+        // 49h spans 3 calendar days (day 0 partial, day 1 full, day 2 up to now).
+        Assert.True(buckets.Count is >= 2 and <= 3, $"Expected 2..3 day-buckets across a 49h window, got {buckets.Count}");
+    }
+
+    // --- Chart partial renders SVG + a WCAG 1.1.1 <details>/<table> fallback ---
+
+    [Fact]
+    public async Task VolumeChartPartial_WithBuckets_RendersSvgAndDetailsTableFallback()
+    {
+        var buckets = new List<VolumeBucket>();
+        var now = HourAligned(DateTime.UtcNow);
+        for (var i = 0; i < 6; i++)
+            buckets.Add(new VolumeBucket(now.AddHours(-6 + i), SearchCount: 10 + i, UniqueSessionCount: 5 + i));
+
+        var html = await RenderVolumeChartPartialAsync(buckets);
+
+        Assert.Contains("<svg", html);
+        Assert.Contains("sa-chart", html);
+        // WCAG 1.1.1: a data-table fallback lives beneath every chart.
+        Assert.Contains("<details class=\"govuk-details\"", html);
+        // Every bucket appears in the fallback table (6 rows).
+        var trCount = System.Text.RegularExpressions.Regex.Matches(html, "<tr").Count;
+        Assert.True(trCount >= 6, $"Expected at least 6 <tr> rows in the fallback table, got {trCount}.");
+        // Series are distinguished by SHAPE + colour, not colour alone: blue rect on Y1, green
+        // circle on Y2. Assert both marker shapes appear.
+        Assert.Contains("<rect", html);
+        Assert.Contains("<circle", html);
+        // GDS palette only: blue and green tokens.
+        Assert.Contains("#1d70b8", html);
+        Assert.Contains("#00703c", html);
+    }
+
+    [Fact]
+    public async Task VolumeChartPartial_WithNoBuckets_RendersEmptyStateNotSvg()
+    {
+        var html = await RenderVolumeChartPartialAsync(Array.Empty<VolumeBucket>());
+
+        // An empty series must not silently render an SVG with zero points — the empty state
+        // gives the admin a readable "no data" message instead.
+        Assert.DoesNotContain("<polyline", html);
+        Assert.Contains("No data", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Standalone render of the _VolumeChart.cshtml partial via the composite view engine.
+    // Same shape as SearchAnalyticsIndexViewRenderTests — no _AdminLayout dependency graph
+    // wiring needed because the partial is self-contained (no layout, no view components).
+    private static async Task<string> RenderVolumeChartPartialAsync(IReadOnlyList<VolumeBucket> model)
+    {
+        using var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+                web.ConfigureServices(services =>
+                {
+                    services.AddControllersWithViews()
+                        .AddApplicationPart(typeof(SearchAnalyticsController).Assembly);
+                    services.AddGovUkFrontend();
+                });
+                web.Configure(_ => { });
+            })
+            .StartAsync();
+
+        using var scope = host.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var viewEngine = sp.GetRequiredService<ICompositeViewEngine>();
+        var tempDataProvider = sp.GetRequiredService<ITempDataProvider>();
+
+        var httpContext = new DefaultHttpContext { RequestServices = sp };
+        var routeData = new RouteData();
+        routeData.Values["controller"] = "SearchAnalytics";
+        var actionContext = new ActionContext(httpContext, routeData, new ActionDescriptor());
+
+        var view = viewEngine.GetView(executingFilePath: null,
+            viewPath: "/Views/Admin/Search/_VolumeChart.cshtml", isMainPage: false);
+        Assert.True(view.Success,
+            $"Could not locate _VolumeChart partial. Searched: {string.Join(", ", view.SearchedLocations ?? [])}");
+
+        var viewData = new ViewDataDictionary<IReadOnlyList<VolumeBucket>>(
+            new EmptyModelMetadataProvider(), new ModelStateDictionary())
+        {
+            Model = model,
+        };
+        var tempData = new TempDataDictionary(httpContext, tempDataProvider);
+
+        await using var writer = new StringWriter();
+        var viewContext = new ViewContext(
+            actionContext, view.View, viewData, tempData, writer, new HtmlHelperOptions());
+        await view.View.RenderAsync(viewContext);
+
+        return writer.ToString();
+    }
+
+    // --- Helpers ---
+
+    private static DateTime HourAligned(DateTime value) =>
+        DateTime.SpecifyKind(new DateTime(value.Year, value.Month, value.Day, value.Hour, 0, 0), DateTimeKind.Utc);
+
+    private static DateTime DayAligned(DateTime value) =>
+        DateTime.SpecifyKind(new DateTime(value.Year, value.Month, value.Day, 0, 0, 0), DateTimeKind.Utc);
+
+    private ISearchAnalyticsQueryService CreateService() =>
+        new SearchAnalyticsQueryService(_fixture.CreateContext());
+
+    private static SearchEvent NewEvent(
+        DateTime occurredAtUtc,
+        string sessionId,
+        string queryNormalised,
+        int results,
+        int latency) => new()
+        {
+            OccurredAtUtc = DateTime.SpecifyKind(occurredAtUtc, DateTimeKind.Utc),
+            SessionId = sessionId,
+            QueryRaw = queryNormalised,
+            QueryNormalised = queryNormalised,
+            Scope = null,
+            ResultsPages = results,
+            ResultsBlocks = 0,
+            LatencyMs = latency,
+        };
+
+    private async Task SeedAsync(params SearchEvent[] events)
+    {
+        await using var context = _fixture.CreateContext();
+        context.SearchEvents.AddRange(events);
+        await context.SaveChangesAsync();
+    }
+
+    private async Task ResetSearchEventsAsync()
+    {
+        await using var context = _fixture.CreateContext();
+        await context.Database.ExecuteSqlRawAsync(
+            "TRUNCATE TABLE search_events RESTART IDENTITY CASCADE;");
+    }
+}

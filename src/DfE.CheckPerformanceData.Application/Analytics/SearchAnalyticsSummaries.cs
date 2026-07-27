@@ -25,6 +25,25 @@ public sealed record TopQueryRow(
     int Count,
     int ZeroResultCount);
 
+// One bucket in the volume-over-time chart. BucketStart is UTC, aligned to hour or day
+// boundaries depending on the window granularity. SearchCount is total events in the
+// bucket, UniqueSessionCount is distinct session_ids in the bucket. Both are 0 for
+// gap-filled empty buckets — the generate_series spine in the reader emits a row for
+// every bucket even when no events landed in it.
+public sealed record VolumeBucket(
+    DateTime BucketStart,
+    int SearchCount,
+    int UniqueSessionCount);
+
+// A row in the top-pages drill-in. ResultKey is the page URL (or block key — the same
+// column carries either kind of hit). ImpressionCount is how many result rows referenced
+// this page in the window; UniqueQueryCount is how many distinct parent search events
+// returned it (i.e. distinct searches whose results included this page).
+public sealed record TopPageRow(
+    string ResultKey,
+    int ImpressionCount,
+    int UniqueQueryCount);
+
 // The last search a session ran, used by the feedback form's "what did you actually get?"
 // pre-fill. Nullable return from the query service when the session has never searched.
 public sealed record SearchEventForPrefill(

@@ -1,5 +1,7 @@
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -44,11 +46,28 @@ public sealed class SearchAnalyticsController : Controller
     // Mirrors ObservabilityController's fallback so all admin paged surfaces share one floor.
     private const int DefaultPageSize = 20;
 
-    public SearchAnalyticsController(ISearchAnalyticsQueryService query, ISettingService settings)
+    public SearchAnalyticsController(
+        ISearchAnalyticsQueryService query,
+        ISettingService settings,
+        ISearchMessageService? messages = null,
+        IPortalDbContext? dbContext = null,
+        ICurrentUserService? currentUserService = null)
     {
         _query = query;
         _settings = settings;
+        _ = messages; _ = dbContext; _ = currentUserService;
     }
+
+    // Session drill-in — compile stubs. Real implementation lands in the session-purge
+    // follow-up.
+    [HttpGet("Session/{id}")]
+    public Task<IActionResult> Session(string id, CancellationToken ct = default)
+        => throw new NotImplementedException("Session drill-in not yet implemented.");
+
+    [HttpPost("Session/{id}/Delete")]
+    [ValidateAntiForgeryToken]
+    public Task<IActionResult> Delete(string id, CancellationToken ct = default)
+        => throw new NotImplementedException("Session drill-in not yet implemented.");
 
     [HttpGet("")]
     public async Task<IActionResult> Index(

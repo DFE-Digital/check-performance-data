@@ -1,0 +1,175 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsIndexViewModel
+@{
+    ViewData["Title"] = "Search analytics";
+    var isCustom = string.Equals(Model.RangeKey, "custom", StringComparison.Ordinal);
+    var fromValue = isCustom ? Model.FromUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
+    var toValue = isCustom ? Model.ToUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
+
+    static string FormatPercent(double value) =>
+        value.ToString("0.0", CultureInfo.InvariantCulture) + "%";
+}
+
+<h1 class="govuk-heading-xl">Search analytics</h1>
+
+<p class="govuk-body-l">
+    See what people are searching for, whether they find results, and where the content gaps are.
+    Figures cover the selected time window.
+</p>
+
+<form method="get" action="/admin/Search/" class="sa-filters govuk-!-margin-bottom-6">
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Time window</legend>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                @foreach (var (value, label) in new[]
+                {
+                    ("24h", "Last 24 hours"),
+                    ("7d",  "Last 7 days"),
+                    ("30d", "Last 30 days"),
+                    ("90d", "Last 90 days"),
+                    ("custom", "Custom range"),
+                })
+                {
+                    var id = "range-" + value;
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="@id" name="range" type="radio"
+                               value="@value" @(Model.RangeKey == value ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-quarter">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="from">From (UTC)</label>
+                <input class="govuk-input" id="from" name="from" type="date" value="@fromValue" />
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="to">To (UTC)</label>
+                <input class="govuk-input" id="to" name="to" type="date" value="@toValue" />
+            </div>
+        </div>
+    </div>
+
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
+        <a class="govuk-link" href="/admin/Search/">Reset to last 7 days</a>
+    </div>
+</form>
+
+@if (!Model.HasData)
+{
+    <div class="govuk-inset-text">
+        <h2 class="govuk-heading-m">Not enough data yet</h2>
+        <p class="govuk-body">
+            Fewer than 20 searches were captured in this window. Widen the time range or check back later.
+        </p>
+        @if (Model.TotalRowCount > 0)
+        {
+            <p class="govuk-body-s govuk-hint">
+                @Model.TotalRowCount searches recorded in the selected window.
+            </p>
+        }
+    </div>
+}
+else
+{
+    <div class="govuk-grid-row sa-tiles">
+        <div class="govuk-grid-column-one-quarter">
+            <div class="sa-tile">
+                <p class="govuk-heading-xl sa-tile__value">@Model.Summary.TotalCount.ToString("N0", CultureInfo.CurrentCulture)</p>
+                <p class="govuk-body-s sa-tile__label">Searches</p>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <div class="sa-tile">
+                <p class="govuk-heading-xl sa-tile__value">@Model.Summary.UniqueSessions.ToString("N0", CultureInfo.CurrentCulture)</p>
+                <p class="govuk-body-s sa-tile__label">Unique users</p>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <div class="sa-tile">
+                <p class="govuk-heading-xl sa-tile__value">@FormatPercent(Model.Summary.ZeroResultRatePercent)</p>
+                <p class="govuk-body-s sa-tile__label">Zero-result rate</p>
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <div class="sa-tile">
+                <p class="govuk-heading-xl sa-tile__value">@Model.Summary.P95LatencyMs.ToString("N0", CultureInfo.CurrentCulture)&nbsp;ms</p>
+                <p class="govuk-body-s sa-tile__label">P95 latency</p>
+            </div>
+        </div>
+    </div>
+
+    @* Placeholder for the volume-over-time chart the next plan will slot in via a partial. *@
+    <div class="sa-chart-placeholder govuk-!-margin-top-6 govuk-!-margin-bottom-6">
+        <p class="govuk-body-s govuk-hint">Volume chart lands in the next plan.</p>
+    </div>
+
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-half">
+            <h2 class="govuk-heading-m">Top queries</h2>
+            @if (Model.TopQueries.Count == 0)
+            {
+                <p class="govuk-body">No queries recorded in this window.</p>
+            }
+            else
+            {
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopQueries.Count queries in the selected window</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th class="govuk-table__header" scope="col">Query</th>
+                            <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
+                            <th class="govuk-table__header govuk-table__header--numeric" scope="col">Zero-result count</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var row in Model.TopQueries)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@row.QueryNormalised</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+        <div class="govuk-grid-column-one-half">
+            <h2 class="govuk-heading-m">Top zero-result queries</h2>
+            @if (Model.TopZeroResultQueries.Count == 0)
+            {
+                <p class="govuk-body">No zero-result queries recorded in this window.</p>
+            }
+            else
+            {
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopZeroResultQueries.Count zero-result queries in the selected window</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th class="govuk-table__header" scope="col">Query</th>
+                            <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var row in Model.TopZeroResultQueries)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@row.QueryNormalised</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}

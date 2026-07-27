@@ -48,12 +48,8 @@ public sealed class SearchAnalyticsAuthTests
     {
         using var host = await BuildHostAsync(TestPrincipal.Anonymous);
         var client = host.GetTestClient();
-        client.DefaultRequestVersion = System.Net.Http.HttpVersion.Version11;
 
-        // Do NOT auto-follow so we can inspect the 302 straight from the filter.
-        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
-
-        using var response = await client.GetAsync("/admin/Search/", TestContext.Current.CancellationToken);
+        using var response = await client.GetAsync("/admin/Search/");
 
         Assert.True(
             response.StatusCode is HttpStatusCode.Redirect
@@ -70,7 +66,7 @@ public sealed class SearchAnalyticsAuthTests
         using var host = await BuildHostAsync(TestPrincipal.EditorOnly);
         var client = host.GetTestClient();
 
-        using var response = await client.GetAsync("/admin/Search/", TestContext.Current.CancellationToken);
+        using var response = await client.GetAsync("/admin/Search/");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

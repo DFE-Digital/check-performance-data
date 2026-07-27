@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +20,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // Renders Views/Admin/Search/Index.cshtml through the real Razor view engine to prove:
 //   - four .sa-tile blocks render with their labelled values when HasData is true
 //   - empty-state inset text replaces the tiles when HasData is false
-//   - a P04 chart-placeholder marker is present so the volume-chart plan knows where to slot in
+//   - a chart-placeholder marker is present so the volume-chart follow-up knows where to slot in
 //   - a top-queries + top-zero-result table skeleton renders when data is present
 //
 // Mirrors WikiTemplateRenderTests: spin up a minimal MVC host, resolve the composite view
@@ -132,6 +133,10 @@ public sealed class SearchAnalyticsIndexViewRenderTests
                 {
                     services.AddControllersWithViews()
                         .AddApplicationPart(typeof(SearchAnalyticsController).Assembly);
+                    // GDS tag helpers used by the view (govuk-radios, govuk-button etc.) need
+                    // the ComponentGenerator service graph — mirror the production Program.cs
+                    // registration so the same view code path runs under test.
+                    services.AddGovUkFrontend();
                 });
                 web.Configure(_ => { });
             })
@@ -147,7 +152,10 @@ public sealed class SearchAnalyticsIndexViewRenderTests
         routeData.Values["controller"] = "SearchAnalytics";
         var actionContext = new ActionContext(httpContext, routeData, new ActionDescriptor());
 
-        var view = viewEngine.FindView(actionContext, "/Views/Admin/Search/Index.cshtml", isMainPage: false);
+        // The view file sits under Views/Admin/Search/ (not the controller-name default of
+        // Views/SearchAnalytics/), so ask the engine for the file directly via GetView. The
+        // production controller does the same — return View("~/Views/Admin/Search/Index.cshtml").
+        var view = viewEngine.GetView(executingFilePath: null, viewPath: "/Views/Admin/Search/Index.cshtml", isMainPage: false);
         Assert.True(view.Success,
             $"Could not locate Search Index view. Searched: {string.Join(", ", view.SearchedLocations ?? [])}");
 

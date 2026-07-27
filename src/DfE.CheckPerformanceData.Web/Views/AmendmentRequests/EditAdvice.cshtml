@@ -44,6 +44,18 @@
     <p class="govuk-body">@Model.AdviceText</p>
 </div>
 
+@if (Model.SavedAtText is not null)
+{
+    <div class="govuk-panel govuk-panel--confirmation govuk-!-margin-bottom-6">
+        <div class="govuk-panel__wrapper">
+            <h3 class="govuk-panel__title govuk-!-font-size-19">Last saved by</h3>
+            <p class="govuk-!-font-size-19 govuk-!-margin-bottom-0">
+                @(Model.SavedByEmail ?? "Unknown")
+            </p>
+            <p class="govuk-body">@Model.SavedAtText</p>
+        </div>
+    </div>
+}
 
 <form method="post" action="@Url.Action("Continue", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
     @Html.AntiForgeryToken()

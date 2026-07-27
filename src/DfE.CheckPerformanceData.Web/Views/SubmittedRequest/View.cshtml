@@ -93,7 +93,7 @@ else
 <dl class="govuk-summary-list govuk-!-margin-bottom-9">
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Email</dt>
-        <dd class="govuk-summary-list__value">@Model.SubmittedByEmail</dd>
+        <dd class="govuk-summary-list__value">@(Model.SubmittedByEmail ?? "Email address is not available")</dd>
     </div>
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">When</dt>

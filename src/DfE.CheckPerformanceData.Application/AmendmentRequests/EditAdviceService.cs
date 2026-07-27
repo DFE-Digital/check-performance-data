@@ -37,7 +37,9 @@ public sealed class EditAdviceService(
             AdviceText = AdviceText(type),
             EvidenceMessages = evidenceMessages,
             ReasonForRemoval = ResolveReasonForRemoval(type, config, journey),
-            ContinueTarget = ResolveTarget(type, request.Status)
+            ContinueTarget = ResolveTarget(type, request.Status),
+            SubmittedByEmail = request.SubmittedByEmail,
+            SubmittedAt = request.Submitted
         };
     }
 

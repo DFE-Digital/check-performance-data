@@ -17,20 +17,23 @@
     </div>
 </dl>
 
-<h2 class="govuk-heading-m">Submitted by</h2>
+<h2 class="govuk-heading-m">@Model.ByLineTitle</h2>
 <dl class="govuk-summary-list govuk-!-margin-bottom-9">
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Email</dt>
-        <dd class="govuk-summary-list__value">@Model.SubmittedByEmail</dd>
+        <dd class="govuk-summary-list__value">@(Model.SubmittedByEmail ?? "Email address is not available")</dd>
     </div>
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">When</dt>
         <dd class="govuk-summary-list__value">@Model.SubmittedAtText</dd>
     </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Reference Number</dt>
-        <dd class="govuk-summary-list__value">@Model.ReferenceNumber</dd>
-    </div>
+    @if (Model.ShowReferenceNumber)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Reference Number</dt>
+            <dd class="govuk-summary-list__value">@Model.ReferenceNumber</dd>
+        </div>
+    }
 </dl>
 
 @if (Model.ConfirmingDelete)

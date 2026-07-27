@@ -16,7 +16,16 @@ public sealed class ConfirmDataCorrectViewModel
 
     public string SubmittedAtText => LondonTime.ToSubmittedAtText(SubmittedAt);
 
+    public string ByLineTitle => Status switch
+    {
+        RequestStatus.Withdrawn => "Withdrawn by",
+        RequestStatus.InProgress or RequestStatus.ReadyToSubmit => "Last saved by",
+        _ => "Submitted by"
+    };
+
     public bool ShowDeleteButton => Status != RequestStatus.Withdrawn;
 
     public string ConfirmDeleteTitle => "Are you sure you want to delete the confirmation that pupil data is correct?";
+
+    public bool ShowReferenceNumber => !ConfirmingDelete && Status is not (RequestStatus.InProgress or RequestStatus.ReadyToSubmit);
 }

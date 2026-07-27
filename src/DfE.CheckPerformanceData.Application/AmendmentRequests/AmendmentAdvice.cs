@@ -17,4 +17,6 @@ public sealed class AmendmentAdvice
     public string? ReasonForRemoval { get; init; }
 
     public required AmendmentContinueTarget ContinueTarget { get; init; }
+    public string? SubmittedByEmail { get; init; }
+    public DateTime? SubmittedAt { get; init; }
 }

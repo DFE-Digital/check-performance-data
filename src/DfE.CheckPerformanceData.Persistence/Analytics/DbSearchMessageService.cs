@@ -20,7 +20,7 @@ public sealed class DbSearchMessageService : ISearchMessageService
     // Purge batch size — matches the events sink's cadence for symmetry.
     private const int PurgeBatchSize = 10_000;
 
-    // First-line preview length — matches the D-12 inbox spec (~80 chars). Truncation
+    // First-line preview length — matches the inbox spec (~80 chars). Truncation
     // happens server-side in the projection so Razor never sees the full message body,
     // and no view template has to know the length.
     private const int PreviewLength = 80;

@@ -1,3 +1,4 @@
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,31 @@ public sealed class DbSearchMessageService : ISearchMessageService
     public DbSearchMessageService(IPortalDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    public async Task<long> CreateAsync(
+        string sessionId,
+        string whatLookingFor,
+        string? whatGot,
+        string? email,
+        CancellationToken cancellationToken)
+    {
+        // Server-owned SubmittedAtUtc — the caller never supplies this. IsRead starts
+        // false so the inbox unread-count badge picks it up; ReadByAdminSub and ReadAtUtc
+        // are populated by the admin mark-read flow, never on insert.
+        var entity = new SearchMessage
+        {
+            SessionId = sessionId,
+            SubmittedAtUtc = DateTime.UtcNow,
+            WhatLookingFor = whatLookingFor,
+            WhatGot = whatGot,
+            Email = email,
+            IsRead = false,
+        };
+
+        _dbContext.SearchMessages.Add(entity);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return entity.Id;
     }
 
     public async Task<int> PurgeExpiredMessagesAsync(

@@ -15,6 +15,8 @@ public static class SettingKeys
     public const string MetricsRetentionDays = "Metrics:RetentionDays";
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
 
+    public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
+
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
     public const string HealthOldestAgeAmberSeconds = "Health:OldestAgeAmberSeconds";
@@ -105,7 +107,11 @@ public static class SettingDefinitions
         new(SettingKeys.SearchDebugOn,
             "When true, per-hit rank breakdowns and per-exclusion filter breadcrumbs are logged at Info level and the /search page renders the internal rank as an HTML comment. Editors and ops use it to debug why a page didn't appear. Off by default.",
             "false",
-            SettingKind.Bool)
+            SettingKind.Bool),
+        new(SettingKeys.SearchAnalyticsSessionIdleMinutes,
+            "How long a browser session can be idle before ASP.NET drops the server-side state. Applies to the whole app.",
+            "60",
+            SettingKind.Int)
     ];
 
     public static SettingDefinition? Find(string key) =>

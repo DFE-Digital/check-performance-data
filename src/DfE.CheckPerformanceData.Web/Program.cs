@@ -329,12 +329,7 @@ try
         options.TableName = "session_cache";
         options.CreateInfrastructure = true;
     });
-    builder.Services.AddSession(options =>
-    {
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    });
+    builder.Services.AddCpdSession(builder.Configuration);
 
     builder.Services.AddHealthChecks();
 

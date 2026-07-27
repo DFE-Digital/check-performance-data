@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.UnitTests.Analytics;
 //
 //   1. Events cutoff is settings-driven and applied to ISearchAnalyticsSink; messages
 //      cutoff is separately settings-driven and applied to ISearchMessageService (they
-//      live on distinct interfaces — Landmine #12).
+//      live on distinct interfaces so one owner per table set stays enforced).
 //   2. An events setting above the 365-day hard-max clamps down; a malicious "retain
 //      forever" (365000) cannot disable the retention ceiling.
 //   3. A messages setting above the 730-day hard-max clamps down for the same reason;

@@ -18,6 +18,9 @@ public static class SettingKeys
     public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
     public const string SearchAnalyticsSessionAbsoluteHours = "SearchAnalytics:SessionAbsoluteHours";
     public const string SearchAnalyticsShowSessionComment = "SearchAnalytics:ShowSessionComment";
+    public const string SearchAnalyticsRetentionDays = "SearchAnalytics:RetentionDays";
+    public const string SearchAnalyticsRetentionIntervalMinutes = "SearchAnalytics:RetentionIntervalMinutes";
+    public const string SearchAnalyticsMessageRetentionDays = "SearchAnalytics:MessageRetentionDays";
 
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
@@ -121,7 +124,19 @@ public static class SettingDefinitions
         new(SettingKeys.SearchAnalyticsShowSessionComment,
             "Emit an HTML comment with the ASP.NET session id at the tail of every text/html response for support diagnosis. Turn off only in hostile environments where visible session ids are unacceptable.",
             "true",
-            SettingKind.Bool)
+            SettingKind.Bool),
+        new(SettingKeys.SearchAnalyticsRetentionDays,
+            "Number of days a search-events row is retained before it is purged by the nightly job. Hard-max 365 days is enforced in code.",
+            "90",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsRetentionIntervalMinutes,
+            "How often, in minutes, the search-analytics retention job runs to purge expired rows.",
+            "60",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsMessageRetentionDays,
+            "Number of days a search-messages row (user feedback message) is retained before it is purged. Longer than the events window because support cases often reference weeks-old sessions. Hard-max 730 days is enforced in code.",
+            "365",
+            SettingKind.Int)
     ];
 
     public static SettingDefinition? Find(string key) =>

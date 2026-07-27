@@ -7,8 +7,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
 // Contract tests for the real DbSearchMessageService.PurgeExpiredMessagesAsync — the
 // second delete path in the retention job. Deliberately lives on ISearchMessageService
-// (not ISearchAnalyticsSink) so events and messages have exactly one owner each
-// (Landmine #12). Facts:
+// (not ISearchAnalyticsSink) so events and messages have exactly one owner each. Facts:
 //
 //   1. Purge with a 365-day cutoff removes messages older than that and preserves fresher
 //      ones — 100/100 aged/fresh split.

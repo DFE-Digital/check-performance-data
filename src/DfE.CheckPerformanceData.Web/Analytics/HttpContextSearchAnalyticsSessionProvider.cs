@@ -8,9 +8,9 @@ namespace DfE.CheckPerformanceData.Web.Analytics;
 // OR the session middleware never ran on the current request, GetSessionId returns null
 // — the composite decorator uses that as its "skip the sink write" signal.
 //
-// Session.Id is read server-side and never from a cookie or the HTML source-comment
-// (D-06: defends against form-tampering paths that would inject a foreign session id
-// via a client-controlled surface).
+// Session.Id is read server-side and never from a cookie or the HTML source-comment —
+// this defends against form-tampering paths that would inject a foreign session id via
+// a client-controlled surface.
 public sealed class HttpContextSearchAnalyticsSessionProvider(IHttpContextAccessor accessor)
     : ISearchAnalyticsSessionProvider
 {

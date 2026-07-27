@@ -21,8 +21,8 @@ namespace DfE.CheckPerformanceData.Web.Analytics;
 //      that failed will drain on the next tick.
 public sealed class SearchEventWriter : BackgroundService
 {
-    // Defaults locked to the plan's spec (§7 / D-05a). Constructor overrides exist so
-    // integration tests can compress cadence without a per-run config binding.
+    // Batch size + cadence defaults. Constructor overrides exist so integration tests
+    // can compress cadence without a per-run config binding.
     public const int DefaultBatchSize = 100;
     public static readonly TimeSpan DefaultFlushInterval = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromSeconds(5);

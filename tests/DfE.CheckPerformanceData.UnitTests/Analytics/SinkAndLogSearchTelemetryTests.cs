@@ -12,7 +12,7 @@ namespace DfE.CheckPerformanceData.UnitTests.Analytics;
 //
 //   * Happy path with a live HttpContext + session: the mapped SearchEventDto lands on the
 //     channel reader AND the inner logger writes its summary log line. The dto carries the
-//     Session.Id verbatim (D-06: server-side render only, never a cookie read).
+//     Session.Id verbatim — server-side render only, never a cookie read.
 //   * Channel full: TryWrite returns false. The decorator MUST still call the inner logger
 //     AND MUST increment the drop counter. Warn line fires on the decorator's own logger
 //     (not the inner's) so ops can see the shed under load.

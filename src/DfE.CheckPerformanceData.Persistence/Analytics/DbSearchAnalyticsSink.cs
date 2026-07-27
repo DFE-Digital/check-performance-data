@@ -15,11 +15,11 @@ namespace DfE.CheckPerformanceData.Persistence.Analytics;
 //     back-fills the parent's serial id before flushing — no post-write id fetch needed.
 //   * PurgeExpiredAsync runs a raw-SQL CTE-batched DELETE (10 000 rows per DELETE, looped
 //     until zero-affected) rather than the ExecuteDeleteAsync one-shot the metrics sink
-//     uses. Research §4.3 flagged the one-shot as a landmine on the search_events table
-//     at 100k+ rows: Postgres takes an ACCESS EXCLUSIVE lock and holds it for the whole
-//     DELETE, stalling readers. Batching to 10k gives Postgres frequent commit points and
-//     autovacuum a chance to reclaim tuples between batches. FK cascade on
-//     search_event_results.search_event_id cleans up children automatically.
+//     uses. On the search_events table at 100k+ rows the one-shot is a landmine: Postgres
+//     takes an ACCESS EXCLUSIVE lock and holds it for the whole DELETE, stalling readers.
+//     Batching to 10k gives Postgres frequent commit points and autovacuum a chance to
+//     reclaim tuples between batches. FK cascade on search_event_results.search_event_id
+//     cleans up children automatically.
 public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
 {
     // The purge batch size — every DELETE inside PurgeExpiredAsync deletes at most this

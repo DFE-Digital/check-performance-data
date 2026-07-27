@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
@@ -5,6 +6,7 @@ using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
+using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Observability;
 using DfE.CheckPerformanceData.Persistence.Repositories;
@@ -27,6 +29,13 @@ builder.Services.AddScoped<ISettingRepository, SettingRepository>();
 builder.Services.AddScoped<ISettingService, SettingService>();
 
 builder.Services.AddScoped<IMetricsSink, DbMetricsSink>();
+// Search analytics retention: the events sink + the messages service are the two purge
+// dependencies of SearchAnalyticsRetentionJob below. Registered sibling to IMetricsSink
+// rather than through AddPersistenceDependencies — the worker deliberately opts out of
+// the shared registration bundle so its manual DbContext registration (lines below) is
+// the single source of truth.
+builder.Services.AddScoped<ISearchAnalyticsSink, DbSearchAnalyticsSink>();
+builder.Services.AddScoped<ISearchMessageService, DbSearchMessageService>();
 
 builder.Services.AddSingleton<ICurrentUserService, WorkerCurrentUserService>();
 builder.Services.AddDbContext<PortalDbContext>(options =>
@@ -64,6 +73,10 @@ builder.Services.AddHostedService(sp =>
     new MetricsRetentionJob(
         sp.GetRequiredService<IServiceScopeFactory>(),
         sp.GetRequiredService<ILogger<MetricsRetentionJob>>()));
+builder.Services.AddHostedService(sp =>
+    new SearchAnalyticsRetentionJob(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<ILogger<SearchAnalyticsRetentionJob>>()));
 
 builder.Services.AddWorkerHealthChecks();
 

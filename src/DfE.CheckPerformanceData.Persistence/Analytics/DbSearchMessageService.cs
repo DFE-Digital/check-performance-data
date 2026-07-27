@@ -6,9 +6,9 @@ namespace DfE.CheckPerformanceData.Persistence.Analytics;
 
 // Postgres implementation of the search-messages service. Owns messages-only writes and
 // deletes — the events sink deliberately does not expose a messages-purge method
-// (Landmine #12: two owners for one table drift out of sync). This concrete currently
-// implements PurgeExpiredMessagesAsync; the feedback-form plan will add CreateAsync and
-// the admin inbox plan will add inbox reads / mark-read / session-purge.
+// (two owners for one table would drift out of sync). This concrete currently implements
+// PurgeExpiredMessagesAsync; later work adds CreateAsync and the admin inbox reads /
+// mark-read / session-purge.
 //
 // PurgeExpiredMessagesAsync uses the same CTE-batched DELETE loop as DbSearchAnalyticsSink
 // for the same reason: at 10k+ rows a single-shot ExecuteDeleteAsync takes an ACCESS

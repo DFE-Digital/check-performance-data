@@ -204,16 +204,17 @@ public sealed class SearchAnalyticsDrillInTests
         var events = new List<SearchEvent>();
         foreach (var q in new[] { "alpha", "bravo", "charlie" })
         {
-            for (var i = 0; i < 20; i++)
+            // Start at now - 1 minute so no row lands at exactly `now` (the SQL window is
+            // half-open with `< @to`, so an at-`now` row would fall outside and skew counts).
+            for (var i = 1; i <= 20; i++)
             {
-                // Space rows across the last hour so they all land inside the [now-1d, now) window.
                 events.Add(NewEvent(now.AddMinutes(-i * 2), $"s-{q}-{i}", q, results: 3, latency: 15));
             }
         }
         for (var g = 1; g <= 5; g++)
         {
             var name = $"gap-{g}";
-            for (var i = 0; i < 5; i++)
+            for (var i = 1; i <= 5; i++)
             {
                 events.Add(NewEvent(now.AddMinutes(-i * 3 - 10), $"s-{name}-{i}", name, results: 0, latency: 12));
             }

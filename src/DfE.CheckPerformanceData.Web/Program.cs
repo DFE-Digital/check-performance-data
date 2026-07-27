@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
+using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -329,12 +330,7 @@ try
         options.TableName = "session_cache";
         options.CreateInfrastructure = true;
     });
-    builder.Services.AddSession(options =>
-    {
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true;
-        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    });
+    builder.Services.AddCpdSession(builder.Configuration);
 
     builder.Services.AddHealthChecks();
 
@@ -430,7 +426,21 @@ try
 
     app.UseSession();
 
+    // Sits immediately after UseSession() so it can call Session.LoadAsync(); its
+    // SetString on first access is what commits the session cookie (framework
+    // lazy-writes on first store mutation). Downstream consumers therefore see a
+    // stable Session.Id across requests. Also enforces the server-side absolute
+    // lifetime cap that Cookie.MaxAge (a browser-side hint only) cannot.
+    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+
     app.UseRouting();
+
+    // Re-executes unmapped-route 404 responses through the MVC pipeline so users see a
+    // text/html page (with the shared layout, and therefore the injected session
+    // comment) instead of the framework default text/plain "Status Code: 404" body.
+    // Sits after UseRouting per the framework's placement contract for status-code
+    // page middleware.
+    app.UseStatusCodePagesWithReExecute("/Home/NotFound");
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -445,6 +455,12 @@ try
     // is a no-op when env.IsProduction() or when Diagnostics:ShowSessionFooter
     // is false / unset.
     app.UseMiddleware<DiagnosticFooterMiddleware>();
+
+    // Emits `<!-- session: {id} -->` before </body> on every text/html response so
+    // users can quote the session id back to support. Placed after auth so any
+    // future admin-only variants would still see the right principal; placed after
+    // SessionAbsoluteLifetimeMiddleware so Session.Id is stable (cookie committed).
+    app.UseMiddleware<SessionSourceCommentMiddleware>();
 
     app.MapStaticAssets().AllowAnonymous();
 

@@ -15,6 +15,10 @@ public static class SettingKeys
     public const string MetricsRetentionDays = "Metrics:RetentionDays";
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
 
+    public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
+    public const string SearchAnalyticsSessionAbsoluteHours = "SearchAnalytics:SessionAbsoluteHours";
+    public const string SearchAnalyticsShowSessionComment = "SearchAnalytics:ShowSessionComment";
+
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
     public const string HealthOldestAgeAmberSeconds = "Health:OldestAgeAmberSeconds";
@@ -105,6 +109,18 @@ public static class SettingDefinitions
         new(SettingKeys.SearchDebugOn,
             "When true, per-hit rank breakdowns and per-exclusion filter breadcrumbs are logged at Info level and the /search page renders the internal rank as an HTML comment. Editors and ops use it to debug why a page didn't appear. Off by default.",
             "false",
+            SettingKind.Bool),
+        new(SettingKeys.SearchAnalyticsSessionIdleMinutes,
+            "How long a browser session can be idle before ASP.NET drops the server-side state. Applies to the whole app.",
+            "60",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsSessionAbsoluteHours,
+            "The maximum lifetime of a session even under continuous activity. A replayed cookie past this limit gets a fresh session id. Hard max 168 h (1 week) enforced in code.",
+            "24",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsShowSessionComment,
+            "Emit an HTML comment with the ASP.NET session id at the tail of every text/html response for support diagnosis. Turn off only in hostile environments where visible session ids are unacceptable.",
+            "true",
             SettingKind.Bool)
     ];
 

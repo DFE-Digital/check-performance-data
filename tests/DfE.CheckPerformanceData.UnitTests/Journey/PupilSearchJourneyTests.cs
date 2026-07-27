@@ -117,7 +117,8 @@ public class PupilSearchJourneyTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
+            _optionVisibilityService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

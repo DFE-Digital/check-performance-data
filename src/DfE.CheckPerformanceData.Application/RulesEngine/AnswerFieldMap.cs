@@ -139,9 +139,9 @@ public static class AnswerFieldMap
     /// the flow configs to this map in CI. Lookup is case-insensitive and tolerant of
     /// trailing/leading whitespace.
     ///
-    /// Outcomes with no journey flow yet (<c>CompletedKs4Elsewhere</c>,
-    /// <c>AssessmentsDeferred</c>, <c>PupilAddedAfterSummerTerm</c>,
-    /// <c>PupilNotOnJuneList</c>, <c>NotAtEndOf16To18Study</c>, <c>Other</c>) have no
+    /// Outcomes with no journey flow yet (<c>AssessmentsDeferred</c>,
+    /// <c>PupilAddedAfterSummerTerm</c>, <c>PupilNotOnJuneList</c>,
+    /// <c>NotAtEndOf16To18Study</c>) have no
     /// entry here; add one when the KS2/Post16 flows are authored
     /// (see <c>SeedRulesValidationTests.PendingJourneyOutcomeKeys</c>).
     /// </summary>
@@ -166,6 +166,11 @@ public static class AnswerFieldMap
             ["Remove - social-care-involvement"]       = "SocialCareInvolvement",
             ["Remove - life-limiting-illness"]         = "TerminalCriticalIllness",
             ["Remove - year-group-change"]             = "YearGroupChange",
+
+            // Add-back-exclusive reasons (PBIs 292926/292927) — both outcomes are
+            // seeded with a single Scrutiny otherwise-rule ("always sent for scrutiny").
+            ["Remove - completed-ks4-elsewhere"]       = "CompletedKs4Elsewhere",
+            ["Remove - other"]                         = "Other",
         };
 
     /// <summary>

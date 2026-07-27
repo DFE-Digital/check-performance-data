@@ -44,6 +44,8 @@ public static class DependencyManager
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
+        services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
+        services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();

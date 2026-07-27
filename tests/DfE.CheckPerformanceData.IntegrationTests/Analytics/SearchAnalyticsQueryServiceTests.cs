@@ -202,10 +202,11 @@ public sealed class SearchAnalyticsQueryServiceTests
         await ResetSearchEventsAsync();
         var now = DateTime.UtcNow;
 
-        for (var i = 0; i < 5; i++)
+        for (var i = 1; i <= 5; i++)
             await SeedAsync(NewEvent(now.AddMinutes(-i), $"s-in-{i}", "q", results: 1, latency: 5));
         await SeedAsync(NewEvent(now.AddDays(-30), "s-out", "q", results: 1, latency: 5));
 
+        // Window is [now - 1h, now) — every seeded "inside" row is strictly earlier than 'now'.
         var count = await CreateService().GetRowCountAsync(now.AddHours(-1), now, CancellationToken.None);
 
         Assert.Equal(5, count);

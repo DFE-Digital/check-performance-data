@@ -435,6 +435,13 @@ try
 
     app.UseRouting();
 
+    // Re-executes unmapped-route 404 responses through the MVC pipeline so users see a
+    // text/html page (with the shared layout, and therefore the injected session
+    // comment) instead of the framework default text/plain "Status Code: 404" body.
+    // Sits after UseRouting per the framework's placement contract for status-code
+    // page middleware.
+    app.UseStatusCodePagesWithReExecute("/Home/NotFound");
+
     app.UseAuthentication();
     app.UseAuthorization();
 

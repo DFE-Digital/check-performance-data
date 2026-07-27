@@ -17,6 +17,7 @@ public static class SettingKeys
 
     public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
     public const string SearchAnalyticsSessionAbsoluteHours = "SearchAnalytics:SessionAbsoluteHours";
+    public const string SearchAnalyticsShowSessionComment = "SearchAnalytics:ShowSessionComment";
 
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
@@ -116,7 +117,11 @@ public static class SettingDefinitions
         new(SettingKeys.SearchAnalyticsSessionAbsoluteHours,
             "The maximum lifetime of a session even under continuous activity. A replayed cookie past this limit gets a fresh session id. Hard max 168 h (1 week) enforced in code.",
             "24",
-            SettingKind.Int)
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsShowSessionComment,
+            "Emit an HTML comment with the ASP.NET session id at the tail of every text/html response for support diagnosis. Turn off only in hostile environments where visible session ids are unacceptable.",
+            "true",
+            SettingKind.Bool)
     ];
 
     public static SettingDefinition? Find(string key) =>

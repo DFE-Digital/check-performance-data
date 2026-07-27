@@ -449,6 +449,12 @@ try
     // is false / unset.
     app.UseMiddleware<DiagnosticFooterMiddleware>();
 
+    // Emits `<!-- session: {id} -->` before </body> on every text/html response so
+    // users can quote the session id back to support. Placed after auth so any
+    // future admin-only variants would still see the right principal; placed after
+    // SessionAbsoluteLifetimeMiddleware so Session.Id is stable (cookie committed).
+    app.UseMiddleware<SessionSourceCommentMiddleware>();
+
     app.MapStaticAssets().AllowAnonymous();
 
     app.MapControllerRoute(

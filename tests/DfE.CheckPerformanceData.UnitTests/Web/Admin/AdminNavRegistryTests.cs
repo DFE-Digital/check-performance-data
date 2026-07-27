@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(26, entries.Count);
+		Assert.Equal(28, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);
@@ -35,6 +35,8 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Deleted pages", titles);
 		Assert.Contains("Seed sample pages", titles);
+		Assert.Contains("Search analytics", titles);
+		Assert.Contains("Search messages inbox", titles);
 		Assert.Contains("System settings", titles);
 		Assert.DoesNotContain("CMS settings", titles);
 		Assert.Contains("Storage administration", titles);
@@ -74,7 +76,7 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		Assert.Equal(new[] { 10, 20, 30, 40, 50 }, cmsOrders);
+		Assert.Equal(new[] { 10, 20, 30, 40, 50, 60, 70 }, cmsOrders);
 		// System administration has four direct children: the Rules Engine sub-group (10),
 		// System settings (20), Application logs (25), Role settings (30). The pipeline tiles
 		// nest one level deeper under Rules Engine.

@@ -62,7 +62,7 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(26, keys.Count);
+		Assert.Equal(28, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

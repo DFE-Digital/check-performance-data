@@ -404,6 +404,11 @@ LIMIT @limit OFFSET @offset;";
         return (rows, total);
     }
 
+    public Task<IReadOnlyList<SessionHistoryRow>> GetSessionHistoryAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default)
+        => throw new NotImplementedException("Session drill-in not yet implemented.");
+
     // Opens (or borrows) the DbContext's underlying Npgsql connection, runs the SQL, and
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read
     // services share the layering pattern and a copy here keeps the sibling boundary

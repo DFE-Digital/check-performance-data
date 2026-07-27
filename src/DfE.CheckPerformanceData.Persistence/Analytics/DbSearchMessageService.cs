@@ -8,8 +8,8 @@ namespace DfE.CheckPerformanceData.Persistence.Analytics;
 // Postgres implementation of the search-messages service. Owns messages-only writes and
 // deletes — the events sink deliberately does not expose a messages-purge method
 // (two owners for one table would drift out of sync). This concrete currently implements
-// PurgeExpiredMessagesAsync; later work adds CreateAsync and the admin inbox reads /
-// mark-read / session-purge.
+// PurgeExpiredMessagesAsync and CreateAsync; the admin inbox surface is added by the
+// admin-inbox follow-up.
 //
 // PurgeExpiredMessagesAsync uses the same CTE-batched DELETE loop as DbSearchAnalyticsSink
 // for the same reason: at 10k+ rows a single-shot ExecuteDeleteAsync takes an ACCESS
@@ -34,9 +34,6 @@ public sealed class DbSearchMessageService : ISearchMessageService
         string? email,
         CancellationToken cancellationToken)
     {
-        // Server-owned SubmittedAtUtc — the caller never supplies this. IsRead starts
-        // false so the inbox unread-count badge picks it up; ReadByAdminSub and ReadAtUtc
-        // are populated by the admin mark-read flow, never on insert.
         var entity = new SearchMessage
         {
             SessionId = sessionId,
@@ -51,6 +48,36 @@ public sealed class DbSearchMessageService : ISearchMessageService
         await _dbContext.SaveChangesAsync(cancellationToken);
         return entity.Id;
     }
+
+    public Task<int> GetUnreadCountAsync(CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
+
+    public Task<PagedResult<SearchMessageSummary>> GetInboxAsync(
+        SearchMessageSortField sortField,
+        bool sortDesc,
+        string? filterText,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
+
+    public Task<SearchMessageDetail?> GetByIdAsync(long id, CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
+
+    public Task MarkReadAsync(
+        long id,
+        string readByAdminSub,
+        DateTime readAtUtc,
+        CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
+
+    public Task<SessionPurgeCounts> PurgeSessionAsync(string sessionId, CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
+
+    public Task<IReadOnlyList<SearchMessageSummary>> GetForSessionAsync(
+        string sessionId,
+        CancellationToken cancellationToken)
+        => throw new NotImplementedException("Admin inbox surface not yet implemented.");
 
     public async Task<int> PurgeExpiredMessagesAsync(
         TimeSpan olderThan, CancellationToken cancellationToken)

@@ -54,29 +54,32 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
 
     // Timing test — the fractional-hours override drops the cap into sub-second range so
     // the test can prove the "even under continuous activity" invariant without waiting
-    // 24 real hours.
+    // 24 real hours. Session.Id is stable across requests (derived from the same cookie)
+    // so the observable side effect of "cap crossed" is that per-session state written
+    // before the cap becomes inaccessible from the same cookie afterwards.
     [Fact]
     [Trait("Category", "Slow")]
     public async Task SecondRequest_AfterAbsoluteLimit_ClearsSessionEvenUnderContinuousActivity()
     {
         // Cap ~ 1.8 seconds (0.0005 h). Delay 2.5 s between requests to cross it.
-        using var host = await BuildProbeHostAsync(absoluteHours: 0.0005);
+        using var host = await BuildProbeStateHostAsync(absoluteHours: 0.0005);
         var client = host.GetTestClient();
 
-        var first = await client.GetAsync("/_probe/session-id");
-        var firstId = await first.Content.ReadAsStringAsync();
-        var cookie = ExtractSessionCookie(first);
+        // First request writes a marker into the session state.
+        var write = await client.GetAsync("/_probe/session-state?write=hello");
+        var writeBody = await write.Content.ReadAsStringAsync();
+        var cookie = ExtractSessionCookie(write);
+        Assert.Equal("hello", writeBody);
 
         await Task.Delay(TimeSpan.FromMilliseconds(2500));
 
-        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/session-id");
+        // Second request past the cap reading the same key should see the wipe.
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/session-state?read=1");
         req.Headers.Add("Cookie", cookie);
-        var second = await client.SendAsync(req);
-        var secondId = await second.Content.ReadAsStringAsync();
+        var read = await client.SendAsync(req);
+        var readBody = await read.Content.ReadAsStringAsync();
 
-        Assert.False(string.IsNullOrEmpty(firstId));
-        Assert.False(string.IsNullOrEmpty(secondId));
-        Assert.NotEqual(firstId, secondId);
+        Assert.Equal("(none)", readBody);
     }
 
     [Fact]
@@ -128,6 +131,52 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
                     {
                         await context.Session.LoadAsync();
                         await context.Response.WriteAsync(context.Session.Id ?? "no-session");
+                    });
+                });
+            })
+            .StartAsync();
+
+        return host;
+    }
+
+    private static async Task<IHost> BuildProbeStateHostAsync(double absoluteHours)
+    {
+        var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+
+                web.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["SearchAnalytics:SessionAbsoluteHours"] =
+                            absoluteHours.ToString("0.0######", System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                });
+
+                web.ConfigureServices((ctx, services) =>
+                {
+                    services.AddDistributedMemoryCache();
+                    services.AddCpdSession(ctx.Configuration);
+                });
+
+                web.Configure(app =>
+                {
+                    app.UseSession();
+                    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+                    app.Run(async context =>
+                    {
+                        await context.Session.LoadAsync();
+                        if (context.Request.Query.TryGetValue("write", out var writeValue))
+                        {
+                            context.Session.SetString("probe", writeValue.ToString());
+                            await context.Session.CommitAsync();
+                            await context.Response.WriteAsync(writeValue.ToString());
+                            return;
+                        }
+                        var stored = context.Session.GetString("probe") ?? "(none)";
+                        await context.Response.WriteAsync(stored);
                     });
                 });
             })

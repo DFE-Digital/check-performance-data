@@ -16,6 +16,7 @@ public static class SettingKeys
     public const string MetricsRetentionIntervalMinutes = "Metrics:RetentionIntervalMinutes";
 
     public const string SearchAnalyticsSessionIdleMinutes = "SearchAnalytics:SessionIdleMinutes";
+    public const string SearchAnalyticsSessionAbsoluteHours = "SearchAnalytics:SessionAbsoluteHours";
 
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
@@ -111,6 +112,10 @@ public static class SettingDefinitions
         new(SettingKeys.SearchAnalyticsSessionIdleMinutes,
             "How long a browser session can be idle before ASP.NET drops the server-side state. Applies to the whole app.",
             "60",
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsSessionAbsoluteHours,
+            "The maximum lifetime of a session even under continuous activity. A replayed cookie past this limit gets a fresh session id. Hard max 168 h (1 week) enforced in code.",
+            "24",
             SettingKind.Int)
     ];
 

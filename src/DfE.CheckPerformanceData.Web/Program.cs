@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Authentication;
 using DfE.CheckPerformanceData.Web.Diagnostics;
+using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -424,6 +425,13 @@ try
     });
 
     app.UseSession();
+
+    // Sits immediately after UseSession() so it can call Session.LoadAsync(); its
+    // SetString on first access is what commits the session cookie (framework
+    // lazy-writes on first store mutation). Downstream consumers therefore see a
+    // stable Session.Id across requests. Also enforces the server-side absolute
+    // lifetime cap that Cookie.MaxAge (a browser-side hint only) cannot.
+    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
 
     app.UseRouting();
 

@@ -65,6 +65,10 @@ public static class DependencyManager
             Observability.DbMetricsSink>();
         services.AddScoped<Application.Observability.IShareTokenService,
             Observability.ShareTokenService>();
+        services.AddScoped<Application.Analytics.ISearchAnalyticsSink,
+            Analytics.DbSearchAnalyticsSink>();
+        services.AddScoped<Application.Analytics.ISearchMessageService,
+            Analytics.DbSearchMessageService>();
 
         return services;
     }

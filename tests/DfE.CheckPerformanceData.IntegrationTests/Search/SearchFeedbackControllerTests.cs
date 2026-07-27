@@ -1,19 +1,15 @@
-using System.Net;
 using System.Text.RegularExpressions;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
-using DfE.CheckPerformanceData.Web.Extensions;
-using DfE.CheckPerformanceData.Web.Middleware;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -23,7 +19,6 @@ using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
@@ -31,21 +26,20 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Search;
 
-// End-to-end coverage of the user-facing feedback surface. Two invariants carry the plan:
-//
-//   1. Server-side session id — every persisted row's session_id comes from
-//      context.Session.Id read INSIDE the action, never from a client-supplied form field.
-//      A malicious page or a hand-edited POST cannot bind a complaint to someone else's
-//      session id by injecting a hidden field.
-//   2. Hide-my-email drops the value before persist — no encryption, no reveal audit, no
-//      IDataProtectionProvider machinery. When the checkbox is ticked the persisted
-//      search_messages.email is literally NULL.
-//
-// The test host spins up a HostBuilder with the real session middleware pipeline (so
-// Session.Id is materialised the same way production does) + real Postgres via the shared
-// PostgresFixture. Antiforgery is disabled at the global filter level to keep the tests
-// focused on the session-id + hide-email contracts; the production controller keeps
-// [ValidateAntiForgeryToken] on Submit.
+// Controller-scope invocation of SearchFeedbackController against a real Postgres
+// DbContext + real DbSearchMessageService. Full HTTP-through-layout invocation is
+// avoided because Views/_ViewStart.cshtml → _Layout.cshtml → _GovUkPageTemplate pulls
+// in the whole content-blocks + admin-nav dependency graph (EditableContentViewComponent
+// etc.) — same reason SearchAnalyticsAuthTests split HTTP auth checks from
+// controller-scope model + view-render assertions in P03. Direct action invocation
+// proves the two invariants the plan cares about most:
+//   1. context.Session.Id — NOT any client-supplied field — is what lands in
+//      search_messages.session_id
+//   2. HideMyEmail ticked drops the email BEFORE persist so the DB row's email column
+//      is literally NULL
+// The Feedback + FeedbackConfirmation view templates are covered by
+// SearchFeedbackViewRenderTests below; the inset-text link on /search Index.cshtml is
+// covered by SearchIndexInsetTextRenderTests at the bottom of this file.
 [Collection(nameof(PostgresCollection))]
 public sealed class SearchFeedbackControllerTests
 {
@@ -56,81 +50,60 @@ public sealed class SearchFeedbackControllerTests
         _fixture = fixture;
     }
 
-    // --- (a) GET renders readonly session-id input + POST ignores spoofed SessionIdDisplayOnly ---
+    // --- (a) Server-side session id wins over any client-supplied form field ---
 
     [Fact]
-    public async Task Get_RendersReadonlySessionIdInput_AndPostIgnoresSpoofedSessionIdField()
+    public async Task Submit_IgnoresClientSuppliedSessionIdField_UsesHttpContextSessionId()
     {
         await TruncateMessagesAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        const string serverSessionId = "server-owned-session-id-12345";
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
 
-        // First GET materialises the session cookie via SessionAbsoluteLifetimeMiddleware
-        // and renders the form with the server's real session id in the readonly input.
-        var getResp = await client.GetAsync("/Search/Feedback");
-        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
-        var getBody = await getResp.Content.ReadAsStringAsync();
+        var controller = BuildController(messages, query, sessionId: serverSessionId);
 
-        // The readonly session-id input MUST render on the page — this is the user-visible
-        // display that lets the visitor quote the id to support. NOT a type=hidden field.
-        var labelMatch = Regex.Match(
-            getBody,
-            @"<label[^>]*class=""[^""]*govuk-label[^""]*""[^>]*for=""SessionIdDisplayOnly""[^>]*>\s*Your session ID",
-            RegexOptions.IgnoreCase);
-        Assert.True(labelMatch.Success, "Expected a govuk-label 'Your session ID' associated with SessionIdDisplayOnly.");
-
-        var inputMatch = Regex.Match(
-            getBody,
-            @"<input[^>]*id=""SessionIdDisplayOnly""[^>]*value=""([^""]+)""[^>]*readonly",
-            RegexOptions.IgnoreCase);
-        Assert.True(inputMatch.Success, "Expected a readonly govuk-input with id=SessionIdDisplayOnly.");
-        var serverSessionId = inputMatch.Groups[1].Value;
-        Assert.False(string.IsNullOrEmpty(serverSessionId));
-
-        var sessionCookie = ExtractSessionCookie(getResp);
-
-        // POST with a SPOOFED SessionIdDisplayOnly value that has no relation to the
-        // server's session cookie. The controller must ignore the form field and stamp
-        // context.Session.Id (i.e. serverSessionId) onto the row.
-        var post = await PostAsync(client, "/Search/Feedback", sessionCookie, new Dictionary<string, string>
+        // The form-posted view model carries a spoofed SessionId — the property IS on
+        // the view model, but the controller re-reads HttpContext.Session.Id after
+        // model binding runs, so the spoofed value never reaches the message service.
+        var form = new SearchFeedbackViewModel
         {
-            ["SessionIdDisplayOnly"] = "SPOOFED_SESSION_VALUE",
-            ["WhatLookingFor"] = "does the form ignore my hidden field?",
-        });
+            SessionId = "SPOOFED-SESSION-VALUE",
+            WhatLookingFor = "does the controller ignore the spoofed session id?",
+        };
 
-        Assert.True(post.StatusCode == HttpStatusCode.Redirect
-                    || post.StatusCode == HttpStatusCode.Found
-                    || post.StatusCode == HttpStatusCode.SeeOther,
-            $"Expected a redirect after a successful POST but got {(int)post.StatusCode}.");
+        var result = await controller.Submit(form, CancellationToken.None);
+
+        Assert.IsType<RedirectToActionResult>(result);
 
         var row = await SelectSingleMessageAsync();
         Assert.Equal(serverSessionId, row.SessionId);
-        Assert.NotEqual("SPOOFED_SESSION_VALUE", row.SessionId);
+        Assert.NotEqual("SPOOFED-SESSION-VALUE", row.SessionId);
     }
 
-    // --- (b) HideMyEmail ticked drops the email value before persist ---
+    // --- (b) HideMyEmail ticked drops the email value BEFORE persist ---
 
     [Fact]
-    public async Task Post_HideMyEmailTrue_PersistsEmailAsNull()
+    public async Task Submit_HideMyEmailTrue_PersistsEmailAsNull()
     {
         await TruncateMessagesAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
 
-        var getResp = await client.GetAsync("/Search/Feedback");
-        var sessionCookie = ExtractSessionCookie(getResp);
+        var controller = BuildController(messages, query, sessionId: "session-hide");
 
-        var post = await PostAsync(client, "/Search/Feedback", sessionCookie, new Dictionary<string, string>
+        var form = new SearchFeedbackViewModel
         {
-            ["WhatLookingFor"] = "I ticked the hide box",
-            ["Email"] = "user@example.gov.uk",
-            ["HideMyEmail"] = "true",
-        });
+            WhatLookingFor = "I ticked the hide box",
+            Email = "user@example.gov.uk",
+            HideMyEmail = true,
+        };
 
-        Assert.True((int)post.StatusCode is 301 or 302 or 303,
-            $"Expected a redirect but got {(int)post.StatusCode}.");
+        var result = await controller.Submit(form, CancellationToken.None);
+        Assert.IsType<RedirectToActionResult>(result);
 
         var row = await SelectSingleMessageAsync();
         Assert.Null(row.Email);
@@ -139,25 +112,25 @@ public sealed class SearchFeedbackControllerTests
     // --- (c) HideMyEmail unticked with email present stores it verbatim ---
 
     [Fact]
-    public async Task Post_HideMyEmailFalse_WithEmail_PersistsEmailVerbatim()
+    public async Task Submit_HideMyEmailFalse_WithEmail_PersistsEmailVerbatim()
     {
         await TruncateMessagesAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
 
-        var getResp = await client.GetAsync("/Search/Feedback");
-        var sessionCookie = ExtractSessionCookie(getResp);
+        var controller = BuildController(messages, query, sessionId: "session-with-email");
 
-        var post = await PostAsync(client, "/Search/Feedback", sessionCookie, new Dictionary<string, string>
+        var form = new SearchFeedbackViewModel
         {
-            ["WhatLookingFor"] = "please reply to me",
-            ["Email"] = "user@example.gov.uk",
-            // HideMyEmail deliberately omitted — the checkbox unticked posts nothing for
-            // the field, and the bool model-binds to false.
-        });
+            WhatLookingFor = "please reply to me",
+            Email = "user@example.gov.uk",
+            HideMyEmail = false,
+        };
 
-        Assert.True((int)post.StatusCode is 301 or 302 or 303);
+        var result = await controller.Submit(form, CancellationToken.None);
+        Assert.IsType<RedirectToActionResult>(result);
 
         var row = await SelectSingleMessageAsync();
         Assert.Equal("user@example.gov.uk", row.Email);
@@ -166,52 +139,49 @@ public sealed class SearchFeedbackControllerTests
     // --- (d) Empty WhatLookingFor renders the form with a validation error and persists nothing ---
 
     [Fact]
-    public async Task Post_EmptyWhatLookingFor_ReturnsValidationErrorAndDoesNotPersist()
+    public async Task Submit_EmptyWhatLookingFor_ReturnsViewWithInvalidModelStateAndDoesNotPersist()
     {
         await TruncateMessagesAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
 
-        var getResp = await client.GetAsync("/Search/Feedback");
-        var sessionCookie = ExtractSessionCookie(getResp);
+        var controller = BuildController(messages, query, sessionId: "session-validation");
 
-        var post = await PostAsync(client, "/Search/Feedback", sessionCookie, new Dictionary<string, string>
-        {
-            ["WhatLookingFor"] = string.Empty,
-        });
+        // Emulate the framework's model-validation pass — a real POST runs the [Required]
+        // attribute on WhatLookingFor via IObjectModelValidator; the unit-invoked action
+        // sees whatever ModelState the caller populates. Set the error explicitly so the
+        // controller's ModelState.IsValid check exercises the redisplay branch.
+        var form = new SearchFeedbackViewModel { WhatLookingFor = string.Empty };
+        controller.ModelState.AddModelError(
+            nameof(SearchFeedbackViewModel.WhatLookingFor),
+            "Enter what you were looking for");
 
-        Assert.Equal(HttpStatusCode.OK, post.StatusCode);
-        var body = await post.Content.ReadAsStringAsync();
-        Assert.Contains("govuk-error-message", body);
+        var result = await controller.Submit(form, CancellationToken.None);
 
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("~/Views/Search/Feedback.cshtml", view.ViewName);
+        Assert.False(controller.ModelState.IsValid);
+        Assert.True(controller.ModelState.ContainsKey(nameof(SearchFeedbackViewModel.WhatLookingFor)));
         Assert.Equal(0, await CountMessagesAsync());
     }
 
-    // --- (e) When the session has a prior search event, WhatGot is pre-filled ---
+    // --- (e) When the session has a prior search event, the view model's PriorSearchPrefill is formatted ---
 
     [Fact]
-    public async Task Get_WhenSessionHasPriorSearch_PrefillsWhatGotTextarea()
+    public async Task Index_WhenSessionHasPriorSearch_SetsPriorSearchPrefillFromLatestEvent()
     {
         await TruncateAllAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        const string sessionId = "session-with-history";
 
-        // First GET materialises the session id.
-        var firstResp = await client.GetAsync("/Search/Feedback");
-        var firstBody = await firstResp.Content.ReadAsStringAsync();
-        var sessionCookie = ExtractSessionCookie(firstResp);
-        var serverSessionId = ExtractServerSessionId(firstBody);
-
-        // Seed a search_events row keyed by that session id so the second GET's pre-fill
-        // helper picks it up.
         await using (var seedContext = _fixture.CreateContext())
         {
             seedContext.SearchEvents.Add(new SearchEvent
             {
-                OccurredAtUtc = DateTime.UtcNow.AddMinutes(-2),
-                SessionId = serverSessionId,
+                OccurredAtUtc = DateTime.SpecifyKind(new DateTime(2026, 8, 3, 14, 27, 0), DateTimeKind.Utc),
+                SessionId = sessionId,
                 QueryRaw = "widget",
                 QueryNormalised = "widget",
                 Scope = null,
@@ -222,157 +192,150 @@ public sealed class SearchFeedbackControllerTests
             await seedContext.SaveChangesAsync();
         }
 
-        // Second GET on the same cookie must render the pre-fill inside the WhatGot textarea.
-        var secondReq = new HttpRequestMessage(HttpMethod.Get, "/Search/Feedback");
-        secondReq.Headers.Add("Cookie", sessionCookie);
-        var secondResp = await client.SendAsync(secondReq);
-        var secondBody = await secondResp.Content.ReadAsStringAsync();
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
 
-        // The pre-fill text is written INSIDE the textarea element (textareas don't use
-        // value= — their content goes between the open + close tags). Assert the query +
-        // result count are both present in the textarea for WhatGot.
-        var textareaMatch = Regex.Match(
-            secondBody,
-            @"<textarea[^>]*name=""WhatGot""[^>]*>([^<]*)</textarea>",
-            RegexOptions.IgnoreCase);
-        Assert.True(textareaMatch.Success, "Expected a textarea named WhatGot.");
-        var prefillContent = textareaMatch.Groups[1].Value;
-        Assert.Contains("widget", prefillContent);
-        Assert.Contains("4", prefillContent);
+        var controller = BuildController(messages, query, sessionId: sessionId);
+
+        var result = await controller.Index(CancellationToken.None);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        Assert.Equal(sessionId, model.SessionId);
+        Assert.NotNull(model.PriorSearchPrefill);
+        Assert.Contains("widget", model.PriorSearchPrefill);
+        Assert.Contains("4", model.PriorSearchPrefill);
     }
 
-    // --- (f) A successful POST redirects to a confirmation view that shows the session id ---
+    [Fact]
+    public async Task Index_WhenSessionHasNoPriorSearch_LeavesPriorSearchPrefillNull()
+    {
+        await TruncateAllAsync();
+
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+
+        var controller = BuildController(messages, query, sessionId: "session-with-no-history");
+
+        var result = await controller.Index(CancellationToken.None);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        Assert.Null(model.PriorSearchPrefill);
+    }
+
+    // --- (f) Successful POST redirects to Confirmation and carries the session id via TempData ---
 
     [Fact]
-    public async Task Post_Success_RedirectsToConfirmationViewShowingSessionId()
+    public async Task Submit_Success_RedirectsToConfirmationCarryingSessionIdInTempData()
     {
         await TruncateMessagesAsync();
 
-        using var host = await BuildHostAsync();
-        var client = host.GetTestClient();
+        const string sessionId = "session-confirmation";
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
 
-        var getResp = await client.GetAsync("/Search/Feedback");
-        var getBody = await getResp.Content.ReadAsStringAsync();
-        var sessionCookie = ExtractSessionCookie(getResp);
-        var serverSessionId = ExtractServerSessionId(getBody);
+        var controller = BuildController(messages, query, sessionId: sessionId);
 
-        var post = await PostAsync(client, "/Search/Feedback", sessionCookie, new Dictionary<string, string>
+        var form = new SearchFeedbackViewModel
         {
-            ["WhatLookingFor"] = "confirmation redirect test",
-        });
-
-        Assert.True((int)post.StatusCode is 301 or 302 or 303);
-        var location = post.Headers.Location?.ToString();
-        Assert.False(string.IsNullOrEmpty(location), "Successful POST must set a Location header.");
-
-        // Follow the redirect on the same cookie so TempData (if used) survives.
-        var followReq = new HttpRequestMessage(HttpMethod.Get, location);
-        followReq.Headers.Add("Cookie", sessionCookie);
-        var confirmationResp = await client.SendAsync(followReq);
-        Assert.Equal(HttpStatusCode.OK, confirmationResp.StatusCode);
-        var confirmationBody = await confirmationResp.Content.ReadAsStringAsync();
-        Assert.Contains(serverSessionId, confirmationBody);
-    }
-
-    // -----------------------------------------------------------------
-    // Test host + helper plumbing
-    // -----------------------------------------------------------------
-
-    private async Task<IHost> BuildHostAsync()
-    {
-        var connectionString = _fixture.ConnectionString;
-        var host = await new HostBuilder()
-            .ConfigureWebHost(web =>
-            {
-                web.UseTestServer();
-                web.ConfigureAppConfiguration((_, config) =>
-                {
-                    config.AddInMemoryCollection(new Dictionary<string, string?>
-                    {
-                        ["SearchAnalytics:SessionAbsoluteHours"] = "24",
-                        ["SearchAnalytics:SessionIdleMinutes"] = "60",
-                    });
-                });
-                web.ConfigureServices((ctx, services) =>
-                {
-                    services.AddHttpContextAccessor();
-
-                    // Session backing store: in-memory so the test is self-contained (production
-                    // uses Postgres via AddDistributedPostgreSqlCache; the session behaviour is
-                    // identical for what the test exercises).
-                    services.AddDistributedMemoryCache();
-                    services.AddCpdSession(ctx.Configuration);
-
-                    // Real DbContext against the shared Postgres fixture so the message-service
-                    // insert lands in the same table the assertions read from.
-                    services.AddDbContext<PortalDbContext>(o => o.UseNpgsql(connectionString));
-                    services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
-                    services.AddScoped<ISearchMessageService, DbSearchMessageService>();
-                    services.AddScoped<ISearchAnalyticsQueryService, SearchAnalyticsQueryService>();
-
-                    // GDS tag helpers used inside Feedback.cshtml.
-                    services.AddGovUkFrontend();
-
-                    // Antiforgery: register the services so [ValidateAntiForgeryToken] resolves,
-                    // and disable the token check globally via IgnoreAntiforgeryTokenAttribute so
-                    // the test's raw HTTP POSTs (no browser cookie container, no token round-trip)
-                    // still reach the action. Production controller keeps [ValidateAntiForgeryToken];
-                    // this override lives only inside the test host.
-                    services.AddAntiforgery();
-                    services.AddControllersWithViews(o =>
-                        o.Filters.Add<IgnoreAntiforgeryTokenAttribute>())
-                        .AddApplicationPart(typeof(SearchFeedbackController).Assembly);
-                });
-                web.Configure(app =>
-                {
-                    app.UseSession();
-                    // Absolute-lifetime middleware ALSO commits the session cookie on first
-                    // access via SetString — without it, Session.Id would not materialise and
-                    // the controller would see a fresh id on every request.
-                    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
-                    app.UseRouting();
-                    app.UseEndpoints(endpoints => endpoints.MapControllers());
-                });
-            })
-            .StartAsync();
-        return host;
-    }
-
-    private static async Task<HttpResponseMessage> PostAsync(
-        HttpClient client, string url, string sessionCookie, IDictionary<string, string> fields)
-    {
-        var req = new HttpRequestMessage(HttpMethod.Post, url)
-        {
-            Content = new FormUrlEncodedContent(fields),
+            WhatLookingFor = "confirmation redirect test",
         };
-        req.Headers.Add("Cookie", sessionCookie);
-        return await client.SendAsync(req);
+
+        var result = await controller.Submit(form, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(SearchFeedbackController.Confirmation), redirect.ActionName);
+        Assert.Equal(sessionId, controller.TempData["FeedbackSessionId"]);
     }
 
-    private static string ExtractSessionCookie(HttpResponseMessage response)
+    [Fact]
+    public void Confirmation_ReadsSessionIdFromTempDataOntoTheViewModel()
     {
-        if (!response.Headers.Contains("Set-Cookie"))
-            throw new Xunit.Sdk.XunitException("Response did not carry a Set-Cookie header.");
-        foreach (var raw in response.Headers.GetValues("Set-Cookie"))
+        const string sessionId = "session-shown-on-confirmation";
+        var messages = Substitute.For<ISearchMessageService>();
+        var query = Substitute.For<ISearchAnalyticsQueryService>();
+
+        var controller = BuildController(messages, query, sessionId: "some-other-current-session");
+        controller.TempData["FeedbackSessionId"] = sessionId;
+
+        var result = controller.Confirmation();
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("~/Views/Search/FeedbackConfirmation.cshtml", view.ViewName);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+        Assert.Equal(sessionId, model.SessionId);
+    }
+
+    // --- Attribute assertions: [AllowAnonymous] + route wiring + antiforgery on Submit ---
+
+    [Fact]
+    public void Controller_IsAllowAnonymous()
+    {
+        var attrs = typeof(SearchFeedbackController)
+            .GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), inherit: true);
+        Assert.NotEmpty(attrs);
+    }
+
+    [Fact]
+    public void Submit_HasValidateAntiForgeryTokenAttribute()
+    {
+        var submit = typeof(SearchFeedbackController).GetMethod(nameof(SearchFeedbackController.Submit))!;
+        var attrs = submit.GetCustomAttributes(typeof(ValidateAntiForgeryTokenAttribute), inherit: true);
+        Assert.NotEmpty(attrs);
+    }
+
+    // -----------------------------------------------------------------
+    // Helper plumbing
+    // -----------------------------------------------------------------
+
+    private static SearchFeedbackController BuildController(
+        ISearchMessageService messages,
+        ISearchAnalyticsQueryService query,
+        string sessionId)
+    {
+        var controller = new SearchFeedbackController(messages, query);
+        var httpContext = BuildHttpContextWithSession(sessionId);
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());
+        return controller;
+    }
+
+    private static DefaultHttpContext BuildHttpContextWithSession(string sessionId)
+    {
+        var ctx = new DefaultHttpContext();
+        ctx.Features.Set<ISessionFeature>(new FakeSessionFeature(new FakeSession(sessionId)));
+        return ctx;
+    }
+
+    private sealed class FakeSessionFeature : ISessionFeature
+    {
+        public FakeSessionFeature(ISession session) { Session = session; }
+        public ISession Session { get; set; }
+    }
+
+    // Minimal ISession implementation that returns a fixed Id — enough for the
+    // controller to read HttpContext.Session.Id and for LoadAsync() to be a no-op.
+    private sealed class FakeSession : ISession
+    {
+        private readonly Dictionary<string, byte[]> _store = new();
+        public FakeSession(string id) { Id = id; }
+        public bool IsAvailable => true;
+        public string Id { get; }
+        public IEnumerable<string> Keys => _store.Keys;
+        public void Clear() => _store.Clear();
+        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public void Remove(string key) => _store.Remove(key);
+        public void Set(string key, byte[] value) => _store[key] = value;
+        public bool TryGetValue(string key, out byte[] value)
         {
-            if (raw.StartsWith(".AspNetCore.Session=", StringComparison.Ordinal))
-            {
-                var end = raw.IndexOf(';');
-                return end < 0 ? raw : raw[..end];
-            }
+            if (_store.TryGetValue(key, out var v)) { value = v; return true; }
+            value = Array.Empty<byte>(); return false;
         }
-        throw new Xunit.Sdk.XunitException("No .AspNetCore.Session cookie in response.");
-    }
-
-    private static string ExtractServerSessionId(string html)
-    {
-        var match = Regex.Match(
-            html,
-            @"<input[^>]*id=""SessionIdDisplayOnly""[^>]*value=""([^""]+)""",
-            RegexOptions.IgnoreCase);
-        if (!match.Success)
-            throw new Xunit.Sdk.XunitException("Could not locate the SessionIdDisplayOnly input value in the rendered form.");
-        return match.Groups[1].Value;
     }
 
     private async Task TruncateMessagesAsync()
@@ -426,10 +389,151 @@ public sealed class SearchFeedbackControllerTests
         string SessionId, string WhatLookingFor, string? WhatGot, string? Email, bool IsRead);
 }
 
+// View-render coverage of Views/Search/Feedback.cshtml + Views/Search/FeedbackConfirmation.cshtml.
+// Renders standalone through the composite view engine (isMainPage:false) so the tests
+// don't need to spin up _Layout / _GovUkPageTemplate + their whole dependency graph.
+// Mirrors SearchAnalyticsIndexViewRenderTests.
+public sealed class SearchFeedbackViewRenderTests
+{
+    [Fact]
+    public async Task Feedback_RendersReadonlySessionIdInputWithGovukLabel()
+    {
+        var model = new SearchFeedbackViewModel { SessionId = "abc-def-ghi", PriorSearchPrefill = null };
+
+        var html = await RenderAsync("/Views/Search/Feedback.cshtml", model);
+
+        Assert.Contains("Your session ID", html);
+        // Readonly govuk-input carrying the session id — user-visible display, NOT a
+        // hidden field.
+        Assert.Matches(new Regex(@"<label[^>]*for=""SessionIdDisplayOnly""", RegexOptions.IgnoreCase), html);
+        Assert.Matches(
+            new Regex(@"<input[^>]*id=""SessionIdDisplayOnly""[^>]*value=""abc-def-ghi""[^>]*readonly", RegexOptions.IgnoreCase),
+            html);
+        // No hidden variant of the session id smuggled in.
+        Assert.DoesNotMatch(
+            new Regex(@"type=""hidden""[^>]*name=""SessionId""|name=""SessionId""[^>]*type=""hidden""", RegexOptions.IgnoreCase),
+            html);
+    }
+
+    [Fact]
+    public async Task Feedback_RendersAllSixFieldsPerSpec()
+    {
+        var model = new SearchFeedbackViewModel { SessionId = "sid-1" };
+
+        var html = await RenderAsync("/Views/Search/Feedback.cshtml", model);
+
+        Assert.Contains("SessionIdDisplayOnly", html);
+        Assert.Contains("name=\"WhatLookingFor\"", html);
+        Assert.Contains("name=\"WhatGot\"", html);
+        Assert.Contains("name=\"Email\"", html);
+        Assert.Contains("name=\"HideMyEmail\"", html);
+        // Send button submits the form.
+        Assert.Contains("Send", html);
+        // Verbatim consent copy from the design spec.
+        Assert.Contains(
+            "If you provide your email address, it will be sent to the support team so they can reply to you.",
+            html);
+        // Hide-my-email checkbox label.
+        Assert.Contains("Hide my email address from the support team", html);
+    }
+
+    [Fact]
+    public async Task Feedback_PriorSearchPrefill_LandsInsideWhatGotTextarea()
+    {
+        var model = new SearchFeedbackViewModel
+        {
+            SessionId = "sid-2",
+            PriorSearchPrefill = "Search: \"widget\" returned 4 results at 14:27 on 3 Aug 2026",
+        };
+
+        var html = await RenderAsync("/Views/Search/Feedback.cshtml", model);
+
+        var textareaMatch = Regex.Match(
+            html,
+            @"<textarea[^>]*name=""WhatGot""[^>]*>([^<]*)</textarea>",
+            RegexOptions.IgnoreCase);
+        Assert.True(textareaMatch.Success, "Expected a textarea named WhatGot.");
+        var content = textareaMatch.Groups[1].Value;
+        Assert.Contains("widget", content);
+        Assert.Contains("4 results", content);
+    }
+
+    [Fact]
+    public async Task Feedback_ShowsErrorSummary_WhenModelStateIsInvalid()
+    {
+        var model = new SearchFeedbackViewModel { SessionId = "sid-err" };
+        var modelState = new ModelStateDictionary();
+        modelState.AddModelError(nameof(SearchFeedbackViewModel.WhatLookingFor), "Enter what you were looking for");
+
+        var html = await RenderAsync("/Views/Search/Feedback.cshtml", model, modelState);
+
+        Assert.Contains("govuk-error-summary", html);
+        Assert.Contains("Enter what you were looking for", html);
+        Assert.Contains("govuk-form-group--error", html);
+    }
+
+    [Fact]
+    public async Task FeedbackConfirmation_ShowsSessionIdInBody()
+    {
+        var model = new SearchFeedbackViewModel { SessionId = "session-on-confirmation" };
+
+        var html = await RenderAsync("/Views/Search/FeedbackConfirmation.cshtml", model);
+
+        Assert.Contains("session-on-confirmation", html);
+        Assert.Contains("Thanks", html);
+    }
+
+    private static async Task<string> RenderAsync(
+        string viewPath,
+        SearchFeedbackViewModel model,
+        ModelStateDictionary? modelState = null)
+    {
+        using var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+                web.ConfigureServices(services =>
+                {
+                    services.AddControllersWithViews()
+                        .AddApplicationPart(typeof(SearchFeedbackController).Assembly);
+                    services.AddGovUkFrontend();
+                });
+                web.Configure(_ => { });
+            })
+            .StartAsync();
+
+        using var scope = host.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var viewEngine = sp.GetRequiredService<ICompositeViewEngine>();
+        var tempDataProvider = sp.GetRequiredService<ITempDataProvider>();
+
+        var httpContext = new DefaultHttpContext { RequestServices = sp };
+        var routeData = new RouteData();
+        routeData.Values["controller"] = "SearchFeedback";
+        var actionContext = new ActionContext(httpContext, routeData, new ActionDescriptor());
+
+        var view = viewEngine.GetView(executingFilePath: null, viewPath: viewPath, isMainPage: false);
+        Assert.True(view.Success, $"Could not locate {viewPath}. Searched: {string.Join(", ", view.SearchedLocations ?? [])}");
+
+        var viewData = new ViewDataDictionary<SearchFeedbackViewModel>(
+            new EmptyModelMetadataProvider(), modelState ?? new ModelStateDictionary())
+        {
+            Model = model,
+        };
+        var tempData = new TempDataDictionary(httpContext, tempDataProvider);
+
+        await using var writer = new StringWriter();
+        var viewContext = new ViewContext(
+            actionContext, view.View, viewData, tempData, writer, new HtmlHelperOptions());
+        await view.View.RenderAsync(viewContext);
+
+        return writer.ToString();
+    }
+}
+
 // View-render coverage of the "Not the results you were expecting?" inset-text link on
-// Views/Search/Index.cshtml. Renders the view standalone through the composite view engine
-// (isMainPage:false → skips _ViewStart / _Layout) so the tests do not need the full
-// public-facing layout dependency graph. Mirrors SearchAnalyticsIndexViewRenderTests.
+// Views/Search/Index.cshtml. Renders the view standalone through the composite view
+// engine so no full public-facing layout is needed.
 public sealed class SearchIndexInsetTextRenderTests
 {
     [Fact]
@@ -503,8 +607,8 @@ public sealed class SearchIndexInsetTextRenderTests
                         .AddApplicationPart(typeof(SearchController).Assembly);
                     services.AddGovUkFrontend();
                     // Views/Search/Index.cshtml @inject-s ISearchDebugOptions; register a
-                    // NSubstitute fake returning ShowSearchDebug=false so the debug-only
-                    // markup branches don't fire in the assertion body.
+                    // fake returning ShowSearchDebug=false so the debug-only markup
+                    // branches don't fire in the assertion body.
                     var debugOptions = Substitute.For<ISearchDebugOptions>();
                     debugOptions.ShowSearchDebug.Returns(false);
                     services.AddSingleton(debugOptions);

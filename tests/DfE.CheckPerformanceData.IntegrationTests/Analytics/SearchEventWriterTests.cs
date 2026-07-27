@@ -117,7 +117,7 @@ public sealed class SearchEventWriterTests
         var callCount = 0;
         await using var services = BuildServices(sp => new ThrowingOnceSink(
             inner: new DbSearchAnalyticsSink(sp.GetRequiredService<IPortalDbContext>()),
-            increment: () => Interlocked.Increment(ref callCount)));
+            incrementAndReturnEntryNumber: () => Interlocked.Increment(ref callCount)));
         var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
 
         var writer = new SearchEventWriter(
@@ -187,24 +187,24 @@ public sealed class SearchEventWriterTests
 
     // Composes with a real sink; increments the caller-supplied counter every time
     // RecordBatchAsync is entered so the test can assert "sink was called more than
-    // once" (proving the writer survived the first throw).
+    // once" (proving the writer survived the first throw). Uses an out-of-scope counter
+    // (via the shared `increment` action) because the writer resolves a NEW sink from
+    // its per-flush scope, so instance state on the wrapper would reset per batch.
     private sealed class ThrowingOnceSink : ISearchAnalyticsSink
     {
-        private int _entries;
         private readonly ISearchAnalyticsSink _inner;
-        private readonly Action _increment;
+        private readonly Func<int> _incrementAndReturnEntryNumber;
 
-        public ThrowingOnceSink(ISearchAnalyticsSink inner, Action increment)
+        public ThrowingOnceSink(ISearchAnalyticsSink inner, Func<int> incrementAndReturnEntryNumber)
         {
             _inner = inner;
-            _increment = increment;
+            _incrementAndReturnEntryNumber = incrementAndReturnEntryNumber;
         }
 
         public Task RecordBatchAsync(
             IReadOnlyList<SearchEventDto> events, CancellationToken cancellationToken)
         {
-            _increment();
-            var entry = Interlocked.Increment(ref _entries);
+            var entry = _incrementAndReturnEntryNumber();
             if (entry == 1)
             {
                 throw new InvalidOperationException(

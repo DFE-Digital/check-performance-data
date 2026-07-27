@@ -119,13 +119,36 @@ try
         DfE.CheckPerformanceData.Application.Search.CmsSettingsSearchDebugOptions>();
 
     // Emits a structured log per search request (Info summary, Debug/Info per-hit and
-    // per-exclusion depending on the debug toggle, Warn zero-result). Scoped rather than
-    // Singleton because it now depends on Scoped ISearchDebugOptions — a Scoped service
-    // captured inside a Singleton would leak the first request's toggle read across
-    // every subsequent request.
+    // per-exclusion depending on the debug toggle, Warn zero-result). Registered as the
+    // CONCRETE type so the composite decorator below can resolve it directly without a
+    // self-recursive lookup through ISearchTelemetry. Scoped because it depends on
+    // Scoped ISearchDebugOptions — a Scoped service captured inside a Singleton would
+    // leak the first request's toggle read across every subsequent request.
+    builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
+
+    // Composite decorator: wraps LoggerSearchTelemetry (as the inner) with an enqueue
+    // onto the analytics channel. Registered against ISearchTelemetry so every /search
+    // caller resolves the fan-out shape; the inner logger keeps working exactly as
+    // before.
     builder.Services.AddScoped<
         DfE.CheckPerformanceData.Application.Search.ISearchTelemetry,
-        DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
+        DfE.CheckPerformanceData.Application.Analytics.SinkAndLogSearchTelemetry>();
+
+    // Analytics channel + writer + drop counter. The channel is a singleton (the same
+    // instance must be seen by every request-scope decorator and the singleton writer
+    // that drains it). The ChannelWriter side is factory-registered so the decorator's
+    // ctor gets a typed writer without having to know about the wrapper.
+    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>();
+    builder.Services.AddSingleton(sp =>
+        sp.GetRequiredService<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>()
+          .Channel.Writer);
+    builder.Services.AddSingleton<
+        DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsDroppedCounter,
+        DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsDroppedCounter>();
+    builder.Services.AddScoped<
+        DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsSessionProvider,
+        DfE.CheckPerformanceData.Web.Analytics.HttpContextSearchAnalyticsSessionProvider>();
+    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Analytics.SearchEventWriter>();
 
     // Process-lifetime counter of zero-result searches. Interlocked-backed; safe under
     // concurrent request throughput. Read out-of-band by diagnostic surfaces.

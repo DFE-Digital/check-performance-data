@@ -1,0 +1,7 @@
+@model int
+<li class="govuk-service-navigation__item">
+    <a class="govuk-service-navigation__link" href="/admin/Messages/Inbox">
+        Messages
+        <strong class="govuk-tag @(Model > 0 ? "govuk-tag--blue" : "govuk-tag--grey")">@Model</strong>
+    </a>
+</li>

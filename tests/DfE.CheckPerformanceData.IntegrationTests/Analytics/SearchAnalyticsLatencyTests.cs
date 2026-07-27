@@ -403,7 +403,7 @@ LIMIT 20;";
         var sb = new StringBuilder();
         sb.AppendLine("# Search analytics — verification (EXPLAIN plans + p95 latencies)");
         sb.AppendLine();
-        sb.AppendLine("Corpus: **100k search_events rows over the last 7 days** + **10k result rows** across 200 distinct pages.");
+        sb.AppendLine("Corpus: **100k search_events rows spread across the 90-day retention window** + **10k result rows attached to events in the last 7 days** across 200 distinct pages.");
         sb.AppendLine("Every plan below is captured against the same fixture-backed Postgres 17 container.");
         sb.AppendLine();
         sb.AppendLine("## Observed p95 latencies");

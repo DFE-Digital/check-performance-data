@@ -69,6 +69,8 @@ public static class DependencyManager
             Analytics.DbSearchAnalyticsSink>();
         services.AddScoped<Application.Analytics.ISearchMessageService,
             Analytics.DbSearchMessageService>();
+        services.AddScoped<Application.Analytics.ISearchAnalyticsQueryService,
+            Analytics.SearchAnalyticsQueryService>();
 
         return services;
     }

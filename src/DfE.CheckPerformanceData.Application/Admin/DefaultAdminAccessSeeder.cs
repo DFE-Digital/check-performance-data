@@ -38,6 +38,8 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "uncommitted-requests",
         "reset-seed-data",
         "share-admin",
+        "search-analytics",
+        "messages-inbox",
     };
 
     public async Task SeedIfEmptyAsync()

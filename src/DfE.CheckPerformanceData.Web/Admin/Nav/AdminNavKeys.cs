@@ -42,4 +42,10 @@ public static class AdminNavKeys
     public const string WindowAdmin = "window-admin";
     public const string NewWindow = "new-window";
     public const string ManageWindow = "manage-window";
+
+    // Search-analytics admin surface. Downstream plans hang [RequireAdminSection] off
+    // this const, so the seeder MUST have a matching entry in AllSections or the gate
+    // returns 404 on a fresh DB.
+    public const string SearchAnalytics = "search-analytics";
+    public const string MessagesInbox = "messages-inbox";
 }

@@ -1,7 +1,6 @@
 using System.Threading.Channels;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
 
@@ -32,19 +31,12 @@ public sealed class SinkAndLogSearchTelemetryTests
         public bool ShowSearchDebug => false;
     }
 
-    // Minimal ISession fake — Session.Id is the only member the decorator reads.
-    private sealed class FakeSession : ISession
+    // Minimal session-provider fake — swaps between "live session id" and "no session"
+    // without dragging in the AspNetCore Http surface. The abstraction is the seam the
+    // decorator was built around exactly so unit tests can construct one line.
+    private sealed class FakeSessionProvider(string? id) : ISearchAnalyticsSessionProvider
     {
-        public FakeSession(string id) { Id = id; }
-        public bool IsAvailable => true;
-        public string Id { get; }
-        public IEnumerable<string> Keys => [];
-        public void Clear() { }
-        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void Remove(string key) { }
-        public void Set(string key, byte[] value) { }
-        public bool TryGetValue(string key, out byte[] value) { value = []; return false; }
+        public string? GetSessionId() => id;
     }
 
     private static SearchTelemetryEvent BuildEvent(int hitCount = 1) =>
@@ -73,10 +65,12 @@ public sealed class SinkAndLogSearchTelemetryTests
                     ILogger<LoggerSearchTelemetry> InnerLogger)
         BuildSut(string? sessionId, int channelCapacity = 100)
     {
+        // Match the production channel's Wait mode so TryWrite returns false on overflow
+        // (DropWrite silently accepts + discards, hiding the drop from the decorator).
         var channel = Channel.CreateBounded<SearchEventDto>(
             new BoundedChannelOptions(channelCapacity)
             {
-                FullMode = BoundedChannelFullMode.DropWrite,
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = true,
                 SingleWriter = false,
                 AllowSynchronousContinuations = false
@@ -89,19 +83,8 @@ public sealed class SinkAndLogSearchTelemetryTests
         var counter = Substitute.For<ISearchAnalyticsDroppedCounter>();
         var decoratorLogger = Substitute.For<ILogger<SinkAndLogSearchTelemetry>>();
 
-        var httpAccessor = Substitute.For<IHttpContextAccessor>();
-        if (sessionId is null)
-        {
-            httpAccessor.HttpContext.Returns((HttpContext?)null);
-        }
-        else
-        {
-            var context = new DefaultHttpContext { Session = new FakeSession(sessionId) };
-            httpAccessor.HttpContext.Returns(context);
-        }
-
         var sut = new SinkAndLogSearchTelemetry(
-            channel.Writer, inner, counter, decoratorLogger, httpAccessor);
+            channel.Writer, inner, counter, decoratorLogger, new FakeSessionProvider(sessionId));
 
         return (sut, channel, counter, decoratorLogger, innerLogger);
     }
@@ -187,7 +170,7 @@ public sealed class SinkAndLogSearchTelemetryTests
     }
 
     [Fact]
-    public void RecordSearch_WithNoHttpContext_SkipsChannelWriteButStillCallsInnerLogger()
+    public void RecordSearch_WithNoSessionAvailable_SkipsChannelWriteButStillCallsInnerLogger()
     {
         var (sut, channel, counter, _, innerLogger) = BuildSut(sessionId: null);
         var evt = BuildEvent();

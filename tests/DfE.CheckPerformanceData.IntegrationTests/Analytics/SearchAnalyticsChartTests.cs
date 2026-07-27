@@ -2,7 +2,21 @@ using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
+using DfE.CheckPerformanceData.Web.Controllers;
+using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
@@ -148,6 +162,94 @@ public sealed class SearchAnalyticsChartTests
 
         // 49h spans 3 calendar days (day 0 partial, day 1 full, day 2 up to now).
         Assert.True(buckets.Count is >= 2 and <= 3, $"Expected 2..3 day-buckets across a 49h window, got {buckets.Count}");
+    }
+
+    // --- Chart partial renders SVG + a WCAG 1.1.1 <details>/<table> fallback ---
+
+    [Fact]
+    public async Task VolumeChartPartial_WithBuckets_RendersSvgAndDetailsTableFallback()
+    {
+        var buckets = new List<VolumeBucket>();
+        var now = HourAligned(DateTime.UtcNow);
+        for (var i = 0; i < 6; i++)
+            buckets.Add(new VolumeBucket(now.AddHours(-6 + i), SearchCount: 10 + i, UniqueSessionCount: 5 + i));
+
+        var html = await RenderVolumeChartPartialAsync(buckets);
+
+        Assert.Contains("<svg", html);
+        Assert.Contains("sa-chart", html);
+        // WCAG 1.1.1: a data-table fallback lives beneath every chart.
+        Assert.Contains("<details class=\"govuk-details\"", html);
+        // Every bucket appears in the fallback table (6 rows).
+        var trCount = System.Text.RegularExpressions.Regex.Matches(html, "<tr").Count;
+        Assert.True(trCount >= 6, $"Expected at least 6 <tr> rows in the fallback table, got {trCount}.");
+        // Series are distinguished by SHAPE + colour, not colour alone: blue rect on Y1, green
+        // circle on Y2. Assert both marker shapes appear.
+        Assert.Contains("<rect", html);
+        Assert.Contains("<circle", html);
+        // GDS palette only: blue and green tokens.
+        Assert.Contains("#1d70b8", html);
+        Assert.Contains("#00703c", html);
+    }
+
+    [Fact]
+    public async Task VolumeChartPartial_WithNoBuckets_RendersEmptyStateNotSvg()
+    {
+        var html = await RenderVolumeChartPartialAsync(Array.Empty<VolumeBucket>());
+
+        // An empty series must not silently render an SVG with zero points — the empty state
+        // gives the admin a readable "no data" message instead.
+        Assert.DoesNotContain("<polyline", html);
+        Assert.Contains("No data", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Standalone render of the _VolumeChart.cshtml partial via the composite view engine.
+    // Same shape as SearchAnalyticsIndexViewRenderTests — no _AdminLayout dependency graph
+    // wiring needed because the partial is self-contained (no layout, no view components).
+    private static async Task<string> RenderVolumeChartPartialAsync(IReadOnlyList<VolumeBucket> model)
+    {
+        using var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+                web.ConfigureServices(services =>
+                {
+                    services.AddControllersWithViews()
+                        .AddApplicationPart(typeof(SearchAnalyticsController).Assembly);
+                    services.AddGovUkFrontend();
+                });
+                web.Configure(_ => { });
+            })
+            .StartAsync();
+
+        using var scope = host.Services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var viewEngine = sp.GetRequiredService<ICompositeViewEngine>();
+        var tempDataProvider = sp.GetRequiredService<ITempDataProvider>();
+
+        var httpContext = new DefaultHttpContext { RequestServices = sp };
+        var routeData = new RouteData();
+        routeData.Values["controller"] = "SearchAnalytics";
+        var actionContext = new ActionContext(httpContext, routeData, new ActionDescriptor());
+
+        var view = viewEngine.GetView(executingFilePath: null,
+            viewPath: "/Views/Admin/Search/_VolumeChart.cshtml", isMainPage: false);
+        Assert.True(view.Success,
+            $"Could not locate _VolumeChart partial. Searched: {string.Join(", ", view.SearchedLocations ?? [])}");
+
+        var viewData = new ViewDataDictionary<IReadOnlyList<VolumeBucket>>(
+            new EmptyModelMetadataProvider(), new ModelStateDictionary())
+        {
+            Model = model,
+        };
+        var tempData = new TempDataDictionary(httpContext, tempDataProvider);
+
+        await using var writer = new StringWriter();
+        var viewContext = new ViewContext(
+            actionContext, view.View, viewData, tempData, writer, new HtmlHelperOptions());
+        await view.View.RenderAsync(viewContext);
+
+        return writer.ToString();
     }
 
     // --- Helpers ---

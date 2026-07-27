@@ -71,5 +71,22 @@ internal sealed class SearchEventConfiguration : IEntityTypeConfiguration<Search
         builder.HasIndex(x => new { x.ZeroResults, x.OccurredAtUtc })
             .HasDatabaseName("ix_search_events_zero_results_occurred_at")
             .HasFilter("zero_results = true");
+
+        // Volume-over-time chart groups by date_trunc('day'|'hour', occurred_at_utc) and
+        // counts DISTINCT session_id per bucket. Without a composite key on the two columns
+        // the planner falls back to a seq-scan + external merge sort on 100k+ rows; the
+        // combined index lets the scan read rows in (time, session) order so the GROUP BY
+        // can consume the stream without spilling to disk.
+        builder.HasIndex(x => new { x.OccurredAtUtc, x.SessionId })
+            .HasDatabaseName("ix_search_events_occurred_at_session_id");
+
+        // Top-queries drill-in filters by time-window and groups by query_normalised.
+        // The plain query_normalised index above helps the GROUP BY key but forces a
+        // full scan through the index before filtering by time; a composite that leads
+        // on occurred_at_utc lets the range predicate cut the scan first. Filtered to
+        // NOT NULL so the query planner can drop the extra predicate.
+        builder.HasIndex(x => new { x.OccurredAtUtc, x.QueryNormalised })
+            .HasDatabaseName("ix_search_events_occurred_at_query_normalised")
+            .HasFilter("query_normalised IS NOT NULL");
     }
 }

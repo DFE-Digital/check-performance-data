@@ -58,11 +58,13 @@ public sealed class SearchAnalyticsLatencyTests
     [Fact]
     public async Task ReadSideP95Budgets_On100kRowCorpus_MetForLandingAndDrillIns()
     {
-        // Distribute the 100k seed events across the last 7 days so a 7d window covers
-        // every row — mirrors how the landing view reads at the default range.
-        var seedOldest = DateTime.UtcNow.AddDays(-7);
+        // Spread the 100k seed events evenly across the full 90-day retention window so a
+        // 7-day read filters to ~7/90ths of rows — matches production density (retention
+        // = 90d, cast a 7d slice by default) and gives the composite indexes selectivity to
+        // work with. The default P02 seeder packs everything into a ~28h window at 1s
+        // intervals which does not exercise the range-filter path the production reads take.
         await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
-        await SearchAnalyticsSeedHelpers.SeedSearchEventsAsync(_fixture, SeedEvents, seedOldest);
+        await SeedEventsAcross90DaysAsync(SeedEvents);
         await SeedResultRowsAsync();
 
         // Warm caches with one call each before sampling.
@@ -164,7 +166,60 @@ public sealed class SearchAnalyticsLatencyTests
         return sorted[rank];
     }
 
-    // --- Seed helper for the top-pages join ---------------------------------
+    // --- Seed helpers -------------------------------------------------------
+
+    // Seeds `rowCount` search_events evenly across the last 90 days. Column layout
+    // mirrors SearchAnalyticsSeedHelpers.SeedSearchEventsAsync — the difference is
+    // the distribution (spread across the full retention window instead of packed
+    // into a ~28h burst). Uses binary COPY so 100k rows land in < 1s.
+    private async Task SeedEventsAcross90DaysAsync(int rowCount)
+    {
+        if (rowCount <= 0) return;
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+
+        // Nested scope so the binary import writer is disposed (releases the connector from
+        // its Copy state) BEFORE the ANALYZE that follows. A `await using` at method scope
+        // would keep the connector in Copy state and the ANALYZE would throw
+        // NpgsqlOperationInProgressException.
+        {
+            await using var writer = await conn.BeginBinaryImportAsync(
+                "COPY search_events (occurred_at_utc, session_id, query_raw, query_normalised, scope, results_pages, results_blocks, latency_ms) FROM STDIN (FORMAT BINARY)");
+
+            var end = DateTime.UtcNow.AddMinutes(-1);
+            var start = end.AddDays(-90);
+            var totalSpanTicks = (end - start).Ticks;
+            var stepTicks = rowCount > 1 ? totalSpanTicks / (rowCount - 1) : 0L;
+
+            for (var i = 0; i < rowCount; i++)
+            {
+                var occurredAt = start + TimeSpan.FromTicks(stepTicks * i);
+                await writer.StartRowAsync();
+                await writer.WriteAsync(occurredAt, NpgsqlDbType.TimestampTz);
+                await writer.WriteAsync(
+                    "seed-session-" + (i % 128).ToString(CultureInfo.InvariantCulture),
+                    NpgsqlDbType.Text);
+                await writer.WriteAsync("seed-query-" + i.ToString(CultureInfo.InvariantCulture),
+                    NpgsqlDbType.Text);
+                await writer.WriteAsync("seed-query-" + i.ToString(CultureInfo.InvariantCulture),
+                    NpgsqlDbType.Text);
+                await writer.WriteNullAsync();
+                await writer.WriteAsync(i % 3, NpgsqlDbType.Integer);
+                await writer.WriteAsync(i % 5, NpgsqlDbType.Integer);
+                await writer.WriteAsync(1 + (i % 25), NpgsqlDbType.Integer);
+            }
+
+            await writer.CompleteAsync();
+        }
+
+        // Refresh planner stats so the composite indexes' selectivity is known — without
+        // ANALYZE, the planner's row-count estimates come from a stale sample and can pick
+        // the wrong plan for the range predicate.
+        await using var analyze = conn.CreateCommand();
+        analyze.CommandText = "ANALYZE search_events;";
+        await analyze.ExecuteNonQueryAsync();
+    }
 
     // Attaches SeedResultRows result rows to the first N events distributed across
     // DistinctPagesInSeed pages so the top-pages read has non-trivial join work + a
@@ -174,12 +229,18 @@ public sealed class SearchAnalyticsLatencyTests
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
         await conn.OpenAsync();
 
-        // Grab the earliest N event ids so the result rows attach to events inside the
-        // seeded time range.
+        // Grab N event ids from inside the last 7-day window so the top-pages read (which
+        // filters on the parent event's occurred_at_utc) finds them. Ordered by id so the
+        // seed is deterministic. Without the window filter the earliest events would sit
+        // 90 days back and the read would return 0 pages.
+        var pagesWindowStart = DateTime.UtcNow.AddDays(-7);
         long[] eventIds;
         await using (var eventsCmd = conn.CreateCommand())
         {
-            eventsCmd.CommandText = "SELECT id FROM search_events ORDER BY id LIMIT @limit;";
+            eventsCmd.CommandText =
+                "SELECT id FROM search_events WHERE occurred_at_utc >= @from ORDER BY id LIMIT @limit;";
+            eventsCmd.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz)
+                { Value = pagesWindowStart });
             eventsCmd.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer)
                 { Value = SeedResultRows });
             var ids = new List<long>(SeedResultRows);

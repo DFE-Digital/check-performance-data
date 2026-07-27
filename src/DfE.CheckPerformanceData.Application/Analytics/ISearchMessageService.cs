@@ -16,4 +16,17 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 public interface ISearchMessageService
 {
     Task<int> PurgeExpiredMessagesAsync(TimeSpan olderThan, CancellationToken cancellationToken);
+
+    // Persists a single user-submitted feedback message keyed by the visitor's session
+    // identifier. The controller ALWAYS reads sessionId server-side (context.Session.Id);
+    // a null email means the user chose to hide their address on the form and the value
+    // is dropped BEFORE it reaches this method — no encryption, no reveal machinery, so
+    // "hidden" here means literally NULL in the row. Returns the auto-assigned id so
+    // the caller can build a confirmation URL keyed by it.
+    Task<long> CreateAsync(
+        string sessionId,
+        string whatLookingFor,
+        string? whatGot,
+        string? email,
+        CancellationToken cancellationToken);
 }

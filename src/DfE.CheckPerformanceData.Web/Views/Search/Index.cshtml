@@ -117,5 +117,19 @@
                 </govuk-pagination>
             }
         }
+
+        @* Feedback callout. Renders under both the zero-result and results-present
+           branches so a user who could not find what they wanted has a self-serve path
+           to tell us — but only when they actually ran a query. Suppressed on the empty
+           landing (Model.Query empty) and on the below-minimum-length invalid branch. *@
+        @if (!string.IsNullOrEmpty(Model.Query)
+             && Model.InvalidReason != SearchInvalidReason.DataStoreUnavailable
+             && Model.InvalidReason != SearchInvalidReason.BelowMinimumLength)
+        {
+            <div class="govuk-inset-text">
+                Not the results you were expecting?
+                <a class="govuk-link" href="/Search/Feedback">Send us a note →</a>
+            </div>
+        }
     </div>
 </div>

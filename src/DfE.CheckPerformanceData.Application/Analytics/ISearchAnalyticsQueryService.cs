@@ -91,4 +91,12 @@ public interface ISearchAnalyticsQueryService
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
+
+    // Every search_event for the session, newest first. Not window-bounded: the support
+    // flow needs the entire session lifetime so an admin looking at a message can see
+    // every search that session ran. Callers filter empty lists into a 404 rather than
+    // rendering an empty drill-in — an empty result means "unknown session".
+    Task<IReadOnlyList<SessionHistoryRow>> GetSessionHistoryAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default);
 }

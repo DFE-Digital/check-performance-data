@@ -147,6 +147,7 @@
                             @if (User.IsInRole(WikiConstants.AdminRole))
                             {
                                 @await Component.InvokeAsync("DlqBadge")
+                                @await Component.InvokeAsync("SearchMessagesInboxBadge")
                             }
                             <li class="govuk-service-navigation__item sign-in-nav-item">
                                 @if (showSignOut)

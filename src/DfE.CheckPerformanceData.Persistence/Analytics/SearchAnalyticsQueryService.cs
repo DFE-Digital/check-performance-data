@@ -404,6 +404,36 @@ LIMIT @limit OFFSET @offset;";
         return (rows, total);
     }
 
+    public async Task<IReadOnlyList<SessionHistoryRow>> GetSessionHistoryAsync(
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(sessionId))
+            return Array.Empty<SessionHistoryRow>();
+
+        // LINQ read — no window predicate, so the session index carries the full lookup.
+        // Ordered DESC so the drill-in reads newest-first, matching admin expectations
+        // when scanning a session's history for the search that triggered a support note.
+        var rows = await _dbContext.SearchEvents
+            .AsNoTracking()
+            .Where(e => e.SessionId == sessionId)
+            .OrderByDescending(e => e.OccurredAtUtc)
+            .Select(e => new SessionHistoryRow(
+                e.OccurredAtUtc,
+                e.QueryRaw,
+                e.QueryNormalised,
+                e.Scope,
+                e.ResultsPages,
+                e.ResultsBlocks,
+                e.ResultsTotal,
+                e.LatencyMs))
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(r => r with { OccurredAtUtc = DateTime.SpecifyKind(r.OccurredAtUtc, DateTimeKind.Utc) })
+            .ToList();
+    }
+
     // Opens (or borrows) the DbContext's underlying Npgsql connection, runs the SQL, and
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read
     // services share the layering pattern and a copy here keeps the sibling boundary

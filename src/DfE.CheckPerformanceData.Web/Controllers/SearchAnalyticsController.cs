@@ -1,9 +1,14 @@
+using System.Text.Json;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -19,6 +24,9 @@ public sealed class SearchAnalyticsController : Controller
 {
     private readonly ISearchAnalyticsQueryService _query;
     private readonly ISettingService _settings;
+    private readonly ISearchMessageService? _messages;
+    private readonly IPortalDbContext? _dbContext;
+    private readonly ICurrentUserService? _currentUserService;
 
     // The default time window if no ?range= is supplied. Chosen to give admins one week of
     // trend visibility on first landing — enough to see week-over-week zero-result drift
@@ -44,10 +52,18 @@ public sealed class SearchAnalyticsController : Controller
     // Mirrors ObservabilityController's fallback so all admin paged surfaces share one floor.
     private const int DefaultPageSize = 20;
 
-    public SearchAnalyticsController(ISearchAnalyticsQueryService query, ISettingService settings)
+    public SearchAnalyticsController(
+        ISearchAnalyticsQueryService query,
+        ISettingService settings,
+        ISearchMessageService? messages = null,
+        IPortalDbContext? dbContext = null,
+        ICurrentUserService? currentUserService = null)
     {
         _query = query;
         _settings = settings;
+        _messages = messages;
+        _dbContext = dbContext;
+        _currentUserService = currentUserService;
     }
 
     [HttpGet("")]
@@ -187,6 +203,100 @@ public sealed class SearchAnalyticsController : Controller
             ToUtc = toUtc,
             RangeKey = rangeKey,
         });
+    }
+
+    [HttpGet("Session/{id}")]
+    public async Task<IActionResult> Session(string id, CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = "Session";
+
+        var events = await _query.GetSessionHistoryAsync(id, ct);
+
+        // 404 on empty — an unknown session id should not render an empty drill-in that
+        // implicitly confirms the id doesn't exist to anyone hitting the URL blind.
+        if (events.Count == 0)
+        {
+            return NotFound();
+        }
+
+        var messages = _messages is null
+            ? Array.Empty<SearchMessageSummary>()
+            : await _messages.GetForSessionAsync(id, ct);
+
+        return View("~/Views/Admin/Search/Session.cshtml", new SearchSessionDrillInViewModel
+        {
+            SessionId = id,
+            Events = events,
+            Messages = messages,
+        });
+    }
+
+    [HttpPost("Session/{id}/Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(string id, CancellationToken ct = default)
+    {
+        // Purge is admin-only, XSRF-gated, and confirm-modal-gated in the view. The
+        // three deletes + the audit-entry write share one transaction so a partial
+        // delete without a matching audit row is impossible.
+        if (_dbContext is null || _messages is null)
+        {
+            // Bare construction (no persistence wired) — refuse rather than silently
+            // half-purge. Production DI always wires both.
+            return StatusCode(500);
+        }
+
+        var eventsDeleted = 0;
+        var resultsDeleted = 0;
+        var messagesDeleted = 0;
+
+        await _dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            // Pre-count the child rows first — Postgres does not surface CASCADE child
+            // counts from the parent DELETE, so we count them explicitly before the
+            // parent delete so the audit payload carries an accurate resultsDeleted
+            // figure. Same transaction, same isolation snapshot, so the count and the
+            // delete see the same rows.
+            resultsDeleted = await _dbContext.SearchEventResults
+                .Where(r => _dbContext.SearchEvents.Any(e => e.Id == r.SearchEventId && e.SessionId == id))
+                .CountAsync(ct);
+
+            eventsDeleted = await _dbContext.SearchEvents
+                .Where(e => e.SessionId == id)
+                .ExecuteDeleteAsync(ct);
+
+            var purge = await _messages.PurgeSessionAsync(id, ct);
+            messagesDeleted = purge.MessagesDeleted;
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                eventsDeleted,
+                resultsDeleted,
+                messagesDeleted,
+                deletedBy = _currentUserService?.UserId,
+                deletedAt = DateTime.UtcNow,
+            });
+
+            _dbContext.AuditEntries.Add(new AuditEntry
+            {
+                EntityType = "SearchSession",
+                EntityId = id,
+                Action = "SearchSessionDelete",
+                NewValues = payload,
+                Timestamp = DateTime.UtcNow,
+                UserId = _currentUserService?.UserId,
+            });
+
+            await _dbContext.SaveChangesAsync(ct);
+        }, ct);
+
+        if (TempData is not null)
+        {
+            TempData["SearchSessionDeletedCounts"] =
+                $"{eventsDeleted} events, {resultsDeleted} results, {messagesDeleted} messages";
+        }
+
+        return Redirect("/admin/Search/");
     }
 
     // Reads CMS:PageLength for the drill-in tables. The admin admin setting is trusted verbatim

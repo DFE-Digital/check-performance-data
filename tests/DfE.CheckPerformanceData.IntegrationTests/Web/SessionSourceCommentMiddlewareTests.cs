@@ -13,11 +13,10 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Web;
 
 // Locks in the "user-quotable session id" surface. Every text/html response — public
 // pages, admin pages, 404s (once the app returns text/html for them), 500 error pages —
-// must carry an HTML comment `<!-- session: <id> -->` immediately before </body>. This
-// is the D-05 cornerstone: users see the id in view-source and quote it back to
-// support. Non-text/html responses (JSON, robots.txt, streaming) must NOT get the
-// comment — the injector's buffered-body pattern would break SSE and other streams
-// if it fired on them.
+// must carry an HTML comment `<!-- session: <id> -->` immediately before </body>.
+// Users see the id in view-source and quote it back to support. Non-text/html
+// responses (JSON, robots.txt, streaming) must NOT get the comment — the injector's
+// buffered-body pattern would break SSE and other streams if it fired on them.
 public sealed class SessionSourceCommentMiddlewareTests
 {
     [Fact]

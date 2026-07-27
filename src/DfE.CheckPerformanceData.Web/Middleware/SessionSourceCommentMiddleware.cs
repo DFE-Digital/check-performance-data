@@ -9,9 +9,9 @@ namespace DfE.CheckPerformanceData.Web.Middleware;
 // Users see the id in view-source and quote it back to support.
 //
 // Two deliberate divergences from DiagnosticFooterMiddleware:
-//   1. No env.IsProduction guard — the id must be quotable in Production too, that's
-//      the whole point of the surface.
-//   2. No StatusCode == 200 guard — 404 + 500 responses need the comment too, because
+//   1. No hosting-environment guard — the id must be quotable in Production too,
+//      that's the whole point of the surface.
+//   2. No 200-only guard — 404 and 500 responses need the comment too, because
 //      those are exactly the pages users complain about.
 //
 // The SSE (text/event-stream) short-circuit IS preserved — buffering an infinite

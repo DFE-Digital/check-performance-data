@@ -13,4 +13,10 @@ public sealed class CountryRepository(IPortalDbContext dbContext) : ICountryRepo
             .Take(10)
             .Select(c => new CountrySuggestionDto(c.Code, c.Name))
             .ToListAsync(cancellationToken);
+
+    public async Task<string?> GetCodeByNameAsync(string name, CancellationToken cancellationToken = default)
+        => await dbContext.Countries
+            .Where(c => EF.Functions.ILike(c.Name, name))
+            .Select(c => c.Code)
+            .FirstOrDefaultAsync(cancellationToken);
 }

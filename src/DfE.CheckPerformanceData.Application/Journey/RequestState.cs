@@ -17,4 +17,13 @@ public sealed class RequestState
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();
     public List<string> QuestionHistory { get; set; } = new();
+
+    /// <summary>ISO 3166-1 alpha-2 code of the answer to country-originally-from,
+    /// resolved at details-page POST time (PBI 292266). Null when unresolved.</summary>
+    public string? OriginCountryCode { get; set; }
+
+    /// <summary>Official languages of <see cref="OriginCountryCode"/> per the
+    /// country-languages.json lookup the rules engine also uses. Null when the
+    /// country is unresolved or absent from the lookup.</summary>
+    public List<string>? OriginCountryLanguages { get; set; }
 }

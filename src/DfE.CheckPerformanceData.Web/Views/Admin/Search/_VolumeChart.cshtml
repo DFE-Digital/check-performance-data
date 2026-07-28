@@ -151,6 +151,14 @@
             }
         </svg>
 
+        @* Cap the inline fallback table so a 90-day-by-15-minute (~8600 rows) window does
+           not paint 200 kB of DOM under the chart. When the total bucket count exceeds the
+           cap, a "View all volume data →" link points to the drill-in page which shows the
+           same chart with a paged table underneath. *@
+        var inlineCapRaw = ViewContext.ViewData["sa-inline-row-cap"] as int?;
+        var inlineCap = inlineCapRaw is { } capValue && capValue > 0 ? capValue : 20;
+        var drillInUrl = ViewContext.ViewData["sa-drillin-volume-url"] as string;
+        var displayedBuckets = buckets.Count > inlineCap ? buckets.Take(inlineCap).ToList() : (IReadOnlyList<VolumeBucket>)buckets;
         <details class="govuk-details">
             <summary class="govuk-details__summary">
                 <span class="govuk-details__summary-text">View volume data table</span>
@@ -160,13 +168,13 @@
                     <caption class="govuk-table__caption govuk-table__caption--s">Search volume per bucket</caption>
                     <thead class="govuk-table__head">
                         <tr class="govuk-table__row">
-                            <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
-                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Searches</th>
-                            <th scope="col" class="govuk-table__header govuk-table__header--numeric">Unique sessions</th>
+                            <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many searches were fired during this bucket.">Searches</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many distinct browser sessions searched in that bucket.">Unique sessions</th>
                         </tr>
                     </thead>
                     <tbody class="govuk-table__body">
-                        @foreach (var bucket in buckets)
+                        @foreach (var bucket in displayedBuckets)
                         {
                             <tr class="govuk-table__row">
                                 <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
@@ -176,6 +184,13 @@
                         }
                     </tbody>
                 </table>
+                @if (buckets.Count > inlineCap && !string.IsNullOrEmpty(drillInUrl))
+                {
+                    <p class="govuk-body">
+                        Showing the first @displayedBuckets.Count of @buckets.Count.ToString("N0", CultureInfo.CurrentCulture) buckets.
+                        <a class="govuk-link" href="@drillInUrl">View all volume data &rarr;</a>
+                    </p>
+                }
             </div>
         </details>
     }

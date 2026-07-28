@@ -1,0 +1,81 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.TimeWindowFilterModel
+@{
+    // Shared time-window + bucket-size filter form used by the landing dashboard and every
+    // series drill-in. Same GDS controls; the form's action URL varies per caller (the
+    // landing page posts back to /admin/Search/, each drill-in posts back to itself) so
+    // deep-links keep the same range + bucket on Apply.
+    var isCustom = string.Equals(Model.RangeKey, "custom", StringComparison.Ordinal);
+    var fromValue = isCustom ? Model.FromUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
+    var toValue = isCustom ? Model.ToUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
+}
+
+<form method="get" action="@Model.FormAction" class="sa-filters govuk-!-margin-bottom-6">
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Time window</legend>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                @foreach (var (value, label) in new[]
+                {
+                    ("24h", "Last 24 hours"),
+                    ("7d",  "Last 7 days"),
+                    ("30d", "Last 30 days"),
+                    ("90d", "Last 90 days"),
+                    ("custom", "Custom range"),
+                })
+                {
+                    var id = "range-" + value;
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="@id" name="range" type="radio"
+                               value="@value" @(Model.RangeKey == value ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="govuk-grid-row">
+        <div class="govuk-grid-column-one-quarter">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="from">From (UTC)</label>
+                <input class="govuk-input" id="from" name="from" type="date" value="@fromValue" />
+            </div>
+        </div>
+        <div class="govuk-grid-column-one-quarter">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="to">To (UTC)</label>
+                <input class="govuk-input" id="to" name="to" type="date" value="@toValue" />
+            </div>
+        </div>
+    </div>
+
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Chart bucket size</legend>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                @foreach (var (value, label) in new[]
+                {
+                    ("15m", "15 minutes"),
+                    ("1h",  "1 hour"),
+                    ("1d",  "1 day"),
+                    ("1w",  "1 week"),
+                    ("1mo", "1 month"),
+                })
+                {
+                    var id = "bucket-" + value;
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="@id" name="bucket" type="radio"
+                               value="@value" @(Model.BucketKey == value ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
+
+    <div class="govuk-button-group">
+        <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
+        <a class="govuk-link" href="@Model.FormAction">Reset to last 7 days</a>
+    </div>
+</form>

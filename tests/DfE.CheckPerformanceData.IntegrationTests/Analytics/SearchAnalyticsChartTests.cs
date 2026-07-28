@@ -485,6 +485,161 @@ public sealed class SearchAnalyticsChartTests
         Assert.Equal(0, buckets[3].SearchCount);
     }
 
+    // --- Paged time-series readers: same zero-filled spine, sliced by page + pageSize ---
+
+    [Fact]
+    public async Task GetPagedVolumeOverTime_SecondPage_ReturnsSliceAndTotalCount()
+    {
+        await ResetSearchEventsAsync();
+
+        // 100 hour-buckets so page 2 of pageSize 20 lands squarely in the middle.
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-100);
+
+        var events = new List<SearchEvent>();
+        for (var h = 0; h < 100; h++)
+        {
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(15), $"s-{h}", "q", results: 1, latency: 10));
+        }
+        await SeedAsync(events.ToArray());
+
+        var (rows, total) = await CreateService().GetPagedVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 2, pageSize: 20, CancellationToken.None);
+
+        Assert.Equal(100, total);
+        Assert.Equal(20, rows.Count);
+        // Every bucket has one event → SearchCount == 1 across every slice.
+        Assert.All(rows, r => Assert.Equal(1, r.SearchCount));
+        // Page 2 starts at bucket index 20 (i.e. hour offset 20 from the window start).
+        Assert.Equal(from.AddHours(20), rows[0].BucketStart);
+        Assert.Equal(from.AddHours(39), rows[^1].BucketStart);
+    }
+
+    [Fact]
+    public async Task GetPagedVolumeOverTime_ZeroFillsEmptyBucketsAcrossPages()
+    {
+        await ResetSearchEventsAsync();
+
+        // 30 hour-buckets, one event only in bucket 15 → pages either side should be all zero rows.
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-30);
+
+        await SeedAsync(NewEvent(from.AddHours(15).AddMinutes(15), "s-only", "q", results: 1, latency: 10));
+
+        var svc = CreateService();
+        var (pg1, total) = await svc.GetPagedVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 1, pageSize: 10, CancellationToken.None);
+        var (pg2, _) = await svc.GetPagedVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 2, pageSize: 10, CancellationToken.None);
+        var (pg3, _) = await svc.GetPagedVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 3, pageSize: 10, CancellationToken.None);
+
+        Assert.Equal(30, total);
+        Assert.All(pg1, r => Assert.Equal(0, r.SearchCount));
+        // Bucket 15 lives on page 2 (rows 11..20). Zero-indexed within the page it is
+        // (bucket-index 15) - (page-2 offset 10) = 5.
+        Assert.Equal(1, pg2[5].SearchCount);
+        Assert.All(pg3, r => Assert.Equal(0, r.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetPagedUniqueSessionsOverTime_ReturnsDistinctSessionSlice()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-50);
+
+        // Every bucket carries 2 distinct sessions.
+        var events = new List<SearchEvent>();
+        for (var h = 0; h < 50; h++)
+        {
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(10), $"s-a-{h}", "q", results: 1, latency: 10));
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(20), $"s-b-{h}", "q", results: 1, latency: 10));
+        }
+        await SeedAsync(events.ToArray());
+
+        var (rows, total) = await CreateService().GetPagedUniqueSessionsOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 2, pageSize: 20, CancellationToken.None);
+
+        Assert.Equal(50, total);
+        Assert.Equal(20, rows.Count);
+        Assert.All(rows, r => Assert.Equal(2, r.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetPagedZeroResultCountOverTime_ReturnsZeroResultSlice()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-40);
+
+        // Every bucket has 3 zero-result events + 1 non-zero.
+        var events = new List<SearchEvent>();
+        for (var h = 0; h < 40; h++)
+        {
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(5),  $"s-{h}-1", "q", results: 0, latency: 10));
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(10), $"s-{h}-2", "q", results: 0, latency: 10));
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(15), $"s-{h}-3", "q", results: 0, latency: 10));
+            events.Add(NewEvent(from.AddHours(h).AddMinutes(20), $"s-{h}-4", "q", results: 5, latency: 10));
+        }
+        await SeedAsync(events.ToArray());
+
+        var (rows, total) = await CreateService().GetPagedZeroResultCountOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 1, pageSize: 20, CancellationToken.None);
+
+        Assert.Equal(40, total);
+        Assert.Equal(20, rows.Count);
+        Assert.All(rows, r => Assert.Equal(3, r.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetPagedLatencyPercentilesOverTime_ReturnsPercentileSlice()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-30);
+
+        // Every bucket has 5 events of latency 200ms → p5=p50=p95=200 across every slice.
+        var events = new List<SearchEvent>();
+        for (var h = 0; h < 30; h++)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                events.Add(NewEvent(from.AddHours(h).AddMinutes(5 + i * 3), $"s-{h}-{i}", "q", results: 1, latency: 200));
+            }
+        }
+        await SeedAsync(events.ToArray());
+
+        var (rows, total) = await CreateService().GetPagedLatencyPercentilesOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 2, pageSize: 10, CancellationToken.None);
+
+        Assert.Equal(30, total);
+        Assert.Equal(10, rows.Count);
+        Assert.All(rows, r => Assert.Equal(200, r.P5Ms));
+        Assert.All(rows, r => Assert.Equal(200, r.P50Ms));
+        Assert.All(rows, r => Assert.Equal(200, r.P95Ms));
+    }
+
+    [Fact]
+    public async Task GetPagedVolumeOverTime_LastPagePartial_ReturnsRemainingBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-25);
+
+        var svc = CreateService();
+        var (rows, total) = await svc.GetPagedVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, page: 3, pageSize: 10, CancellationToken.None);
+
+        Assert.Equal(25, total);
+        // Last page holds the remaining 5 buckets (25 - 20 = 5).
+        Assert.Equal(5, rows.Count);
+    }
+
     // --- Chart partial renders SVG + a WCAG 1.1.1 <details>/<table> fallback ---
 
     [Fact]

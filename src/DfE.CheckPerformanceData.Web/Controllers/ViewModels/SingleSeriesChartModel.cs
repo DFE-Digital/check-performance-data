@@ -18,4 +18,14 @@ public sealed class SingleSeriesChartModel
     // Kept optional so the two current callers can both go without it (unit is carried
     // by the axis label instead).
     public string ValueUnit { get; init; } = string.Empty;
+
+    // Where the inline fallback table's "View all …" link points when the total bucket
+    // count exceeds the inline row cap. Optional — when null the fallback table renders
+    // uncapped without an outbound link (behaviour on the drill-in page itself, where
+    // the paged table has its own pager).
+    public string? DrillInUrl { get; init; }
+
+    // The label the "View all …" link uses. Kept parameterised so each caller's link text
+    // matches the chart's own subject (e.g. "View all unique-sessions data").
+    public string DrillInLinkText { get; init; } = "View all data";
 }

@@ -113,6 +113,17 @@ else
         }
     </svg>
 
+    @* Same cap-and-link rule as the volume chart's inline fallback: keep the DOM tight for
+       admins on the landing page; the drill-in shows the full paged series. *@
+    var inlineCapRaw = ViewContext.ViewData["sa-inline-row-cap"] as int?;
+    var inlineCap = inlineCapRaw is { } capValue && capValue > 0 ? capValue : 20;
+    var drillInUrl = Model?.DrillInUrl;
+    var displayedBuckets = buckets.Count > inlineCap ? buckets.Take(inlineCap).ToList() : (IReadOnlyList<VolumeBucket>)buckets;
+    var valueColHeaderTitle = string.Equals(yAxisLabel, "Unique sessions", StringComparison.OrdinalIgnoreCase)
+        ? "How many distinct browser sessions searched in that bucket."
+        : (string.Equals(yAxisLabel, "Zero-result searches", StringComparison.OrdinalIgnoreCase)
+            ? "How many searches in that bucket returned nothing."
+            : yAxisLabel);
     <details class="govuk-details">
         <summary class="govuk-details__summary">
             <span class="govuk-details__summary-text">View @yAxisLabel.ToLowerInvariant() data table</span>
@@ -122,12 +133,12 @@ else
                 <caption class="govuk-table__caption govuk-table__caption--s">@title</caption>
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
-                        <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
-                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">@yAxisLabel</th>
+                        <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="@valueColHeaderTitle">@yAxisLabel</th>
                     </tr>
                 </thead>
                 <tbody class="govuk-table__body">
-                    @foreach (var bucket in buckets)
+                    @foreach (var bucket in displayedBuckets)
                     {
                         <tr class="govuk-table__row">
                             <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
@@ -136,6 +147,13 @@ else
                     }
                 </tbody>
             </table>
+            @if (buckets.Count > inlineCap && !string.IsNullOrEmpty(drillInUrl))
+            {
+                <p class="govuk-body">
+                    Showing the first @displayedBuckets.Count of @buckets.Count.ToString("N0", CultureInfo.CurrentCulture) buckets.
+                    <a class="govuk-link" href="@drillInUrl">@Model!.DrillInLinkText &rarr;</a>
+                </p>
+            }
         </div>
     </details>
 }

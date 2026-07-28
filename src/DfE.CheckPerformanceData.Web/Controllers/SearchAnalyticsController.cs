@@ -213,6 +213,101 @@ public sealed class SearchAnalyticsController : Controller
         });
     }
 
+    // Four sibling drill-in actions, one per chart series. Kept as four discrete action names
+    // rather than one /Series/{key} passthrough so the URLs read cleanly in server logs and the
+    // "View all" link on the landing page can point at a self-describing path — a reader
+    // browsing browser history should see /admin/Search/Volume, not /admin/Search/Series/volume.
+    [HttpGet("Volume")]
+    public Task<IActionResult> Volume(
+        string? range, DateTime? from, DateTime? to, string? bucket = null, int page = 1,
+        CancellationToken ct = default) =>
+        SeriesDrillInAsync("volume", "Search volume over time", range, from, to, bucket, page, ct);
+
+    [HttpGet("UniqueUsers")]
+    public Task<IActionResult> UniqueUsers(
+        string? range, DateTime? from, DateTime? to, string? bucket = null, int page = 1,
+        CancellationToken ct = default) =>
+        SeriesDrillInAsync("unique-users", "Unique sessions over time", range, from, to, bucket, page, ct);
+
+    [HttpGet("ZeroResultsOverTime")]
+    public Task<IActionResult> ZeroResultsOverTime(
+        string? range, DateTime? from, DateTime? to, string? bucket = null, int page = 1,
+        CancellationToken ct = default) =>
+        SeriesDrillInAsync("zero-results", "Zero-result searches over time", range, from, to, bucket, page, ct);
+
+    [HttpGet("LatencyOverTime")]
+    public Task<IActionResult> LatencyOverTime(
+        string? range, DateTime? from, DateTime? to, string? bucket = null, int page = 1,
+        CancellationToken ct = default) =>
+        SeriesDrillInAsync("latency", "Latency percentiles over time", range, from, to, bucket, page, ct);
+
+    private async Task<IActionResult> SeriesDrillInAsync(
+        string seriesKey,
+        string title,
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        string? bucket,
+        int page,
+        CancellationToken ct)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = title;
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (bucketSize, bucketKey) = ResolveBucketSize(bucket, toUtc - fromUtc);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        IReadOnlyList<VolumeBucket> chartVolume = Array.Empty<VolumeBucket>();
+        IReadOnlyList<LatencyBucket> chartLatency = Array.Empty<LatencyBucket>();
+        IReadOnlyList<VolumeBucket> volumeSlice = Array.Empty<VolumeBucket>();
+        IReadOnlyList<LatencyBucket> latencySlice = Array.Empty<LatencyBucket>();
+        int total;
+
+        // One code path per series so each call reads exactly the series it needs — no
+        // wasted queries. Chart always fetches the FULL unpaged spine so the trend matches
+        // the landing card; the paged slice underneath drives the drill-in table + pager.
+        switch (seriesKey)
+        {
+            case "volume":
+                chartVolume = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+                (volumeSlice, total) = await _query.GetPagedVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, page, pageSize, ct);
+                break;
+            case "unique-users":
+                chartVolume = await _query.GetUniqueSessionsOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+                (volumeSlice, total) = await _query.GetPagedUniqueSessionsOverTimeAsync(fromUtc, toUtc, bucketSize, page, pageSize, ct);
+                break;
+            case "zero-results":
+                chartVolume = await _query.GetZeroResultCountOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+                (volumeSlice, total) = await _query.GetPagedZeroResultCountOverTimeAsync(fromUtc, toUtc, bucketSize, page, pageSize, ct);
+                break;
+            case "latency":
+                chartLatency = await _query.GetLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+                (latencySlice, total) = await _query.GetPagedLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, page, pageSize, ct);
+                break;
+            default:
+                return NotFound();
+        }
+
+        return View("~/Views/Admin/Search/SeriesDrillIn.cshtml", new SearchAnalyticsSeriesDrillInViewModel
+        {
+            SeriesKey = seriesKey,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
+            BucketKey = bucketKey,
+            ChartVolumeSeries = chartVolume,
+            ChartLatencySeries = chartLatency,
+            VolumeSlice = volumeSlice,
+            LatencySlice = latencySlice,
+        });
+    }
+
     [HttpGet("Session/{id}")]
     public async Task<IActionResult> Session(string id, CancellationToken ct = default)
     {

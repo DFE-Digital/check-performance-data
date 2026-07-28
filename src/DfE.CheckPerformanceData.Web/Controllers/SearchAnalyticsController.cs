@@ -369,7 +369,7 @@ public sealed class SearchAnalyticsController : Controller
 
     // Resolves the ?bucket= query string into a (bucketSize, key) pair. The five explicit
     // sizes are 15m / 1h / 1d / 1w / 1mo; anything else falls back to the auto-picked
-    // default from the window width — mirrors the pre-Round-2 chart-granularity rule so a
+    // default from the window width — mirrors the earlier chart-granularity rule so a
     // stale query string is never a source of error.
     //
     // Auto rule:

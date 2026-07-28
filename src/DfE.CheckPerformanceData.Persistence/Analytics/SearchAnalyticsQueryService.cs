@@ -216,8 +216,8 @@ LIMIT @limit;";
         CancellationToken cancellationToken = default)
     {
         // Auto-pick the bucket granularity from the window width when no explicit size was
-        // supplied. <=48h → hour; anything wider → day. Preserves the pre-Round-2 default
-        // shape for callers that have not adopted the explicit-bucket overload.
+        // supplied. <=48h → hour; anything wider → day. Preserves the original default shape
+        // for callers that have not adopted the explicit-bucket overload.
         var window = toUtc - fromUtc;
         var bucketSize = window > HourBucketThreshold ? VolumeBucketSize.Day : VolumeBucketSize.Hour;
         return ReadVolumeAsync(fromUtc, toUtc, bucketSize, cancellationToken);

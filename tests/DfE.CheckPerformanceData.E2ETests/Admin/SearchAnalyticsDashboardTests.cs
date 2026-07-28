@@ -5,9 +5,9 @@ using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-// End-to-end coverage for the Round-2 UX fixes on the search-analytics feature. Every
-// assertion below reflects a specific ask on the round: tooltips + query links + bucket
-// selector + separated tables + widened layout on /admin/Search/, and hits-always-link +
+// End-to-end coverage for the search-analytics dashboard + feedback-form UX. Assertions
+// mirror the surface the admin actually sees: tooltips + query links + bucket selector +
+// separated summary cards + widened layout on /admin/Search/, and hits-always-link +
 // prior-search-preserved-on-validation-error on /Search/Feedback.
 //
 // Runs against a live container: Playwright drives a real Chromium browser through the

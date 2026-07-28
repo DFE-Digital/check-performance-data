@@ -231,6 +231,27 @@ LIMIT @limit;";
         CancellationToken cancellationToken = default) =>
         ReadVolumeAsync(fromUtc, toUtc, bucketSize, cancellationToken);
 
+    public Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
     public Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,

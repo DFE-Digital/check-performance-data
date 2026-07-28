@@ -30,10 +30,27 @@ public sealed record TopQueryRow(
 // in the bucket, UniqueSessionCount is distinct session_ids in the bucket. Both are 0
 // for gap-filled empty buckets — the generate_series spine in the reader emits a row
 // for every bucket even when no events landed in it.
+//
+// Reused by the two single-series readers on this interface: unique-sessions-per-bucket
+// carries the distinct-session count in SearchCount (UniqueSessionCount stays 0); zero-
+// result-count-per-bucket carries the zero-result-event count in SearchCount (again
+// UniqueSessionCount stays 0). Keeping one record for all three readers avoids a new
+// projection type per tile and lets a single SVG partial render any single-series line.
 public sealed record VolumeBucket(
     DateTime BucketStart,
     int SearchCount,
     int UniqueSessionCount);
+
+// One bucket in the latency-percentiles-over-time chart. BucketStart is UTC, aligned to
+// the bucket granularity picked at query time. P5Ms / P50Ms / P95Ms are the continuous
+// percentiles of latency_ms over the events that landed in that bucket, computed server
+// side via percentile_cont. All three fields are 0 for gap-filled empty buckets so the
+// three polylines are continuous across the chart X-axis.
+public sealed record LatencyBucket(
+    DateTime BucketStart,
+    int P5Ms,
+    int P50Ms,
+    int P95Ms);
 
 // The five explicit bucket granularities the chart supports. Callers who do not care can
 // keep using the no-bucket overload of GetVolumeOverTimeAsync — the service picks a

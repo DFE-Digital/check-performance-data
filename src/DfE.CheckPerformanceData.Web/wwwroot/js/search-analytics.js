@@ -21,3 +21,57 @@
         })(inputs[i]);
     }
 })();
+
+// Interactive tile switcher for the /admin/Search/ dashboard. Clicking a tile swaps the
+// chart panel below to that tile's own series. Progressive-enhancement only: with JS
+// disabled every chart panel remains visible stacked (the server never hides them).
+// Only the first tile-click wires up the "hide the other three" side of the swap.
+(function () {
+    'use strict';
+    var tiles = document.querySelectorAll('button.sa-tile[data-sa-tile]');
+    var panels = document.querySelectorAll('[data-sa-panel]');
+    if (tiles.length === 0 || panels.length === 0) { return; }
+
+    function activate(key) {
+        for (var i = 0; i < tiles.length; i++) {
+            var isActive = tiles[i].getAttribute('data-sa-tile') === key;
+            tiles[i].setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            if (isActive) {
+                tiles[i].classList.add('sa-tile--active');
+            } else {
+                tiles[i].classList.remove('sa-tile--active');
+            }
+        }
+        for (var j = 0; j < panels.length; j++) {
+            var isVisible = panels[j].getAttribute('data-sa-panel') === key;
+            panels[j].hidden = !isVisible;
+            if (isVisible) {
+                panels[j].classList.remove('sa-chart-panel--hidden');
+            } else {
+                panels[j].classList.add('sa-chart-panel--hidden');
+            }
+        }
+    }
+
+    // Hide the non-default panels only after JS wires the switcher — with JS off, every
+    // chart stays visible so the page still tells the truth.
+    var defaultKey = null;
+    for (var t = 0; t < tiles.length; t++) {
+        if (tiles[t].getAttribute('aria-pressed') === 'true') {
+            defaultKey = tiles[t].getAttribute('data-sa-tile');
+            break;
+        }
+    }
+    if (defaultKey === null && tiles[0]) {
+        defaultKey = tiles[0].getAttribute('data-sa-tile');
+    }
+    if (defaultKey !== null) { activate(defaultKey); }
+
+    for (var k = 0; k < tiles.length; k++) {
+        (function (tile) {
+            tile.addEventListener('click', function () {
+                activate(tile.getAttribute('data-sa-tile'));
+            });
+        })(tiles[k]);
+    }
+})();

@@ -1,0 +1,141 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SingleSeriesChartModel
+@{
+    // Single-series line chart, server-rendered inline SVG. Used for tiles 2/3
+    // (unique users / zero-result count). Same layout + axis conventions as
+    // _VolumeChart.cshtml; only one line and one Y-axis. No client-side chart library.
+    var buckets = Model?.Series ?? Array.Empty<VolumeBucket>();
+    var title = Model?.Title ?? string.Empty;
+    var yAxisLabel = Model?.YAxisLabel ?? string.Empty;
+    var seriesColour = Model?.SeriesColour ?? "#1d70b8";
+    var valueUnit = Model?.ValueUnit ?? string.Empty;
+
+    const int width = 700;
+    const int height = 260;
+    const int padLeft = 56;
+    const int padBottom = 44;
+    const int padTop = 20;
+    const int padRight = 20;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var maxValue = buckets.Count == 0 ? 0 : buckets.Max(b => b.SearchCount);
+    var safeMax = maxValue == 0 ? 1 : maxValue;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeMax)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    var pointsString = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.SearchCount)}"));
+
+    var ariaLabel = buckets.Count == 0
+        ? $"{title}: no data."
+        : $"{title}: peak {maxValue}{valueUnit}, {buckets[^1].SearchCount}{valueUnit} in the most recent bucket.";
+
+    static string FormatBucketLabel(DateTime bucket, TimeSpan step) => step switch
+    {
+        _ when step < TimeSpan.FromDays(1) => bucket.ToString("HH:mm", CultureInfo.InvariantCulture),
+        _ when step < TimeSpan.FromDays(28) => bucket.ToString("d MMM", CultureInfo.InvariantCulture),
+        _ => bucket.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+    };
+
+    var step = buckets.Count >= 2
+        ? buckets[1].BucketStart - buckets[0].BucketStart
+        : TimeSpan.FromHours(1);
+
+    var xTickIndices = new List<int>();
+    if (buckets.Count > 0)
+    {
+        var targetTicks = Math.Min(6, buckets.Count);
+        var stride = Math.Max(1, buckets.Count / targetTicks);
+        for (var i = 0; i < buckets.Count; i += stride) xTickIndices.Add(i);
+        if (xTickIndices[^1] != buckets.Count - 1) xTickIndices.Add(buckets.Count - 1);
+    }
+
+    static string YLabelValue(int max, double fraction) =>
+        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture);
+}
+
+@if (buckets.Count == 0)
+{
+    <p class="govuk-body">No data to chart for this window.</p>
+}
+else
+{
+    <ul class="sa-chart__legend">
+        <li class="sa-chart__legend-item">
+            <span class="sa-chart__legend-glyph--circle" aria-hidden="true"
+                  style="background:@seriesColour"></span>
+            <span class="govuk-body-s">@yAxisLabel</span>
+        </li>
+    </ul>
+
+    <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
+         aria-label="@ariaLabel" focusable="false">
+        <title>@title</title>
+
+        <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+              stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+        <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+              stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+        @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+        {
+            var y = padTop + plotH - (plotH * fraction);
+            var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
+            var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
+            <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
+                  stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"{System.Net.WebUtility.HtmlEncode(seriesColour)}\" font-size=\"11\">{YLabelValue(maxValue, fraction)}</text>")
+        }
+
+        @foreach (var i in xTickIndices)
+        {
+            var xPos = X(i);
+            <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
+                  y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(FormatBucketLabel(buckets[i].BucketStart, step))}</text>")
+        }
+
+        @Html.Raw($"<text class=\"sa-chart__axis-title\" x=\"{padLeft - 6}\" y=\"{padTop - 6}\" text-anchor=\"end\" fill=\"{System.Net.WebUtility.HtmlEncode(seriesColour)}\" font-size=\"10\">{System.Net.WebUtility.HtmlEncode(yAxisLabel)}</text>")
+        <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Time (UTC)</text>
+
+        @Html.Raw($"<polyline fill=\"none\" stroke=\"{System.Net.WebUtility.HtmlEncode(seriesColour)}\" stroke-width=\"2\" points=\"{pointsString}\" aria-hidden=\"true\" />")
+
+        @for (var i = 0; i < buckets.Count; i++)
+        {
+            @Html.Raw($"<circle cx=\"{X(i)}\" cy=\"{Y(buckets[i].SearchCount)}\" r=\"3\" fill=\"{System.Net.WebUtility.HtmlEncode(seriesColour)}\" aria-hidden=\"true\" />")
+        }
+    </svg>
+
+    <details class="govuk-details">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">View @yAxisLabel.ToLowerInvariant() data table</span>
+        </summary>
+        <div class="govuk-details__text">
+            <table class="govuk-table">
+                <caption class="govuk-table__caption govuk-table__caption--s">@title</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">@yAxisLabel</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var bucket in buckets)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+}

@@ -1,0 +1,164 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model IReadOnlyList<LatencyBucket>
+@{
+    // Latency-percentiles chart: three lines (p50 solid, p95 dashed, p5 dashed lighter).
+    // Server-rendered SVG, no client-side chart library. Same X-axis conventions as
+    // _VolumeChart.cshtml so the four dashboard charts feel identical when the admin
+    // clicks between them.
+    var buckets = Model ?? Array.Empty<LatencyBucket>();
+
+    const int width = 700;
+    const int height = 260;
+    const int padLeft = 56;
+    const int padBottom = 44;
+    const int padTop = 20;
+    const int padRight = 20;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    // Single shared Y-scale so p50 / p95 / p5 sit at the correct ratios visually. Max is
+    // the highest p95 in the window — p5/p50 always sit at or below it.
+    var maxValue = buckets.Count == 0 ? 0 : buckets.Max(b => b.P95Ms);
+    var safeMax = maxValue == 0 ? 1 : maxValue;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y(int ms) =>
+        (padTop + plotH - (plotH * (double)ms / safeMax)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    var p50Points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.P50Ms)}"));
+    var p95Points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.P95Ms)}"));
+    var p5Points  = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.P5Ms)}"));
+
+    var ariaLabel = buckets.Count == 0
+        ? "Latency percentiles over time: no data."
+        : $"Latency percentiles over time: peak p95 {maxValue} ms, latest p95 {buckets[^1].P95Ms} ms.";
+
+    static string FormatBucketLabel(DateTime bucket, TimeSpan step) => step switch
+    {
+        _ when step < TimeSpan.FromDays(1) => bucket.ToString("HH:mm", CultureInfo.InvariantCulture),
+        _ when step < TimeSpan.FromDays(28) => bucket.ToString("d MMM", CultureInfo.InvariantCulture),
+        _ => bucket.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+    };
+
+    var step = buckets.Count >= 2
+        ? buckets[1].BucketStart - buckets[0].BucketStart
+        : TimeSpan.FromHours(1);
+
+    var xTickIndices = new List<int>();
+    if (buckets.Count > 0)
+    {
+        var targetTicks = Math.Min(6, buckets.Count);
+        var stride = Math.Max(1, buckets.Count / targetTicks);
+        for (var i = 0; i < buckets.Count; i += stride) xTickIndices.Add(i);
+        if (xTickIndices[^1] != buckets.Count - 1) xTickIndices.Add(buckets.Count - 1);
+    }
+
+    static string YLabelValue(int max, double fraction) =>
+        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture) + " ms";
+
+    // GDS palette: p50 blue (primary), p95 red (attention), p5 grey (context). Line style
+    // reinforces the distinction: p50 solid, p95 dashed, p5 dotted — chart legible without colour.
+    const string p50Colour = "#1d70b8";
+    const string p95Colour = "#d4351c";
+    const string p5Colour  = "#505a5f";
+}
+
+@if (buckets.Count == 0)
+{
+    <p class="govuk-body">No data to chart for this window.</p>
+}
+else
+{
+    <ul class="sa-chart__legend">
+        <li class="sa-chart__legend-item">
+            <span class="sa-chart__legend-line--solid" aria-hidden="true"
+                  style="background:@p50Colour"></span>
+            <span class="govuk-body-s">p50 (median)</span>
+        </li>
+        <li class="sa-chart__legend-item">
+            <span class="sa-chart__legend-line--dashed" aria-hidden="true"
+                  style="border-color:@p95Colour"></span>
+            <span class="govuk-body-s">p95</span>
+        </li>
+        <li class="sa-chart__legend-item">
+            <span class="sa-chart__legend-line--dotted" aria-hidden="true"
+                  style="border-color:@p5Colour"></span>
+            <span class="govuk-body-s">p5</span>
+        </li>
+    </ul>
+
+    <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
+         aria-label="@ariaLabel" focusable="false">
+        <title>Latency percentiles (p5 / p50 / p95) over time in milliseconds</title>
+
+        <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+              stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+        <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+              stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+        @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+        {
+            var y = padTop + plotH - (plotH * fraction);
+            var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
+            var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
+            <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
+                  stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{YLabelValue(maxValue, fraction)}</text>")
+        }
+
+        @foreach (var i in xTickIndices)
+        {
+            var xPos = X(i);
+            <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
+                  y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(FormatBucketLabel(buckets[i].BucketStart, step))}</text>")
+        }
+
+        <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">Latency (ms)</text>
+        <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Time (UTC)</text>
+
+        @Html.Raw($"<polyline fill=\"none\" stroke=\"{p5Colour}\" stroke-width=\"2\" stroke-dasharray=\"2 4\" points=\"{p5Points}\" aria-hidden=\"true\" />")
+        @Html.Raw($"<polyline fill=\"none\" stroke=\"{p95Colour}\" stroke-width=\"2\" stroke-dasharray=\"6 3\" points=\"{p95Points}\" aria-hidden=\"true\" />")
+        @Html.Raw($"<polyline fill=\"none\" stroke=\"{p50Colour}\" stroke-width=\"2\" points=\"{p50Points}\" aria-hidden=\"true\" />")
+
+        @for (var i = 0; i < buckets.Count; i++)
+        {
+            @Html.Raw($"<circle cx=\"{X(i)}\" cy=\"{Y(buckets[i].P50Ms)}\" r=\"3\" fill=\"{p50Colour}\" aria-hidden=\"true\" />")
+        }
+    </svg>
+
+    <details class="govuk-details">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">View latency data table</span>
+        </summary>
+        <div class="govuk-details__text">
+            <table class="govuk-table">
+                <caption class="govuk-table__caption govuk-table__caption--s">Latency percentiles per bucket</caption>
+                <thead class="govuk-table__head">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p5 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p50 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p95 (ms)</th>
+                    </tr>
+                </thead>
+                <tbody class="govuk-table__body">
+                    @foreach (var bucket in buckets)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P5Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P50Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P95Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+}

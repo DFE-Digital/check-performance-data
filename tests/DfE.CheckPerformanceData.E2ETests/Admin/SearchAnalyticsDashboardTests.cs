@@ -7,8 +7,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
 // End-to-end coverage for the search-analytics dashboard + feedback-form UX. Assertions
 // mirror the surface the admin actually sees: tooltips + query links + bucket selector +
-// separated summary cards + widened layout on /admin/Search/, and hits-always-link +
-// prior-search-preserved-on-validation-error on /Search/Feedback.
+// separated summary cards + widened layout on /admin/Search/, plus the interactive four-
+// tile chart switcher and inline top-pages summary card. Feedback-form side asserts hits-
+// always-link + prior-search-preserved-on-validation-error on /Search/Feedback.
 //
 // Runs against a live container: Playwright drives a real Chromium browser through the
 // deployment reachable at CPD_E2E_BASE_URL. Screenshots for handoff land under
@@ -43,16 +44,23 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             await Page.Locator(".sa-tiles").WaitForAsync(
                 new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
-            // 4 tiles, each with a title attribute (hover tooltip).
+            // 4 tiles, each rendered as a real <button> so keyboard users can Tab-Enter.
+            var tileButtons = Page.Locator("button.sa-tile[data-sa-tile]");
+            Assert.Equal(4, await tileButtons.CountAsync());
             var tilesWithTitle = Page.Locator(".sa-tile[title]");
             Assert.Equal(4, await tilesWithTitle.CountAsync());
 
-            // Chart svg present. Axis-tick labels rendered as <text>.
-            await Expect(Page.Locator(".sa-chart")).ToBeVisibleAsync();
+            // Four chart svgs render server-side; the first (volume) is visible on load,
+            // the other three are hidden by JS.
+            var chartSvgs = Page.Locator(".sa-chart");
+            Assert.Equal(4, await chartSvgs.CountAsync());
+            await Expect(chartSvgs.First).ToBeVisibleAsync();
+
+            // Axis-tick + axis-title labels are present across the visible chart(s).
             var axisTickCount = await Page.Locator(".sa-chart .sa-chart__axis-tick").CountAsync();
             Assert.True(axisTickCount >= 3, $"Expected at least 3 axis tick labels, got {axisTickCount}");
             var axisTitleCount = await Page.Locator(".sa-chart .sa-chart__axis-title").CountAsync();
-            Assert.True(axisTitleCount >= 3, $"Expected 3 axis title labels, got {axisTitleCount}");
+            Assert.True(axisTitleCount >= 2, $"Expected at least 2 axis title labels, got {axisTitleCount}");
 
             // Bucket selector: 5 sizes.
             var bucketRadios = Page.Locator("input[name=\"bucket\"]");
@@ -65,15 +73,13 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Contains("1w",  values);
             Assert.Contains("1mo", values);
 
-            // Two summary cards for the two query tables, each on its own row.
+            // Three summary cards: top queries, top zero-result queries, top pages.
             var summaryCards = Page.Locator(".sa-summary-card");
-            Assert.Equal(2, await summaryCards.CountAsync());
+            Assert.Equal(3, await summaryCards.CountAsync());
 
-            // Every query link in either table opens in a new tab.
+            // Every query link in either top-queries table opens in a new tab.
             var queryLinks = Page.Locator(".sa-summary-card table.govuk-table td a[target=\"_blank\"]");
             var queryLinkCount = await queryLinks.CountAsync();
-            // When the window has data there's at least one link; when empty the assertion
-            // is vacuously true (no links = no non-blank links either).
             if (queryLinkCount > 0)
             {
                 var relValues = await queryLinks.EvaluateAllAsync<string[]>(
@@ -94,6 +100,102 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
+    // --- Interactive tiles: click switches the visible chart and updates aria-pressed ---
+
+    [SkippableFact]
+    public async Task Dashboard_TileClicks_SwitchBetweenFourChartsAndUpdateAriaPressed()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-tiles").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // On load: tile 1 (volume) pressed, others not; tile 1's chart panel visible.
+            await AssertTilePressed("volume");
+            await AssertPanelVisibleOnly("volume");
+
+            // Click tile 2 (unique-users): its chart becomes visible; the other three hide.
+            await Page.Locator("button.sa-tile[data-sa-tile=\"unique-users\"]").ClickAsync();
+            await AssertTilePressed("unique-users");
+            await AssertPanelVisibleOnly("unique-users");
+
+            // Click tile 3 (zero-results).
+            await Page.Locator("button.sa-tile[data-sa-tile=\"zero-results\"]").ClickAsync();
+            await AssertTilePressed("zero-results");
+            await AssertPanelVisibleOnly("zero-results");
+
+            // Click tile 4 (latency): panel visible + THREE polylines (p5 / p50 / p95).
+            await Page.Locator("button.sa-tile[data-sa-tile=\"latency\"]").ClickAsync();
+            await AssertTilePressed("latency");
+            await AssertPanelVisibleOnly("latency");
+
+            var latencyPolylines = Page.Locator("[data-sa-panel=\"latency\"] svg.sa-chart polyline");
+            Assert.Equal(3, await latencyPolylines.CountAsync());
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("admin-search-latency-tile.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Top pages summary card renders inline (no more bottom "View top pages" link only) ---
+
+    [SkippableFact]
+    public async Task Dashboard_TopPagesSummaryCard_RendersInlineWithOptionalViewAllLink()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // Top pages card is present with the "Top pages" heading.
+            var topPagesTitle = Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top pages\")");
+            await Expect(topPagesTitle).ToBeVisibleAsync();
+
+            // The old bottom-of-page free-standing link is gone. The only "View all top pages…"
+            // link, if any, lives INSIDE the Top pages summary card.
+            var topPagesCard = Page.Locator(".sa-summary-card:has(.govuk-summary-card__title:has-text(\"Top pages\"))");
+            var inCardViewAll = topPagesCard.Locator("a.govuk-link:has-text(\"View all top pages\")");
+            var inCardCount = await inCardViewAll.CountAsync();
+
+            // Total link count on the page (either 0 when the card fits everything, or 1 when
+            // there are more than 10 pages and the "View all" link renders inside the card).
+            var allViewAll = Page.Locator("a.govuk-link:has-text(\"View all top pages\")");
+            Assert.Equal(inCardCount, await allViewAll.CountAsync());
+
+            if (inCardCount > 0)
+            {
+                var href = await inCardViewAll.First.GetAttributeAsync("href");
+                Assert.NotNull(href);
+                Assert.Contains("/admin/Search/Pages", href);
+            }
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Feedback form: every hit renders as a new-tab link; no kind labels visible ---
 
     [SkippableFact]
@@ -105,9 +207,9 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         // Fresh browser context. In Development the app is configured to emit a
         // SecurePolicy=SameAsRequest session cookie so plain-http Chromium (hitting
         // host.docker.internal) actually persists it across requests. We ALSO impersonate
-        // as editor so the auto-fill-email path (F3) is exercised — the impersonation
-        // cookie set here does NOT rotate the session id (see CONTEXT D-04) so the search
-        // fired below still ends up linked to the same session_id the feedback form reads.
+        // as editor so the auto-fill-email path is exercised — the impersonation cookie
+        // set here does NOT rotate the session id so the search fired below still ends
+        // up linked to the same session_id the feedback form reads.
         await using var userContext = await Browser.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize { Width = 1440, Height = 900 }
@@ -191,6 +293,42 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
 
         await userPage.StabiliseAsync();
         await SaveScreenshotAsync(userPage, "feedback-post-error.png");
+    }
+
+    // --- Interactive-tile assertion helpers ---
+
+    private async Task AssertTilePressed(string key)
+    {
+        var tiles = Page.Locator("button.sa-tile[data-sa-tile]");
+        var count = await tiles.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            var tile = tiles.Nth(i);
+            var tileKey = await tile.GetAttributeAsync("data-sa-tile");
+            var pressed = await tile.GetAttributeAsync("aria-pressed");
+            var expected = tileKey == key ? "true" : "false";
+            Assert.Equal(expected, pressed);
+        }
+    }
+
+    private async Task AssertPanelVisibleOnly(string key)
+    {
+        var panels = Page.Locator("[data-sa-panel]");
+        var count = await panels.CountAsync();
+        for (var i = 0; i < count; i++)
+        {
+            var panel = panels.Nth(i);
+            var panelKey = await panel.GetAttributeAsync("data-sa-panel");
+            var isVisible = await panel.IsVisibleAsync();
+            if (panelKey == key)
+            {
+                Assert.True(isVisible, $"Expected panel {panelKey} to be visible.");
+            }
+            else
+            {
+                Assert.False(isVisible, $"Expected panel {panelKey} to be hidden.");
+            }
+        }
     }
 
     // --- Helpers ---

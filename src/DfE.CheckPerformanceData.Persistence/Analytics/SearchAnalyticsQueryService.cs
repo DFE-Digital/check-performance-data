@@ -231,6 +231,137 @@ LIMIT @limit;";
         CancellationToken cancellationToken = default) =>
         ReadVolumeAsync(fromUtc, toUtc, bucketSize, cancellationToken);
 
+    public Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default) =>
+        ReadSingleSeriesAsync(fromUtc, toUtc, bucketSize,
+            countExpr: "COUNT(DISTINCT session_id)",
+            extraFilter: null,
+            cancellationToken);
+
+    public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default) =>
+        ReadSingleSeriesAsync(fromUtc, toUtc, bucketSize,
+            countExpr: "COUNT(*)",
+            extraFilter: "zero_results = true",
+            cancellationToken);
+
+    // Shared read for the two single-series-per-bucket surfaces (unique users, zero-result
+    // count). Same generate_series spine + LEFT JOIN gap-fill as ReadVolumeAsync; the count
+    // expression and any extra WHERE predicate are the only per-caller differences. Value
+    // lands in SearchCount so a single SVG partial can render either series.
+    private async Task<IReadOnlyList<VolumeBucket>> ReadSingleSeriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        string countExpr,
+        string? extraFilter,
+        CancellationToken cancellationToken)
+    {
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+
+        var sql = $@"
+SELECT
+    b.bucket AS bucket,
+    COALESCE(e.value, 0)::int AS value
+FROM generate_series(
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
+LEFT JOIN (
+    SELECT
+        {groupedBucketExpr} AS bucket,
+        {countExpr}::int AS value
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
+    GROUP BY 1
+) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
+ORDER BY b.bucket;";
+
+        var buckets = new List<VolumeBucket>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            buckets.Add(new VolumeBucket(bucket, reader.GetInt32(1), 0));
+        });
+
+        return buckets;
+    }
+
+    // Continuous latency percentiles per bucket. percentile_cont(0.05|0.5|0.95) WITHIN GROUP
+    // is Postgres's continuous percentile aggregate — interpolates between the two rows
+    // surrounding the target percentile so the lines stay smooth as buckets fill. Empty
+    // buckets aggregate to NULL server-side; COALESCE flips them to 0 so every bucket in
+    // the spine emits a value (the chart client needs continuous polylines).
+    public async Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default)
+    {
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+
+        var sql = $@"
+SELECT
+    b.bucket AS bucket,
+    COALESCE(e.p5,  0) AS p5,
+    COALESCE(e.p50, 0) AS p50,
+    COALESCE(e.p95, 0) AS p95
+FROM generate_series(
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
+LEFT JOIN (
+    SELECT
+        {groupedBucketExpr} AS bucket,
+        percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
+        percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
+        percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY 1
+) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
+ORDER BY b.bucket;";
+
+        var buckets = new List<LatencyBucket>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var p5  = reader.IsDBNull(1) ? 0d : Convert.ToDouble(reader.GetValue(1));
+            var p50 = reader.IsDBNull(2) ? 0d : Convert.ToDouble(reader.GetValue(2));
+            var p95 = reader.IsDBNull(3) ? 0d : Convert.ToDouble(reader.GetValue(3));
+            buckets.Add(new LatencyBucket(
+                bucket,
+                (int)Math.Round(p5,  MidpointRounding.AwayFromZero),
+                (int)Math.Round(p50, MidpointRounding.AwayFromZero),
+                (int)Math.Round(p95, MidpointRounding.AwayFromZero)));
+        });
+
+        return buckets;
+    }
+
     public Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,

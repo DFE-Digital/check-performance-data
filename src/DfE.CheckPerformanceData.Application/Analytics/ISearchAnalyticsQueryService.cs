@@ -79,6 +79,38 @@ public interface ISearchAnalyticsQueryService
         VolumeBucketSize bucketSize,
         CancellationToken cancellationToken = default);
 
+    // Distinct-session count per bucket over the window. Same generate_series spine +
+    // gap-fill as the volume reader; each returned VolumeBucket carries the distinct
+    // session_id count in SearchCount (UniqueSessionCount stays 0). Feeds the interactive
+    // "Unique users" chart on the search-analytics dashboard.
+    Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default);
+
+    // Zero-result event count per bucket over the window. Same spine as the volume reader
+    // filtered to zero_results = true; SearchCount carries the count of zero-result events
+    // per bucket. Feeds the interactive "Zero-result rate" chart — the tile shows the
+    // rate over the whole window, the chart shows when the zero-result queries actually
+    // occurred (per Lance's ask: "the number of result counts in the graph below and what
+    // time they occurred").
+    Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default);
+
+    // Continuous latency percentiles (p5 / p50 / p95) per bucket over the window. Same
+    // spine + gap-fill; empty buckets carry 0 for all three percentiles so the polylines
+    // stay continuous across the chart. Server computes percentile_cont — no client-side
+    // percentile math. Feeds the interactive "P95 latency" chart with three lines.
+    Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default);
+
     // Paged variant of GetTopQueriesAsync: returns one page of the ordered top queries
     // together with the total distinct-query count so the view can render pagination.
     // The COUNT and the page share the identical WHERE / GROUP BY so the total matches

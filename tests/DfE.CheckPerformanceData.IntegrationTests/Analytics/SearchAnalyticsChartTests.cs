@@ -271,6 +271,199 @@ public sealed class SearchAnalyticsChartTests
         Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
     }
 
+    // --- GetUniqueSessionsOverTimeAsync — distinct session_id count per bucket ---
+
+    [Fact]
+    public async Task GetUniqueSessionsOverTime_CountsDistinctSessionsPerBucket()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-3);
+
+        // Bucket 0: 3 events across 2 distinct sessions.
+        // Bucket 1: 5 events all in the same session.
+        // Bucket 2: empty (must gap-fill to 0).
+        await SeedAsync(
+            NewEvent(from.AddMinutes(10), "s-a", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(20), "s-a", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(30), "s-b", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(5),  "s-c", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(10), "s-c", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(15), "s-c", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(20), "s-c", "q", results: 1, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(25), "s-c", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetUniqueSessionsOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, CancellationToken.None);
+
+        Assert.Equal(3, buckets.Count);
+        Assert.Equal(2, buckets[0].SearchCount);
+        Assert.Equal(1, buckets[1].SearchCount);
+        Assert.Equal(0, buckets[2].SearchCount);
+    }
+
+    [Fact]
+    public async Task GetUniqueSessionsOverTime_GapFillsEmptyBucketsToZero()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = QuarterHourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        await SeedAsync(NewEvent(from.AddMinutes(2), "s-only", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetUniqueSessionsOverTimeAsync(
+            from, now, VolumeBucketSize.FifteenMinutes, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.Equal(1, buckets[0].SearchCount);
+        Assert.Equal(0, buckets[1].SearchCount);
+        Assert.Equal(0, buckets[2].SearchCount);
+        Assert.Equal(0, buckets[3].SearchCount);
+    }
+
+    // --- GetZeroResultCountOverTimeAsync — zero-result event count per bucket ---
+
+    [Fact]
+    public async Task GetZeroResultCountOverTime_CountsOnlyZeroResultEventsPerBucket()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-3);
+
+        // Bucket 0: 2 zero-result, 3 with results → count = 2.
+        // Bucket 1: 0 zero-result, 4 with results → count = 0.
+        // Bucket 2: 5 zero-result → count = 5.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(5),  "s-1", "q", results: 0, latency: 10),
+            NewEvent(from.AddMinutes(10), "s-2", "q", results: 0, latency: 10),
+            NewEvent(from.AddMinutes(15), "s-3", "q", results: 3, latency: 10),
+            NewEvent(from.AddMinutes(20), "s-4", "q", results: 3, latency: 10),
+            NewEvent(from.AddMinutes(25), "s-5", "q", results: 3, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(5),  "s-6", "q", results: 4, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(15), "s-7", "q", results: 4, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(25), "s-8", "q", results: 4, latency: 10),
+            NewEvent(from.AddHours(1).AddMinutes(35), "s-9", "q", results: 4, latency: 10),
+            NewEvent(from.AddHours(2).AddMinutes(5),  "s-a", "q", results: 0, latency: 10),
+            NewEvent(from.AddHours(2).AddMinutes(10), "s-b", "q", results: 0, latency: 10),
+            NewEvent(from.AddHours(2).AddMinutes(15), "s-c", "q", results: 0, latency: 10),
+            NewEvent(from.AddHours(2).AddMinutes(20), "s-d", "q", results: 0, latency: 10),
+            NewEvent(from.AddHours(2).AddMinutes(25), "s-e", "q", results: 0, latency: 10));
+
+        var buckets = await CreateService().GetZeroResultCountOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, CancellationToken.None);
+
+        Assert.Equal(3, buckets.Count);
+        Assert.Equal(2, buckets[0].SearchCount);
+        Assert.Equal(0, buckets[1].SearchCount);
+        Assert.Equal(5, buckets[2].SearchCount);
+    }
+
+    [Fact]
+    public async Task GetZeroResultCountOverTime_GapFillsEmptyBucketsToZero()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = QuarterHourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        // Zero-result event in bucket 0 only. Other buckets have no rows.
+        await SeedAsync(NewEvent(from.AddMinutes(2), "s-1", "q", results: 0, latency: 10));
+
+        var buckets = await CreateService().GetZeroResultCountOverTimeAsync(
+            from, now, VolumeBucketSize.FifteenMinutes, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.Equal(1, buckets[0].SearchCount);
+        Assert.Equal(0, buckets[1].SearchCount);
+        Assert.Equal(0, buckets[2].SearchCount);
+        Assert.Equal(0, buckets[3].SearchCount);
+    }
+
+    // --- GetLatencyPercentilesOverTimeAsync — p5 / p50 / p95 per bucket ---
+
+    [Fact]
+    public async Task GetLatencyPercentilesOverTime_ReturnsPercentilesPerBucket()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-2);
+
+        // Bucket 0: latencies {10, 20, 30, 40, 50, 60, 70, 80, 90, 100} → p5 ≈ 14.5, p50 = 55, p95 ≈ 95.5.
+        // Bucket 1: latencies {200, 200, 200, 200, 200} → p5 = p50 = p95 = 200.
+        for (var i = 1; i <= 10; i++)
+        {
+            await SeedAsync(NewEvent(from.AddMinutes(5 * i), $"s-{i}", "q", results: 1, latency: i * 10));
+        }
+        for (var i = 0; i < 5; i++)
+        {
+            await SeedAsync(NewEvent(from.AddHours(1).AddMinutes(5 + i * 5), $"s-b-{i}", "q", results: 1, latency: 200));
+        }
+
+        var buckets = await CreateService().GetLatencyPercentilesOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, CancellationToken.None);
+
+        Assert.Equal(2, buckets.Count);
+        Assert.InRange(buckets[0].P5Ms, 10, 20);
+        Assert.InRange(buckets[0].P50Ms, 50, 60);
+        Assert.InRange(buckets[0].P95Ms, 90, 100);
+        Assert.Equal(200, buckets[1].P5Ms);
+        Assert.Equal(200, buckets[1].P50Ms);
+        Assert.Equal(200, buckets[1].P95Ms);
+    }
+
+    [Fact]
+    public async Task GetLatencyPercentilesOverTime_GapFillsEmptyBucketsWithZeroPercentiles()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = QuarterHourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        // One event in bucket 0. Other three buckets are empty and must gap-fill to 0/0/0 —
+        // NOT null / NOT NaN / NOT omitted — the client renders continuous polylines that
+        // require a point for every bucket on the X-axis spine.
+        await SeedAsync(NewEvent(from.AddMinutes(2), "s-1", "q", results: 1, latency: 42));
+
+        var buckets = await CreateService().GetLatencyPercentilesOverTimeAsync(
+            from, now, VolumeBucketSize.FifteenMinutes, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.Equal(42, buckets[0].P50Ms);
+        Assert.Equal(0, buckets[1].P5Ms);
+        Assert.Equal(0, buckets[1].P50Ms);
+        Assert.Equal(0, buckets[1].P95Ms);
+        Assert.Equal(0, buckets[2].P95Ms);
+        Assert.Equal(0, buckets[3].P95Ms);
+    }
+
+    [Fact]
+    public async Task GetLatencyPercentilesOverTime_HonoursWindow_ExcludesRowsOutside()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        // Row inside the window (latency 25) and one OUTSIDE the window (latency 999) that
+        // must NOT contribute to any percentile.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(10), "s-in", "q", results: 1, latency: 25),
+            NewEvent(from.AddHours(-2), "s-out", "q", results: 1, latency: 999));
+
+        var buckets = await CreateService().GetLatencyPercentilesOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, CancellationToken.None);
+
+        // 1 bucket, all percentiles = 25 (single value → percentile_cont returns the value itself).
+        Assert.Single(buckets);
+        Assert.Equal(25, buckets[0].P50Ms);
+        Assert.Equal(25, buckets[0].P5Ms);
+        Assert.Equal(25, buckets[0].P95Ms);
+    }
+
     [Fact]
     public async Task GetVolumeOverTime_ExplicitBucket_GapFillsEmptyBucketsToZero()
     {

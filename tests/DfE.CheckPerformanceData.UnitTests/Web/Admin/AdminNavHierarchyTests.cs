@@ -164,6 +164,44 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/admin/settings", settings.Url);
     }
 
+    // --- TestDataGroup_Is_SystemAdmin_Child ---
+
+    [Fact]
+    public void TestDataGroup_Is_SystemAdmin_Child()
+    {
+        var group = Single("test-data-group");
+
+        Assert.Equal(AdminNavKeys.SystemAdmin, group.ParentKey);
+        Assert.Equal("Test data", group.Title);
+        Assert.Equal(string.Empty, group.Url);
+        Assert.True(group.Enabled);
+    }
+
+    // --- SeedSampleTiles_Sit_Under_TestDataGroup ---
+
+    [Fact]
+    public void SeedSampleTiles_Sit_Under_TestDataGroup()
+    {
+        var entries = ResolveEntries();
+
+        var children = entries
+            .Where(e => e.ParentKey == "test-data-group")
+            .OrderBy(e => e.Order)
+            .ToList();
+
+        Assert.Equal(2, children.Count);
+
+        // Order 10: the renamed CMS-pages seeder.
+        Assert.Equal("seed-sample-pages", children[0].Key);
+        Assert.Equal("Seed sample CMS pages", children[0].Title);
+        Assert.Equal("/admin/pages/sample-seed", children[0].Url);
+
+        // Order 20: the new search-data seeder.
+        Assert.Equal("seed-sample-search-data", children[1].Key);
+        Assert.Equal("Seed sample search data", children[1].Title);
+        Assert.Equal("/admin/test-data/sample-search-data", children[1].Url);
+    }
+
     // --- VisualRegression_Entry_Is_Removed ---
 
     [Fact]

@@ -54,4 +54,16 @@ public static class AdminNavKeys
     // themselves — access to the group is implied by access to at least one child, so this
     // key is intentionally absent from DefaultAdminAccessSeeder.AllSections.
     public const string MessagesGroup = "messages-group";
+
+    // Sub-group nested under System administration. Holds the two "populate the local
+    // database with plausible content" tiles — Seed sample CMS pages and Seed sample
+    // search data. Unlike the CMS / System containers, this key IS in
+    // DefaultAdminAccessSeeder.AllSections so the TestDataController class-level
+    // [RequireAdminSection] gate has a matching grant on a fresh DB.
+    public const string TestDataGroup = "test-data-group";
+
+    // Live admin nav tile under the Test data group. Renders the seed-sample-search-data
+    // form + POST action for pumping plausible search events + feedback messages into the
+    // sink so the search-analytics dashboard has something to show during demos.
+    public const string SeedSampleSearchData = "seed-sample-search-data";
 }

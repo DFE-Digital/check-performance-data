@@ -90,7 +90,19 @@ public sealed class SearchAnalyticsController : Controller
         var summary = await _query.GetSummaryAsync(fromUtc, toUtc, ct);
         var topQueries = await _query.GetTopQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
         var topZeroResultQueries = await _query.GetTopZeroResultQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
+
+        // Fetch all four bucketed series server-side so the interactive tiles can swap the
+        // rendered chart client-side without a round-trip. Every series rides the same
+        // bucket-size spine so the four charts stay aligned on the X-axis.
         var volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+        var uniqueSessionsSeries = await _query.GetUniqueSessionsOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+        var zeroResultCountSeries = await _query.GetZeroResultCountOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+        var latencyPercentileSeries = await _query.GetLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+
+        // Inline top-pages card: fetch the first page of the drill-in reader so the view can
+        // render a top-10 table alongside top-queries and top-zero-result. Total row count
+        // decides whether the "View all top pages by search impressions →" link renders.
+        var (topPages, topPagesTotal) = await _query.GetTopPagesAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
 
         return View("~/Views/Admin/Search/Index.cshtml", new SearchAnalyticsIndexViewModel
         {
@@ -103,11 +115,11 @@ public sealed class SearchAnalyticsController : Controller
             RangeKey = rangeKey,
             TotalRowCount = totalCount,
             BucketKey = bucketKey,
-            UniqueSessionsSeries = Array.Empty<VolumeBucket>(),
-            ZeroResultCountSeries = Array.Empty<VolumeBucket>(),
-            LatencyPercentileSeries = Array.Empty<LatencyBucket>(),
-            TopPages = Array.Empty<TopPageRow>(),
-            TopPagesTotalCount = 0,
+            UniqueSessionsSeries = uniqueSessionsSeries,
+            ZeroResultCountSeries = zeroResultCountSeries,
+            LatencyPercentileSeries = latencyPercentileSeries,
+            TopPages = topPages,
+            TopPagesTotalCount = topPagesTotal,
         });
     }
 

@@ -56,6 +56,10 @@ public sealed class SearchFeedbackController : Controller
             SessionId = sessionId,
             PriorSearchPrefill = latest is null ? null : FormatPrefill(latest),
             PriorSearch = priorSearch,
+            // Pre-fill from the signed-in user's email claim when present so the user does
+            // not have to retype their address. Anonymous users see an empty field. The
+            // user can clear the value (or tick "Hide my email") — both flows still work.
+            Email = ResolveAutoFillEmail(),
         };
         return View("~/Views/Search/Feedback.cshtml", model);
     }
@@ -72,16 +76,24 @@ public sealed class SearchFeedbackController : Controller
 
         if (!ModelState.IsValid)
         {
-            // Construct a fresh view model with the server's session id — never trust
-            // the posted view model's SessionId property to carry it into the redisplay.
-            // The user's inputs round-trip so they don't retype on validation failure.
+            // Re-fetch the prior-search panel + the auto-filled email so the redisplay
+            // renders with the same context the user saw before submitting. Without this
+            // the page shrinks to just the form on error — a bad surprise when the user
+            // has to correct a typo.
+            var latest = await _query.GetLatestSearchForSessionAsync(sessionId, ct);
+            var priorSearch = latest is null ? null : ToDisplay(latest);
+            var autoFilledEmail = ResolveAutoFillEmail();
+
             var redisplay = new SearchFeedbackViewModel
             {
                 SessionId = sessionId,
                 PriorSearchPrefill = null,
+                PriorSearch = priorSearch,
                 WhatLookingFor = form.WhatLookingFor,
                 WhatGot = form.WhatGot,
-                Email = form.Email,
+                // User-typed value wins; fall back to auto-fill so an empty POST still
+                // resurfaces the signed-in user's email on redisplay.
+                Email = string.IsNullOrWhiteSpace(form.Email) ? autoFilledEmail : form.Email,
                 HideMyEmail = form.HideMyEmail,
             };
             return View("~/Views/Search/Feedback.cshtml", redisplay);
@@ -112,6 +124,16 @@ public sealed class SearchFeedbackController : Controller
                         ?? HttpContext.Session.Id;
         var model = new SearchFeedbackViewModel { SessionId = sessionId };
         return View("~/Views/Search/FeedbackConfirmation.cshtml", model);
+    }
+
+    // Pulls the signed-in user's email from the ICurrentUserService claim reader. Returns
+    // null when the service is not wired (bare unit construction) or when the claim was
+    // empty (anonymous user). Whitespace-only claims are treated as absent so the input
+    // renders empty rather than pre-filled with a blank string.
+    private string? ResolveAutoFillEmail()
+    {
+        var email = _currentUser?.Email;
+        return string.IsNullOrWhiteSpace(email) ? null : email;
     }
 
     // Formats the session's last search into a single line suitable for pre-filling the

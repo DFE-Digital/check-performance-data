@@ -4,11 +4,12 @@ namespace DfE.CheckPerformanceData.Application.Journey.Conditions;
 /// True when an "Admitted from abroad with English not first language" removal would
 /// be auto-rejected by the rules engine's EAL-REJ-ENG / EAL-REJ-OTH-ENGCOUNTRY rules,
 /// approximated journey-side so the evidence page can relax its mandatory fields
-/// (PBI 292266). Deliberate divergence from the engine: believed-english /
-/// believed-other count as their certain counterparts here (per the AC), although the
-/// engine maps them to Uncertain and defers those requests to Scrutiny.
-/// chose-not-to-say / not-known and an unresolved country fail safe to false
-/// (evidence stays mandatory).
+/// (PBI 292266). Mirrors the engine exactly: only the certain answers english / other
+/// can waive evidence. believed-english / believed-other map to Uncertain in the
+/// engine, never fire a reject rule, and go to Scrutiny — a reviewer will read those
+/// requests, so evidence stays mandatory (AC Scenario 004 withdrawn, BA decision
+/// 2026-07-28). chose-not-to-say / not-known and an unresolved country also fail safe
+/// to false (evidence stays mandatory).
 /// </summary>
 public sealed class EalWouldBeAutoRejectedCondition : IJourneyCondition
 {
@@ -16,9 +17,8 @@ public sealed class EalWouldBeAutoRejectedCondition : IJourneyCondition
     private const string EalReasonValue = "english-not-first-language";
     private const string FirstLanguageQuestionId = "first-language";
     private const string English = "English";
-
-    private static readonly string[] EnglishFirstLanguage = ["english", "believed-english"];
-    private static readonly string[] OtherFirstLanguage = ["other", "believed-other"];
+    private const string EnglishFirstLanguage = "english";
+    private const string OtherFirstLanguage = "other";
 
     public string Name => "EalWouldBeAutoRejected";
 
@@ -36,10 +36,10 @@ public sealed class EalWouldBeAutoRejectedCondition : IJourneyCondition
             || firstLanguage.TextValue is not { } language)
             return false;
 
-        if (EnglishFirstLanguage.Contains(language, StringComparer.Ordinal))
+        if (string.Equals(language, EnglishFirstLanguage, StringComparison.Ordinal))
             return true;
 
-        return OtherFirstLanguage.Contains(language, StringComparer.Ordinal)
+        return string.Equals(language, OtherFirstLanguage, StringComparison.Ordinal)
             && ctx.Journey.OriginCountryLanguages?
                 .Any(l => string.Equals(l, English, StringComparison.OrdinalIgnoreCase)) == true;
     }

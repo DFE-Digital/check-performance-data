@@ -31,28 +31,30 @@ public sealed class EalWouldBeAutoRejectedConditionTests
         Assert.True(_sut.Evaluate(Ctx(firstLanguage: lang,
             countryLanguages: countryLanguage is null ? null : [countryLanguage])));
 
-    // Symmetric with AC 004's treatment of believed-other (flagged divergence from engine)
-    [Fact]
-    public void BelievedEnglish_IsTrue() =>
-        Assert.True(_sut.Evaluate(Ctx(firstLanguage: "believed-english")));
-
-    // AC 003 (Canada) / AC 004 (Malta): other/believed-other + English official language
+    // believed-* map to Uncertain in the engine, so they never auto-reject (they go to
+    // Scrutiny) — evidence stays mandatory. Scenario 004 was withdrawn (BA decision,
+    // 2026-07-28); the waiver mirrors the engine exactly.
     [Theory]
-    [InlineData("other")]
-    [InlineData("believed-other")]
-    public void Other_WithEnglishOfficialLanguage_IsTrue(string lang) =>
-        Assert.True(_sut.Evaluate(Ctx(firstLanguage: lang, countryLanguages: ["English", "French"])));
+    [InlineData("believed-english", "English")]
+    [InlineData("believed-english", null)]
+    [InlineData("believed-other", "English")]
+    public void BelievedLanguage_IsFalse(string lang, string? countryLanguage) =>
+        Assert.False(_sut.Evaluate(Ctx(firstLanguage: lang,
+            countryLanguages: countryLanguage is null ? null : [countryLanguage])));
+
+    // AC 003 (Canada): other + English official language
+    [Fact]
+    public void Other_WithEnglishOfficialLanguage_IsTrue() =>
+        Assert.True(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["English", "French"])));
 
     [Fact]
     public void Other_EnglishMatchIsCaseInsensitive() =>
         Assert.True(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["english"])));
 
     // AC 005 (France) / AC 006 (Switzerland): no English official language
-    [Theory]
-    [InlineData("other")]
-    [InlineData("believed-other")]
-    public void Other_WithoutEnglishOfficialLanguage_IsFalse(string lang) =>
-        Assert.False(_sut.Evaluate(Ctx(firstLanguage: lang, countryLanguages: ["German", "French", "Italian", "Romansh"])));
+    [Fact]
+    public void Other_WithoutEnglishOfficialLanguage_IsFalse() =>
+        Assert.False(_sut.Evaluate(Ctx(firstLanguage: "other", countryLanguages: ["German", "French", "Italian", "Romansh"])));
 
     // Fail-safes: unknown languages / unanswered / declined-to-say → mandatory
     [Fact]

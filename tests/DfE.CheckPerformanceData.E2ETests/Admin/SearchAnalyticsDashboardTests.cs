@@ -102,13 +102,32 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Playwright browser test Linux-only");
 
-        // Fresh browser context — no admin cookie. The user does a search first, then
-        // hits the feedback form so PriorSearch renders with the actual hits.
+        // Fresh browser context. In Development the app is configured to emit a
+        // SecurePolicy=SameAsRequest session cookie so plain-http Chromium (hitting
+        // host.docker.internal) actually persists it across requests. We ALSO impersonate
+        // as editor so the auto-fill-email path (F3) is exercised — the impersonation
+        // cookie set here does NOT rotate the session id (see CONTEXT D-04) so the search
+        // fired below still ends up linked to the same session_id the feedback form reads.
         await using var userContext = await Browser.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize { Width = 1440, Height = 900 }
         });
         var userPage = await userContext.NewPageAsync();
+
+        var editorCookie = await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        if (!string.IsNullOrEmpty(editorCookie))
+        {
+            var eq = editorCookie.IndexOf('=');
+            if (eq > 0)
+            {
+                await userContext.AddCookiesAsync([new Cookie
+                {
+                    Name = editorCookie[..eq],
+                    Value = editorCookie[(eq + 1)..],
+                    Url = Fixture.BaseUrl,
+                }]);
+            }
+        }
 
         var search = await userPage.GotoAsync($"{Fixture.BaseUrl}/search?q=widget");
         Assert.NotNull(search);
@@ -118,56 +137,57 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         Assert.NotNull(feedback);
         Assert.Equal(200, feedback!.Status);
 
-        // If the user's search returned hits, the prior-search panel appears; otherwise
-        // the panel is absent (no hits to link). Either way the assertion below on
-        // "no visible kind label" MUST hold on the whole form body.
+        // The prior-search panel MUST render — the SearchEventWriter drain is async so a
+        // short wait covers the between-request race. If the panel still isn't there we
+        // want a hard failure, not a silent skip.
         var priorCard = userPage.Locator(".govuk-summary-card__title:has-text(\"Your last search on this site\")");
-        if (await priorCard.CountAsync() > 0)
-        {
-            var hitLinks = userPage.Locator(".govuk-summary-card__content ol.govuk-list--number li a");
-            var count = await hitLinks.CountAsync();
-            Assert.True(count > 0, "Prior-search panel rendered but no hit links present.");
-            var relValues = await hitLinks.EvaluateAllAsync<string[]>(
-                "els => els.map(e => e.getAttribute('target'))");
-            Assert.All(relValues, r => Assert.Equal("_blank", r));
-        }
+        await priorCard.WaitForAsync(new LocatorWaitForOptions { Timeout = 5000 });
+        Assert.Equal(1, await priorCard.CountAsync());
+
+        var hitLinks = userPage.Locator(".govuk-summary-card__content ol.govuk-list--number li a");
+        var linkCount = await hitLinks.CountAsync();
+        Assert.True(linkCount > 0, "Prior-search panel rendered but no hit links present.");
+        var relValues = await hitLinks.EvaluateAllAsync<string[]>(
+            "els => els.map(e => e.getAttribute('target'))");
+        Assert.All(relValues, r => Assert.Equal("_blank", r));
 
         // The form's user-visible copy must not contain kind labels for the hit rows.
-        // Any "page" or "content block" surface-level label would render inside the
-        // summary-card content ol — grep the ol's inner text specifically.
+        // Round-1 shipped labels like "home - content block" and "…/help/foo page"; the
+        // fix strips both. Assert on "content block" verbatim (the phrase never appears
+        // in a legitimate URL). Do NOT regex-match the word "page" alone — URL segments
+        // like "…creating-a-page" contain it and produce false positives; if a future
+        // change reintroduces a " - page" suffix, a follow-on assertion on the specific
+        // suffix pattern will catch it.
         var priorCardContent = userPage.Locator(".govuk-summary-card__content ol.govuk-list--number");
-        if (await priorCardContent.CountAsync() > 0)
-        {
-            var listText = await priorCardContent.InnerTextAsync();
-            Assert.DoesNotContain("content block", listText, StringComparison.OrdinalIgnoreCase);
-            // "page" is a common English word; only flag it when it looks like a kind
-            // label at the tail of a list item (e.g. "…/help/foo page"). Regex form:
-            // whitespace + "page" + end-of-line/li.
-            Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex(
-                @"\bpage\s*$", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline),
-                listText);
-        }
+        var listText = await priorCardContent.InnerTextAsync();
+        Assert.DoesNotContain("content block", listText, StringComparison.OrdinalIgnoreCase);
+        // Kind-label as trailing suffix after a separator: " - page" / " – page" / "\tpage" at line end.
+        Assert.DoesNotMatch(new System.Text.RegularExpressions.Regex(
+            @"[ \t][-–][ \t]page\s*$|[ \t][-–][ \t]content[ \t]block\s*$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline),
+            listText);
+
+        // F3: signed-in editor sees their email pre-filled.
+        var emailValue = await userPage.Locator("#Email").InputValueAsync();
+        Assert.False(string.IsNullOrWhiteSpace(emailValue),
+            $"Email should be auto-filled from the signed-in user's claim. Actual value: '{emailValue}'.");
+        Assert.Contains("@", emailValue);
 
         await userPage.StabiliseAsync();
         await SaveScreenshotAsync(userPage, "feedback-get.png");
 
         // --- Validation-error redisplay: empty WhatLookingFor submit re-renders the
-        //     form with the prior-search panel STILL present. ---
-        var lookingFor = userPage.Locator("#WhatLookingFor");
-        await lookingFor.FillAsync(""); // ensure empty
-        var sendBtn = userPage.Locator("button.govuk-button:has-text(\"Send\")");
-        await sendBtn.ClickAsync();
+        //     form with the prior-search panel STILL present AND the email still filled. ---
+        await userPage.Locator("#WhatLookingFor").FillAsync(""); // ensure empty
+        await userPage.Locator("button.govuk-button:has-text(\"Send\")").ClickAsync();
 
-        // After the round-trip the page renders the error summary + the prior-search
-        // panel (if it was present on GET, it must still be present here).
         await userPage.WaitForSelectorAsync(".govuk-error-summary");
         Assert.True(await userPage.Locator(".govuk-error-summary").IsVisibleAsync());
-        if (await priorCard.CountAsync() > 0)
-        {
-            Assert.True(await userPage.Locator(
-                ".govuk-summary-card__title:has-text(\"Your last search on this site\")").IsVisibleAsync(),
-                "Prior-search panel MUST re-render on validation error.");
-        }
+        Assert.Equal(1, await userPage.Locator(
+            ".govuk-summary-card__title:has-text(\"Your last search on this site\")").CountAsync());
+
+        var emailAfterError = await userPage.Locator("#Email").InputValueAsync();
+        Assert.Equal(emailValue, emailAfterError);
 
         await userPage.StabiliseAsync();
         await SaveScreenshotAsync(userPage, "feedback-post-error.png");

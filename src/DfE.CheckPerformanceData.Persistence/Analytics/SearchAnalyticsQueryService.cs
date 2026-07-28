@@ -449,6 +449,10 @@ ORDER BY b.bucket;";
             _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
         };
 
+    // Paged variant of the volume reader. Same generate_series spine as ReadVolumeAsync so
+    // gap-fill and total-bucket-count stay consistent with the landing-page chart; a COUNT
+    // over the spine feeds the pager's total. LIMIT/OFFSET slice the ordered spine so the
+    // pager on the drill-in table works over the same rows the chart above renders.
     public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,
@@ -456,7 +460,7 @@ ORDER BY b.bucket;";
         int page,
         int pageSize,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        ReadPagedVolumeAsync(fromUtc, toUtc, bucketSize, page, pageSize, cancellationToken);
 
     public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedUniqueSessionsOverTimeAsync(
         DateTime fromUtc,
@@ -465,7 +469,10 @@ ORDER BY b.bucket;";
         int page,
         int pageSize,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        ReadPagedSingleSeriesAsync(fromUtc, toUtc, bucketSize, page, pageSize,
+            countExpr: "COUNT(DISTINCT session_id)",
+            extraFilter: null,
+            cancellationToken);
 
     public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedZeroResultCountOverTimeAsync(
         DateTime fromUtc,
@@ -474,7 +481,10 @@ ORDER BY b.bucket;";
         int page,
         int pageSize,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        ReadPagedSingleSeriesAsync(fromUtc, toUtc, bucketSize, page, pageSize,
+            countExpr: "COUNT(*)",
+            extraFilter: "zero_results = true",
+            cancellationToken);
 
     public Task<(IReadOnlyList<LatencyBucket> Rows, int TotalCount)> GetPagedLatencyPercentilesOverTimeAsync(
         DateTime fromUtc,
@@ -483,7 +493,238 @@ ORDER BY b.bucket;";
         int page,
         int pageSize,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException();
+        ReadPagedLatencyPercentilesAsync(fromUtc, toUtc, bucketSize, page, pageSize, cancellationToken);
+
+    // Shared paged read for the dual-axis volume series. First runs the same spine SQL as
+    // ReadVolumeAsync but wrapped in a COUNT so the total bucket count is known before the
+    // slice query. Slice query adds LIMIT/OFFSET over the same spine ordering.
+    private async Task<(IReadOnlyList<VolumeBucket>, int)> ReadPagedVolumeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+
+        var countSql = $@"
+SELECT COUNT(*) FROM (
+    SELECT b.bucket
+    FROM generate_series({spineStart}, {spineEnd}, {intervalLiteral}) AS b(bucket)
+    WHERE b.bucket < @to
+) x;";
+
+        var pageSql = $@"
+SELECT
+    b.bucket AS bucket,
+    COALESCE(e.searches, 0)::int AS searches,
+    COALESCE(e.unique_sessions, 0)::int AS unique_sessions
+FROM generate_series(
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
+LEFT JOIN (
+    SELECT
+        {groupedBucketExpr} AS bucket,
+        COUNT(*)::int AS searches,
+        COUNT(DISTINCT session_id)::int AS unique_sessions
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY 1
+) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
+ORDER BY b.bucket
+LIMIT @limit OFFSET @offset;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        var rows = new List<VolumeBucket>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            rows.Add(new VolumeBucket(bucket, reader.GetInt32(1), reader.GetInt32(2)));
+        });
+
+        return (rows, total);
+    }
+
+    // Shared paged read for the two single-series drill-ins (unique users, zero-result count).
+    // Mirrors ReadSingleSeriesAsync but adds a count-over-spine + LIMIT/OFFSET slice.
+    private async Task<(IReadOnlyList<VolumeBucket>, int)> ReadPagedSingleSeriesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        string countExpr,
+        string? extraFilter,
+        CancellationToken cancellationToken)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+
+        var countSql = $@"
+SELECT COUNT(*) FROM (
+    SELECT b.bucket
+    FROM generate_series({spineStart}, {spineEnd}, {intervalLiteral}) AS b(bucket)
+    WHERE b.bucket < @to
+) x;";
+
+        var pageSql = $@"
+SELECT
+    b.bucket AS bucket,
+    COALESCE(e.value, 0)::int AS value
+FROM generate_series(
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
+LEFT JOIN (
+    SELECT
+        {groupedBucketExpr} AS bucket,
+        {countExpr}::int AS value
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
+    GROUP BY 1
+) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
+ORDER BY b.bucket
+LIMIT @limit OFFSET @offset;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        var rows = new List<VolumeBucket>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            rows.Add(new VolumeBucket(bucket, reader.GetInt32(1), 0));
+        });
+
+        return (rows, total);
+    }
+
+    // Paged latency-percentiles reader. Same generate_series spine + percentile_cont as
+    // the non-paged reader, sliced by LIMIT/OFFSET so the drill-in pager works over identical
+    // rows to the chart above.
+    private async Task<(IReadOnlyList<LatencyBucket>, int)> ReadPagedLatencyPercentilesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+
+        var countSql = $@"
+SELECT COUNT(*) FROM (
+    SELECT b.bucket
+    FROM generate_series({spineStart}, {spineEnd}, {intervalLiteral}) AS b(bucket)
+    WHERE b.bucket < @to
+) x;";
+
+        var pageSql = $@"
+SELECT
+    b.bucket AS bucket,
+    COALESCE(e.p5,  0) AS p5,
+    COALESCE(e.p50, 0) AS p50,
+    COALESCE(e.p95, 0) AS p95
+FROM generate_series(
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
+LEFT JOIN (
+    SELECT
+        {groupedBucketExpr} AS bucket,
+        percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
+        percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
+        percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY 1
+) e ON e.bucket = b.bucket
+WHERE b.bucket < @to
+ORDER BY b.bucket
+LIMIT @limit OFFSET @offset;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = Convert.ToInt32(reader.GetInt64(0));
+        });
+
+        var rows = new List<LatencyBucket>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var p5  = reader.IsDBNull(1) ? 0d : Convert.ToDouble(reader.GetValue(1));
+            var p50 = reader.IsDBNull(2) ? 0d : Convert.ToDouble(reader.GetValue(2));
+            var p95 = reader.IsDBNull(3) ? 0d : Convert.ToDouble(reader.GetValue(3));
+            rows.Add(new LatencyBucket(
+                bucket,
+                (int)Math.Round(p5,  MidpointRounding.AwayFromZero),
+                (int)Math.Round(p50, MidpointRounding.AwayFromZero),
+                (int)Math.Round(p95, MidpointRounding.AwayFromZero)));
+        });
+
+        return (rows, total);
+    }
 
     public async Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopQueriesAsync(
         DateTime fromUtc,

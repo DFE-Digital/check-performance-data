@@ -536,8 +536,9 @@ public sealed class SearchAnalyticsChartTests
 
         Assert.Equal(30, total);
         Assert.All(pg1, r => Assert.Equal(0, r.SearchCount));
-        // Bucket 15 lives on page 2 (rows 11..20).
-        Assert.Equal(1, pg2[4].SearchCount);
+        // Bucket 15 lives on page 2 (rows 11..20). Zero-indexed within the page it is
+        // (bucket-index 15) - (page-2 offset 10) = 5.
+        Assert.Equal(1, pg2[5].SearchCount);
         Assert.All(pg3, r => Assert.Equal(0, r.SearchCount));
     }
 

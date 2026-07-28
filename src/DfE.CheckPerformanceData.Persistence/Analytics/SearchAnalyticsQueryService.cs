@@ -207,44 +207,53 @@ LIMIT @limit;";
         DateTime fromUtc,
         DateTime toUtc,
         VolumeBucketSize bucketSize,
-        CancellationToken cancellationToken = default)
-    {
-        // Stubbed for the RED cycle — real implementation lands in the GREEN commit.
-        throw new NotImplementedException("Explicit-bucket overload not implemented yet.");
-    }
+        CancellationToken cancellationToken = default) =>
+        ReadVolumeAsync(fromUtc, toUtc, bucketSize, cancellationToken);
 
-    public async Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
+    public Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
-        // Pick the bucket granularity server-side from the window width. The chart tips from
-        // hour to day at 48h — anything wider than 48h reads day buckets so the axis stays
-        // readable. The unit name flows into both the date_trunc bucket key and the
-        // generate_series step so both sides of the LEFT JOIN align on identical bucket
-        // boundaries — an unaligned @from would otherwise produce a spine whose keys never
-        // equal the counted-side buckets.
+        // Auto-pick the bucket granularity from the window width when no explicit size was
+        // supplied. <=48h → hour; anything wider → day. Preserves the pre-Round-2 default
+        // shape for callers that have not adopted the explicit-bucket overload.
         var window = toUtc - fromUtc;
-        var (unit, step) = window > HourBucketThreshold
-            ? ("day", TimeSpan.FromDays(1))
-            : ("hour", TimeSpan.FromHours(1));
+        var bucketSize = window > HourBucketThreshold ? VolumeBucketSize.Day : VolumeBucketSize.Hour;
+        return ReadVolumeAsync(fromUtc, toUtc, bucketSize, cancellationToken);
+    }
 
-        // generate_series builds one row per bucket across the range; the LEFT JOIN onto the
-        // grouped counts gap-fills the empty buckets to (0, 0) so the chart's X axis is
-        // continuous even when a bucket has no events. Both spine bounds apply the same
-        // date_trunc as the counted side.
+    // Shared read for both overloads. The SQL is templated on a per-bucket format string so
+    // the same date_trunc/interval-literal pair applies to both the generate_series spine
+    // and the counted-side bucket key — mis-aligned expressions would produce a spine whose
+    // keys never join the counted rows and every bucket would render as zero.
+    //
+    // 15-minute is the one bucket Postgres date_trunc does not offer directly; it composes as
+    // "date_trunc('hour', ts) + INTERVAL '15 minutes' * (EXTRACT(MINUTE FROM ts)::int / 15)".
+    // The other four are single date_trunc calls with a matching interval literal for the step.
+    private async Task<IReadOnlyList<VolumeBucket>> ReadVolumeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken)
+    {
+        var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
+        var spineStart = string.Format(bucketExprFmt, "@from");
+        var spineEnd = string.Format(bucketExprFmt, "@to");
+        var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
+
         var sql = $@"
 SELECT
     b.bucket AS bucket,
     COALESCE(e.searches, 0)::int AS searches,
     COALESCE(e.unique_sessions, 0)::int AS unique_sessions
 FROM generate_series(
-    date_trunc('{unit}', @from),
-    date_trunc('{unit}', @to),
-    @step) AS b(bucket)
+    {spineStart},
+    {spineEnd},
+    {intervalLiteral}) AS b(bucket)
 LEFT JOIN (
     SELECT
-        date_trunc('{unit}', occurred_at_utc) AS bucket,
+        {groupedBucketExpr} AS bucket,
         COUNT(*)::int AS searches,
         COUNT(DISTINCT session_id)::int AS unique_sessions
     FROM search_events
@@ -259,7 +268,6 @@ ORDER BY b.bucket;";
         {
             command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
             command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
-            command.Parameters.Add(new NpgsqlParameter("step", NpgsqlDbType.Interval) { Value = step });
         }, reader =>
         {
             var bucket = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
@@ -268,6 +276,26 @@ ORDER BY b.bucket;";
 
         return buckets;
     }
+
+    // Maps a VolumeBucketSize to the pair of SQL fragments the read builds around:
+    //   1. A composite format string with a single {0} placeholder — substitute a timestamptz
+    //      expression (either an @-parameter reference or a column) and it produces the
+    //      bucket-aligned key for that expression.
+    //   2. The Postgres INTERVAL literal used as the generate_series step.
+    // The 15-minute variant is the only one that cannot map to a single date_trunc unit; it
+    // buckets to hour then adds a 15-minute multiple of (minute / 15).
+    private static (string BucketExprFormat, string IntervalLiteral) BucketSqlPieces(VolumeBucketSize bucketSize) =>
+        bucketSize switch
+        {
+            VolumeBucketSize.FifteenMinutes => (
+                "date_trunc('hour', {0}) + INTERVAL '15 minutes' * (EXTRACT(MINUTE FROM {0})::int / 15)",
+                "INTERVAL '15 minutes'"),
+            VolumeBucketSize.Hour  => ("date_trunc('hour', {0})",  "INTERVAL '1 hour'"),
+            VolumeBucketSize.Day   => ("date_trunc('day', {0})",   "INTERVAL '1 day'"),
+            VolumeBucketSize.Week  => ("date_trunc('week', {0})",  "INTERVAL '1 week'"),
+            VolumeBucketSize.Month => ("date_trunc('month', {0})", "INTERVAL '1 month'"),
+            _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
+        };
 
     public async Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopQueriesAsync(
         DateTime fromUtc,

@@ -24,6 +24,12 @@ public sealed class SearchFeedbackViewModel
     // session's most recent search event. Null when the session has no prior search.
     public string? PriorSearchPrefill { get; set; }
 
+    // The session's most recent search: query text, when it happened, how many results
+    // came back, and the actual result rows in the order they were rendered. Populated by
+    // the controller on GET so the view can show the user WHAT they saw, not just a count.
+    // Null when the session has never searched (feedback form still submits fine).
+    public PriorSearchDisplay? PriorSearch { get; set; }
+
     [Required(ErrorMessage = "Enter what you were looking for")]
     [StringLength(4000, ErrorMessage = "Keep your message under 4000 characters")]
     public string? WhatLookingFor { get; set; }
@@ -36,3 +42,21 @@ public sealed class SearchFeedbackViewModel
 
     public bool HideMyEmail { get; set; }
 }
+
+// Read-only display record for the "Your last search" panel on the feedback form.
+// Query is the user's original query (raw preferred, normalised as fallback);
+// OccurredAtUtc is the sink timestamp; ResultsTotal is the count the sink recorded;
+// Hits are the individual result rows in rendered order.
+public sealed record PriorSearchDisplay(
+    string Query,
+    DateTime OccurredAtUtc,
+    int ResultsTotal,
+    IReadOnlyList<PriorSearchHit> Hits);
+
+// One row in the "your last search returned" list on the feedback form.
+// Kind is "page" or "block"; Key is the canonical URL for pages or the block key
+// for content blocks.
+public sealed record PriorSearchHit(
+    int Position,
+    string Kind,
+    string Key);

@@ -44,10 +44,24 @@ public sealed record TopPageRow(
     int ImpressionCount,
     int UniqueQueryCount);
 
-// The last search a session ran, used by the feedback form's "what did you actually get?"
-// pre-fill. Nullable return from the query service when the session has never searched.
+// The last search a session ran, used by the feedback form so the user can see (and support
+// can later see) exactly what the system returned for their query. Nullable return from the
+// query service when the session has never searched.
+//
+// Hits carries the individual result rows the search produced (page + block impressions) in
+// their rendered order so the feedback form can display "here are the pages we sent you to"
+// rather than just a count — a count is not actionable for the user or the support team.
 public sealed record SearchEventForPrefill(
     string? QueryRaw,
     string? QueryNormalised,
     int ResultsTotal,
-    DateTime OccurredAtUtc);
+    DateTime OccurredAtUtc,
+    IReadOnlyList<SearchHitPrefill> Hits);
+
+// One hit in the "your last search returned" list on the feedback form. ResultKind is
+// "page" or "block" — matching the sink invariant. ResultKey is the canonical URL for
+// pages or the block key for content blocks; the view renders it verbatim.
+public sealed record SearchHitPrefill(
+    int Position,
+    string ResultKind,
+    string ResultKey);

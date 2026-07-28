@@ -42,17 +42,16 @@ public sealed class SearchFeedbackController : Controller
         await HttpContext.Session.LoadAsync(ct);
         var sessionId = HttpContext.Session.Id;
 
-        // The prior-search pre-fill is best-effort: if the query service returns null
-        // (no matching row for the session), the textarea renders empty.
+        // The prior-search block is best-effort: if the query service returns null (no
+        // matching row for the session), the form still renders without the panel.
         var latest = await _query.GetLatestSearchForSessionAsync(sessionId, ct);
-        var prefill = latest is null
-            ? null
-            : FormatPrefill(latest);
+        var priorSearch = latest is null ? null : ToDisplay(latest);
 
         var model = new SearchFeedbackViewModel
         {
             SessionId = sessionId,
-            PriorSearchPrefill = prefill,
+            PriorSearchPrefill = latest is null ? null : FormatPrefill(latest),
+            PriorSearch = priorSearch,
         };
         return View("~/Views/Search/Feedback.cshtml", model);
     }
@@ -113,7 +112,9 @@ public sealed class SearchFeedbackController : Controller
 
     // Formats the session's last search into a single line suitable for pre-filling the
     // "What did you actually get?" textarea. Uses invariant HH:mm + long-month formatting
-    // to match GDS date conventions without an extra localisation dependency.
+    // to match GDS date conventions without an extra localisation dependency. The dedicated
+    // "Your last search" panel above the textarea now shows the actual hits — this prefill
+    // remains only as a starting point for the user's own words.
     private static string FormatPrefill(SearchEventForPrefill latest)
     {
         var query = latest.QueryRaw ?? latest.QueryNormalised ?? string.Empty;
@@ -123,5 +124,17 @@ public sealed class SearchFeedbackController : Controller
             query,
             latest.ResultsTotal,
             latest.OccurredAtUtc);
+    }
+
+    // Projects the DTO into the view-model display record so the view has no dependency
+    // on the Application-layer DTO shape (view files sit above ViewModels in the
+    // dependency graph).
+    private static PriorSearchDisplay ToDisplay(SearchEventForPrefill latest)
+    {
+        var query = latest.QueryRaw ?? latest.QueryNormalised ?? string.Empty;
+        var hits = latest.Hits
+            .Select(h => new PriorSearchHit(h.Position, h.ResultKind, h.ResultKey))
+            .ToList();
+        return new PriorSearchDisplay(query, latest.OccurredAtUtc, latest.ResultsTotal, hits);
     }
 }

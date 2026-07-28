@@ -224,6 +224,65 @@ public sealed class SearchFeedbackControllerTests
         var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
 
         Assert.Null(model.PriorSearchPrefill);
+        Assert.Null(model.PriorSearch);
+    }
+
+    // --- (e2) When the session has a prior search event, the view model's PriorSearch panel
+    //         carries the query, timestamp, results total, and the individual result rows in
+    //         rendered order (regression against showing "N results" without the list) ---
+
+    [Fact]
+    public async Task Index_WhenSessionHasPriorSearchWithHits_PopulatesPriorSearchWithRenderedResultRows()
+    {
+        await TruncateAllAsync();
+
+        const string sessionId = "session-with-hits";
+
+        long eventId;
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var evt = new SearchEvent
+            {
+                OccurredAtUtc = DateTime.SpecifyKind(new DateTime(2026, 8, 4, 09, 15, 0), DateTimeKind.Utc),
+                SessionId = sessionId,
+                QueryRaw = "widget",
+                QueryNormalised = "widget",
+                Scope = null,
+                ResultsPages = 2,
+                ResultsBlocks = 1,
+                LatencyMs = 22,
+            };
+            seedContext.SearchEvents.Add(evt);
+            await seedContext.SaveChangesAsync();
+            eventId = evt.Id;
+
+            seedContext.SearchEventResults.AddRange(
+                new SearchEventResult { SearchEventId = eventId, Position = 1, ResultKind = "page",  ResultKey = "/help/widgets-overview", Rank = 1.0f },
+                new SearchEventResult { SearchEventId = eventId, Position = 2, ResultKind = "page",  ResultKey = "/help/widgets-setup",    Rank = 0.8f },
+                new SearchEventResult { SearchEventId = eventId, Position = 3, ResultKind = "block", ResultKey = "block-widget-intro",     Rank = 0.4f });
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+
+        var controller = BuildController(messages, query, sessionId: sessionId);
+
+        var result = await controller.Index(CancellationToken.None);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        Assert.NotNull(model.PriorSearch);
+        Assert.Equal("widget", model.PriorSearch!.Query);
+        Assert.Equal(3, model.PriorSearch.ResultsTotal);
+        Assert.Equal(3, model.PriorSearch.Hits.Count);
+        Assert.Equal(1, model.PriorSearch.Hits[0].Position);
+        Assert.Equal("/help/widgets-overview", model.PriorSearch.Hits[0].Key);
+        Assert.Equal("page", model.PriorSearch.Hits[0].Kind);
+        Assert.Equal("/help/widgets-setup", model.PriorSearch.Hits[1].Key);
+        Assert.Equal("block-widget-intro", model.PriorSearch.Hits[2].Key);
+        Assert.Equal("block", model.PriorSearch.Hits[2].Kind);
     }
 
     // --- (f) Successful POST redirects to Confirmation and carries the session id via TempData ---

@@ -1,3 +1,4 @@
+@using System.Globalization
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchFeedbackViewModel
 @{
     ViewData["Title"] = "Send us a note about a search";
@@ -25,6 +26,64 @@
             and what came back. Support can use your session ID (below) to look at the
             searches you have run.
         </p>
+
+        @if (Model.PriorSearch is { } prior)
+        {
+            <div class="govuk-summary-card">
+                <div class="govuk-summary-card__title-wrapper">
+                    <h2 class="govuk-summary-card__title">Your last search on this site</h2>
+                </div>
+                <div class="govuk-summary-card__content">
+                    <dl class="govuk-summary-list">
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Query</dt>
+                            <dd class="govuk-summary-list__value">@prior.Query</dd>
+                        </div>
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">When</dt>
+                            <dd class="govuk-summary-list__value">
+                                @prior.OccurredAtUtc.ToString("HH:mm", CultureInfo.InvariantCulture) on @prior.OccurredAtUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture) (UTC)
+                            </dd>
+                        </div>
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Results returned</dt>
+                            <dd class="govuk-summary-list__value">@prior.ResultsTotal.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                        </div>
+                    </dl>
+
+                    @if (prior.Hits.Count == 0)
+                    {
+                        <p class="govuk-body">No results were returned for that search.</p>
+                    }
+                    else
+                    {
+                        <h3 class="govuk-heading-s">Results the search returned</h3>
+                        <ol class="govuk-list govuk-list--number">
+                            @foreach (var hit in prior.Hits)
+                            {
+                                <li>
+                                    @if (string.Equals(hit.Kind, "page", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <a class="govuk-link" href="@hit.Key">@hit.Key</a>
+                                    }
+                                    else
+                                    {
+                                        <code>@hit.Key</code>
+                                    }
+                                    <span class="govuk-hint govuk-!-display-inline-block govuk-!-margin-left-2">@hit.Kind</span>
+                                </li>
+                            }
+                        </ol>
+                        @if (prior.Hits.Count < prior.ResultsTotal)
+                        {
+                            <p class="govuk-hint">
+                                Showing the first @prior.Hits.Count of @prior.ResultsTotal results.
+                            </p>
+                        }
+                    }
+                </div>
+            </div>
+        }
 
         @if (!ViewData.ModelState.IsValid)
         {

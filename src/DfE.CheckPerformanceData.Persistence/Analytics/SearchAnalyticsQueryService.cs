@@ -175,17 +175,32 @@ LIMIT @limit;";
         if (string.IsNullOrEmpty(sessionId))
             return null;
 
-        var row = await _dbContext.SearchEvents
+        var latest = await _dbContext.SearchEvents
             .Where(e => e.SessionId == sessionId)
             .OrderByDescending(e => e.OccurredAtUtc)
-            .Select(e => new SearchEventForPrefill(
-                e.QueryRaw,
-                e.QueryNormalised,
-                e.ResultsTotal,
-                e.OccurredAtUtc))
+            .Select(e => new { e.Id, e.QueryRaw, e.QueryNormalised, e.ResultsTotal, e.OccurredAtUtc })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return row;
+        if (latest is null)
+            return null;
+
+        // Fetch the hits for that event in rendered order so the feedback form can show the
+        // user "here are the results you saw". Kept in-memory small (top 20 by Position);
+        // that is more than any /search result page shows so nothing gets clipped visually,
+        // and the sink already bounds impressions per event elsewhere.
+        var hits = await _dbContext.SearchEventResults
+            .Where(r => r.SearchEventId == latest.Id)
+            .OrderBy(r => r.Position)
+            .Take(20)
+            .Select(r => new SearchHitPrefill(r.Position, r.ResultKind, r.ResultKey))
+            .ToListAsync(cancellationToken);
+
+        return new SearchEventForPrefill(
+            latest.QueryRaw,
+            latest.QueryNormalised,
+            latest.ResultsTotal,
+            latest.OccurredAtUtc,
+            hits);
     }
 
     public async Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(

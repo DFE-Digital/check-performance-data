@@ -6,18 +6,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
-// New read-side surface behind the round-7 dashboard additions:
+// New read-side surface behind the dashboard insight cards:
 //   - Request-timings scatter (sampled + paged)
 //   - Weekday × hour-of-day heatmap
 //   - Zero-result → next-action outcome funnel (refined / feedback / silent)
 //   - Week-over-week prior-window summary (drives anomaly chips)
 [Collection(nameof(PostgresCollection))]
 [Trait("Category", "W0")]
-public sealed class SearchAnalyticsRound7Tests
+public sealed class SearchAnalyticsInsightCardsTests
 {
     private readonly PostgresFixture _fixture;
 
-    public SearchAnalyticsRound7Tests(PostgresFixture fixture)
+    public SearchAnalyticsInsightCardsTests(PostgresFixture fixture)
     {
         _fixture = fixture;
     }

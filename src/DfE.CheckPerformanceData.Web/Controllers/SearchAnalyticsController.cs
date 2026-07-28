@@ -39,10 +39,10 @@ public sealed class SearchAnalyticsController : Controller
     // ?range=custom&from=1990-01-01 could trigger.
     private static readonly TimeSpan MaxWindow = TimeSpan.FromDays(90);
 
-    // The 20-row threshold below which the landing view swaps the tiles + tables for a
-    // single empty-state inset. Chosen so p95 latency and zero-result-rate figures are
-    // statistically meaningful — below 20 samples the tiles report noise, not signal.
-    private const int EmptyStateThreshold = 20;
+    // Retained as a public marker for the view — it renders a "small sample, treat
+    // percentiles carefully" hint AFTER the data when TotalRowCount is below this. The
+    // tiles + tables always render; the hint is a footnote, not a gate.
+    public const int SmallSampleThreshold = 20;
 
     // The number of top queries + top zero-result queries shown on the landing tables.
     // 10 is the industry-standard "top-10" list; drill-in views hang off "View all →" links.
@@ -79,30 +79,13 @@ public sealed class SearchAnalyticsController : Controller
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
 
         var totalCount = await _query.GetRowCountAsync(fromUtc, toUtc, ct);
-        var hasData = totalCount >= EmptyStateThreshold;
 
-        SearchAnalyticsSummary summary;
-        IReadOnlyList<TopQueryRow> topQueries;
-        IReadOnlyList<TopQueryRow> topZeroResultQueries;
-        IReadOnlyList<VolumeBucket> volumeSeries;
-
-        if (hasData)
-        {
-            // Only run the heavier aggregates when the empty-state guard has passed. Below
-            // 20 rows the view renders a single inset panel and never reads the summary,
-            // the top-N tables, or the volume series.
-            summary = await _query.GetSummaryAsync(fromUtc, toUtc, ct);
-            topQueries = await _query.GetTopQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
-            topZeroResultQueries = await _query.GetTopZeroResultQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
-            volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, ct);
-        }
-        else
-        {
-            summary = new SearchAnalyticsSummary(totalCount, 0, 0d, 0);
-            topQueries = Array.Empty<TopQueryRow>();
-            topZeroResultQueries = Array.Empty<TopQueryRow>();
-            volumeSeries = Array.Empty<VolumeBucket>();
-        }
+        // Always fetch the aggregates. Admins want to see whatever data is there — the
+        // small-sample cost is a hint at the bottom of the page, not a suppression gate.
+        var summary = await _query.GetSummaryAsync(fromUtc, toUtc, ct);
+        var topQueries = await _query.GetTopQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
+        var topZeroResultQueries = await _query.GetTopZeroResultQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
+        var volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, ct);
 
         return View("~/Views/Admin/Search/Index.cshtml", new SearchAnalyticsIndexViewModel
         {
@@ -113,7 +96,6 @@ public sealed class SearchAnalyticsController : Controller
             FromUtc = fromUtc,
             ToUtc = toUtc,
             RangeKey = rangeKey,
-            HasData = hasData,
             TotalRowCount = totalCount,
         });
     }

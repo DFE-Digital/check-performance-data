@@ -18,8 +18,9 @@ using Microsoft.Extensions.Hosting;
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
 // Renders Views/Admin/Search/Index.cshtml through the real Razor view engine to prove:
-//   - four .sa-tile blocks render with their labelled values when HasData is true
-//   - empty-state inset text replaces the tiles when HasData is false
+//   - four .sa-tile blocks always render, populated from the summary (regardless of sample size)
+//   - a "small sample" hint appears AFTER the data when 0 < count < the small-sample threshold
+//   - a "no searches in window" hint appears AFTER the data when count == 0
 //   - a chart-placeholder marker is present so the volume-chart follow-up knows where to slot in
 //   - a top-queries + top-zero-result table skeleton renders when data is present
 //
@@ -30,7 +31,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 public sealed class SearchAnalyticsIndexViewRenderTests
 {
     [Fact]
-    public async Task RendersFourStatTiles_WhenHasDataIsTrue()
+    public async Task RendersFourStatTiles_AlwaysPopulatedFromSummary()
     {
         var model = ViewModelWithData(
             totalCount: 1247, uniqueSessions: 481, zeroRate: 12.3, p95: 87);
@@ -57,21 +58,46 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
-    public async Task RendersEmptyStateInsetText_WhenHasDataIsFalse()
+    public async Task RendersTilesAndSmallSampleHint_WhenBelowThreshold()
     {
-        var model = EmptyViewModel(totalRowCount: 5);
+        // Regression guard: below the small-sample threshold we still show the tiles and
+        // tables — the hint about small samples is a footnote AFTER the data, not a
+        // replacement for it.
+        var model = ViewModelWithData(
+            totalCount: 5, uniqueSessions: 3, zeroRate: 20.0, p95: 15);
 
         var html = await RenderIndexAsync(model);
 
-        Assert.Contains("govuk-inset-text", html);
-        Assert.Contains("Fewer than 20 searches were captured in this window.", html);
+        // Tiles rendered with real values.
+        Assert.Contains("sa-tile__value", html);
+        Assert.Contains(">5<", html);
+        Assert.Contains(">3<", html);
 
-        // Empty-state suppresses tiles — the sa-tile__value token must not appear.
-        Assert.DoesNotContain("sa-tile__value", html);
+        // Small-sample hint present and positioned AFTER the tiles.
+        var hintText = "Small sample";
+        var tileIndex = html.IndexOf("sa-tile__value", StringComparison.Ordinal);
+        var hintIndex = html.IndexOf(hintText, StringComparison.Ordinal);
+        Assert.True(hintIndex > tileIndex, "Small-sample hint should appear after the tiles.");
     }
 
     [Fact]
-    public async Task RendersVolumeChart_WhenHasDataIsTrue()
+    public async Task RendersTilesAndNoSearchesHint_WhenWindowIsEmpty()
+    {
+        var model = EmptyViewModel(totalRowCount: 0);
+
+        var html = await RenderIndexAsync(model);
+
+        // Tiles still render — they read as zero (which is a truthful signal).
+        Assert.Contains("sa-tile__value", html);
+        // Friendly note that the window is empty, positioned after the tiles.
+        Assert.Contains("No searches recorded in this window", html);
+        var tileIndex = html.IndexOf("sa-tile__value", StringComparison.Ordinal);
+        var hintIndex = html.IndexOf("No searches recorded in this window", StringComparison.Ordinal);
+        Assert.True(hintIndex > tileIndex, "Empty-window hint should appear after the tiles.");
+    }
+
+    [Fact]
+    public async Task RendersVolumeChart_AlwaysRenders()
     {
         var now = DateTime.UtcNow;
         var buckets = new List<VolumeBucket>();
@@ -91,7 +117,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
-    public async Task RendersTopQueriesAndTopZeroResultTables_WhenHasDataIsTrue()
+    public async Task RendersTopQueriesAndTopZeroResultTables_AlwaysRenders()
     {
         var model = ViewModelWithData(
             totalCount: 50, uniqueSessions: 5, zeroRate: 20.0, p95: 40,
@@ -202,7 +228,6 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             FromUtc = now.AddDays(-7),
             ToUtc = now,
             RangeKey = "7d",
-            HasData = totalCount >= 20,
             TotalRowCount = totalCount,
         };
     }
@@ -219,7 +244,6 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             FromUtc = now.AddDays(-7),
             ToUtc = now,
             RangeKey = "7d",
-            HasData = false,
             TotalRowCount = totalRowCount,
         };
     }

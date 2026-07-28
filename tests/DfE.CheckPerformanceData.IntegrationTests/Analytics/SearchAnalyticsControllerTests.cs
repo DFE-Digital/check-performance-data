@@ -116,10 +116,10 @@ public sealed class SearchAnalyticsControllerTests
             $"Expected custom range clamped to <=90d, got {span.TotalDays}d.");
     }
 
-    // --- HasData reflects the 20-row threshold ---
+    // --- Tiles + tables always render regardless of row count ---
 
     [Fact]
-    public async Task Index_WhenWindowHas100Rows_HasDataIsTrueAndTilesMatch()
+    public async Task Index_WhenWindowHas100Rows_TilesMatchSeededData()
     {
         await ResetSearchEventsAsync();
 
@@ -132,15 +132,18 @@ public sealed class SearchAnalyticsControllerTests
         var result = await Sut().Index(range: "7d", from: null, to: null, ct: CancellationToken.None);
 
         var model = AssertViewModel(result);
-        Assert.True(model.HasData);
         Assert.Equal(100, model.TotalRowCount);
         Assert.Equal(100, model.Summary.TotalCount);
         Assert.Equal(10, model.Summary.UniqueSessions);
+        Assert.NotEmpty(model.TopQueries);
     }
 
     [Fact]
-    public async Task Index_WhenWindowHasFewerThan20Rows_HasDataIsFalse()
+    public async Task Index_WhenWindowHasFewerThan20Rows_StillReturnsRealSummaryAndTables()
     {
+        // Regression: earlier gate swapped the tiles + tables for a "not enough data" inset
+        // whenever the window held under 20 rows. Admins expect small-sample data to still
+        // render — the noise on percentiles is theirs to judge.
         await ResetSearchEventsAsync();
 
         var now = DateTime.UtcNow;
@@ -152,8 +155,10 @@ public sealed class SearchAnalyticsControllerTests
         var result = await Sut().Index(range: "7d", from: null, to: null, ct: CancellationToken.None);
 
         var model = AssertViewModel(result);
-        Assert.False(model.HasData);
         Assert.Equal(5, model.TotalRowCount);
+        Assert.Equal(5, model.Summary.TotalCount);
+        Assert.Equal(5, model.Summary.UniqueSessions);
+        Assert.NotEmpty(model.TopQueries);
     }
 
     // --- Preset windows scope tile numbers correctly ---

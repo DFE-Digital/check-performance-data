@@ -51,7 +51,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Equal(4, await tilesWithTitle.CountAsync());
 
             // Chart SVGs render server-side; the four tile panels (volume / unique-users /
-            // zero-results / latency-percentiles) plus the round-7 additions (request-
+            // zero-results / latency-percentiles) plus the subsequent additions (request-
             // timings scatter under the latency tile and the weekday × hour heatmap).
             // Post-JS the latency panels + non-active tile panels hide but their SVGs are
             // still in the DOM. Heatmap SVG lives in a summary card and always renders.
@@ -79,9 +79,9 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Contains("1mo", values);
 
             // Top-N summary cards remain three: top queries, top zero-result queries, top
-            // pages. The round-7 heatmap + funnel cards are also .sa-summary-cards so the
+            // pages. The heatmap + funnel cards are also .sa-summary-cards so the
             // total sits at five; assert the three Top-* cards specifically to keep the
-            // acceptance shape while allowing the round-7 additions.
+            // acceptance shape while allowing the additions above.
             await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top queries\")")).ToBeVisibleAsync();
             await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top zero-result queries\")")).ToBeVisibleAsync();
             await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top pages\")")).ToBeVisibleAsync();
@@ -462,7 +462,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
     //   (b) the tile is chip-less (delta within +/-10%) but not broken
     //   (c) an insufficient-prior-data hint renders (custom range > 45 days)
     // A more deterministic anomaly-corpus test would need a fixture that seeds the prior
-    // window explicitly; documented in the round-7 SUMMARY testing-gaps section.
+    // window explicitly; documented in the SUMMARY testing-gaps section.
     [SkippableFact]
     public async Task Dashboard_AnomalyChips_RenderConditionallyBeneathEachTile()
     {

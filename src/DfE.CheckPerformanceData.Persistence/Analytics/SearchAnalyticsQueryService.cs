@@ -916,38 +916,264 @@ LIMIT @limit OFFSET @offset;";
             .ToList();
     }
 
-    public Task<IReadOnlyList<RequestTimingPoint>> GetRequestTimingsAsync(
+    // Request-timings scatter chart feed. When the window's event count exceeds
+    // samplingLimit the query samples via ORDER BY random() so the chart still gets a
+    // representative spread across the window (rather than the first N events, which
+    // would clip the plot to a fraction of the X-axis). When under the limit every event
+    // is returned.
+    public async Task<IReadOnlyList<RequestTimingPoint>> GetRequestTimingsAsync(
         DateTime fromUtc,
         DateTime toUtc,
         int samplingLimit,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("GetRequestTimingsAsync — pending GREEN implementation.");
+        CancellationToken cancellationToken = default)
+    {
+        if (samplingLimit < 1) samplingLimit = 1;
 
-    public Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedRequestTimingsAsync(
+        const string sql = @"
+SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+ORDER BY random()
+LIMIT @limit;";
+
+        var points = new List<RequestTimingPoint>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = samplingLimit });
+        }, reader =>
+        {
+            var occurredAt = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var latency = reader.GetInt32(1);
+            var sessionId = reader.GetString(2);
+            var query = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var resultsTotal = reader.GetInt32(4);
+            points.Add(new RequestTimingPoint(occurredAt, latency, sessionId, query, resultsTotal));
+        });
+
+        return points;
+    }
+
+    // Paged request-timings drill-in. Newest first so the top of page 1 is the most
+    // recent event; the pager runs over the total window count. No sampling.
+    public async Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedRequestTimingsAsync(
         DateTime fromUtc,
         DateTime toUtc,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("GetPagedRequestTimingsAsync — pending GREEN implementation.");
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
 
-    public Task<IReadOnlyList<WeekdayHourBucket>> GetSearchesByWeekdayAndHourAsync(
+        const string countSql = @"
+SELECT COUNT(*)::int
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to;";
+
+        const string pageSql = @"
+SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+ORDER BY occurred_at_utc DESC, id DESC
+LIMIT @limit OFFSET @offset;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = reader.GetInt32(0);
+        });
+
+        var rows = new List<RequestTimingPoint>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var occurredAt = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var latency = reader.GetInt32(1);
+            var sessionId = reader.GetString(2);
+            var query = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var resultsTotal = reader.GetInt32(4);
+            rows.Add(new RequestTimingPoint(occurredAt, latency, sessionId, query, resultsTotal));
+        });
+
+        return (rows, total);
+    }
+
+    // Weekday × hour-of-day search volume heatmap. Postgres EXTRACT(ISODOW) returns
+    // 1..7 with Monday=1 (matches the UK-audience week-start convention) and
+    // EXTRACT(HOUR) returns 0..23 in the storage timezone (which is UTC on both events
+    // and query bindings). A generate_series-based CROSS JOIN produces the 168-cell
+    // spine; LEFT JOIN gap-fills empty cells to zero so the SVG grid has no holes.
+    public async Task<IReadOnlyList<WeekdayHourBucket>> GetSearchesByWeekdayAndHourAsync(
         DateTime fromUtc,
         DateTime toUtc,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("GetSearchesByWeekdayAndHourAsync — pending GREEN implementation.");
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+SELECT
+    w.weekday::int AS weekday,
+    h.hour::int AS hour,
+    COALESCE(e.c, 0)::int AS c
+FROM generate_series(1, 7) AS w(weekday)
+CROSS JOIN generate_series(0, 23) AS h(hour)
+LEFT JOIN (
+    SELECT
+        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        COUNT(*)::int AS c
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY 1, 2
+) e ON e.weekday = w.weekday AND e.hour = h.hour
+ORDER BY w.weekday, h.hour;";
 
-    public Task<ZeroResultOutcomeSummary> GetZeroResultOutcomeFunnelAsync(
+        var buckets = new List<WeekdayHourBucket>(168);
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            buckets.Add(new WeekdayHourBucket(
+                reader.GetInt32(0),
+                reader.GetInt32(1),
+                reader.GetInt32(2)));
+        });
+
+        return buckets;
+    }
+
+    // Session-level "what happened after a zero-result search" rollup for the funnel
+    // card. Everything is one aggregate CTE-driven query so the tile computes in one
+    // round-trip. Tie-break: refined > feedback > silent (a query change is a stronger
+    // signal of continued intent than a message that may not even be about the same
+    // topic).
+    public async Task<ZeroResultOutcomeSummary> GetZeroResultOutcomeFunnelAsync(
         DateTime fromUtc,
         DateTime toUtc,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("GetZeroResultOutcomeFunnelAsync — pending GREEN implementation.");
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+WITH first_zero AS (
+    SELECT session_id,
+           MIN(occurred_at_utc) AS first_zero_utc,
+           MIN(query_normalised) AS first_zero_query
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+      AND zero_results = true
+    GROUP BY session_id
+),
+refined AS (
+    SELECT DISTINCT fz.session_id
+    FROM first_zero fz
+    JOIN search_events e ON e.session_id = fz.session_id
+    WHERE e.occurred_at_utc > fz.first_zero_utc
+      AND e.occurred_at_utc < @to
+      AND (e.query_normalised IS DISTINCT FROM fz.first_zero_query)
+),
+feedback AS (
+    SELECT DISTINCT fz.session_id
+    FROM first_zero fz
+    JOIN search_messages m ON m.session_id = fz.session_id
+    WHERE m.submitted_at_utc > fz.first_zero_utc
+      AND m.submitted_at_utc < @to
+),
+classified AS (
+    SELECT fz.session_id,
+           CASE
+               WHEN r.session_id IS NOT NULL THEN 'refined'
+               WHEN f.session_id IS NOT NULL THEN 'feedback'
+               ELSE 'silent'
+           END AS outcome
+    FROM first_zero fz
+    LEFT JOIN refined  r ON r.session_id = fz.session_id
+    LEFT JOIN feedback f ON f.session_id = fz.session_id
+),
+all_sessions AS (
+    SELECT COUNT(DISTINCT session_id)::int AS c
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+)
+SELECT
+    (SELECT COUNT(*)::int FROM classified)                              AS total_zero,
+    (SELECT c FROM all_sessions)                                        AS total_sessions,
+    (SELECT COUNT(*)::int FROM classified WHERE outcome = 'refined')    AS refined_count,
+    (SELECT COUNT(*)::int FROM classified WHERE outcome = 'feedback')   AS feedback_count,
+    (SELECT COUNT(*)::int FROM classified WHERE outcome = 'silent')     AS silent_count;";
 
-    public Task<SearchAnalyticsSummaryDeltas> GetSummaryDeltasAsync(
+        var totalZero = 0;
+        var totalSessions = 0;
+        var refinedCount = 0;
+        var feedbackCount = 0;
+        var silentCount = 0;
+        var found = false;
+
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            totalZero = reader.GetInt32(0);
+            totalSessions = reader.GetInt32(1);
+            refinedCount = reader.GetInt32(2);
+            feedbackCount = reader.GetInt32(3);
+            silentCount = reader.GetInt32(4);
+            found = true;
+        });
+
+        if (!found)
+            return new ZeroResultOutcomeSummary(0, 0, 0, 0, 0);
+
+        return new ZeroResultOutcomeSummary(
+            totalZero,
+            totalSessions,
+            refinedCount,
+            feedbackCount,
+            silentCount);
+    }
+
+    // Prior-window summary alongside the current-window one. Prior window ends at
+    // fromUtc and is the same width as (toUtc - fromUtc). When the resulting priorFrom
+    // falls outside the sink's 90-day retention floor the summary is unavailable and the
+    // view hides the four anomaly chips (no valid comparison to draw).
+    public async Task<SearchAnalyticsSummaryDeltas> GetSummaryDeltasAsync(
         DateTime fromUtc,
         DateTime toUtc,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("GetSummaryDeltasAsync — pending GREEN implementation.");
+        CancellationToken cancellationToken = default)
+    {
+        var width = toUtc - fromUtc;
+        if (width <= TimeSpan.Zero)
+        {
+            return new SearchAnalyticsSummaryDeltas(0, 0, 0, 0, Available: false);
+        }
+
+        var priorFrom = fromUtc - width;
+        var priorTo = fromUtc;
+        var retentionFloor = DateTime.UtcNow - TimeSpan.FromDays(90);
+        if (priorFrom < retentionFloor)
+        {
+            return new SearchAnalyticsSummaryDeltas(0, 0, 0, 0, Available: false);
+        }
+
+        var priorSummary = await GetSummaryAsync(priorFrom, priorTo, cancellationToken);
+        return new SearchAnalyticsSummaryDeltas(
+            priorSummary.TotalCount,
+            priorSummary.UniqueSessions,
+            priorSummary.ZeroResultRatePercent,
+            priorSummary.P95LatencyMs,
+            Available: true);
+    }
 
     // Opens (or borrows) the DbContext's underlying Npgsql connection, runs the SQL, and
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read

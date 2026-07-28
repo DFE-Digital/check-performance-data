@@ -50,10 +50,15 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             var tilesWithTitle = Page.Locator(".sa-tile[title]");
             Assert.Equal(4, await tilesWithTitle.CountAsync());
 
-            // Four chart svgs render server-side; the first (volume) is visible on load,
-            // the other three are hidden by JS.
+            // Chart SVGs render server-side; the four tile panels (volume / unique-users /
+            // zero-results / latency-percentiles) plus the round-7 additions (request-
+            // timings scatter under the latency tile and the weekday × hour heatmap).
+            // Post-JS the latency panels + non-active tile panels hide but their SVGs are
+            // still in the DOM. Heatmap SVG lives in a summary card and always renders.
             var chartSvgs = Page.Locator(".sa-chart");
-            Assert.Equal(4, await chartSvgs.CountAsync());
+            var chartCount = await chartSvgs.CountAsync();
+            Assert.True(chartCount >= 4,
+                $"Expected at least 4 chart svgs, got {chartCount}.");
             await Expect(chartSvgs.First).ToBeVisibleAsync();
 
             // Axis-tick + axis-title labels are present across the visible chart(s).
@@ -73,9 +78,13 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Contains("1w",  values);
             Assert.Contains("1mo", values);
 
-            // Three summary cards: top queries, top zero-result queries, top pages.
-            var summaryCards = Page.Locator(".sa-summary-card");
-            Assert.Equal(3, await summaryCards.CountAsync());
+            // Top-N summary cards remain three: top queries, top zero-result queries, top
+            // pages. The round-7 heatmap + funnel cards are also .sa-summary-cards so the
+            // total sits at five; assert the three Top-* cards specifically to keep the
+            // acceptance shape while allowing the round-7 additions.
+            await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top queries\")")).ToBeVisibleAsync();
+            await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top zero-result queries\")")).ToBeVisibleAsync();
+            await Expect(Page.Locator(".sa-summary-card .govuk-summary-card__title:has-text(\"Top pages\")")).ToBeVisibleAsync();
 
             // Every query link in either top-queries table opens in a new tab.
             var queryLinks = Page.Locator(".sa-summary-card table.govuk-table td a[target=\"_blank\"]");
@@ -276,11 +285,219 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             await AssertTilePressed("latency");
             await AssertPanelVisibleOnly("latency");
 
-            var latencyPolylines = Page.Locator("[data-sa-panel=\"latency\"] svg.sa-chart polyline");
+            var latencyPolylines = Page.Locator("[data-sa-panel=\"latency\"] svg.sa-chart:not(.sa-chart--scatter) polyline");
             Assert.Equal(3, await latencyPolylines.CountAsync());
+
+            // Round-7: the latency tile also reveals a SECOND panel — the request-timings
+            // scatter chart. Assert both panels are visible and the scatter carries at
+            // least a handful of <circle> dots.
+            var latencyPanels = Page.Locator("[data-sa-panel=\"latency\"]");
+            var panelCount = await latencyPanels.CountAsync();
+            Assert.Equal(2, panelCount);
+            for (var i = 0; i < panelCount; i++)
+            {
+                Assert.True(await latencyPanels.Nth(i).IsVisibleAsync(),
+                    $"Expected latency panel #{i} to be visible after clicking the latency tile.");
+            }
+            var scatterCircles = Page.Locator("[data-sa-panel=\"latency\"] svg.sa-chart--scatter circle");
+            var circleCount = await scatterCircles.CountAsync();
+            Assert.True(circleCount >= 5,
+                $"Expected at least 5 scatter dots on the request-timings chart, got {circleCount}.");
 
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("admin-search-latency-tile.png");
+            await SaveScreenshotAsync("round7/admin-search-latency-tile-timings.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Round-7: heatmap card renders a 168-cell weekday × hour grid ---------
+
+    [SkippableFact]
+    public async Task Dashboard_WeekdayHourHeatmap_RendersFullGridAndDataTable()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-heatmap-card").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // Heatmap card is present with the "When people search" heading.
+            var heatmapTitle = Page.Locator(".sa-heatmap-card .govuk-summary-card__title:has-text(\"When people search\")");
+            await Expect(heatmapTitle).ToBeVisibleAsync();
+
+            // 7 rows × 24 columns = 168 <rect> cells.
+            var heatmapCells = Page.Locator(".sa-heatmap rect.sa-heatmap__cell");
+            var cellCount = await heatmapCells.CountAsync();
+            Assert.Equal(168, cellCount);
+
+            // Data-table fallback is present with 168 body rows (one per cell).
+            await Page.Locator(".sa-heatmap-card details summary").ClickAsync();
+            var fallbackRows = Page.Locator(".sa-heatmap-card details tbody tr");
+            Assert.Equal(168, await fallbackRows.CountAsync());
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round7/admin-search-heatmap.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Round-7: zero-result outcomes funnel card ---------------------------
+
+    [SkippableFact]
+    public async Task Dashboard_ZeroResultFunnel_RendersThreeTilesOrEmptyState()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-funnel-card").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            var funnelTitle = Page.Locator(".sa-funnel-card .govuk-summary-card__title:has-text(\"Zero-result outcomes\")");
+            await Expect(funnelTitle).ToBeVisibleAsync();
+
+            // Either three sub-tiles are present (data path) or a single empty-state
+            // paragraph is present (no-data path). Both are valid.
+            var funnelTiles = Page.Locator(".sa-funnel-card [data-sa-funnel]");
+            var tileCount = await funnelTiles.CountAsync();
+            if (tileCount > 0)
+            {
+                Assert.Equal(3, tileCount);
+                var expectedKeys = new[] { "refined", "feedback", "silent" };
+                var actualKeys = new List<string?>();
+                for (var i = 0; i < tileCount; i++)
+                {
+                    var key = await funnelTiles.Nth(i).GetAttributeAsync("data-sa-funnel");
+                    actualKeys.Add(key);
+                    var value = await funnelTiles.Nth(i).Locator(".sa-funnel__value").InnerTextAsync();
+                    Assert.Matches(new System.Text.RegularExpressions.Regex(@"^[0-9,]+$"), value.Trim());
+                }
+                foreach (var expected in expectedKeys)
+                {
+                    Assert.Contains(expected, actualKeys);
+                }
+            }
+            else
+            {
+                var emptyState = Page.Locator(".sa-funnel-card .govuk-summary-card__content p.govuk-body:has-text(\"No zero-result searches\")");
+                await Expect(emptyState).ToBeVisibleAsync();
+            }
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round7/admin-search-zero-result-funnel.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Round-7: request timings drill-in page ------------------------------
+
+    [SkippableFact]
+    public async Task RequestTimingsDrillIn_RendersPagedTableAndPagerAndTooltipHeaders()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var url = $"{Fixture.BaseUrl}/admin/Search/RequestTimings?range=7d";
+            var response = await Page.GotoAsync(url);
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // Page heading + filter form present.
+            await Expect(Page.Locator("h1.govuk-heading-xl:has-text(\"Request timings\")")).ToBeVisibleAsync();
+            await Expect(Page.Locator("form.sa-filters")).ToBeVisibleAsync();
+
+            // Every <th> on the drill-in table has a title attribute.
+            await AssertEveryHeaderHasTitleAsync(
+                Page.Locator("table.govuk-table thead th"),
+                context: "request timings drill-in table");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round7/admin-search-request-timings-drill.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Round-7: anomaly chip DOM shape check -------------------------------
+
+    // Anomaly chips render as small <span class="sa-anomaly-chip"> tags beneath each stat
+    // tile ONLY when the current window differs by more than +/-10% from the same-length
+    // prior window. The test environment doesn't guarantee a corpus with a >10% delta on
+    // any tile, so this test asserts the DOM shape is available and either
+    //   (a) a chip renders with a valid direction class, OR
+    //   (b) the tile is chip-less (delta within +/-10%) but not broken
+    //   (c) an insufficient-prior-data hint renders (custom range > 45 days)
+    // A more deterministic anomaly-corpus test would need a fixture that seeds the prior
+    // window explicitly; documented in the round-7 SUMMARY testing-gaps section.
+    [SkippableFact]
+    public async Task Dashboard_AnomalyChips_RenderConditionallyBeneathEachTile()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-tiles").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // Zero or more chips is OK. Every chip that renders must carry one of the
+            // three direction classes AND a data-sa-chip attribute mapping it to a tile.
+            var chips = Page.Locator(".sa-tile .sa-anomaly-chip");
+            var chipCount = await chips.CountAsync();
+            for (var i = 0; i < chipCount; i++)
+            {
+                var cls = await chips.Nth(i).GetAttributeAsync("class") ?? string.Empty;
+                Assert.Contains("sa-anomaly-chip", cls);
+                Assert.True(
+                    cls.Contains("sa-anomaly-chip--favourable")
+                    || cls.Contains("sa-anomaly-chip--unfavourable")
+                    || cls.Contains("sa-anomaly-chip--neutral"),
+                    $"Chip {i} class '{cls}' does not carry a direction modifier.");
+                var chipKey = await chips.Nth(i).GetAttributeAsync("data-sa-chip");
+                Assert.False(string.IsNullOrEmpty(chipKey),
+                    $"Chip {i} is missing its data-sa-chip attribute.");
+            }
         }
         finally
         {

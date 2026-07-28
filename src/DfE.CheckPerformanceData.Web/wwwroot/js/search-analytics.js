@@ -23,9 +23,16 @@
 })();
 
 // Interactive tile switcher for the /admin/Search/ dashboard. Clicking a tile swaps the
-// chart panel below to that tile's own series. Progressive-enhancement only: with JS
+// chart panel(s) below to that tile's own series. Progressive-enhancement only: with JS
 // disabled every chart panel remains visible stacked (the server never hides them).
-// Only the first tile-click wires up the "hide the other three" side of the swap.
+//
+// The map is many-to-many: multiple panels can share a data-sa-panel key so a single
+// tile click reveals more than one panel at once. The "latency" key drives BOTH the
+// latency-percentiles chart AND the request-timings scatter — plotted in that order on
+// the server so a keyboard user tabbing through sees percentiles first, then the raw
+// timings. This is the simplest path to the two-panel-per-tile shape asked for by the
+// acceptance: keep the tile → key mapping unchanged, let two panels share the "latency"
+// key, and the same activate(key) loop toggles both.
 (function () {
     'use strict';
     var tiles = document.querySelectorAll('button.sa-tile[data-sa-tile]');

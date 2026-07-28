@@ -191,4 +191,58 @@ public interface ISearchAnalyticsQueryService
     Task<IReadOnlyList<SessionHistoryRow>> GetSessionHistoryAsync(
         string sessionId,
         CancellationToken cancellationToken = default);
+
+    // A single sample of search events for the request-timings scatter chart. Returns up
+    // to samplingLimit rows across the window; when total events in the window exceed
+    // that cap the query samples ORDER BY random() and the caller renders a "showing X of
+    // Y" hint below the chart. Every returned row carries the raw occurred_at_utc /
+    // latency_ms / session_id / query_raw / results_total so the drill-in table can render
+    // the same rows the chart plots.
+    Task<IReadOnlyList<RequestTimingPoint>> GetRequestTimingsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int samplingLimit,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetRequestTimingsAsync — one full page of raw events over the
+    // window ordered by occurred_at_utc DESC (newest first) plus the total event count in
+    // the window so the drill-in can render a GDS pager. No sampling — the caller has the
+    // total count and the current page.
+    Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedRequestTimingsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Weekday × hour-of-day search-volume grid for the heatmap card. Returns every
+    // (weekday, hour) tuple in the 7 × 24 = 168-cell grid — cells with no events over
+    // the window carry Count = 0 so the SVG has no visual gaps. Weekday follows ISO 8601
+    // (1 = Monday, 7 = Sunday) so a UK-audience heatmap reads left-to-right Mon → Sun.
+    Task<IReadOnlyList<WeekdayHourBucket>> GetSearchesByWeekdayAndHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    // Session-level "what happened after a zero-result search" rollup for the funnel
+    // card. For each session that hit at least one zero-result search in the window,
+    // classifies the session as refined (ran another search with a different normalised
+    // query after the zero-result), feedback (submitted a search_messages row after the
+    // zero-result), or silent (neither). Priority when a session both refined and gave
+    // feedback: refined wins.
+    Task<ZeroResultOutcomeSummary> GetZeroResultOutcomeFunnelAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    // The prior-window summary alongside the current-window one — the current window's
+    // width is (toUtc - fromUtc); the prior window ends at fromUtc and is the same
+    // width. When the resulting priorFrom would fall outside the sink's 90-day retention
+    // (a wide current window pushes the prior beyond retention) the returned summary
+    // carries Available = false and the view hides the four anomaly chips + shows an
+    // "insufficient prior data" hint. Reads through the same GetSummaryAsync shape.
+    Task<SearchAnalyticsSummaryDeltas> GetSummaryDeltasAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
 }

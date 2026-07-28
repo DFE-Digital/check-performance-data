@@ -180,3 +180,126 @@
 .sa-chart__axis-title {
     font-family: "GDS Transport", arial, sans-serif;
 }
+
+/* --- Anomaly chip beneath each stat tile ---------------------------------- */
+
+/* Small tag rendered under a tile's big number when the current window differs by more
+   than +/- 10% from the same-length prior window. Colours: green for a favourable
+   direction (searches up / users up / zero-rate down / p95 down), red for unfavourable,
+   grey when the delta is neutral. Sits inline so it slots into the tile without
+   pushing the label down. */
+.sa-anomaly-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "GDS Transport", arial, sans-serif;
+    line-height: 1.3;
+    border-radius: 3px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.sa-anomaly-chip--favourable {
+    background: #cce2d8;
+    color: #005a30;
+}
+
+.sa-anomaly-chip--unfavourable {
+    background: #f6d7d2;
+    color: #942514;
+}
+
+.sa-anomaly-chip--neutral {
+    background: #eeeeee;
+    color: #383f43;
+}
+
+/* Hint text (replaces the chip when the prior window falls outside retention). */
+.sa-anomaly-hint {
+    display: inline-block;
+    margin-top: 4px;
+    color: #505a5f;
+    font-style: italic;
+}
+
+/* --- Weekday x hour heatmap card ---------------------------------------- */
+
+.sa-heatmap-card .sa-heatmap {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 8px;
+}
+
+.sa-heatmap__cell {
+    stroke: #ffffff;
+    stroke-width: 0.5;
+    transition: stroke 0.15s ease-in-out;
+}
+
+.sa-heatmap__cell:hover {
+    stroke: #0b0c0c;
+    stroke-width: 1.5;
+    cursor: help;
+}
+
+/* --- Zero-result outcome funnel card ------------------------------------ */
+
+.sa-funnel-card .sa-funnel {
+    margin-top: 8px;
+}
+
+.sa-funnel__subtitle {
+    color: #505a5f;
+}
+
+.sa-funnel__tile {
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-bottom: 4px solid #b1b4b6;
+    padding: 16px;
+    height: 100%;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.sa-funnel__tile--refined {
+    border-bottom-color: #00703c; /* green - the good outcome */
+}
+
+.sa-funnel__tile--feedback {
+    border-bottom-color: #1d70b8; /* blue - an actionable outcome */
+}
+
+.sa-funnel__tile--silent {
+    border-bottom-color: #b1b4b6; /* neutral grey - inconclusive */
+}
+
+.sa-funnel__value {
+    margin-bottom: 4px;
+}
+
+.sa-funnel__label {
+    margin-bottom: 4px;
+    color: #0b0c0c;
+    font-weight: 600;
+}
+
+.sa-funnel__pct {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* --- Scatter chart under the latency tile ------------------------------- */
+
+.sa-chart--scatter {
+    display: block;
+}
+
+.sa-chart__sample-hint {
+    color: #505a5f;
+    margin-top: 4px;
+}

@@ -216,9 +216,15 @@ public sealed class SearchAnalyticsIndexViewRenderTests
         int p95,
         IReadOnlyList<TopQueryRow>? topQueries = null,
         IReadOnlyList<TopQueryRow>? topZero = null,
-        IReadOnlyList<VolumeBucket>? volumeSeries = null)
+        IReadOnlyList<VolumeBucket>? volumeSeries = null,
+        IReadOnlyList<VolumeBucket>? uniqueSessionsSeries = null,
+        IReadOnlyList<VolumeBucket>? zeroResultCountSeries = null,
+        IReadOnlyList<LatencyBucket>? latencySeries = null,
+        IReadOnlyList<TopPageRow>? topPages = null,
+        int? topPagesTotalCount = null)
     {
         var now = DateTime.UtcNow;
+        var pages = topPages ?? Array.Empty<TopPageRow>();
         return new SearchAnalyticsIndexViewModel
         {
             Summary = new SearchAnalyticsSummary(totalCount, uniqueSessions, zeroRate, p95),
@@ -230,6 +236,11 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             RangeKey = "7d",
             TotalRowCount = totalCount,
             BucketKey = "1d",
+            UniqueSessionsSeries = uniqueSessionsSeries ?? Array.Empty<VolumeBucket>(),
+            ZeroResultCountSeries = zeroResultCountSeries ?? Array.Empty<VolumeBucket>(),
+            LatencyPercentileSeries = latencySeries ?? Array.Empty<LatencyBucket>(),
+            TopPages = pages,
+            TopPagesTotalCount = topPagesTotalCount ?? pages.Count,
         };
     }
 
@@ -247,6 +258,11 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             RangeKey = "7d",
             TotalRowCount = totalRowCount,
             BucketKey = "1d",
+            UniqueSessionsSeries = Array.Empty<VolumeBucket>(),
+            ZeroResultCountSeries = Array.Empty<VolumeBucket>(),
+            LatencyPercentileSeries = Array.Empty<LatencyBucket>(),
+            TopPages = Array.Empty<TopPageRow>(),
+            TopPagesTotalCount = 0,
         };
     }
 }

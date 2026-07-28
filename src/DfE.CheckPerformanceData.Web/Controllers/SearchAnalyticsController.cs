@@ -103,6 +103,11 @@ public sealed class SearchAnalyticsController : Controller
             RangeKey = rangeKey,
             TotalRowCount = totalCount,
             BucketKey = bucketKey,
+            UniqueSessionsSeries = Array.Empty<VolumeBucket>(),
+            ZeroResultCountSeries = Array.Empty<VolumeBucket>(),
+            LatencyPercentileSeries = Array.Empty<LatencyBucket>(),
+            TopPages = Array.Empty<TopPageRow>(),
+            TopPagesTotalCount = 0,
         });
     }
 

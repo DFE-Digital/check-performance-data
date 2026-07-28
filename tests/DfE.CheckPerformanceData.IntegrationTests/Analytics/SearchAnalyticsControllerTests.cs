@@ -275,6 +275,65 @@ public sealed class SearchAnalyticsControllerTests
         Assert.Contains(model.TopZeroResultQueries, r => r.QueryNormalised == "gap" && r.Count == 5);
     }
 
+    // --- Index populates all four bucketed chart series so the interactive tiles can swap client-side ---
+
+    [Fact]
+    public async Task Index_PopulatesAllFourChartSeriesAndTopPages()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = DateTime.UtcNow;
+        // Seed events across the last day so every series has at least one populated bucket.
+        var rows = Enumerable.Range(1, 30)
+            .Select(i => NewEvent(
+                now.AddMinutes(-i),
+                sessionId: $"s-{i % 10}",
+                queryNormalised: "alpha",
+                results: (i % 4 == 0) ? 0 : 3,
+                latency: 10 + (i % 20)))
+            .ToArray();
+        await SeedAsync(rows);
+
+        // Add a couple of page-impression rows so TopPages has content.
+        long firstEventId;
+        await using (var ctx = _fixture.CreateContext())
+        {
+            firstEventId = ctx.SearchEvents.OrderBy(e => e.OccurredAtUtc).First().Id;
+            ctx.SearchEventResults.Add(new SearchEventResult
+            {
+                SearchEventId = firstEventId,
+                Position = 1,
+                ResultKind = "page",
+                ResultKey = "https://example.gov.uk/one",
+                Rank = 1.0f,
+            });
+            ctx.SearchEventResults.Add(new SearchEventResult
+            {
+                SearchEventId = firstEventId,
+                Position = 2,
+                ResultKind = "page",
+                ResultKey = "https://example.gov.uk/two",
+                Rank = 0.9f,
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        var result = await Sut().Index(range: "24h", from: null, to: null, bucket: "1h", ct: CancellationToken.None);
+
+        var model = AssertViewModel(result);
+        Assert.NotEmpty(model.VolumeSeries);
+        Assert.NotEmpty(model.UniqueSessionsSeries);
+        Assert.NotEmpty(model.ZeroResultCountSeries);
+        Assert.NotEmpty(model.LatencyPercentileSeries);
+        Assert.NotEmpty(model.TopPages);
+        Assert.True(model.TopPagesTotalCount >= model.TopPages.Count);
+
+        // All four series ride the same spine so their bucket counts match.
+        Assert.Equal(model.VolumeSeries.Count, model.UniqueSessionsSeries.Count);
+        Assert.Equal(model.VolumeSeries.Count, model.ZeroResultCountSeries.Count);
+        Assert.Equal(model.VolumeSeries.Count, model.LatencyPercentileSeries.Count);
+    }
+
     // --- Helpers ---
 
     private SearchAnalyticsController Sut()

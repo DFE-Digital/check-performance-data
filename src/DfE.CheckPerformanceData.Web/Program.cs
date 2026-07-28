@@ -353,7 +353,7 @@ try
         options.TableName = "session_cache";
         options.CreateInfrastructure = true;
     });
-    builder.Services.AddCpdSession(builder.Configuration);
+    builder.Services.AddCpdSession(builder.Configuration, builder.Environment);
 
     builder.Services.AddHealthChecks();
 

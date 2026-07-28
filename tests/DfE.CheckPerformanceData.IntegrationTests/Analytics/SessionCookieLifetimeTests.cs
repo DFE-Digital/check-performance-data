@@ -1,8 +1,11 @@
 using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
@@ -52,27 +55,68 @@ public sealed class SessionCookieLifetimeTests
     }
 
     // The other cookie hygiene bits Program.cs relied on before this refactor must stay
-    // in place — the extension is a superset, not a replacement.
+    // in place in every environment — the extension is a superset, not a replacement.
     [Fact]
-    public void CookieHardening_HttpOnlyEssentialAndSecureAlways_ArePreserved()
+    public void CookieHardening_HttpOnlyAndEssential_ArePreservedInEveryEnvironment()
     {
-        var options = BuildSessionOptions(new Dictionary<string, string?>());
+        foreach (var env in new[] { Environments.Development, Environments.Production, "Staging" })
+        {
+            var options = BuildSessionOptions(new Dictionary<string, string?>(), env);
 
-        Assert.True(options.Cookie.HttpOnly);
-        Assert.True(options.Cookie.IsEssential);
-        Assert.Equal(CookieSecurePolicy.Always, options.Cookie.SecurePolicy);
+            Assert.True(options.Cookie.HttpOnly);
+            Assert.True(options.Cookie.IsEssential);
+        }
     }
 
-    private static SessionOptions BuildSessionOptions(IDictionary<string, string?> settings)
+    // Production locks the cookie to secure-only — a replayed http request against a real
+    // staging/production host cannot leak the cookie. Development downgrades to
+    // SameAsRequest so a plain-http local dev host (docker exposing :8080) can round-trip
+    // the cookie for browsers hitting the container over http (host.docker.internal in
+    // particular does NOT qualify for Chromium's localhost secure-context exemption).
+    [Fact]
+    public void CookieSecurePolicy_IsAlwaysOutsideDevelopment_AndSameAsRequestInDevelopment()
+    {
+        var devOptions = BuildSessionOptions(new Dictionary<string, string?>(), Environments.Development);
+        Assert.Equal(CookieSecurePolicy.SameAsRequest, devOptions.Cookie.SecurePolicy);
+
+        foreach (var env in new[] { Environments.Production, Environments.Staging })
+        {
+            var options = BuildSessionOptions(new Dictionary<string, string?>(), env);
+            Assert.Equal(CookieSecurePolicy.Always, options.Cookie.SecurePolicy);
+        }
+    }
+
+    private static SessionOptions BuildSessionOptions(
+        IDictionary<string, string?> settings,
+        string environmentName = "Production")
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(settings)
             .Build();
 
+        var environment = new StubWebHostEnvironment(environmentName);
+
         var services = new ServiceCollection();
-        services.AddCpdSession(configuration);
+        services.AddCpdSession(configuration, environment);
 
         using var provider = services.BuildServiceProvider();
         return provider.GetRequiredService<IOptions<SessionOptions>>().Value;
+    }
+
+    // Minimal IWebHostEnvironment stub — only the EnvironmentName is read by the
+    // extension. Everything else is inert but non-null to satisfy the interface.
+    private sealed class StubWebHostEnvironment : IWebHostEnvironment
+    {
+        public StubWebHostEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+        }
+
+        public string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; } = "cpd-tests";
+        public string WebRootPath { get; set; } = string.Empty;
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = string.Empty;
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
     }
 }

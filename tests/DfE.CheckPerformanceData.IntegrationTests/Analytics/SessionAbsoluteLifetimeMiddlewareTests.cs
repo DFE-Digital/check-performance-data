@@ -120,7 +120,7 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
                     // In-memory session backing store keeps the test self-contained (no
                     // Postgres or Redis needed to exercise the middleware).
                     services.AddDistributedMemoryCache();
-                    services.AddCpdSession(ctx.Configuration);
+                    services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
                 });
 
                 web.Configure(app =>
@@ -158,7 +158,7 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
                 web.ConfigureServices((ctx, services) =>
                 {
                     services.AddDistributedMemoryCache();
-                    services.AddCpdSession(ctx.Configuration);
+                    services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
                 });
 
                 web.Configure(app =>

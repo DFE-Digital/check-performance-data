@@ -167,7 +167,7 @@ public sealed class SessionSourceCommentMiddlewareTests
                 web.ConfigureServices((ctx, services) =>
                 {
                     services.AddDistributedMemoryCache();
-                    services.AddCpdSession(ctx.Configuration);
+                    services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
                 });
 
                 web.Configure(app =>

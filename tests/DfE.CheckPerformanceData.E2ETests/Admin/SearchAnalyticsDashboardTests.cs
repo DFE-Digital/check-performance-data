@@ -91,8 +91,99 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             // AdminWide flag → the wide layout wrapper is used.
             await Expect(Page.Locator(".admin-layout--wide")).ToBeVisibleAsync();
 
+            // Every <th> on every visible summary-card table carries a title attribute so
+            // admins can hover for a plain-language description of the column.
+            await AssertEveryHeaderHasTitleAsync(Page.Locator(".sa-summary-card table.govuk-table thead th"),
+                context: "summary-card tables");
+
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("admin-search.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Volume drill-in: /admin/Search/Volume renders chart + paged table with GDS pager ---
+
+    [SkippableFact]
+    public async Task VolumeDrillIn_RendersChartAndPagedTableWithPagerAndTooltipHeaders()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // 30-day window at 1h buckets → 720 buckets → >> CMS:PageLength so the pager
+            // renders Previous / Next links in addition to the numbered pages.
+            var url = $"{Fixture.BaseUrl}/admin/Search/Volume?range=30d&bucket=1h";
+            var response = await Page.GotoAsync(url);
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // Chart at the top: the same _VolumeChart partial with its SVG.
+            await Expect(Page.Locator("svg.sa-chart").First).ToBeVisibleAsync();
+
+            // Paged table with the standard GDS pager. With 720 buckets the pager has
+            // both Previous (on page 2+) and Next; on page 1 only Next appears. Land on
+            // page 2 by clicking the "2" link, then assert Previous is present.
+            var pagerNext = Page.Locator("nav.govuk-pagination .govuk-pagination__next a");
+            await Expect(pagerNext).ToBeVisibleAsync();
+            var page2Link = Page.Locator("nav.govuk-pagination ul.govuk-pagination__list a[aria-label=\"Page 2\"]");
+            await page2Link.First.ClickAsync();
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev a")).ToBeVisibleAsync();
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next a")).ToBeVisibleAsync();
+
+            // Every <th> on the drill-in table has a title attribute.
+            await AssertEveryHeaderHasTitleAsync(
+                Page.Locator("table.govuk-table thead th"),
+                context: "volume drill-in table");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("admin-search-volume-drill-in.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Landing volume <details>: "View all volume data →" link appears when > cap rows ---
+
+    [SkippableFact]
+    public async Task Dashboard_VolumeDetailsFallback_LinksToDrillInWhenOverCap()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // 90d + 15m → ~8600 buckets → guaranteed to exceed the 20-row inline cap.
+            var url = $"{Fixture.BaseUrl}/admin/Search/?range=90d&bucket=15m";
+            var response = await Page.GotoAsync(url);
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // The link lives inside a closed <details>; open the summary so the anchor is
+            // visible before asserting.
+            await Page.Locator("[data-sa-panel=\"volume\"] details summary").First.ClickAsync();
+
+            var viewAll = Page.Locator("[data-sa-panel=\"volume\"] details a.govuk-link:has-text(\"View all volume data\")");
+            await Expect(viewAll).ToBeVisibleAsync();
+            var href = await viewAll.GetAttributeAsync("href");
+            Assert.NotNull(href);
+            Assert.Contains("/admin/Search/Volume", href);
+            Assert.Contains("range=90d", href);
+            Assert.Contains("bucket=15m", href);
         }
         finally
         {
@@ -328,6 +419,25 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             {
                 Assert.False(isVisible, $"Expected panel {panelKey} to be hidden.");
             }
+        }
+    }
+
+    // --- Tooltip assertion helper ---
+
+    // Iterates the located <th> elements and asserts every one carries a non-empty title
+    // attribute. Fails with a readable "table X row Y column Z is missing a title" message
+    // so a regression tells the reader which column dropped its tooltip.
+    private static async Task AssertEveryHeaderHasTitleAsync(ILocator headers, string context)
+    {
+        var count = await headers.CountAsync();
+        Assert.True(count > 0, $"Expected at least one <th> in {context}, got 0.");
+        for (var i = 0; i < count; i++)
+        {
+            var th = headers.Nth(i);
+            var title = await th.GetAttributeAsync("title");
+            var text = (await th.InnerTextAsync()).Trim();
+            Assert.False(string.IsNullOrEmpty(title),
+                $"Header {i + 1} in {context} (\"{text}\") is missing a title attribute.");
         }
     }
 

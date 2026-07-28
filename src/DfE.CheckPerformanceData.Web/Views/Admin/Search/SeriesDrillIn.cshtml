@@ -100,40 +100,56 @@ else
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
-                @if (Model.SeriesKey == "latency")
+                @switch (Model.SeriesKey)
                 {
-                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="5th percentile of search response time in milliseconds for that bucket.">p5 (ms)</th>
-                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="50th percentile (median) search response time in milliseconds for that bucket.">p50 (ms)</th>
-                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="95th percentile of search response time in milliseconds for that bucket.">p95 (ms)</th>
-                }
-                else
-                {
-                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="@tableSecondHeaderTitle">@tableSecondHeader</th>
+                    case "latency":
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="5th percentile of search response time in milliseconds for that bucket.">p5 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="50th percentile (median) search response time in milliseconds for that bucket.">p50 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="95th percentile of search response time in milliseconds for that bucket.">p95 (ms)</th>
+                        break;
+                    case "volume":
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many searches were fired during this bucket.">Searches</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many distinct browser sessions searched in that bucket.">Unique sessions</th>
+                        break;
+                    default:
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="@tableSecondHeaderTitle">@tableSecondHeader</th>
+                        break;
                 }
             </tr>
         </thead>
         <tbody class="govuk-table__body">
-            @if (Model.SeriesKey == "latency")
+            @switch (Model.SeriesKey)
             {
-                @foreach (var bucket in Model.LatencySlice)
-                {
-                    <tr class="govuk-table__row">
-                        <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
-                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P5Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
-                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P50Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
-                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P95Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
-                    </tr>
-                }
-            }
-            else
-            {
-                @foreach (var bucket in Model.VolumeSlice)
-                {
-                    <tr class="govuk-table__row">
-                        <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
-                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
-                    </tr>
-                }
+                case "latency":
+                    foreach (var bucket in Model.LatencySlice)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P5Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P50Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P95Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        </tr>
+                    }
+                    break;
+                case "volume":
+                    foreach (var bucket in Model.VolumeSlice)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.UniqueSessionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        </tr>
+                    }
+                    break;
+                default:
+                    foreach (var bucket in Model.VolumeSlice)
+                    {
+                        <tr class="govuk-table__row">
+                            <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                            <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        </tr>
+                    }
+                    break;
             }
         </tbody>
     </table>

@@ -34,6 +34,8 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, SearchAdminNavEntry>();
         services.AddSingleton<IAdminNavEntry, MessagesInboxNavEntry>();
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
+        services.AddSingleton<IAdminNavEntry, SeedSampleSearchDataNavEntry>();
+        services.AddSingleton<IAdminNavEntry, TestDataGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, RoleSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, AppLogsNavEntry>();

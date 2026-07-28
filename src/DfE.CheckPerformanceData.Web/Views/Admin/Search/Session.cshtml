@@ -28,18 +28,18 @@
     <tbody class="govuk-table__body">
         @foreach (var e in Model.Events)
         {
+            var queryText = !string.IsNullOrEmpty(e.QueryRaw)
+                ? e.QueryRaw
+                : (e.QueryNormalised ?? string.Empty);
             <tr class="govuk-table__row">
                 <td class="govuk-table__cell">
                     @e.OccurredAtUtc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)
                 </td>
                 <td class="govuk-table__cell">
-                    @if (!string.IsNullOrEmpty(e.QueryRaw))
+                    @if (!string.IsNullOrEmpty(queryText))
                     {
-                        @e.QueryRaw
-                    }
-                    else if (!string.IsNullOrEmpty(e.QueryNormalised))
-                    {
-                        @e.QueryNormalised
+                        <a class="govuk-link" href="/search?q=@Uri.EscapeDataString(queryText)"
+                           target="_blank" rel="noopener noreferrer">@queryText</a>
                     }
                 </td>
                 <td class="govuk-table__cell">@(e.Scope ?? string.Empty)</td>

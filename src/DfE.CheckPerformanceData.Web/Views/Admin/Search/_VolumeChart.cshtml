@@ -8,12 +8,13 @@
     // (WCAG 1.1.1). No client-side chart library — the SVG is the whole rendered surface.
     var buckets = Model ?? Array.Empty<VolumeBucket>();
 
-    const int width = 600;
-    const int height = 200;
-    const int padLeft = 44;
-    const int padBottom = 28;
-    const int padTop = 8;
-    const int padRight = 44;
+    const int width = 700;
+    const int height = 260;
+    // Wider left/bottom padding leaves room for tick labels on both axes.
+    const int padLeft = 56;
+    const int padBottom = 44;
+    const int padTop = 20;
+    const int padRight = 56;
 
     var plotW = width - padLeft - padRight;
     var plotH = height - padTop - padBottom;
@@ -39,6 +40,35 @@
     var ariaLabel = buckets.Count == 0
         ? "Search volume over the selected window: no data."
         : $"Search volume over the selected window: peak {maxSearches} searches, {buckets[^1].SearchCount} in the most recent bucket. Unique sessions peak {maxUnique}.";
+
+    // X-axis tick labels: pick up to 6 buckets across the range and show the bucket start
+    // formatted per granularity. For sub-day buckets show HH:mm; for day+ show "d MMM".
+    // Reads the actual gap between the first two bucket starts to decide format.
+    static string FormatBucketLabel(DateTime bucket, TimeSpan step) => step switch
+    {
+        _ when step < TimeSpan.FromDays(1) => bucket.ToString("HH:mm", CultureInfo.InvariantCulture),
+        _ when step < TimeSpan.FromDays(28) => bucket.ToString("d MMM", CultureInfo.InvariantCulture),
+        _ => bucket.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+    };
+
+    var step = buckets.Count >= 2
+        ? buckets[1].BucketStart - buckets[0].BucketStart
+        : TimeSpan.FromHours(1);
+
+    // Choose ~4-6 ticks so labels don't overlap on a 700px-wide plot. Always include first
+    // and last bucket for endpoint framing.
+    var xTickIndices = new List<int>();
+    if (buckets.Count > 0)
+    {
+        var targetTicks = Math.Min(6, buckets.Count);
+        var stride = Math.Max(1, buckets.Count / targetTicks);
+        for (var i = 0; i < buckets.Count; i += stride) xTickIndices.Add(i);
+        if (xTickIndices[^1] != buckets.Count - 1) xTickIndices.Add(buckets.Count - 1);
+    }
+
+    // Y-axis: label the 0, mid, and max values on both scales.
+    static string YLabelValue(int max, double fraction) =>
+        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture);
 }
 
 <div class="sa-chart-panel">
@@ -63,12 +93,46 @@
 
         <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
              aria-label="@ariaLabel" focusable="false">
+            <title>Search volume over time — searches (blue) and unique sessions (green)</title>
+
+            @* Plot area frame — left, right, bottom axes. *@
             <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
             <line x1="@(padLeft + plotW)" y1="@padTop" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
             <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @* Y-axis tick labels — left scale is Searches (blue), right scale is Unique sessions (green).
+               Three ticks each (0, mid, max). Rendered via Html.Raw because Razor otherwise
+               parses inline <text> inside a @foreach block as its own control-flow marker
+               (RZ1023). SVG elements are namespace-safe regardless. *@
+            @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+            {
+                var y = padTop + plotH - (plotH * fraction);
+                var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
+                var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
+                <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
+                      stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#1d70b8\" font-size=\"11\">{YLabelValue(maxSearches, fraction)}</text>")
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft + plotW + 6}\" y=\"{yTextStr}\" text-anchor=\"start\" fill=\"#00703c\" font-size=\"11\">{YLabelValue(maxUnique, fraction)}</text>")
+            }
+
+            @* X-axis tick labels — time. Anchored middle beneath the tick point. *@
+            @foreach (var i in xTickIndices)
+            {
+                var xPos = X(i);
+                <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
+                      y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(FormatBucketLabel(buckets[i].BucketStart, step))}</text>")
+            }
+
+            @* Axis-title labels — colour-matched to their scale so admins know which value
+               belongs to which axis without reading the legend twice. Emitted outside a
+               code block so no Razor <text> ambiguity. *@
+            <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#1d70b8" font-size="10">Searches</text>
+            <text class="sa-chart__axis-title" x="@(padLeft + plotW + 6)" y="@(padTop - 6)" text-anchor="start" fill="#00703c" font-size="10">Unique sessions</text>
+            <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Time (UTC)</text>
 
             <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@searchPoints" aria-hidden="true" />
             <polyline fill="none" stroke="#00703c" stroke-width="2" points="@sessionPoints" aria-hidden="true" />

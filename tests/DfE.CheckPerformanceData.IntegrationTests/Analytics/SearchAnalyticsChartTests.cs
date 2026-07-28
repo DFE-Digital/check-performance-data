@@ -164,6 +164,134 @@ public sealed class SearchAnalyticsChartTests
         Assert.True(buckets.Count is >= 2 and <= 3, $"Expected 2..3 day-buckets across a 49h window, got {buckets.Count}");
     }
 
+    // --- Explicit-bucket-size overload: caller-picked granularity ---
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitFifteenMinutes_ReturnsQuarterHourBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        // Align to a 15-minute boundary so the assertion counts full buckets on both ends.
+        var now = QuarterHourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        // One event per 15-min slot → 4 buckets, each with SearchCount = 1.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(1),  "s-1", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(16), "s-2", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(31), "s-3", "q", results: 1, latency: 10),
+            NewEvent(from.AddMinutes(46), "s-4", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.FifteenMinutes, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
+        Assert.All(buckets, b => Assert.Equal(1, b.UniqueSessionCount));
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitHour_ReturnsHourBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-6);
+
+        for (var i = 0; i < 6; i++)
+        {
+            await SeedAsync(NewEvent(from.AddHours(i).AddMinutes(30), $"s-h-{i}", "q", results: 1, latency: 10));
+        }
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Hour, CancellationToken.None);
+
+        Assert.Equal(6, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitDay_ReturnsDayBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = DayAligned(DateTime.UtcNow);
+        var from = now.AddDays(-4);
+
+        for (var i = 0; i < 4; i++)
+        {
+            await SeedAsync(NewEvent(from.AddDays(i).AddHours(6), $"s-d-{i}", "q", results: 1, latency: 10));
+        }
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Day, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitWeek_ReturnsWeekBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        // Anchor to Monday 00:00 UTC — Postgres date_trunc('week', ts) uses ISO Monday.
+        var now = MondayAligned(DateTime.UtcNow);
+        var from = now.AddDays(-14);
+
+        // Two events, one in each of the two full weeks.
+        await SeedAsync(
+            NewEvent(from.AddDays(2),  "s-w-1", "q", results: 1, latency: 10),
+            NewEvent(from.AddDays(9),  "s-w-2", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Week, CancellationToken.None);
+
+        Assert.Equal(2, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitMonth_ReturnsMonthBuckets()
+    {
+        await ResetSearchEventsAsync();
+
+        // Anchor to the first of the current month — Postgres date_trunc('month', ts).
+        var now = MonthAligned(DateTime.UtcNow);
+        var from = MonthAligned(now.AddMonths(-2));
+
+        await SeedAsync(
+            NewEvent(from.AddDays(3),               "s-m-1", "q", results: 1, latency: 10),
+            NewEvent(from.AddMonths(1).AddDays(3),  "s-m-2", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.Month, CancellationToken.None);
+
+        Assert.Equal(2, buckets.Count);
+        Assert.All(buckets, b => Assert.Equal(1, b.SearchCount));
+    }
+
+    [Fact]
+    public async Task GetVolumeOverTime_ExplicitBucket_GapFillsEmptyBucketsToZero()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = QuarterHourAligned(DateTime.UtcNow);
+        var from = now.AddHours(-1);
+
+        // Event only in the first quarter. The other three MUST render as zero-filled buckets.
+        await SeedAsync(NewEvent(from.AddMinutes(2), "s-1", "q", results: 1, latency: 10));
+
+        var buckets = await CreateService().GetVolumeOverTimeAsync(
+            from, now, VolumeBucketSize.FifteenMinutes, CancellationToken.None);
+
+        Assert.Equal(4, buckets.Count);
+        Assert.Equal(1, buckets[0].SearchCount);
+        Assert.Equal(0, buckets[1].SearchCount);
+        Assert.Equal(0, buckets[2].SearchCount);
+        Assert.Equal(0, buckets[3].SearchCount);
+    }
+
     // --- Chart partial renders SVG + a WCAG 1.1.1 <details>/<table> fallback ---
 
     [Fact]
@@ -259,6 +387,24 @@ public sealed class SearchAnalyticsChartTests
 
     private static DateTime DayAligned(DateTime value) =>
         DateTime.SpecifyKind(new DateTime(value.Year, value.Month, value.Day, 0, 0, 0), DateTimeKind.Utc);
+
+    private static DateTime QuarterHourAligned(DateTime value)
+    {
+        var floorMinutes = (value.Minute / 15) * 15;
+        return DateTime.SpecifyKind(
+            new DateTime(value.Year, value.Month, value.Day, value.Hour, floorMinutes, 0),
+            DateTimeKind.Utc);
+    }
+
+    private static DateTime MondayAligned(DateTime value)
+    {
+        var day = DateTime.SpecifyKind(new DateTime(value.Year, value.Month, value.Day, 0, 0, 0), DateTimeKind.Utc);
+        var offset = ((int)day.DayOfWeek + 6) % 7; // Monday=0..Sunday=6
+        return day.AddDays(-offset);
+    }
+
+    private static DateTime MonthAligned(DateTime value) =>
+        DateTime.SpecifyKind(new DateTime(value.Year, value.Month, 1, 0, 0, 0), DateTimeKind.Utc);
 
     private ISearchAnalyticsQueryService CreateService() =>
         new SearchAnalyticsQueryService(_fixture.CreateContext());

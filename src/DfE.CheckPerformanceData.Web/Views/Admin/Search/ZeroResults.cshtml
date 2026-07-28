@@ -47,7 +47,10 @@ else
             @foreach (var row in Model.Rows)
             {
                 <tr class="govuk-table__row" data-filter-key="@row.QueryNormalised">
-                    <td class="govuk-table__cell">@row.QueryNormalised</td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/search?q=@Uri.EscapeDataString(row.QueryNormalised)"
+                           target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
+                    </td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
                 </tr>
             }

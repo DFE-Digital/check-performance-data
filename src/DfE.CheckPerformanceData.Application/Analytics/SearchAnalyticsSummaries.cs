@@ -25,15 +25,28 @@ public sealed record TopQueryRow(
     int Count,
     int ZeroResultCount);
 
-// One bucket in the volume-over-time chart. BucketStart is UTC, aligned to hour or day
-// boundaries depending on the window granularity. SearchCount is total events in the
-// bucket, UniqueSessionCount is distinct session_ids in the bucket. Both are 0 for
-// gap-filled empty buckets — the generate_series spine in the reader emits a row for
-// every bucket even when no events landed in it.
+// One bucket in the volume-over-time chart. BucketStart is UTC, aligned to the bucket
+// granularity picked at query time (see VolumeBucketSize). SearchCount is total events
+// in the bucket, UniqueSessionCount is distinct session_ids in the bucket. Both are 0
+// for gap-filled empty buckets — the generate_series spine in the reader emits a row
+// for every bucket even when no events landed in it.
 public sealed record VolumeBucket(
     DateTime BucketStart,
     int SearchCount,
     int UniqueSessionCount);
+
+// The five explicit bucket granularities the chart supports. Callers who do not care can
+// keep using the no-bucket overload of GetVolumeOverTimeAsync — the service picks a
+// granularity based on the window width. The explicit overload takes this enum so the
+// admin can override via a query string.
+public enum VolumeBucketSize
+{
+    FifteenMinutes,
+    Hour,
+    Day,
+    Week,
+    Month,
+}
 
 // A row in the top-pages drill-in. ResultKey is the page URL (or block key — the same
 // column carries either kind of hit). ImpressionCount is how many result rows referenced

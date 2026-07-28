@@ -95,3 +95,56 @@ public sealed record SearchHitPrefill(
     int Position,
     string ResultKind,
     string ResultKey);
+
+// One point on the request-timings scatter chart. OccurredAtUtc is the raw
+// search_events.occurred_at_utc; LatencyMs is the raw latency of that event; SessionId
+// is the opaque session id (masked in the view to the first 8 characters, full value
+// available on hover). Query is the raw query string (empty allowed for a search with
+// no term). ResultsTotal is how many hits the search returned. Used by the drill-in
+// table underneath the scatter and by the scatter itself to draw one <circle> per row.
+public sealed record RequestTimingPoint(
+    DateTime OccurredAtUtc,
+    int LatencyMs,
+    string SessionId,
+    string? Query,
+    int ResultsTotal);
+
+// One (weekday, hour-of-day) bucket in the heatmap card. Weekday follows ISO 8601 —
+// 1 = Monday, 7 = Sunday — because a UK-audience week reads left-to-right starting on
+// Monday. Hour is 0..23 UTC. Count is the number of search events whose occurred_at_utc
+// falls in that (weekday, hour) tuple over the selected window. Zero-filled — the read
+// returns every (weekday, hour) tuple in the 7 × 24 = 168-cell grid even if that cell
+// has no events in the window so the SVG heatmap has no visual gaps.
+public sealed record WeekdayHourBucket(
+    int Weekday,
+    int Hour,
+    int Count);
+
+// Session-level rollup for the "Zero-result outcomes" funnel card. Answers the question
+// "of sessions that hit a zero-result search in this window, what did they do next?".
+// Every zero-result session is bucketed into exactly one outcome; the sums equal
+// TotalZeroResultSessions. Tie-break rule when a session both refined AND submitted
+// feedback: refined wins (a query change is a stronger signal of "the user kept looking"
+// than a message — the message could have been submitted about a different search).
+// TotalSessionsInWindow gives the subtitle its denominator context (X of Y sessions
+// had at least one zero-result search).
+public sealed record ZeroResultOutcomeSummary(
+    int TotalZeroResultSessions,
+    int TotalSessionsInWindow,
+    int RefinedCount,
+    int FeedbackCount,
+    int SilentCount);
+
+// Prior-window summary alongside the current-window one — drives the week-over-week
+// anomaly chips beneath each of the four stat tiles. Every field mirrors a field on
+// SearchAnalyticsSummary so the view can compute (current - prior) / prior in one
+// place. Available is false when the prior window would fall outside the sink's 90-day
+// retention (a 45-day+ current window's prior would start > 90 days ago) — the view
+// hides all four chips and shows an "insufficient prior data" hint when this flag is
+// false.
+public sealed record SearchAnalyticsSummaryDeltas(
+    int PriorTotalCount,
+    int PriorUniqueSessions,
+    double PriorZeroResultRatePercent,
+    int PriorP95LatencyMs,
+    bool Available);

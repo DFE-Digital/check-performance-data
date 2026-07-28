@@ -916,6 +916,39 @@ LIMIT @limit OFFSET @offset;";
             .ToList();
     }
 
+    public Task<IReadOnlyList<RequestTimingPoint>> GetRequestTimingsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int samplingLimit,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("GetRequestTimingsAsync — pending GREEN implementation.");
+
+    public Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedRequestTimingsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("GetPagedRequestTimingsAsync — pending GREEN implementation.");
+
+    public Task<IReadOnlyList<WeekdayHourBucket>> GetSearchesByWeekdayAndHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("GetSearchesByWeekdayAndHourAsync — pending GREEN implementation.");
+
+    public Task<ZeroResultOutcomeSummary> GetZeroResultOutcomeFunnelAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("GetZeroResultOutcomeFunnelAsync — pending GREEN implementation.");
+
+    public Task<SearchAnalyticsSummaryDeltas> GetSummaryDeltasAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("GetSummaryDeltasAsync — pending GREEN implementation.");
+
     // Opens (or borrows) the DbContext's underlying Npgsql connection, runs the SQL, and
     // hands each row to the caller. Mirrors MetricsQueryService's helper — the two read
     // services share the layering pattern and a copy here keeps the sibling boundary

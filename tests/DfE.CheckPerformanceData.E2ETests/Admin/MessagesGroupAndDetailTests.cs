@@ -5,7 +5,7 @@ using Microsoft.Playwright;
 
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
-// End-to-end coverage for the round-3 admin nav re-shape:
+// End-to-end coverage for the consolidated Messages admin nav surface:
 //   * A consolidated Messages top-bar badge stands in for the retired DLQ + inbox badges.
 //   * A root-level Messages group on the /admin landing owns the Search-feedback inbox +
 //     Dead-letter-queue tiles, addressable at /admin/Messages.
@@ -101,7 +101,7 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
 
         try
         {
-            var whatLookingFor = $"round3-e2e-{Guid.NewGuid():N} — cannot find the widget guide";
+            var whatLookingFor = $"e2e-{Guid.NewGuid():N} — cannot find the widget guide";
 
             // Post a feedback message. The message-service pins the row to the seed
             // HttpClient's session; the admin then reviews from a fresh admin session.

@@ -1,0 +1,172 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsSeriesDrillInViewModel
+@{
+    // Drill-in for one of the four time-series charts (volume / unique-users / zero-results
+    // / latency). Same chart at the top so admins see the visual alongside the data; a paged
+    // table underneath with the standard GDS pager so long series (e.g. 90-day-by-15-minute
+    // = ~8600 rows) are navigable one CMS:PageLength page at a time.
+    var (title, actionPath, tableSecondHeader, tableSecondHeaderTitle) = Model.SeriesKey switch
+    {
+        "volume"       => ("Search volume over time",       "/admin/Search/Volume",              "Searches",            "How many searches were fired during this bucket."),
+        "unique-users" => ("Unique sessions over time",     "/admin/Search/UniqueUsers",         "Unique sessions",     "How many distinct browser sessions searched in that bucket."),
+        "zero-results" => ("Zero-result searches over time","/admin/Search/ZeroResultsOverTime", "Zero-result searches","How many searches in that bucket returned nothing."),
+        "latency"      => ("Latency percentiles over time", "/admin/Search/LatencyOverTime",     "",                    ""),
+        _              => ("Search analytics", "/admin/Search/", "", ""),
+    };
+
+    var rangeQs = $"range={Uri.EscapeDataString(Model.RangeKey)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
+    string PageLink(int p) => $"{actionPath}?{rangeQs}&page={p}";
+
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey&bucket=@Model.BucketKey">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">@title</h1>
+
+<p class="govuk-body">
+    Full bucketed breakdown of @title.ToLowerInvariant() for the selected window and bucket size.
+    Adjust the filters below to change the range or bucket granularity.
+</p>
+
+@await Html.PartialAsync("~/Views/Admin/Search/_TimeWindowFilterForm.cshtml", new TimeWindowFilterModel
+{
+    FormAction = actionPath,
+    RangeKey = Model.RangeKey,
+    FromUtc = Model.FromUtc,
+    ToUtc = Model.ToUtc,
+    BucketKey = Model.BucketKey,
+})
+
+@* Chart at the top. Same three chart partials the landing page uses — SeriesKey picks
+   the right one. Set the inline-row-cap high so the details fallback under the chart
+   shows the entire series here (the paged table below is the primary UI). *@
+@{
+    ViewContext.ViewData["sa-inline-row-cap"] = int.MaxValue;
+    ViewContext.ViewData["sa-drillin-volume-url"] = null;
+    ViewContext.ViewData["sa-drillin-latency-url"] = null;
+}
+
+<div class="sa-chart-panel">
+    <h2 class="govuk-heading-m">@title</h2>
+    @switch (Model.SeriesKey)
+    {
+        case "volume":
+            @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.ChartVolumeSeries)
+            break;
+        case "unique-users":
+            @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
+            {
+                Series = Model.ChartVolumeSeries,
+                Title = title,
+                YAxisLabel = "Unique sessions",
+                SeriesColour = "#00703c",
+            })
+            break;
+        case "zero-results":
+            @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
+            {
+                Series = Model.ChartVolumeSeries,
+                Title = title,
+                YAxisLabel = "Zero-result searches",
+                SeriesColour = "#d4351c",
+            })
+            break;
+        case "latency":
+            @await Html.PartialAsync("~/Views/Admin/Search/_LatencyChart.cshtml", Model.ChartLatencySeries)
+            break;
+    }
+</div>
+
+<h2 class="govuk-heading-m">Bucketed data</h2>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No data in this window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount.ToString("N0", CultureInfo.CurrentCulture) buckets.
+    </p>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">@title, paged by bucket</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
+                @if (Model.SeriesKey == "latency")
+                {
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="5th percentile of search response time in milliseconds for that bucket.">p5 (ms)</th>
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="50th percentile (median) search response time in milliseconds for that bucket.">p50 (ms)</th>
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="95th percentile of search response time in milliseconds for that bucket.">p95 (ms)</th>
+                }
+                else
+                {
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="@tableSecondHeaderTitle">@tableSecondHeader</th>
+                }
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @if (Model.SeriesKey == "latency")
+            {
+                @foreach (var bucket in Model.LatencySlice)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P5Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P50Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.P95Ms.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    </tr>
+                }
+            }
+            else
+            {
+                @foreach (var bucket in Model.VolumeSlice)
+                {
+                    <tr class="govuk-table__row">
+                        <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
+            @if (Model.Page > 1)
+            {
+                <div class="govuk-pagination__prev">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
+                        <span class="govuk-pagination__link-title">Previous</span>
+                    </a>
+                </div>
+            }
+            <ul class="govuk-pagination__list">
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    var current = p == Model.Page;
+                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
+                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
+                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
+                    </li>
+                }
+            </ul>
+            @if (Model.Page < Model.TotalPages)
+            {
+                <div class="govuk-pagination__next">
+                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
+                        <span class="govuk-pagination__link-title">Next</span>
+                    </a>
+                </div>
+            }
+        </nav>
+    }
+}

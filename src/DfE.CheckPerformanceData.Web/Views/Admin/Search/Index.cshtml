@@ -4,9 +4,6 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsIndexViewModel
 @{
     ViewData["Title"] = "Search analytics";
-    var isCustom = string.Equals(Model.RangeKey, "custom", StringComparison.Ordinal);
-    var fromValue = isCustom ? Model.FromUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
-    var toValue = isCustom ? Model.ToUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
 
     static string FormatPercent(double value) =>
         value.ToString("0.0", CultureInfo.InvariantCulture) + "%";
@@ -20,6 +17,14 @@
     // render as <code>. Same rule as the drill-in Pages.cshtml view.
     static bool LooksLikeUrl(string key) =>
         key.StartsWith('/') || key.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || key.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+    // Cap the inline data-tables under each chart at 20 rows on the landing page so a
+    // 90-day-by-15-minute window (~8600 buckets) does not paint the DOM. Anything longer
+    // renders a "View all X data →" link to the per-series drill-in.
+    ViewContext.ViewData["sa-inline-row-cap"] = 20;
+    var chartQuery = $"range={Uri.EscapeDataString(Model.RangeKey)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
+    ViewContext.ViewData["sa-drillin-volume-url"]  = $"/admin/Search/Volume?{chartQuery}";
+    ViewContext.ViewData["sa-drillin-latency-url"] = $"/admin/Search/LatencyOverTime?{chartQuery}";
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -31,75 +36,14 @@
     Figures cover the selected time window.
 </p>
 
-<form method="get" action="/admin/Search/" class="sa-filters govuk-!-margin-bottom-6">
-    <div class="govuk-form-group">
-        <fieldset class="govuk-fieldset">
-            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Time window</legend>
-            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
-                @foreach (var (value, label) in new[]
-                {
-                    ("24h", "Last 24 hours"),
-                    ("7d",  "Last 7 days"),
-                    ("30d", "Last 30 days"),
-                    ("90d", "Last 90 days"),
-                    ("custom", "Custom range"),
-                })
-                {
-                    var id = "range-" + value;
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="@id" name="range" type="radio"
-                               value="@value" @(Model.RangeKey == value ? "checked=\"checked\"" : "") />
-                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
-                    </div>
-                }
-            </div>
-        </fieldset>
-    </div>
-
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-quarter">
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="from">From (UTC)</label>
-                <input class="govuk-input" id="from" name="from" type="date" value="@fromValue" />
-            </div>
-        </div>
-        <div class="govuk-grid-column-one-quarter">
-            <div class="govuk-form-group">
-                <label class="govuk-label" for="to">To (UTC)</label>
-                <input class="govuk-input" id="to" name="to" type="date" value="@toValue" />
-            </div>
-        </div>
-    </div>
-
-    <div class="govuk-form-group">
-        <fieldset class="govuk-fieldset">
-            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Chart bucket size</legend>
-            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
-                @foreach (var (value, label) in new[]
-                {
-                    ("15m", "15 minutes"),
-                    ("1h",  "1 hour"),
-                    ("1d",  "1 day"),
-                    ("1w",  "1 week"),
-                    ("1mo", "1 month"),
-                })
-                {
-                    var id = "bucket-" + value;
-                    <div class="govuk-radios__item">
-                        <input class="govuk-radios__input" id="@id" name="bucket" type="radio"
-                               value="@value" @(Model.BucketKey == value ? "checked=\"checked\"" : "") />
-                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
-                    </div>
-                }
-            </div>
-        </fieldset>
-    </div>
-
-    <div class="govuk-button-group">
-        <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
-        <a class="govuk-link" href="/admin/Search/">Reset to last 7 days</a>
-    </div>
-</form>
+@await Html.PartialAsync("~/Views/Admin/Search/_TimeWindowFilterForm.cshtml", new TimeWindowFilterModel
+{
+    FormAction = "/admin/Search/",
+    RangeKey = Model.RangeKey,
+    FromUtc = Model.FromUtc,
+    ToUtc = Model.ToUtc,
+    BucketKey = Model.BucketKey,
+})
 
 @* Interactive tiles. Each tile is a real <button> so keyboard users can Tab-Enter to
    switch chart. aria-pressed conveys the active state; the JS toggler + a CSS treatment
@@ -162,6 +106,8 @@
         Title = "Unique sessions over time",
         YAxisLabel = "Unique sessions",
         SeriesColour = "#00703c",
+        DrillInUrl = $"/admin/Search/UniqueUsers?{chartQuery}",
+        DrillInLinkText = "View all unique-sessions data",
     })
 </div>
 
@@ -173,6 +119,8 @@
         Title = "Zero-result searches over time",
         YAxisLabel = "Zero-result searches",
         SeriesColour = "#d4351c",
+        DrillInUrl = $"/admin/Search/ZeroResultsOverTime?{chartQuery}",
+        DrillInLinkText = "View all zero-result data",
     })
 </div>
 
@@ -200,9 +148,9 @@
                         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopQueries.Count queries in the selected window</caption>
                         <thead class="govuk-table__head">
                             <tr class="govuk-table__row">
-                                <th class="govuk-table__header" scope="col">Query</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Zero-result count</th>
+                                <th class="govuk-table__header" scope="col" title="The normalised search term users typed. Grouped so 'Widget' and 'widget' count together.">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this query was fired in the selected window.">Searches</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many of those searches returned no page or content-block hits.">Zero-result count</th>
                             </tr>
                         </thead>
                         <tbody class="govuk-table__body">
@@ -239,8 +187,8 @@
                         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopZeroResultQueries.Count zero-result queries in the selected window</caption>
                         <thead class="govuk-table__head">
                             <tr class="govuk-table__row">
-                                <th class="govuk-table__header" scope="col">Query</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
+                                <th class="govuk-table__header" scope="col" title="The normalised search term users typed. Grouped so 'Widget' and 'widget' count together.">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this query was fired in the selected window (all of which returned no results).">Searches</th>
                             </tr>
                         </thead>
                         <tbody class="govuk-table__body">
@@ -276,9 +224,9 @@
                         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopPages.Count pages by search impressions in the selected window</caption>
                         <thead class="govuk-table__head">
                             <tr class="govuk-table__row">
-                                <th class="govuk-table__header" scope="col">Page</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Impressions</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Unique queries</th>
+                                <th class="govuk-table__header" scope="col" title="URL of the page (or key of a content block) that appeared in results.">Page</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this page appeared in any user's result set in the window.">Impressions</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many distinct search terms surfaced this page in the window.">Unique queries</th>
                             </tr>
                         </thead>
                         <tbody class="govuk-table__body">

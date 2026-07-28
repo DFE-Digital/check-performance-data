@@ -132,6 +132,13 @@ else
         }
     </svg>
 
+    @* Same cap-and-link rule as the volume + single-series charts. The drill-in URL is
+       passed via ViewData because the model here is IReadOnlyList<LatencyBucket>; adding
+       an envelope would fragment the three chart-partial signatures without benefit. *@
+    var latencyInlineCapRaw = ViewContext.ViewData["sa-inline-row-cap"] as int?;
+    var latencyInlineCap = latencyInlineCapRaw is { } capValue && capValue > 0 ? capValue : 20;
+    var latencyDrillInUrl = ViewContext.ViewData["sa-drillin-latency-url"] as string;
+    var displayedLatency = buckets.Count > latencyInlineCap ? buckets.Take(latencyInlineCap).ToList() : (IReadOnlyList<LatencyBucket>)buckets;
     <details class="govuk-details">
         <summary class="govuk-details__summary">
             <span class="govuk-details__summary-text">View latency data table</span>
@@ -141,14 +148,14 @@ else
                 <caption class="govuk-table__caption govuk-table__caption--s">Latency percentiles per bucket</caption>
                 <thead class="govuk-table__head">
                     <tr class="govuk-table__row">
-                        <th scope="col" class="govuk-table__header">Bucket (UTC)</th>
-                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p5 (ms)</th>
-                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p50 (ms)</th>
-                        <th scope="col" class="govuk-table__header govuk-table__header--numeric">p95 (ms)</th>
+                        <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="5th percentile of search response time in milliseconds for that bucket.">p5 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="50th percentile (median) search response time in milliseconds for that bucket.">p50 (ms)</th>
+                        <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="95th percentile of search response time in milliseconds for that bucket.">p95 (ms)</th>
                     </tr>
                 </thead>
                 <tbody class="govuk-table__body">
-                    @foreach (var bucket in buckets)
+                    @foreach (var bucket in displayedLatency)
                     {
                         <tr class="govuk-table__row">
                             <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
@@ -159,6 +166,13 @@ else
                     }
                 </tbody>
             </table>
+            @if (buckets.Count > latencyInlineCap && !string.IsNullOrEmpty(latencyDrillInUrl))
+            {
+                <p class="govuk-body">
+                    Showing the first @displayedLatency.Count of @buckets.Count.ToString("N0", CultureInfo.CurrentCulture) buckets.
+                    <a class="govuk-link" href="@latencyDrillInUrl">View all latency data &rarr;</a>
+                </p>
+            }
         </div>
     </details>
 }

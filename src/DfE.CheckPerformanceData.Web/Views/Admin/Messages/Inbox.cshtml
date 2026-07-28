@@ -71,15 +71,15 @@ else
     <table class="govuk-table">
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
-                <th scope="col" class="govuk-table__header">
+                <th scope="col" class="govuk-table__header" title="When the message was submitted (UTC). Click to sort by newest / oldest first.">
                     <a class="govuk-link" href="@SortLink("submittedAt")">Submitted@(SortMarker("submittedAt"))</a>
                 </th>
-                <th scope="col" class="govuk-table__header">Session</th>
-                <th scope="col" class="govuk-table__header">Email</th>
-                <th scope="col" class="govuk-table__header">
+                <th scope="col" class="govuk-table__header" title="The opaque browser session ID linking the message to its author's search history. Hover to see the full ID.">Session</th>
+                <th scope="col" class="govuk-table__header" title="Whether the author provided an email address so admins can reply.">Email</th>
+                <th scope="col" class="govuk-table__header" title="Read / unread flag. Click to group unread first (or read first on the next click).">
                     <a class="govuk-link" href="@SortLink("isRead")">Read@(SortMarker("isRead"))</a>
                 </th>
-                <th scope="col" class="govuk-table__header">Preview</th>
+                <th scope="col" class="govuk-table__header" title="First line of the message body. Click through for the full message plus the author's recent search history.">Preview</th>
             </tr>
         </thead>
         <tbody class="govuk-table__body">

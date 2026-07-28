@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
@@ -285,6 +286,109 @@ public sealed class SearchFeedbackControllerTests
         Assert.Equal("block", model.PriorSearch.Hits[2].Kind);
     }
 
+    // --- (e3) Signed-in user's email pre-fills the Email field on GET ---
+
+    [Fact]
+    public async Task Index_WhenCurrentUserHasEmailClaim_PreFillsEmailField()
+    {
+        await TruncateAllAsync();
+
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.Email.Returns("editor@example.gov.uk");
+
+        var controller = BuildController(messages, query, sessionId: "session-signed-in", currentUser: currentUser);
+
+        var result = await controller.Index(CancellationToken.None);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        Assert.Equal("editor@example.gov.uk", model.Email);
+    }
+
+    [Fact]
+    public async Task Index_WhenAnonymous_LeavesEmailFieldEmpty()
+    {
+        await TruncateAllAsync();
+
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.Email.Returns(string.Empty);
+
+        var controller = BuildController(messages, query, sessionId: "session-anon", currentUser: currentUser);
+
+        var result = await controller.Index(CancellationToken.None);
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        Assert.True(string.IsNullOrEmpty(model.Email));
+    }
+
+    // --- (e4) Validation-error redisplay preserves the prior-search panel + auto-filled email ---
+
+    [Fact]
+    public async Task Submit_WhenModelStateInvalid_PreservesPriorSearchAndAutoFilledEmail()
+    {
+        await TruncateAllAsync();
+
+        const string sessionId = "session-redisplay";
+
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var evt = new SearchEvent
+            {
+                OccurredAtUtc = DateTime.SpecifyKind(new DateTime(2026, 8, 4, 09, 15, 0), DateTimeKind.Utc),
+                SessionId = sessionId,
+                QueryRaw = "widget",
+                QueryNormalised = "widget",
+                Scope = null,
+                ResultsPages = 1,
+                ResultsBlocks = 0,
+                LatencyMs = 22,
+            };
+            seedContext.SearchEvents.Add(evt);
+            await seedContext.SaveChangesAsync();
+
+            seedContext.SearchEventResults.Add(new SearchEventResult
+            {
+                SearchEventId = evt.Id, Position = 1, ResultKind = "page",
+                ResultKey = "/help/widgets-overview", Rank = 1.0f,
+            });
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.Email.Returns("editor@example.gov.uk");
+
+        var controller = BuildController(messages, query, sessionId: sessionId, currentUser: currentUser);
+
+        var form = new SearchFeedbackViewModel { WhatLookingFor = string.Empty };
+        controller.ModelState.AddModelError(
+            nameof(SearchFeedbackViewModel.WhatLookingFor),
+            "Enter what you were looking for");
+
+        var result = await controller.Submit(form, CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchFeedbackViewModel>(view.Model);
+
+        // Prior-search panel MUST re-render on validation error — user's list of hits and
+        // query context should not vanish just because they missed a required field.
+        Assert.NotNull(model.PriorSearch);
+        Assert.Equal("widget", model.PriorSearch!.Query);
+        Assert.Single(model.PriorSearch.Hits);
+
+        // Auto-filled email also survives the redisplay.
+        Assert.Equal("editor@example.gov.uk", model.Email);
+    }
+
     // --- (f) Successful POST redirects to Confirmation and carries the session id via TempData ---
 
     [Fact]
@@ -354,9 +458,10 @@ public sealed class SearchFeedbackControllerTests
     private static SearchFeedbackController BuildController(
         ISearchMessageService messages,
         ISearchAnalyticsQueryService query,
-        string sessionId)
+        string sessionId,
+        ICurrentUserService? currentUser = null)
     {
-        var controller = new SearchFeedbackController(messages, query);
+        var controller = new SearchFeedbackController(messages, query, currentUser);
         var httpContext = BuildHttpContextWithSession(sessionId);
         controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
         controller.TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>());

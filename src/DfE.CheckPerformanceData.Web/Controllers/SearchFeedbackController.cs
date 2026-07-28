@@ -1,5 +1,6 @@
 using System.Globalization;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,13 +28,16 @@ public sealed class SearchFeedbackController : Controller
 
     private readonly ISearchMessageService _messages;
     private readonly ISearchAnalyticsQueryService _query;
+    private readonly ICurrentUserService? _currentUser;
 
     public SearchFeedbackController(
         ISearchMessageService messages,
-        ISearchAnalyticsQueryService query)
+        ISearchAnalyticsQueryService query,
+        ICurrentUserService? currentUser = null)
     {
         _messages = messages;
         _query = query;
+        _currentUser = currentUser;
     }
 
     [HttpGet("")]

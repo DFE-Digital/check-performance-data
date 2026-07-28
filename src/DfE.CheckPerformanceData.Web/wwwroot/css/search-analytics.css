@@ -6,12 +6,24 @@
 
 /* Mirrors .obs-tile from observability.css. Bottom-margin between tile rows uses the
    16px bespoke off-scale value (declared in the UI spec spacing scale) — sits between
-   GDS -3 (15px) and -4 (20px). */
+   GDS -3 (15px) and -4 (20px).
+   Overrides the govuk-grid-column-one-quarter width the child columns carry so a 16px
+   gap between four tiles doesn't push the last tile onto its own row on a wide viewport
+   (four 25% widths + three 16px gaps overflows the 100% row). */
 .sa-tiles {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
     margin-bottom: 24px;
+}
+
+.sa-tiles > .govuk-grid-column-one-quarter {
+    flex: 1 1 200px;
+    min-width: 200px;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
 }
 
 .sa-tile {
@@ -20,6 +32,8 @@
     border-bottom: 4px solid #1d70b8;
     padding: 16px;
     min-width: 200px;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .sa-tile__value {

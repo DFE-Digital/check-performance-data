@@ -52,13 +52,22 @@ public interface ISearchAnalyticsQueryService
         CancellationToken cancellationToken = default);
 
     // Bucketed search + unique-session count over the window, used by the volume-over-time
-    // chart. Windows of 48 hours or less bucket by hour; anything wider buckets by day.
-    // Every bucket in the range is returned — empty buckets are zero-filled via a
-    // generate_series LEFT JOIN so the chart's X axis is continuous even for a window
-    // with no data.
+    // chart. Auto-picks a bucket granularity based on window width: <= 48h → hour,
+    // <= 30d → day, wider → week. Every bucket in the range is returned — empty buckets
+    // are zero-filled via a generate_series LEFT JOIN so the chart's X axis is continuous
+    // even for a window with no data.
     Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    // Explicit-bucket-size overload used when the admin picked a granularity via the URL.
+    // The reader honours the caller's choice verbatim — no width-based fallback. Same
+    // gap-fill and shape as the auto-picking overload.
+    Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
         CancellationToken cancellationToken = default);
 
     // Paged variant of GetTopQueriesAsync: returns one page of the ordered top queries

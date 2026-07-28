@@ -203,6 +203,16 @@ LIMIT @limit;";
             hits);
     }
 
+    public Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        CancellationToken cancellationToken = default)
+    {
+        // Stubbed for the RED cycle — real implementation lands in the GREEN commit.
+        throw new NotImplementedException("Explicit-bucket overload not implemented yet.");
+    }
+
     public async Task<IReadOnlyList<VolumeBucket>> GetVolumeOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,

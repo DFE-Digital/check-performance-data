@@ -129,24 +129,70 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             await Expect(Page.Locator("svg.sa-chart").First).ToBeVisibleAsync();
 
             // Paged table with the standard GDS pager. With 720 buckets the pager has
-            // both Previous (on page 2+) and Next; on page 1 only Next appears. Land on
-            // page 2 by clicking the "2" link, then assert Previous is present.
-            var pagerNext = Page.Locator("nav.govuk-pagination .govuk-pagination__next a");
-            await Expect(pagerNext).ToBeVisibleAsync();
-            var page2Link = Page.Locator("nav.govuk-pagination ul.govuk-pagination__list a[aria-label=\"Page 2\"]");
-            await page2Link.First.ClickAsync();
+            // both Previous (on page 2+) and Next; on page 1 only Next appears.
+            var pagerNav = Page.Locator("nav.govuk-pagination");
+            await Expect(pagerNav).ToBeVisibleAsync();
+            Assert.Equal("Pagination", await pagerNav.GetAttributeAsync("aria-label"));
+
+            // Truncation kicked in — with 30d/1h and a small CMS:PageLength the pager
+            // covers well over 30 numbered pages. The truncated pager must render only
+            // a handful of numbered links (edge + middle + edge, ~9 max) not one link
+            // per page. Also asserts Previous is absent on page 1 and at least one
+            // ellipsis marker is present when the current page is not near the edges.
+            var pageLinksOnFirst = await Page.Locator("nav.govuk-pagination ul.govuk-pagination__list li:not(.govuk-pagination__item--ellipses)").CountAsync();
+            Assert.True(pageLinksOnFirst < 12,
+                $"Expected < 12 numbered page items on page 1 (truncated), got {pageLinksOnFirst}.");
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev")).ToHaveCountAsync(0);
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next a")).ToBeVisibleAsync();
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round6/admin-pager-first.png");
+
+            // Navigate directly to page 5 — the truncated pager on page 1 hides the "5"
+            // link (only 1,2,3,...,last-3,last-2,last are rendered) so a URL jump is the
+            // only way to land on a mid-range page. Middle-range renders both edges +
+            // middle block + two ellipses.
+            var midPageResponse = await Page.GotoAsync($"{url}&page=5");
+            Assert.NotNull(midPageResponse);
+            Assert.Equal(200, midPageResponse!.Status);
             await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev a")).ToBeVisibleAsync();
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next a")).ToBeVisibleAsync();
+            var ellipsisCount = await Page.Locator("nav.govuk-pagination li.govuk-pagination__item--ellipses").CountAsync();
+            Assert.True(ellipsisCount >= 1,
+                $"Expected at least one ellipsis on a mid-range page, got {ellipsisCount}.");
+            var midPageLinks = await Page.Locator("nav.govuk-pagination ul.govuk-pagination__list li:not(.govuk-pagination__item--ellipses)").CountAsync();
+            Assert.True(midPageLinks < 12,
+                $"Expected < 12 numbered page items on a mid-range page (truncated), got {midPageLinks}.");
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round6/admin-pager-middle.png");
 
             // Every <th> on the drill-in table has a title attribute.
             await AssertEveryHeaderHasTitleAsync(
                 Page.Locator("table.govuk-table thead th"),
                 context: "volume drill-in table");
 
-            await Page.StabiliseAsync();
+            // Refresh the round-5 handoff shot so the human reviewer sees the truncated
+            // pager instead of the 34-page wall.
             await SaveScreenshotAsync("admin-search-volume-drill-in.png");
+
+            // Jump to the last page via the highest-numbered link in the last-edge block.
+            // Read the last page number out of the DOM instead of hardcoding it — the
+            // total page count varies with the CMS:PageLength setting the environment is
+            // configured with.
+            var lastPageNum = await Page.EvaluateAsync<int>(
+                "() => { const els = document.querySelectorAll('nav.govuk-pagination ul.govuk-pagination__list a[aria-label^=\"Page \"]'); let m = 0; els.forEach(e => { const n = parseInt(e.getAttribute('aria-label').replace('Page ', ''), 10); if (n > m) m = n; }); return m; }");
+            Assert.True(lastPageNum >= 30,
+                $"Test corpus must exceed 30 pages to exercise truncation; got {lastPageNum}.");
+            var lastResponse = await Page.GotoAsync($"{url}&page={lastPageNum}");
+            Assert.NotNull(lastResponse);
+            Assert.Equal(200, lastResponse!.Status);
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev a")).ToBeVisibleAsync();
+            await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next")).ToHaveCountAsync(0);
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round6/admin-pager-last.png");
         }
         finally
         {

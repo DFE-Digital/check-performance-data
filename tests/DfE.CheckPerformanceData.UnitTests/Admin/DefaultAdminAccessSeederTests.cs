@@ -44,4 +44,34 @@ public sealed class DefaultAdminAccessSeederTests
         Assert.Contains(AdminNavKeys.SearchAnalytics, DefaultAdminAccessSeeder.AllSections);
         Assert.Contains(AdminNavKeys.MessagesInbox, DefaultAdminAccessSeeder.AllSections);
     }
+
+    // The Test-data sub-group's landing / seed controllers are gated by the group key
+    // itself so the SUM of "may I hit this surface at all?" collapses to a single admin
+    // section grant. Absence would 404 the seeder page for a fresh-DB admin.
+    [Fact]
+    public void AdminNavKeys_TestDataGroup_HasKebabCaseValue()
+    {
+        Assert.Equal("test-data-group", AdminNavKeys.TestDataGroup);
+    }
+
+    [Fact]
+    public void AdminNavKeys_SeedSampleSearchData_HasKebabCaseValue()
+    {
+        Assert.Equal("seed-sample-search-data", AdminNavKeys.SeedSampleSearchData);
+    }
+
+    [Fact]
+    public void AllSections_ContainsTestDataGroup()
+    {
+        Assert.Contains("test-data-group", DefaultAdminAccessSeeder.AllSections);
+    }
+
+    // The tile itself needs its own grant so FilterByAccess renders it in the sidebar
+    // for admins (canAccessSection is checked per-tile-Key on entries that have a URL).
+    // Without this the admin would see the group container heading but nothing under it.
+    [Fact]
+    public void AllSections_ContainsSeedSampleSearchData()
+    {
+        Assert.Contains("seed-sample-search-data", DefaultAdminAccessSeeder.AllSections);
+    }
 }

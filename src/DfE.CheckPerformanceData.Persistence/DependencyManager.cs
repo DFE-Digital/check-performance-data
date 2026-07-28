@@ -71,6 +71,8 @@ public static class DependencyManager
             Analytics.DbSearchMessageService>();
         services.AddScoped<Application.Analytics.ISearchAnalyticsQueryService,
             Analytics.SearchAnalyticsQueryService>();
+        services.AddScoped<Application.Analytics.ISampleSearchDataGateway,
+            Analytics.DbSampleSearchDataGateway>();
 
         return services;
     }

@@ -326,7 +326,7 @@ public sealed class PageTreeAdminController(
     public IActionResult SampleSeedGet()
     {
         TempData["SampleSeedResult"] =
-            "Use the ‘Seed sample pages’ button from the CMS administration menu " +
+            "Use the ‘Seed sample CMS pages’ button from the Test data menu under System administration " +
             "(this URL only accepts an antiforgery-protected POST).";
         return Redirect("/admin/pages");
     }

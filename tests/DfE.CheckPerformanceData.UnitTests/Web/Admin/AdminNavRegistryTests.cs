@@ -17,7 +17,7 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(29, entries.Count);
+		Assert.Equal(31, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
 		Assert.DoesNotContain("Version retention", titles);
@@ -34,8 +34,11 @@ public sealed class AdminNavRegistryTests
 		Assert.Contains("CMS administration", titles);
 		Assert.Contains("System administration", titles);
 		Assert.Contains("Messages", titles);
+		Assert.Contains("Test data", titles);
 		Assert.Contains("Deleted pages", titles);
-		Assert.Contains("Seed sample pages", titles);
+		Assert.Contains("Seed sample CMS pages", titles);
+		Assert.DoesNotContain("Seed sample pages", titles);
+		Assert.Contains("Seed sample search data", titles);
 		Assert.Contains("Search analytics", titles);
 		Assert.Contains("Search feedback", titles);
 		Assert.DoesNotContain("Search messages inbox", titles);
@@ -78,13 +81,15 @@ public sealed class AdminNavRegistryTests
 			.OrderBy(o => o)
 			.ToArray();
 
-		// CMS admin loses the messages-inbox tile (moved to the new Messages group), leaving
-		// six children.
-		Assert.Equal(new[] { 10, 20, 30, 40, 50, 60 }, cmsOrders);
-		// System administration has four direct children: the Rules Engine sub-group (10),
-		// System settings (20), Application logs (25), Role settings (30). The pipeline tiles
-		// nest one level deeper under Rules Engine.
-		Assert.Equal(new[] { 10, 20, 25, 30 }, systemOrders);
+		// CMS admin loses the messages-inbox tile (moved to the Messages group) AND the
+		// seed-sample-pages tile (moved to the new Test data sub-group under System admin),
+		// leaving five children.
+		Assert.Equal(new[] { 10, 20, 30, 40, 60 }, cmsOrders);
+		// System administration now has five direct children: the Rules Engine sub-group (10),
+		// System settings (20), Application logs (25), Role settings (30), Test data (40).
+		// The pipeline tiles nest one level deeper under Rules Engine; the seed-sample-*
+		// tiles nest one level deeper under Test data.
+		Assert.Equal(new[] { 10, 20, 25, 30, 40 }, systemOrders);
 
 		var rulesEngineGroupOrders = entries
 			.Where(e => e.ParentKey == "rules-engine-group")
@@ -128,10 +133,10 @@ public sealed class AdminNavRegistryTests
 		Assert.True(entry.Enabled);
 	}
 
-	// --- SeedSamplePages_Tile_Has_PostHttpMethod ---
+	// --- SeedSamplePages_Tile_Has_PostHttpMethod_And_Sits_Under_TestDataGroup ---
 
 	[Fact]
-	public void SeedSamplePages_Tile_Has_PostHttpMethod()
+	public void SeedSamplePages_Tile_Has_PostHttpMethod_And_Sits_Under_TestDataGroup()
 	{
 		var services = new ServiceCollection();
 		services.AddAdminNavEntries();
@@ -140,8 +145,71 @@ public sealed class AdminNavRegistryTests
 		var entry = provider.GetServices<IAdminNavEntry>()
 			.Single(e => e.Key == "seed-sample-pages");
 
+		// Renamed for the Test data group; ParentKey moved from CMS admin to the new
+		// Test data sub-group so both seed tiles cluster together. Route stays put so
+		// existing bookmarks + E2E seed calls (PlaywrightFixture.EnsureSamplePagesSeededAsync)
+		// keep working.
 		Assert.Equal("POST", entry.HttpMethod);
+		Assert.Equal("test-data-group", entry.ParentKey);
+		Assert.Equal("/admin/pages/sample-seed", entry.Url);
+		Assert.Equal("Seed sample CMS pages", entry.Title);
 		Assert.True(entry.Enabled);
+	}
+
+	// --- TestDataGroup_Is_SystemAdmin_Child_Container ---
+
+	[Fact]
+	public void TestDataGroup_Is_SystemAdmin_Child_Container()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries();
+
+		using var provider = services.BuildServiceProvider();
+		var entry = provider.GetServices<IAdminNavEntry>()
+			.Single(e => e.Key == "test-data-group");
+
+		Assert.Equal("system-admin", entry.ParentKey);
+		Assert.Equal("Test data", entry.Title);
+		Assert.Equal(string.Empty, entry.Url);
+		Assert.Equal(40, entry.Order);
+		Assert.True(entry.Enabled);
+	}
+
+	// --- SeedSampleSearchData_Tile_Sits_Under_TestDataGroup_LinkingToTestDataSampleSearchData ---
+
+	[Fact]
+	public void SeedSampleSearchData_Tile_Sits_Under_TestDataGroup_LinkingToTestDataSampleSearchData()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries();
+
+		using var provider = services.BuildServiceProvider();
+		var entry = provider.GetServices<IAdminNavEntry>()
+			.Single(e => e.Key == "seed-sample-search-data");
+
+		Assert.Equal("test-data-group", entry.ParentKey);
+		Assert.Equal("Seed sample search data", entry.Title);
+		Assert.Equal("/admin/test-data/sample-search-data", entry.Url);
+		Assert.Equal("GET", entry.HttpMethod);
+		Assert.True(entry.Enabled);
+	}
+
+	// --- TestDataGroup_Children_Have_Distinct_Orders ---
+
+	[Fact]
+	public void TestDataGroup_Children_Have_Distinct_Orders()
+	{
+		var services = new ServiceCollection();
+		services.AddAdminNavEntries();
+
+		using var provider = services.BuildServiceProvider();
+		var testDataChildren = provider.GetServices<IAdminNavEntry>()
+			.Where(e => e.ParentKey == "test-data-group")
+			.OrderBy(e => e.Order)
+			.Select(e => e.Key)
+			.ToArray();
+
+		Assert.Equal(new[] { "seed-sample-pages", "seed-sample-search-data" }, testDataChildren);
 	}
 
 	// --- SystemSettings_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminSettings ---

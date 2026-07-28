@@ -142,6 +142,116 @@ public sealed class SearchAnalyticsIndexViewRenderTests
     }
 
     [Fact]
+    public async Task RendersFourInteractiveTileButtons_WithAriaPressedAndDataSaTile()
+    {
+        var model = ViewModelWithData(
+            totalCount: 100, uniqueSessions: 20, zeroRate: 5.0, p95: 40);
+
+        var html = await RenderIndexAsync(model);
+
+        // 4 tiles as <button> with data-sa-tile.
+        var tileButtonCount = System.Text.RegularExpressions.Regex.Matches(
+            html, "<button[^>]+class=\"sa-tile[^\"]*\"[^>]+data-sa-tile=\"").Count;
+        Assert.Equal(4, tileButtonCount);
+
+        // The four tile keys.
+        Assert.Contains("data-sa-tile=\"volume\"", html);
+        Assert.Contains("data-sa-tile=\"unique-users\"", html);
+        Assert.Contains("data-sa-tile=\"zero-results\"", html);
+        Assert.Contains("data-sa-tile=\"latency\"", html);
+
+        // Volume is the default: aria-pressed="true" on that button, "false" on the rest.
+        Assert.Contains("data-sa-tile=\"volume\"", html);
+        var pressedTrueCount = System.Text.RegularExpressions.Regex.Matches(
+            html, "aria-pressed=\"true\"").Count;
+        var pressedFalseCount = System.Text.RegularExpressions.Regex.Matches(
+            html, "aria-pressed=\"false\"").Count;
+        Assert.Equal(1, pressedTrueCount);
+        Assert.Equal(3, pressedFalseCount);
+    }
+
+    [Fact]
+    public async Task RendersFourChartPanels_OneForEachTile()
+    {
+        var now = DateTime.UtcNow;
+        var vol = new List<VolumeBucket> { new(now.AddHours(-2), 5, 3), new(now.AddHours(-1), 8, 4), new(now, 10, 5) };
+        var uniq = new List<VolumeBucket> { new(now.AddHours(-2), 3, 0), new(now.AddHours(-1), 4, 0), new(now, 5, 0) };
+        var zero = new List<VolumeBucket> { new(now.AddHours(-2), 1, 0), new(now.AddHours(-1), 0, 0), new(now, 2, 0) };
+        var lat = new List<LatencyBucket> { new(now.AddHours(-2), 5, 20, 90), new(now.AddHours(-1), 6, 21, 95), new(now, 7, 22, 100) };
+
+        var model = ViewModelWithData(
+            totalCount: 23, uniqueSessions: 12, zeroRate: 13.0, p95: 100,
+            volumeSeries: vol, uniqueSessionsSeries: uniq, zeroResultCountSeries: zero, latencySeries: lat);
+
+        var html = await RenderIndexAsync(model);
+
+        Assert.Contains("data-sa-panel=\"volume\"", html);
+        Assert.Contains("data-sa-panel=\"unique-users\"", html);
+        Assert.Contains("data-sa-panel=\"zero-results\"", html);
+        Assert.Contains("data-sa-panel=\"latency\"", html);
+
+        // Latency chart has three polylines (p50 / p95 / p5).
+        var latencyPanel = html.IndexOf("data-sa-panel=\"latency\"", StringComparison.Ordinal);
+        Assert.True(latencyPanel > 0);
+        var latencyEndish = html.IndexOf("</div>", latencyPanel + 200, StringComparison.Ordinal);
+        var latencyChunk = html.Substring(latencyPanel, Math.Max(0, latencyEndish - latencyPanel + 200));
+        var polylineCount = System.Text.RegularExpressions.Regex.Matches(latencyChunk, "<polyline").Count;
+        Assert.True(polylineCount >= 3, $"Expected 3 polylines in the latency chart panel, found {polylineCount}.");
+    }
+
+    [Fact]
+    public async Task RendersTopPagesSummaryCardInline_WithViewAllLinkWhenOverflow()
+    {
+        var pages = new[]
+        {
+            new TopPageRow("https://example.gov.uk/one", 50, 10),
+            new TopPageRow("https://example.gov.uk/two", 40, 8),
+            new TopPageRow("home", 30, 6),
+        };
+
+        var model = ViewModelWithData(
+            totalCount: 100, uniqueSessions: 20, zeroRate: 5.0, p95: 40,
+            topPages: pages, topPagesTotalCount: 25);
+
+        var html = await RenderIndexAsync(model);
+
+        // Card renders with the "Top pages" heading (matches the two sibling summary cards).
+        Assert.Contains(">Top pages<", html);
+        // All three page keys appear.
+        Assert.Contains("https://example.gov.uk/one", html);
+        Assert.Contains("https://example.gov.uk/two", html);
+        // Bare block key renders as <code> not an anchor.
+        Assert.Matches(new System.Text.RegularExpressions.Regex(@"<code>home</code>"), html);
+        // URL-shaped keys are linked with target=_blank rel=noopener.
+        Assert.Matches(new System.Text.RegularExpressions.Regex(
+            @"target=""_blank""[^>]*rel=""noopener noreferrer""[^>]*>https://example\.gov\.uk/one</a>|>https://example\.gov\.uk/one</a>"),
+            html);
+        // Total (25) exceeds rendered count (3) → "View all" link is present.
+        Assert.Contains("View all top pages by search impressions", html);
+        Assert.Contains("/admin/Search/Pages", html);
+    }
+
+    [Fact]
+    public async Task RendersTopPagesSummaryCard_NoViewAllLinkWhenAllRowsFitOnCard()
+    {
+        var pages = new[]
+        {
+            new TopPageRow("https://example.gov.uk/only-one", 5, 2),
+        };
+
+        var model = ViewModelWithData(
+            totalCount: 5, uniqueSessions: 2, zeroRate: 0.0, p95: 15,
+            topPages: pages, topPagesTotalCount: 1);
+
+        var html = await RenderIndexAsync(model);
+
+        Assert.Contains(">Top pages<", html);
+        Assert.Contains("https://example.gov.uk/only-one", html);
+        // Total (1) matches rendered count (1) → no "View all" link.
+        Assert.DoesNotContain("View all top pages by search impressions", html);
+    }
+
+    [Fact]
     public async Task RendersFilterFormWithRangeRadios_AlwaysVisible()
     {
         var model = EmptyViewModel(totalRowCount: 0);

@@ -29,11 +29,33 @@
 .sa-tile {
     background: #ffffff;
     border: 1px solid #f3f2f1;
-    border-bottom: 4px solid #1d70b8;
+    border-bottom: 4px solid #b1b4b6;
     padding: 16px;
     min-width: 200px;
     height: 100%;
     box-sizing: border-box;
+    /* When rendered as <button> (interactive tile switcher) we override the browser button
+       styles so the tile looks identical to the pre-interactive markup. */
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.sa-tile:focus {
+    outline: 3px solid #ffdd00;
+    outline-offset: 0;
+}
+
+/* Active tile: darker border + light-blue background so the swap is visible at a glance
+   without relying on colour alone. aria-pressed=true is set by the JS; the class mirror
+   is what CSS reads. Both are applied together — tests can assert either. */
+.sa-tile--active,
+.sa-tile[aria-pressed="true"] {
+    border-bottom-color: #1d70b8;
+    background: #f2f6fa;
+    box-shadow: inset 0 0 0 1px #1d70b8;
 }
 
 .sa-tile__value {
@@ -90,6 +112,35 @@
     height: 12px;
     background: #00703c;
     border-radius: 50%;
+}
+
+/* Legend-line variants for the latency chart's three-line legend (p50 solid, p95 dashed,
+   p5 dotted). Kept short + wide so the dash / dot pattern is legible in the swatch. */
+.sa-chart__legend-line--solid {
+    display: inline-block;
+    width: 24px;
+    height: 3px;
+    background: #1d70b8;
+}
+
+.sa-chart__legend-line--dashed {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top: 3px dashed #d4351c;
+}
+
+.sa-chart__legend-line--dotted {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top: 3px dotted #505a5f;
+}
+
+/* Chart-panel visibility. Only used by the JS tile switcher — server never hides a panel
+   on load so the no-JS path shows every chart stacked. */
+.sa-chart-panel--hidden {
+    display: none;
 }
 
 /* --- Filter form + drill-in text-filter ---------------------------------- */

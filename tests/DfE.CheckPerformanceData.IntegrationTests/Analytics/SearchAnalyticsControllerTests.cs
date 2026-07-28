@@ -183,6 +183,76 @@ public sealed class SearchAnalyticsControllerTests
         Assert.Equal(25, model.Summary.TotalCount);
     }
 
+    // --- Bucket-size resolution: explicit sizes echo verbatim; auto-fallback follows window width ---
+
+    [Theory]
+    [InlineData("15m", "15m")]
+    [InlineData("1h",  "1h")]
+    [InlineData("1d",  "1d")]
+    [InlineData("1w",  "1w")]
+    [InlineData("1mo", "1mo")]
+    public void ResolveBucketSize_ExplicitSize_EchoesKeyVerbatim(string input, string expectedKey)
+    {
+        var (_, key) = SearchAnalyticsController.ResolveBucketSize(input, TimeSpan.FromDays(7));
+        Assert.Equal(expectedKey, key);
+    }
+
+    [Fact]
+    public void ResolveBucketSize_UnknownSize_FallsBackToWindowDefault()
+    {
+        var (size, key) = SearchAnalyticsController.ResolveBucketSize("nonsense", TimeSpan.FromHours(24));
+        Assert.Equal(VolumeBucketSize.Hour, size);
+        Assert.Equal("1h", key);
+    }
+
+    [Theory]
+    [InlineData(24,   "1h")]  // <=48h → hour
+    [InlineData(48,   "1h")]
+    [InlineData(72,   "1d")]  // <=30d → day
+    [InlineData(24 * 30, "1d")]
+    [InlineData(24 * 31, "1w")] // >30d → week
+    [InlineData(24 * 90, "1w")]
+    public void ResolveBucketSize_NoInput_AutoPicksFromWindow(int windowHours, string expectedKey)
+    {
+        var (_, key) = SearchAnalyticsController.ResolveBucketSize(null, TimeSpan.FromHours(windowHours));
+        Assert.Equal(expectedKey, key);
+    }
+
+    [Fact]
+    public async Task Index_WithNoBucketParam_ModelBucketKeyMatchesAutoDefault()
+    {
+        await ResetSearchEventsAsync();
+
+        var result = await Sut().Index(range: "7d", from: null, to: null, bucket: null, ct: CancellationToken.None);
+
+        var model = AssertViewModel(result);
+        Assert.Equal("1d", model.BucketKey);
+    }
+
+    [Fact]
+    public async Task Index_WithExplicitBucket_ModelBucketKeyMatches()
+    {
+        await ResetSearchEventsAsync();
+
+        var result = await Sut().Index(range: "7d", from: null, to: null, bucket: "1h", ct: CancellationToken.None);
+
+        var model = AssertViewModel(result);
+        Assert.Equal("1h", model.BucketKey);
+    }
+
+    // --- AdminWide flag: dashboards use the wide layout so the sidebar-collapse frees usable space ---
+
+    [Fact]
+    public async Task Index_SetsAdminWideViewData()
+    {
+        await ResetSearchEventsAsync();
+
+        var controller = Sut();
+        _ = await controller.Index(range: "7d", from: null, to: null, bucket: null, ct: CancellationToken.None);
+
+        Assert.Equal(true, controller.ViewData["AdminWide"]);
+    }
+
     // --- Top-N tables populate on the view model when there is data ---
 
     [Fact]

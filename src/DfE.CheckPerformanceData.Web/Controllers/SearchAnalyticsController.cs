@@ -71,12 +71,17 @@ public sealed class SearchAnalyticsController : Controller
         string? range,
         DateTime? from,
         DateTime? to,
+        string? bucket = null,
         CancellationToken ct = default)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Search analytics";
+        // Widen the layout so the tiles + chart + tables get the full viewport when the
+        // admin sidebar is collapsed. Every other search-analytics action follows suit.
+        ViewData["AdminWide"] = true;
 
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (bucketSize, bucketKey) = ResolveBucketSize(bucket, toUtc - fromUtc);
 
         var totalCount = await _query.GetRowCountAsync(fromUtc, toUtc, ct);
 
@@ -85,7 +90,7 @@ public sealed class SearchAnalyticsController : Controller
         var summary = await _query.GetSummaryAsync(fromUtc, toUtc, ct);
         var topQueries = await _query.GetTopQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
         var topZeroResultQueries = await _query.GetTopZeroResultQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
-        var volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, ct);
+        var volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
 
         return View("~/Views/Admin/Search/Index.cshtml", new SearchAnalyticsIndexViewModel
         {
@@ -97,6 +102,7 @@ public sealed class SearchAnalyticsController : Controller
             ToUtc = toUtc,
             RangeKey = rangeKey,
             TotalRowCount = totalCount,
+            BucketKey = bucketKey,
         });
     }
 
@@ -110,6 +116,7 @@ public sealed class SearchAnalyticsController : Controller
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Top queries";
+        ViewData["AdminWide"] = true;
 
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
@@ -139,6 +146,7 @@ public sealed class SearchAnalyticsController : Controller
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Zero-result queries";
+        ViewData["AdminWide"] = true;
 
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
@@ -168,6 +176,7 @@ public sealed class SearchAnalyticsController : Controller
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Top pages by search impressions";
+        ViewData["AdminWide"] = true;
 
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
@@ -192,6 +201,7 @@ public sealed class SearchAnalyticsController : Controller
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Session";
+        ViewData["AdminWide"] = true;
 
         var events = await _query.GetSessionHistoryAsync(id, ct);
 
@@ -356,4 +366,34 @@ public sealed class SearchAnalyticsController : Controller
         DateTimeKind.Unspecified => DateTime.SpecifyKind(value, DateTimeKind.Utc),
         _ => value.ToUniversalTime(),
     };
+
+    // Resolves the ?bucket= query string into a (bucketSize, key) pair. The five explicit
+    // sizes are 15m / 1h / 1d / 1w / 1mo; anything else falls back to the auto-picked
+    // default from the window width — mirrors the pre-Round-2 chart-granularity rule so a
+    // stale query string is never a source of error.
+    //
+    // Auto rule:
+    //   <= 48h  → 1h  (Hour)
+    //   <= 30d  → 1d  (Day)
+    //    > 30d  → 1w  (Week)
+    // The upper "wider → week" band avoids emitting 90+ hour ticks on a 90-day view.
+    // Exposed as public-static so the controller-level test can pin the mapping without
+    // going through the HTTP surface. The method is a pure helper with no I/O — every
+    // caller in production is the Index action above.
+    public static (VolumeBucketSize BucketSize, string BucketKey) ResolveBucketSize(
+        string? bucket,
+        TimeSpan window)
+    {
+        return bucket switch
+        {
+            "15m" => (VolumeBucketSize.FifteenMinutes, "15m"),
+            "1h"  => (VolumeBucketSize.Hour,           "1h"),
+            "1d"  => (VolumeBucketSize.Day,            "1d"),
+            "1w"  => (VolumeBucketSize.Week,           "1w"),
+            "1mo" => (VolumeBucketSize.Month,          "1mo"),
+            _ when window <= TimeSpan.FromHours(48) => (VolumeBucketSize.Hour, "1h"),
+            _ when window <= TimeSpan.FromDays(30)  => (VolumeBucketSize.Day,  "1d"),
+            _ => (VolumeBucketSize.Week, "1w"),
+        };
+    }
 }

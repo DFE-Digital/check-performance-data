@@ -17,4 +17,10 @@ public sealed class SearchAnalyticsIndexViewModel
     public required DateTime ToUtc { get; init; }
     public required string RangeKey { get; init; }
     public required int TotalRowCount { get; init; }
+
+    // The bucket size the chart is being rendered at. One of "15m", "1h", "1d", "1w", "1mo".
+    // Echoed back into the bucket-size selector so the currently-picked size stays checked
+    // after a filter re-submission. Defaults to whatever the controller auto-picked from the
+    // window width when no explicit ?bucket= was supplied.
+    public required string BucketKey { get; init; }
 }

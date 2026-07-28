@@ -229,6 +229,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             ToUtc = now,
             RangeKey = "7d",
             TotalRowCount = totalCount,
+            BucketKey = "1d",
         };
     }
 
@@ -245,6 +246,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             ToUtc = now,
             RangeKey = "7d",
             TotalRowCount = totalRowCount,
+            BucketKey = "1d",
         };
     }
 }

@@ -207,9 +207,9 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         // Fresh browser context. In Development the app is configured to emit a
         // SecurePolicy=SameAsRequest session cookie so plain-http Chromium (hitting
         // host.docker.internal) actually persists it across requests. We ALSO impersonate
-        // as editor so the auto-fill-email path (F3) is exercised — the impersonation
-        // cookie set here does NOT rotate the session id (see CONTEXT D-04) so the search
-        // fired below still ends up linked to the same session_id the feedback form reads.
+        // as editor so the auto-fill-email path is exercised — the impersonation cookie
+        // set here does NOT rotate the session id so the search fired below still ends
+        // up linked to the same session_id the feedback form reads.
         await using var userContext = await Browser.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize { Width = 1440, Height = 900 }

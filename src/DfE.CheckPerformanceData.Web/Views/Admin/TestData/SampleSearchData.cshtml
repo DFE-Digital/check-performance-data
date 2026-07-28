@@ -1,0 +1,150 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SeedSampleSearchDataViewModel
+@{
+    ViewData["Title"] = "Seed sample search data";
+}
+
+<a class="govuk-back-link" href="/admin">Back to administration</a>
+
+<h1 class="govuk-heading-xl">Seed sample search data</h1>
+
+@if (!string.IsNullOrEmpty(Model.SuccessBanner))
+{
+    <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+         aria-labelledby="seed-search-banner-title" data-module="govuk-notification-banner"
+         data-testid="seed-sample-search-data-banner">
+        <div class="govuk-notification-banner__header">
+            <h2 class="govuk-notification-banner__title" id="seed-search-banner-title">Success</h2>
+        </div>
+        <div class="govuk-notification-banner__content">
+            <p class="govuk-notification-banner__heading">
+                @Model.SuccessBanner
+                <a class="govuk-notification-banner__link" href="/admin/Search/">View the analytics dashboard</a>.
+            </p>
+        </div>
+    </div>
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <p class="govuk-body-l">
+            Generate a plausible mix of search events and feedback messages spanning a chosen
+            time window so the search-analytics dashboard has demo content.
+        </p>
+        <p class="govuk-body">
+            Rows written by this tool are indistinguishable from real search activity — they
+            appear on the analytics dashboard, in the admin messages inbox, and in the
+            top-queries tables. The retention job eventually purges seeded rows alongside real
+            events (per the 90-day search-events window and 365-day search-messages window).
+        </p>
+        <p class="govuk-body">
+            This page is available only in the local development environment; the endpoint
+            returns 404 in Test and Production.
+        </p>
+
+        <form method="post" action="/admin/test-data/sample-search-data"
+              data-testid="seed-sample-search-data-form">
+            @Html.AntiForgeryToken()
+
+            <fieldset class="govuk-fieldset">
+                <legend class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                    <h2 class="govuk-fieldset__heading">Time span preset</h2>
+                </legend>
+                <div class="govuk-hint">
+                    Presets set both the window width and a plausible default row count. Pick
+                    the shortest window that gives the dashboard enough data for what you are
+                    demoing.
+                </div>
+                <div class="govuk-radios" data-module="govuk-radios">
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-24h" name="preset"
+                               type="radio" value="24h" checked
+                               aria-describedby="preset-24h-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-24h">
+                            Last 24 hours
+                        </label>
+                        <div id="preset-24h-hint" class="govuk-hint govuk-radios__hint">
+                            About 500 events, spread with a working-hours weighting.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-week" name="preset"
+                               type="radio" value="week"
+                               aria-describedby="preset-week-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-week">
+                            Last week
+                        </label>
+                        <div id="preset-week-hint" class="govuk-hint govuk-radios__hint">
+                            About 2,000 events over the last 7 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-month" name="preset"
+                               type="radio" value="month"
+                               aria-describedby="preset-month-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-month">
+                            Last month
+                        </label>
+                        <div id="preset-month-hint" class="govuk-hint govuk-radios__hint">
+                            About 8,000 events over the last 30 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-quarter" name="preset"
+                               type="radio" value="quarter"
+                               aria-describedby="preset-quarter-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-quarter">
+                            Last quarter
+                        </label>
+                        <div id="preset-quarter-hint" class="govuk-hint govuk-radios__hint">
+                            About 25,000 events over the last 90 days.
+                        </div>
+                    </div>
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="preset-year" name="preset"
+                               type="radio" value="year"
+                               aria-describedby="preset-year-hint" />
+                        <label class="govuk-label govuk-radios__label" for="preset-year">
+                            Last year
+                        </label>
+                        <div id="preset-year-hint" class="govuk-hint govuk-radios__hint">
+                            About 80,000 events over the last 365 days. Takes a few seconds.
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <details class="govuk-details" data-module="govuk-details">
+                <summary class="govuk-details__summary">
+                    <span class="govuk-details__summary-text">Advanced — override the row counts</span>
+                </summary>
+                <div class="govuk-details__text">
+                    <div class="govuk-form-group">
+                        <label class="govuk-label" for="eventCount">Events to seed</label>
+                        <div class="govuk-hint">Leave blank to use the preset default.</div>
+                        <input class="govuk-input govuk-input--width-5" id="eventCount"
+                               name="eventCount" type="number" min="1" max="200000"
+                               inputmode="numeric" />
+                    </div>
+                    <div class="govuk-form-group">
+                        <label class="govuk-label" for="messageCount">Feedback messages to seed</label>
+                        <div class="govuk-hint">Leave blank to use ~8% of the events count.</div>
+                        <input class="govuk-input govuk-input--width-5" id="messageCount"
+                               name="messageCount" type="number" min="0" max="20000"
+                               inputmode="numeric" />
+                    </div>
+                </div>
+            </details>
+
+            <button type="submit" class="govuk-button" data-module="govuk-button"
+                    data-prevent-double-click="true"
+                    data-testid="seed-sample-search-data-submit">
+                Seed data
+            </button>
+        </form>
+
+        <p class="govuk-body-s govuk-hint">
+            Existing search data is not deleted — click multiple times to accumulate more.
+            To clear the sink, use the Danger zone tools.
+        </p>
+    </div>
+</div>

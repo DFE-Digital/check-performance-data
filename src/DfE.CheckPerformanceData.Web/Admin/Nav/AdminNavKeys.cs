@@ -48,4 +48,10 @@ public static class AdminNavKeys
     // returns 404 on a fresh DB.
     public const string SearchAnalytics = "search-analytics";
     public const string MessagesInbox = "messages-inbox";
+
+    // Top-level container that groups every incoming-message surface: the search-feedback
+    // inbox and the dead-letter queue. Group entries carry no [RequireAdminSection] gate
+    // themselves — access to the group is implied by access to at least one child, so this
+    // key is intentionally absent from DefaultAdminAccessSeeder.AllSections.
+    public const string MessagesGroup = "messages-group";
 }

@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
@@ -35,6 +36,28 @@ public sealed class MessagesController : Controller
         _currentUserService = currentUserService;
     }
 
+    // Group landing: renders the two Messages child tiles (Search feedback + Dead-letter
+    // queue) so an admin can pick one from a single hub. Reads the nav forest from DI so
+    // the tiles stay in sync with the registered nav entries without a hand-maintained
+    // list here. The class-level [RequireAdminSection(MessagesInbox)] gate applies —
+    // admins have that grant by default; the tile listing is otherwise never reached.
+    [HttpGet("")]
+    public IActionResult Index([FromServices] IEnumerable<IAdminNavEntry> navEntries)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.MessagesGroup;
+        ViewData["Title"] = "Messages";
+
+        var forest = AdminNavNodeViewModel.BuildForest(navEntries);
+        var group = FindGroup(forest, AdminNavKeys.MessagesGroup);
+        return View("~/Views/Admin/Messages/Index.cshtml", new AdminLandingViewModel
+        {
+            Roots = group is null ? Array.Empty<AdminNavNodeViewModel>() : new[] { group },
+        });
+    }
+
+    private static AdminNavNodeViewModel? FindGroup(IReadOnlyList<AdminNavNodeViewModel> forest, string key) =>
+        forest.FirstOrDefault(n => string.Equals(n.Entry.Key, key, StringComparison.Ordinal));
+
     [HttpGet("Inbox")]
     public async Task<IActionResult> Inbox(
         string? sort,
@@ -44,7 +67,7 @@ public sealed class MessagesController : Controller
         CancellationToken ct = default)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.MessagesInbox;
-        ViewData["Title"] = "Messages inbox";
+        ViewData["Title"] = "Search feedback";
 
         if (page < 1) page = 1;
         var pageSize = await ResolvePageSizeAsync();
@@ -69,7 +92,7 @@ public sealed class MessagesController : Controller
     public async Task<IActionResult> Detail(long id, CancellationToken ct = default)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.MessagesInbox;
-        ViewData["Title"] = "Message";
+        ViewData["Title"] = "Search feedback message";
 
         var detail = await _messages.GetByIdAsync(id, ct);
         if (detail is null)

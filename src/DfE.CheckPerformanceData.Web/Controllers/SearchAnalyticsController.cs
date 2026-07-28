@@ -52,6 +52,13 @@ public sealed class SearchAnalyticsController : Controller
     // Mirrors ObservabilityController's fallback so all admin paged surfaces share one floor.
     private const int DefaultPageSize = 20;
 
+    // Cap on how many raw event points the request-timings scatter renders. 2000 keeps the
+    // SVG lightweight while still giving a visually meaningful spread across the plot area.
+    // When the window has more events the reader samples via ORDER BY random() so the
+    // scatter still spans the whole X-axis; the visible sample count is announced to the
+    // admin via a "showing X of Y" hint below the chart.
+    private const int RequestTimingsSampleCap = 2000;
+
     public SearchAnalyticsController(
         ISearchAnalyticsQueryService query,
         ISettingService settings,
@@ -104,6 +111,15 @@ public sealed class SearchAnalyticsController : Controller
         // decides whether the "View all top pages by search impressions →" link renders.
         var (topPages, topPagesTotal) = await _query.GetTopPagesAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
 
+        // Round-7 additions: request-timings scatter (sampled), weekday × hour heatmap,
+        // zero-result outcome funnel, prior-window summary for anomaly chips. All four
+        // ride the same window bounds as the summary + top-N reads above so the page tells
+        // one consistent story about "this window".
+        var requestTimings = await _query.GetRequestTimingsAsync(fromUtc, toUtc, RequestTimingsSampleCap, ct);
+        var weekdayHourGrid = await _query.GetSearchesByWeekdayAndHourAsync(fromUtc, toUtc, ct);
+        var zeroResultOutcomes = await _query.GetZeroResultOutcomeFunnelAsync(fromUtc, toUtc, ct);
+        var summaryDeltas = await _query.GetSummaryDeltasAsync(fromUtc, toUtc, ct);
+
         return View("~/Views/Admin/Search/Index.cshtml", new SearchAnalyticsIndexViewModel
         {
             Summary = summary,
@@ -120,6 +136,45 @@ public sealed class SearchAnalyticsController : Controller
             LatencyPercentileSeries = latencyPercentileSeries,
             TopPages = topPages,
             TopPagesTotalCount = topPagesTotal,
+            RequestTimings = requestTimings,
+            RequestTimingsTotalCount = totalCount,
+            WeekdayHourGrid = weekdayHourGrid,
+            ZeroResultOutcomes = zeroResultOutcomes,
+            SummaryDeltas = summaryDeltas,
+        });
+    }
+
+    // Paged drill-in for the request-timings scatter. Shares the shared time-window
+    // filter partial + the round-6 shared pager so the drill-in matches every other
+    // admin paged surface exactly. Reached from the scatter chart's "open the paged
+    // view" link when the sample-limit kicks in.
+    [HttpGet("RequestTimings")]
+    public async Task<IActionResult> RequestTimings(
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        int page = 1,
+        CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = "Request timings";
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        var (rows, total) = await _query.GetPagedRequestTimingsAsync(fromUtc, toUtc, page, pageSize, ct);
+
+        return View("~/Views/Admin/Search/RequestTimings.cshtml", new SearchAnalyticsRequestTimingsViewModel
+        {
+            Rows = rows,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
         });
     }
 

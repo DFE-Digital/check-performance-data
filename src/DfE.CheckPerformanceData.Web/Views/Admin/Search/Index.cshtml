@@ -25,6 +25,28 @@
     var chartQuery = $"range={Uri.EscapeDataString(Model.RangeKey)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
     ViewContext.ViewData["sa-drillin-volume-url"]  = $"/admin/Search/Volume?{chartQuery}";
     ViewContext.ViewData["sa-drillin-latency-url"] = $"/admin/Search/LatencyOverTime?{chartQuery}";
+
+    // Anomaly-chip helper: renders a small tag beneath each stat tile summarising the
+    // percentage change from the previous same-length window. Deltas within ±10% render
+    // NOTHING (avoid clutter). Direction is coloured by whether the movement is
+    // favourable for the metric — searches↑ / users↑ = green, zero-result-rate↓ / p95↓ = green.
+    // "favourable" is passed in per tile because the semantics differ. Prior window may not
+    // be available (custom range whose prior falls beyond the sink's 90-day retention) — in
+    // that case a plain-text hint replaces the chip.
+    var priorWindowDays = (int)Math.Round((Model.ToUtc - Model.FromUtc).TotalDays, MidpointRounding.AwayFromZero);
+    if (priorWindowDays < 1) priorWindowDays = 1;
+
+    (string Sign, double DeltaPercent) ComputeDelta(double current, double prior)
+    {
+        if (prior <= 0)
+        {
+            if (current <= 0) return ("=", 0d);
+            return (">>", 999d);
+        }
+        var pct = ((current - prior) / prior) * 100d;
+        var sign = pct > 0 ? "↑" : (pct < 0 ? "↓" : "=");
+        return (sign, Math.Abs(pct));
+    }
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -50,6 +72,32 @@
    render the state visually. Tile 1 is aria-pressed=true on page load (the default view).
    With JS disabled the click handler doesn't wire up — every chart stays visible so the
    page still tells the truth. *@
+@{
+    // Pre-compute the four anomaly chips so the tile markup below stays legible. Only
+    // render a chip when |delta| >= 10%; otherwise the tile shows nothing beneath the
+    // value (noise-suppression, per acceptance).
+    var deltaSearches   = ComputeDelta(Model.Summary.TotalCount,             Model.SummaryDeltas.PriorTotalCount);
+    var deltaUsers      = ComputeDelta(Model.Summary.UniqueSessions,         Model.SummaryDeltas.PriorUniqueSessions);
+    var deltaZeroRate   = ComputeDelta(Model.Summary.ZeroResultRatePercent,  Model.SummaryDeltas.PriorZeroResultRatePercent);
+    var deltaP95        = ComputeDelta(Model.Summary.P95LatencyMs,           Model.SummaryDeltas.PriorP95LatencyMs);
+
+    string ChipClass(string sign, bool favourableUp)
+    {
+        if (sign == "=") return "sa-anomaly-chip--neutral";
+        var isUp = sign == "↑" || sign == ">>";
+        var isFavourable = (isUp && favourableUp) || (!isUp && !favourableUp);
+        return isFavourable ? "sa-anomaly-chip--favourable" : "sa-anomaly-chip--unfavourable";
+    }
+
+    string ChipText((string Sign, double DeltaPercent) d, int priorDays)
+    {
+        var suffix = priorDays == 1 ? "1 day" : $"{priorDays} days";
+        if (d.Sign == "=") return $"= no change vs previous {suffix}";
+        if (d.Sign == ">>") return $"↑ new vs previous {suffix}";
+        return $"{d.Sign} {d.DeltaPercent.ToString("0", CultureInfo.CurrentCulture)}% vs previous {suffix}";
+    }
+}
+
 <div class="govuk-grid-row sa-tiles">
     <div class="govuk-grid-column-one-quarter">
         <button type="button" class="sa-tile sa-tile--active" data-sa-tile="volume"
@@ -57,6 +105,16 @@
                 aria-describedby="sa-tile-searches-hint" aria-pressed="true">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.TotalCount.ToString("N0", CultureInfo.CurrentCulture)</p>
             <p class="govuk-body-s sa-tile__label">Searches</p>
+            @if (Model.SummaryDeltas.Available && deltaSearches.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaSearches.Sign, favourableUp: true)"
+                      data-sa-chip="searches">@ChipText(deltaSearches, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="searches">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
             <span id="sa-tile-searches-hint" class="govuk-visually-hidden">Total search requests captured in this time window. Click to show the searches-over-time chart.</span>
         </button>
     </div>
@@ -66,6 +124,16 @@
                 aria-describedby="sa-tile-users-hint" aria-pressed="false">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.UniqueSessions.ToString("N0", CultureInfo.CurrentCulture)</p>
             <p class="govuk-body-s sa-tile__label">Unique users</p>
+            @if (Model.SummaryDeltas.Available && deltaUsers.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaUsers.Sign, favourableUp: true)"
+                      data-sa-chip="users">@ChipText(deltaUsers, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="users">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
             <span id="sa-tile-users-hint" class="govuk-visually-hidden">Distinct anonymous session IDs that ran at least one search in this window. Click to show the unique-sessions-over-time chart.</span>
         </button>
     </div>
@@ -75,6 +143,16 @@
                 aria-describedby="sa-tile-zero-hint" aria-pressed="false">
             <p class="govuk-heading-xl sa-tile__value">@FormatPercent(Model.Summary.ZeroResultRatePercent)</p>
             <p class="govuk-body-s sa-tile__label">Zero-result rate</p>
+            @if (Model.SummaryDeltas.Available && deltaZeroRate.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaZeroRate.Sign, favourableUp: false)"
+                      data-sa-chip="zero-rate">@ChipText(deltaZeroRate, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="zero-rate">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
             <span id="sa-tile-zero-hint" class="govuk-visually-hidden">Percentage of searches that returned no page or content-block hits. Click to show the zero-result-count-over-time chart.</span>
         </button>
     </div>
@@ -84,6 +162,16 @@
                 aria-describedby="sa-tile-p95-hint" aria-pressed="false">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.P95LatencyMs.ToString("N0", CultureInfo.CurrentCulture)&nbsp;ms</p>
             <p class="govuk-body-s sa-tile__label">P95 latency</p>
+            @if (Model.SummaryDeltas.Available && deltaP95.DeltaPercent >= 10)
+            {
+                <span class="sa-anomaly-chip @ChipClass(deltaP95.Sign, favourableUp: false)"
+                      data-sa-chip="p95">@ChipText(deltaP95, priorWindowDays)</span>
+            }
+            else if (!Model.SummaryDeltas.Available)
+            {
+                <span class="sa-anomaly-hint govuk-body-s"
+                      data-sa-chip="p95">compared to previous @priorWindowDays days — insufficient prior data</span>
+            }
             <span id="sa-tile-p95-hint" class="govuk-visually-hidden">The 95th-percentile search response time in milliseconds over this window; 5% of searches were slower than this. Click to show the latency-percentiles-over-time chart.</span>
         </button>
     </div>
@@ -124,10 +212,35 @@
     })
 </div>
 
+@* The latency tile drives TWO stacked panels — the top one is the percentile chart
+   (same partial as before) and the bottom one is the request-timings scatter. Both
+   panels carry data-sa-panel="latency" so the interactive tile switcher's key match
+   toggles both at once — a single map key, two visible panels. Progressive
+   enhancement: with JS disabled both panels remain visible along with every other
+   chart panel, so the page still tells the truth. *@
 <div class="sa-chart-panel" data-sa-panel="latency">
     <h2 class="govuk-heading-m">Latency percentiles over time</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_LatencyChart.cshtml", Model.LatencyPercentileSeries)
 </div>
+
+<div class="sa-chart-panel" data-sa-panel="latency">
+    <h2 class="govuk-heading-m">Request timings</h2>
+    @await Html.PartialAsync("~/Views/Admin/Search/_ScatterChart.cshtml", new DfE.CheckPerformanceData.Web.Controllers.ViewModels.ScatterChartModel
+    {
+        Points = Model.RequestTimings,
+        SampledCount = Model.RequestTimings.Count,
+        TotalCount = Model.RequestTimingsTotalCount,
+        DrillInUrl = $"/admin/Search/RequestTimings?{chartQuery}",
+    })
+</div>
+
+@* Heatmap card (weekday × hour-of-day). Server-rendered SVG grid — no client-side
+   chart library. Positioned between the interactive charts and the top-N tables. *@
+@await Html.PartialAsync("~/Views/Admin/Search/_WeekdayHourHeatmap.cshtml", Model.WeekdayHourGrid)
+
+@* Zero-result outcomes funnel card. Session-level rollup — the acceptance calls it
+   "wonderful for a client demo" so the empty-state copy and tile alignment matter. *@
+@await Html.PartialAsync("~/Views/Admin/Search/_ZeroResultFunnel.cshtml", Model.ZeroResultOutcomes)
 
 @* Top queries + top zero-result queries + top pages. Each in its own summary card so the
    three tables share layout conventions. Top pages replaces the old bottom link. *@

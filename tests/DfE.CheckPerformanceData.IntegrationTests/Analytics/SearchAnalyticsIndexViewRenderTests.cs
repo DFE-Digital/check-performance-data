@@ -351,6 +351,11 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             LatencyPercentileSeries = latencySeries ?? Array.Empty<LatencyBucket>(),
             TopPages = pages,
             TopPagesTotalCount = topPagesTotalCount ?? pages.Count,
+            RequestTimings = Array.Empty<RequestTimingPoint>(),
+            RequestTimingsTotalCount = 0,
+            WeekdayHourGrid = ZeroFilledWeekdayHourGrid(),
+            ZeroResultOutcomes = new ZeroResultOutcomeSummary(0, 0, 0, 0, 0),
+            SummaryDeltas = new SearchAnalyticsSummaryDeltas(0, 0, 0d, 0, Available: false),
         };
     }
 
@@ -373,6 +378,24 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             LatencyPercentileSeries = Array.Empty<LatencyBucket>(),
             TopPages = Array.Empty<TopPageRow>(),
             TopPagesTotalCount = 0,
+            RequestTimings = Array.Empty<RequestTimingPoint>(),
+            RequestTimingsTotalCount = 0,
+            WeekdayHourGrid = ZeroFilledWeekdayHourGrid(),
+            ZeroResultOutcomes = new ZeroResultOutcomeSummary(0, 0, 0, 0, 0),
+            SummaryDeltas = new SearchAnalyticsSummaryDeltas(0, 0, 0d, 0, Available: false),
         };
+    }
+
+    private static IReadOnlyList<WeekdayHourBucket> ZeroFilledWeekdayHourGrid()
+    {
+        var grid = new List<WeekdayHourBucket>(168);
+        for (var w = 1; w <= 7; w++)
+        {
+            for (var h = 0; h < 24; h++)
+            {
+                grid.Add(new WeekdayHourBucket(w, h, 0));
+            }
+        }
+        return grid;
     }
 }

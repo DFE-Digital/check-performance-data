@@ -45,4 +45,29 @@ public sealed class SearchAnalyticsIndexViewModel
     // "View all top pages by search impressions →" link below the card that lands on
     // /admin/Search/Pages.
     public required int TopPagesTotalCount { get; init; }
+
+    // A sampled slice of individual search events for the request-timings scatter chart
+    // that renders BELOW the latency-percentiles chart when the latency tile is active.
+    // Sampled to no more than ~2000 rows to keep the DOM tight; the caller renders a
+    // "showing X of Y" hint underneath when RequestTimings.Count < RequestTimingsTotalCount.
+    public required IReadOnlyList<RequestTimingPoint> RequestTimings { get; init; }
+
+    // Total (unsampled) search event count in the current window. Drives the "sampled X of
+    // Y" hint below the scatter and the visibility of the "open the paged view" link.
+    public required int RequestTimingsTotalCount { get; init; }
+
+    // 7 × 24 = 168 buckets, zero-filled, for the weekday × hour-of-day heatmap card.
+    // Ordered by (weekday ascending, hour ascending) so the view iterates row by row —
+    // one heatmap row per weekday.
+    public required IReadOnlyList<WeekdayHourBucket> WeekdayHourGrid { get; init; }
+
+    // Session-level rollup of "what happened after a zero-result search" for the funnel
+    // card. All zeros is a valid state (rendered as an empty-state message).
+    public required ZeroResultOutcomeSummary ZeroResultOutcomes { get; init; }
+
+    // Prior-window figures for the anomaly chips beneath each of the four stat tiles.
+    // When Available == false the view hides every chip and renders an "insufficient
+    // prior data" hint (a custom range spanning > 45 days puts the prior window outside
+    // the sink's 90-day retention).
+    public required SearchAnalyticsSummaryDeltas SummaryDeltas { get; init; }
 }

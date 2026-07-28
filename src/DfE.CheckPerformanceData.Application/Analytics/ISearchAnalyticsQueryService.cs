@@ -111,6 +111,48 @@ public interface ISearchAnalyticsQueryService
         VolumeBucketSize bucketSize,
         CancellationToken cancellationToken = default);
 
+    // Paged variant of GetVolumeOverTimeAsync — one page of the same zero-filled
+    // gap-filled bucket spine plus the total bucket count. TotalCount is the number of
+    // buckets in the window at the requested bucket size (deterministic from window +
+    // bucketSize), which drives the pager on the /admin/Search/Volume drill-in view.
+    Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetUniqueSessionsOverTimeAsync — same shape as the paged volume
+    // reader, count of distinct session_ids per bucket carried in VolumeBucket.SearchCount.
+    Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedUniqueSessionsOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetZeroResultCountOverTimeAsync — same shape as the paged volume
+    // reader, count of zero_results = true events per bucket in VolumeBucket.SearchCount.
+    Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedZeroResultCountOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Paged variant of GetLatencyPercentilesOverTimeAsync — same shape but with the
+    // LatencyBucket row shape (p5 / p50 / p95 rounded to whole ms).
+    Task<(IReadOnlyList<LatencyBucket> Rows, int TotalCount)> GetPagedLatencyPercentilesOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     // Paged variant of GetTopQueriesAsync: returns one page of the ordered top queries
     // together with the total distinct-query count so the view can render pagination.
     // The COUNT and the page share the identical WHERE / GROUP BY so the total matches

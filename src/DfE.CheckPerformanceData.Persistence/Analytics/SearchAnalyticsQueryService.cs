@@ -449,6 +449,42 @@ ORDER BY b.bucket;";
             _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
         };
 
+    public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedVolumeOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedUniqueSessionsOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedZeroResultCountOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
+    public Task<(IReadOnlyList<LatencyBucket> Rows, int TotalCount)> GetPagedLatencyPercentilesOverTimeAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        VolumeBucketSize bucketSize,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException();
+
     public async Task<(IReadOnlyList<TopQueryRow> Rows, int TotalCount)> GetPagedTopQueriesAsync(
         DateTime fromUtc,
         DateTime toUtc,

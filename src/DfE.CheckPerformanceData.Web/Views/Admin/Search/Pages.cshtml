@@ -7,6 +7,12 @@
     const string tableId = "sa-pages-table";
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    // Result keys that look like a URL become new-tab links. Anything else (block keys,
+    // rare content-block-only impressions) renders in-place — the drill-in table's job
+    // is to show the raw key, not to guess a landing page.
+    static bool LooksLikeUrl(string key) =>
+        !string.IsNullOrEmpty(key) && (key.StartsWith('/') || key.StartsWith("http", StringComparison.OrdinalIgnoreCase));
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -48,7 +54,17 @@ else
             @foreach (var row in Model.Rows)
             {
                 <tr class="govuk-table__row" data-filter-key="@row.ResultKey">
-                    <td class="govuk-table__cell">@row.ResultKey</td>
+                    <td class="govuk-table__cell">
+                        @if (LooksLikeUrl(row.ResultKey))
+                        {
+                            <a class="govuk-link" href="@row.ResultKey"
+                               target="_blank" rel="noopener noreferrer">@row.ResultKey</a>
+                        }
+                        else
+                        {
+                            @row.ResultKey
+                        }
+                    </td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.UniqueQueryCount.ToString("N0", CultureInfo.CurrentCulture)</td>
                 </tr>

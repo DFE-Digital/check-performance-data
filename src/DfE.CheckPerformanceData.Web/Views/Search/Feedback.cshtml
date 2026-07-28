@@ -13,6 +13,22 @@
     var whatGotInitial = !string.IsNullOrEmpty(Model.WhatGot)
         ? Model.WhatGot
         : Model.PriorSearchPrefill;
+
+    // Resolves a clickable href for one hit in the "Your last search" list.
+    //   - pages: the ResultKey already IS the URL — use it verbatim.
+    //   - well-known content blocks: "home" maps to the site root so a user searching for
+    //     the homepage lands somewhere useful rather than nowhere.
+    //   - anything else: surface a self-service link to /search?q=<block-key> so the user
+    //     can inspect what the site would have returned for that key.
+    // Never renders a bare unlinked hit.
+    static string ResolveHitHref(string kind, string key)
+    {
+        if (string.Equals(kind, "page", StringComparison.OrdinalIgnoreCase))
+            return key;
+        if (string.Equals(key, "home", StringComparison.OrdinalIgnoreCase))
+            return "/";
+        return "/search?q=" + Uri.EscapeDataString(key);
+    }
 }
 
 <div class="govuk-grid-row">
@@ -62,15 +78,14 @@
                             @foreach (var hit in prior.Hits)
                             {
                                 <li>
-                                    @if (string.Equals(hit.Kind, "page", StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        <a class="govuk-link" href="@hit.Key">@hit.Key</a>
-                                    }
-                                    else
-                                    {
-                                        <code>@hit.Key</code>
-                                    }
-                                    <span class="govuk-hint govuk-!-display-inline-block govuk-!-margin-left-2">@hit.Kind</span>
+                                    @* Every hit renders as a link opening in a new tab so the user
+                                       can inspect the result without losing their place on the
+                                       feedback form. No kind label — the user does not care about
+                                       the page-vs-block distinction, only about whether the link
+                                       goes somewhere useful. *@
+                                    <a class="govuk-link"
+                                       href="@ResolveHitHref(hit.Kind, hit.Key)"
+                                       target="_blank" rel="noopener noreferrer">@hit.Key</a>
                                 </li>
                             }
                         </ol>

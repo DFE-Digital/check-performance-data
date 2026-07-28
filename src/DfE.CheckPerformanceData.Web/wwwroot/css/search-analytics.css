@@ -91,3 +91,27 @@
     max-width: 20em;
     margin-bottom: 8px;
 }
+
+/* --- Tile tooltip cue --------------------------------------------------- */
+
+/* Give tiles a subtle "hover me" cursor so the tooltip is discoverable. */
+.sa-tile[title] {
+    cursor: help;
+}
+
+/* --- Summary card housing top-queries + top-zero-results tables --------- */
+
+/* The dashboard's stacked cards use the standard govuk-summary-card component; the
+   only override is small vertical padding so the caption sits closer to the table. */
+.sa-summary-card .govuk-table {
+    margin-bottom: 0;
+}
+
+/* --- Chart axis text ---------------------------------------------------- */
+
+/* Both axis-tick labels and axis-title labels render as native <text>. They inherit
+   the SVG's font stack so they match the surrounding body copy without extra CSS. */
+.sa-chart__axis-tick,
+.sa-chart__axis-title {
+    font-family: "GDS Transport", arial, sans-serif;
+}

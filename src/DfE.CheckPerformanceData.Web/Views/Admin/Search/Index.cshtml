@@ -9,6 +9,11 @@
 
     static string FormatPercent(double value) =>
         value.ToString("0.0", CultureInfo.InvariantCulture) + "%";
+
+    // Query cells link to /search?q=<query> in a new tab so admins can click into the
+    // site's own search results for the term they're investigating.
+    static string QuerySearchHref(string query) =>
+        "/search?q=" + Uri.EscapeDataString(query);
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -60,101 +65,158 @@
         </div>
     </div>
 
+    <div class="govuk-form-group">
+        <fieldset class="govuk-fieldset">
+            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Chart bucket size</legend>
+            <div class="govuk-radios govuk-radios--inline" data-module="govuk-radios">
+                @foreach (var (value, label) in new[]
+                {
+                    ("15m", "15 minutes"),
+                    ("1h",  "1 hour"),
+                    ("1d",  "1 day"),
+                    ("1w",  "1 week"),
+                    ("1mo", "1 month"),
+                })
+                {
+                    var id = "bucket-" + value;
+                    <div class="govuk-radios__item">
+                        <input class="govuk-radios__input" id="@id" name="bucket" type="radio"
+                               value="@value" @(Model.BucketKey == value ? "checked=\"checked\"" : "") />
+                        <label class="govuk-label govuk-radios__label" for="@id">@label</label>
+                    </div>
+                }
+            </div>
+        </fieldset>
+    </div>
+
     <div class="govuk-button-group">
         <button class="govuk-button" data-module="govuk-button" type="submit">Apply filters</button>
         <a class="govuk-link" href="/admin/Search/">Reset to last 7 days</a>
     </div>
 </form>
 
+@* Each tile carries a native title attribute (hover tooltip) AND an aria-describedby
+   pointing at a govuk-visually-hidden hint so keyboard + screen-reader users get the same
+   explanation. Copy is fixed — the tile shows a number, the hint explains what the number
+   is counting. *@
 <div class="govuk-grid-row sa-tiles">
     <div class="govuk-grid-column-one-quarter">
-        <div class="sa-tile">
+        <div class="sa-tile" title="Total search requests captured in this time window."
+             aria-describedby="sa-tile-searches-hint">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.TotalCount.ToString("N0", CultureInfo.CurrentCulture)</p>
             <p class="govuk-body-s sa-tile__label">Searches</p>
+            <span id="sa-tile-searches-hint" class="govuk-visually-hidden">Total search requests captured in this time window.</span>
         </div>
     </div>
     <div class="govuk-grid-column-one-quarter">
-        <div class="sa-tile">
+        <div class="sa-tile" title="Distinct anonymous session IDs that ran at least one search in this window."
+             aria-describedby="sa-tile-users-hint">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.UniqueSessions.ToString("N0", CultureInfo.CurrentCulture)</p>
             <p class="govuk-body-s sa-tile__label">Unique users</p>
+            <span id="sa-tile-users-hint" class="govuk-visually-hidden">Distinct anonymous session IDs that ran at least one search in this window.</span>
         </div>
     </div>
     <div class="govuk-grid-column-one-quarter">
-        <div class="sa-tile">
+        <div class="sa-tile" title="Percentage of searches that returned no page or content-block hits."
+             aria-describedby="sa-tile-zero-hint">
             <p class="govuk-heading-xl sa-tile__value">@FormatPercent(Model.Summary.ZeroResultRatePercent)</p>
             <p class="govuk-body-s sa-tile__label">Zero-result rate</p>
+            <span id="sa-tile-zero-hint" class="govuk-visually-hidden">Percentage of searches that returned no page or content-block hits.</span>
         </div>
     </div>
     <div class="govuk-grid-column-one-quarter">
-        <div class="sa-tile">
+        <div class="sa-tile" title="The 95th-percentile search response time (in milliseconds) over this window — 5% of searches were slower than this."
+             aria-describedby="sa-tile-p95-hint">
             <p class="govuk-heading-xl sa-tile__value">@Model.Summary.P95LatencyMs.ToString("N0", CultureInfo.CurrentCulture)&nbsp;ms</p>
             <p class="govuk-body-s sa-tile__label">P95 latency</p>
+            <span id="sa-tile-p95-hint" class="govuk-visually-hidden">The 95th-percentile search response time in milliseconds over this window; 5% of searches were slower than this.</span>
         </div>
     </div>
 </div>
 
 @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.VolumeSeries)
 
+@* Top queries and top zero-result queries are stacked full-width in their own summary
+   cards. The earlier side-by-side layout crammed both headers into narrow columns and
+   made column widths differ between the two — visually hard to read. Stacking gives
+   each table the full row and lets the four data columns line up predictably. *@
 <div class="govuk-grid-row">
-    <div class="govuk-grid-column-one-half">
-        <h2 class="govuk-heading-m">Top queries</h2>
-        @if (Model.TopQueries.Count == 0)
-        {
-            <p class="govuk-body">No queries recorded in this window.</p>
-        }
-        else
-        {
-            <table class="govuk-table">
-                <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopQueries.Count queries in the selected window</caption>
-                <thead class="govuk-table__head">
-                    <tr class="govuk-table__row">
-                        <th class="govuk-table__header" scope="col">Query</th>
-                        <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
-                        <th class="govuk-table__header govuk-table__header--numeric" scope="col">Zero-result count</th>
-                    </tr>
-                </thead>
-                <tbody class="govuk-table__body">
-                    @foreach (var row in Model.TopQueries)
-                    {
-                        <tr class="govuk-table__row">
-                            <td class="govuk-table__cell">@row.QueryNormalised</td>
-                            <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
-                            <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?range=@Model.RangeKey">View all top queries &rarr;</a></p>
-        }
-    </div>
-    <div class="govuk-grid-column-one-half">
-        <h2 class="govuk-heading-m">Top zero-result queries</h2>
-        @if (Model.TopZeroResultQueries.Count == 0)
-        {
-            <p class="govuk-body">No zero-result queries recorded in this window.</p>
-        }
-        else
-        {
-            <table class="govuk-table">
-                <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopZeroResultQueries.Count zero-result queries in the selected window</caption>
-                <thead class="govuk-table__head">
-                    <tr class="govuk-table__row">
-                        <th class="govuk-table__header" scope="col">Query</th>
-                        <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
-                    </tr>
-                </thead>
-                <tbody class="govuk-table__body">
-                    @foreach (var row in Model.TopZeroResultQueries)
-                    {
-                        <tr class="govuk-table__row">
-                            <td class="govuk-table__cell">@row.QueryNormalised</td>
-                            <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-            <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?range=@Model.RangeKey">View all zero-result queries &rarr;</a></p>
-        }
+    <div class="govuk-grid-column-full">
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top queries</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopQueries.Count == 0)
+                {
+                    <p class="govuk-body">No queries recorded in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopQueries.Count queries in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Zero-result count</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopQueries)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell">
+                                        <a class="govuk-link" href="@QuerySearchHref(row.QueryNormalised)"
+                                           target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
+                                    </td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?range=@Model.RangeKey">View all top queries &rarr;</a></p>
+                }
+            </div>
+        </div>
+
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top zero-result queries</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopZeroResultQueries.Count == 0)
+                {
+                    <p class="govuk-body">No zero-result queries recorded in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopZeroResultQueries.Count zero-result queries in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col">Query</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col">Searches</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopZeroResultQueries)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell">
+                                        <a class="govuk-link" href="@QuerySearchHref(row.QueryNormalised)"
+                                           target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
+                                    </td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?range=@Model.RangeKey">View all zero-result queries &rarr;</a></p>
+                }
+            </div>
+        </div>
     </div>
 </div>
 

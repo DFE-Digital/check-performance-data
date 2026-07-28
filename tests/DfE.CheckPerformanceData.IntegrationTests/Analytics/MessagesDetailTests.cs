@@ -114,7 +114,7 @@ public sealed class MessagesDetailTests
 
         var html = await MessagesInboxTests.RenderViewAsync("/Views/Admin/Messages/Detail.cshtml", model);
 
-        Assert.Contains("no reply address provided", html);
+        Assert.Contains("no email — user did not want to be contacted", html);
     }
 
     [Fact]

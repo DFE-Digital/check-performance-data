@@ -168,15 +168,36 @@ LIMIT @limit;";
             .CountAsync(cancellationToken);
     }
 
-    public async Task<SearchEventForPrefill?> GetLatestSearchForSessionAsync(
+    public Task<SearchEventForPrefill?> GetLatestSearchForSessionAsync(
         string sessionId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ReadLatestSearchForSessionAsync(sessionId, atOrBeforeUtc: null, cancellationToken);
+
+    public Task<SearchEventForPrefill?> GetLatestSearchForSessionAtOrBeforeAsync(
+        string sessionId,
+        DateTime atOrBeforeUtc,
+        CancellationToken cancellationToken = default) =>
+        ReadLatestSearchForSessionAsync(sessionId, atOrBeforeUtc, cancellationToken);
+
+    // Shared read backing both public overloads. The window bound is optional: null means "no
+    // upper bound" (feedback-form pre-fill: newest overall); a value means "at or before this
+    // instant" (admin-message-detail: what the user was looking at when they submitted). The
+    // hits reader is identical either way.
+    private async Task<SearchEventForPrefill?> ReadLatestSearchForSessionAsync(
+        string sessionId,
+        DateTime? atOrBeforeUtc,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(sessionId))
             return null;
 
-        var latest = await _dbContext.SearchEvents
-            .Where(e => e.SessionId == sessionId)
+        var query = _dbContext.SearchEvents.Where(e => e.SessionId == sessionId);
+        if (atOrBeforeUtc is { } bound)
+        {
+            query = query.Where(e => e.OccurredAtUtc <= bound);
+        }
+
+        var latest = await query
             .OrderByDescending(e => e.OccurredAtUtc)
             .Select(e => new { e.Id, e.QueryRaw, e.QueryNormalised, e.ResultsTotal, e.OccurredAtUtc })
             .FirstOrDefaultAsync(cancellationToken);
@@ -184,8 +205,8 @@ LIMIT @limit;";
         if (latest is null)
             return null;
 
-        // Fetch the hits for that event in rendered order so the feedback form can show the
-        // user "here are the results you saw". Kept in-memory small (top 20 by Position);
+        // Fetch the hits for that event in rendered order so the caller can show
+        // "here are the results the user saw". Kept in-memory small (top 20 by Position);
         // that is more than any /search result page shows so nothing gets clipped visually,
         // and the sink already bounds impressions per event elsewhere.
         var hits = await _dbContext.SearchEventResults

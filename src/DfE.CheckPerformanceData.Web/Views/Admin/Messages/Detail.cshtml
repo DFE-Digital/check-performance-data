@@ -3,12 +3,106 @@
 @{
     ViewData["Title"] = "Search feedback message";
     var m = Model.Message;
+
+    // Mirrors the ResolveHitHref helper used on Views/Search/Feedback.cshtml so the admin
+    // detail view surfaces every hit as a clickable link with the same semantics the user
+    // saw when filing the note.
+    //   - pages: the ResultKey already IS a URL, use it verbatim.
+    //   - well-known content block "home": maps to the site root.
+    //   - anything else: /search?q=<key> so the admin can inspect what the site returns.
+    static string ResolveHitHref(string kind, string key)
+    {
+        if (string.Equals(kind, "page", StringComparison.OrdinalIgnoreCase))
+            return key;
+        if (string.Equals(key, "home", StringComparison.OrdinalIgnoreCase))
+            return "/";
+        return "/search?q=" + Uri.EscapeDataString(key);
+    }
 }
 
 <a class="govuk-back-link" href="/admin/Messages/Inbox">Back to search feedback</a>
 
 <h1 class="govuk-heading-xl">Search feedback message</h1>
 
+@* User-typed content leads. The reviewer needs the note itself before any metadata. *@
+
+<h2 class="govuk-heading-m">What were you looking for?</h2>
+<p class="govuk-body" style="white-space: pre-wrap">@m.WhatLookingFor</p>
+
+<h2 class="govuk-heading-m">What did you actually get?</h2>
+@if (string.IsNullOrWhiteSpace(m.WhatGot))
+{
+    <p class="govuk-hint">Not supplied.</p>
+}
+else
+{
+    <p class="govuk-body" style="white-space: pre-wrap">@m.WhatGot</p>
+}
+
+@* Snapshot of the search the user was looking at when they submitted the note. Matches
+   the panel shape on Views/Search/Feedback.cshtml so the admin sees exactly what the
+   user saw when they clicked through to file the message. *@
+@if (Model.PriorSearch is { } prior)
+{
+    <div class="govuk-summary-card govuk-!-margin-top-4">
+        <div class="govuk-summary-card__title-wrapper">
+            <h2 class="govuk-summary-card__title">Their last search on this site</h2>
+        </div>
+        <div class="govuk-summary-card__content">
+            <dl class="govuk-summary-list">
+                <div class="govuk-summary-list__row">
+                    <dt class="govuk-summary-list__key">Query</dt>
+                    <dd class="govuk-summary-list__value">@prior.Query</dd>
+                </div>
+                <div class="govuk-summary-list__row">
+                    <dt class="govuk-summary-list__key">When</dt>
+                    <dd class="govuk-summary-list__value">
+                        @prior.OccurredAtUtc.ToString("HH:mm", CultureInfo.InvariantCulture) on @prior.OccurredAtUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture) (UTC)
+                    </dd>
+                </div>
+                <div class="govuk-summary-list__row">
+                    <dt class="govuk-summary-list__key">Results returned</dt>
+                    <dd class="govuk-summary-list__value">@prior.ResultsTotal.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                </div>
+            </dl>
+
+            @if (prior.Hits.Count == 0)
+            {
+                <p class="govuk-body">No results were returned for that search.</p>
+            }
+            else
+            {
+                <h3 class="govuk-heading-s">Results the search returned</h3>
+                <ol class="govuk-list govuk-list--number">
+                    @foreach (var hit in prior.Hits)
+                    {
+                        <li>
+                            <a class="govuk-link"
+                               href="@ResolveHitHref(hit.Kind, hit.Key)"
+                               target="_blank" rel="noopener noreferrer">@hit.Key</a>
+                        </li>
+                    }
+                </ol>
+                @if (prior.Hits.Count < prior.ResultsTotal)
+                {
+                    <p class="govuk-hint">
+                        Showing the first @prior.Hits.Count of @prior.ResultsTotal results.
+                    </p>
+                }
+            }
+        </div>
+    </div>
+}
+else
+{
+    <p class="govuk-hint govuk-!-margin-top-2">
+        The session had no recorded search before this feedback was submitted.
+    </p>
+}
+
+@* Metadata trails the user-facing content. *@
+
+<h2 class="govuk-heading-m govuk-!-margin-top-6">Message details</h2>
 <dl class="govuk-summary-list">
     <div class="govuk-summary-list__row">
         <dt class="govuk-summary-list__key">Submitted</dt>
@@ -27,7 +121,7 @@
         <dd class="govuk-summary-list__value">
             @if (string.IsNullOrWhiteSpace(m.Email))
             {
-                <span class="govuk-hint govuk-!-margin-bottom-0">no reply address provided</span>
+                <span class="govuk-hint govuk-!-margin-bottom-0">no email — user did not want to be contacted</span>
             }
             else
             {
@@ -53,19 +147,6 @@
         </dd>
     </div>
 </dl>
-
-<h2 class="govuk-heading-m">What were you looking for?</h2>
-<p class="govuk-body" style="white-space: pre-wrap">@m.WhatLookingFor</p>
-
-<h2 class="govuk-heading-m">What did you actually get?</h2>
-@if (string.IsNullOrWhiteSpace(m.WhatGot))
-{
-    <p class="govuk-hint">Not supplied.</p>
-}
-else
-{
-    <p class="govuk-body" style="white-space: pre-wrap">@m.WhatGot</p>
-}
 
 <div class="govuk-button-group govuk-!-margin-top-4">
     @if (!m.IsRead)

@@ -51,6 +51,15 @@ public interface ISearchAnalyticsQueryService
         string sessionId,
         CancellationToken cancellationToken = default);
 
+    // The newest search event for the given session id whose occurred_at_utc is at or
+    // before the supplied bound, or null if no such event exists. Used by the admin
+    // message-detail page so the reviewer sees the search snapshot the user was
+    // looking at when they submitted the note — a later search would be misleading.
+    Task<SearchEventForPrefill?> GetLatestSearchForSessionAtOrBeforeAsync(
+        string sessionId,
+        DateTime atOrBeforeUtc,
+        CancellationToken cancellationToken = default);
+
     // Bucketed search + unique-session count over the window, used by the volume-over-time
     // chart. Auto-picks a bucket granularity based on window width: <= 48h → hour,
     // <= 30d → day, wider → week. Every bucket in the range is returned — empty buckets

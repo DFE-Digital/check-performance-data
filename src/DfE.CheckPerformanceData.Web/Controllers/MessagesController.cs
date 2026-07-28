@@ -25,15 +25,18 @@ public sealed class MessagesController : Controller
     private readonly ISearchMessageService _messages;
     private readonly ISettingService _settings;
     private readonly ICurrentUserService? _currentUserService;
+    private readonly ISearchAnalyticsQueryService? _analyticsQuery;
 
     public MessagesController(
         ISearchMessageService messages,
         ISettingService settings,
-        ICurrentUserService? currentUserService = null)
+        ICurrentUserService? currentUserService = null,
+        ISearchAnalyticsQueryService? analyticsQuery = null)
     {
         _messages = messages;
         _settings = settings;
         _currentUserService = currentUserService;
+        _analyticsQuery = analyticsQuery;
     }
 
     // Group landing: renders the two Messages child tiles (Search feedback + Dead-letter
@@ -100,8 +103,37 @@ public sealed class MessagesController : Controller
             return NotFound();
         }
 
+        // Look up the search the session was running when they submitted the note so the
+        // reviewer can see WHAT the user was looking at — a later search would misrepresent
+        // the moment. Falls back to null when either the analytics reader is not wired
+        // (bare unit-test construction) or the session had no pre-submission search.
+        PriorSearchDisplay? priorSearch = null;
+        if (_analyticsQuery is not null)
+        {
+            var latest = await _analyticsQuery.GetLatestSearchForSessionAtOrBeforeAsync(
+                detail.SessionId, detail.SubmittedAtUtc, ct);
+            priorSearch = latest is null ? null : ToDisplay(latest);
+        }
+
         return View("~/Views/Admin/Messages/Detail.cshtml",
-            new MessagesDetailViewModel { Message = detail });
+            new MessagesDetailViewModel
+            {
+                Message = detail,
+                PriorSearch = priorSearch,
+            });
+    }
+
+    // Projects the query-service DTO into the view-model display record; the view file
+    // sits above the Application-layer DTO shape in the dependency graph so this mapping
+    // stays in the controller. Mirrors SearchFeedbackController.ToDisplay verbatim so the
+    // admin sees the same shape the user filed a message about.
+    private static PriorSearchDisplay ToDisplay(SearchEventForPrefill latest)
+    {
+        var query = latest.QueryRaw ?? latest.QueryNormalised ?? string.Empty;
+        var hits = latest.Hits
+            .Select(h => new PriorSearchHit(h.Position, h.ResultKind, h.ResultKey))
+            .ToList();
+        return new PriorSearchDisplay(query, latest.OccurredAtUtc, latest.ResultsTotal, hits);
     }
 
     [HttpPost("Inbox/{id:long}/MarkRead")]

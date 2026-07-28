@@ -1,7 +1,7 @@
 @using System.Globalization
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.MessagesInboxViewModel
 @{
-    ViewData["Title"] = "Messages inbox";
+    ViewData["Title"] = "Search feedback";
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
 
@@ -38,7 +38,7 @@
         sessionId.Length <= 8 ? sessionId : sessionId.Substring(0, 8) + "…";
 }
 
-<h1 class="govuk-heading-xl">Messages inbox</h1>
+<h1 class="govuk-heading-xl">Search feedback</h1>
 
 <p class="govuk-body">
     Feedback submitted from the site's search results. Mark a message read for the team

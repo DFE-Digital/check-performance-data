@@ -1,4 +1,5 @@
 using System.Reflection;
+using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Settings;
@@ -9,6 +10,7 @@ using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
@@ -112,7 +114,7 @@ public sealed class MessagesDetailTests
 
         var html = await MessagesInboxTests.RenderViewAsync("/Views/Admin/Messages/Detail.cshtml", model);
 
-        Assert.Contains("no reply address provided", html);
+        Assert.Contains("no email — user did not want to be contacted", html);
     }
 
     [Fact]
@@ -191,20 +193,145 @@ public sealed class MessagesDetailTests
         Assert.NotEmpty(attrs);
     }
 
+    // --- Detail includes the user's prior-search snapshot on the view model ---
+
+    [Fact]
+    public async Task Detail_PopulatesPriorSearch_FromNewestEventAtOrBeforeSubmission()
+    {
+        await TruncateMessagesAsync();
+        await TruncateSearchEventsAsync();
+
+        await using var messagesContext = _fixture.CreateContext();
+        var messages = new DbSearchMessageService(messagesContext);
+        var id = await messages.CreateAsync(
+            "session-with-history",
+            "cannot find the widget page",
+            null,
+            null,
+            CancellationToken.None);
+
+        // Seed a search that happened BEFORE the message and one AFTER it. The detail view
+        // must render the pre-submission search — a later one is not what the user was
+        // looking at when they submitted the note.
+        var submittedAt = (await messages.GetByIdAsync(id, CancellationToken.None))!.SubmittedAtUtc;
+        var eventBefore = new SearchEvent
+        {
+            OccurredAtUtc = submittedAt.AddMinutes(-1),
+            SessionId = "session-with-history",
+            QueryRaw = "widget",
+            QueryNormalised = "widget",
+            ResultsPages = 2,
+            ResultsBlocks = 0,
+            LatencyMs = 12,
+        };
+        var eventAfter = new SearchEvent
+        {
+            OccurredAtUtc = submittedAt.AddMinutes(5),
+            SessionId = "session-with-history",
+            QueryRaw = "later query",
+            QueryNormalised = "later query",
+            ResultsPages = 4,
+            ResultsBlocks = 0,
+            LatencyMs = 20,
+        };
+        await using (var eventsContext = _fixture.CreateContext())
+        {
+            eventsContext.SearchEvents.AddRange(eventBefore, eventAfter);
+            await eventsContext.SaveChangesAsync();
+            eventsContext.SearchEventResults.AddRange(
+                new SearchEventResult { SearchEventId = eventBefore.Id, Position = 1, ResultKind = "page",  ResultKey = "/help/widget-guide" },
+                new SearchEventResult { SearchEventId = eventBefore.Id, Position = 2, ResultKind = "block", ResultKey = "home" });
+            await eventsContext.SaveChangesAsync();
+        }
+
+        var queryService = new SearchAnalyticsQueryService(_fixture.CreateContext());
+        var controller = BuildController(messages, queryService, currentUserSub: "admin-sub");
+
+        var result = await controller.Detail(id, CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<MessagesDetailViewModel>(view.Model);
+        Assert.NotNull(model.PriorSearch);
+        Assert.Equal("widget", model.PriorSearch!.Query);
+        Assert.Equal(2, model.PriorSearch.ResultsTotal);
+        Assert.Equal(2, model.PriorSearch.Hits.Count);
+        Assert.Equal("/help/widget-guide", model.PriorSearch.Hits[0].Key);
+        Assert.Equal("home", model.PriorSearch.Hits[1].Key);
+    }
+
+    // --- Detail view renders the user's typed content + prior-search hits list ---
+
+    [Fact]
+    public async Task DetailView_WithPriorSearch_RendersHitsListWithNewTabLinks()
+    {
+        var model = new MessagesDetailViewModel
+        {
+            Message = new SearchMessageDetail(
+                Id: 99,
+                SubmittedAtUtc: new DateTime(2026, 07, 28, 10, 0, 0, DateTimeKind.Utc),
+                SessionId: "session-99",
+                WhatLookingFor: "I typed this exact question",
+                WhatGot: null,
+                Email: null,
+                IsRead: false,
+                ReadByAdminSub: null,
+                ReadAtUtc: null),
+            PriorSearch = new PriorSearchDisplay(
+                Query: "the query the user ran",
+                OccurredAtUtc: new DateTime(2026, 07, 28, 9, 59, 0, DateTimeKind.Utc),
+                ResultsTotal: 2,
+                Hits: new[]
+                {
+                    new PriorSearchHit(1, "page",  "/help/widget-guide"),
+                    new PriorSearchHit(2, "block", "home"),
+                }),
+        };
+
+        var html = await MessagesInboxTests.RenderViewAsync("/Views/Admin/Messages/Detail.cshtml", model);
+
+        // The user's typed question is rendered verbatim.
+        Assert.Contains("I typed this exact question", html);
+        // Prior-search panel: query + count + numbered list.
+        Assert.Contains("the query the user ran", html);
+        Assert.Contains("govuk-list--number", html);
+        // Every hit renders as a target=_blank link.
+        Assert.Contains("href=\"/help/widget-guide\"", html);
+        Assert.Contains("target=\"_blank\"", html);
+        // The block key 'home' resolves to /.
+        Assert.Contains("href=\"/\"", html);
+    }
+
     // ---- Helpers ----
 
-    private static MessagesController BuildController(ISearchMessageService messages, string currentUserSub)
+    private static MessagesController BuildController(
+        ISearchMessageService messages,
+        string currentUserSub,
+        ISearchAnalyticsQueryService? query = null)
     {
         var settings = Substitute.For<ISettingService>();
         settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(currentUserSub);
 
-        var controller = new MessagesController(messages, settings, currentUser);
+        var controller = new MessagesController(messages, settings, currentUser, query);
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
         controller.TempData = new TempDataDictionary(
             controller.HttpContext, Substitute.For<ITempDataProvider>());
         return controller;
+    }
+
+    private static MessagesController BuildController(
+        ISearchMessageService messages,
+        ISearchAnalyticsQueryService query,
+        string currentUserSub) => BuildController(messages, currentUserSub, query);
+
+    private async Task TruncateSearchEventsAsync()
+    {
+        await using var conn = new Npgsql.NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "TRUNCATE search_events RESTART IDENTITY CASCADE;";
+        await cmd.ExecuteNonQueryAsync();
     }
 
     private async Task TruncateMessagesAsync()

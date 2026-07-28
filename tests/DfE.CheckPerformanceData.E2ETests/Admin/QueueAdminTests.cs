@@ -72,10 +72,10 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
         }
     }
 
-    // --- Top-bar DLQ badge renders and links to the DLQ view (D-06) ---
+    // --- Top-bar Messages badge renders and links to the Messages group landing ---
 
     [Fact]
-    public async Task AdminChrome_RendersDlqBadge_LinkingToDlqView()
+    public async Task AdminChrome_RendersMessagesBadge_LinkingToMessagesLanding()
     {
         try
         {
@@ -88,9 +88,11 @@ public sealed class QueueAdminTests(PlaywrightFixture fixture)
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            // The admin chrome carries a DLQ-count badge linking to the DLQ view.
+            // The admin chrome carries a single consolidated Messages badge linking to the
+            // group landing; the individual DLQ inbox is still reachable from the sidebar.
             var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("/admin/queues/dlq", body);
+            Assert.Contains("href=\"/admin/Messages\"", body);
+            Assert.DoesNotContain("href=\"/admin/queues/dlq\"><strong", body);
         }
         finally
         {

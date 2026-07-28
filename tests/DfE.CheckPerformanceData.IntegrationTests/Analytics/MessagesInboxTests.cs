@@ -191,7 +191,7 @@ public sealed class MessagesInboxTests
 
         var html = await RenderViewAsync("/Views/Admin/Messages/Inbox.cshtml", model);
 
-        Assert.Contains("Messages inbox", html);
+        Assert.Contains("Search feedback", html);
         Assert.Contains("govuk-table", html);
         Assert.Contains("Submitted", html);
         Assert.Contains("Session", html);

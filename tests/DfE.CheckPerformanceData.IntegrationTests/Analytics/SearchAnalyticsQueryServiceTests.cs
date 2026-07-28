@@ -247,6 +247,49 @@ public sealed class SearchAnalyticsQueryServiceTests
         Assert.Null(latest);
     }
 
+    // --- GetLatestSearchForSessionAtOrBeforeAsync — bounds to a supplied timestamp ---
+
+    [Fact]
+    public async Task GetLatestSearchForSessionAtOrBefore_ReturnsNewestRowAtOrBeforeTheBound()
+    {
+        await ResetSearchEventsAsync();
+        var now = DateTime.UtcNow;
+        var boundary = now.AddMinutes(-15);
+
+        await SeedAsync(
+            // Older than the bound — a candidate for the "newest at or before" answer.
+            NewEvent(now.AddMinutes(-40), "s-bounded", "very-old-query", results: 4, latency: 10),
+            // Exactly at the bound — included by the "at or before" contract.
+            NewEvent(boundary,              "s-bounded", "at-boundary",    results: 3, latency: 12),
+            // Newer than the bound — must NOT be returned even though it is the newest overall.
+            NewEvent(now.AddMinutes(-5),  "s-bounded", "post-boundary",  results: 9, latency: 25));
+
+        var latest = await CreateService()
+            .GetLatestSearchForSessionAtOrBeforeAsync("s-bounded", boundary, CancellationToken.None);
+
+        Assert.NotNull(latest);
+        Assert.Equal("at-boundary", latest!.QueryRaw);
+        Assert.Equal(3, latest.ResultsTotal);
+    }
+
+    [Fact]
+    public async Task GetLatestSearchForSessionAtOrBefore_ReturnsNull_WhenNoRowBelowBound()
+    {
+        await ResetSearchEventsAsync();
+        var now = DateTime.UtcNow;
+
+        // Only events strictly newer than the bound exist for this session — the reader
+        // must return null rather than clamping to any later row.
+        await SeedAsync(
+            NewEvent(now.AddMinutes(-5), "s-none-before", "future-query", results: 1, latency: 5));
+
+        var latest = await CreateService()
+            .GetLatestSearchForSessionAtOrBeforeAsync(
+                "s-none-before", now.AddMinutes(-10), CancellationToken.None);
+
+        Assert.Null(latest);
+    }
+
     // --- Windows scope correctly: only rows inside [from, to) contribute ---
 
     [Fact]

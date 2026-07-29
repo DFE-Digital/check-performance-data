@@ -16,21 +16,11 @@
     // No frameworks. Idempotent to double-submits (guard against multiple concurrent polls).
 
     var POLL_MS = 500;
-    var ETA_MIN_ELAPSED_S = 5;
-    var ETA_MIN_EVENTS = 100;
     var LOG_MAX = 5;
     // Absolute floor for a rendered ETA value. Below this we display "About …"
-    // instead of a numeric second count — a "0 seconds remaining" line while the
-    // seeder is still working looks like a bug (Lance reported this behaviour).
+    // instead of a duration — a "0 seconds remaining" line while the seeder is
+    // still working looks like a bug.
     var ETA_FLOOR_SECONDS = 1;
-    // Rolling-window rate for ETA: keep the last N ticks so the estimate reflects
-    // recent throughput rather than the cumulative rate since kickoff (which lags
-    // heavily in the middle when batches are consistent-sized and only becomes
-    // accurate near the end). N=10 at a 500 ms poll cadence gives a five-second
-    // rolling window — smooth enough that the seconds-remaining number stops
-    // jittering, short enough to reflect a genuine throughput change quickly.
-    var ETA_WINDOW = 10;
-    var ETA_MIN_SAMPLES = 3;
 
     function el(role, root) {
         return (root || document).querySelector('[data-role="' + role + '"]');
@@ -84,58 +74,79 @@
         this.startedAtMs = 0;
         this.logEntries = [];
         this.lastEventsWritten = -1;
-        // Rolling ETA samples: array of {tMs, events} objects, oldest first, max
-        // ETA_WINDOW entries. See computeEtaSeconds for the rate math.
-        this.etaSamples = [];
         // Persisted per-event seconds rate embedded on the form as
-        // data-seconds-per-event. Used to render an initial ETA at modal open
-        // before any real ticks arrive, and as the fallback rate when the
-        // rolling window has fewer than ETA_MIN_SAMPLES.
+        // data-seconds-per-event. Used as the ETA baseline; blended with cumulative
+        // rate once enough samples are in (see computeEtaSeconds).
         this.secondsPerEvent = 0.1;
     }
 
-    // Pure helper: given the running array of {tMs, events} samples and the total
-    // event count, return the estimated seconds remaining. Returns null when there
-    // is not enough data to estimate yet. Extracted for easy manual reasoning /
-    // unit-test friendliness. Time input is milliseconds since the epoch.
-    function computeEtaSeconds(samples, eventsTotal, startedAtMs, nowMs) {
-        if (!eventsTotal || eventsTotal <= 0 || !samples || samples.length === 0) {
-            return null;
-        }
-        var latest = samples[samples.length - 1];
-        var written = latest.events || 0;
+    // Pure helper: given elapsed time and events written, return the estimated seconds
+    // remaining. Uses the cumulative rate (written / elapsed) blended with the persisted
+    // per-event rate — cumulative is stable across the whole run (a batch job's rate is
+    // roughly constant, and where it drifts it drifts monotonically as JIT + connection
+    // pools warm up), so a rolling window's reactivity turned out to be a footgun: it
+    // catches transient speedups near the end and drops the ETA faster than reality can
+    // finish, then the seeder overshoots and completes while the readout still shows
+    // several seconds. Cumulative avoids that by construction.
+    //
+    // The persisted rate is used as the baseline when the run is too young for cumulative
+    // to be meaningful (< 3 s or < 100 events written). Once cumulative kicks in, we take
+    // the FASTER of cumulative vs persisted so a fast-machine run converges downward from
+    // the conservative persisted baseline rather than lingering above it.
+    function computeEtaSeconds(eventsWritten, eventsTotal, startedAtMs, nowMs,
+                               persistedSecondsPerEvent) {
+        if (!eventsTotal || eventsTotal <= 0) return null;
+        var written = eventsWritten || 0;
         if (written >= eventsTotal) return 0;
         var remaining = eventsTotal - written;
-        var rate = 0; // events per second
-        if (samples.length >= ETA_MIN_SAMPLES) {
-            var oldest = samples[0];
-            var spanS = (latest.tMs - oldest.tMs) / 1000;
-            var deltaEvents = written - (oldest.events || 0);
-            if (spanS > 0 && deltaEvents > 0) rate = deltaEvents / spanS;
-        }
-        if (rate <= 0) {
-            // Fallback: cumulative rate since kickoff. Preserves the "nothing at
-            // first is fine" behaviour when only 1-2 ticks are in.
-            var elapsedS = (nowMs - startedAtMs) / 1000;
-            if (elapsedS <= 0 || written <= 0) return null;
-            rate = written / elapsedS;
+
+        var elapsedS = Math.max(0, (nowMs - startedAtMs) / 1000);
+        var cumulativeRate = (elapsedS > 0 && written > 0) ? (written / elapsedS) : 0;
+        var persistedRate = (persistedSecondsPerEvent > 0)
+            ? (1 / persistedSecondsPerEvent)
+            : 0;
+
+        var rate;
+        if (elapsedS >= 3 && written >= 100 && cumulativeRate > 0) {
+            // Take the faster of cumulative vs persisted — a fast machine's cumulative
+            // will exceed the persisted (conservative) rate and give a shorter, more
+            // honest ETA. On a slow machine, cumulative is lower and dominates.
+            rate = Math.max(cumulativeRate, persistedRate);
+        } else if (persistedRate > 0) {
+            rate = persistedRate;
+        } else {
+            rate = cumulativeRate;
         }
         if (rate <= 0) return null;
-        var rawSeconds = remaining / rate;
-        if (rawSeconds < 0) rawSeconds = 0;
-        // Round to the nearest 5 s while the ETA is comfortably above 30 s so the
-        // number stops jittering "25, 26, 25, 26" as consistent-size batches land
-        // at ~1 s intervals. Below 30 s, switch to 1 s precision — the numbers
-        // there are small enough that the perceived "twitch" is just accurate
-        // countdown behaviour.
-        if (rawSeconds >= 30) {
-            return Math.round(rawSeconds / 5) * 5;
-        }
-        return Math.max(0, Math.round(rawSeconds));
+
+        return Math.max(0, Math.round(remaining / rate));
     }
+
+    // Human-readable duration. `47` → `47 seconds`. `93` → `1 minute 33 seconds`.
+    // `4335` → `1 hour 12 minutes 15 seconds`. Skips zero components once a bigger unit
+    // is in play (so `3600` → `1 hour`, `3660` → `1 hour 1 minute`) — the reader is
+    // scanning for magnitude first, precision second.
+    function formatDuration(totalSeconds) {
+        var s = Math.max(0, Math.round(totalSeconds || 0));
+        var hours = Math.floor(s / 3600);
+        var minutes = Math.floor((s % 3600) / 60);
+        var seconds = s % 60;
+        var parts = [];
+        if (hours > 0)   parts.push(hours   + (hours   === 1 ? ' hour'   : ' hours'));
+        if (minutes > 0) parts.push(minutes + (minutes === 1 ? ' minute' : ' minutes'));
+        // Include seconds only when it's non-zero, OR when nothing else is (so `0` renders
+        // as `0 seconds` rather than an empty string). Also always include for < 1 min so
+        // "47 seconds" reads naturally.
+        if (seconds > 0 || parts.length === 0) {
+            parts.push(seconds + (seconds === 1 ? ' second' : ' seconds'));
+        }
+        return parts.join(' ');
+    }
+
     // Expose for ad-hoc manual verification from DevTools; harmless in production.
     if (typeof window !== 'undefined') {
         window.__seedComputeEtaSeconds = computeEtaSeconds;
+        window.__seedFormatDuration = formatDuration;
     }
 
     State.prototype.init = function (form, modal) {
@@ -291,7 +302,6 @@
             var runningLabel = closeBtn.getAttribute('data-running-label');
             if (runningLabel) closeBtn.textContent = runningLabel;
         }
-        this.etaSamples = [];
     };
 
     // Called on every terminal transition (Completed / Failed / Cancelled).
@@ -386,53 +396,27 @@
             if (cursorLine) cursorLine.hidden = false;
         }
 
-        // Push the current tick onto the rolling ETA sample buffer. Only push
-        // when eventsWritten actually changes so pure "still ticking" polls
-        // don't dilute the rate calculation.
+        // ETA. Cumulative rate blended with the persisted per-event baseline (see
+        // computeEtaSeconds for the reasoning). Rendered as a human-readable duration
+        // — `47 seconds`, `1 minute 33 seconds`, `1 hour 12 minutes 15 seconds` — so a
+        // long-running quarter/year seed doesn't force the reader to convert a raw
+        // 4-digit second count in their head. Never render "0 seconds" while the
+        // seeder is still going: below the floor we show the loading marker.
         var nowMs = Date.now();
-        if ((p.eventsWritten || 0) !== (this.etaSamples.length > 0
-                ? this.etaSamples[this.etaSamples.length - 1].events
-                : -1)) {
-            this.etaSamples.push({ tMs: nowMs, events: p.eventsWritten || 0 });
-            while (this.etaSamples.length > ETA_WINDOW) this.etaSamples.shift();
-        }
-
-        // ETA. Two-stage rendering: while the rolling window still has fewer
-        // than ETA_MIN_SAMPLES ticks, or under ETA_MIN_ELAPSED_S seconds have
-        // passed, use the persisted per-event rate to render a conservative
-        // initial estimate. Once the rolling window is meaningful, switch to
-        // the measured rate. Never render "0" while the seeder is still going —
-        // fall back to "…" if the number would land under the floor.
-        var elapsedS = (nowMs - this.startedAtMs) / 1000;
         var etaLine = el('eta-line', this.modal);
         if (etaLine && (p.eventsTotal || 0) > 0) {
-            var etaSec = null;
-            if (elapsedS >= ETA_MIN_ELAPSED_S
-                && (p.eventsWritten || 0) >= ETA_MIN_EVENTS) {
-                etaSec = computeEtaSeconds(this.etaSamples, p.eventsTotal,
-                    this.startedAtMs, nowMs);
-            }
-            if (etaSec === null) {
-                // Persisted-rate fallback: remaining events × seconds-per-event.
-                // Rounded to nearest 5 s when above 30 s to match the rolling
-                // window's rounding behaviour.
-                var remaining = (p.eventsTotal || 0) - (p.eventsWritten || 0);
-                if (remaining > 0 && this.secondsPerEvent > 0) {
-                    var raw = remaining * this.secondsPerEvent;
-                    if (raw >= 30) {
-                        etaSec = Math.round(raw / 5) * 5;
-                    } else {
-                        etaSec = Math.max(0, Math.round(raw));
-                    }
-                }
-            }
+            var etaSec = computeEtaSeconds(
+                p.eventsWritten || 0,
+                p.eventsTotal || 0,
+                this.startedAtMs,
+                nowMs,
+                this.secondsPerEvent);
+
             if (etaSec !== null && etaSec >= ETA_FLOOR_SECONDS) {
-                setText('eta-seconds', String(etaSec));
+                setText('eta-seconds', formatDuration(etaSec));
                 etaLine.hidden = false;
             } else if (etaSec !== null && etaSec < ETA_FLOOR_SECONDS
                        && p.state !== 'Completed' && p.state !== 'Failed') {
-                // Below the floor but not yet done — leave the loading marker
-                // rather than render a raw "0".
                 setText('eta-seconds', '…');
                 etaLine.hidden = false;
             }

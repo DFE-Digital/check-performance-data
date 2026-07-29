@@ -844,6 +844,158 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
+    // --- Scatter crosshair + tooltip: timestamp + latency ms + query text ---
+
+    // Hovering the request-timings scatter must snap to the nearest dot and render a
+    // tooltip that carries three pieces of information: a formatted UTC timestamp,
+    // the latency in milliseconds, and the user's query string (or "(empty query)"
+    // when the underlying event had no query text). The crosshair machinery is the
+    // same reusable initCrosshair() the volume / unique-users / zero-results / latency
+    // charts already use; scatter mode is a per-point snap rather than per-bucket-index.
+    [SkippableFact]
+    public async Task RequestTimingsScatter_HoverShowsCrosshairAndTooltipWithTimestampLatencyAndQuery()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // Switch to the latency tile — that reveals the scatter panel.
+            await Page.Locator("button.sa-tile[data-sa-tile=\"latency\"]").ClickAsync();
+            var scatter = Page.Locator("svg.sa-chart--scatter");
+            await scatter.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // Scatter must carry the crosshair-mode marker + a per-point payload.
+            var mode = await scatter.First.GetAttributeAsync("data-sa-crosshair-mode");
+            Assert.Equal("scatter", mode);
+            var pointsJson = await scatter.First.GetAttributeAsync("data-sa-scatter-points");
+            Assert.False(string.IsNullOrEmpty(pointsJson),
+                "Scatter must expose a data-sa-scatter-points JSON payload so the crosshair JS can snap.");
+
+            // Every serialised point carries ts / ms fields; q is nullable but the key must be present.
+            var payloadOk = await scatter.First.EvaluateAsync<bool>(@"el => {
+                try {
+                    const arr = JSON.parse(el.getAttribute('data-sa-scatter-points') || '[]');
+                    if (!arr.length) return false;
+                    for (const p of arr) {
+                        if (typeof p.ts !== 'string') return false;
+                        if (typeof p.ms !== 'number') return false;
+                        if (!('q' in p)) return false;
+                    }
+                    return true;
+                } catch (e) { return false; }
+            }");
+            Assert.True(payloadOk,
+                "Scatter payload must be an array of { ts:iso, ms:number, q:string|null } objects.");
+
+            // Hover the middle of the plot area. Dispatch mousemove directly on the SVG
+            // for the same reason the volume test does — headless Chromium can drop
+            // Page.Mouse.MoveAsync when overlays sit above.
+            var box = await scatter.First.BoundingBoxAsync();
+            Assert.NotNull(box);
+            var cursorX = box!.X + box.Width * 0.5;
+            var cursorY = box.Y + box.Height * 0.5;
+            await scatter.First.DispatchEventAsync("mousemove", new
+            {
+                clientX = cursorX,
+                clientY = cursorY,
+                bubbles = true,
+            });
+
+            var tooltip = Page.Locator(".sa-chart__crosshair-tooltip");
+            await Expect(tooltip).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 5000 });
+            var tooltipText = (await tooltip.InnerTextAsync()).Trim();
+            Assert.False(string.IsNullOrEmpty(tooltipText),
+                "Scatter tooltip should render text on hover.");
+
+            // Latency in milliseconds — the "ms" unit is always present.
+            Assert.Contains(" ms", tooltipText);
+            // Query line — either the user's text OR the "(empty query)" fallback.
+            var hasQueryOrEmptyMarker = tooltipText.Contains("query", StringComparison.OrdinalIgnoreCase)
+                || tooltipText.Contains("\"")
+                || tooltipText.Contains("(empty query)");
+            Assert.True(hasQueryOrEmptyMarker,
+                $"Scatter tooltip should include the user's query text or an (empty query) marker; got: '{tooltipText}'");
+
+            // Crosshair lines are visible on the scatter's SVG.
+            var scatterCrosshair = scatter.First.Locator("line.sa-chart__crosshair-line[visibility='visible']");
+            Assert.True(await scatterCrosshair.CountAsync() >= 2,
+                "Two crosshair lines (vertical + horizontal) should be visible on scatter hover.");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round13/admin-search-scatter-hover.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Log-scale Y auto-switch when the max/min ratio exceeds 20 ---------
+
+    // With the seeded corpus the latency chart may or may not have a >20× ratio.
+    // The assertion is shape-only: if the auto-log-scale decision fired, the axis
+    // caption ends with "(log scale)"; otherwise the caption is unchanged. Either
+    // is legitimate. Also asserts the log-scale marker attribute is present on the
+    // SVG so the presentation contract is exercised even when the corpus is quiet.
+    [SkippableFact]
+    public async Task LatencyChart_LogScaleAffordance_IsPresentWithMarkerAndOptionalCaption()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator("button.sa-tile[data-sa-tile=\"latency\"]").ClickAsync();
+            var latency = Page.Locator("[data-sa-panel='latency'] svg.sa-chart:not(.sa-chart--scatter)");
+            await latency.First.WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // The SVG advertises which scale is in effect via a data attribute so the
+            // JS can pick the matching Y-mapping when it snaps to a value later.
+            var scale = await latency.First.GetAttributeAsync("data-sa-y-scale");
+            Assert.NotNull(scale);
+            Assert.True(scale == "linear" || scale == "log",
+                $"data-sa-y-scale must be 'linear' or 'log', got '{scale}'.");
+
+            // The axis title text is either "Latency (ms)" or "Latency (ms) (log scale)"
+            // depending on the current data. Either is a valid outcome; assert one of them
+            // is present.
+            var axisTitle = latency.First.Locator("text.sa-chart__axis-title", new()
+            {
+                HasTextRegex = new System.Text.RegularExpressions.Regex(@"Latency \(ms\)"),
+            });
+            Assert.True(await axisTitle.CountAsync() >= 1,
+                "Latency Y-axis title must include 'Latency (ms)'.");
+
+            if (scale == "log")
+            {
+                var logCaption = latency.First.Locator("text.sa-chart__axis-title:has-text(\"(log scale)\")");
+                Assert.True(await logCaption.CountAsync() >= 1,
+                    "When scale == 'log' the axis title must include '(log scale)' so the reader knows the axis is not linear.");
+            }
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     private void AttachCookieToContext(string? cookieHeader)

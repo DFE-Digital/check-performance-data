@@ -63,6 +63,7 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
                 ResultsBlocks = dto.ResultsBlocks,
                 LatencyMs = dto.LatencyMs,
                 IsSeeded = dto.IsSeeded,
+                JobId = dto.JobId,
             };
             _dbContext.SearchEvents.Add(parent);
             parents.Add((parent, dto.Results));
@@ -82,6 +83,9 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
                     ResultKey = result.ResultKey,
                     Rank = result.Rank,
                     IsSeeded = parent.IsSeeded,
+                    // Mirror the parent's per-run marker so rollback drops both parents
+                    // and children with the same WHERE predicate.
+                    JobId = parent.JobId,
                 });
                 anyChildren = true;
             }

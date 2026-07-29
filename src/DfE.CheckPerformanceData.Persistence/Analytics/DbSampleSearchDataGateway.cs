@@ -48,6 +48,8 @@ public sealed class DbSampleSearchDataGateway : ISampleSearchDataGateway
                 // row by definition — real user-submitted messages go through
                 // DbSearchMessageService.CreateAsync which does not touch this flag.
                 IsSeeded = true,
+                // Per-run marker so the rollback can drop exactly this seed's messages.
+                JobId = msg.JobId,
             });
         }
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -89,6 +91,41 @@ public sealed class DbSampleSearchDataGateway : ISampleSearchDataGateway
             counts[0] = await _dbContext.SearchEvents
                 .ExecuteDeleteAsync(cancellationToken);
             counts[2] = await _dbContext.SearchMessages
+                .ExecuteDeleteAsync(cancellationToken);
+        }, cancellationToken);
+
+        return new DeleteCountsResult(
+            EventsDeleted: counts[0],
+            ResultsDeleted: counts[1],
+            MessagesDeleted: counts[2]);
+    }
+
+    public async Task<DeleteCountsResult> DeleteByJobIdAsync(
+        string jobId, CancellationToken cancellationToken)
+    {
+        // Guard against a caller passing a blank job id — an unfiltered delete on this
+        // path would be catastrophic. The Cancel endpoint should never invoke us this
+        // way, but the check is one line and turns a would-be data-loss bug into a
+        // predictable no-op.
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            return new DeleteCountsResult(0, 0, 0);
+        }
+
+        var counts = new int[3];
+        await _dbContext.ExecuteInTransactionAsync(async () =>
+        {
+            // Children first so the returned count reflects rows actually removed by
+            // this DELETE rather than by an FK cascade on the parent — the caller
+            // shows the count to the admin in a "rolled back N rows" banner.
+            counts[1] = await _dbContext.SearchEventResults
+                .Where(x => x.JobId == jobId)
+                .ExecuteDeleteAsync(cancellationToken);
+            counts[0] = await _dbContext.SearchEvents
+                .Where(x => x.JobId == jobId)
+                .ExecuteDeleteAsync(cancellationToken);
+            counts[2] = await _dbContext.SearchMessages
+                .Where(x => x.JobId == jobId)
                 .ExecuteDeleteAsync(cancellationToken);
         }, cancellationToken);
 

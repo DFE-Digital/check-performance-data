@@ -109,7 +109,8 @@ public sealed class SampleSearchDataSeeder(
         DateTime nowUtc,
         int seed,
         CancellationToken cancellationToken,
-        IProgress<SampleSearchDataSeedProgressTick>? progress = null)
+        IProgress<SampleSearchDataSeedProgressTick>? progress = null,
+        Guid? jobId = null)
     {
         if (eventCount <= 0 && messageCount <= 0)
         {
@@ -118,6 +119,11 @@ public sealed class SampleSearchDataSeeder(
 
         var rng = new Random(seed);
         var fromUtc = nowUtc - span;
+        // Guid-as-text ("N" — 32 hex chars, no dashes) marker written on every row so a
+        // subsequent Cancel/rollback drops exactly this run's rows without touching real
+        // events or other jobs. Null means "no per-run marker" (used by the existing
+        // integration tests that predate the rollback surface).
+        var jobIdText = jobId?.ToString("N");
 
         // Session pool: ~200 synthetic sessions is enough to give a mix of one-off + power
         // users while keeping the top-users tile populated with real data. Reduce to eventCount/3
@@ -193,7 +199,10 @@ public sealed class SampleSearchDataSeeder(
                 Results: results,
                 // Every row written by the seeder carries the marker so the delete-
                 // seeded admin action can drop this row without touching real events.
-                IsSeeded: true));
+                IsSeeded: true,
+                // Per-run marker so the Cancel/rollback path can drop THIS job's
+                // rows in one WHERE clause. Null when no jobId was supplied.
+                JobId: jobIdText));
             lastCursor = occurredAt;
 
             if (buffer.Count >= BatchSize)
@@ -238,7 +247,7 @@ public sealed class SampleSearchDataSeeder(
                 : null; // "hide my email" was ticked
 
             messages.Add(new BackdatedSearchMessage(
-                sessionId, occurredAt, whatLookingFor, whatGot, email));
+                sessionId, occurredAt, whatLookingFor, whatGot, email, jobIdText));
         }
         await messagesGateway.WriteBackdatedMessagesAsync(messages, cancellationToken);
         var messagesCreated = messages.Count;

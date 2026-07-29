@@ -19,4 +19,9 @@ public sealed record SearchEventDto(
     // live user requests leave this at its default (false). The sink propagates the
     // flag onto both the parent SearchEvent row and its child SearchEventResult rows so
     // the delete-seeded admin surface can drop either set in isolation.
-    bool IsSeeded = false);
+    bool IsSeeded = false,
+    // Optional per-seed-run marker. Non-null only for rows written by the sample-data
+    // seeder — the sink writes it through to both the parent and its child result rows
+    // so the seed-page Cancel/rollback action can drop this job's rows with a single
+    // WHERE job_id = @id predicate across the three sink tables.
+    string? JobId = null);

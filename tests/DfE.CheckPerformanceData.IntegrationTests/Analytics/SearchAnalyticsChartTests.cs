@@ -799,10 +799,13 @@ public sealed class SearchAnalyticsChartTests
     {
         await ResetSearchEventsAsync();
 
-        var now = HourAligned(DateTime.UtcNow);
-        var from = now.AddDays(-30);
+        // Anchor to midnight so the +9h offset lands events at 09:xx UTC (not
+        // "wherever midnight-aligned-now-plus-9h" happens to fall).
+        var todayMidnight = DayAligned(DateTime.UtcNow);
+        var from = todayMidnight.AddDays(-30);
+        var to = todayMidnight.AddDays(1);
 
-        // Seed one event on every Monday between from and now at 09:00 UTC.
+        // Seed one event on every Monday between from and to at 09:00 UTC.
         var events = new List<SearchEvent>();
         var mondays = 0;
         for (var d = 0; d < 30; d++)
@@ -819,7 +822,7 @@ public sealed class SearchAnalyticsChartTests
         await SeedAsync(events.ToArray());
 
         var buckets = await CreateService()
-            .GetVolumeAggregatedByWeekdayHourAsync(from, now, CancellationToken.None);
+            .GetVolumeAggregatedByWeekdayHourAsync(from, to, CancellationToken.None);
 
         // Full 168-cell grid, zero-filled.
         Assert.Equal(168, buckets.Count);
@@ -838,8 +841,9 @@ public sealed class SearchAnalyticsChartTests
     {
         await ResetSearchEventsAsync();
 
-        var now = HourAligned(DateTime.UtcNow);
-        var from = now.AddDays(-14);
+        var todayMidnight = DayAligned(DateTime.UtcNow);
+        var from = todayMidnight.AddDays(-14);
+        var to = todayMidnight.AddDays(1);
 
         // Seed 5 events at each Monday-09 slot with fixed latency = 100 so the
         // percentile trio collapses to p5 = p50 = p95 = 100 for that cell.
@@ -856,7 +860,7 @@ public sealed class SearchAnalyticsChartTests
         await SeedAsync(events.ToArray());
 
         var buckets = await CreateService()
-            .GetLatencyPercentilesAggregatedByWeekdayHourAsync(from, now, CancellationToken.None);
+            .GetLatencyPercentilesAggregatedByWeekdayHourAsync(from, to, CancellationToken.None);
 
         Assert.Equal(168, buckets.Count);
         var mondayNine = buckets.Single(b => b.BucketStart.DayOfWeek == DayOfWeek.Monday

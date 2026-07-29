@@ -157,11 +157,22 @@
         svg.appendChild(hLine);
 
         function toSvgCoords(evt) {
-            var pt = svg.createSVGPoint();
-            pt.x = evt.clientX; pt.y = evt.clientY;
-            var ctm = svg.getScreenCTM();
-            if (!ctm) return null;
-            return pt.matrixTransform(ctm.inverse());
+            // Prefer SVG native coord conversion; fall back to a viewBox proportional
+            // map when getScreenCTM is null (some browsers report null before layout).
+            try {
+                var pt = svg.createSVGPoint();
+                pt.x = evt.clientX; pt.y = evt.clientY;
+                var ctm = svg.getScreenCTM();
+                if (ctm) return pt.matrixTransform(ctm.inverse());
+            } catch (e) { /* fall through */ }
+            // Fallback: linear interpolate over the SVG's bounding rect into viewBox coords.
+            var rect = svg.getBoundingClientRect();
+            var vb = svg.viewBox && svg.viewBox.baseVal;
+            if (!vb || rect.width === 0 || rect.height === 0) return null;
+            return {
+                x: vb.x + (evt.clientX - rect.left) * (vb.width / rect.width),
+                y: vb.y + (evt.clientY - rect.top)  * (vb.height / rect.height)
+            };
         }
 
         svg.addEventListener('mousemove', function (evt) {

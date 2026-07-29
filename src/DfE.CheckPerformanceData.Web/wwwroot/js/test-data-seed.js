@@ -40,6 +40,12 @@
     // renders <input name="__RequestVerificationToken" ...>), fall back to a <meta> tag if
     // present. Returns null when neither exists; the caller can then decide to fall back to
     // a full form submit rather than trying an unauthenticated fetch.
+    //
+    // The token is sent on fetch/XHR requests via the 'X-XSRF-TOKEN' header (Program.cs
+    // sets AntiforgeryOptions.HeaderName to that value). Using the default framework
+    // 'RequestVerificationToken' name causes the ValidateAntiForgeryToken filter to reject
+    // silently — the response ends up as a re-rendered 404 page via the app's
+    // StatusCodePagesWithReExecute middleware.
     function readAntiforgery(form) {
         var input = form.querySelector('input[name="__RequestVerificationToken"]');
         if (input && input.value) return input.value;
@@ -203,7 +209,7 @@
             method: 'POST',
             body: fd,
             credentials: 'same-origin',
-            headers: { 'RequestVerificationToken': token },
+            headers: { 'X-XSRF-TOKEN': token },
             redirect: 'follow',
         }).then(function (resp) {
             var location = resp.url || resp.headers.get('Location');
@@ -529,7 +535,7 @@
             fetch(url, {
                 method: 'DELETE',
                 credentials: 'same-origin',
-                headers: token ? { 'RequestVerificationToken': token } : {},
+                headers: token ? { 'X-XSRF-TOKEN': token } : {},
             }).then(function (resp) {
                 if (!resp.ok) return null;
                 // Server replies with a JSON body carrying the rollback counts +

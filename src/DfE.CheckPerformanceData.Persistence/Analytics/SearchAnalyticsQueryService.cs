@@ -449,6 +449,32 @@ ORDER BY b.bucket;";
             _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
         };
 
+    // Aggregate-to-typical-week readers. Implementation lives further down — stubs at the
+    // top of the file keep the failing-test commit compiling before the SQL lands.
+    public Task<IReadOnlyList<VolumeBucket>> GetVolumeAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Aggregate-to-typical-week volume reader not yet implemented.");
+
+    public Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Aggregate-to-typical-week unique-sessions reader not yet implemented.");
+
+    public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Aggregate-to-typical-week zero-result reader not yet implemented.");
+
+    public Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Aggregate-to-typical-week latency-percentiles reader not yet implemented.");
+
     // Paged variant of the volume reader. Same generate_series spine as ReadVolumeAsync so
     // gap-fill and total-bucket-count stay consistent with the landing-page chart; a COUNT
     // over the spine feeds the pager's total. LIMIT/OFFSET slice the ordered spine so the

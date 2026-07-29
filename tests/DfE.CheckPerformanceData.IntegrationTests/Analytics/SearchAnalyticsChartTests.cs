@@ -787,4 +787,82 @@ public sealed class SearchAnalyticsChartTests
         await context.Database.ExecuteSqlRawAsync(
             "TRUNCATE TABLE search_events RESTART IDENTITY CASCADE;");
     }
+
+    // --- Aggregate-to-typical-week readers -------------------------------------
+
+    // 30 days of events, one event per hour on every Monday at 09:00 UTC in the window.
+    // The aggregate reader collapses every Monday-09 event into the (Mon, 09:00) cell of
+    // the cyclic 7-day timeline; the assertion pins the summed count in that cell equals
+    // the number of Mondays in the window.
+    [Fact]
+    public async Task GetVolumeAggregatedByWeekdayHour_SumsAllEventsAtThatWeekdayHour()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddDays(-30);
+
+        // Seed one event on every Monday between from and now at 09:00 UTC.
+        var events = new List<SearchEvent>();
+        var mondays = 0;
+        for (var d = 0; d < 30; d++)
+        {
+            var slot = from.AddDays(d).AddHours(9);
+            if (slot.DayOfWeek == DayOfWeek.Monday)
+            {
+                events.Add(NewEvent(slot, $"m-{d}", "q", results: 1, latency: 10));
+                mondays++;
+            }
+        }
+        // Sanity — 30-day span always includes at least 3-5 Mondays.
+        Assert.True(mondays >= 3);
+        await SeedAsync(events.ToArray());
+
+        var buckets = await CreateService()
+            .GetVolumeAggregatedByWeekdayHourAsync(from, now, CancellationToken.None);
+
+        // Full 168-cell grid, zero-filled.
+        Assert.Equal(168, buckets.Count);
+        // Total across every cell equals the total number of events seeded.
+        Assert.Equal(mondays, buckets.Sum(b => b.SearchCount));
+        // Every Monday 09:00 event landed in exactly one cell — find the cell whose
+        // BucketStart's weekday is Monday and hour is 9.
+        var mondayNine = buckets.Where(b => b.BucketStart.DayOfWeek == DayOfWeek.Monday
+                                          && b.BucketStart.Hour == 9).ToList();
+        Assert.Single(mondayNine);
+        Assert.Equal(mondays, mondayNine[0].SearchCount);
+    }
+
+    [Fact]
+    public async Task GetLatencyPercentilesAggregatedByWeekdayHour_ComputesPerCyclicCell()
+    {
+        await ResetSearchEventsAsync();
+
+        var now = HourAligned(DateTime.UtcNow);
+        var from = now.AddDays(-14);
+
+        // Seed 5 events at each Monday-09 slot with fixed latency = 100 so the
+        // percentile trio collapses to p5 = p50 = p95 = 100 for that cell.
+        var events = new List<SearchEvent>();
+        for (var d = 0; d < 14; d++)
+        {
+            var slot = from.AddDays(d).AddHours(9);
+            if (slot.DayOfWeek != DayOfWeek.Monday) continue;
+            for (var i = 0; i < 5; i++)
+            {
+                events.Add(NewEvent(slot.AddMinutes(i), $"l-{d}-{i}", "q", results: 1, latency: 100));
+            }
+        }
+        await SeedAsync(events.ToArray());
+
+        var buckets = await CreateService()
+            .GetLatencyPercentilesAggregatedByWeekdayHourAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(168, buckets.Count);
+        var mondayNine = buckets.Single(b => b.BucketStart.DayOfWeek == DayOfWeek.Monday
+                                          && b.BucketStart.Hour == 9);
+        Assert.Equal(100, mondayNine.P5Ms);
+        Assert.Equal(100, mondayNine.P50Ms);
+        Assert.Equal(100, mondayNine.P95Ms);
+    }
 }

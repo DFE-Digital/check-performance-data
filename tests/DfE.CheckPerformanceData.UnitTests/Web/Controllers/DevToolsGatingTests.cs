@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -16,6 +17,7 @@ public sealed class DevToolsGatingTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IPupilDataBlobClient _pupilBlob = Substitute.For<IPupilDataBlobClient>();
 
     private static IConfiguration Config(bool? toolsEnabled)
     {
@@ -27,7 +29,7 @@ public sealed class DevToolsGatingTests
     }
 
     private DevPipelineController CreatePipeline(IConfiguration config) =>
-        new(config, _dbContext, _queueService);
+        new(config, _dbContext, _queueService, _pupilBlob);
 
     private DevQueueSeedController CreateSeed(IConfiguration config) =>
         new(config, _queueService);
@@ -37,7 +39,7 @@ public sealed class DevToolsGatingTests
     {
         var sut = CreatePipeline(Config(toolsEnabled: false));
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _queueService.DidNotReceive().EnqueueAsync(
@@ -49,7 +51,7 @@ public sealed class DevToolsGatingTests
     {
         var sut = CreatePipeline(Config(toolsEnabled: null));
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }

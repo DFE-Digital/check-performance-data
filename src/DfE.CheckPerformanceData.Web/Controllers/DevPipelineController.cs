@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.Settings;
@@ -23,28 +24,37 @@ public sealed class DevPipelineController(
     IConfiguration configuration,
     IPortalDbContext dbContext,
     IQueueService queueService,
+    IPupilDataBlobClient pupilBlob,
     IHostEnvironment? hostEnvironment = null,
     SubmittedMetricRecorder? submittedMetrics = null) : Controller
 {
-    // The surface is gated on the config flag AND a hard production guard: even if a
-    // production deploy leaves Dev:ToolsEnabled true, IsProduction short-circuits to 404.
     private bool IsAllowed =>
         configuration.GetValue<bool>(SettingKeys.DevToolsEnabled)
         && hostEnvironment?.IsProduction() != true;
 
-    // The Zendesk-styled preview additionally requires the fake Zendesk path to be active, so a
-    // captured outbox row is only ever rendered while no real Zendesk push is happening.
     private bool IsFakeZendesk => configuration.GetValue<bool>(SettingKeys.ZendeskUseFake);
 
     [HttpGet("dev/queues/submit-request")]
     [HttpPost("dev/queues/submit-request")]
-    public async Task<IActionResult> SubmitRequest(string? outcome, CancellationToken cancellationToken)
+    public async Task<IActionResult> SubmitRequest(
+        string? outcome,
+        Guid? windowId,
+        long? urn,
+        CancellationToken cancellationToken,
+        Guid? pupilId = null,
+        string? pupilUpn = null,
+        string? pupilFirstName = null,
+        string? pupilSurname = null,
+        string? requestType = null,
+        string? laestab = null,
+        string? userEmail = null,
+        Guid? userId = null)
     {
         if (!IsAllowed)
             return NotFound();
 
-        var runner = new DevPipelineRunner(dbContext, queueService, submittedMetrics);
-        var result = await runner.SubmitAsync(outcome, cancellationToken);
+        var runner = new DevPipelineRunner(dbContext, queueService, pupilBlob, submittedMetrics);
+        var result = await runner.SubmitAsync(outcome, windowId, urn, cancellationToken, pupilId, pupilUpn, pupilFirstName, pupilSurname, requestType, laestab, userEmail, userId);
 
         return Json(new
         {
@@ -54,6 +64,31 @@ public sealed class DevPipelineController(
             message = $"Submitted request {result.Reference} (preset '{result.PresetName}', expecting {result.ExpectedDecision}). " +
                       "Watch the worker process it and view /dev/zendesk/outbox for the captured ticket.",
         });
+    }
+
+    [HttpPost("dev/queues/cleanup-e2e-requests")]
+    public async Task<IActionResult> CleanupE2eRequests(CancellationToken cancellationToken)
+    {
+        if (!IsAllowed)
+            return NotFound();
+
+        // EF Core/Npgsql cannot translate StartsWith in either SELECT or ExecuteDelete.
+        // Use EF.Functions.Like which maps to PostgreSQL's LIKE operator, then delete
+        // by the fetched IDs using Contains which EF Core can translate as IN (...).
+        var devIds = await dbContext.ChangeRequests
+            .Where(r => EF.Functions.Like(r.ReferenceNumber, "DEV-%"))
+            .Select(r => r.Id)
+            .ToListAsync(cancellationToken);
+
+        var deleted = devIds.Count;
+        if (devIds.Count > 0)
+        {
+            deleted = await dbContext.ChangeRequests
+                .Where(r => devIds.Contains(r.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        return Json(new { deleted });
     }
 
     [HttpGet("dev/zendesk/outbox")]
@@ -71,11 +106,6 @@ public sealed class DevPipelineController(
         return View("Outbox", rows);
     }
 
-    // Renders one captured outbox row as a faithful Zendesk-styled simulation (subject,
-    // requester, priority/status badges, body, custom fields, tags, attachments) rather than
-    // raw JSON — a "what we'll send" artefact until real Zendesk is wired. Gated on
-    // Dev:ToolsEnabled AND Zendesk:UseFake so it is only reachable when the pipeline is faking
-    // Zendesk; it reaches no real Zendesk instance.
     [HttpGet("dev/zendesk/preview/{id:guid}")]
     public async Task<IActionResult> ZendeskPreview(Guid id, CancellationToken cancellationToken)
     {

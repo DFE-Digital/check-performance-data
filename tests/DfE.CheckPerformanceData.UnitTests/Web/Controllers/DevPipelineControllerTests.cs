@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -13,6 +14,7 @@ public sealed class DevPipelineControllerTests
 {
     private readonly IPortalDbContext _dbContext = Substitute.For<IPortalDbContext>();
     private readonly IQueueService _queueService = Substitute.For<IQueueService>();
+    private readonly IPupilDataBlobClient _pupilBlob = Substitute.For<IPupilDataBlobClient>();
 
     private DevPipelineController CreateSut(bool toolsEnabled)
     {
@@ -23,7 +25,7 @@ public sealed class DevPipelineControllerTests
             })
             .Build();
 
-        return new DevPipelineController(configuration, _dbContext, _queueService);
+        return new DevPipelineController(configuration, _dbContext, _queueService, _pupilBlob);
     }
 
     [Fact]
@@ -31,7 +33,7 @@ public sealed class DevPipelineControllerTests
     {
         var sut = CreateSut(toolsEnabled: false);
 
-        var result = await sut.SubmitRequest(outcome: null, CancellationToken.None);
+        var result = await sut.SubmitRequest(outcome: null, windowId: null, urn: null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await _queueService.DidNotReceive().EnqueueAsync(

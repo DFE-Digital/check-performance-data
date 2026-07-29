@@ -13,10 +13,12 @@ public sealed class OptionVisibilityService(IEnumerable<IJourneyCondition> condi
 
     private bool IsVisible(QuestionOption option, JourneyConditionContext ctx)
     {
-        if (string.IsNullOrEmpty(option.VisibleWhen))
+        if (option.VisibleWhen is not { Count: > 0 } names)
             return true;
 
-        var condition = conditions.FirstOrDefault(c => c.Name == option.VisibleWhen);
-        return condition is not null && condition.Evaluate(ctx);
+        // Every named condition must be registered and evaluate true (AND);
+        // an unregistered name hides the option (fail closed).
+        return names.All(name =>
+            conditions.FirstOrDefault(c => c.Name == name) is { } condition && condition.Evaluate(ctx));
     }
 }

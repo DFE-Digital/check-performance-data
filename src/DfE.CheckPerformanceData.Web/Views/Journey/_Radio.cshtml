@@ -24,7 +24,7 @@
             </p>
         }
         <div class="govuk-radios">
-            @* visibleWhen is a render-only gate: options are filtered here but the server does not reject posted values for hidden options. *@
+            @* Options are filtered by visibleWhen; the server also rejects posted values for hidden options. *@
             @foreach (var option in Model.VisibleOptions)
             {
                 var optionId = $"{Model.FieldName}-{option.Value}";

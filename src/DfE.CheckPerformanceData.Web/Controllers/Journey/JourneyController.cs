@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Analytics;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -20,7 +21,8 @@ public sealed class JourneyController(
     ICheckYourPupilDataService pupilDataService,
     IJourneyViewModelBuilder viewModelBuilder,
     IAnalyticsService analytics,
-    ICurrentUserService currentUserService) : Controller
+    ICurrentUserService currentUserService,
+    IOptionVisibilityService optionVisibilityService) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -128,11 +130,34 @@ public sealed class JourneyController(
 
         if (page.PupilKey != JourneyPage.MatchKey)
         {
-            var conflictRef = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
-            if (conflictRef is not null)
+            var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
+            if (result is not DuplicateCheckResult.NoConflict)
             {
-                ModelState.AddModelError("selectedPupilId",
-                    "A request for this pupil has already been submitted.");
+                var isSelf = result is DuplicateCheckResult.SelfSubmitted;
+                var conflictingReasonType = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingReasonType: var rt } => rt,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingReasonType: var rt } => rt,
+                    _ => string.Empty
+                };
+                var conflictingCategory = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingRequestCategory: var rc } => rc,
+                    _ => string.Empty
+                };
+                var conflictingUserName = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ConflictingUserName: var un } => un,
+                    DuplicateCheckResult.OtherSubmitted { ConflictingUserName: var un } => un,
+                    _ => string.Empty
+                };
+                var currentReasonType = flowService.ResolveRequestType(config, journey);
+                var reasonsMatch = !string.IsNullOrEmpty(currentReasonType)
+                    && string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
+
+                ModelState.AddModelError("selectedPupilId", DuplicateRequestMessages.FieldErrorMessage);
+                ModelState.AddModelError(string.Empty, DuplicateRequestMessages.ErrorSummaryMessage);
                 await analytics.TrackSafeAsync(new ValidationErrorEvent
                 {
                     ErrorCount = 1,
@@ -141,9 +166,22 @@ public sealed class JourneyController(
                 });
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
                 var vm = viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config);
-                vm.ConflictErrorReference = conflictRef;
-                vm.ConflictErrorLink = $"/{windowId}/AmendmentRequests/{conflictRef}/view";
+
+                var refNum = result switch
+                {
+                    DuplicateCheckResult.SelfSubmitted { ReferenceNumber: var r } => r,
+                    DuplicateCheckResult.OtherSubmitted { ReferenceNumber: var r } => r,
+                    _ => string.Empty
+                };
+                var linkUrl = $"/{windowId}/AmendmentRequests/{refNum}/view";
+                vm.ConflictErrorReference = refNum;
+                vm.ConflictErrorLink = linkUrl;
                 vm.ConflictPupilName = pupilName;
+                vm.ConflictReasonType = conflictingReasonType;
+                vm.ConflictUserName = conflictingUserName;
+                vm.ConflictAttentionHtml = DuplicateRequestMessages.AttentionBannerHtml(
+                    isSelf, reasonsMatch, conflictingCategory, pupilName, refNum, linkUrl, conflictingUserName);
+
                 return View("PupilSearch", vm);
             }
         }
@@ -205,6 +243,7 @@ public sealed class JourneyController(
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
+        var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
 
         // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
         // Continue with a file staged should attach it rather than report "upload a file".
@@ -238,10 +277,26 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                // visibleWhen is a render-only gate: radio values are not validated against
-                // the visible-options set here. A user who hand-crafts a hidden option value
-                // will be routed into that branch and their request will reach Zendesk staff,
-                // who review all submissions before acting on them.
+
+                // visibleWhen gates selection as well as rendering: a posted radio value
+                // that is not among this user's visible options (hidden by a condition,
+                // or not a defined option at all) is rejected with the question's own
+                // validation message, exactly as if nothing was selected. This backs the
+                // add-back policy restriction (PBI 292525) server-side.
+                if (question.Type == QuestionType.Radio && question.Options is { Count: > 0 }
+                    && journeyService.IsAnswered(question, answer)
+                    && optionVisibilityService.GetVisibleOptions(question, conditionContext)
+                        .All(o => o.Value != answer.TextValue))
+                {
+                    var hiddenFailure = question.ValidationFailure is not null
+                        ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName)
+                        : "Select an option";
+                    ModelState.AddModelError(question.Id, hiddenFailure);
+                    isValid = false;
+                    newAnswers[question.Id] = answer;
+                    continue;
+                }
+
                 // Required answers are validated unconditionally; optional answers are
                 // still format-checked (char limit, real date) when they have been filled in.
                 if (!question.Optional || journeyService.IsAnswered(question, answer))
@@ -550,7 +605,7 @@ public sealed class JourneyController(
         {
             await requestService.ConfirmRequestAsync(windowId, journey);
         }
-        catch (DuplicateRequestException)
+        catch (DuplicateRequestException ex)
         {
             await analytics.TrackSafeAsync(new RequestSubmissionFailedEvent
             {
@@ -561,8 +616,15 @@ public sealed class JourneyController(
 
             var config = await GetConfigAsync(journey);
             if (config is null) return RedirectToCheckYourData(windowId);
+
+            var message = DuplicateRequestMessages.SummaryMessage(
+                ex.ConflictType == ConflictType.SelfSubmitted, ex.ReasonsMatch,
+                ex.ConflictingRequestCategory);
+
+            string? conflictErrorLink = $"/{windowId}/AmendmentRequests/{journey.ReferenceNumber}/view";
+
             return View("Summary", viewModelBuilder.BuildSummaryVm(windowId, journey, config,
-                conflictError: "A request for this pupil has already been submitted. Select a different pupil.",
+                conflictError: message, conflictErrorLink: conflictErrorLink,
                 fromBulk: HttpContext.Session.IsBulkEditMode(windowId),
                 fromEdit: HttpContext.Session.IsSingleEditMode(windowId)));
         }

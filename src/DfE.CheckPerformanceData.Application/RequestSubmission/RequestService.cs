@@ -21,20 +21,47 @@ public sealed class RequestService(
 {
     private long OrganisationUrnLong => long.Parse(currentUserService.OrganisationUrn);
 
-    public Task<string?> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn) =>
-        requestRepository.HasSubmittedRequestAsync(windowId, pupilId, organisationUrn);
+    private string ExtractCurrentReasonType(RequestState journey, QuestionFlowConfig? config)
+    {
+        if (config is null)
+            return journey.SelectedWhatToChange?.ToString() ?? string.Empty;
+
+        var detail = flowService.ResolveRequestType(config, journey);
+        return string.IsNullOrEmpty(detail)
+            ? journey.SelectedWhatToChange?.ToString() ?? string.Empty
+            : detail;
+    }
+
+    public async Task<DuplicateCheckResult> HasSubmittedRequestAsync(Guid windowId, Guid pupilId, long organisationUrn)
+    {
+        var userId = Guid.Parse(currentUserService.UserId);
+        return await requestRepository.CheckForConflictAsync(windowId, pupilId, organisationUrn, string.Empty, userId);
+    }
 
     public async Task SubmitRequestAsync(Guid windowId, RequestState journey)
     {
         if (journey.SelectedWhatToChange is null || journey.CheckingWindow is null || journey.SelectedPupil is null)
             throw new InvalidOperationException("Session state is incomplete for request submission.");
 
+        var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
+
         var urnLong = OrganisationUrnLong;
         var refNum = journey.ReferenceNumber ?? string.Empty;
-        if (await requestRepository.HasConflictingRequestAsync(windowId, journey.SelectedPupil.Id, urnLong, refNum))
-            throw new DuplicateRequestException();
+        var userId = Guid.Parse(currentUserService.UserId);
+        var conflict = await requestRepository.CheckForConflictAsync(windowId, journey.SelectedPupil.Id, urnLong, refNum, userId);
+        if (conflict is DuplicateCheckResult.SelfSubmitted { ConflictingReasonType: var conflictingReasonType, ConflictingRequestCategory: var selfCategory, ConflictingUserName: var selfUserName })
+        {
+            var currentReasonType = ExtractCurrentReasonType(journey, config);
+            var reasonsMatch = string.Equals(currentReasonType, conflictingReasonType, StringComparison.OrdinalIgnoreCase);
+            throw new DuplicateRequestException(ConflictType.SelfSubmitted, conflictingReasonType, selfCategory, selfUserName, reasonsMatch);
+        }
+        if (conflict is DuplicateCheckResult.OtherSubmitted { ConflictingReasonType: var otherReasonType, ConflictingRequestCategory: var otherCategory, ConflictingUserName: var otherUserName })
+        {
+            var currentReasonType = ExtractCurrentReasonType(journey, config);
+            var reasonsMatch = string.Equals(currentReasonType, otherReasonType, StringComparison.OrdinalIgnoreCase);
+            throw new DuplicateRequestException(ConflictType.OtherSubmitted, otherReasonType, otherCategory, otherUserName, reasonsMatch);
+        }
 
-        var config = await flowService.GetConfigAsync(journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
         if (config is null)
             throw new InvalidOperationException(
                 $"No question flow config found for {journey.SelectedWhatToChange}/{journey.CheckingWindow.CheckingWindowType}.");

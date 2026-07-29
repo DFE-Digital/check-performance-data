@@ -13,8 +13,7 @@ public sealed class AdminRequestsService(
     TimeProvider timeProvider) : IAdminRequestsService
 {
     public Task<IReadOnlyList<UncommittedRequestRow>> GetAsync(CancellationToken cancellationToken) =>
-        // Checking-window dates are stored as local timestamps; mirror LandingPageRepository.
-        repository.GetForOpenWindowsAsync(timeProvider.GetLocalNow().DateTime, cancellationToken);
+        repository.GetAllAsync(cancellationToken);
 
     public async Task<int> ProcessCloseWindowEvent(CancellationToken cancellationToken)
     {

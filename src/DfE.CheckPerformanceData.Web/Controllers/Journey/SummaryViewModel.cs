@@ -13,6 +13,7 @@ public sealed class SummaryViewModel
     public required string BackPageId { get; init; }
     public required int MaxEvidencePages { get; init; }
     public string? ConflictError { get; init; }
+    public string? ConflictErrorLink { get; init; }
     /// <summary>True when the summary was opened from the bulk review page: link back there and hide the submit/save actions.</summary>
     public bool FromBulk { get; init; }
     /// <summary>True when the summary was opened by editing a single request from the Amendment Requests page: link back there (submit/save actions stay).</summary>

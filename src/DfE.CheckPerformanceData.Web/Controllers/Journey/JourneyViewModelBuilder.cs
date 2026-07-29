@@ -11,8 +11,7 @@ public sealed class JourneyViewModelBuilder(
     ICurrentUserService currentUserService) : IJourneyViewModelBuilder
 {
     public SummaryViewModel BuildSummaryVm(
-        Guid windowId, RequestState journey, QuestionFlowConfig config,
-        string? conflictError = null, bool fromBulk = false, bool fromEdit = false)
+        Guid windowId, RequestState journey, QuestionFlowConfig config, string? conflictError = null, string? conflictErrorLink = null, bool fromBulk = false, bool fromEdit = false)
     {
         var pupilName = GetPupilName(journey);
         var rows = new List<SummaryRow>();
@@ -69,6 +68,7 @@ public sealed class JourneyViewModelBuilder(
             BackPageId = backPageId,
             MaxEvidencePages = journeyService.MaxEvidencePages,
             ConflictError = conflictError,
+            ConflictErrorLink = conflictErrorLink,
             FromBulk = fromBulk,
             FromEdit = fromEdit,
             PrimaryPupilPageId = primaryPupilPage?.Id,
@@ -190,17 +190,8 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
-    private JourneyConditionContext BuildConditionContext(RequestState journey) => new()
-    {
-        Journey = journey,
-        User = new JourneyUserContext
-        {
-            OrganisationUrn = currentUserService.OrganisationUrn,
-            OrganisationId = currentUserService.OrganisationId,
-            OrganisationName = currentUserService.OrganisationName,
-            OrganisationTypeId = currentUserService.OrganisationTypeId
-        }
-    };
+    private JourneyConditionContext BuildConditionContext(RequestState journey) =>
+        JourneyConditionContextFactory.Create(journey, currentUserService);
 
     internal static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;

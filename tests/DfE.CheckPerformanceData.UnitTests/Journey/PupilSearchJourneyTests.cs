@@ -109,7 +109,7 @@ public class PupilSearchJourneyTests
         _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST01");
         _currentUserService.OrganisationUrn.Returns("100000");
         _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
-            .Returns((string?)null);
+            .Returns(new DuplicateCheckResult.NoConflict());
 
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
@@ -117,7 +117,8 @@ public class PupilSearchJourneyTests
             _flowService, _journeyService, _optionVisibilityService, _currentUserService);
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
-            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService)
+            _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
+            _optionVisibilityService)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

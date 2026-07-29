@@ -30,3 +30,28 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 ENTRYPOINT ["dotnet", "DfE.CheckPerformanceData.Web.dll"]
+
+# VS Code debug stage — builds in Debug configuration and installs vsdbg so the
+# VS Code Docker extension can attach a .NET debugger to the running container.
+# The docker-compose.vscode.yml override targets this stage.
+FROM build AS vscode-debug
+ENV NUGET_CERT_REVOCATION_MODE=offline
+
+RUN dotnet publish DfE.CheckPerformanceData.Web/DfE.CheckPerformanceData.Web.csproj \
+    -c Debug -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS debug-runtime
+WORKDIR /app
+
+# Install vsdbg — the .NET debugger used by VS Code Docker/C# Dev Kit
+RUN apt-get update && apt-get install -y --no-install-recommends unzip wget && \
+    rm -rf /var/lib/apt/lists/* && \
+    printf 'Y\n' | wget -qO- https://aka.ms/getvsdbgsh | /bin/sh /dev/stdin -v latest -l /remote_debugger -r linux-x64 && \
+    ln -s /remote_debugger/vsdbg /usr/local/bin/vsdbg
+
+COPY --from=vscode-debug /app/publish .
+
+# Disable debug wait so the app starts immediately; the debugger attaches on demand
+ENV COMPlus_DebugWait=0
+
+ENTRYPOINT ["dotnet", "DfE.CheckPerformanceData.Web.dll"]

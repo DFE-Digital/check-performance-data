@@ -77,12 +77,10 @@ public sealed class SeedRulesValidationTests
     /// </summary>
     private static readonly string[] PendingJourneyOutcomeKeys =
     [
-        "CompletedKs4Elsewhere",
         "AssessmentsDeferred",
         "PupilAddedAfterSummerTerm",
         "PupilNotOnJuneList",
         "NotAtEndOf16To18Study",
-        "Other",
     ];
 
     [Fact]

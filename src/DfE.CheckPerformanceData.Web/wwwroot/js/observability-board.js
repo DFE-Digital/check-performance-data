@@ -724,7 +724,10 @@
     }
 
     // The single entry point. Given a board root and a feed, wire the feed to the renderer.
+    // If a previous live feed is still attached to this root, close it so the new engine owns
+    // the DOM exclusively (prevents two engines fighting over the transitions list).
     function start(root, feed) {
+        if (root.__obsEs) { root.__obsEs.close(); }
         var engine = BoardEngine(root);
         feed.subscribe(engine.onSnapshot, engine.onError);
         return engine;

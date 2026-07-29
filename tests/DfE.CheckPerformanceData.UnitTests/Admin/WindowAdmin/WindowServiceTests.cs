@@ -115,6 +115,63 @@ public class WindowServiceTests
             Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task GetAllDataAsync_returns_every_window_from_the_repository()
+    {
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.GetAllWindowsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>
+            {
+                Window(new DateTime(2020, 1, 1), new DateTime(2020, 2, 1)),
+                Window(new DateTime(2027, 1, 1), new DateTime(2027, 2, 1))
+            });
+
+        WindowService service = new(repository, new StubTimeProvider(new DateTimeOffset(2026, 7, 24, 12, 0, 0, TimeSpan.Zero)));
+
+        PageResult? result = await service.GetAllDataAsync(CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(2, result!.Windows.Count);
+    }
+
+    [Fact]
+    public async Task GetAllDataAsync_marks_a_window_open_when_now_is_within_its_dates()
+    {
+        DateTimeOffset now = new(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.GetAllWindowsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>
+            {
+                Window(now.DateTime.AddDays(-1), now.DateTime.AddDays(1))
+            });
+
+        WindowService service = new(repository, new StubTimeProvider(now));
+
+        PageResult? result = await service.GetAllDataAsync(CancellationToken.None);
+
+        Assert.True(result!.Windows.Single().IsOpen);
+    }
+
+    [Theory]
+    [InlineData(-10, -5)] // already ended
+    [InlineData(5, 10)]   // not yet started
+    public async Task GetAllDataAsync_marks_a_window_closed_when_now_is_outside_its_dates(int startOffsetDays, int endOffsetDays)
+    {
+        DateTimeOffset now = new(2026, 7, 24, 12, 0, 0, TimeSpan.Zero);
+        IWindowRepository repository = Substitute.For<IWindowRepository>();
+        repository.GetAllWindowsAsync(Arg.Any<CancellationToken>())
+            .Returns(new List<CheckingWindowDto>
+            {
+                Window(now.DateTime.AddDays(startOffsetDays), now.DateTime.AddDays(endOffsetDays))
+            });
+
+        WindowService service = new(repository, new StubTimeProvider(now));
+
+        PageResult? result = await service.GetAllDataAsync(CancellationToken.None);
+
+        Assert.False(result!.Windows.Single().IsOpen);
+    }
+
     private static CheckingWindowDto Window(DateTime startDate, DateTime endDate) =>
         new()
         {
@@ -125,4 +182,10 @@ public class WindowServiceTests
             KeyStage = KeyStages.KS2,
             CheckingWindowType = CheckingWindowType.KS2
         };
+
+    private sealed class StubTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
 }

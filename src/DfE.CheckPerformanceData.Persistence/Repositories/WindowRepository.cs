@@ -8,10 +8,9 @@ namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
 public sealed class WindowRepository(PortalDbContext dbContext) : IWindowRepository
 {
-    public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(DateTime now, CancellationToken cancellationToken) =>
+    public async Task<List<CheckingWindowDto>> GetAllWindowsAsync(CancellationToken cancellationToken) =>
         await dbContext.CheckingWindows
             .AsNoTracking()
-            .Where(w => w.EndDate >= now)
             .Select(w => new CheckingWindowDto
             {
                 StartDate = w.StartDate,

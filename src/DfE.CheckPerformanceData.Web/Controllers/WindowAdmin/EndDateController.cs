@@ -96,7 +96,7 @@ public sealed class EndDateController(IWindowService windowService): Controller
         window.EndDate = model.DateValue.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
-        return RedirectToAction("Index", "Summary", id);
+        return RedirectToAction("Index", "Summary", new { id });
     }
 
     public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)

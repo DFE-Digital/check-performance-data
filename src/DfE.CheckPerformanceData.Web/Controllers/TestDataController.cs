@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Text.Json;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
@@ -43,6 +45,7 @@ public sealed class TestDataController : Controller
     private readonly ISampleSearchDataSeedJobStore _jobStore;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ISampleSearchDataGateway? _adminGateway;
+    private readonly ISettingService? _settings;
 
     public TestDataController(
         SampleSearchDataSeeder seeder,
@@ -51,7 +54,8 @@ public sealed class TestDataController : Controller
         IServiceScopeFactory scopeFactory,
         IPortalDbContext? dbContext = null,
         ICurrentUserService? currentUserService = null,
-        ISampleSearchDataGateway? adminGateway = null)
+        ISampleSearchDataGateway? adminGateway = null,
+        ISettingService? settings = null)
     {
         _seeder = seeder;
         _environment = environment;
@@ -60,13 +64,16 @@ public sealed class TestDataController : Controller
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _adminGateway = adminGateway;
+        _settings = settings;
     }
 
     // GET /admin/test-data/sample-search-data — renders the preset form. When called with
     // ?jobId=... the view auto-opens the progress modal and lets the JS poller pick up
     // from the current job snapshot (page reload mid-seed / JS-less redirect landing).
+    // Also carries the persisted per-event seconds rate so the JS can render an initial
+    // ETA on modal open before any real ticks arrive.
     [HttpGet("sample-search-data")]
-    public IActionResult SampleSearchData(Guid? jobId = null)
+    public async Task<IActionResult> SampleSearchData(Guid? jobId = null)
     {
         if (!_environment.IsDevelopment())
         {
@@ -77,11 +84,17 @@ public sealed class TestDataController : Controller
         ViewData["Title"] = "Seed sample search data";
 
         var banner = TempData[TempDataKey] as string;
+
+        var secondsPerEvent = _settings is not null
+            ? await _settings.GetDoubleAsync(SettingKeys.SearchAnalyticsSeedSecondsPerEvent)
+            : 0.1;
+
         return View("~/Views/Admin/TestData/SampleSearchData.cshtml",
             new SeedSampleSearchDataViewModel
             {
                 SuccessBanner = banner,
                 ActiveJobId = jobId,
+                SecondsPerEvent = secondsPerEvent,
             });
     }
 
@@ -172,20 +185,86 @@ public sealed class TestDataController : Controller
     }
 
     // DELETE /admin/test-data/sample-search-data/{jobId} — modal Cancel button posts here
-    // (via fetch). Signals the job's CancellationTokenSource; the seeder catches
-    // OperationCanceledException between batches and the background task calls MarkCompleted
-    // with a "cancelled at N events" note.
+    // (via fetch). Semantically this is "interrupt AND roll back": whether the seeder is
+    // still running or finished before the click landed, Cancel drops every row THIS run
+    // wrote via the per-job-id marker. Flow:
+    //   1. RequestCancel — signals the CTS (no-op if the job already ran to completion).
+    //   2. Poll the store briefly (up to ~3 s) for the seeder to unwind to a terminal
+    //      state so we do not race with an in-flight batch flush.
+    //   3. Invoke gateway.DeleteByJobIdAsync — one transaction across the three sink
+    //      tables.
+    //   4. MarkCompleted with a "Cancelled and rolled back N rows" note.
+    // Returns 200 OK with a JSON body { rolledBackRows, note } that the JS surfaces in
+    // the modal's cancelled state.
     [HttpDelete("sample-search-data/{jobId:guid}")]
     [ValidateAntiForgeryToken]
-    public IActionResult CancelSampleSearchDataSeed(Guid jobId)
+    public async Task<IActionResult> CancelSampleSearchDataSeed(
+        Guid jobId, CancellationToken cancellationToken)
     {
         if (!_environment.IsDevelopment())
         {
             return NotFound();
         }
 
-        var cancelled = _jobStore.RequestCancel(jobId);
-        return cancelled ? NoContent() : NotFound();
+        // Cheap 404 for a genuinely unknown job (e.g. evicted from the retention window).
+        var initialSnapshot = _jobStore.Get(jobId);
+        if (initialSnapshot is null)
+        {
+            return NotFound();
+        }
+
+        // Signal the token if still running. The store now returns true for any known
+        // job regardless of state (Completed jobs are legitimate rollback targets).
+        _ = _jobStore.RequestCancel(jobId);
+
+        // Wait briefly for the seeder to unwind. In practice: the seeder respects the
+        // token between batches (typically < 500 ms) or has already completed. Bounded
+        // so a wedged seeder cannot block the admin's rollback indefinitely.
+        var settleDeadline = DateTime.UtcNow.AddSeconds(3);
+        while (DateTime.UtcNow < settleDeadline)
+        {
+            var snap = _jobStore.Get(jobId);
+            if (snap is null
+                || snap.State == SampleSearchDataSeedJobState.Completed
+                || snap.State == SampleSearchDataSeedJobState.Failed)
+            {
+                break;
+            }
+            await Task.Delay(50, cancellationToken);
+        }
+
+        DeleteCountsResult? rollback = null;
+        var startedAtUtc = DateTime.UtcNow;
+        if (_adminGateway is not null)
+        {
+            rollback = await _adminGateway.DeleteByJobIdAsync(jobId.ToString("N"),
+                cancellationToken);
+            await WriteDeleteAuditAsync(
+                action: "SampleSearchDataSeedRolledBack",
+                counts: rollback,
+                startedAtUtc: startedAtUtc,
+                cancellationToken: cancellationToken);
+        }
+
+        var totalRolledBack = (rollback?.EventsDeleted ?? 0)
+                              + (rollback?.MessagesDeleted ?? 0);
+        var note = rollback is not null
+            ? $"Cancelled and rolled back {rollback.EventsDeleted:N0} events " +
+              $"and {rollback.MessagesDeleted:N0} messages."
+            : "Cancelled.";
+
+        // Terminal transition — replace whatever intermediate state the poll loop left.
+        // Use int.MinValue-safe accessor: audit id may be zero if the earlier audit
+        // insert failed; the store handles that.
+        _jobStore.MarkCompleted(jobId, auditEntryId: 0, note: note);
+
+        return Ok(new
+        {
+            rolledBackRows = totalRolledBack,
+            eventsRolledBack = rollback?.EventsDeleted ?? 0,
+            messagesRolledBack = rollback?.MessagesDeleted ?? 0,
+            note,
+        });
     }
 
     // POST /admin/test-data/sample-search-data/delete-seeded — drops every row with
@@ -339,6 +418,10 @@ public sealed class TestDataController : Controller
         SampleSearchDataSeedResult? result = null;
         Exception? failure = null;
         var wasCancelled = false;
+        // Wall-clock timing for the EMA update: measured against actual seed duration
+        // rather than the seeder's per-batch cadence so it reflects real throughput
+        // (batch flush latency + progress-tick overhead + everything else).
+        var startedAtUtc = DateTime.UtcNow;
 
         try
         {
@@ -355,7 +438,8 @@ public sealed class TestDataController : Controller
                 nowUtc,
                 rngSeed,
                 cts.Token,
-                progress);
+                progress,
+                jobId: jobId);
         }
         catch (OperationCanceledException)
         {
@@ -365,10 +449,11 @@ public sealed class TestDataController : Controller
         {
             failure = ex;
         }
-        finally
-        {
-            cts.Dispose();
-        }
+        // Deliberately no `finally { cts.Dispose(); }` here — disposal moved to AFTER
+        // MarkCompleted / MarkFailed below. Otherwise a Cancel click that lands in the
+        // race window between "seeder returns" and "job store learns the terminal state"
+        // catches ObjectDisposedException on the CTS and cannot signal the intent. The
+        // store's Running/Cancelling guards handle idempotency correctly.
 
         try
         {
@@ -382,7 +467,7 @@ public sealed class TestDataController : Controller
                 result,
                 eventCount,
                 messageCount,
-                nowUtc,
+                startedAtUtc,
                 actingUserId,
                 wasCancelled,
                 failure);
@@ -406,6 +491,33 @@ public sealed class TestDataController : Controller
             else
             {
                 _jobStore.MarkCompleted(jobId, auditId);
+
+                // Adaptive EMA of the per-event seconds rate. Only fires on non-cancelled
+                // non-failed completions — a cancelled or failed run doesn't reflect true
+                // throughput. Isolated in its own try/catch so a settings-store hiccup
+                // never derails the job state transition above.
+                try
+                {
+                    var settings = scope.ServiceProvider.GetService<ISettingService>();
+                    if (settings is not null
+                        && result is not null
+                        && result.EventsCreated > 0)
+                    {
+                        var elapsedSeconds = (DateTime.UtcNow - startedAtUtc).TotalSeconds;
+                        var measured = elapsedSeconds / result.EventsCreated;
+                        var stored = await settings.GetDoubleAsync(
+                            SettingKeys.SearchAnalyticsSeedSecondsPerEvent);
+                        var blended = SeedRateEma.Blend(stored, measured);
+                        await settings.SaveAsync(
+                            SettingKeys.SearchAnalyticsSeedSecondsPerEvent,
+                            blended.ToString("0.######", CultureInfo.InvariantCulture));
+                    }
+                }
+                catch
+                {
+                    // Non-fatal. The next seed will just start from the previous stored
+                    // value and re-attempt the blend.
+                }
             }
         }
         catch
@@ -417,6 +529,12 @@ public sealed class TestDataController : Controller
             {
                 _jobStore.MarkCompleted(jobId, 0);
             }
+        }
+        finally
+        {
+            // Safe to dispose now — state transition has already fired, and any Cancel
+            // click that landed on a disposed CTS was tolerated by RequestCancel.
+            try { cts.Dispose(); } catch { /* already disposed by another race */ }
         }
     }
 

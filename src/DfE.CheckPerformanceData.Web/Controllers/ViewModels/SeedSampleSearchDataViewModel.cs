@@ -22,4 +22,10 @@ public sealed class SeedSampleSearchDataViewModel
     // POST hand-off. Non-null means "render the modal auto-open marker and let the JS
     // pick up the poll cycle from this id".
     public Guid? ActiveJobId { get; init; }
+
+    // Persisted per-event seconds rate (SearchAnalytics:SeedSecondsPerEvent). Rendered
+    // into the form's data-seconds-per-event so the modal can display an initial ETA
+    // as soon as it opens, before any real progress ticks arrive. Refined with an EMA
+    // blend after each successful seed so it converges on the host's actual throughput.
+    public double SecondsPerEvent { get; init; } = 0.1;
 }

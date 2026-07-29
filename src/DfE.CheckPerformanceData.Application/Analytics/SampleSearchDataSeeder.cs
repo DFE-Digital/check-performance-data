@@ -96,13 +96,20 @@ public sealed class SampleSearchDataSeeder(
     // success banner + audit payload. NowUtc + Seed are parameters so tests can pin
     // deterministic behaviour — the controller passes DateTime.UtcNow + a session-derived
     // seed so repeat clicks with the same preset add variety rather than duplicating.
+    // The `progress` overload is opt-in: existing callers pass null and see the identical
+    // behaviour they saw before. Progress ticks fire once per completed event batch (batch
+    // size = 200) and once when the messages flush finishes, giving the modal poller a live
+    // signal to render against. Cancellation is checked between events and between batches
+    // so a Cancel click from the modal halts the seed within a few hundred milliseconds
+    // rather than only after the whole run completes.
     public async Task<SampleSearchDataSeedResult> SeedAsync(
         TimeSpan span,
         int eventCount,
         int messageCount,
         DateTime nowUtc,
         int seed,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<SampleSearchDataSeedProgressTick>? progress = null)
     {
         if (eventCount <= 0 && messageCount <= 0)
         {
@@ -135,10 +142,13 @@ public sealed class SampleSearchDataSeeder(
 
         var eventsCreated = 0;
         var resultsCreated = 0;
+        var lastCursor = fromUtc;
 
         // Emit events in batches so the sink's back-fill for FK ids runs on modest sizes.
         // Batch size of 200 keeps the two SaveChangesAsync round-trips-per-batch cost bounded
-        // and gives cancellation a chance to interrupt mid-run for large presets.
+        // and gives cancellation a chance to interrupt mid-run for large presets. Also drives
+        // the progress-tick cadence — every batch flush emits one tick with the running count
+        // + the cursor timestamp of the most recent event.
         const int BatchSize = 200;
         var buffer = new List<SearchEventDto>(BatchSize);
 
@@ -181,12 +191,17 @@ public sealed class SampleSearchDataSeeder(
                 ResultsBlocks: blocks,
                 LatencyMs: latency,
                 Results: results));
+            lastCursor = occurredAt;
 
             if (buffer.Count >= BatchSize)
             {
                 await sink.RecordBatchAsync(buffer, cancellationToken);
                 eventsCreated += buffer.Count;
                 buffer.Clear();
+                progress?.Report(new SampleSearchDataSeedProgressTick(
+                    EventsWritten: eventsCreated,
+                    MessagesWritten: 0,
+                    CurrentCursorUtc: lastCursor));
             }
         }
         if (buffer.Count > 0)
@@ -194,6 +209,10 @@ public sealed class SampleSearchDataSeeder(
             await sink.RecordBatchAsync(buffer, cancellationToken);
             eventsCreated += buffer.Count;
             buffer.Clear();
+            progress?.Report(new SampleSearchDataSeedProgressTick(
+                EventsWritten: eventsCreated,
+                MessagesWritten: 0,
+                CurrentCursorUtc: lastCursor));
         }
 
         // Messages: scatter M messages across the same window. Emit via the gateway so the
@@ -220,6 +239,13 @@ public sealed class SampleSearchDataSeeder(
         }
         await messagesGateway.WriteBackdatedMessagesAsync(messages, cancellationToken);
         var messagesCreated = messages.Count;
+
+        // Final tick reflects the true totals so the UI can transition to the completed
+        // state with definitive numbers rather than the last mid-run snapshot.
+        progress?.Report(new SampleSearchDataSeedProgressTick(
+            EventsWritten: eventsCreated,
+            MessagesWritten: messagesCreated,
+            CurrentCursorUtc: lastCursor));
 
         return new SampleSearchDataSeedResult(eventsCreated, resultsCreated, messagesCreated);
     }
@@ -323,3 +349,11 @@ public sealed class SampleSearchDataSeeder(
 // Per-run counts returned to the controller. Feeds both the success-banner TempData and
 // the audit payload written on each seed.
 public sealed record SampleSearchDataSeedResult(int EventsCreated, int ResultsCreated, int MessagesCreated);
+
+// Progress tick fired by SampleSearchDataSeeder.SeedAsync between batches. Consumers are
+// expected to be lightweight (in-memory job-store update, log line) — the seeder does not
+// throttle emissions and a large seed may fire hundreds of ticks per second.
+public sealed record SampleSearchDataSeedProgressTick(
+    int EventsWritten,
+    int MessagesWritten,
+    DateTime CurrentCursorUtc);

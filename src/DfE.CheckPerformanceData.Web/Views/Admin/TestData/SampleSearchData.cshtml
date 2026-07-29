@@ -1,6 +1,10 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SeedSampleSearchDataViewModel
 @{
     ViewData["Title"] = "Seed sample search data";
+    var progressUrl = "/admin/test-data/sample-search-data/progress";
+    var cancelUrlBase = "/admin/test-data/sample-search-data/";
+    var dashboardUrl = "/admin/Search/";
+    var activeJobId = Model.ActiveJobId?.ToString();
 }
 
 <a class="govuk-back-link" href="/admin">Back to administration</a>
@@ -18,7 +22,7 @@
         <div class="govuk-notification-banner__content">
             <p class="govuk-notification-banner__heading">
                 @Model.SuccessBanner
-                <a class="govuk-notification-banner__link" href="/admin/Search/">View the analytics dashboard</a>.
+                <a class="govuk-notification-banner__link" href="@dashboardUrl">View the analytics dashboard</a>.
             </p>
         </div>
     </div>
@@ -42,7 +46,12 @@
         </p>
 
         <form method="post" action="/admin/test-data/sample-search-data"
-              data-testid="seed-sample-search-data-form">
+              id="seed-sample-search-data-form"
+              data-testid="seed-sample-search-data-form"
+              data-progress-url="@progressUrl"
+              data-cancel-url-base="@cancelUrlBase"
+              data-dashboard-url="@dashboardUrl"
+              data-resume-job-id="@activeJobId">
             @Html.AntiForgeryToken()
 
             <fieldset class="govuk-fieldset">
@@ -136,8 +145,9 @@
             </details>
 
             <button type="submit" class="govuk-button" data-module="govuk-button"
-                    data-prevent-double-click="true"
-                    data-testid="seed-sample-search-data-submit">
+                    id="seed-sample-search-data-submit"
+                    data-testid="seed-sample-search-data-submit"
+                    data-idle-label="Seed data" data-busy-label="Seeding…">
                 Seed data
             </button>
         </form>
@@ -148,3 +158,116 @@
         </p>
     </div>
 </div>
+
+@* Progress modal for the seed run. Opens as soon as the form is submitted; polls the
+   in-memory job store every 500 ms; transitions to a Completed / Failed / Cancelled
+   state once the background task finishes. The dialog is a native <dialog> element
+   opened via .showModal() — same pattern as the govuk-confirm-modal tag helper, with
+   its own semantic id + testid so E2E tests can target it precisely. *@
+<dialog id="seed-progress-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="seed-progress-modal-title"
+        aria-describedby="seed-progress-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="seed-progress-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="seed-progress-modal-title">Seeding sample search data</h2>
+
+        <div id="seed-progress-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                <strong>Preset:</strong>
+                <span data-role="preset-label" data-testid="seed-progress-preset">…</span>
+            </p>
+
+            <p class="govuk-body" data-role="status-line">
+                Seeded <strong data-role="events-written" data-testid="seed-progress-events">0</strong>
+                of ~<span data-role="events-total">0</span> search events.
+            </p>
+
+            <p class="govuk-body" data-role="cursor-line" hidden>
+                Currently at:
+                <span data-role="current-cursor" data-testid="seed-progress-cursor">—</span> UTC.
+            </p>
+
+            <p class="govuk-body" data-role="eta-line" hidden>
+                About <span data-role="eta-seconds">…</span> seconds remaining.
+            </p>
+
+            @* Progress bar. Fill width is set via inline style from JS; percentage text is
+               painted below for screen-reader / non-JS-degraded users. *@
+            <div class="seed-progress-bar" role="progressbar"
+                 aria-valuemin="0" aria-valuemax="100"
+                 aria-valuenow="0" data-role="progress-bar">
+                <div class="seed-progress-bar__fill" data-role="progress-fill"
+                     style="width: 0%;"></div>
+            </div>
+            <p class="govuk-hint" data-role="progress-percent-line">
+                <span data-role="progress-percent">0</span>% complete
+            </p>
+
+            @* Rolling log of the last few progress ticks. Kept short (5 entries) so the
+               modal does not scroll on a long seed. *@
+            <details class="govuk-details" data-module="govuk-details">
+                <summary class="govuk-details__summary">
+                    <span class="govuk-details__summary-text">Recent progress log</span>
+                </summary>
+                <div class="govuk-details__text">
+                    <ul class="seed-progress-log" data-role="progress-log">
+                        <li class="seed-progress-log__empty">Waiting for the first tick…</li>
+                    </ul>
+                </div>
+            </details>
+
+            @* Success block — hidden until the state transitions to Completed. *@
+            <div class="seed-progress-modal__result" data-role="result-completed" hidden>
+                <p class="govuk-body govuk-!-font-weight-bold" data-testid="seed-progress-completed">
+                    Seeded <span data-role="final-events">0</span> events and
+                    <span data-role="final-messages">0</span> feedback messages
+                    spanning <span data-role="final-preset">…</span>.
+                </p>
+                <p class="govuk-body">
+                    <a class="govuk-link" href="@dashboardUrl">View dashboard →</a>
+                </p>
+            </div>
+
+            @* Failure block — hidden until Failed. *@
+            <div class="seed-progress-modal__result" data-role="result-failed" hidden>
+                <p class="govuk-body govuk-error-message" data-testid="seed-progress-failed">
+                    <span data-role="error-message">Seeding failed.</span>
+                </p>
+                <p class="govuk-body">
+                    <button type="button" class="govuk-button govuk-button--secondary"
+                            data-role="retry-button">Retry</button>
+                </p>
+            </div>
+
+            @* Cancelled block — hidden until Completed with a Cancelled note. *@
+            <div class="seed-progress-modal__result" data-role="result-cancelled" hidden>
+                <p class="govuk-body" data-testid="seed-progress-cancelled">
+                    <span data-role="cancelled-note">Seed cancelled.</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="cancel-button"
+                    data-testid="seed-progress-cancel">Cancel seeding</button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="close-button"
+                    data-testid="seed-progress-close">
+                Close (keep seeding in background)
+            </button>
+        </div>
+    </div>
+</dialog>
+
+@section Scripts {
+    <script src="~/js/test-data-seed.js" asp-append-version="true" defer></script>
+}

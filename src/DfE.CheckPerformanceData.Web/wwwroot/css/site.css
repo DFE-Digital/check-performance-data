@@ -1922,3 +1922,60 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
     display: none;
   }
 }
+
+/* ==============================================================================
+   Seed sample search data — progress modal + progress bar
+   ------------------------------------------------------------------------------
+   Live progress modal opened from the seed-sample-search-data admin page. Layered
+   on top of the govuk-modal-dialogue base (site.css above) with a wider max-width
+   so the rolling progress log has room to render without word-wrap.
+   ============================================================================== */
+
+dialog.seed-progress-modal {
+  max-width: 720px;
+}
+
+.seed-progress-bar {
+  height: 20px;
+  margin: 15px 0 5px;
+  background-color: #f3f2f1;
+  border: 1px solid #b1b4b6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.seed-progress-bar__fill {
+  height: 100%;
+  background-color: #1d70b8; /* govuk-brand-colour */
+  transition: width 300ms ease-out;
+}
+
+.seed-progress-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: "GDS Transport", monospace;
+  font-size: 0.875rem;
+}
+
+.seed-progress-log__entry {
+  padding: 4px 0;
+  border-bottom: 1px solid #f3f2f1;
+  color: #0b0c0c;
+}
+
+.seed-progress-log__entry:last-child {
+  border-bottom: 0;
+}
+
+.seed-progress-log__empty {
+  padding: 4px 0;
+  color: #505a5f;
+  font-style: italic;
+}
+
+.seed-progress-modal__result {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 2px solid #b1b4b6;
+}

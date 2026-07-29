@@ -150,6 +150,14 @@ try
         DfE.CheckPerformanceData.Web.Analytics.HttpContextSearchAnalyticsSessionProvider>();
     builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Analytics.SearchEventWriter>();
 
+    // In-memory job store for the dev-only seed-sample-search-data admin page. Singleton
+    // because the POST creates a job on one request and subsequent GETs (progress polls +
+    // Cancel DELETE) must read the same instance across the request lifetime. Backed by
+    // a ConcurrentDictionary; auto-evicts completed jobs after 5 minutes on new-job insert.
+    builder.Services.AddSingleton<
+        DfE.CheckPerformanceData.Application.Analytics.ISampleSearchDataSeedJobStore,
+        DfE.CheckPerformanceData.Application.Analytics.InMemorySampleSearchDataSeedJobStore>();
+
     // Process-lifetime counter of zero-result searches. Interlocked-backed; safe under
     // concurrent request throughput. Read out-of-band by diagnostic surfaces.
     builder.Services.AddSingleton<

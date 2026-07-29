@@ -13,6 +13,13 @@ public sealed class SeedSampleSearchDataViewModel
     public int? MessageCount { get; init; }
 
     // Populated by the POST action's redirect handoff via TempData. Rendered as a GDS
-    // success banner above the form when non-null.
+    // success banner above the form when non-null. Kept for the JS-disabled fallback path
+    // where the initial POST is still 302 -> banner, though the primary UX is now the
+    // progress modal.
     public string? SuccessBanner { get; init; }
+
+    // Populated when the URL carries ?jobId=… — the page reloads mid-seed OR the JS-less
+    // POST hand-off. Non-null means "render the modal auto-open marker and let the JS
+    // pick up the poll cycle from this id".
+    public Guid? ActiveJobId { get; init; }
 }

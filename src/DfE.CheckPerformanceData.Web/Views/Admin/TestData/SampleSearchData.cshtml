@@ -358,23 +358,48 @@
                 </div>
             </details>
 
-            @* Success block — hidden until the state transitions to Completed. *@
+            @* Success block — hidden until the state transitions to Completed.
+               Rendered as a GDS success notification banner so completion reads
+               unmistakably positive. Counts are populated from the final tick. *@
             <div class="seed-progress-modal__result" data-role="result-completed" hidden>
-                <p class="govuk-body govuk-!-font-weight-bold" data-testid="seed-progress-completed">
-                    Seeded <span data-role="final-events">0</span> events and
-                    <span data-role="final-messages">0</span> feedback messages
-                    spanning <span data-role="final-preset">…</span>.
-                </p>
-                <p class="govuk-body">
-                    <a class="govuk-link" href="@dashboardUrl">View dashboard →</a>
-                </p>
+                <div class="govuk-notification-banner govuk-notification-banner--success" role="alert"
+                     aria-labelledby="seed-completed-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-completed-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-completed-banner-title">
+                            Seeding complete
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-completed">
+                            Seeded <span data-role="final-events">0</span> events and
+                            <span data-role="final-messages">0</span> feedback messages
+                            over <span data-role="final-preset">…</span>.
+                            <a class="govuk-notification-banner__link" href="@dashboardUrl">View dashboard</a>
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            @* Failure block — hidden until Failed. *@
+            @* Failure block — hidden until Failed. Rendered as a GDS notification
+               banner (non-success variant) with an inline error paragraph. *@
             <div class="seed-progress-modal__result" data-role="result-failed" hidden>
-                <p class="govuk-body govuk-error-message" data-testid="seed-progress-failed">
-                    <span data-role="error-message">Seeding failed.</span>
-                </p>
+                <div class="govuk-notification-banner" role="alert"
+                     aria-labelledby="seed-failed-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-failed-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-failed-banner-title">
+                            Seeding failed
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-failed">
+                            <span data-role="error-message">Seeding failed.</span>
+                        </p>
+                    </div>
+                </div>
                 <p class="govuk-body">
                     <button type="button" class="govuk-button govuk-button--secondary"
                             data-role="retry-button">Retry</button>
@@ -383,9 +408,21 @@
 
             @* Cancelled block — hidden until Completed with a Cancelled note. *@
             <div class="seed-progress-modal__result" data-role="result-cancelled" hidden>
-                <p class="govuk-body" data-testid="seed-progress-cancelled">
-                    <span data-role="cancelled-note">Seed cancelled.</span>
-                </p>
+                <div class="govuk-notification-banner" role="alert"
+                     aria-labelledby="seed-cancelled-banner-title"
+                     data-module="govuk-notification-banner"
+                     data-testid="seed-progress-cancelled-banner">
+                    <div class="govuk-notification-banner__header">
+                        <h2 class="govuk-notification-banner__title" id="seed-cancelled-banner-title">
+                            Seeding cancelled
+                        </h2>
+                    </div>
+                    <div class="govuk-notification-banner__content">
+                        <p class="govuk-notification-banner__heading" data-testid="seed-progress-cancelled">
+                            <span data-role="cancelled-note">Seed cancelled.</span>
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -395,7 +432,9 @@
                     data-testid="seed-progress-cancel">Cancel seeding</button>
             <button type="button" class="govuk-button govuk-button--secondary"
                     data-role="close-button"
-                    data-testid="seed-progress-close">
+                    data-testid="seed-progress-close"
+                    data-running-label="Close (keep seeding in background)"
+                    data-terminal-label="Close">
                 Close (keep seeding in background)
             </button>
         </div>

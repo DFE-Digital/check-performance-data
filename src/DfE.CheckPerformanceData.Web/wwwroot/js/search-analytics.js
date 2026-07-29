@@ -103,11 +103,27 @@
     tooltip.setAttribute('role', 'tooltip');
     document.body.appendChild(tooltip);
 
+    // Aggregate-to-typical-week mode is a page-scope property (a full reload flips it),
+    // so read it once at module init from the URL. In aggregate mode the bucket
+    // timestamps are anchored to a synthetic Monday (2001-01-01 UTC) — the anchor date
+    // is a rendering artefact, not real user data, so tooltips must NOT show it.
+    var aggregateMode = false;
+    try {
+        var params = new URLSearchParams(window.location.search);
+        aggregateMode = (params.get('aggregate') || '').toLowerCase() === 'week';
+    } catch (e) { /* older browsers — fall through, non-aggregate default is safe */ }
+
     function formatTimestamp(iso, windowSpanMs) {
         var d = new Date(iso);
         if (isNaN(d.getTime())) { return iso; }
         var opts;
-        if (windowSpanMs <= 24 * 3600 * 1000) {
+        if (aggregateMode) {
+            // Aggregate mode — weekday + HH:mm only. The date part of the ISO string is a
+            // synthetic anchor (a Monday in 2001), so rendering it would confuse the reader
+            // ("why is my search from January 2001?"). UTC forced so the WSL2 / UK Docker
+            // host still surfaces "Monday" and not the previous day off a negative offset.
+            opts = { weekday: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' };
+        } else if (windowSpanMs <= 24 * 3600 * 1000) {
             opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
         } else if (windowSpanMs <= 90 * 24 * 3600 * 1000) {
             opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };

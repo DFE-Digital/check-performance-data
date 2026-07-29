@@ -722,6 +722,102 @@ public class JourneyControllerTests
         Assert.False(capturedJourney.QuestionAnswers.ContainsKey("q2"));
     }
 
+    // ── SaveDraft — origin country language capture (PBI 292266 review fix) ──
+
+    private static readonly JourneyPage CountryPage = new()
+    {
+        Id = "country-page",
+        Questions = [new Question { Id = "country-originally-from", Type = QuestionType.Autocomplete, Title = "Country" }]
+    };
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_InvokesLanguageCapture_WithCapturedAnswers()
+    {
+        // Save-and-exit re-reads the form the same way PagePost does, so it must run the
+        // same backfill — otherwise a re-POST with the autocomplete's hidden _code field
+        // empty (the normal state of a re-rendered page) persists a null CodeValue.
+        SetupSession(ValidSession(history: ["country-page"]));
+        _flowService.GetPage(Config, "country-page").Returns(CountryPage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_country_originally_from"] = "France"
+        });
+
+        await _sut.SaveDraft(WindowId, pageId: "country-page");
+
+        await _languageCapture.Received(1).ApplyAsync(
+            Arg.Any<RequestState>(),
+            Arg.Is<IReadOnlyDictionary<string, QuestionAnswer>>(a =>
+                a.ContainsKey("country-originally-from") && a["country-originally-from"].TextValue == "France"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_PersistsBackfilledCodeValueAndOriginCountryState()
+    {
+        // ApplyAsync mutates the answer (backfills CodeValue) and the journey
+        // (OriginCountryCode / OriginCountryLanguages) in place — SaveDraft must persist
+        // those mutations to session and pass them on to SaveDraftAsync, not the stale
+        // pre-capture values it read from the form.
+        SetupSession(ValidSession(history: ["country-page"]));
+        _flowService.GetPage(Config, "country-page").Returns(CountryPage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_country_originally_from"] = "France"
+        });
+        _languageCapture.ApplyAsync(Arg.Any<RequestState>(),
+            Arg.Do<IReadOnlyDictionary<string, QuestionAnswer>>(a => a["country-originally-from"].CodeValue = "FR"),
+            Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var journey = ci.Arg<RequestState>();
+                journey.OriginCountryCode = "FR";
+                journey.OriginCountryLanguages = ["French"];
+                return Task.CompletedTask;
+            });
+
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "country-page");
+
+        Assert.NotNull(capturedJourney);
+        Assert.Equal("FR", capturedJourney.QuestionAnswers["country-originally-from"].CodeValue);
+        Assert.Equal("FR", capturedJourney.OriginCountryCode);
+        Assert.Equal(["French"], capturedJourney.OriginCountryLanguages);
+    }
+
+    [Fact]
+    public async Task SaveDraft_WithPageId_BlankCountryField_DoesNotOverwriteExistingAnswerOrOriginCountryState()
+    {
+        // A blank re-POST (e.g. the user cleared the field then hit Save and exit) must not
+        // clobber the previously saved answer or null out the already-resolved origin
+        // country state — matching the existing skip-blank semantics for every other question.
+        var state = ValidSession(history: ["country-page"], answers: new Dictionary<string, QuestionAnswer>
+        {
+            ["country-originally-from"] = new() { TextValue = "France", CodeValue = "FR" }
+        });
+        state.OriginCountryCode = "FR";
+        state.OriginCountryLanguages = ["French"];
+        SetupSession(state);
+        _flowService.GetPage(Config, "country-page").Returns(CountryPage);
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_country_originally_from"] = "   " // whitespace only
+        });
+
+        RequestState? capturedJourney = null;
+        await _requestService.SaveDraftAsync(WindowId, Arg.Do<RequestState>(s => capturedJourney = s), Arg.Any<RequestStatus>());
+
+        await _sut.SaveDraft(WindowId, pageId: "country-page");
+
+        Assert.NotNull(capturedJourney);
+        Assert.Equal("France", capturedJourney.QuestionAnswers["country-originally-from"].TextValue);
+        Assert.Equal("FR", capturedJourney.QuestionAnswers["country-originally-from"].CodeValue);
+        Assert.Equal("FR", capturedJourney.OriginCountryCode);
+        Assert.Equal(["French"], capturedJourney.OriginCountryLanguages);
+    }
+
     [Fact]
     public async Task SaveDraft_WhenNotBulkEdit_RedirectsToAmendmentRequestsIndex()
     {

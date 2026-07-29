@@ -700,13 +700,26 @@ public sealed class JourneyController(
             if (page is not null)
             {
                 // Capture any unsaved non-file answers from the form
+                var newAnswers = new Dictionary<string, QuestionAnswer>();
                 foreach (var question in page.Questions.Where(q => q.Type != QuestionType.FileUpload))
                 {
                     var answer = ReadFormAnswer(question);
                     if (!string.IsNullOrWhiteSpace(answer.TextValue))
-                        HttpContext.Session.SaveRequestState(windowId,
-                            s => s.QuestionAnswers[question.Id] = answer);
+                        newAnswers[question.Id] = answer;
                 }
+
+                // Mirrors PagePost: recover the country code the autocomplete's hidden _code
+                // field loses on a re-POST, so a "Save and exit" here doesn't overwrite the
+                // good answer with CodeValue = null and leave OriginCountryLanguages stale.
+                await originCountryLanguageCapture.ApplyAsync(journey, newAnswers, HttpContext.RequestAborted);
+
+                HttpContext.Session.SaveRequestState(windowId, s =>
+                {
+                    foreach (var (qId, answer) in newAnswers)
+                        s.QuestionAnswers[qId] = answer;
+                    s.OriginCountryCode = journey.OriginCountryCode;
+                    s.OriginCountryLanguages = journey.OriginCountryLanguages;
+                });
                 journey = HttpContext.Session.GetRequestState(windowId);
             }
         }

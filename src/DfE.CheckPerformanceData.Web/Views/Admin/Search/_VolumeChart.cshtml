@@ -41,39 +41,23 @@
         ? "Search volume over the selected window: no data."
         : $"Search volume over the selected window: peak {maxSearches} searches, {buckets[^1].SearchCount} in the most recent bucket. Unique sessions peak {maxUnique}.";
 
-    // X-axis tick labels: pick up to 6 buckets across the range and show the bucket start
-    // formatted per granularity. For sub-day buckets show HH:mm; for day+ show "d MMM".
-    // Reads the actual gap between the first two bucket starts to decide format.
-    static string FormatBucketLabel(DateTime bucket, TimeSpan step) => step switch
-    {
-        _ when step < TimeSpan.FromDays(1) => bucket.ToString("HH:mm", CultureInfo.InvariantCulture),
-        _ when step < TimeSpan.FromDays(28) => bucket.ToString("d MMM", CultureInfo.InvariantCulture),
-        _ => bucket.ToString("MMM yyyy", CultureInfo.InvariantCulture),
-    };
+    // Adaptive X-axis tick labels via the shared ChartAxisTicks helper — one code path
+    // decides how many ticks to place + which format to use based on the window span the
+    // buckets cover. Rules: <=24h HH:mm, <=7d "ddd d", <=30d "d MMM", <=90d "d MMM", wider
+    // "MMM yyyy". Label overlap is prevented by treating each label as ~72 px wide and
+    // capping the tick count to fit the plot width.
+    var xTicks = ChartAxisTicks.XAxisTicks(
+        buckets.Select(b => b.BucketStart).ToArray(),
+        plotWidthPx: plotW);
 
-    var step = buckets.Count >= 2
-        ? buckets[1].BucketStart - buckets[0].BucketStart
-        : TimeSpan.FromHours(1);
-
-    // Choose ~4-6 ticks so labels don't overlap on a 700px-wide plot. Always include first
-    // and last bucket for endpoint framing.
-    var xTickIndices = new List<int>();
-    if (buckets.Count > 0)
-    {
-        var targetTicks = Math.Min(6, buckets.Count);
-        var stride = Math.Max(1, buckets.Count / targetTicks);
-        for (var i = 0; i < buckets.Count; i += stride) xTickIndices.Add(i);
-        if (xTickIndices[^1] != buckets.Count - 1) xTickIndices.Add(buckets.Count - 1);
-    }
-
-    // Y-axis: label the 0, mid, and max values on both scales.
-    static string YLabelValue(int max, double fraction) =>
-        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture);
+    // Adaptive Y-axis: 3-5 "nice" ticks. Fractions returned by the helper are 0..1 against
+    // the max of each of the two Y-scales (searches + unique sessions).
+    var yFractions = ChartAxisTicks.YAxisFractions(maxSearches);
 }
 
 <div class="sa-chart-panel">
-    <h2 class="govuk-heading-m">Volume over time</h2>
-
+    @* Inner "Volume over time" heading removed — the outer section (see Index.cshtml)
+       already labels the tile so a duplicate heading would double up per Lance's UX ask. *@
     @if (buckets.Count == 0)
     {
         <p class="govuk-body">No data to chart for this window.</p>
@@ -91,8 +75,22 @@
             </li>
         </ul>
 
+        // Bucket-timestamp array + max-value pair emitted to the DOM as data attributes so
+        // the crosshair-tooltip JS (see wwwroot/js/search-analytics.js) can pick out the
+        // nearest bucket to the cursor and render "Wed 24 Jul, 14:00 — 32 searches" without
+        // a network round-trip. ISO-format the timestamps for JS Date parsing.
+        var bucketIsoJson = "[" + string.Join(",", buckets.Select(b => "\"" + b.BucketStart.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture) + "\"")) + "]";
+        var seriesValuesJson = "[" + string.Join(",", buckets.Select(b => b.SearchCount.ToString(CultureInfo.InvariantCulture))) + "]";
         <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
-             aria-label="@ariaLabel" focusable="false">
+             aria-label="@ariaLabel" focusable="false"
+             data-sa-crosshair="true"
+             data-sa-plot-left="@padLeft"
+             data-sa-plot-top="@padTop"
+             data-sa-plot-width="@plotW"
+             data-sa-plot-height="@plotH"
+             data-sa-buckets="@bucketIsoJson"
+             data-sa-values="@seriesValuesJson"
+             data-sa-value-suffix=" searches">
             <title>Search volume over time — searches (blue) and unique sessions (green)</title>
 
             @* Plot area frame — left, right, bottom axes. *@
@@ -104,27 +102,27 @@
                   stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
 
             @* Y-axis tick labels — left scale is Searches (blue), right scale is Unique sessions (green).
-               Three ticks each (0, mid, max). Rendered via Html.Raw because Razor otherwise
-               parses inline <text> inside a @foreach block as its own control-flow marker
-               (RZ1023). SVG elements are namespace-safe regardless. *@
-            @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+               Nice-number ticks via the adaptive helper. Rendered via Html.Raw because Razor
+               otherwise parses inline <text> inside a @foreach block as its own control-flow
+               marker (RZ1023). SVG elements are namespace-safe regardless. *@
+            @foreach (var fraction in yFractions)
             {
                 var y = padTop + plotH - (plotH * fraction);
                 var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
                 var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
                 <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
                       stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
-                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#1d70b8\" font-size=\"11\">{YLabelValue(maxSearches, fraction)}</text>")
-                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft + plotW + 6}\" y=\"{yTextStr}\" text-anchor=\"start\" fill=\"#00703c\" font-size=\"11\">{YLabelValue(maxUnique, fraction)}</text>")
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#1d70b8\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxSearches)}</text>")
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft + plotW + 6}\" y=\"{yTextStr}\" text-anchor=\"start\" fill=\"#00703c\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxUnique)}</text>")
             }
 
-            @* X-axis tick labels — time. Anchored middle beneath the tick point. *@
-            @foreach (var i in xTickIndices)
+            @* X-axis tick labels — adaptive time labels. Anchored middle beneath the tick point. *@
+            @foreach (var tick in xTicks)
             {
-                var xPos = X(i);
+                var xPos = X(tick.Index);
                 <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
                       y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
-                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(FormatBucketLabel(buckets[i].BucketStart, step))}</text>")
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(tick.Label)}</text>")
             }
 
             @* Axis-title labels — colour-matched to their scale so admins know which value

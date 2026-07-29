@@ -65,6 +65,15 @@ public sealed class SearchAnalyticsIndexViewModel
     // card. All zeros is a valid state (rendered as an empty-state message).
     public required ZeroResultOutcomeSummary ZeroResultOutcomes { get; init; }
 
+    // "Aggregate to a typical week" mode. When true, VolumeSeries / UniqueSessionsSeries /
+    // ZeroResultCountSeries / LatencyPercentileSeries have been populated by the cyclic
+    // weekday-hour aggregate readers (168 buckets each, one per hour of a typical week)
+    // instead of the linear time-series readers. The view uses this flag to (a) render the
+    // toggle checkbox in the checked state and (b) suppress the aggregate toggle from any
+    // series drill-in link so a subsequent navigate lands on the raw-time view unless
+    // explicitly asked for aggregate again.
+    public required bool AggregateMode { get; init; }
+
     // Prior-window figures for the anomaly chips beneath each of the four stat tiles.
     // When Available == false the view hides every chip and renders an "insufficient
     // prior data" hint (a custom range spanning > 45 days puts the prior window outside

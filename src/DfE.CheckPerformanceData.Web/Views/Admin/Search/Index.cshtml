@@ -26,6 +26,13 @@
     ViewContext.ViewData["sa-drillin-volume-url"]  = $"/admin/Search/Volume?{chartQuery}";
     ViewContext.ViewData["sa-drillin-latency-url"] = $"/admin/Search/LatencyOverTime?{chartQuery}";
 
+    // Aggregate-to-typical-week toggle. Preserves the current range + bucket in the link
+    // href so a click flips only the aggregate mode. When aggregate is already on, the
+    // link points back at the non-aggregate view.
+    var aggregateHref = Model.AggregateMode
+        ? $"/admin/Search/?{chartQuery}"
+        : $"/admin/Search/?{chartQuery}&aggregate=week";
+
     // Anomaly-chip helper: renders a small tag beneath each stat tile summarising the
     // percentage change from the previous same-length window. Deltas within ±10% render
     // NOTHING (avoid clutter). Direction is coloured by whether the movement is
@@ -177,17 +184,47 @@
     </div>
 </div>
 
+@* Aggregate-to-typical-week toggle. Rendered as a real GDS checkbox that submits an
+   otherwise-empty GET so a click flips the ?aggregate=week query string. Server-rendered
+   only — with JS off the label is still clickable via the enclosing form's submit. *@
+<div class="govuk-form-group sa-aggregate-toggle">
+    <form method="get" action="/admin/Search/" class="sa-aggregate-toggle__form">
+        <input type="hidden" name="range" value="@Model.RangeKey" />
+        <input type="hidden" name="bucket" value="@Model.BucketKey" />
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="sa-aggregate-week" type="checkbox"
+                       name="aggregate" value="week"
+                       data-sa-aggregate-toggle="true"
+                       @(Model.AggregateMode ? "checked" : "") />
+                <label class="govuk-label govuk-checkboxes__label" for="sa-aggregate-week"
+                       title="Overlay every hour of the selected window onto a single 7-day (Mon 00:00 .. Sun 23:00) timeline, so admins can spot recurring weekday-hour patterns.">
+                    Aggregate to a typical week
+                </label>
+            </div>
+        </div>
+        <noscript>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-top-2">Apply</button>
+        </noscript>
+    </form>
+</div>
+
 @* Four chart panels. All render server-side; the JS toggler hides the three non-default
    panels on load (via the .sa-chart--hidden class + hidden attribute). Data-sa-panel
    maps to the tile's data-sa-tile so a click on tile X reveals panel X. Progressive
-   enhancement: with JS disabled all four charts remain visible stacked. *@
+   enhancement: with JS disabled all four charts remain visible stacked.
+
+   In aggregate mode each chart's X-axis reads Mon 00:00 .. Sun 23:00 (168 cyclic buckets);
+   otherwise it's the raw time-series over the selected window. Titles unified per tile —
+   the outer section header carries the label; the inner _VolumeChart partial's own
+   "Volume over time" header has been removed to avoid the duplicated title Lance flagged. *@
 <div class="sa-chart-panel" data-sa-panel="volume">
-    <h2 class="govuk-heading-m">Searches over time</h2>
+    <h2 class="govuk-heading-m">Search volume over time@(Model.AggregateMode ? " — typical week" : "")</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.VolumeSeries)
 </div>
 
 <div class="sa-chart-panel" data-sa-panel="unique-users">
-    <h2 class="govuk-heading-m">Unique sessions over time</h2>
+    <h2 class="govuk-heading-m">Unique sessions over time@(Model.AggregateMode ? " — typical week" : "")</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
     {
         Series = Model.UniqueSessionsSeries,
@@ -200,11 +237,11 @@
 </div>
 
 <div class="sa-chart-panel" data-sa-panel="zero-results">
-    <h2 class="govuk-heading-m">Zero-result searches over time</h2>
+    <h2 class="govuk-heading-m">Zero-result count over time@(Model.AggregateMode ? " — typical week" : "")</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_SingleSeriesChart.cshtml", new SingleSeriesChartModel
     {
         Series = Model.ZeroResultCountSeries,
-        Title = "Zero-result searches over time",
+        Title = "Zero-result count over time",
         YAxisLabel = "Zero-result searches",
         SeriesColour = "#d4351c",
         DrillInUrl = $"/admin/Search/ZeroResultsOverTime?{chartQuery}",
@@ -219,7 +256,7 @@
    enhancement: with JS disabled both panels remain visible along with every other
    chart panel, so the page still tells the truth. *@
 <div class="sa-chart-panel" data-sa-panel="latency">
-    <h2 class="govuk-heading-m">Latency percentiles over time</h2>
+    <h2 class="govuk-heading-m">Latency percentiles over time@(Model.AggregateMode ? " — typical week" : "")</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_LatencyChart.cshtml", Model.LatencyPercentileSeries)
 </div>
 

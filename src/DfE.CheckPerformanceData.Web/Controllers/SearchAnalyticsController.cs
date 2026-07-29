@@ -79,8 +79,13 @@ public sealed class SearchAnalyticsController : Controller
         DateTime? from,
         DateTime? to,
         string? bucket = null,
+        string? aggregate = null,
         CancellationToken ct = default)
     {
+        // "aggregate=week" collapses the four bucketed series into a 168-cell cyclic
+        // typical-week view — Mon 00:00 .. Sun 23:00 — using the weekday-hour aggregate
+        // readers. The default (unset) is the raw linear time-series over the window.
+        var aggregateMode = string.Equals(aggregate, "week", StringComparison.OrdinalIgnoreCase);
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["Title"] = "Search analytics";
         // Widen the layout so the tiles + chart + tables get the full viewport when the
@@ -98,13 +103,28 @@ public sealed class SearchAnalyticsController : Controller
         var topQueries = await _query.GetTopQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
         var topZeroResultQueries = await _query.GetTopZeroResultQueriesAsync(fromUtc, toUtc, TopNLimit, ct);
 
-        // Fetch all four bucketed series server-side so the interactive tiles can swap the
-        // rendered chart client-side without a round-trip. Every series rides the same
-        // bucket-size spine so the four charts stay aligned on the X-axis.
-        var volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
-        var uniqueSessionsSeries = await _query.GetUniqueSessionsOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
-        var zeroResultCountSeries = await _query.GetZeroResultCountOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
-        var latencyPercentileSeries = await _query.GetLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+        // Fetch all four series server-side so the interactive tiles can swap the rendered
+        // chart client-side without a round-trip. Aggregate mode replaces every series with
+        // its cyclic weekday-hour variant; the four charts stay X-aligned either way because
+        // both spines are deterministic given the same window.
+        IReadOnlyList<VolumeBucket> volumeSeries;
+        IReadOnlyList<VolumeBucket> uniqueSessionsSeries;
+        IReadOnlyList<VolumeBucket> zeroResultCountSeries;
+        IReadOnlyList<LatencyBucket> latencyPercentileSeries;
+        if (aggregateMode)
+        {
+            volumeSeries = await _query.GetVolumeAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            uniqueSessionsSeries = await _query.GetUniqueSessionsAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            zeroResultCountSeries = await _query.GetZeroResultCountAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            latencyPercentileSeries = await _query.GetLatencyPercentilesAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+        }
+        else
+        {
+            volumeSeries = await _query.GetVolumeOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+            uniqueSessionsSeries = await _query.GetUniqueSessionsOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+            zeroResultCountSeries = await _query.GetZeroResultCountOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+            latencyPercentileSeries = await _query.GetLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
+        }
 
         // Inline top-pages card: fetch the first page of the drill-in reader so the view can
         // render a top-10 table alongside top-queries and top-zero-result. Total row count
@@ -141,6 +161,7 @@ public sealed class SearchAnalyticsController : Controller
             WeekdayHourGrid = weekdayHourGrid,
             ZeroResultOutcomes = zeroResultOutcomes,
             SummaryDeltas = summaryDeltas,
+            AggregateMode = aggregateMode,
         });
     }
 

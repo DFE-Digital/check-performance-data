@@ -82,3 +82,145 @@
         })(tiles[k]);
     }
 })();
+
+// Hover crosshair + tooltip for the primary dashboard charts. Vanilla JS only — the SVG
+// is server-rendered; this progressive-enhancement layer adds a full-height vertical +
+// full-width horizontal dashed guide line plus a floating tooltip. When the cursor is
+// within snap range of a data bucket the tooltip reads the mapped X-value (formatted
+// time) and Y-value ("32 searches", "150 ms", etc). With JS off the chart still renders
+// fine, minus the hover affordance.
+(function () {
+    'use strict';
+    var svgs = document.querySelectorAll('svg.sa-chart[data-sa-crosshair="true"]');
+    if (svgs.length === 0) { return; }
+
+    // One shared tooltip element positioned near the cursor. Appended to body so it can
+    // escape any scrolling / overflow container. pointer-events:none so it never grabs
+    // the mouse from the SVG.
+    var tooltip = document.createElement('div');
+    tooltip.className = 'sa-chart__crosshair-tooltip';
+    tooltip.style.display = 'none';
+    tooltip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tooltip);
+
+    function formatTimestamp(iso, windowSpanMs) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) { return iso; }
+        var opts;
+        if (windowSpanMs <= 24 * 3600 * 1000) {
+            opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+        } else if (windowSpanMs <= 90 * 24 * 3600 * 1000) {
+            opts = { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+        } else {
+            opts = { day: 'numeric', month: 'short', year: 'numeric' };
+        }
+        try { return d.toLocaleString('en-GB', opts); } catch (e) { return iso; }
+    }
+
+    function attachHover(svg) {
+        var padLeft = parseFloat(svg.getAttribute('data-sa-plot-left')) || 0;
+        var padTop = parseFloat(svg.getAttribute('data-sa-plot-top')) || 0;
+        var plotW = parseFloat(svg.getAttribute('data-sa-plot-width')) || 0;
+        var plotH = parseFloat(svg.getAttribute('data-sa-plot-height')) || 0;
+        var suffix = svg.getAttribute('data-sa-value-suffix') || '';
+
+        var buckets, values;
+        try {
+            buckets = JSON.parse(svg.getAttribute('data-sa-buckets') || '[]');
+            values = JSON.parse(svg.getAttribute('data-sa-values') || '[]');
+        } catch (e) { return; }
+        if (!buckets.length) { return; }
+
+        var windowSpanMs = 0;
+        if (buckets.length >= 2) {
+            windowSpanMs = new Date(buckets[buckets.length - 1]).getTime() - new Date(buckets[0]).getTime();
+        }
+
+        // Build the crosshair line elements once and hide them; toggle on mouse events.
+        var svgNs = 'http://www.w3.org/2000/svg';
+        var vLine = document.createElementNS(svgNs, 'line');
+        vLine.setAttribute('class', 'sa-chart__crosshair-line');
+        vLine.setAttribute('stroke', '#505a5f');
+        vLine.setAttribute('stroke-width', '1');
+        vLine.setAttribute('stroke-dasharray', '3 3');
+        vLine.setAttribute('pointer-events', 'none');
+        vLine.setAttribute('visibility', 'hidden');
+        svg.appendChild(vLine);
+
+        var hLine = document.createElementNS(svgNs, 'line');
+        hLine.setAttribute('class', 'sa-chart__crosshair-line');
+        hLine.setAttribute('stroke', '#505a5f');
+        hLine.setAttribute('stroke-width', '1');
+        hLine.setAttribute('stroke-dasharray', '3 3');
+        hLine.setAttribute('pointer-events', 'none');
+        hLine.setAttribute('visibility', 'hidden');
+        svg.appendChild(hLine);
+
+        function toSvgCoords(evt) {
+            var pt = svg.createSVGPoint();
+            pt.x = evt.clientX; pt.y = evt.clientY;
+            var ctm = svg.getScreenCTM();
+            if (!ctm) return null;
+            return pt.matrixTransform(ctm.inverse());
+        }
+
+        svg.addEventListener('mousemove', function (evt) {
+            var p = toSvgCoords(evt);
+            if (!p) return;
+            // Reject when outside the plot area.
+            if (p.x < padLeft || p.x > padLeft + plotW || p.y < padTop || p.y > padTop + plotH) {
+                vLine.setAttribute('visibility', 'hidden');
+                hLine.setAttribute('visibility', 'hidden');
+                tooltip.style.display = 'none';
+                return;
+            }
+            // Nearest bucket to cursor X.
+            var relX = (p.x - padLeft) / plotW;
+            var idxRaw = Math.round(relX * (buckets.length - 1));
+            if (idxRaw < 0) idxRaw = 0;
+            if (idxRaw > buckets.length - 1) idxRaw = buckets.length - 1;
+
+            var snappedX = padLeft + (plotW * idxRaw / Math.max(1, buckets.length - 1));
+
+            vLine.setAttribute('x1', snappedX);
+            vLine.setAttribute('x2', snappedX);
+            vLine.setAttribute('y1', padTop);
+            vLine.setAttribute('y2', padTop + plotH);
+            vLine.setAttribute('visibility', 'visible');
+
+            hLine.setAttribute('x1', padLeft);
+            hLine.setAttribute('x2', padLeft + plotW);
+            hLine.setAttribute('y1', p.y);
+            hLine.setAttribute('y2', p.y);
+            hLine.setAttribute('visibility', 'visible');
+
+            var whenLabel = formatTimestamp(buckets[idxRaw], windowSpanMs);
+            var valueLabel = (values[idxRaw] || 0).toLocaleString('en-GB') + suffix;
+            tooltip.textContent = whenLabel + ' — ' + valueLabel;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (evt.clientX + 12) + 'px';
+            tooltip.style.top = (evt.clientY + 12) + 'px';
+        });
+
+        svg.addEventListener('mouseleave', function () {
+            vLine.setAttribute('visibility', 'hidden');
+            hLine.setAttribute('visibility', 'hidden');
+            tooltip.style.display = 'none';
+        });
+    }
+
+    for (var i = 0; i < svgs.length; i++) attachHover(svgs[i]);
+})();
+
+// Aggregate-to-typical-week toggle: submit the enclosing GET form the moment the
+// checkbox flips so the admin does not need to click a separate Apply button. With JS
+// off the <noscript> Apply button is the fallback path.
+(function () {
+    'use strict';
+    var toggle = document.querySelector('input[data-sa-aggregate-toggle="true"]');
+    if (!toggle) return;
+    toggle.addEventListener('change', function () {
+        var form = toggle.closest('form');
+        if (form) form.submit();
+    });
+})();

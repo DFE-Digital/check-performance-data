@@ -706,7 +706,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- UX round-11: adaptive axis ticks, hover crosshair, aggregate-to-typical-week --
+    // --- Adaptive axis ticks, hover crosshair, aggregate-to-typical-week ----------------
 
     // Adaptive X-axis labels: 30d window should render date-shaped ticks (day/month), NOT
     // the HH:mm-shaped ticks a 24h view would use. Hover the plot area — the crosshair

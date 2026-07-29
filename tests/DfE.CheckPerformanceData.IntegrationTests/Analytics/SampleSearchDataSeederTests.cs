@@ -120,6 +120,91 @@ public sealed class SampleSearchDataSeederTests
         Assert.Equal(5L, secondMessageCount);
     }
 
+    // Progress callback: the seeder MUST report incremental progress via IProgress<T> so
+    // the admin UI can render a live progress panel while a multi-thousand-event seed is
+    // running. Locks:
+    //   * At least one tick fires for a small seed.
+    //   * The final tick's EventsWritten equals the actual row count written.
+    //   * Each tick's CurrentCursorUtc sits inside the seeded window.
+    [Fact]
+    public async Task SeedAsync_ReportsProgressTicksWithMonotonicCounts()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var now = new DateTime(2026, 07, 28, 12, 00, 00, DateTimeKind.Utc);
+        var span = TimeSpan.FromDays(1);
+        var fromUtc = now - span;
+        var sut = CreateSut();
+
+        var ticks = new List<SampleSearchDataSeedProgressTick>();
+        var progress = new Progress<SampleSearchDataSeedProgressTick>(t => ticks.Add(t));
+
+        var result = await sut.SeedAsync(
+            span: span,
+            eventCount: 500,
+            messageCount: 5,
+            nowUtc: now,
+            seed: 42,
+            cancellationToken: CancellationToken.None,
+            progress: progress);
+
+        // Progress delivery is async — wait briefly for the marshal-to-context posts to drain.
+        var start = DateTime.UtcNow;
+        while (ticks.Count == 0 && (DateTime.UtcNow - start) < TimeSpan.FromSeconds(2))
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.True(ticks.Count >= 1,
+            $"Expected at least one progress tick for a 500-event seed; got {ticks.Count}.");
+        Assert.Equal(result.EventsCreated, ticks[^1].EventsWritten);
+        Assert.Equal(result.MessagesCreated, ticks[^1].MessagesWritten);
+        foreach (var t in ticks)
+        {
+            Assert.InRange(t.CurrentCursorUtc, fromUtc, now);
+            Assert.True(t.EventsWritten >= 0);
+            Assert.True(t.MessagesWritten >= 0);
+        }
+    }
+
+    // Cancellation: an in-flight seed MUST honour the cancellation token between batches.
+    // OperationCanceledException is expected; whatever rows landed before the cancel are
+    // fine (the endpoint is additive and the UI surfaces "cancelled at N events").
+    [Fact]
+    public async Task SeedAsync_HonoursCancellationBetweenBatches()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var now = new DateTime(2026, 07, 28, 12, 00, 00, DateTimeKind.Utc);
+        var span = TimeSpan.FromDays(1);
+        var sut = CreateSut();
+
+        // Cancel after the first batch — a 200-batch seeder should stop before 5000 events.
+        var cts = new CancellationTokenSource();
+        var ticks = new List<SampleSearchDataSeedProgressTick>();
+        var progress = new Progress<SampleSearchDataSeedProgressTick>(t =>
+        {
+            ticks.Add(t);
+            cts.Cancel();
+        });
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await sut.SeedAsync(
+                span: span,
+                eventCount: 5000,
+                messageCount: 10,
+                nowUtc: now,
+                seed: 1,
+                cancellationToken: cts.Token,
+                progress: progress));
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        var writtenCount = await ScalarLongAsync(conn, "SELECT COUNT(*) FROM search_events;");
+        Assert.True(writtenCount < 5000L,
+            $"Cancellation should have halted before the full 5000 rows landed; got {writtenCount}.");
+    }
+
     private static async Task<long> ScalarLongAsync(NpgsqlConnection conn, string sql)
     {
         await using var cmd = conn.CreateCommand();

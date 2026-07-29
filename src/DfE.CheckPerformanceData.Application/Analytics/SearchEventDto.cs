@@ -14,4 +14,9 @@ public sealed record SearchEventDto(
     int ResultsPages,
     int ResultsBlocks,
     int LatencyMs,
-    IReadOnlyList<SearchEventResultDto> Results);
+    IReadOnlyList<SearchEventResultDto> Results,
+    // Optional marker set by the sample-data seeder to true. Real events captured from
+    // live user requests leave this at its default (false). The sink propagates the
+    // flag onto both the parent SearchEvent row and its child SearchEventResult rows so
+    // the delete-seeded admin surface can drop either set in isolation.
+    bool IsSeeded = false);

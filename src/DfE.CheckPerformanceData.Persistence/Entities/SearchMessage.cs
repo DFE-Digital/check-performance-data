@@ -19,4 +19,9 @@ public sealed class SearchMessage
     public bool IsRead { get; set; }
     public string? ReadByAdminSub { get; set; }
     public DateTime? ReadAtUtc { get; set; }
+
+    // True when the row was written by the sample-data seeder (dev-only Test-data admin
+    // surface); false for every message submitted by a real user. Admin "delete seeded
+    // data" filters WHERE is_seeded = true so a real user's feedback survives the wipe.
+    public bool IsSeeded { get; set; }
 }

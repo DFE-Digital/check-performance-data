@@ -51,6 +51,13 @@ internal sealed class SearchEventConfiguration : IEntityTypeConfiguration<Search
         builder.Property(x => x.LatencyMs)
             .HasColumnName("latency_ms");
 
+        // Marker for rows written by the sample-data seeder. Defaults to false so pre-
+        // existing rows (from before the migration lands) remain classified as real
+        // data. Delete-seeded on the admin surface filters on this column.
+        builder.Property(x => x.IsSeeded)
+            .HasColumnName("is_seeded")
+            .HasDefaultValue(false);
+
         // Volume-over-time chart + retention purge both scan this column.
         builder.HasIndex(x => x.OccurredAtUtc)
             .HasDatabaseName("ix_search_events_occurred_at");

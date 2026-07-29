@@ -190,7 +190,10 @@ public sealed class SampleSearchDataSeeder(
                 ResultsPages: pages,
                 ResultsBlocks: blocks,
                 LatencyMs: latency,
-                Results: results));
+                Results: results,
+                // Every row written by the seeder carries the marker so the delete-
+                // seeded admin action can drop this row without touching real events.
+                IsSeeded: true));
             lastCursor = occurredAt;
 
             if (buffer.Count >= BatchSize)

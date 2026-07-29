@@ -31,6 +31,12 @@ internal sealed class SearchEventResultConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.Rank)
             .HasColumnName("rank");
 
+        // Mirrors the parent SearchEvent.IsSeeded so the delete-seeded query does not
+        // need to JOIN back to the parent to filter children.
+        builder.Property(x => x.IsSeeded)
+            .HasColumnName("is_seeded")
+            .HasDefaultValue(false);
+
         builder.HasIndex(x => x.SearchEventId)
             .HasDatabaseName("ix_search_event_results_search_event_id");
 

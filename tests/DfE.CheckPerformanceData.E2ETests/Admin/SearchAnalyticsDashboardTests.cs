@@ -1009,6 +1009,125 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
+    // --- Aggregate-mode dual-axis regression + filter round-trip ------------------------
+
+    // In aggregate mode the volume chart's right Y-axis reads unique sessions per
+    // (weekday, hour) cell. The previous implementation left UniqueSessionCount = 0 on
+    // every bucket returned by the aggregate reader, so the right-Y tick labels all
+    // rendered as "0" and the green sessions polyline flatlined at the bottom of the
+    // chart. The fix merges the volume + unique-sessions aggregate readers server-side
+    // so both counts arrive on the same VolumeBucket. This test asserts the visible
+    // artefact: at least one non-zero label on the volume chart's right-Y axis in
+    // aggregate mode against the deployed corpus.
+    [SkippableFact]
+    public async Task AggregateMode_VolumeChart_RightYAxis_ShowsNonZeroUniqueSessionsLabels()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // Land straight on the aggregate view so we do not depend on the checkbox
+            // auto-submit path (that path is exercised by the other aggregate test).
+            var url = $"{Fixture.BaseUrl}/admin/Search/?range=30d&bucket=1d&aggregate=week";
+            var response = await Page.GotoAsync(url);
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            var volumeSvg = Page.Locator("[data-sa-panel='volume'] svg.sa-chart[data-sa-crosshair='true']").First;
+            await volumeSvg.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // The right-Y axis is rendered as text nodes with fill=#00703c (GDS green,
+            // matching the unique-sessions polyline). If maxUnique = 0 (the bug), every
+            // label renders as "0"; if the fix is in place at least one label is non-zero.
+            var rightYLabels = await volumeSvg
+                .Locator("text.sa-chart__axis-tick[fill='#00703c']")
+                .EvaluateAllAsync<string[]>("els => els.map(e => e.textContent.trim())");
+            Assert.True(rightYLabels.Length >= 1,
+                $"Expected at least one right-Y (unique sessions) axis label; got {rightYLabels.Length}.");
+
+            var hasNonZeroLabel = rightYLabels.Any(t =>
+                !string.Equals(t, "0", StringComparison.Ordinal)
+                && !string.IsNullOrWhiteSpace(t));
+            Assert.True(hasNonZeroLabel,
+                $"Aggregate mode's unique-sessions right-Y axis should have at least one non-zero label; got: '{string.Join(", ", rightYLabels)}'.");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("admin-search-aggregate-right-y-non-zero.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // With the aggregate checkbox checked AND a custom time range selected, clicking
+    // Apply filters must preserve BOTH pieces of state on the resulting URL. Before the
+    // form merge the aggregate checkbox lived in its own <form>, so an Apply filters
+    // submit only sent the range + bucket fields and the URL dropped the aggregate
+    // parameter.
+    [SkippableFact]
+    public async Task ApplyFilters_WithAggregateOnAndCustomRange_PreservesAggregateAndCustomWindowInUrl()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // Custom range spanning the last 21 days, aggregate on, day-sized bucket -
+            // a shape the admin might choose after "aggregate looks good, let me narrow
+            // the window".
+            var to = DateTime.UtcNow.Date;
+            var from = to.AddDays(-21);
+            var fromIso = from.ToString("yyyy-MM-dd");
+            var toIso = to.ToString("yyyy-MM-dd");
+
+            var url = $"{Fixture.BaseUrl}/admin/Search/?range=custom&from={fromIso}&to={toIso}&bucket=1d&aggregate=week";
+            var response = await Page.GotoAsync(url);
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // The aggregate checkbox should be checked and inside the same form as the
+            // Apply filters button - clicking Apply must submit both together.
+            var aggregateBox = Page.Locator("input[data-sa-aggregate-toggle='true']");
+            await Expect(aggregateBox).ToBeVisibleAsync();
+            Assert.True(await aggregateBox.IsCheckedAsync(),
+                "Aggregate checkbox should render checked when ?aggregate=week is on the URL.");
+            var enclosingForm = aggregateBox.Locator("xpath=ancestor::form[1]");
+            var applyButton = enclosingForm.Locator("button:has-text('Apply filters')");
+            Assert.True(await applyButton.CountAsync() >= 1,
+                "Apply filters button must live in the same <form> as the aggregate checkbox.");
+
+            // Click Apply filters without changing anything - a pure round-trip.
+            await applyButton.First.ClickAsync();
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            var finalUrl = Page.Url;
+            Assert.Contains("aggregate=week", finalUrl);
+            Assert.Contains("range=custom", finalUrl);
+            Assert.Contains($"from={fromIso}", finalUrl);
+            Assert.Contains($"to={toIso}", finalUrl);
+            Assert.Contains("bucket=1d", finalUrl);
+
+            // And the page still renders in aggregate mode (checkbox stays checked).
+            Assert.True(await aggregateBox.IsCheckedAsync(),
+                "Aggregate checkbox should remain checked after Apply filters round-trip.");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("admin-search-aggregate-apply-filters-roundtrip.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     private void AttachCookieToContext(string? cookieHeader)

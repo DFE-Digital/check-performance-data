@@ -34,6 +34,22 @@ public sealed class SettingService(ISettingRepository repository) : ISettingServ
             : int.Parse(Require(key).DefaultValue);
     }
 
+    public async Task<double> GetDoubleAsync(string key)
+    {
+        var raw = await GetValueAsync(key);
+        // InvariantCulture on the parse + the fallback so a "0.10" stored on one host
+        // reads identically on a comma-decimal locale. GetValueAsync already resolves
+        // the code-declared default when nothing is stored, so raw is never null.
+        return double.TryParse(raw,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed)
+            ? parsed
+            : double.Parse(Require(key).DefaultValue,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     public async Task<bool> GetBoolAsync(string key)
     {
         var definition = Require(key);

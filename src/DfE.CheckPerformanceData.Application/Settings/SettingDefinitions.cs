@@ -21,6 +21,7 @@ public static class SettingKeys
     public const string SearchAnalyticsRetentionDays = "SearchAnalytics:RetentionDays";
     public const string SearchAnalyticsRetentionIntervalMinutes = "SearchAnalytics:RetentionIntervalMinutes";
     public const string SearchAnalyticsMessageRetentionDays = "SearchAnalytics:MessageRetentionDays";
+    public const string SearchAnalyticsSeedSecondsPerEvent = "SearchAnalytics:SeedSecondsPerEvent";
 
     public const string HealthDepthAmber = "Health:DepthAmber";
     public const string HealthDepthRed = "Health:DepthRed";
@@ -136,7 +137,11 @@ public static class SettingDefinitions
         new(SettingKeys.SearchAnalyticsMessageRetentionDays,
             "Number of days a search-messages row (user feedback message) is retained before it is purged. Longer than the events window because support cases often reference weeks-old sessions. Hard-max 730 days is enforced in code.",
             "365",
-            SettingKind.Int)
+            SettingKind.Int),
+        new(SettingKeys.SearchAnalyticsSeedSecondsPerEvent,
+            "Per-event throughput estimate (seconds) used to render the initial ETA on the dev-only Seed sample search data modal. Updated with an EMA blend after each non-cancelled seed so it converges on the actual host's throughput. Default is deliberately high so first-run estimates look conservative rather than optimistic.",
+            "0.1",
+            SettingKind.String)
     ];
 
     public static SettingDefinition? Find(string key) =>

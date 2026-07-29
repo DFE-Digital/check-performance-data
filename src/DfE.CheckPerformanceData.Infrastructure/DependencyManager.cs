@@ -275,6 +275,9 @@ public static class DependencyManager
         }
         services.Configure<ZendeskSettings>(s => s = settings);
 
+        // Register the OAuth token provider (singleton - caches token and refreshes automatically)
+        services.AddSingleton<IOAuthTokenProvider, OAuthTokenProvider>();
+
         services.AddRefitClient<IZendeskApi>(new RefitSettings
         {
             ContentSerializer = new NewtonsoftJsonContentSerializer()
@@ -282,11 +285,10 @@ public static class DependencyManager
            .ConfigureHttpClient(c =>
            {
                c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
-               var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
-               c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
            })
-           .AddHttpMessageHandler<RefitLoggingHandler>();
+           .AddHttpMessageHandler<RefitLoggingHandler>()
+           .AddHttpMessageHandler<ZendeskOAuthHandler>();
 
         services.AddScoped<IZendeskService, ZendeskService>();
         services.AddScoped<IZendeskAttachmentService, ZendeskAttachmentService>();

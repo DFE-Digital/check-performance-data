@@ -113,8 +113,17 @@ public sealed class SearchAnalyticsController : Controller
         IReadOnlyList<LatencyBucket> latencyPercentileSeries;
         if (aggregateMode)
         {
-            volumeSeries = await _query.GetVolumeAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
-            uniqueSessionsSeries = await _query.GetUniqueSessionsAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            // The volume chart is dual-axis: left Y = searches (SearchCount), right Y =
+            // unique sessions (UniqueSessionCount) - both read from the SAME VolumeBucket.
+            // In non-aggregate mode GetVolumeOverTimeAsync fills both fields per bucket.
+            // In aggregate mode there is no single reader that populates both fields, so
+            // fetch the two aggregate readers separately and merge them positionally:
+            // both return the same 168-cell (weekday, hour) spine in the same order, so
+            // element i on each side describes the same cyclic cell.
+            var volumeCells = await _query.GetVolumeAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            var uniqueCells = await _query.GetUniqueSessionsAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
+            volumeSeries = MergeAggregateVolumeAndUniqueSeries(volumeCells, uniqueCells);
+            uniqueSessionsSeries = uniqueCells;
             zeroResultCountSeries = await _query.GetZeroResultCountAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
             latencyPercentileSeries = await _query.GetLatencyPercentilesAggregatedByWeekdayHourAsync(fromUtc, toUtc, ct);
         }
@@ -583,5 +592,35 @@ public sealed class SearchAnalyticsController : Controller
             _ when window <= TimeSpan.FromDays(30)  => (VolumeBucketSize.Day,  "1d"),
             _ => (VolumeBucketSize.Week, "1w"),
         };
+    }
+
+    // Merges the volume-aggregated and unique-sessions-aggregated readers into a single
+    // series that mirrors non-aggregate mode's shape: each bucket carries the total-events
+    // count in SearchCount and the distinct-sessions count in UniqueSessionCount. Both
+    // aggregate readers return the same 168-cell (weekday, hour) spine in the same order,
+    // so a positional merge is safe. The dual-axis volume chart reads BOTH fields from
+    // the same bucket - without this merge the aggregate branch's right-Y unique-sessions
+    // line renders flat at zero because the volume reader leaves UniqueSessionCount = 0.
+    private static IReadOnlyList<VolumeBucket> MergeAggregateVolumeAndUniqueSeries(
+        IReadOnlyList<VolumeBucket> volumeCells,
+        IReadOnlyList<VolumeBucket> uniqueCells)
+    {
+        if (volumeCells.Count != uniqueCells.Count)
+        {
+            // Defensive: both readers must return an identical spine. If they ever
+            // diverge (schema drift, new bucket dimension) fall back to volume-only
+            // so the chart still renders rather than throwing on a shape mismatch.
+            return volumeCells;
+        }
+
+        var merged = new VolumeBucket[volumeCells.Count];
+        for (var i = 0; i < volumeCells.Count; i++)
+        {
+            merged[i] = new VolumeBucket(
+                volumeCells[i].BucketStart,
+                volumeCells[i].SearchCount,
+                uniqueCells[i].SearchCount);
+        }
+        return merged;
     }
 }

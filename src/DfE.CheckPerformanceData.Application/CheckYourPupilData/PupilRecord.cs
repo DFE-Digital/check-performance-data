@@ -17,7 +17,7 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 /// captured — unknown JSON fields are ignored.
 /// </summary>
 [JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
-public sealed class PupilRecord
+public sealed class PupilRecord : IPupilRecord
 {
     [JsonPropertyName("Id")]
     public Guid Id { get; init; }
@@ -78,4 +78,10 @@ public sealed class PupilRecord
     [JsonPropertyName("NEWMOBILE")]
     [JsonConverter(typeof(NumericBoolJsonConverter))]
     public bool NewMobile { get; init; }
+
+    [JsonIgnore]
+    public string Identifier => Upn;
+
+    [JsonIgnore]
+    public bool IsIncluded => PupilInclusion.IsKs4Included(Pincl);
 }

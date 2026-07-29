@@ -1,6 +1,6 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.IngressFolderBrowseViewModel
 
-<h1 class="govuk-heading-xl">Browse ingress files</h1>
+<h1 class="govuk-heading-xl">Browse ingress files for @Model.DatasetLabel</h1>
 
 @if (Model.IsChoosingContainer)
 {
@@ -17,7 +17,7 @@
             {
                 <li>
                     <a class="govuk-link"
-                       href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(container)">
+                       href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(container)">
                         @container
                     </a>
                 </li>
@@ -39,14 +39,14 @@ else
     <p class="govuk-body">
         @if (Model.ParentPath is null)
         {
-            <a class="govuk-link" href="/admin/windows/@Model.WindowId/ingress-file">
+            <a class="govuk-link" href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset">
                 Back to Containers
             </a>
         }
         else
         {
             <a class="govuk-link"
-               href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
+               href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
                 Back
             </a>
         }
@@ -69,7 +69,7 @@ else
 
                     <li>
                         <a class="govuk-link"
-                           href="/admin/windows/@Model.WindowId/ingress-file/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
+                           href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
                             @folderName
                         </a>
                     </li>
@@ -81,7 +81,7 @@ else
         {
             <h2 class="govuk-heading-m">Files</h2>
 
-            <form method="post" action="/admin/windows/@Model.WindowId/ingress-file">
+            <form method="post" action="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset">
                 @Html.AntiForgeryToken()
 
                 <div class="govuk-form-group">

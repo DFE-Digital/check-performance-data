@@ -44,6 +44,66 @@ public static class SeedPupilData
         }
     }
 
+    /// <summary>
+    /// Seeds the 16-19 window. Both populations go into ONE file per school — exactly what
+    /// ingress produces after merging the supplier's two 16-19 CSVs — so the read path sees the
+    /// same shape locally as it will in a real window.
+    /// </summary>
+    public static async Task ExecutePost16SeedAsync(IPupilDataBlobClient client)
+    {
+        foreach (var school in Schools)
+        {
+            var pupils = new List<Post16PupilRecord>();
+
+            if (school.AddIncluded)
+                pupils.AddRange(GeneratePost16Pupils(count: 15, included: true, firstnameOffset: 0, surnameOffset: 0, school));
+
+            if (school.AddNonIncluded)
+                pupils.AddRange(GeneratePost16Pupils(count: 15, included: false, firstnameOffset: 10, surnameOffset: 5, school));
+
+            if (pupils.Count > 0)
+                await client.UploadPupilsAsync(DevDataSeeder.Post16CheckingWindowId, school.Laestab, pupils);
+        }
+    }
+
+    // Codes seen in the supplier's included-file sample. Post16 inclusion is decided by file of
+    // origin, not by these — they are display-only.
+    private static readonly int[] Post16PinclCodes = [501, 502, 505, 506];
+
+    private static IEnumerable<Post16PupilRecord> GeneratePost16Pupils(
+        int count, bool included, int firstnameOffset, int surnameOffset, School school) =>
+        Enumerable.Range(0, count).Select(i =>
+        {
+            var dob = new DateOnly(2007, (i % 12) + 1, (i % 28) + 1);
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var age = today.Year - dob.Year;
+            if (dob.AddYears(age) > today) age--;
+
+            return new Post16PupilRecord
+            {
+                Id = Guid.NewGuid(),
+                CheckingWindowId = DevDataSeeder.Post16CheckingWindowId,
+                Included = included,
+                Laestab = school.Laestab,
+                Firstname = Firstnames[(i + firstnameOffset) % Firstnames.Length],
+                Surname = Surnames[(i + surnameOffset) % Surnames.Length],
+                Sex = Sexes[i % 2],
+                // The 16-19 supplier sends DOB as a timestamp string, so the seed mirrors that
+                // to exercise PupilDateFormatter's timestamp branch.
+                DateOfBirth = dob.ToDateTime(TimeOnly.MinValue).ToString("yyyy-MM-dd HH:mm:ss.fffffff"),
+                Age = age,
+                // The non-included supplier file has no P_INCL column at all.
+                Pincl = included ? Post16PinclCodes[i % Post16PinclCodes.Length] : null,
+                PinclAims = included ? (i % 2 == 0 ? 503 : 504) : null,
+                Cypmd_Id = $"5{(i + firstnameOffset + 1):D5}",
+                Urn = school.Urn,
+                Ukprn = $"1000{(i % 9) + 1:D4}",
+                Uln = $"99{(i + firstnameOffset + 1):D8}",
+                CampId0 = included ? string.Empty : $"C{i % 3}",
+                CampId1 = included ? string.Empty : $"C{(i + 1) % 3}"
+            };
+        });
+
     private static readonly string[] Firstnames =
     [
         "Alice", "Bob", "Charlie", "Diana", "Edward", "Fiona", "George", "Hannah", "Ian", "Julia",
@@ -72,7 +132,6 @@ public static class SeedPupilData
 
     private static readonly string[] SenCodes = ["N", "N", "N", "K", "E"];
 
-    private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
     private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int firstnameOffset,
@@ -83,7 +142,7 @@ public static class SeedPupilData
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var age = today.Year - dob.Year;
             if (dob.AddYears(age) > today) age--;
-            var pinclCodes = includedPincl ? IncludedPinclCodes : NonIncludedPinclCodes;
+            var pinclCodes = includedPincl ? PupilInclusion.Ks4IncludedPinclCodes : NonIncludedPinclCodes;
 
             return new PupilRecord
             {

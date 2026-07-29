@@ -218,7 +218,7 @@ public class EditAdviceServiceTests
             DateOfBirth = "2010-01-01",
             Age = 15,
             Cypmd_Id = "C1",
-            Upn = "U1"
+            Identifier = "U1"
         };
 
         var advice = await _sut.BuildAsync(WindowId, "REF001", journey);

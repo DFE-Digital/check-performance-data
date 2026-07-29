@@ -1,0 +1,94 @@
+1	CYPMD_ID	varchar(20)	20	
+2	SURNAME	varchar(100)	100	
+3	FORENAMES	varchar(100)	100	
+4	SEX	varchar(1)	1	F (female), M (male) 
+5	DOB	varchar(10)	10	YYYY-MM-DD HH:MM:SS.SSS
+6	AGE	int	2	99
+7	P_INCL	int	3	501, 502, 505, 506, NULL
+				
+8	P_INCL_aims	int	3	503, 504
+				
+9	attendance_year_0	tinyint	1	0 (No) ; 1 (Yes)
+10	attendance_year_1	tinyint	1	0 (No) ; 1 (Yes)
+11	attendance_year_2	tinyint	1	0 (No) ; 1 (Yes)
+12	src_laestab_0	varchar(10)	10	9999999
+13	src_laestab_1	varchar(10)	10	9999999
+14	src_laestab_2	varchar(10)	10	9999999
+15	LAESTAB	varchar(7)	7	9999999
+16	URN	varchar(10)	10	000000-999999
+17	UKPRN	varchar(10)	10	9999999
+18	ULN	varchar(20)	20	9999999999, NULL
+19	KS4_DISADVANTAGE	tinyint	1	1,0, NULL
+20	ALEV	tinyint	1	0 (Not Included) ; 1 (Included)
+21	TOTENTS_ALEV	decimal(22,2)	13	99.99
+22	TOTPTSE_ALEV	decimal(22,2)	13	9999.99
+23	ACAD	tinyint	1	0 (Not Included) ; 1 (Included)
+24	TOTENTS_ACAD	decimal(22,2)	13	99.99
+25	TOTPTSE_ACAD	decimal(22,2)	13	9999.99
+26	TLEV	tinyint	1	0 (Not Included) ; 1 (Included)
+27	TOTENTS_TLEV	decimal(22,2)	13	99.99
+28	TOTPTSE_TLEV	decimal(22,2)	13	9999.99
+29	AGEN	tinyint	1	0 (Not Included) ; 1 (Included)
+30	TOTENTS_AGEN	decimal(22,2)	13	99.99
+31	TOTPTSE_AGEN	decimal(22,2)	13	9999.99
+32	TechCert	tinyint	1	0 (Not Included) ; 1 (Included)
+33	TOTENTS_TechCert	decimal(22,2)	13	99.99
+34	TOTPTSE_TechCert	decimal(22,2)	13	9999.99
+35	TLEVEL	bit	1	0 (Not Included) ; 1 (Included)
+36	TOTENTS_TLEVEL	decimal(22,2)	13	99.99
+37	TOTPTSE_TLEVEL	decimal(22,2)	13	9999.99
+41	L3_FLAG	tinyint	1	0 (Not Included) ; 1 (Included)
+42	TechCert_nodisc	tinyint	1	0 (Not Included) ; 1 (Included)
+43	L2VOC_nodisc	tinyint	1	0 (Not Included) ; 1 (Included)
+44	TLEV_nodisc	bit	1	0 (Not Included) ; 1 (Included)
+45	TLEV_denom	bit	1	0 (Not Included) ; 1 (Included)
+46	AGEN_nodisc	bit	1	0 (Not Included) ; 1 (Included)
+47	AGEN_denom	bit	1	0 (Not Included) ; 1 (Included)
+48	LearningAimReference	varchar (8)	8	
+46	INSCOPE_E			
+47	PROGRESS_E			
+48	BASE_pts_E			
+49	BEST_E			
+50	EXEMPT_E			
+51	NO_ENTRIES_E			
+52	INSCOPE_M			
+53	PROGRESS_M			
+54	BASE_pts_M			
+55	BEST_M			
+56	EXEMPT_M			
+57	NO_ENTRIES_M			
+58	BEST_L3M			
+59	InScope_L3M			
+60	ACH_L3M			
+49	Retention_CompletionStatus	int	1	
+50	AimSize_Final	decimal(4,2)	5	99.99
+51	CoreAimFlag	tinyint	1	
+52	Ret_Trigger	tinyint	1	
+53	InScope_ALEV_Ret	tinyint	1	0 (not in scope); 1 (in scope)
+54	Retained_ALEV_Ret	tinyint	1	0 (not completed); 1 (completed)
+55	Ret_Assessed_ALEV	tinyint	1	0 (not completed); 1 (completed)
+56	InScope_ALEV_2ndYr	tinyint	1	0 (not in scope); 1 (in scope)
+57	Retained_ALEV_2ndYr	tinyint	1	0 (not completed); 1 (completed)
+58	InScope_ACAD_Ret	tinyint	1	0 (not in scope); 1 (in scope)
+59	Retained_ACAD_Ret	tinyint	1	0 (not completed); 1 (completed)
+60	Ret_Assessed_ACAD	tinyint	1	0 (not completed); 1 (completed)
+61	InScope_ACAD_2ndYr	tinyint	1	0 (not in scope); 1 (in scope)
+62	Retained_ACAD_2ndYr	tinyint	1	0 (not completed); 1 (completed)
+63	InScope_TLEV_Ret	tinyint	1	0 (not in scope); 1 (in scope)
+64	Retained_TLEV_Ret	tinyint	1	0 (not completed); 1 (completed)
+65	Ret_Assessed_TLEV	tinyint	1	0 (not completed); 1 (completed)
+66	InScope_TLEV_2ndYr	tinyint	1	0 (not in scope); 1 (in scope)
+67	Retained_TLEV_2ndYr	tinyint	1	0 (not completed); 1 (completed)
+68	InScope_AGEN_Ret	tinyint	1	0 (not in scope); 1 (in scope)
+69	Retained_AGEN_Ret	tinyint	1	0 (not completed); 1 (completed)
+70	Ret_Assessed_AGEN	tinyint	1	0 (not completed); 1 (completed)
+71	InScope_AGEN_2ndYr	tinyint	1	0 (not in scope); 1 (in scope)
+72	Retained_AGEN_2ndYr	tinyint	1	0 (not completed); 1 (completed)
+73	InScope_TechCert_Ret	tinyint	1	0 (not in scope); 1 (in scope)
+74	Retained_TechCert_Ret	tinyint	1	0 (not completed); 1 (completed)
+75	Ret_Assessed_TechCert	tinyint	1	0 (not completed); 1 (completed)
+76	INCLUDE_B3	tinyint	1	0 (Not Included) ; 1 (Included))
+77	B3PTSE_B3	decimal(6,2)	13	9999.99
+78	INCLUDE_AAB	tinyint	1	0 (Not Included) ; 1 (Included)
+79	AAB_FAC	tinyint	1	0 (not achieved); 1 (achieved)
+80	KS4_Year_Calc	int	4	2012,2013,2014,2015,2016,2017,2018 etc

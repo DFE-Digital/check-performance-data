@@ -83,7 +83,7 @@ public class PupilSearchJourneyTests
         DateOfBirth = "01/01/2010",
         Age = 16,
         Cypmd_Id = "CYPMD123",
-        Upn = "UPN001"
+        Identifier = "UPN001"
     };
 
     private static readonly PupilDto MatchPupil = new()
@@ -95,7 +95,7 @@ public class PupilSearchJourneyTests
         DateOfBirth = "02/02/2010",
         Age = 16,
         Cypmd_Id = "CYPMD456",
-        Upn = "UPN002"
+        Identifier = "UPN002"
     };
 
     public PupilSearchJourneyTests()

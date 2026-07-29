@@ -17,7 +17,14 @@ public sealed class CheckingWindow
     public string SchemaFile { get; init; } = string.Empty;
     public string IngressFileChecksum { get; init; } = string.Empty;
     public string SchemaFileChecksum { get; init; } = string.Empty;
-    public WindowValidated? Validated { get; init; }
+    public WindowValidated? Validated { get; set; }
+
+    /// <summary>
+    /// The window's ingress datasets. A Post16 window has two (included + non-included); every
+    /// other type has one. The scalar IngressFile/SchemaFile properties above are legacy and
+    /// mirror the first dataset — kept for one release so a rollback is safe.
+    /// </summary>
+    public List<CheckingWindowDataset> Datasets { get; init; } = [];
 }
 
 public sealed class WindowValidated

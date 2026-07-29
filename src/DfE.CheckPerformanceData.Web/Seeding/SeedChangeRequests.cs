@@ -32,8 +32,6 @@ public static class SeedChangeRequests
     // seeded rows read identically to genuine requests in the Amendment requests / bulk grids.
     private const string RequestTypeDescription = "Remove - " + ReasonLabel;
 
-    private static readonly int[] IncludedPinclCodes = [401, 403, 414, 421, 431];
-
     public static async Task ExecuteSeedAsync(
         IPupilDataBlobClient pupilClient,
         IRequestRepository requestRepository,
@@ -42,11 +40,12 @@ public static class SeedChangeRequests
     {
         var windowId = DevDataSeeder.KeyStage4JuneCheckingWindowId;
 
-        var pupils = await pupilClient.GetPupilsAsync(windowId, Laestab);
+        // Seeded change requests are KS4-only; the window above is the KS4 June dev window.
+        var pupils = await pupilClient.GetPupilsAsync(windowId, Laestab, CheckingWindowType.KS4June);
         if (pupils is null || pupils.Count == 0) return;
 
         var included = pupils
-            .Where(p => p.Pincl.HasValue && IncludedPinclCodes.Contains(p.Pincl.Value))
+            .Where(p => PupilInclusion.IsKs4Included(p.Pincl))
             .DistinctBy(p => p.Id)
             .Take(9)
             .ToList();
@@ -80,7 +79,7 @@ public static class SeedChangeRequests
                 ReferenceNumber = scenario.Reference,
                 OrganisationUrn = Urn,
                 PupilId = scenario.Pupil.Id,
-                PupilUpn = scenario.Pupil.Upn,
+                PupilUpn = scenario.Pupil.Identifier,
                 PupilFirstname = scenario.Pupil.Firstname,
                 PupilSurname = scenario.Pupil.Surname,
                 Timestamp = DateTime.UtcNow,
@@ -112,8 +111,8 @@ public static class SeedChangeRequests
         }
     }
 
-    // Mirrors CheckYourPupilDataRepository.ToPupilDto (PupilRecord -> PupilDto).
-    private static PupilDto ToPupilDto(PupilRecord p) => new()
+    // Mirrors CheckYourPupilDataRepository.ToPupilDto (IPupilRecord -> PupilDto).
+    private static PupilDto ToPupilDto(IPupilRecord p) => new()
     {
         Id = p.Id,
         Surname = p.Surname,
@@ -122,7 +121,7 @@ public static class SeedChangeRequests
         DateOfBirth = PupilDateFormatter.ToDisplayDate(p.DateOfBirth),
         Age = p.Age,
         Cypmd_Id = p.Cypmd_Id,
-        Upn = p.Upn,
+        Identifier = p.Identifier,
         Pincl = p.Pincl ?? 0
     };
 }

@@ -30,6 +30,7 @@ public sealed class DevDataSeedingOrchestrator(
         await devDataSeeder.SeedAsync();
 
         await SeedPupilData.ExecuteSeedAsync(pupilDataBlobClient);
+        await SeedPupilData.ExecutePost16SeedAsync(pupilDataBlobClient);
 
         try
         {

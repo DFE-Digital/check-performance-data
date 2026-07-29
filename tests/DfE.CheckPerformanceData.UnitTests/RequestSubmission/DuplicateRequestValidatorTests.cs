@@ -302,7 +302,7 @@ public sealed class DuplicateRequestValidatorTests
             DateOfBirth = "01/01/2010",
             Age = 16,
             Cypmd_Id = "CYPMD123",
-            Upn = "123123"
+            Identifier = "123123"
         };
         return state;
     }

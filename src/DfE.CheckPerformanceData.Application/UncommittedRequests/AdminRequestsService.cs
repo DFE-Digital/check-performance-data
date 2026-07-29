@@ -107,7 +107,7 @@ public sealed class AdminRequestsService(
         DateOfBirth = p.DateOfBirth,
         Sex = p.Sex,
         Age = p.Age,
-        Upn = p.Upn,
+        Upn = p.Identifier,
         Pincl = p.Pincl
     };
 

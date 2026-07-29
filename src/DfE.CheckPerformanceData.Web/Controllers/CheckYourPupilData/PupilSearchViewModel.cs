@@ -1,14 +1,13 @@
 namespace DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 
+/// <summary>
+/// The search box for one section. Every other section's page and search term ride along as
+/// hidden inputs so searching one table does not reset the others.
+/// </summary>
 public sealed class PupilSearchViewModel
 {
     public required string WindowId { get; init; }
-    public required string InputId { get; init; }
-    public required string InputName { get; init; }
-    public string? CurrentValue { get; init; }
-    public required string ActiveTab { get; init; }
-    public required string OtherPageName { get; init; }
-    public required int OtherPage { get; init; }
-    public required string OtherSearchName { get; init; }
-    public string? OtherSearch { get; init; }
+    public required PupilTableSection Section { get; init; }
+    public required IReadOnlyList<PupilTableSection> AllSections { get; init; }
+    public string? ActiveTab { get; init; }
 }

@@ -19,8 +19,17 @@ public sealed class SummaryController(IWindowService windowService): Controller
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            IngressFile = w.IngressFile,
-            SchemaFile = w.SchemaFile,
+            Datasets = w.Datasets
+                .OrderBy(d => d.SortOrder)
+                .Select(d => new DatasetSummaryRow
+                {
+                    WindowId = w.Id,
+                    Name = d.Name,
+                    Label = DatasetLabels.For(d.Name),
+                    IngressFile = d.IngressFile,
+                    SchemaFile = d.SchemaFile
+                })
+                .ToList(),
             PostUrl = Url.Action("Index", "ValidateWindow", new {id = w.Id})
         };
         return View("~/Views/WindowAdmin/Summary.cshtml", vm);

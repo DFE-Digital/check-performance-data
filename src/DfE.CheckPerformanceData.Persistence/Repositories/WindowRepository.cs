@@ -24,7 +24,21 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Validated = w.Validated != null,
-                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null)
+                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
+                Datasets = w.Datasets
+                    .OrderBy(d => d.SortOrder)
+                    .Select(d => new CheckingWindowDatasetDto
+                    {
+                        Id = d.Id,
+                        Name = d.Name,
+                        IngressFile = d.IngressFile,
+                        IngressFileChecksum = d.IngressFileChecksum,
+                        SchemaFile = d.SchemaFile,
+                        SchemaFileChecksum = d.SchemaFileChecksum,
+                        Included = d.Included,
+                        SortOrder = d.SortOrder
+                    })
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
     
@@ -45,27 +59,92 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Validated = w.Validated != null,
-                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null)
+                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
+                Datasets = w.Datasets
+                    .OrderBy(d => d.SortOrder)
+                    .Select(d => new CheckingWindowDatasetDto
+                    {
+                        Id = d.Id,
+                        Name = d.Name,
+                        IngressFile = d.IngressFile,
+                        IngressFileChecksum = d.IngressFileChecksum,
+                        SchemaFile = d.SchemaFile,
+                        SchemaFileChecksum = d.SchemaFileChecksum,
+                        Included = d.Included,
+                        SortOrder = d.SortOrder
+                    })
+                    .ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-    public Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
+    public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
-        dbContext.CheckingWindows.Update(new CheckingWindow
+        // Loaded and mutated rather than Update(new CheckingWindow{...}) — a detached overwrite
+        // would leave the window's dataset rows untracked and strand them.
+        CheckingWindow entity = await dbContext.CheckingWindows
+            .Include(w => w.Datasets)
+            .SingleAsync(w => w.Id == window.Id, cancellationToken);
+
+        dbContext.Entry(entity).CurrentValues.SetValues(new
         {
-            Id = window.Id,
-            StartDate = window.StartDate,
-            EndDate = window.EndDate,
-            KeyStage = window.KeyStage,
-            CheckingWindowType = window.CheckingWindowType,
-            Title = window.Title,
-            IngressFile = window.IngressFile,
-            IngressFileChecksum = window.IngressFileChecksum,
-            SchemaFile = window.SchemaFile,
-            SchemaFileChecksum = window.SchemaFileChecksum,
-            Validated =new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
+            window.StartDate,
+            window.EndDate,
+            window.KeyStage,
+            window.CheckingWindowType,
+            window.Title,
+            window.IngressFile,
+            window.IngressFileChecksum,
+            window.SchemaFile,
+            window.SchemaFileChecksum
         });
-        return dbContext.SaveChangesAsync(cancellationToken);
+
+        entity.Validated = new WindowValidated { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow };
+
+        SyncDatasets(entity, window.Datasets);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // Datasets are keyed by Name within a window: existing rows are updated in place so their
+    // Ids (and any files already uploaded against them) survive, new ones are added, and rows
+    // no longer wanted (e.g. after a window type change) are removed.
+    private static void SyncDatasets(CheckingWindow entity, List<CheckingWindowDatasetDto> wanted)
+    {
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        foreach (CheckingWindowDatasetDto dto in wanted)
+        {
+            CheckingWindowDataset? existing = entity.Datasets.SingleOrDefault(d => d.Name == dto.Name);
+
+            if (existing is null)
+            {
+                entity.Datasets.Add(new CheckingWindowDataset
+                {
+                    CheckingWindowId = entity.Id,
+                    Name = dto.Name,
+                    IngressFile = dto.IngressFile,
+                    IngressFileChecksum = dto.IngressFileChecksum,
+                    SchemaFile = dto.SchemaFile,
+                    SchemaFileChecksum = dto.SchemaFileChecksum,
+                    Included = dto.Included,
+                    SortOrder = dto.SortOrder
+                });
+                continue;
+            }
+
+            existing.IngressFile = dto.IngressFile;
+            existing.IngressFileChecksum = dto.IngressFileChecksum;
+            existing.SchemaFile = dto.SchemaFile;
+            existing.SchemaFileChecksum = dto.SchemaFileChecksum;
+        }
+
+        foreach (CheckingWindowDataset stale in entity.Datasets.Where(d => wanted.All(x => x.Name != d.Name)).ToList())
+        {
+            entity.Datasets.Remove(stale);
+        }
     }
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
@@ -81,7 +160,22 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             IngressFileChecksum = window.IngressFileChecksum,
             SchemaFile = window.SchemaFile,
             SchemaFileChecksum = window.SchemaFileChecksum,
-            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
+            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow },
+            // A window is born with the dataset slots its type requires.
+            Datasets = (window.Datasets.Count > 0
+                    ? window.Datasets
+                    : WindowDatasets.DefaultsFor(window.CheckingWindowType).ToList())
+                .Select(d => new CheckingWindowDataset
+                {
+                    Name = d.Name,
+                    IngressFile = d.IngressFile,
+                    IngressFileChecksum = d.IngressFileChecksum,
+                    SchemaFile = d.SchemaFile,
+                    SchemaFileChecksum = d.SchemaFileChecksum,
+                    Included = d.Included,
+                    SortOrder = d.SortOrder
+                })
+                .ToList()
         };
 
         await dbContext.CheckingWindows.AddAsync(entity, cancellationToken);

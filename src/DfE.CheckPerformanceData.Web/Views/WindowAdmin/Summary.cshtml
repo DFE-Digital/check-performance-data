@@ -48,21 +48,26 @@
 
 <h2 class="govuk-heading-m">File details</h2>
 
+@* One ingress/schema pair per dataset. A 16-19 window has two (included + non-included),
+   because LDS supplies its pupils as two files that are ingested together in one run. *@
 <govuk-summary-list>
-  <row>
-    <key>Ingress File</key>
-    <value>@Model.IngressFile</value>
-    <row-actions>
-      <action href="@Model.IngressFileLink" visually-hidden-text="Ingress file">Change</action>
-    </row-actions>
-  </row>
-  <row>
-    <key>Window Schema File</key>
-    <value>@Model.SchemaFile</value>
-    <row-actions>
-      <action href="@Model.SchemaFileLink" visually-hidden-text="Window schema file">Change</action>
-    </row-actions>
-  </row>
+  @foreach (var dataset in Model.Datasets)
+  {
+    <row>
+      <key>@dataset.Label — ingress file</key>
+      <value>@dataset.IngressFile</value>
+      <row-actions>
+        <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
+      </row-actions>
+    </row>
+    <row>
+      <key>@dataset.Label — schema file</key>
+      <value>@dataset.SchemaFile</value>
+      <row-actions>
+        <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
+      </row-actions>
+    </row>
+  }
 </govuk-summary-list>
 
 

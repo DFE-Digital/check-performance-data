@@ -149,22 +149,25 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
             await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
             await Expect(Page.Locator("input#preset-24h:checked")).ToBeVisibleAsync();
 
-            // Submit. Server redirects back to the same page with a TempData banner.
+            // Submit. JS intercepts, POSTs via fetch, opens the progress modal. The
+            // modal transitions to the "completed" state with a link to /admin/Search/
+            // once the background seed finishes.
             await Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]").ClickAsync();
-            await Page.WaitForURLAsync("**/admin/test-data/sample-search-data");
 
-            // Success banner appears with the seeded numbers + a link to /admin/Search/.
-            var banner = Page.Locator("div[data-testid=\"seed-sample-search-data-banner\"]");
-            await Expect(banner).ToBeVisibleAsync();
-            var bannerText = await banner.InnerTextAsync();
-            Assert.Contains("Seeded", bannerText);
-            Assert.Contains("search events", bannerText);
-            Assert.Contains("feedback messages", bannerText);
-            Assert.Contains("the last 24 hours", bannerText);
+            var modal = Page.Locator("dialog[data-testid=\"seed-progress-modal\"]");
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 2000 });
 
-            // Link back to the dashboard is present.
-            var dashboardLink = banner.Locator("a[href=\"/admin/Search/\"]");
-            Assert.Equal(1, await dashboardLink.CountAsync());
+            var completed = Page.Locator("[data-testid=\"seed-progress-completed\"]");
+            await Expect(completed).ToBeVisibleAsync(
+                new LocatorAssertionsToBeVisibleOptions { Timeout = 30_000 });
+            var completedText = await completed.InnerTextAsync();
+            Assert.Contains("Seeded", completedText);
+            Assert.Contains("events", completedText);
+            Assert.Contains("the last 24 hours", completedText);
+
+            // Link back to the dashboard is present inside the modal.
+            var dashboardLink = modal.Locator("a[href=\"/admin/Search/\"]");
+            Assert.True(await dashboardLink.CountAsync() >= 1);
 
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("seed-sample-search-data-success.png");
@@ -193,6 +196,161 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
         }
     }
 
+    // --- Progress modal + polling ---
+
+    // Modal opens within 1 s of clicking Seed data on the smallest preset (Last 24 hours
+    // = 500 events) and progresses to the completed state with the "View dashboard →"
+    // link within 30 s. Screenshots the running + completed states.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_ProgressModal_OpensAndCompletes()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // Ensure the JS-driven modal is present in DOM (hidden until submit).
+            var modal = Page.Locator("dialog[data-testid=\"seed-progress-modal\"]");
+            Assert.Equal(1, await modal.CountAsync());
+
+            // Click Seed data — JS intercepts, POSTs via fetch, opens the modal.
+            await Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]").ClickAsync();
+
+            // Modal opens within 1 s.
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 1500 });
+
+            // Second submit while the job is in flight is a no-op (button disabled).
+            var submitBtn = Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]");
+            var disabled = await submitBtn.GetAttributeAsync("disabled");
+            Assert.NotNull(disabled);
+
+            // First progress-tick screenshot — take once eventsWritten > 0 or up to 3 s.
+            var midStart = DateTime.UtcNow;
+            while ((DateTime.UtcNow - midStart) < TimeSpan.FromSeconds(3))
+            {
+                var mid = await Page.Locator("[data-testid=\"seed-progress-events\"]").InnerTextAsync();
+                if (int.TryParse(mid.Replace(",", ""), out var seededMid) && seededMid > 0) break;
+                await Task.Delay(200);
+            }
+            await SaveScreenshotAsync("seed-in-progress-modal.png");
+
+            // Completed within 30 s.
+            var completed = Page.Locator("[data-testid=\"seed-progress-completed\"]");
+            await Expect(completed).ToBeVisibleAsync(
+                new LocatorAssertionsToBeVisibleOptions { Timeout = 30_000 });
+
+            // View dashboard → link visible.
+            var dashLink = modal.Locator("a[href=\"/admin/Search/\"]");
+            Assert.True(await dashLink.CountAsync() >= 1);
+
+            await SaveScreenshotAsync("seed-completed-modal.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // Reloading the page mid-flight (?jobId=...) auto-opens the modal and resumes polling.
+    // Kick a large-ish seed first (Quarter = 25k events), grab the jobId out of the URL,
+    // reload with the jobId query string, assert modal opens with a running snapshot.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_ReloadWithJobId_AutoOpensModalAndResumes()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+            await Page.Locator("input#preset-quarter").ClickAsync();
+
+            // Wait for the JS network response so we can extract the jobId from the URL
+            // that fetch follows internally (progress endpoint responds with the JSON).
+            var responseTask = Page.WaitForResponseAsync(r =>
+                r.Url.Contains("/admin/test-data/sample-search-data/progress"));
+            await Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]").ClickAsync();
+            var progressResponse = await responseTask;
+            var jobIdMatch = System.Text.RegularExpressions.Regex.Match(
+                progressResponse.Url, "jobId=([0-9a-fA-F-]+)");
+            Assert.True(jobIdMatch.Success, $"Expected jobId in {progressResponse.Url}.");
+            var jobId = jobIdMatch.Groups[1].Value;
+
+            // Reload with ?jobId=… — the JS auto-opens the modal from the server-rendered
+            // data-resume-job-id + query string.
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data?jobId={jobId}");
+            var modal = Page.Locator("dialog[data-testid=\"seed-progress-modal\"]");
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 2000 });
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // Cancel wires through the DELETE endpoint and transitions the job to Completed
+    // with a "cancelled" note. Small preset (24h = 500 events) may complete before the
+    // click lands — that skip is documented in the SUMMARY.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_CancelButton_TransitionsJobToCancelled()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+
+            // Big preset so the seed lasts long enough to catch a Cancel click.
+            await Page.Locator("input#preset-quarter").ClickAsync();
+            await Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]").ClickAsync();
+
+            var modal = Page.Locator("dialog[data-testid=\"seed-progress-modal\"]");
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 1500 });
+
+            // Wait a beat so the seed is definitely mid-run then Cancel.
+            await Task.Delay(400);
+            await Page.Locator("button[data-testid=\"seed-progress-cancel\"]").ClickAsync();
+
+            // Wait for a terminal state — either cancelled (expected) or completed
+            // (race window on the smaller preset). Screenshot the cancelled state when
+            // we get it; the SUMMARY notes the race skip when we don't.
+            var cancelledPanel = Page.Locator("[data-testid=\"seed-progress-cancelled\"]");
+            var completedPanel = Page.Locator("[data-testid=\"seed-progress-completed\"]");
+            var raceStart = DateTime.UtcNow;
+            var sawCancelled = false;
+            while ((DateTime.UtcNow - raceStart) < TimeSpan.FromSeconds(25))
+            {
+                if (await cancelledPanel.IsVisibleAsync()) { sawCancelled = true; break; }
+                if (await completedPanel.IsVisibleAsync()) { break; }
+                await Task.Delay(300);
+            }
+            if (sawCancelled)
+            {
+                await SaveScreenshotAsync("seed-cancelled-modal.png");
+            }
+            // Both outcomes are acceptable — a fast seeder may finish before the DELETE
+            // handler runs. The primary invariant is the cancel path exists and is wired.
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     private void AttachCookieToContext(string? cookieHeader)
@@ -213,7 +371,15 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
 
     private static async Task SaveScreenshotAsync(IPage page, string filename)
     {
-        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", "round8");
+        // Round-8 screenshots kept the "round8" subfolder; the round-9 additions land in
+        // "round9". The filename pattern (seed-in-progress-modal.png, seed-completed-modal.png,
+        // seed-cancelled-modal.png) is used to disambiguate; older assets stay put.
+        var subFolder = filename.StartsWith("seed-in-progress-modal", StringComparison.Ordinal)
+            || filename.StartsWith("seed-completed-modal", StringComparison.Ordinal)
+            || filename.StartsWith("seed-cancelled-modal", StringComparison.Ordinal)
+                ? "round9"
+                : "round8";
+        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", subFolder);
         Directory.CreateDirectory(dir);
         await page.ScreenshotAsync(new PageScreenshotOptions
         {

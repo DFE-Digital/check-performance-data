@@ -944,7 +944,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 $"Tooltip bottom edge ({tooltipBox.Y + tooltipBox.Height}) should be at or above cursorY ({cursorY}).");
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round13/admin-search-scatter-hover.png");
+            await SaveScreenshotAsync("search-ux/admin-search-scatter-hover.png");
         }
         finally
         {

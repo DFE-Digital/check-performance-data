@@ -334,6 +334,62 @@ public sealed class SearchAnalyticsControllerTests
         Assert.Equal(model.VolumeSeries.Count, model.LatencyPercentileSeries.Count);
     }
 
+    // --- Aggregate mode: VolumeSeries carries BOTH searches + unique sessions per bucket ---
+
+    // The volume chart is a dual-axis line: left Y is searches, right Y is unique sessions.
+    // Both series are read from the same VolumeBucket - SearchCount + UniqueSessionCount.
+    // In non-aggregate mode both fields are populated by GetVolumeOverTimeAsync. In
+    // aggregate mode the controller must merge the volume-aggregated reader (which fills
+    // SearchCount) with the unique-sessions-aggregated reader (which returns the distinct
+    // count in ITS SearchCount) so the same shape holds and the right-Y line is not flat.
+    [Fact]
+    public async Task Index_AggregateMode_VolumeSeries_CarriesBothSearchesAndUniqueSessions()
+    {
+        await ResetSearchEventsAsync();
+
+        // Seed: 5 events on the same weekday-hour cell (say, today's date at now.Hour),
+        // spread across 2 distinct session ids. Aggregate reader collapses them into one
+        // cell where searches=5, unique sessions=2.
+        var now = DateTime.UtcNow;
+        var events = new List<SearchEvent>();
+        for (var i = 0; i < 5; i++)
+        {
+            // Alternate between 2 session ids so DISTINCT session_id == 2.
+            var sess = i % 2 == 0 ? "sess-A" : "sess-B";
+            events.Add(NewEvent(now.AddMinutes(-i), sess, "alpha", results: 1, latency: 10));
+        }
+        await SeedAsync(events.ToArray());
+
+        var result = await Sut().Index(
+            range: "7d", from: null, to: null, bucket: null,
+            aggregate: "week", ct: CancellationToken.None);
+
+        var model = AssertViewModel(result);
+        Assert.True(model.AggregateMode);
+
+        // Every cell in the 168-slot cyclic grid is present regardless of data.
+        Assert.Equal(168, model.VolumeSeries.Count);
+
+        // The cell that received the seeded events should carry both counts on ONE bucket
+        // record - searches (SearchCount) = 5, unique sessions (UniqueSessionCount) = 2.
+        // Weekday is ISO (1 = Mon .. 7 = Sun); the anchor Monday in the reader means
+        // BucketStart.DayOfWeek matches the real weekday for the "now" instant.
+        var expectedWeekday = (int)now.DayOfWeek == 0 ? 7 : (int)now.DayOfWeek; // Sun in .NET = 0, ISO = 7
+        var expectedHour = now.Hour;
+
+        var cell = model.VolumeSeries.SingleOrDefault(b =>
+            b.BucketStart.Hour == expectedHour
+            && (((int)b.BucketStart.DayOfWeek == 0 ? 7 : (int)b.BucketStart.DayOfWeek) == expectedWeekday));
+
+        Assert.NotNull(cell);
+        Assert.Equal(5, cell!.SearchCount);
+        Assert.Equal(2, cell.UniqueSessionCount);
+
+        // Sanity: at least one bucket in the merged series has a non-zero unique-session
+        // count (otherwise the right-Y green line flatlines at zero, which is the bug).
+        Assert.Contains(model.VolumeSeries, b => b.UniqueSessionCount > 0);
+    }
+
     // --- Helpers ---
 
     private SearchAnalyticsController Sut()

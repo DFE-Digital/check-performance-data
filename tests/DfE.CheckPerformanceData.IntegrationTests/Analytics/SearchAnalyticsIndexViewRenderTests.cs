@@ -264,6 +264,84 @@ public sealed class SearchAnalyticsIndexViewRenderTests
         Assert.Contains("Apply filters", html);
     }
 
+    // Filter + aggregate live in ONE form so clicking Apply filters preserves the current
+    // aggregate state (otherwise a separate aggregate form gets clobbered on every filter
+    // submit). The visible order under the form is: time window controls, bucket size,
+    // aggregate toggle, then the Apply filters button - all four grouped so admins see
+    // them as a single "chart controls" cluster.
+    [Fact]
+    public async Task FilterFormMerged_ContainsRangeBucketAndAggregate_InsideSingleForm()
+    {
+        var model = EmptyViewModel(totalRowCount: 0);
+
+        var html = await RenderIndexAsync(model);
+
+        // Exactly one <form> submitting to /admin/Search/ (the filter+aggregate merged form).
+        // A stray aggregate form would be a second match here.
+        var formOpens = System.Text.RegularExpressions.Regex.Matches(
+            html, "<form[^>]+action=\"/admin/Search/\"[^>]*>").Count;
+        Assert.Equal(1, formOpens);
+
+        // The merged form must contain BOTH the bucket radios AND the aggregate checkbox.
+        // Locate the form region and assert both live inside it.
+        var formStart = html.IndexOf("<form", StringComparison.Ordinal);
+        var formEnd = html.IndexOf("</form>", formStart, StringComparison.Ordinal);
+        Assert.True(formStart >= 0 && formEnd > formStart, "Expected one <form>…</form> pair.");
+        var formBody = html.Substring(formStart, formEnd - formStart);
+
+        // 5 range radios + 5 bucket radios + 1 from + 1 to + 1 aggregate checkbox all inside.
+        Assert.Contains("name=\"range\"", formBody);
+        Assert.Contains("name=\"from\"", formBody);
+        Assert.Contains("name=\"to\"", formBody);
+        Assert.Contains("name=\"bucket\"", formBody);
+        Assert.Contains("name=\"aggregate\"", formBody);
+        Assert.Contains("data-sa-aggregate-toggle=\"true\"", formBody);
+
+        // The aggregate checkbox should sit AFTER the bucket-size radios and BEFORE the
+        // Apply filters submit button so the visual grouping reads: window -> bucket ->
+        // aggregate -> apply (Lance's UAT ask for B3).
+        var bucketIdx = formBody.IndexOf("Chart bucket size", StringComparison.Ordinal);
+        var aggregateIdx = formBody.IndexOf("data-sa-aggregate-toggle=\"true\"", StringComparison.Ordinal);
+        var applyIdx = formBody.IndexOf("Apply filters", StringComparison.Ordinal);
+        Assert.True(bucketIdx >= 0, "Bucket-size legend should appear inside the form.");
+        Assert.True(aggregateIdx > bucketIdx,
+            "Aggregate checkbox should render AFTER the bucket-size selector.");
+        Assert.True(applyIdx > aggregateIdx,
+            "Apply filters button should render AFTER the aggregate checkbox.");
+    }
+
+    // B2 regression: with the aggregate checkbox checked, the rendered form still carries
+    // the current range + from/to + bucket values so a subsequent Apply filters submit
+    // does not clobber the aggregate state.
+    [Fact]
+    public async Task FilterFormMerged_WithAggregateOn_PreservesRangeAndBucketOnSubmit()
+    {
+        var model = EmptyViewModel(totalRowCount: 0, aggregateMode: true);
+
+        var html = await RenderIndexAsync(model);
+
+        // Aggregate checkbox renders in checked state.
+        var checkboxMatch = System.Text.RegularExpressions.Regex.Match(
+            html,
+            "<input[^>]+data-sa-aggregate-toggle=\"true\"[^>]*>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        Assert.True(checkboxMatch.Success, "Aggregate checkbox should render.");
+        Assert.Contains("checked", checkboxMatch.Value);
+
+        // The current range key (7d, from EmptyViewModel) is echoed on its radio so a
+        // subsequent Apply filters submit re-sends it.
+        Assert.Matches(
+            new System.Text.RegularExpressions.Regex(
+                "<input[^>]+name=\"range\"[^>]+value=\"7d\"[^>]+checked",
+                System.Text.RegularExpressions.RegexOptions.Singleline),
+            html);
+        Assert.Matches(
+            new System.Text.RegularExpressions.Regex(
+                "<input[^>]+name=\"bucket\"[^>]+value=\"1d\"[^>]+checked",
+                System.Text.RegularExpressions.RegexOptions.Singleline),
+            html);
+    }
+
     // Renders Views/Admin/Search/Index.cshtml with isMainPage:false — skips the _ViewStart's
     // Layout = "_AdminLayout" so the test does not need to wire the full admin layout
     // dependency graph. The resulting HTML is the view body only, which is enough to assert
@@ -360,7 +438,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
         };
     }
 
-    private static SearchAnalyticsIndexViewModel EmptyViewModel(int totalRowCount)
+    private static SearchAnalyticsIndexViewModel EmptyViewModel(int totalRowCount, bool aggregateMode = false)
     {
         var now = DateTime.UtcNow;
         return new SearchAnalyticsIndexViewModel
@@ -384,7 +462,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             WeekdayHourGrid = ZeroFilledWeekdayHourGrid(),
             ZeroResultOutcomes = new ZeroResultOutcomeSummary(0, 0, 0, 0, 0),
             SummaryDeltas = new SearchAnalyticsSummaryDeltas(0, 0, 0d, 0, Available: false),
-            AggregateMode = false,
+            AggregateMode = aggregateMode,
         };
     }
 

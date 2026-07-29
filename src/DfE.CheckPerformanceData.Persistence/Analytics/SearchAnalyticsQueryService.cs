@@ -449,31 +449,137 @@ ORDER BY b.bucket;";
             _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
         };
 
-    // Aggregate-to-typical-week readers. Implementation lives further down — stubs at the
-    // top of the file keep the failing-test commit compiling before the SQL lands.
+    // Aggregate-to-typical-week readers. Collapses every event in the window into a 168-cell
+    // cyclic 7-day timeline where cell (weekday, hour) sums / aggregates every event whose
+    // occurred_at_utc landed on that weekday-of-week and hour-of-day, regardless of which
+    // calendar week it fell in. BucketStart on each returned bucket is anchored to a fixed
+    // synthetic Monday midnight (ANCHOR_MONDAY, 2001-01-01 UTC — a Monday) plus the
+    // (weekday-1) * 24 + hour offset, so the X-axis renders "Mon 00:00 .. Sun 23:00" no
+    // matter which weeks the raw events fell in.
+    private static readonly DateTime ANCHOR_MONDAY = new(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
     public Task<IReadOnlyList<VolumeBucket>> GetVolumeAggregatedByWeekdayHourAsync(
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("Aggregate-to-typical-week volume reader not yet implemented.");
+        ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
+            countExpr: "COUNT(*)",
+            extraFilter: null,
+            cancellationToken);
 
     public Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsAggregatedByWeekdayHourAsync(
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("Aggregate-to-typical-week unique-sessions reader not yet implemented.");
+        ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
+            countExpr: "COUNT(DISTINCT session_id)",
+            extraFilter: null,
+            cancellationToken);
 
     public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountAggregatedByWeekdayHourAsync(
         DateTime fromUtc,
         DateTime toUtc,
         CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("Aggregate-to-typical-week zero-result reader not yet implemented.");
+        ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
+            countExpr: "COUNT(*)",
+            extraFilter: "zero_results = true",
+            cancellationToken);
 
-    public Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesAggregatedByWeekdayHourAsync(
+    private async Task<IReadOnlyList<VolumeBucket>> ReadWeekdayHourAggregateAsync(
         DateTime fromUtc,
         DateTime toUtc,
-        CancellationToken cancellationToken = default) =>
-        throw new NotImplementedException("Aggregate-to-typical-week latency-percentiles reader not yet implemented.");
+        string countExpr,
+        string? extraFilter,
+        CancellationToken cancellationToken)
+    {
+        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+
+        // ISO weekday: 1=Mon..7=Sun. hour: 0..23. Group by that pair and gap-fill via a
+        // 7 x 24 spine so cells without events render as 0 on the chart.
+        var sql = $@"
+SELECT
+    w.weekday::int AS weekday,
+    hh.hour::int   AS hour,
+    COALESCE(e.value, 0)::int AS value
+FROM generate_series(1, 7) AS w(weekday)
+CROSS JOIN generate_series(0, 23) AS hh(hour)
+LEFT JOIN (
+    SELECT
+        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        {countExpr}::int AS value
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
+    GROUP BY 1, 2
+) e ON e.weekday = w.weekday AND e.hour = hh.hour
+ORDER BY w.weekday, hh.hour;";
+
+        var buckets = new List<VolumeBucket>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            var weekday = reader.GetInt32(0);
+            var hour = reader.GetInt32(1);
+            var value = reader.GetInt32(2);
+            var bucketStart = ANCHOR_MONDAY.AddDays(weekday - 1).AddHours(hour);
+            buckets.Add(new VolumeBucket(bucketStart, value, 0));
+        });
+
+        return buckets;
+    }
+
+    public async Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var sql = @"
+SELECT
+    w.weekday::int AS weekday,
+    hh.hour::int   AS hour,
+    COALESCE(e.p5,  0) AS p5,
+    COALESCE(e.p50, 0) AS p50,
+    COALESCE(e.p95, 0) AS p95
+FROM generate_series(1, 7) AS w(weekday)
+CROSS JOIN generate_series(0, 23) AS hh(hour)
+LEFT JOIN (
+    SELECT
+        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
+        percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
+        percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY 1, 2
+) e ON e.weekday = w.weekday AND e.hour = hh.hour
+ORDER BY w.weekday, hh.hour;";
+
+        var buckets = new List<LatencyBucket>();
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            var weekday = reader.GetInt32(0);
+            var hour = reader.GetInt32(1);
+            var p5  = reader.IsDBNull(2) ? 0d : Convert.ToDouble(reader.GetValue(2));
+            var p50 = reader.IsDBNull(3) ? 0d : Convert.ToDouble(reader.GetValue(3));
+            var p95 = reader.IsDBNull(4) ? 0d : Convert.ToDouble(reader.GetValue(4));
+            var bucketStart = ANCHOR_MONDAY.AddDays(weekday - 1).AddHours(hour);
+            buckets.Add(new LatencyBucket(
+                bucketStart,
+                (int)Math.Round(p5,  MidpointRounding.AwayFromZero),
+                (int)Math.Round(p50, MidpointRounding.AwayFromZero),
+                (int)Math.Round(p95, MidpointRounding.AwayFromZero)));
+        });
+
+        return buckets;
+    }
 
     // Paged variant of the volume reader. Same generate_series spine as ReadVolumeAsync so
     // gap-fill and total-bucket-count stay consistent with the landing-page chart; a COUNT

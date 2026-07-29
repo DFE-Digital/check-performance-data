@@ -395,6 +395,36 @@
         if (mode === 'scatter') { attachScatter(svgs[i]); }
         else { attachBucket(svgs[i]); }
     }
+
+    // Heatmap cells reuse the same tooltip element + positionTooltip helper — same
+    // upper-left-of-cursor behaviour as the crosshair charts. The heatmap cells carry
+    // data-sa-tooltip with the pre-formatted "N searches on Wed at 07:00–08:00 UTC"
+    // string (see _WeekdayHourHeatmap.cshtml). Native SVG <title> was deliberately
+    // omitted on those cells because the browser renders <title> below-right of the
+    // cursor with no way to reposition it.
+    var heatmapSvgs = document.querySelectorAll('svg.sa-chart[data-sa-heatmap="true"]');
+    for (var hi = 0; hi < heatmapSvgs.length; hi++) {
+        (function (heatmap) {
+            var cells = heatmap.querySelectorAll('.sa-heatmap__cell[data-sa-tooltip]');
+            for (var ci = 0; ci < cells.length; ci++) {
+                (function (cell) {
+                    cell.addEventListener('mousemove', function (evt) {
+                        tooltip.textContent = cell.getAttribute('data-sa-tooltip') || '';
+                        tooltip.style.display = 'block';
+                        positionTooltip(evt, tooltip);
+                    });
+                    cell.addEventListener('mouseleave', function () {
+                        tooltip.style.display = 'none';
+                    });
+                })(cells[ci]);
+            }
+            // Belt-and-braces: hide the tooltip when the cursor leaves the whole grid,
+            // in case a fast diagonal exit skips the per-cell mouseleave.
+            heatmap.addEventListener('mouseleave', function () {
+                tooltip.style.display = 'none';
+            });
+        })(heatmapSvgs[hi]);
+    }
 })();
 
 // Aggregate-to-typical-week toggle: submit the enclosing GET form the moment the

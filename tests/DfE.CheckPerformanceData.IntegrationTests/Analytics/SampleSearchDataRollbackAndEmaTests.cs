@@ -14,7 +14,7 @@ using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
-// Ties together the three deliverables of the round-13 seed-page fix:
+// Ties together the three deliverables of the seed-page Cancel/rollback fix:
 //   1. Cancel = interrupt + rollback. The DELETE endpoint's response should drop every
 //      row this seed job wrote, whether the seeder was still running or had already
 //      completed (the 24 h preset finishes in ~3 s and beats the click every time).
@@ -152,7 +152,7 @@ public sealed class SampleSearchDataRollbackAndEmaTests
 
     // Verifies deliverable #1: the DELETE endpoint interrupts + rolls back — even when
     // the seeder has already Completed. Reproduces Lance's report: for the 24 h preset
-    // the seed finishes in ~3 s and the RequestCancel guard (before the round-13 fix)
+    // the seed finishes in ~3 s and the RequestCancel guard (before this fix)
     // rejected the cancel because state != Running.
     [Fact]
     public async Task CancelEndpoint_RollsBackRows_EvenWhenSeedAlreadyCompleted()

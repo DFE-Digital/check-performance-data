@@ -73,6 +73,31 @@ public sealed class SearchAnalyticsInsightCardsTests
     }
 
     [Fact]
+    public async Task GetRequestTimings_ProjectsQueryTextPerPoint_AndNullForBlankQueries()
+    {
+        // Scatter tooltip shows the user's query string per hovered dot. The read must
+        // carry query_raw through to RequestTimingPoint.Query so the partial can render
+        // it — including the null case (the sink allows blank-query events).
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddMinutes(-30);
+
+        await SeedAsync(
+            NewEvent(from.AddMinutes(5),  "s-1", "reception headcount", results: 3, latency: 120),
+            NewEvent(from.AddMinutes(10), "s-2", "attendance rates",    results: 1, latency: 200),
+            NewEventWithNullQuery(from.AddMinutes(15), "s-3", latency: 90));
+
+        var points = await CreateService().GetRequestTimingsAsync(from, now, samplingLimit: 100, CancellationToken.None);
+
+        Assert.Equal(3, points.Count);
+        var byLatency = points.ToDictionary(p => p.LatencyMs);
+        Assert.Equal("reception headcount", byLatency[120].Query);
+        Assert.Equal("attendance rates",    byLatency[200].Query);
+        Assert.Null(byLatency[90].Query);
+    }
+
+    [Fact]
     public async Task GetPagedRequestTimings_ReturnsPageAndTotal()
     {
         await ResetAllAsync();
@@ -285,6 +310,21 @@ public sealed class SearchAnalyticsInsightCardsTests
             QueryNormalised = queryNormalised,
             Scope = null,
             ResultsPages = results,
+            ResultsBlocks = 0,
+            LatencyMs = latency,
+        };
+
+    private static SearchEvent NewEventWithNullQuery(
+        DateTime occurredAtUtc,
+        string sessionId,
+        int latency) => new()
+        {
+            OccurredAtUtc = DateTime.SpecifyKind(occurredAtUtc, DateTimeKind.Utc),
+            SessionId = sessionId,
+            QueryRaw = null,
+            QueryNormalised = null,
+            Scope = null,
+            ResultsPages = 0,
             ResultsBlocks = 0,
             LatencyMs = latency,
         };

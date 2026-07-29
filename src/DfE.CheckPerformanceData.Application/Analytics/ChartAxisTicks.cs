@@ -128,4 +128,85 @@ public static class ChartAxisTicks
 
     private static string FormatSingleton(DateTime ts) =>
         ts.ToString("ddd d MMM HH:mm", CultureInfo.InvariantCulture);
+
+    // --- Log-scale companions ------------------------------------------------
+    //
+    // Same partials consume both. When the data has a heavy outlier squishing the
+    // mass of the plot into a thin band at the bottom of the Y axis, the caller
+    // flips to base-10 log so the sub-100ms cluster stays readable next to a
+    // 3-second peak. Trigger: max(y) / max(min(y), 1) > 20. See
+    // ChartAxisTicksLogScaleTests for the full contract.
+
+    // Whether the (min, max) pair warrants log scale. Clamps min to 1 so a data
+    // set that includes y=0 does not blow the ratio up to infinity — a 0..100
+    // series has a real ratio of 100 (0 → 1), which is high enough to help.
+    public static bool ShouldUseLogScale(int minValue, int maxValue)
+    {
+        if (maxValue <= 0) return false;
+        if (maxValue < minValue) return false;
+        var clampedMin = Math.Max(minValue, 1);
+        return (double)maxValue / clampedMin > 20d;
+    }
+
+    // Log-scale Y tick fractions between the (clamped) min and max, mapped back
+    // to 0..1 for the caller's plot. Powers of 10 when the range is >= 3 decades;
+    // half-decade (1, 3, 10, 30, 100, 300, ...) otherwise so short-range plots
+    // still get 5-ish visible ticks. Always includes fraction 0 (axis floor) and
+    // fraction 1 (axis ceiling) so the axis ends are labelled the same way the
+    // linear helper does.
+    public static IReadOnlyList<double> YAxisFractionsLog(int minValue, int maxValue)
+    {
+        if (maxValue <= 0) return new[] { 0d, 1d };
+        var clampedMin = Math.Max(minValue, 1);
+        if (clampedMin >= maxValue) return new[] { 0d, 1d };
+
+        var logMin = Math.Log10(clampedMin);
+        var logMax = Math.Log10(maxValue);
+        var span = logMax - logMin;
+        if (span <= 0) return new[] { 0d, 1d };
+
+        // Half-decade multipliers if the range is under 3 decades; otherwise
+        // integer-decade only. 1 is always present (it's the log floor multiplier).
+        var multipliers = span < 3d
+            ? new[] { 1d, 3d }
+            : new[] { 1d };
+
+        var fractions = new SortedSet<double> { 0d, 1d };
+        // Walk each decade in the range and emit fractional positions for every
+        // (multiplier × 10^decade) that lands strictly between clampedMin and maxValue.
+        var startDecade = (int)Math.Floor(logMin);
+        var endDecade = (int)Math.Ceiling(logMax);
+        for (var decade = startDecade; decade <= endDecade; decade++)
+        {
+            var decadeBase = Math.Pow(10, decade);
+            foreach (var m in multipliers)
+            {
+                var value = decadeBase * m;
+                if (value <= clampedMin || value >= maxValue) continue;
+                var fraction = (Math.Log10(value) - logMin) / span;
+                if (fraction > 0d && fraction < 1d)
+                {
+                    fractions.Add(fraction);
+                }
+            }
+        }
+        return fractions.ToArray();
+    }
+
+    // Formats a Y-axis label for the log scale. Fraction is 0..1 in log space
+    // between (clampedMin, maxValue). Result is the underlying ms value in normal
+    // "N0" grouping with the caller-supplied suffix ("10 ms" / "1,000 ms" / ...)
+    // so the reader recognises the value even though the tick spacing is logarithmic.
+    public static string YAxisLabelLog(double fraction, int minValue, int maxValue, string suffix = "")
+    {
+        if (maxValue <= 0) return "0" + suffix;
+        var clampedMin = Math.Max(minValue, 1);
+        var logMin = Math.Log10(clampedMin);
+        var logMax = Math.Log10(Math.Max(maxValue, clampedMin + 1));
+        var span = logMax - logMin;
+        var value = span <= 0
+            ? clampedMin
+            : Math.Pow(10, logMin + fraction * span);
+        return Math.Round(value).ToString("N0", CultureInfo.CurrentCulture) + suffix;
+    }
 }

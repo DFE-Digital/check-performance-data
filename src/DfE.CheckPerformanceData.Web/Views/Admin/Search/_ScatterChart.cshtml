@@ -1,4 +1,5 @@
 @using System.Globalization
+@using System.Text.Json
 @using DfE.CheckPerformanceData.Application.Analytics
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.ScatterChartModel
 @{
@@ -18,15 +19,38 @@
     var plotH = height - padTop - padBottom;
 
     var maxLatency = points.Count == 0 ? 0 : points.Max(p => p.LatencyMs);
+    var minLatency = points.Count == 0 ? 0 : points.Min(p => p.LatencyMs);
     var safeMax = maxLatency == 0 ? 1 : maxLatency;
+
+    // Y-axis scale decision: auto-flip to base-10 log when max/min > 20 so a lone
+    // 3-second outlier next to a sub-100ms mass doesn't squish the plot. Same rule
+    // the latency-percentile chart uses; kept as a helper so a shared unit test
+    // proves the trigger without a Razor render harness.
+    var useLog = ChartAxisTicks.ShouldUseLogScale(minLatency, maxLatency);
+    var yScaleMarker = useLog ? "log" : "linear";
+    var logMin = useLog ? Math.Log10(Math.Max(minLatency, 1)) : 0d;
+    var logMax = useLog ? Math.Log10(maxLatency) : 0d;
+    var logSpan = useLog ? logMax - logMin : 1d;
 
     DateTime minTime = points.Count == 0 ? DateTime.UtcNow.AddHours(-1) : points.Min(p => p.OccurredAtUtc);
     DateTime maxTime = points.Count == 0 ? DateTime.UtcNow : points.Max(p => p.OccurredAtUtc);
     var span = (maxTime - minTime).TotalSeconds;
     if (span <= 0) span = 1;
 
-    string X(DateTime ts) => (padLeft + (plotW * (ts - minTime).TotalSeconds / span)).ToString("0.##", CultureInfo.InvariantCulture);
-    string Y(int ms) => (padTop + plotH - (plotH * (double)ms / safeMax)).ToString("0.##", CultureInfo.InvariantCulture);
+    double XPixel(DateTime ts) => padLeft + (plotW * (ts - minTime).TotalSeconds / span);
+    string X(DateTime ts) => XPixel(ts).ToString("0.##", CultureInfo.InvariantCulture);
+    double YPixel(int ms)
+    {
+        if (useLog)
+        {
+            // Clamp to 1 so log(0) doesn't blow up — matches ChartAxisTicksLogScaleTests.
+            var lv = Math.Log10(Math.Max(ms, 1));
+            var frac = logSpan <= 0 ? 0d : (lv - logMin) / logSpan;
+            return padTop + plotH - (plotH * frac);
+        }
+        return padTop + plotH - (plotH * (double)ms / safeMax);
+    }
+    string Y(int ms) => YPixel(ms).ToString("0.##", CultureInfo.InvariantCulture);
 
     // Truncate the session id for the hover title so a screen-reader announcement stays
     // succinct; the paged drill-in shows the full value in a proper table column.
@@ -39,8 +63,18 @@
         ? "Request timings scatter: no data."
         : $"Request timings scatter: {points.Count} events plotted, peak latency {maxLatency} ms.";
 
-    static string YLabelValue(int max, double fraction) =>
-        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture) + " ms";
+    // Y-axis label formatting — log uses the log helper (labels in normal units,
+    // spaced logarithmically) so a tick reads "10 ms" / "100 ms" / "1,000 ms".
+    string YLabelValue(double fraction) =>
+        useLog
+            ? ChartAxisTicks.YAxisLabelLog(fraction, minLatency, maxLatency, " ms")
+            : Math.Round(safeMax * fraction).ToString("N0", CultureInfo.CurrentCulture) + " ms";
+
+    // Y-axis fractions — log gets the power-of-10 / half-decade set from the helper,
+    // linear keeps the historical three-tick (0 / 0.5 / 1) shape.
+    var yFractions = useLog
+        ? ChartAxisTicks.YAxisFractionsLog(minLatency, maxLatency)
+        : (IReadOnlyList<double>)new[] { 0.0, 0.5, 1.0 };
 }
 
 @if (points.Count == 0)
@@ -60,8 +94,29 @@ else
         </li>
     </ul>
 
+    @* Per-point crosshair payload — pre-computed (x, y) in SVG-viewBox pixel space so
+       the JS snap is a straight nearest-Euclidean over the array without re-running
+       the date/log math. Query is kept nullable (blank-query events are legitimate). *@
+    var scatterPayload = points.Select(p => new
+    {
+        x = Math.Round(XPixel(p.OccurredAtUtc), 2),
+        y = Math.Round(YPixel(p.LatencyMs), 2),
+        ts = p.OccurredAtUtc.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
+        ms = p.LatencyMs,
+        q = p.Query,
+    }).ToArray();
+    var scatterJson = System.Text.Json.JsonSerializer.Serialize(scatterPayload);
+
     <svg class="sa-chart sa-chart--scatter" viewBox="0 0 @width @height" role="img"
-         aria-label="@ariaLabel" focusable="false">
+         aria-label="@ariaLabel" focusable="false"
+         data-sa-crosshair="true"
+         data-sa-crosshair-mode="scatter"
+         data-sa-y-scale="@yScaleMarker"
+         data-sa-plot-left="@padLeft"
+         data-sa-plot-top="@padTop"
+         data-sa-plot-width="@plotW"
+         data-sa-plot-height="@plotH"
+         data-sa-scatter-points="@scatterJson">
         <title>Individual request timings — one dot per search event</title>
 
         <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
@@ -69,14 +124,14 @@ else
         <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
               stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
 
-        @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+        @foreach (var fraction in yFractions)
         {
             var y = padTop + plotH - (plotH * fraction);
             var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
             var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
             <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
                   stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
-            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{YLabelValue(maxLatency, fraction)}</text>")
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(YLabelValue(fraction))}</text>")
         }
 
         @* Two X-axis anchors — window-start and window-end — since the scatter is
@@ -90,7 +145,10 @@ else
         @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{startX}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(minTime.ToString("d MMM HH:mm", CultureInfo.InvariantCulture))}</text>")
         @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{endX}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(maxTime.ToString("d MMM HH:mm", CultureInfo.InvariantCulture))}</text>")
 
-        <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">Latency (ms)</text>
+        @{
+            var yAxisTitle = useLog ? "Latency (ms) (log scale)" : "Latency (ms)";
+        }
+        <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">@yAxisTitle</text>
         <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Occurred at (UTC)</text>
 
         @foreach (var point in points)

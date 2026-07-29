@@ -23,12 +23,34 @@
     var maxValue = buckets.Count == 0 ? 0 : buckets.Max(b => b.P95Ms);
     var safeMax = maxValue == 0 ? 1 : maxValue;
 
+    // Log-scale trigger: use the smallest non-zero p5 as the "floor" when computing
+    // the ratio — p5 is closest to the sub-cluster mass we're trying to keep readable.
+    // Falls back to p50 min if p5 is entirely zero (very light corpus).
+    var minForRatio = buckets.Count == 0
+        ? 0
+        : (buckets.Min(b => b.P5Ms) > 0 ? buckets.Min(b => b.P5Ms) : buckets.Min(b => b.P50Ms));
+    var useLog = ChartAxisTicks.ShouldUseLogScale(minForRatio, maxValue);
+    var yScaleMarker = useLog ? "log" : "linear";
+    var logMin = useLog ? Math.Log10(Math.Max(minForRatio, 1)) : 0d;
+    var logMax = useLog ? Math.Log10(maxValue) : 0d;
+    var logSpan = useLog ? logMax - logMin : 1d;
+
     string X(int index) => buckets.Count <= 1
         ? (padLeft + plotW / 2).ToString(CultureInfo.InvariantCulture)
         : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", CultureInfo.InvariantCulture);
 
-    string Y(int ms) =>
-        (padTop + plotH - (plotH * (double)ms / safeMax)).ToString("0.##", CultureInfo.InvariantCulture);
+    double YPixel(int ms)
+    {
+        if (useLog)
+        {
+            // Clamp to 1 so log(0) doesn't blow up — matches ChartAxisTicksLogScaleTests.
+            var lv = Math.Log10(Math.Max(ms, 1));
+            var frac = logSpan <= 0 ? 0d : (lv - logMin) / logSpan;
+            return padTop + plotH - (plotH * frac);
+        }
+        return padTop + plotH - (plotH * (double)ms / safeMax);
+    }
+    string Y(int ms) => YPixel(ms).ToString("0.##", CultureInfo.InvariantCulture);
 
     var p50Points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.P50Ms)}"));
     var p95Points = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y(b.P95Ms)}"));
@@ -41,7 +63,12 @@
     var xTicks = ChartAxisTicks.XAxisTicks(
         buckets.Select(b => b.BucketStart).ToArray(),
         plotWidthPx: plotW);
-    var yFractions = ChartAxisTicks.YAxisFractions(maxValue);
+    var yFractions = useLog
+        ? ChartAxisTicks.YAxisFractionsLog(minForRatio, maxValue)
+        : ChartAxisTicks.YAxisFractions(maxValue);
+    string YTickLabel(double fraction) => useLog
+        ? ChartAxisTicks.YAxisLabelLog(fraction, minForRatio, maxValue, " ms")
+        : ChartAxisTicks.YAxisLabel(fraction, maxValue, " ms");
 
     // GDS palette: p50 blue (primary), p95 red (attention), p5 grey (context). Line style
     // reinforces the distinction: p50 solid, p95 dashed, p5 dotted — chart legible without colour.
@@ -79,6 +106,8 @@ else
     <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
          aria-label="@ariaLabel" focusable="false"
          data-sa-crosshair="true"
+         data-sa-crosshair-mode="bucket"
+         data-sa-y-scale="@yScaleMarker"
          data-sa-plot-left="@padLeft"
          data-sa-plot-top="@padTop"
          data-sa-plot-width="@plotW"
@@ -100,7 +129,7 @@ else
             var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
             <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
                   stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
-            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxValue, " ms")}</text>")
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(YTickLabel(fraction))}</text>")
         }
 
         @foreach (var tick in xTicks)
@@ -111,7 +140,10 @@ else
             @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(tick.Label)}</text>")
         }
 
-        <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">Latency (ms)</text>
+        @{
+            var yAxisTitle = useLog ? "Latency (ms) (log scale)" : "Latency (ms)";
+        }
+        <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">@yAxisTitle</text>
         <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Time (UTC)</text>
 
         @Html.Raw($"<polyline fill=\"none\" stroke=\"{p5Colour}\" stroke-width=\"2\" stroke-dasharray=\"2 4\" points=\"{p5Points}\" aria-hidden=\"true\" />")

@@ -83,12 +83,23 @@
     }
 })();
 
-// Hover crosshair + tooltip for the primary dashboard charts. Vanilla JS only — the SVG
-// is server-rendered; this progressive-enhancement layer adds a full-height vertical +
-// full-width horizontal dashed guide line plus a floating tooltip. When the cursor is
-// within snap range of a data bucket the tooltip reads the mapped X-value (formatted
-// time) and Y-value ("32 searches", "150 ms", etc). With JS off the chart still renders
-// fine, minus the hover affordance.
+// Hover crosshair + tooltip for every chart on the search-analytics surface. Vanilla JS
+// only — the SVG is server-rendered; this progressive-enhancement layer adds a full-height
+// vertical + full-width horizontal dashed guide line plus a floating tooltip. Two snap
+// modes, both driven off the same code path so the DOM/positioning logic is not duplicated
+// per chart partial:
+//
+//   * mode="bucket" (default): the SVG carries data-sa-buckets (ISO timestamp array) +
+//     data-sa-values (numeric array). Cursor X maps to the nearest bucket index. Tooltip
+//     reads "<formatted time> — <value><suffix>" (e.g. "Wed 24 Jul, 14:00 — 32 searches").
+//
+//   * mode="scatter": the SVG carries data-sa-scatter-points, a JSON array of
+//     { x: svgX, y: svgY, ts: iso, ms: number, q: string|null } — pre-computed by the
+//     partial in SVG-viewBox pixel space. Cursor snaps to the nearest point by Euclidean
+//     distance. Tooltip is three lines: formatted time / "<ms> ms" / query text (or
+//     "(empty query)" fallback when q is null/empty).
+//
+// With JS off both flows degrade to a static SVG with no hover affordance.
 (function () {
     'use strict';
     var svgs = document.querySelectorAll('svg.sa-chart[data-sa-crosshair="true"]');
@@ -133,7 +144,102 @@
         try { return d.toLocaleString('en-GB', opts); } catch (e) { return iso; }
     }
 
-    function attachHover(svg) {
+    // Format a scatter point's timestamp — always includes seconds so a dot that plots
+    // very close to another can be told apart. Whole-second precision matches the
+    // 'u' format the drill-in table renders under the chart.
+    function formatScatterTimestamp(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) { return iso; }
+        var opts = {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            timeZone: 'UTC',
+        };
+        try { return d.toLocaleString('en-GB', opts) + ' UTC'; } catch (e) { return iso; }
+    }
+
+    // Draw + return one crosshair line element. Kept a helper so bucket + scatter modes
+    // do not duplicate the SVG-namespace attribute plumbing.
+    function makeCrosshairLine(svg) {
+        var svgNs = 'http://www.w3.org/2000/svg';
+        var line = document.createElementNS(svgNs, 'line');
+        line.setAttribute('class', 'sa-chart__crosshair-line');
+        line.setAttribute('stroke', '#505a5f');
+        line.setAttribute('stroke-width', '1');
+        line.setAttribute('stroke-dasharray', '3 3');
+        line.setAttribute('pointer-events', 'none');
+        line.setAttribute('visibility', 'hidden');
+        svg.appendChild(line);
+        return line;
+    }
+
+    // Place the tooltip in the upper-left quadrant of the cursor by default so the
+    // cursor tip (upper-left of most pointer glyphs) never occludes the first line of
+    // the readout. When the cursor is close to the viewport top / left edge the tooltip
+    // would clip out; flip to another quadrant so the whole tooltip stays visible:
+    //
+    //     ┌──────────┐            ┌──────────┐
+    //     │ tooltip  │            │ tooltip  │
+    //     └────────┐/│            │\┌────────┘
+    //              *                * ← cursor
+    //     upper-left (default)     upper-right (LEFT-edge flip)
+    //
+    //     * cursor                * cursor
+    //     │┌────────┐             ┌────────┐│
+    //     ││ tooltip│             │ tooltip││
+    //     │└────────┘             └────────┘│
+    //     lower-left (TOP-edge flip)     lower-right (both flips)
+    //
+    // The 10 px offset keeps the tooltip's nearest corner from touching the cursor.
+    function positionTooltip(evt, tt) {
+        var offset = 10;
+        // Read the rendered size after content is set so getBoundingClientRect gives us
+        // the true measure of the box we're placing.
+        var box = tt.getBoundingClientRect();
+        var vw = window.innerWidth || document.documentElement.clientWidth;
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+
+        // Default quadrant: upper-left of cursor.
+        var left = evt.clientX - box.width - offset;
+        var top = evt.clientY - box.height - offset;
+
+        // If it would clip past the LEFT edge, flip horizontally.
+        if (left < 0) { left = evt.clientX + offset; }
+        // If it would clip past the TOP edge, flip vertically.
+        if (top < 0) { top = evt.clientY + offset; }
+
+        // Belt-and-braces: keep the tooltip inside the RIGHT / BOTTOM edges after either
+        // flip in case an aggressive cursor position pushes it off. Clamp instead of flipping
+        // again so we never toggle-loop on a small viewport.
+        if (left + box.width > vw) { left = Math.max(0, vw - box.width - offset); }
+        if (top + box.height > vh) { top = Math.max(0, vh - box.height - offset); }
+
+        tt.style.left = left + 'px';
+        tt.style.top = top + 'px';
+    }
+
+    // Cursor coord → SVG-viewBox coord. Prefer the native getScreenCTM path; fall back
+    // to a proportional map when the browser hasn't computed a CTM yet.
+    function toSvgCoords(svg, evt) {
+        try {
+            var pt = svg.createSVGPoint();
+            pt.x = evt.clientX; pt.y = evt.clientY;
+            var ctm = svg.getScreenCTM();
+            if (ctm) return pt.matrixTransform(ctm.inverse());
+        } catch (e) { /* fall through */ }
+        var rect = svg.getBoundingClientRect();
+        var vb = svg.viewBox && svg.viewBox.baseVal;
+        if (!vb || rect.width === 0 || rect.height === 0) return null;
+        return {
+            x: vb.x + (evt.clientX - rect.left) * (vb.width / rect.width),
+            y: vb.y + (evt.clientY - rect.top)  * (vb.height / rect.height)
+        };
+    }
+
+    // Bucket-mode attachment — the historical behaviour. Snaps cursor X to the nearest
+    // bucket index and reads the pre-computed values[] entry at that index. Kept
+    // separate from the scatter branch so the two snap strategies don't inter-tangle.
+    function attachBucket(svg) {
         var padLeft = parseFloat(svg.getAttribute('data-sa-plot-left')) || 0;
         var padTop = parseFloat(svg.getAttribute('data-sa-plot-top')) || 0;
         var plotW = parseFloat(svg.getAttribute('data-sa-plot-width')) || 0;
@@ -152,56 +258,18 @@
             windowSpanMs = new Date(buckets[buckets.length - 1]).getTime() - new Date(buckets[0]).getTime();
         }
 
-        // Build the crosshair line elements once and hide them; toggle on mouse events.
-        var svgNs = 'http://www.w3.org/2000/svg';
-        var vLine = document.createElementNS(svgNs, 'line');
-        vLine.setAttribute('class', 'sa-chart__crosshair-line');
-        vLine.setAttribute('stroke', '#505a5f');
-        vLine.setAttribute('stroke-width', '1');
-        vLine.setAttribute('stroke-dasharray', '3 3');
-        vLine.setAttribute('pointer-events', 'none');
-        vLine.setAttribute('visibility', 'hidden');
-        svg.appendChild(vLine);
-
-        var hLine = document.createElementNS(svgNs, 'line');
-        hLine.setAttribute('class', 'sa-chart__crosshair-line');
-        hLine.setAttribute('stroke', '#505a5f');
-        hLine.setAttribute('stroke-width', '1');
-        hLine.setAttribute('stroke-dasharray', '3 3');
-        hLine.setAttribute('pointer-events', 'none');
-        hLine.setAttribute('visibility', 'hidden');
-        svg.appendChild(hLine);
-
-        function toSvgCoords(evt) {
-            // Prefer SVG native coord conversion; fall back to a viewBox proportional
-            // map when getScreenCTM is null (some browsers report null before layout).
-            try {
-                var pt = svg.createSVGPoint();
-                pt.x = evt.clientX; pt.y = evt.clientY;
-                var ctm = svg.getScreenCTM();
-                if (ctm) return pt.matrixTransform(ctm.inverse());
-            } catch (e) { /* fall through */ }
-            // Fallback: linear interpolate over the SVG's bounding rect into viewBox coords.
-            var rect = svg.getBoundingClientRect();
-            var vb = svg.viewBox && svg.viewBox.baseVal;
-            if (!vb || rect.width === 0 || rect.height === 0) return null;
-            return {
-                x: vb.x + (evt.clientX - rect.left) * (vb.width / rect.width),
-                y: vb.y + (evt.clientY - rect.top)  * (vb.height / rect.height)
-            };
-        }
+        var vLine = makeCrosshairLine(svg);
+        var hLine = makeCrosshairLine(svg);
 
         svg.addEventListener('mousemove', function (evt) {
-            var p = toSvgCoords(evt);
+            var p = toSvgCoords(svg, evt);
             if (!p) return;
-            // Reject when outside the plot area.
             if (p.x < padLeft || p.x > padLeft + plotW || p.y < padTop || p.y > padTop + plotH) {
                 vLine.setAttribute('visibility', 'hidden');
                 hLine.setAttribute('visibility', 'hidden');
                 tooltip.style.display = 'none';
                 return;
             }
-            // Nearest bucket to cursor X.
             var relX = (p.x - padLeft) / plotW;
             var idxRaw = Math.round(relX * (buckets.length - 1));
             if (idxRaw < 0) idxRaw = 0;
@@ -225,8 +293,7 @@
             var valueLabel = (values[idxRaw] || 0).toLocaleString('en-GB') + suffix;
             tooltip.textContent = whenLabel + ' — ' + valueLabel;
             tooltip.style.display = 'block';
-            tooltip.style.left = (evt.clientX + 12) + 'px';
-            tooltip.style.top = (evt.clientY + 12) + 'px';
+            positionTooltip(evt, tooltip);
         });
 
         svg.addEventListener('mouseleave', function () {
@@ -236,7 +303,95 @@
         });
     }
 
-    for (var i = 0; i < svgs.length; i++) attachHover(svgs[i]);
+    // Scatter-mode attachment — every dot's SVG (x, y) is pre-baked into
+    // data-sa-scatter-points along with the source-of-truth (ts, ms, q). Snapping is
+    // nearest point by Euclidean distance, so a dense scatter still gives the user a
+    // predictable target. Tooltip is three lines (time / latency / query) rendered
+    // via innerHTML with escaped values so a query like <script> can't inject.
+    function attachScatter(svg) {
+        var padLeft = parseFloat(svg.getAttribute('data-sa-plot-left')) || 0;
+        var padTop = parseFloat(svg.getAttribute('data-sa-plot-top')) || 0;
+        var plotW = parseFloat(svg.getAttribute('data-sa-plot-width')) || 0;
+        var plotH = parseFloat(svg.getAttribute('data-sa-plot-height')) || 0;
+
+        var points;
+        try {
+            points = JSON.parse(svg.getAttribute('data-sa-scatter-points') || '[]');
+        } catch (e) { return; }
+        if (!points.length) { return; }
+
+        var vLine = makeCrosshairLine(svg);
+        var hLine = makeCrosshairLine(svg);
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function nearest(cursorSvg) {
+            // Squared-distance comparison — no sqrt, since we're only ranking.
+            var best = 0;
+            var bestD = Infinity;
+            for (var i = 0; i < points.length; i++) {
+                var dx = points[i].x - cursorSvg.x;
+                var dy = points[i].y - cursorSvg.y;
+                var d = dx * dx + dy * dy;
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
+        }
+
+        svg.addEventListener('mousemove', function (evt) {
+            var p = toSvgCoords(svg, evt);
+            if (!p) return;
+            if (p.x < padLeft || p.x > padLeft + plotW || p.y < padTop || p.y > padTop + plotH) {
+                vLine.setAttribute('visibility', 'hidden');
+                hLine.setAttribute('visibility', 'hidden');
+                tooltip.style.display = 'none';
+                return;
+            }
+            var idx = nearest(p);
+            var pt = points[idx];
+
+            vLine.setAttribute('x1', pt.x);
+            vLine.setAttribute('x2', pt.x);
+            vLine.setAttribute('y1', padTop);
+            vLine.setAttribute('y2', padTop + plotH);
+            vLine.setAttribute('visibility', 'visible');
+
+            hLine.setAttribute('x1', padLeft);
+            hLine.setAttribute('x2', padLeft + plotW);
+            hLine.setAttribute('y1', pt.y);
+            hLine.setAttribute('y2', pt.y);
+            hLine.setAttribute('visibility', 'visible');
+
+            var whenLabel = formatScatterTimestamp(pt.ts);
+            var msLabel = (pt.ms || 0).toLocaleString('en-GB') + ' ms';
+            var qLabel = (pt.q == null || pt.q === '') ? '(empty query)' : '"' + pt.q + '"';
+            tooltip.innerHTML =
+                escapeHtml(whenLabel) + '<br>' +
+                escapeHtml(msLabel) + '<br>' +
+                'query: ' + escapeHtml(qLabel);
+            tooltip.style.display = 'block';
+            positionTooltip(evt, tooltip);
+        });
+
+        svg.addEventListener('mouseleave', function () {
+            vLine.setAttribute('visibility', 'hidden');
+            hLine.setAttribute('visibility', 'hidden');
+            tooltip.style.display = 'none';
+        });
+    }
+
+    for (var i = 0; i < svgs.length; i++) {
+        var mode = (svgs[i].getAttribute('data-sa-crosshair-mode') || 'bucket').toLowerCase();
+        if (mode === 'scatter') { attachScatter(svgs[i]); }
+        else { attachBucket(svgs[i]); }
+    }
 })();
 
 // Aggregate-to-typical-week toggle: submit the enclosing GET form the moment the

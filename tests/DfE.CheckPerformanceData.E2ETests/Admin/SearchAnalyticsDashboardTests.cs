@@ -803,6 +803,40 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
 
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("round11/admin-search-aggregated.png");
+
+            // Aggregate-mode hover — the tooltip must show weekday + time only. The
+            // bucket ISO timestamps are anchored to a synthetic Monday (2001-01-01
+            // UTC) so any month name or 4-digit year in the tooltip is the anchor
+            // date leaking through.
+            var aggSvg = Page.Locator("[data-sa-panel='volume'] svg.sa-chart[data-sa-crosshair='true']").First;
+            var aggBox = await aggSvg.BoundingBoxAsync();
+            Assert.NotNull(aggBox);
+            var aggX = aggBox!.X + aggBox.Width * 0.55;
+            var aggY = aggBox.Y + aggBox.Height * 0.55;
+            await aggSvg.DispatchEventAsync("mousemove", new
+            {
+                clientX = aggX,
+                clientY = aggY,
+                bubbles = true,
+            });
+
+            var aggTooltip = Page.Locator(".sa-chart__crosshair-tooltip");
+            await Expect(aggTooltip).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 5000 });
+            var aggTooltipText = (await aggTooltip.InnerTextAsync()).Trim();
+            var weekdayLong = new System.Text.RegularExpressions.Regex(
+                @"\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b");
+            Assert.True(weekdayLong.IsMatch(aggTooltipText),
+                $"Aggregate-mode tooltip should contain a long weekday name; got: '{aggTooltipText}'");
+            var monthNamePattern = new System.Text.RegularExpressions.Regex(
+                @"\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b");
+            Assert.False(monthNamePattern.IsMatch(aggTooltipText),
+                $"Aggregate-mode tooltip should NOT contain a month name (anchor date leaking); got: '{aggTooltipText}'");
+            var yearPattern = new System.Text.RegularExpressions.Regex(@"\b\d{4}\b");
+            Assert.False(yearPattern.IsMatch(aggTooltipText),
+                $"Aggregate-mode tooltip should NOT contain a 4-digit year (anchor date leaking); got: '{aggTooltipText}'");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round11/admin-search-aggregated-hover.png");
         }
         finally
         {

@@ -250,6 +250,31 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
             var dashLink = modal.Locator("a[href=\"/admin/Search/\"]");
             Assert.True(await dashLink.CountAsync() >= 1);
 
+            // Success notification banner replaces the plain completion paragraph so
+            // the terminal state reads unmistakably positive.
+            var successBanner = Page.Locator(
+                "[data-testid=\"seed-progress-completed-banner\"].govuk-notification-banner--success");
+            await Expect(successBanner).ToBeVisibleAsync();
+            var bannerTitle = successBanner.Locator("h2.govuk-notification-banner__title");
+            Assert.Equal("Seeding complete", (await bannerTitle.InnerTextAsync()).Trim());
+            var bannerBody = (await successBanner.InnerTextAsync()).Trim();
+            Assert.Contains("Seeded", bannerBody);
+            Assert.Contains("events", bannerBody);
+            Assert.Contains("feedback messages", bannerBody);
+
+            // On a terminal state the Cancel button is removed (nothing to cancel)
+            // and the right-hand button relabels to plain "Close" — the running-state
+            // "Close (keep seeding in background)" copy is misleading once done.
+            // Read the DOM `hidden` property directly rather than IsHiddenAsync so we
+            // are unambiguous about which layer we mean (attribute vs CSS visibility).
+            var cancelBtn = Page.Locator("button[data-testid=\"seed-progress-cancel\"]");
+            var cancelHidden = await cancelBtn.EvaluateAsync<bool>(
+                "el => el.hidden || el.style.display === 'none' || el.offsetParent === null");
+            Assert.True(cancelHidden,
+                "Cancel seeding button should be hidden once the job has completed.");
+            var closeBtn = Page.Locator("button[data-testid=\"seed-progress-close\"]");
+            Assert.Equal("Close", (await closeBtn.InnerTextAsync()).Trim());
+
             await SaveScreenshotAsync("seed-completed-modal.png");
         }
         finally

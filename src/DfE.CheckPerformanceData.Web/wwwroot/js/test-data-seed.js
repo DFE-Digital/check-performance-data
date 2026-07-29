@@ -249,7 +249,11 @@
         var cancelled = el('result-cancelled', this.modal); if (cancelled) cancelled.hidden = true;
 
         var cancelBtn = el('cancel-button', this.modal);
-        if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.hidden = false; }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.hidden = false;
+            cancelBtn.style.display = '';
+        }
         // Reset the Close-button copy to the running-state variant. On terminal
         // transitions we swap in the terminal label ("Close").
         var closeBtn = el('close-button', this.modal);
@@ -264,9 +268,17 @@
     // Removes the Cancel button (no longer meaningful) and relabels the Close
     // button so "Close (keep seeding in background)" isn't misleading — the
     // seed is either done or over.
+    //
+    // Setting both the `hidden` attribute AND `display: none` inline — the
+    // .govuk-button-group flex container leaves child buttons unaffected by
+    // display rules by default, but belt-and-braces here so any theme override
+    // in the future can't re-surface the button on a terminal state.
     State.prototype.enterTerminalState = function () {
         var cancelBtn = el('cancel-button', this.modal);
-        if (cancelBtn) cancelBtn.hidden = true;
+        if (cancelBtn) {
+            cancelBtn.hidden = true;
+            cancelBtn.style.display = 'none';
+        }
         var closeBtn = el('close-button', this.modal);
         if (closeBtn) {
             var terminalLabel = closeBtn.getAttribute('data-terminal-label') || 'Close';

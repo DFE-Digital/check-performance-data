@@ -930,6 +930,19 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.True(await scatterCrosshair.CountAsync() >= 2,
                 "Two crosshair lines (vertical + horizontal) should be visible on scatter hover.");
 
+            // Tooltip must render in the UPPER-LEFT quadrant relative to the cursor so
+            // the cursor tip (upper-left of most pointer glyphs) does not occlude the
+            // first line of the readout. With the cursor at (cursorX, cursorY) and the
+            // tooltip fully rendered, the tooltip's right edge must be <= cursorX and
+            // its bottom edge <= cursorY. This is the default quadrant; the JS flips
+            // to another quadrant only near the viewport edges.
+            var tooltipBox = await tooltip.BoundingBoxAsync();
+            Assert.NotNull(tooltipBox);
+            Assert.True(tooltipBox!.X + tooltipBox.Width <= cursorX,
+                $"Tooltip right edge ({tooltipBox.X + tooltipBox.Width}) should be at or left of cursorX ({cursorX}).");
+            Assert.True(tooltipBox.Y + tooltipBox.Height <= cursorY,
+                $"Tooltip bottom edge ({tooltipBox.Y + tooltipBox.Height}) should be at or above cursorY ({cursorY}).");
+
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("round13/admin-search-scatter-hover.png");
         }

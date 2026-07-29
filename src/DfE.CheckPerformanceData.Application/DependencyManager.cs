@@ -44,9 +44,12 @@ public static class DependencyManager
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();
         services.AddScoped<ICountryService, CountryService>();
         services.AddScoped<IOptionVisibilityService, OptionVisibilityService>();
+        services.AddScoped<IQuestionOptionalityService, QuestionOptionalityService>();
         services.AddScoped<IJourneyCondition, SchoolIsIndependentCondition>();
         services.AddScoped<IJourneyCondition, PupilIsAddBackCondition>();
         services.AddScoped<IJourneyCondition, PupilIsNotAddBackCondition>();
+        services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
+        services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();

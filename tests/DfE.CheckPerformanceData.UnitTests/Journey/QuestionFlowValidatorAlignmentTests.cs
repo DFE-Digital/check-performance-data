@@ -6,10 +6,12 @@ using DfE.CheckPerformanceData.Application.Journey.Validators;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 /// <summary>
-/// Pins every <c>validator</c> name referenced by a shipped question-flow config
-/// to an implemented <see cref="IFormatValidator"/>. A typo'd or removed validator
-/// name would otherwise silently fail open (the format check is skipped), letting
-/// malformed answers through.
+/// Pins every name a shipped question-flow config references by string — <c>validator</c>
+/// to an <see cref="IFormatValidator"/>, and <c>optionalWhen</c>/<c>visibleWhen</c> to an
+/// <see cref="IJourneyCondition"/>. Nothing throws on an unresolved name at runtime: a
+/// typo'd validator fails open (the format check is skipped, letting malformed answers
+/// through) and a typo'd condition fails closed (the question stays mandatory, the option
+/// stays hidden). Either way the config silently stops doing what it says.
 /// </summary>
 public sealed class QuestionFlowValidatorAlignmentTests
 {
@@ -36,6 +38,51 @@ public sealed class QuestionFlowValidatorAlignmentTests
                 $"{file}: question '{questionId}' references validator '{name}', but no " +
                 $"IFormatValidator implements it — the format check would silently be skipped.");
         }
+    }
+
+    /// <summary>
+    /// The same guard for <c>optionalWhen</c> / <c>visibleWhen</c> condition names. These fail
+    /// closed rather than open — an unresolved name leaves a question mandatory and an option
+    /// hidden — so a typo silently disables the behaviour the config was asking for instead of
+    /// throwing anywhere. Nothing else would catch it.
+    /// </summary>
+    [Fact]
+    public void EveryReferencedConditionName_HasAnImplementation()
+    {
+        var implementedNames = ImplementedConditionNames();
+
+        var referenced = AllFlowQuestions()
+            .SelectMany(q => ReferencedConditionNames(q.Question)
+                .Select(name => (q.File, Name: name, q.Question.Id)))
+            .Distinct();
+
+        foreach (var (file, name, questionId) in referenced)
+        {
+            Assert.True(implementedNames.Contains(name),
+                $"{file}: question '{questionId}' references journey condition '{name}', but no " +
+                $"IJourneyCondition implements it — the condition silently fails closed.");
+        }
+    }
+
+    private static IEnumerable<string> ReferencedConditionNames(Question question)
+    {
+        foreach (var name in question.OptionalWhen ?? [])
+            yield return name;
+
+        foreach (var option in question.Options ?? [])
+        foreach (var name in option.VisibleWhen ?? [])
+            yield return name;
+    }
+
+    private static HashSet<string> ImplementedConditionNames()
+    {
+        var conditionTypes = typeof(IJourneyCondition).Assembly.GetTypes()
+            .Where(t => t is { IsAbstract: false, IsInterface: false }
+                && typeof(IJourneyCondition).IsAssignableFrom(t));
+
+        return conditionTypes
+            .Select(t => ((IJourneyCondition)Activator.CreateInstance(t)!).Name)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     private static HashSet<string> ImplementedValidatorNames()

@@ -52,4 +52,28 @@ public class VisibleWhenJsonConverterTests
 
         Assert.Contains("[\"Flag\"]", json);
     }
+
+    [Fact]
+    public void Question_OptionalWhen_BindsBareString()
+    {
+        var json = """{"id":"evidence","type":"FileUpload","title":"Upload files","optionalWhen":"EalWouldBeAutoRejected"}""";
+        var question = JsonSerializer.Deserialize<Question>(json, Options)!;
+        Assert.Equal(["EalWouldBeAutoRejected"], question.OptionalWhen);
+    }
+
+    [Fact]
+    public void Question_OptionalWhen_BindsArray()
+    {
+        var json = """{"id":"evidence","type":"FileUpload","title":"Upload files","optionalWhen":["A","B"]}""";
+        var question = JsonSerializer.Deserialize<Question>(json, Options)!;
+        Assert.Equal(["A", "B"], question.OptionalWhen);
+    }
+
+    [Fact]
+    public void Question_OptionalWhen_AbsentIsNull()
+    {
+        var json = """{"id":"evidence","type":"FileUpload","title":"Upload files"}""";
+        var question = JsonSerializer.Deserialize<Question>(json, Options)!;
+        Assert.Null(question.OptionalWhen);
+    }
 }

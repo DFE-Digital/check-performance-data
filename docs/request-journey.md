@@ -211,6 +211,27 @@ A `Radio` option may carry `"visibleWhen": "<ConditionName>"`. The option is ren
 - `IOptionVisibilityService.GetVisibleOptions(question, ctx)` filters the options in order. Options with no `visibleWhen` always show; an option naming an **unregistered** condition is hidden (fail closed). The result is exposed as `QuestionPartialModel.VisibleOptions`, which `_Radio.cshtml` iterates instead of the raw config options.
 - Conditions are pure-logic classes in `Application/Journey/Conditions/`, registered as `IJourneyCondition` in the Application `DependencyManager`. Current condition: `SchoolIsIndependentCondition` — true when the GIAS establishment type id (`organisation_type_id` claim, sourced from the DfE Sign-in `$.type.id` field) is `"11"` (Other Independent School; type 10 is deliberately excluded).
 
+### Conditional question optionality (optionalWhen)
+
+A question may carry `"optionalWhen": "<ConditionName>"` (a bare string or an array of names, AND semantics — same JSON shape and converter as `visibleWhen`). The question is validated as **optional** — overriding `"optional": false` — only when every named `IJourneyCondition` evaluates `true` for the current journey; a name that isn't registered leaves the question mandatory (fail closed). This is separate from `visibleWhen`: the question still renders, only its mandatory-validation status changes, and no UI copy (e.g. an "(optional)" label) changes with it.
+
+- `IQuestionOptionalityService.GetConditionallyOptionalQuestionIds(page, ctx)` returns the set of a page's question IDs that are currently optional. `JourneyController.PagePost` computes this once per page (right after building the `JourneyConditionContext`) and both the file-upload and text mandatory checks consult it via a local `IsMandatory(question)` helper.
+- The same set is threaded into `IJourneyValidationService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptionalQuestionIds)` so drafts (`JourneyController.IsEvidencePageValid` → `DetermineStatus`) and the amendment edit-advice screen (`EditAdviceService.GetEvidenceMessages`) re-validate a saved evidence page consistently with the live journey, rather than falling back to always-mandatory.
+- Registered condition: **`EalWouldBeAutoRejected`** (PBI 292266) — applied to both questions on the shared KS4June `evidence` page (`Remove_KS4June.json`). It approximates the rules engine's `EAL-REJ-ENG` / `EAL-REJ-OTH-ENGCOUNTRY` auto-reject rules from journey state alone (the removal reason, the `first-language` answer, and the origin country's official languages — see below), so evidence upload/comments become optional exactly when the request is predicted to auto-reject:
+
+  | `first-language` | Origin country's official languages include English? | Evidence |
+  |---|---|---|
+  | `english` | (irrelevant) | Optional |
+  | `other` | yes | Optional |
+  | `other` | no / country unknown | Mandatory |
+  | `believed-english`, `believed-other` | (irrelevant) | Mandatory (these map to `Uncertain` in the engine, never auto-reject, and go to Scrutiny — a reviewer needs the evidence) |
+  | `chose-not-to-say`, `not-known`, or a different removal reason | (irrelevant) | Mandatory (fail-safe; the evidence page is shared across removal branches) |
+
+  The condition mirrors the engine exactly: the engine maps `believed-english` / `believed-other` to an `Uncertain(...)` value, and tri-state `LeafEq` evaluation (`RulesEngine.cs`) returns `Unknown` for uncertain inputs, so neither reject rule ever fires for them — those requests go to **Scrutiny**, not auto-reject, and evidence stays mandatory so the reviewer has something to assess. (The PBI's original AC Scenario 004 waived evidence for `believed-other` + an English-speaking country; that scenario was withdrawn by the BA on 2026-07-28.) The rules engine itself was deliberately left unchanged — no rule removed, no outcome logic touched.
+- **`OriginCountryLanguageCapture`** resolves and stores the origin country's official languages on `RequestState.OriginCountryCode` / `OriginCountryLanguages` whenever a page POST answers the `country-originally-from` question — both `JourneyController.PagePost` (after validation succeeds) and `JourneyController.SaveDraft` (over the answers it re-reads from the form before persisting the draft) invoke it, so a "Save and exit" gets the same backfill as "Continue". It reads the same `country-languages.json` lookup the rules engine's `officialLanguageIs` predicate uses (via `IRulesConfigService.GetLookupsAsync`), so the journey-side approximation and the engine read one source of truth. If the autocomplete's hidden code field is empty (a re-POST of a previously answered page keeps the display name but drops the code — `_Autocomplete.cshtml`'s `_code` field is only populated by an explicit JS `onConfirm`), the code is recovered by an exact case-insensitive name lookup (`ICountryService.GetCodeByNameAsync`) and backfilled onto the answer's `CodeValue`, so the rules engine (which reads `CodeValue ?? TextValue`) also gets the code rather than the display name on a re-edited journey. A lookup failure or an unresolvable country stores `null` languages — fail-safe, evidence stays mandatory.
+- **Drafts saved before this shipped** have no `OriginCountryLanguages`, so a resumed EAL draft answered `other` sees evidence as mandatory again until the country page is re-posted (the resume path does not force this). Fail-safe direction, and `english` drafts are unaffected because that branch never consults the country.
+- Because the waiver depends on answers the user can still change afterwards, `Summary` re-validates the reachable evidence page before rendering and redirects back to it if a late change (e.g. `first-language` english → other) has made it mandatory again. Nothing between the Summary and submission validates otherwise.
+
 ### Require at least one
 
 A page with `"requireAtLeastOne": true` must have at least one of its questions answered, even when each question is individually `optional`. This is used by the **Not on roll** evidence page, where either an uploaded file *or* a written explanation is acceptable. `IJourneyValidationService.ValidateRequireAtLeastOne` returns a `RequireAtLeastOneResult` (a summary lead-in message plus per-question field errors) when nothing is answered; the controller adds these to `ModelState` and surfaces the summary message in `_JourneyErrorSummary.cshtml` via `PageViewModel.AtLeastOneError`.
@@ -375,7 +396,7 @@ Available from:
 
 ### What happens
 
-1. If `pageId` is provided: any non-file answers on that page are read from the form and saved to session. This handles the case where the text area has been filled in but not yet submitted.
+1. If `pageId` is provided: any non-file answers on that page are read from the form and saved to session. This handles the case where the text area has been filled in but not yet submitted. If the posted answers include `country-originally-from`, `OriginCountryLanguageCapture.ApplyAsync` runs first (same as `PagePost`), backfilling `CodeValue` and `OriginCountryCode`/`OriginCountryLanguages` before they're saved — otherwise a re-rendered country page's empty hidden `_code` field would overwrite the good answer with a null code.
 
 2. **Save draft blob** — `IDraftBlobClient.SaveDraftAsync(windowId, referenceNumber, journey)` writes the full `RequestState` as JSON to:
    ```
@@ -420,6 +441,8 @@ Reads `ReferenceNumber` and `CheckingWindow.EndDate` from the remaining session 
 | `ReferenceNumber` | `string?` | Stage 3 — primary `PupilSearch` page |
 | `QuestionAnswers` | `Dictionary<string, QuestionAnswer>` | Stage 3 (question pages) |
 | `QuestionHistory` | `List<string>` | Stage 3 (all pages including `PupilSearch`) |
+| `OriginCountryCode` | `string?` | Stage 3 — any page POST answering `country-originally-from` (see [Conditional question optionality](#conditional-question-optionality-optionalwhen)); also recomputed on Save Draft (Stage 5b) if that page's answers are being saved |
+| `OriginCountryLanguages` | `List<string>?` | Stage 3 — same as above |
 | `SelectedNextStep` | `NextSteps?` | Not used in journey (future) |
 
 `IsSessionReady` checks that `SelectedWhatToChange` and `CheckingWindow` are non-null. Pupil selection is handled in-journey via `PupilSearch` pages and is not required before the journey begins. Any action that fails this check redirects to Check Your Pupil Data.

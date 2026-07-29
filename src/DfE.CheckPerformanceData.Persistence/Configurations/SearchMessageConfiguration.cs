@@ -43,6 +43,12 @@ internal sealed class SearchMessageConfiguration : IEntityTypeConfiguration<Sear
             .HasColumnName("read_at_utc")
             .HasColumnType("timestamp with time zone");
 
+        // Marker for rows written by the sample-data seeder. Defaults to false so real
+        // user-submitted messages survive the delete-seeded admin action.
+        builder.Property(x => x.IsSeeded)
+            .HasColumnName("is_seeded")
+            .HasDefaultValue(false);
+
         // Support lookup keyed by the session id the user quotes.
         builder.HasIndex(x => x.SessionId)
             .HasDatabaseName("ix_search_messages_session_id");

@@ -31,12 +31,18 @@ public sealed class TestDataController : Controller
 {
     private const string TempDataKey = "SeedSampleSearchDataResult";
 
+    // Literal the "delete all data" typed-confirmation guard checks. Kept as a compile-
+    // time const so a code-search shows every place the invariant is enforced (form
+    // field, query-string branch, JS enablement rule) and cannot drift.
+    internal const string DeleteAllConfirmationLiteral = "DELETE";
+
     private readonly SampleSearchDataSeeder _seeder;
     private readonly IHostEnvironment _environment;
     private readonly IPortalDbContext? _dbContext;
     private readonly ICurrentUserService? _currentUserService;
     private readonly ISampleSearchDataSeedJobStore _jobStore;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ISampleSearchDataGateway? _adminGateway;
 
     public TestDataController(
         SampleSearchDataSeeder seeder,
@@ -44,7 +50,8 @@ public sealed class TestDataController : Controller
         ISampleSearchDataSeedJobStore jobStore,
         IServiceScopeFactory scopeFactory,
         IPortalDbContext? dbContext = null,
-        ICurrentUserService? currentUserService = null)
+        ICurrentUserService? currentUserService = null,
+        ISampleSearchDataGateway? adminGateway = null)
     {
         _seeder = seeder;
         _environment = environment;
@@ -52,6 +59,7 @@ public sealed class TestDataController : Controller
         _scopeFactory = scopeFactory;
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _adminGateway = adminGateway;
     }
 
     // GET /admin/test-data/sample-search-data — renders the preset form. When called with
@@ -178,6 +186,115 @@ public sealed class TestDataController : Controller
 
         var cancelled = _jobStore.RequestCancel(jobId);
         return cancelled ? NoContent() : NotFound();
+    }
+
+    // POST /admin/test-data/sample-search-data/delete-seeded — drops every row with
+    // is_seeded = true across search_events, search_event_results and search_messages
+    // in one transaction. Real user activity (is_seeded = false) is preserved so a
+    // support team member can still see genuine feedback after the demo data is wiped.
+    // Anti-forgery-protected and dev-only.
+    [HttpPost("sample-search-data/delete-seeded")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteSeededSampleSearchData(
+        CancellationToken cancellationToken)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (_adminGateway is null)
+        {
+            return StatusCode(500);
+        }
+
+        var startedAtUtc = DateTime.UtcNow;
+        var result = await _adminGateway.DeleteSeededAsync(cancellationToken);
+        await WriteDeleteAuditAsync(
+            action: "DeleteSeededSearchData",
+            counts: result,
+            startedAtUtc: startedAtUtc,
+            cancellationToken: cancellationToken);
+
+        TempData[TempDataKey] = FormatDeleteBanner(result);
+        return RedirectToAction(nameof(SampleSearchData));
+    }
+
+    // POST /admin/test-data/sample-search-data/delete-all — TRUNCATE-equivalent across
+    // the same three tables regardless of the seeded marker. Requires an additional
+    // typed-confirmation guard (?confirm=DELETE or a `confirm` form field) — the
+    // endpoint 400s without it so a rogue automation cannot drop the whole sink with
+    // one anti-forgery token. Anti-forgery-protected and dev-only.
+    [HttpPost("sample-search-data/delete-all")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAllSampleSearchData(
+        [FromForm(Name = "confirm")] string? confirmForm,
+        [FromQuery(Name = "confirm")] string? confirmQuery,
+        CancellationToken cancellationToken)
+    {
+        if (!_environment.IsDevelopment())
+        {
+            return NotFound();
+        }
+        if (_adminGateway is null)
+        {
+            return StatusCode(500);
+        }
+
+        var supplied = confirmForm ?? confirmQuery;
+        if (!string.Equals(supplied, DeleteAllConfirmationLiteral, StringComparison.Ordinal))
+        {
+            return BadRequest(
+                $"Typed confirmation required — expected exactly '{DeleteAllConfirmationLiteral}'.");
+        }
+
+        var startedAtUtc = DateTime.UtcNow;
+        var result = await _adminGateway.DeleteAllAsync(cancellationToken);
+        await WriteDeleteAuditAsync(
+            action: "DeleteAllSearchData",
+            counts: result,
+            startedAtUtc: startedAtUtc,
+            cancellationToken: cancellationToken);
+
+        TempData[TempDataKey] = FormatDeleteBanner(result);
+        return RedirectToAction(nameof(SampleSearchData));
+    }
+
+    private static string FormatDeleteBanner(DeleteCountsResult r) =>
+        $"Deleted {r.EventsDeleted:N0} events, {r.ResultsDeleted:N0} results, {r.MessagesDeleted:N0} messages from the sink.";
+
+    private async Task WriteDeleteAuditAsync(
+        string action,
+        DeleteCountsResult counts,
+        DateTime startedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (_dbContext is null)
+        {
+            return;
+        }
+
+        var completedAtUtc = DateTime.UtcNow;
+        var actingUserId = _currentUserService?.UserId;
+        var payload = JsonSerializer.Serialize(new
+        {
+            eventsDeleted = counts.EventsDeleted,
+            resultsDeleted = counts.ResultsDeleted,
+            messagesDeleted = counts.MessagesDeleted,
+            deletedBy = actingUserId,
+            deletedAt = completedAtUtc,
+            durationMs = (int)(completedAtUtc - startedAtUtc).TotalMilliseconds,
+        });
+
+        _dbContext.AuditEntries.Add(new AuditEntry
+        {
+            EntityType = "SearchAnalyticsSink",
+            EntityId = "sample-search-data",
+            Action = action,
+            NewValues = payload,
+            Timestamp = completedAtUtc,
+            UserId = actingUserId,
+        });
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     // Preset lookup: T4-defined defaults. Absent / unknown preset snaps to "Last 24 hours"

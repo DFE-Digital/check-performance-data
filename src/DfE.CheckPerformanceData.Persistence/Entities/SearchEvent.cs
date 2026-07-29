@@ -20,4 +20,11 @@ public sealed class SearchEvent
     public int ResultsTotal { get; set; }
     public bool ZeroResults { get; set; }
     public int LatencyMs { get; set; }
+
+    // True when the row was written by the sample-data seeder (dev-only Test-data admin
+    // surface); false for every event captured from a real user request. Existing rows
+    // default to false so the marker's write-once invariant survives the initial
+    // migration without a data backfill. Admin "delete seeded data" filters WHERE
+    // is_seeded = true; "delete all data" ignores the flag.
+    public bool IsSeeded { get; set; }
 }

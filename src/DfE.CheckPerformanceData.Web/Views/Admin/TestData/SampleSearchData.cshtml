@@ -156,8 +156,142 @@
             Existing search data is not deleted — click multiple times to accumulate more.
             To clear the sink, use the Danger zone tools.
         </p>
+
+        <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
+
+        <h2 class="govuk-heading-m" id="danger-zone-heading">Danger zone</h2>
+
+        <div class="govuk-warning-text">
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text">
+                <span class="govuk-visually-hidden">Warning</span>
+                These actions are destructive and cannot be undone. Both are limited to the
+                local development environment.
+            </strong>
+        </div>
+
+        @* Delete seeded — filters WHERE is_seeded = true across the three sink tables.
+           Progressive-enhancement: with JS disabled, the button submits synchronously and
+           the modal degrades to a plain warning-text-plus-button pair. *@
+        <form method="post" action="/admin/test-data/sample-search-data/delete-seeded"
+              id="delete-seeded-form"
+              data-testid="delete-seeded-form">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="govuk-button govuk-button--warning"
+                    data-module="govuk-button"
+                    data-testid="delete-seeded-open"
+                    data-open-modal="delete-seeded-modal">
+                Delete seeded data
+            </button>
+        </form>
+
+        @* Delete all — same shape but adds a typed-confirmation gate. The confirm=DELETE
+           form field is populated by JS from the input; JS-less fallback submits the
+           button with a hidden confirm=DELETE input pre-populated so the endpoint still
+           accepts the request. *@
+        <form method="post" action="/admin/test-data/sample-search-data/delete-all"
+              id="delete-all-form"
+              data-testid="delete-all-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="confirm" value="DELETE" data-role="delete-all-confirm-hidden" />
+            <button type="submit" class="govuk-button govuk-button--warning"
+                    data-module="govuk-button"
+                    data-testid="delete-all-open"
+                    data-open-modal="delete-all-modal">
+                Delete all data
+            </button>
+        </form>
     </div>
 </div>
+
+@* Confirm modal — delete seeded. Mirrors the seed-progress-modal <dialog> shape so
+   the same JS open/close primitives can drive it. *@
+<dialog id="delete-seeded-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="delete-seeded-modal-title"
+        aria-describedby="delete-seeded-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="delete-seeded-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="delete-seeded-modal-title">Delete seeded search data?</h2>
+        <div id="delete-seeded-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                This deletes every search event, result row and feedback message the sample-data
+                seeder created. Real events captured from live searches are not affected. This
+                cannot be undone.
+            </p>
+        </div>
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="delete-seeded-confirm"
+                    data-testid="delete-seeded-confirm">
+                Delete seeded data
+            </button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="delete-seeded-cancel"
+                    data-testid="delete-seeded-cancel"
+                    data-modal-close>
+                Cancel
+            </button>
+        </div>
+    </div>
+</dialog>
+
+@* Confirm modal — delete all, with typed-confirmation gate. *@
+<dialog id="delete-all-modal"
+        class="govuk-modal-dialogue__box seed-progress-modal"
+        aria-labelledby="delete-all-modal-title"
+        aria-describedby="delete-all-modal-body"
+        aria-modal="true"
+        tabindex="-1"
+        data-testid="delete-all-modal">
+    <div class="govuk-modal-dialogue__header">
+        <button type="button" class="govuk-modal-dialogue__close" aria-label="close"
+                data-element="govuk-modal-dialogue-close" data-modal-close>&times;</button>
+    </div>
+    <div class="govuk-modal-dialogue__content">
+        <h2 class="govuk-modal-dialogue__heading govuk-heading-l"
+            id="delete-all-modal-title">Delete ALL search data?</h2>
+        <div id="delete-all-modal-body" class="govuk-body">
+            <p class="govuk-body">
+                This deletes EVERY search event, result row and feedback message in the sink —
+                including real events captured from live searches. This cannot be undone. To
+                confirm, type <strong>DELETE</strong> below.
+            </p>
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="delete-all-confirm-input">
+                    Type DELETE to confirm
+                </label>
+                <input class="govuk-input govuk-input--width-10"
+                       id="delete-all-confirm-input"
+                       data-role="delete-all-confirm-input"
+                       data-testid="delete-all-confirm-input"
+                       autocomplete="off"
+                       spellcheck="false" />
+            </div>
+        </div>
+        <div class="govuk-button-group">
+            <button type="button" class="govuk-button govuk-button--warning"
+                    data-role="delete-all-confirm"
+                    data-testid="delete-all-confirm"
+                    disabled>
+                Delete all data
+            </button>
+            <button type="button" class="govuk-button govuk-button--secondary"
+                    data-role="delete-all-cancel"
+                    data-testid="delete-all-cancel"
+                    data-modal-close>
+                Cancel
+            </button>
+        </div>
+    </div>
+</dialog>
 
 @* Progress modal for the seed run. Opens as soon as the form is submitted; polls the
    in-memory job store every 500 ms; transitions to a Completed / Failed / Cancelled
@@ -270,4 +404,5 @@
 
 @section Scripts {
     <script src="~/js/test-data-seed.js" asp-append-version="true" defer></script>
+    <script src="~/js/test-data-delete.js" asp-append-version="true" defer></script>
 }

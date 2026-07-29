@@ -12,4 +12,9 @@ public sealed class SearchEventResult
     public string ResultKind { get; set; } = string.Empty;
     public string ResultKey { get; set; } = string.Empty;
     public float Rank { get; set; }
+
+    // Mirrors the parent SearchEvent.IsSeeded so the delete-seeded query does not need
+    // to JOIN back to the parent to filter children. Written by the sink at the same
+    // time as the parent flag so the two stay in lockstep.
+    public bool IsSeeded { get; set; }
 }

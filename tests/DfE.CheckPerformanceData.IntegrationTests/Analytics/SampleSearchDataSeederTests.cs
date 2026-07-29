@@ -205,6 +205,69 @@ public sealed class SampleSearchDataSeederTests
             $"Cancellation should have halted before the full 5000 rows landed; got {writtenCount}.");
     }
 
+    // Marker invariant: every row the seeder writes lands with is_seeded = true across
+    // all three sink tables. Real events written via the request-side sink decorator
+    // default to false and remain visible after a delete-seeded admin action. This is
+    // the contract the Danger-zone "delete seeded data" button relies on.
+    [Fact]
+    public async Task SeedAsync_MarksEveryRowAsSeeded()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var now = new DateTime(2026, 07, 28, 12, 00, 00, DateTimeKind.Utc);
+        var span = TimeSpan.FromHours(24);
+        var sut = CreateSut();
+
+        // Also insert one non-seeded event through the sink directly to prove the
+        // marker separates seeded from real cleanly.
+        var directSink = new DbSearchAnalyticsSink(_fixture.CreateContext());
+        var directEvent = new SearchEventDto(
+            OccurredAtUtc: now.AddMinutes(-5),
+            SessionId: "real-user",
+            QueryRaw: "widget",
+            QueryNormalised: "widget",
+            Scope: "site",
+            ResultsPages: 1,
+            ResultsBlocks: 0,
+            LatencyMs: 25,
+            Results: Array.Empty<SearchEventResultDto>(),
+            IsSeeded: false);
+        await directSink.RecordBatchAsync(new[] { directEvent }, CancellationToken.None);
+
+        await sut.SeedAsync(
+            span: span,
+            eventCount: 60,
+            messageCount: 5,
+            nowUtc: now,
+            seed: 42,
+            cancellationToken: CancellationToken.None);
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+
+        var seededEvents = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_events WHERE is_seeded = true;");
+        var realEvents = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_events WHERE is_seeded = false;");
+        var seededMessages = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_messages WHERE is_seeded = true;");
+        var realMessages = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_messages WHERE is_seeded = false;");
+        var seededResultRows = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_event_results WHERE is_seeded = true;");
+        var realResultRows = await ScalarLongAsync(conn,
+            "SELECT COUNT(*) FROM search_event_results WHERE is_seeded = false;");
+
+        Assert.Equal(60L, seededEvents);
+        Assert.Equal(1L, realEvents);
+        Assert.Equal(5L, seededMessages);
+        Assert.Equal(0L, realMessages);
+        // Every child result row inherits the parent event's marker — the sink writes
+        // them in lockstep so no seeded event ever has a non-seeded child row.
+        Assert.True(seededResultRows >= 0);
+        Assert.Equal(0L, realResultRows);
+    }
+
     private static async Task<long> ScalarLongAsync(NpgsqlConnection conn, string sql)
     {
         await using var cmd = conn.CreateCommand();

@@ -353,6 +353,128 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
 
     // --- Helpers ---
 
+    // --- Danger zone: delete seeded + delete all data ---
+
+    // Renders the Danger zone section under the seed form with two warning-style buttons
+    // and captures a screenshot. Independent of the delete flow so a purely-visual
+    // regression on the section shows up as a single failing test.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_DangerZone_ShowsBothDeleteButtons()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+            var heading = Page.Locator("h2#danger-zone-heading");
+            await Expect(heading).ToBeVisibleAsync();
+
+            var deleteSeededBtn = Page.Locator("button[data-testid=\"delete-seeded-open\"]");
+            await Expect(deleteSeededBtn).ToBeVisibleAsync();
+            var deleteAllBtn = Page.Locator("button[data-testid=\"delete-all-open\"]");
+            await Expect(deleteAllBtn).ToBeVisibleAsync();
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("test-data-danger-zone.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // Full delete-seeded flow: seed a preset, click Delete seeded, confirm in the modal,
+    // assert the success banner reports non-zero counts. Screenshots the first modal
+    // just before the confirm click.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_DeleteSeeded_WipesSeededRowsAndShowsBanner()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // Seed the last-24-hours preset first so the delete has something to remove.
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+            await Page.Locator("button[data-testid=\"seed-sample-search-data-submit\"]").ClickAsync();
+            var completed = Page.Locator("[data-testid=\"seed-progress-completed\"]");
+            await Expect(completed).ToBeVisibleAsync(
+                new LocatorAssertionsToBeVisibleOptions { Timeout = 30_000 });
+            await Page.Locator("[data-testid=\"seed-progress-close\"]").ClickAsync();
+
+            // Open the delete-seeded modal.
+            await Page.Locator("button[data-testid=\"delete-seeded-open\"]").ClickAsync();
+            var modal = Page.Locator("dialog[data-testid=\"delete-seeded-modal\"]");
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 2000 });
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("delete-seeded-modal.png");
+
+            // Confirm the delete. JS fetches and reloads the page.
+            await Page.Locator("[data-testid=\"delete-seeded-confirm\"]").ClickAsync();
+
+            // Success banner appears after the reload — counts are per-table.
+            var banner = Page.Locator("[data-testid=\"seed-sample-search-data-banner\"]");
+            await Expect(banner).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 10_000 });
+            var bannerText = await banner.InnerTextAsync();
+            Assert.Contains("Deleted", bannerText);
+            Assert.Contains("events", bannerText);
+            Assert.Contains("messages", bannerText);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // Delete-all typed-confirmation gate: confirm button is disabled until the input
+    // value equals 'DELETE'. Screenshots the enabled state.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_DeleteAll_ConfirmButtonRequiresTypedDelete()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+
+            await Page.Locator("button[data-testid=\"delete-all-open\"]").ClickAsync();
+            var modal = Page.Locator("dialog[data-testid=\"delete-all-modal\"]");
+            await Expect(modal).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 2000 });
+
+            var confirmBtn = Page.Locator("[data-testid=\"delete-all-confirm\"]");
+            // Disabled on open.
+            Assert.True(await confirmBtn.IsDisabledAsync(),
+                "Delete all confirm button should start disabled until DELETE is typed.");
+
+            var input = Page.Locator("[data-testid=\"delete-all-confirm-input\"]");
+            await input.FillAsync("delete");
+            Assert.True(await confirmBtn.IsDisabledAsync(),
+                "Case-sensitive check — lowercase must not enable the button.");
+
+            await input.FillAsync("DELETE");
+            await Expect(confirmBtn).ToBeEnabledAsync(new LocatorAssertionsToBeEnabledOptions { Timeout = 2000 });
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("delete-all-modal-typed.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     private void AttachCookieToContext(string? cookieHeader)
     {
         if (string.IsNullOrEmpty(cookieHeader)) return;
@@ -379,7 +501,10 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
             || filename.StartsWith("seed-completed-modal", StringComparison.Ordinal)
             || filename.StartsWith("seed-cancelled-modal", StringComparison.Ordinal)
                 ? "round9"
-                : "round8";
+                : (filename.StartsWith("delete-", StringComparison.Ordinal)
+                    || filename.StartsWith("test-data-danger-zone", StringComparison.Ordinal))
+                        ? "danger-zone"
+                        : "round8";
         var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", subFolder);
         Directory.CreateDirectory(dir);
         await page.ScreenshotAsync(new PageScreenshotOptions

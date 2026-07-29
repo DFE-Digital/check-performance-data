@@ -62,6 +62,7 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
                 ResultsPages = dto.ResultsPages,
                 ResultsBlocks = dto.ResultsBlocks,
                 LatencyMs = dto.LatencyMs,
+                IsSeeded = dto.IsSeeded,
             };
             _dbContext.SearchEvents.Add(parent);
             parents.Add((parent, dto.Results));
@@ -80,6 +81,7 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
                     ResultKind = result.ResultKind,
                     ResultKey = result.ResultKey,
                     Rank = result.Rank,
+                    IsSeeded = parent.IsSeeded,
                 });
                 anyChildren = true;
             }

@@ -89,6 +89,66 @@ public sealed class AddSearchAnalyticsMigrationTests
         Assert.Contains("is_read", columns);
         Assert.Contains("read_by_admin_sub", columns);
         Assert.Contains("read_at_utc", columns);
+        Assert.Contains("is_seeded", columns);
+    }
+
+    // The IsSeeded marker lands on all three sink tables in a single follow-up
+    // migration. Existing rows default to false so the marker's write-once invariant
+    // survives the initial rollout without a data backfill — real rows classified as
+    // real data, seeder rows classified as seeded on the next write.
+    [Fact]
+    public async Task SearchEvents_HasIsSeededColumn()
+    {
+        await using var ctx = _fixture.CreateContext();
+        await ctx.Database.MigrateAsync();
+
+        var columns = await GetColumnsAsync("search_events");
+        Assert.Contains("is_seeded", columns);
+    }
+
+    [Fact]
+    public async Task SearchEventResults_HasIsSeededColumn()
+    {
+        await using var ctx = _fixture.CreateContext();
+        await ctx.Database.MigrateAsync();
+
+        var columns = await GetColumnsAsync("search_event_results");
+        Assert.Contains("is_seeded", columns);
+    }
+
+    [Fact]
+    public async Task IsSeeded_DefaultsToFalseOnInsert()
+    {
+        await using var ctx = _fixture.CreateContext();
+        await ctx.Database.MigrateAsync();
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+
+        // Insert a bare-minimum event row without setting is_seeded — the column
+        // default must land the row as real data (is_seeded = false).
+        await using (var insert = conn.CreateCommand())
+        {
+            insert.CommandText = @"
+                INSERT INTO search_events
+                    (occurred_at_utc, session_id, results_pages, results_blocks, latency_ms)
+                VALUES (@t, @s, 1, 0, 10);";
+            insert.Parameters.AddWithValue("t", DateTime.UtcNow);
+            insert.Parameters.AddWithValue("s", "default-check-session");
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        await using var select = conn.CreateCommand();
+        select.CommandText =
+            "SELECT is_seeded FROM search_events WHERE session_id = 'default-check-session' LIMIT 1;";
+        var value = await select.ExecuteScalarAsync();
+        Assert.NotNull(value);
+        Assert.False((bool)value!);
+
+        // Cleanup so subsequent tests in the collection are not polluted.
+        await using var cleanup = conn.CreateCommand();
+        cleanup.CommandText = "DELETE FROM search_events WHERE session_id = 'default-check-session';";
+        await cleanup.ExecuteNonQueryAsync();
     }
 
     // Support lookup is a plain WHERE session_id = @quoted_value against an indexed column.

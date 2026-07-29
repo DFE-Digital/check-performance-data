@@ -190,9 +190,12 @@
     //     │└────────┘             └────────┘│
     //     lower-left (TOP-edge flip)     lower-right (both flips)
     //
-    // The 10 px offset keeps the tooltip's nearest corner from touching the cursor.
+    // The 24 px offset keeps the tooltip's nearest corner clear of the cursor's rendered
+    // body — a typical arrow cursor extends ~16-20 px down and right of its point, so any
+    // flip that places the tooltip below or right of the cursor needs at least that much
+    // clearance to avoid the cursor covering the tooltip's leading edge.
     function positionTooltip(evt, tt) {
-        var offset = 10;
+        var offset = 24;
         // Read the rendered size after content is set so getBoundingClientRect gives us
         // the true measure of the box we're placing.
         var box = tt.getBoundingClientRect();

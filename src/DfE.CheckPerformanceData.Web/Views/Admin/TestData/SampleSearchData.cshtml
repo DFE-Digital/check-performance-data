@@ -5,6 +5,11 @@
     var cancelUrlBase = "/admin/test-data/sample-search-data/";
     var dashboardUrl = "/admin/Search/";
     var activeJobId = Model.ActiveJobId?.ToString();
+    // Persisted per-event seconds rate: rendered in InvariantCulture so a Windows host
+    // with a comma-decimal locale never emits "0,1" here (would break Number(...) on
+    // the client side).
+    var secondsPerEventText = Model.SecondsPerEvent
+        .ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 }
 
 <a class="govuk-back-link" href="/admin">Back to administration</a>
@@ -51,7 +56,8 @@
               data-progress-url="@progressUrl"
               data-cancel-url-base="@cancelUrlBase"
               data-dashboard-url="@dashboardUrl"
-              data-resume-job-id="@activeJobId">
+              data-resume-job-id="@activeJobId"
+              data-seconds-per-event="@secondsPerEventText">
             @Html.AntiForgeryToken()
 
             <fieldset class="govuk-fieldset">
@@ -154,7 +160,8 @@
 
         <p class="govuk-body-s govuk-hint">
             Existing search data is not deleted — click multiple times to accumulate more.
-            To clear the sink, use the Danger zone tools.
+            To clear the sink, use the Danger zone tools. Cancel on the progress modal
+            interrupts the current seed and rolls back every row it wrote in this run.
         </p>
 
         <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible" />
@@ -429,7 +436,8 @@
         <div class="govuk-button-group">
             <button type="button" class="govuk-button govuk-button--warning"
                     data-role="cancel-button"
-                    data-testid="seed-progress-cancel">Cancel seeding</button>
+                    data-testid="seed-progress-cancel"
+                    data-idle-label="Cancel seeding">Cancel seeding</button>
             <button type="button" class="govuk-button govuk-button--secondary"
                     data-role="close-button"
                     data-testid="seed-progress-close"

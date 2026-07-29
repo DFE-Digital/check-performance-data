@@ -19,6 +19,10 @@
     var ETA_MIN_ELAPSED_S = 5;
     var ETA_MIN_EVENTS = 100;
     var LOG_MAX = 5;
+    // Absolute floor for a rendered ETA value. Below this we display "About …"
+    // instead of a numeric second count — a "0 seconds remaining" line while the
+    // seeder is still working looks like a bug (Lance reported this behaviour).
+    var ETA_FLOOR_SECONDS = 1;
     // Rolling-window rate for ETA: keep the last N ticks so the estimate reflects
     // recent throughput rather than the cumulative rate since kickoff (which lags
     // heavily in the middle when batches are consistent-sized and only becomes
@@ -77,6 +81,11 @@
         // Rolling ETA samples: array of {tMs, events} objects, oldest first, max
         // ETA_WINDOW entries. See computeEtaSeconds for the rate math.
         this.etaSamples = [];
+        // Persisted per-event seconds rate embedded on the form as
+        // data-seconds-per-event. Used to render an initial ETA at modal open
+        // before any real ticks arrive, and as the fallback rate when the
+        // rolling window has fewer than ETA_MIN_SAMPLES.
+        this.secondsPerEvent = 0.1;
     }
 
     // Pure helper: given the running array of {tMs, events} samples and the total
@@ -126,6 +135,16 @@
     State.prototype.init = function (form, modal) {
         this.form = form;
         this.modal = modal;
+
+        // Read the persisted per-event rate written by the server. Parsed in the
+        // browser's default locale (Number(…)) but the server rendered in
+        // InvariantCulture so decimal point is always ".". A malformed value
+        // falls back to 0.1 — the same default the server uses.
+        var raw = form.getAttribute('data-seconds-per-event');
+        var parsed = raw ? Number(raw) : NaN;
+        if (isFinite(parsed) && parsed > 0) {
+            this.secondsPerEvent = parsed;
+        }
 
         this.wireCancel();
         this.wireClose();
@@ -235,8 +254,13 @@
         if (fill) fill.style.width = '0%';
         var bar = el('progress-bar', this.modal);
         if (bar) bar.setAttribute('aria-valuenow', '0');
+        // ETA line now visible from the start — populated with either an initial
+        // estimate from the persisted seconds-per-event rate (once we know the
+        // preset's event total) or with "…" as a loading placeholder. Never
+        // rendered as a raw "0 seconds" line.
+        setText('eta-seconds', '…');
         var eta = el('eta-line', this.modal);
-        if (eta) eta.hidden = true;
+        if (eta) eta.hidden = false;
         var cursor = el('cursor-line', this.modal);
         if (cursor) cursor.hidden = true;
         var log = el('progress-log', this.modal);
@@ -367,20 +391,44 @@
             while (this.etaSamples.length > ETA_WINDOW) this.etaSamples.shift();
         }
 
-        // ETA — only show once we have enough runtime and enough rows for the
-        // rolling-window rate to be meaningful (the same "nothing at first is
-        // fine" behaviour the old cumulative-rate branch had).
+        // ETA. Two-stage rendering: while the rolling window still has fewer
+        // than ETA_MIN_SAMPLES ticks, or under ETA_MIN_ELAPSED_S seconds have
+        // passed, use the persisted per-event rate to render a conservative
+        // initial estimate. Once the rolling window is meaningful, switch to
+        // the measured rate. Never render "0" while the seeder is still going —
+        // fall back to "…" if the number would land under the floor.
         var elapsedS = (nowMs - this.startedAtMs) / 1000;
         var etaLine = el('eta-line', this.modal);
-        if (etaLine) {
-            if (elapsedS >= ETA_MIN_ELAPSED_S && (p.eventsWritten || 0) >= ETA_MIN_EVENTS
-                && (p.eventsTotal || 0) > 0) {
-                var etaSec = computeEtaSeconds(this.etaSamples, p.eventsTotal,
+        if (etaLine && (p.eventsTotal || 0) > 0) {
+            var etaSec = null;
+            if (elapsedS >= ETA_MIN_ELAPSED_S
+                && (p.eventsWritten || 0) >= ETA_MIN_EVENTS) {
+                etaSec = computeEtaSeconds(this.etaSamples, p.eventsTotal,
                     this.startedAtMs, nowMs);
-                if (etaSec !== null) {
-                    setText('eta-seconds', String(etaSec));
-                    etaLine.hidden = false;
+            }
+            if (etaSec === null) {
+                // Persisted-rate fallback: remaining events × seconds-per-event.
+                // Rounded to nearest 5 s when above 30 s to match the rolling
+                // window's rounding behaviour.
+                var remaining = (p.eventsTotal || 0) - (p.eventsWritten || 0);
+                if (remaining > 0 && this.secondsPerEvent > 0) {
+                    var raw = remaining * this.secondsPerEvent;
+                    if (raw >= 30) {
+                        etaSec = Math.round(raw / 5) * 5;
+                    } else {
+                        etaSec = Math.max(0, Math.round(raw));
+                    }
                 }
+            }
+            if (etaSec !== null && etaSec >= ETA_FLOOR_SECONDS) {
+                setText('eta-seconds', String(etaSec));
+                etaLine.hidden = false;
+            } else if (etaSec !== null && etaSec < ETA_FLOOR_SECONDS
+                       && p.state !== 'Completed' && p.state !== 'Failed') {
+                // Below the floor but not yet done — leave the loading marker
+                // rather than render a raw "0".
+                setText('eta-seconds', '…');
+                etaLine.hidden = false;
             }
         }
 
@@ -392,18 +440,33 @@
             this.pushLog(line);
         }
 
+        if (p.state === 'Cancelling') {
+            // The Cancel click has landed and the seeder is unwinding; the
+            // controller is about to invoke rollback. Disable Cancel and swap
+            // its label so a repeat click doesn't fire another rollback.
+            var cancelBtnInProg = el('cancel-button', this.modal);
+            if (cancelBtnInProg) {
+                cancelBtnInProg.disabled = true;
+                cancelBtnInProg.textContent = 'Cancelling…';
+            }
+        }
+
         if (p.state === 'Completed') {
             var isCancelled = p.note && p.note.toLowerCase().indexOf('cancel') !== -1;
             if (isCancelled) {
                 var cancelBlock = el('result-cancelled', this.modal);
                 var cancelNote = el('cancelled-note', this.modal);
                 if (cancelNote) {
-                    // Prefer a formatted "N of M events" line so the user sees how
-                    // far along the seed got before the cancel landed; fall back to
-                    // the raw server note when the totals aren't populated.
+                    // Prefer the server-supplied note when it carries the "rolled back
+                    // N rows" phrasing from the DELETE endpoint; otherwise fall back
+                    // to a formatted "N of M events" line so the user sees how far
+                    // along the seed got before the cancel landed.
                     var written = (p.eventsWritten || 0).toLocaleString();
                     var total = (p.eventsTotal || 0).toLocaleString();
-                    if (p.eventsTotal && p.eventsTotal > 0) {
+                    var noteLower = (p.note || '').toLowerCase();
+                    if (p.note && noteLower.indexOf('rolled back') !== -1) {
+                        cancelNote.textContent = p.note;
+                    } else if (p.eventsTotal && p.eventsTotal > 0) {
                         cancelNote.textContent = 'Seeding cancelled at ' + written +
                             ' of ' + total + ' events.';
                     } else if (p.note) {
@@ -460,16 +523,33 @@
         btn.addEventListener('click', function () {
             if (!self.jobId) return;
             btn.disabled = true;
+            btn.textContent = 'Cancelling…';
             var token = readAntiforgery(self.form);
             var url = self.form.getAttribute('data-cancel-url-base') + encodeURIComponent(self.jobId);
             fetch(url, {
                 method: 'DELETE',
                 credentials: 'same-origin',
                 headers: token ? { 'RequestVerificationToken': token } : {},
-            }).then(function () {
-                // The next poll tick will observe the Completed-with-cancelled-note state.
+            }).then(function (resp) {
+                if (!resp.ok) return null;
+                // Server replies with a JSON body carrying the rollback counts +
+                // the note the poll response will echo. The next poll tick will
+                // observe Completed-with-cancelled-note anyway, but reading the
+                // body here means the modal can render the rollback outcome
+                // instantly without waiting a poll interval.
+                return resp.json().catch(function () { return null; });
+            }).then(function (body) {
+                if (!body) return;
+                // Best-effort: patch the cancelled note the poll will echo so the
+                // modal shows the rollback count immediately.
+                if (body.note && typeof body.note === 'string') {
+                    var cancelNote = el('cancelled-note', self.modal);
+                    if (cancelNote) cancelNote.textContent = body.note;
+                }
             }).catch(function () {
                 btn.disabled = false;
+                var idleLabel = btn.getAttribute('data-idle-label') || 'Cancel seeding';
+                btn.textContent = idleLabel;
             });
         });
     };

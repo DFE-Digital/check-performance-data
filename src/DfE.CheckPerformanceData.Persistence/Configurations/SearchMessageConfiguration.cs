@@ -49,6 +49,10 @@ internal sealed class SearchMessageConfiguration : IEntityTypeConfiguration<Sear
             .HasColumnName("is_seeded")
             .HasDefaultValue(false);
 
+        // Per-seed-run marker. Nullable; only stamped on seeder-written rows.
+        builder.Property(x => x.JobId)
+            .HasColumnName("job_id");
+
         // Support lookup keyed by the session id the user quotes.
         builder.HasIndex(x => x.SessionId)
             .HasDatabaseName("ix_search_messages_session_id");
@@ -61,5 +65,11 @@ internal sealed class SearchMessageConfiguration : IEntityTypeConfiguration<Sear
         // COUNT(*) WHERE is_read = false lookup must not seq-scan.
         builder.HasIndex(x => x.IsRead)
             .HasDatabaseName("ix_search_messages_is_read");
+
+        // Per-seed-run rollback lookup. Filtered — real user-submitted messages leave
+        // job_id NULL and would otherwise bloat this index.
+        builder.HasIndex(x => x.JobId)
+            .HasDatabaseName("ix_search_messages_job_id")
+            .HasFilter("job_id IS NOT NULL");
     }
 }

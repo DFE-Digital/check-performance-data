@@ -37,8 +37,19 @@ internal sealed class SearchEventResultConfiguration : IEntityTypeConfiguration<
             .HasColumnName("is_seeded")
             .HasDefaultValue(false);
 
+        // Mirrors the parent SearchEvent.JobId so the per-job rollback drops children
+        // without a JOIN. Nullable — set only on seeder-written rows.
+        builder.Property(x => x.JobId)
+            .HasColumnName("job_id");
+
         builder.HasIndex(x => x.SearchEventId)
             .HasDatabaseName("ix_search_event_results_search_event_id");
+
+        // Per-seed-run rollback lookup — same shape as the parent's index. Filtered on
+        // non-NULL so real user rows do not bloat it.
+        builder.HasIndex(x => x.JobId)
+            .HasDatabaseName("ix_search_event_results_job_id")
+            .HasFilter("job_id IS NOT NULL");
 
         // Cascade delete: a session-scoped support purge drops the parent SearchEvent
         // row and Postgres removes the children automatically. Without CASCADE the

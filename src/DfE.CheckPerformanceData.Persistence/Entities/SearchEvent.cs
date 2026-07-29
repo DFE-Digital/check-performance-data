@@ -27,4 +27,11 @@ public sealed class SearchEvent
     // migration without a data backfill. Admin "delete seeded data" filters WHERE
     // is_seeded = true; "delete all data" ignores the flag.
     public bool IsSeeded { get; set; }
+
+    // Per-run marker set by the sample-data seeder to Guid.ToString("N") of the seed job
+    // id — nullable string because real user rows carry no job id at all. The seed-page
+    // Cancel action drops every row with a matching job_id in one transaction, so a
+    // half-done or already-completed seed can be rolled back without touching real
+    // events (job_id IS NULL) or other jobs' rows.
+    public string? JobId { get; set; }
 }

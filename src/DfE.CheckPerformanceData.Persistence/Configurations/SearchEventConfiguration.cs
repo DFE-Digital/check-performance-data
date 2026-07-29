@@ -58,6 +58,12 @@ internal sealed class SearchEventConfiguration : IEntityTypeConfiguration<Search
             .HasColumnName("is_seeded")
             .HasDefaultValue(false);
 
+        // Per-seed-run marker. Nullable — real user rows carry no job id at all. Indexed
+        // because the Cancel/rollback query filters WHERE job_id = @id across a table
+        // that can carry 100k+ rows; without the index the rollback would seq-scan.
+        builder.Property(x => x.JobId)
+            .HasColumnName("job_id");
+
         // Volume-over-time chart + retention purge both scan this column.
         builder.HasIndex(x => x.OccurredAtUtc)
             .HasDatabaseName("ix_search_events_occurred_at");
@@ -95,5 +101,12 @@ internal sealed class SearchEventConfiguration : IEntityTypeConfiguration<Search
         builder.HasIndex(x => new { x.OccurredAtUtc, x.QueryNormalised })
             .HasDatabaseName("ix_search_events_occurred_at_query_normalised")
             .HasFilter("query_normalised IS NOT NULL");
+
+        // Per-seed-run rollback lookup. Filtered to non-NULL rows so real user activity
+        // (job_id IS NULL) does not bloat the index. Only seeder-written rows land here,
+        // and they are dropped shortly after by the Cancel/rollback action anyway.
+        builder.HasIndex(x => x.JobId)
+            .HasDatabaseName("ix_search_events_job_id")
+            .HasFilter("job_id IS NOT NULL");
     }
 }

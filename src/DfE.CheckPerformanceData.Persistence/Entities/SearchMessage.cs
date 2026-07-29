@@ -24,4 +24,10 @@ public sealed class SearchMessage
     // surface); false for every message submitted by a real user. Admin "delete seeded
     // data" filters WHERE is_seeded = true so a real user's feedback survives the wipe.
     public bool IsSeeded { get; set; }
+
+    // Per-run marker set by the sample-data seeder to Guid.ToString("N") of the seed job
+    // id — nullable string because real user-submitted messages carry no job id. The
+    // seed-page Cancel action rolls this job's messages back via WHERE job_id = @id in
+    // the same transaction that drops the matching events + children.
+    public string? JobId { get; set; }
 }

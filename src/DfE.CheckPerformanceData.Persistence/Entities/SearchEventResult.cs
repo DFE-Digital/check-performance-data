@@ -17,4 +17,9 @@ public sealed class SearchEventResult
     // to JOIN back to the parent to filter children. Written by the sink at the same
     // time as the parent flag so the two stay in lockstep.
     public bool IsSeeded { get; set; }
+
+    // Mirrors the parent SearchEvent.JobId; nullable for the same reason (real user
+    // rows carry no job id). Written by the sink in lockstep with the parent so the
+    // per-job rollback query can drop children without a JOIN back to the parent.
+    public string? JobId { get; set; }
 }

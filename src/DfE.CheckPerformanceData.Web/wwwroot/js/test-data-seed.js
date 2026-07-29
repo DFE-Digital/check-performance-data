@@ -19,6 +19,14 @@
     var ETA_MIN_ELAPSED_S = 5;
     var ETA_MIN_EVENTS = 100;
     var LOG_MAX = 5;
+    // Rolling-window rate for ETA: keep the last N ticks so the estimate reflects
+    // recent throughput rather than the cumulative rate since kickoff (which lags
+    // heavily in the middle when batches are consistent-sized and only becomes
+    // accurate near the end). N=10 at a 500 ms poll cadence gives a five-second
+    // rolling window — smooth enough that the seconds-remaining number stops
+    // jittering, short enough to reflect a genuine throughput change quickly.
+    var ETA_WINDOW = 10;
+    var ETA_MIN_SAMPLES = 3;
 
     function el(role, root) {
         return (root || document).querySelector('[data-role="' + role + '"]');
@@ -66,6 +74,53 @@
         this.startedAtMs = 0;
         this.logEntries = [];
         this.lastEventsWritten = -1;
+        // Rolling ETA samples: array of {tMs, events} objects, oldest first, max
+        // ETA_WINDOW entries. See computeEtaSeconds for the rate math.
+        this.etaSamples = [];
+    }
+
+    // Pure helper: given the running array of {tMs, events} samples and the total
+    // event count, return the estimated seconds remaining. Returns null when there
+    // is not enough data to estimate yet. Extracted for easy manual reasoning /
+    // unit-test friendliness. Time input is milliseconds since the epoch.
+    function computeEtaSeconds(samples, eventsTotal, startedAtMs, nowMs) {
+        if (!eventsTotal || eventsTotal <= 0 || !samples || samples.length === 0) {
+            return null;
+        }
+        var latest = samples[samples.length - 1];
+        var written = latest.events || 0;
+        if (written >= eventsTotal) return 0;
+        var remaining = eventsTotal - written;
+        var rate = 0; // events per second
+        if (samples.length >= ETA_MIN_SAMPLES) {
+            var oldest = samples[0];
+            var spanS = (latest.tMs - oldest.tMs) / 1000;
+            var deltaEvents = written - (oldest.events || 0);
+            if (spanS > 0 && deltaEvents > 0) rate = deltaEvents / spanS;
+        }
+        if (rate <= 0) {
+            // Fallback: cumulative rate since kickoff. Preserves the "nothing at
+            // first is fine" behaviour when only 1-2 ticks are in.
+            var elapsedS = (nowMs - startedAtMs) / 1000;
+            if (elapsedS <= 0 || written <= 0) return null;
+            rate = written / elapsedS;
+        }
+        if (rate <= 0) return null;
+        var rawSeconds = remaining / rate;
+        if (rawSeconds < 0) rawSeconds = 0;
+        // Round to the nearest 5 s while the ETA is comfortably above 30 s so the
+        // number stops jittering "25, 26, 25, 26" as consistent-size batches land
+        // at ~1 s intervals. Below 30 s, switch to 1 s precision — the numbers
+        // there are small enough that the perceived "twitch" is just accurate
+        // countdown behaviour.
+        if (rawSeconds >= 30) {
+            return Math.round(rawSeconds / 5) * 5;
+        }
+        return Math.max(0, Math.round(rawSeconds));
+    }
+    // Expose for ad-hoc manual verification from DevTools; harmless in production.
+    if (typeof window !== 'undefined') {
+        window.__seedComputeEtaSeconds = computeEtaSeconds;
     }
 
     State.prototype.init = function (form, modal) {
@@ -195,6 +250,28 @@
 
         var cancelBtn = el('cancel-button', this.modal);
         if (cancelBtn) { cancelBtn.disabled = false; cancelBtn.hidden = false; }
+        // Reset the Close-button copy to the running-state variant. On terminal
+        // transitions we swap in the terminal label ("Close").
+        var closeBtn = el('close-button', this.modal);
+        if (closeBtn) {
+            var runningLabel = closeBtn.getAttribute('data-running-label');
+            if (runningLabel) closeBtn.textContent = runningLabel;
+        }
+        this.etaSamples = [];
+    };
+
+    // Called on every terminal transition (Completed / Failed / Cancelled).
+    // Removes the Cancel button (no longer meaningful) and relabels the Close
+    // button so "Close (keep seeding in background)" isn't misleading — the
+    // seed is either done or over.
+    State.prototype.enterTerminalState = function () {
+        var cancelBtn = el('cancel-button', this.modal);
+        if (cancelBtn) cancelBtn.hidden = true;
+        var closeBtn = el('close-button', this.modal);
+        if (closeBtn) {
+            var terminalLabel = closeBtn.getAttribute('data-terminal-label') || 'Close';
+            closeBtn.textContent = terminalLabel;
+        }
     };
 
     State.prototype.startPolling = function () {
@@ -267,16 +344,28 @@
             if (cursorLine) cursorLine.hidden = false;
         }
 
-        // ETA — only show once we have enough data to make the rate estimate stable.
-        var elapsedS = (Date.now() - this.startedAtMs) / 1000;
+        // Push the current tick onto the rolling ETA sample buffer. Only push
+        // when eventsWritten actually changes so pure "still ticking" polls
+        // don't dilute the rate calculation.
+        var nowMs = Date.now();
+        if ((p.eventsWritten || 0) !== (this.etaSamples.length > 0
+                ? this.etaSamples[this.etaSamples.length - 1].events
+                : -1)) {
+            this.etaSamples.push({ tMs: nowMs, events: p.eventsWritten || 0 });
+            while (this.etaSamples.length > ETA_WINDOW) this.etaSamples.shift();
+        }
+
+        // ETA — only show once we have enough runtime and enough rows for the
+        // rolling-window rate to be meaningful (the same "nothing at first is
+        // fine" behaviour the old cumulative-rate branch had).
+        var elapsedS = (nowMs - this.startedAtMs) / 1000;
         var etaLine = el('eta-line', this.modal);
         if (etaLine) {
             if (elapsedS >= ETA_MIN_ELAPSED_S && (p.eventsWritten || 0) >= ETA_MIN_EVENTS
                 && (p.eventsTotal || 0) > 0) {
-                var rate = (p.eventsWritten || 0) / elapsedS;
-                if (rate > 0) {
-                    var remaining = Math.max(0, p.eventsTotal - p.eventsWritten);
-                    var etaSec = Math.round(remaining / rate);
+                var etaSec = computeEtaSeconds(this.etaSamples, p.eventsTotal,
+                    this.startedAtMs, nowMs);
+                if (etaSec !== null) {
                     setText('eta-seconds', String(etaSec));
                     etaLine.hidden = false;
                 }
@@ -296,7 +385,21 @@
             if (isCancelled) {
                 var cancelBlock = el('result-cancelled', this.modal);
                 var cancelNote = el('cancelled-note', this.modal);
-                if (cancelNote) cancelNote.textContent = p.note;
+                if (cancelNote) {
+                    // Prefer a formatted "N of M events" line so the user sees how
+                    // far along the seed got before the cancel landed; fall back to
+                    // the raw server note when the totals aren't populated.
+                    var written = (p.eventsWritten || 0).toLocaleString();
+                    var total = (p.eventsTotal || 0).toLocaleString();
+                    if (p.eventsTotal && p.eventsTotal > 0) {
+                        cancelNote.textContent = 'Seeding cancelled at ' + written +
+                            ' of ' + total + ' events.';
+                    } else if (p.note) {
+                        cancelNote.textContent = p.note;
+                    } else {
+                        cancelNote.textContent = 'Seeding cancelled.';
+                    }
+                }
                 if (cancelBlock) cancelBlock.hidden = false;
             } else {
                 var block = el('result-completed', this.modal);
@@ -308,8 +411,7 @@
                 if (fp) fp.textContent = p.presetLabel || '…';
                 if (block) block.hidden = false;
             }
-            var cancelBtn = el('cancel-button', this.modal);
-            if (cancelBtn) cancelBtn.hidden = true;
+            this.enterTerminalState();
             this.setSubmittingUi(false);
         } else if (p.state === 'Failed') {
             this.showFailure(p.errorMessage || 'Seeding failed.');
@@ -336,8 +438,7 @@
         var msgEl = el('error-message', this.modal);
         if (msgEl) msgEl.textContent = msg;
         if (block) block.hidden = false;
-        var cancelBtn = el('cancel-button', this.modal);
-        if (cancelBtn) cancelBtn.hidden = true;
+        this.enterTerminalState();
     };
 
     State.prototype.wireCancel = function () {

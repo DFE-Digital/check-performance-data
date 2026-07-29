@@ -38,28 +38,10 @@
         ? "Latency percentiles over time: no data."
         : $"Latency percentiles over time: peak p95 {maxValue} ms, latest p95 {buckets[^1].P95Ms} ms.";
 
-    static string FormatBucketLabel(DateTime bucket, TimeSpan step) => step switch
-    {
-        _ when step < TimeSpan.FromDays(1) => bucket.ToString("HH:mm", CultureInfo.InvariantCulture),
-        _ when step < TimeSpan.FromDays(28) => bucket.ToString("d MMM", CultureInfo.InvariantCulture),
-        _ => bucket.ToString("MMM yyyy", CultureInfo.InvariantCulture),
-    };
-
-    var step = buckets.Count >= 2
-        ? buckets[1].BucketStart - buckets[0].BucketStart
-        : TimeSpan.FromHours(1);
-
-    var xTickIndices = new List<int>();
-    if (buckets.Count > 0)
-    {
-        var targetTicks = Math.Min(6, buckets.Count);
-        var stride = Math.Max(1, buckets.Count / targetTicks);
-        for (var i = 0; i < buckets.Count; i += stride) xTickIndices.Add(i);
-        if (xTickIndices[^1] != buckets.Count - 1) xTickIndices.Add(buckets.Count - 1);
-    }
-
-    static string YLabelValue(int max, double fraction) =>
-        Math.Round(max * fraction).ToString("N0", CultureInfo.CurrentCulture) + " ms";
+    var xTicks = ChartAxisTicks.XAxisTicks(
+        buckets.Select(b => b.BucketStart).ToArray(),
+        plotWidthPx: plotW);
+    var yFractions = ChartAxisTicks.YAxisFractions(maxValue);
 
     // GDS palette: p50 blue (primary), p95 red (attention), p5 grey (context). Line style
     // reinforces the distinction: p50 solid, p95 dashed, p5 dotted — chart legible without colour.
@@ -92,8 +74,18 @@ else
         </li>
     </ul>
 
+    var bucketIsoJson = "[" + string.Join(",", buckets.Select(b => "\"" + b.BucketStart.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture) + "\"")) + "]";
+    var seriesValuesJson = "[" + string.Join(",", buckets.Select(b => b.P95Ms.ToString(CultureInfo.InvariantCulture))) + "]";
     <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
-         aria-label="@ariaLabel" focusable="false">
+         aria-label="@ariaLabel" focusable="false"
+         data-sa-crosshair="true"
+         data-sa-plot-left="@padLeft"
+         data-sa-plot-top="@padTop"
+         data-sa-plot-width="@plotW"
+         data-sa-plot-height="@plotH"
+         data-sa-buckets="@bucketIsoJson"
+         data-sa-values="@seriesValuesJson"
+         data-sa-value-suffix=" ms (p95)">
         <title>Latency percentiles (p5 / p50 / p95) over time in milliseconds</title>
 
         <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
@@ -101,22 +93,22 @@ else
         <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
               stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
 
-        @foreach (var fraction in new[] { 0.0, 0.5, 1.0 })
+        @foreach (var fraction in yFractions)
         {
             var y = padTop + plotH - (plotH * fraction);
             var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
             var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
             <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
                   stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
-            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{YLabelValue(maxValue, fraction)}</text>")
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxValue, " ms")}</text>")
         }
 
-        @foreach (var i in xTickIndices)
+        @foreach (var tick in xTicks)
         {
-            var xPos = X(i);
+            var xPos = X(tick.Index);
             <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
                   y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
-            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(FormatBucketLabel(buckets[i].BucketStart, step))}</text>")
+            @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(tick.Label)}</text>")
         }
 
         <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#505a5f" font-size="10">Latency (ms)</text>

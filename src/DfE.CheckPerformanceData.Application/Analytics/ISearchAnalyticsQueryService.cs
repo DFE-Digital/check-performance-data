@@ -111,6 +111,33 @@ public interface ISearchAnalyticsQueryService
         VolumeBucketSize bucketSize,
         CancellationToken cancellationToken = default);
 
+    // Aggregate-to-typical-week overloads. Each collapses every event in the window into
+    // a 168-cell cyclic 7-day timeline (Mon 00:00 .. Sun 23:00) so admins can spot
+    // recurring weekday-hour patterns across a wide window without eyeballing the raw
+    // time-series. BucketStart on every returned bucket is anchored to the ANCHOR_MONDAY
+    // constant below (an arbitrary Monday midnight far in the past) plus the (weekday-1)*24
+    // + hour offset — the shape is stable across calls so the X-axis renders the same
+    // labels regardless of how many events landed on which weekday.
+    Task<IReadOnlyList<VolumeBucket>> GetVolumeAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<LatencyBucket>> GetLatencyPercentilesAggregatedByWeekdayHourAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
     // Paged variant of GetVolumeOverTimeAsync — one page of the same zero-filled
     // gap-filled bucket spine plus the total bucket count. TotalCount is the number of
     // buckets in the window at the requested bucket size (deterministic from window +

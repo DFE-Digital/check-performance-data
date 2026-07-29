@@ -356,6 +356,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             WeekdayHourGrid = ZeroFilledWeekdayHourGrid(),
             ZeroResultOutcomes = new ZeroResultOutcomeSummary(0, 0, 0, 0, 0),
             SummaryDeltas = new SearchAnalyticsSummaryDeltas(0, 0, 0d, 0, Available: false),
+            AggregateMode = false,
         };
     }
 
@@ -383,6 +384,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
             WeekdayHourGrid = ZeroFilledWeekdayHourGrid(),
             ZeroResultOutcomes = new ZeroResultOutcomeSummary(0, 0, 0, 0, 0),
             SummaryDeltas = new SearchAnalyticsSummaryDeltas(0, 0, 0d, 0, Available: false),
+            AggregateMode = false,
         };
     }
 

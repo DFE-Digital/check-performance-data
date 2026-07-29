@@ -67,8 +67,10 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             var axisTitleCount = await Page.Locator(".sa-chart .sa-chart__axis-title").CountAsync();
             Assert.True(axisTitleCount >= 2, $"Expected at least 2 axis title labels, got {axisTitleCount}");
 
-            // Bucket selector: 5 sizes.
-            var bucketRadios = Page.Locator("input[name=\"bucket\"]");
+            // Bucket selector: 5 sizes. Filter to type=radio because the aggregate-toggle
+            // form also carries a hidden input[name="bucket"] to preserve the current bucket
+            // across a toggle click, and that hidden input should not count as a radio.
+            var bucketRadios = Page.Locator("input[name=\"bucket\"][type=\"radio\"]");
             Assert.Equal(5, await bucketRadios.CountAsync());
             var values = await bucketRadios.EvaluateAllAsync<string[]>(
                 "els => els.map(e => e.value)");
@@ -701,6 +703,110 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             var text = (await th.InnerTextAsync()).Trim();
             Assert.False(string.IsNullOrEmpty(title),
                 $"Header {i + 1} in {context} (\"{text}\") is missing a title attribute.");
+        }
+    }
+
+    // --- Adaptive axis ticks, hover crosshair, aggregate-to-typical-week ----------------
+
+    // Adaptive X-axis labels: 30d window should render date-shaped ticks (day/month), NOT
+    // the HH:mm-shaped ticks a 24h view would use. Hover the plot area — the crosshair
+    // JS attaches a tooltip div. Toggle the "Aggregate to a typical week" checkbox — the
+    // page reloads with ?aggregate=week and the X-axis now spans a full week.
+    [SkippableFact]
+    public async Task Dashboard_AdaptiveAxes_HoverCrosshair_AndAggregateToggle()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // 30-day window — adaptive labels must be date-shaped (e.g. "24 Jul").
+            var url30 = $"{Fixture.BaseUrl}/admin/Search/?range=30d&bucket=1d";
+            var response30 = await Page.GotoAsync(url30);
+            Assert.NotNull(response30);
+            Assert.Equal(200, response30!.Status);
+
+            await Page.Locator("svg.sa-chart[data-sa-crosshair='true']").First
+                .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            var xTickTexts30 = await Page
+                .Locator("[data-sa-panel='volume'] svg.sa-chart .sa-chart__axis-tick[text-anchor='middle']")
+                .EvaluateAllAsync<string[]>("els => els.map(e => e.textContent.trim())");
+            // Format on 30d: "d MMM" — assert at least one label matches d(d)? MMM shape.
+            var monthShort = new System.Text.RegularExpressions.Regex(@"^\d{1,2}\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$");
+            Assert.Contains(xTickTexts30, t => monthShort.IsMatch(t));
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round11/admin-search-30d.png");
+
+            // Hover crosshair — dispatch a mousemove directly on the SVG at a coord inside
+            // the plot area and verify a tooltip element with mapped values becomes visible.
+            // Using DispatchEventAsync rather than Page.Mouse.MoveAsync because the latter
+            // can miss the SVG under certain overlay/z-index conditions in headless Chromium.
+            var svg = Page.Locator("[data-sa-panel='volume'] svg.sa-chart[data-sa-crosshair='true']").First;
+            var box = await svg.BoundingBoxAsync();
+            Assert.NotNull(box);
+            var cursorX = box!.X + box.Width * 0.55;
+            var cursorY = box.Y + box.Height * 0.55;
+            await svg.DispatchEventAsync("mousemove", new
+            {
+                clientX = cursorX,
+                clientY = cursorY,
+                bubbles = true,
+            });
+
+            var tooltip = Page.Locator(".sa-chart__crosshair-tooltip");
+            await Expect(tooltip).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 5000 });
+            var tooltipText = (await tooltip.InnerTextAsync()).Trim();
+            Assert.False(string.IsNullOrEmpty(tooltipText),
+                "Crosshair tooltip should render mapped X + Y values on hover.");
+            Assert.Contains("—", tooltipText); // "time — value" separator
+
+            // Crosshair lines are inside the SVG.
+            var crosshairLines = Page.Locator("[data-sa-panel='volume'] svg.sa-chart line.sa-chart__crosshair-line[visibility='visible']");
+            Assert.True(await crosshairLines.CountAsync() >= 2,
+                "Two crosshair lines (vertical + horizontal) should be visible on hover.");
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round11/admin-search-hover-crosshair.png");
+
+            // Aggregate toggle — flip the checkbox; the form auto-submits via the small JS
+            // handler. The reloaded page should have ?aggregate=week in the URL and the
+            // X-axis should now span a full week's worth of hours (Mon .. Sun labels).
+            var aggregateBox = Page.Locator("input[data-sa-aggregate-toggle='true']");
+            await Expect(aggregateBox).ToBeVisibleAsync();
+            await aggregateBox.ClickAsync();
+
+            await Page.WaitForURLAsync(u => u.Contains("aggregate=week"),
+                new PageWaitForURLOptions { Timeout = 10000 });
+            await Page.Locator("svg.sa-chart[data-sa-crosshair='true']").First
+                .WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // In aggregate mode the X-axis is a cyclic 7-day timeline anchored to a Monday
+            // in the year 2001. Format on that span is "ddd d" (weekday + day-of-month).
+            var xTicksAgg = await Page
+                .Locator("[data-sa-panel='volume'] svg.sa-chart .sa-chart__axis-tick[text-anchor='middle']")
+                .EvaluateAllAsync<string[]>("els => els.map(e => e.textContent.trim())");
+            var weekdayLabelPresent = xTicksAgg.Any(t =>
+                t.StartsWith("Mon") || t.StartsWith("Tue") || t.StartsWith("Wed") ||
+                t.StartsWith("Thu") || t.StartsWith("Fri") || t.StartsWith("Sat") ||
+                t.StartsWith("Sun"));
+            Assert.True(weekdayLabelPresent,
+                $"Aggregate mode X-axis should carry weekday labels; got: {string.Join(", ", xTicksAgg)}");
+
+            // The active section heading reflects the mode.
+            await Expect(Page.Locator("[data-sa-panel='volume'] h2.govuk-heading-m:has-text(\"typical week\")"))
+                .ToBeVisibleAsync();
+
+            await Page.StabiliseAsync();
+            await SaveScreenshotAsync("round11/admin-search-aggregated.png");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
         }
     }
 

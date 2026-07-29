@@ -582,6 +582,12 @@ public sealed class TestDataController : Controller
             seededBy = actingUserId,
             seededAt = completedAtUtc,
             error = failure?.Message,
+            // Correlate the audit row with any elevated-latency bar the reviewer sees
+            // on the dashboard for the same time range. Empty when the variance layer
+            // did not insert an outage for this run (short presets).
+            outageWindowsUtc = result?.OutageWindowsUtc?
+                .Select(o => new[] { o.StartUtc, o.EndUtc })
+                .ToArray(),
         });
 
         var entry = new AuditEntry

@@ -125,6 +125,19 @@ public sealed class SampleSearchDataSeeder(
         // integration tests that predate the rollback surface).
         var jobIdText = jobId?.ToString("N");
 
+        // Multi-scale variance profile — pre-computed at seed start from the same RNG so
+        // repeat runs with the same seed reproduce identical timestamp / latency
+        // distributions. Layers three independent sources of variance on top of the
+        // static HourWeights × WeekendDampen weighting so a 90/365-day window doesn't
+        // paint twelve near-identical weeks on the dashboard:
+        //   * Weekly multiplier — one draw per ISO-ish week, [0.5, 1.8] with light
+        //     autocorrelation so adjacent weeks trend together.
+        //   * Daily anomalies — ~5% "spike days" (2×-3×), ~10% "quiet days"
+        //     (0.2×-0.4×). Picked deterministically at seed start.
+        //   * Outage bursts — 1-2 per quarter, contiguous 3-6 h windows where volume
+        //     drops to ~30% of baseline AND latency inflates 4×-8×.
+        var variance = VarianceProfile.Build(rng, fromUtc, nowUtc);
+
         // Session pool: ~200 synthetic sessions is enough to give a mix of one-off + power
         // users while keeping the top-users tile populated with real data. Reduce to eventCount/3
         // if a tiny seed run would exhaust the pool.
@@ -162,7 +175,7 @@ public sealed class SampleSearchDataSeeder(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var occurredAt = PickTimestamp(rng, fromUtc, nowUtc);
+            var occurredAt = PickTimestamp(rng, fromUtc, nowUtc, variance);
             var sessionIdx = PickWeightedIndex(rng, sessionWeights, totalSessionWeight);
             var sessionId = sessions[sessionIdx];
 
@@ -171,7 +184,7 @@ public sealed class SampleSearchDataSeeder(
                 ? ZeroResultQueries[rng.Next(ZeroResultQueries.Length)]
                 : LikelyQueries[rng.Next(LikelyQueries.Length)];
 
-            var latency = PickLatency(rng, i);
+            var latency = PickLatency(rng, i, occurredAt, variance);
 
             IReadOnlyList<SearchEventResultDto> results;
             int pages, blocks;
@@ -235,7 +248,7 @@ public sealed class SampleSearchDataSeeder(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var occurredAt = PickTimestamp(rng, fromUtc, nowUtc);
+            var occurredAt = PickTimestamp(rng, fromUtc, nowUtc, variance);
             var sessionIdx = PickWeightedIndex(rng, sessionWeights, totalSessionWeight);
             var sessionId = sessions[sessionIdx];
             var whatLookingFor = MessageBodies[rng.Next(MessageBodies.Length)];
@@ -259,31 +272,33 @@ public sealed class SampleSearchDataSeeder(
             MessagesWritten: messagesCreated,
             CurrentCursorUtc: lastCursor));
 
-        return new SampleSearchDataSeedResult(eventsCreated, resultsCreated, messagesCreated);
+        var outageSnapshot = variance.Outages
+            .Select(o => new SampleSearchDataOutageWindow(o.StartUtc, o.EndUtc))
+            .ToArray();
+        return new SampleSearchDataSeedResult(
+            eventsCreated, resultsCreated, messagesCreated, outageSnapshot);
     }
 
     // Picks a UTC timestamp inside [fromUtc, nowUtc] weighted by the weekday × hour table
-    // so the output distribution matches real UK-working-hours traffic. Simple rejection
-    // sampling: pick uniform, compute weight for that hour, keep with probability weight/max.
-    // Bounded iterations so a degenerate seed can't loop forever — after 8 tries we accept
-    // whatever candidate we had. Callers get a plausible-enough spread on the seeded volumes
-    // (500-80000) — the shape is what matters, not exact fidelity to the weight table.
-    private static DateTime PickTimestamp(Random rng, DateTime fromUtc, DateTime toUtc)
+    // multiplied through the multi-scale variance profile so the aggregate shape has
+    // week-to-week variance, occasional spike / quiet days, and rare outage windows.
+    // Simple rejection sampling: pick uniform, compute weight, keep with probability
+    // weight / actualMaxWeight. actualMaxWeight is derived at profile build time (not
+    // hardcoded) because the multipliers can push a peak above the base HourWeights max.
+    // Bounded iterations so a degenerate seed can't loop forever — after 32 tries we
+    // accept whatever candidate we had. Callers get a plausible-enough spread on the
+    // seeded volumes (500-80000).
+    private static DateTime PickTimestamp(
+        Random rng, DateTime fromUtc, DateTime toUtc, VarianceProfile variance)
     {
         var totalMs = (toUtc - fromUtc).TotalMilliseconds;
         DateTime candidate = fromUtc;
-        for (var attempt = 0; attempt < 8; attempt++)
+        for (var attempt = 0; attempt < 32; attempt++)
         {
             var offsetMs = rng.NextDouble() * totalMs;
             candidate = fromUtc.AddMilliseconds(offsetMs);
-            var hourWeight = HourWeights[candidate.Hour];
-            var dow = candidate.DayOfWeek;
-            var isWeekend = dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday;
-            var effectiveWeight = isWeekend ? hourWeight * WeekendDampen : hourWeight;
-
-            // Max possible weight across the table (peak at hour 15 = 22).
-            const double MaxWeight = 22.0;
-            if (rng.NextDouble() < effectiveWeight / MaxWeight)
+            var effectiveWeight = variance.WeightAt(candidate);
+            if (rng.NextDouble() < effectiveWeight / variance.MaxWeight)
             {
                 return candidate;
             }
@@ -305,9 +320,13 @@ public sealed class SampleSearchDataSeeder(
         return weights.Length - 1;
     }
 
-    // Latency in ms — log-normal-ish via Box-Muller. Every ~1000 events we return a deliberate
-    // multi-second outlier (2-5 s) so the request-timings scatter has a visible tail.
-    private static int PickLatency(Random rng, int index)
+    // Latency in ms — log-normal-ish via Box-Muller. Every ~1000 events we return a
+    // deliberate multi-second outlier (2-5 s) so the request-timings scatter has a
+    // visible tail. When the occurredAt falls inside an outage window the base draw
+    // is multiplied by a 4×-8× factor pulled from the variance profile so the mean
+    // latency for that hour is visibly elevated on the chart.
+    private static int PickLatency(
+        Random rng, int index, DateTime occurredAt, VarianceProfile variance)
     {
         if (index > 0 && index % 1000 == 0)
         {
@@ -321,8 +340,12 @@ public sealed class SampleSearchDataSeeder(
         // ln-median ~ ln(40) = 3.69; sigma 0.55 gives p95 ~ 150 ms which matches the shape
         // the round-7 acceptance calls out.
         var latency = Math.Exp(3.69 + 0.55 * z);
+        // Outage inflation lands here — cap at 6000 ms so a single elevated hour does
+        // not blow the scatter's Y-axis.
+        var outageMultiplier = variance.OutageLatencyMultiplierAt(occurredAt);
+        if (outageMultiplier > 1.0) latency *= outageMultiplier;
         if (latency < 5) latency = 5;
-        if (latency > 800) latency = 800;
+        if (latency > 6000) latency = 6000;
         return (int)latency;
     }
 
@@ -356,11 +379,202 @@ public sealed class SampleSearchDataSeeder(
         }
         return (results, pages, blocks);
     }
+
+    // Pre-computed variance profile for a single seed run. Owns three independent
+    // multiplier layers driven by the seeder's deterministic RNG so the same seed
+    // reproduces the same profile:
+    //   * WeeklyMultiplier[weekIndex] — one draw per week in the seeded window, in the
+    //     range [0.5, 1.8], with light autocorrelation so adjacent weeks trend together.
+    //   * DailyAnomaly[dayIndex] — most days = 1.0; ~5% "spike days" in [2.0, 3.0]; ~10%
+    //     "quiet days" in [0.2, 0.4].
+    //   * OutageWindows — 1-2 contiguous 3-6 h intervals with a volume dampen (~0.3) and
+    //     a latency multiplier (~4×-8×). Ordered by start-time so a binary lookup is not
+    //     required — the list is at most two entries.
+    // The Multiplier lookup for a timestamp composes all three layers; MaxWeight is
+    // pre-computed by scanning every (day, hour) bucket so the rejection sampler in
+    // PickTimestamp has a valid ceiling regardless of how the multipliers land.
+    internal sealed class VarianceProfile
+    {
+        private readonly DateTime _fromUtc;
+        private readonly double[] _weeklyMultiplier;   // per week from window start
+        private readonly double[] _dailyAnomaly;       // per day from window start
+        private readonly OutageWindow[] _outages;
+
+        public double MaxWeight { get; }
+
+        private VarianceProfile(
+            DateTime fromUtc,
+            double[] weekly,
+            double[] daily,
+            OutageWindow[] outages,
+            double maxWeight)
+        {
+            _fromUtc = fromUtc;
+            _weeklyMultiplier = weekly;
+            _dailyAnomaly = daily;
+            _outages = outages;
+            MaxWeight = maxWeight;
+        }
+
+        // Build the profile deterministically from the RNG. Timestamps are truncated
+        // to the day floor so multi-hour spans still land on stable indices.
+        public static VarianceProfile Build(Random rng, DateTime fromUtc, DateTime toUtc)
+        {
+            var totalDays = Math.Max(1, (int)Math.Ceiling((toUtc.Date - fromUtc.Date).TotalDays) + 1);
+            var totalWeeks = Math.Max(1, (int)Math.Ceiling(totalDays / 7.0));
+
+            // Weekly multipliers with light autocorrelation.
+            //   next = clamp(prev × (0.7 + 0.6 × rng), 0.5, 1.8)
+            // starting from 1.0. Recipe mirrors the coordinator's guidance.
+            var weekly = new double[totalWeeks];
+            weekly[0] = 1.0;
+            for (var w = 1; w < totalWeeks; w++)
+            {
+                var step = 0.7 + 0.6 * rng.NextDouble();
+                var next = weekly[w - 1] * step;
+                if (next < 0.5) next = 0.5;
+                if (next > 1.8) next = 1.8;
+                weekly[w] = next;
+            }
+
+            // Daily anomalies. Default 1.0; roll spike/quiet dice per day.
+            var daily = new double[totalDays];
+            for (var d = 0; d < totalDays; d++)
+            {
+                var roll = rng.NextDouble();
+                if (roll < 0.05)
+                {
+                    // Spike day: 2.0-3.0×.
+                    daily[d] = 2.0 + rng.NextDouble();
+                }
+                else if (roll < 0.15)
+                {
+                    // Quiet day: 0.2-0.4×.
+                    daily[d] = 0.2 + rng.NextDouble() * 0.2;
+                }
+                else
+                {
+                    daily[d] = 1.0;
+                }
+            }
+
+            // Outage windows. 1-2 per quarter (90-day scaling); on shorter windows we
+            // still get at least one if the window is >= 30 days, zero otherwise so a
+            // 24 h preset doesn't produce a spurious multi-hour outage.
+            int outageCount;
+            if (totalDays >= 60)
+            {
+                outageCount = 1 + (rng.NextDouble() < 0.5 ? 1 : 0);
+            }
+            else if (totalDays >= 30)
+            {
+                outageCount = rng.NextDouble() < 0.6 ? 1 : 0;
+            }
+            else
+            {
+                outageCount = 0;
+            }
+
+            var outages = new OutageWindow[outageCount];
+            for (var o = 0; o < outageCount; o++)
+            {
+                var startDayIdx = rng.Next(totalDays);
+                // Land the outage inside working hours so it shows up on the dashboard.
+                var startHour = 9 + rng.Next(8); // 09-16
+                var durationHours = 3 + rng.Next(4); // 3-6
+                var latencyMultiplier = 4.0 + rng.NextDouble() * 4.0; // 4×-8×
+                var start = fromUtc.Date.AddDays(startDayIdx).AddHours(startHour);
+                var end = start.AddHours(durationHours);
+                outages[o] = new OutageWindow(start, end, latencyMultiplier);
+            }
+
+            // Compute the true max weight across the multiplier grid so the rejection
+            // sampler never exceeds probability 1.0. Static base = HourWeights peak (22)
+            // × max weekly (1.8) × max daily (3.0). Weekend and outage dampens only ever
+            // pull the value down, so we scan only the base × weekly × daily combos.
+            var maxHourWeight = HourWeights.Max();
+            var maxWeekly = weekly.Max();
+            var maxDaily = daily.Max();
+            var maxWeight = maxHourWeight * maxWeekly * maxDaily;
+
+            return new VarianceProfile(fromUtc, weekly, daily, outages, maxWeight);
+        }
+
+        public double WeightAt(DateTime candidate)
+        {
+            var hourWeight = HourWeights[candidate.Hour];
+            var dow = candidate.DayOfWeek;
+            var isWeekend = dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday;
+            var weekendFactor = isWeekend ? WeekendDampen : 1.0;
+
+            var dayIdx = (int)(candidate.Date - _fromUtc.Date).TotalDays;
+            if (dayIdx < 0) dayIdx = 0;
+            if (dayIdx >= _dailyAnomaly.Length) dayIdx = _dailyAnomaly.Length - 1;
+            var dailyFactor = _dailyAnomaly[dayIdx];
+
+            var weekIdx = dayIdx / 7;
+            if (weekIdx >= _weeklyMultiplier.Length) weekIdx = _weeklyMultiplier.Length - 1;
+            var weeklyFactor = _weeklyMultiplier[weekIdx];
+
+            var outageFactor = 1.0;
+            for (var i = 0; i < _outages.Length; i++)
+            {
+                if (candidate >= _outages[i].StartUtc && candidate < _outages[i].EndUtc)
+                {
+                    outageFactor = 0.3; // volume dampen inside the outage
+                    break;
+                }
+            }
+
+            return hourWeight * weekendFactor * dailyFactor * weeklyFactor * outageFactor;
+        }
+
+        public double OutageLatencyMultiplierAt(DateTime candidate)
+        {
+            for (var i = 0; i < _outages.Length; i++)
+            {
+                if (candidate >= _outages[i].StartUtc && candidate < _outages[i].EndUtc)
+                {
+                    return _outages[i].LatencyMultiplier;
+                }
+            }
+            return 1.0;
+        }
+
+        // Snapshot exposed to the audit payload so a reviewer can correlate an audit
+        // row with the outage bar they see on the dashboard.
+        public IReadOnlyList<(DateTime StartUtc, DateTime EndUtc)> Outages
+            => _outages.Select(o => (o.StartUtc, o.EndUtc)).ToArray();
+
+        private readonly struct OutageWindow
+        {
+            public OutageWindow(DateTime startUtc, DateTime endUtc, double latencyMultiplier)
+            {
+                StartUtc = startUtc;
+                EndUtc = endUtc;
+                LatencyMultiplier = latencyMultiplier;
+            }
+            public DateTime StartUtc { get; }
+            public DateTime EndUtc { get; }
+            public double LatencyMultiplier { get; }
+        }
+    }
 }
 
 // Per-run counts returned to the controller. Feeds both the success-banner TempData and
-// the audit payload written on each seed.
-public sealed record SampleSearchDataSeedResult(int EventsCreated, int ResultsCreated, int MessagesCreated);
+// the audit payload written on each seed. OutageWindowsUtc surfaces the multi-scale
+// variance layer's outage bursts so a reviewer can correlate an audit row with the
+// elevated-latency bar they see on the dashboard for that period.
+public sealed record SampleSearchDataSeedResult(
+    int EventsCreated,
+    int ResultsCreated,
+    int MessagesCreated,
+    IReadOnlyList<SampleSearchDataOutageWindow>? OutageWindowsUtc = null);
+
+// Read-only snapshot of one outage window the variance profile inserted into the run.
+// Written into the audit payload so a reviewer sees why the dashboard has an elevated-
+// latency band across a specific time range.
+public sealed record SampleSearchDataOutageWindow(DateTime StartUtc, DateTime EndUtc);
 
 // Progress tick fired by SampleSearchDataSeeder.SeedAsync between batches. Consumers are
 // expected to be lightweight (in-memory job-store update, log line) — the seeder does not

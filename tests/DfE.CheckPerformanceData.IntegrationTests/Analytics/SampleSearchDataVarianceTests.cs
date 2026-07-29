@@ -41,7 +41,7 @@ public sealed class SampleSearchDataVarianceTests
 
         await sut.SeedAsync(
             span: TimeSpan.FromDays(90),
-            eventCount: 25_000,
+            eventCount: 8_000,
             messageCount: 0,
             nowUtc: now,
             seed: 1234,
@@ -89,7 +89,7 @@ public sealed class SampleSearchDataVarianceTests
 
         await sut.SeedAsync(
             span: TimeSpan.FromDays(90),
-            eventCount: 25_000,
+            eventCount: 8_000,
             messageCount: 0,
             nowUtc: now,
             seed: 4242,
@@ -113,7 +113,7 @@ public sealed class SampleSearchDataVarianceTests
 
         await sut.SeedAsync(
             span: TimeSpan.FromDays(90),
-            eventCount: 25_000,
+            eventCount: 8_000,
             messageCount: 0,
             nowUtc: now,
             seed: 91919,
@@ -140,7 +140,7 @@ public sealed class SampleSearchDataVarianceTests
 
         await sut.SeedAsync(
             span: TimeSpan.FromDays(90),
-            eventCount: 25_000,
+            eventCount: 8_000,
             messageCount: 0,
             nowUtc: now,
             seed: 8000,

@@ -52,14 +52,33 @@ public interface ISampleSearchDataSeedJobStore
     // modal can render a Retry button + the reason.
     void MarkFailed(Guid jobId, string errorMessage);
 
-    // Requests cancellation of a running job via the tracked CancellationTokenSource.
-    // No-op when the job is unknown or already terminal.
+    // Intermediate transition: mark a Running job as Cancelling so the poll response
+    // exposes the "cancelling…" state to the JS. Safe to call on any state (unknown /
+    // terminal states are no-ops). Distinct from RequestCancel because the controller's
+    // Cancel-then-rollback flow signals the token, then waits for the seeder to unwind
+    // to a terminal state before invoking rollback — during that unwind window the UI
+    // must render "cancelling" so a second click on Cancel does not fire another
+    // rollback.
+    void MarkCancelling(Guid jobId);
+
+    // Signals the tracked CancellationTokenSource when the job is still running so the
+    // seeder unwinds via OperationCanceledException, then transitions to the Cancelling
+    // intermediate state. Returns true when the id is known — the controller uses the
+    // return value to decide whether to proceed with rollback of the job's rows, NOT
+    // whether the seeder was actually in flight. Cancel of an already-completed job is
+    // therefore a valid transition: it lets the admin roll back a finished-too-quickly
+    // seed run.
     bool RequestCancel(Guid jobId);
 }
 
 public enum SampleSearchDataSeedJobState
 {
     Running,
+    // Intermediate state entered when Cancel has fired the token but the seeder has not
+    // yet unwound to a terminal state. The JS polls this so the modal can render a
+    // "Cancelling…" label + disable the Cancel button; the controller uses the state
+    // to know it has finished waiting for the seeder before invoking the row rollback.
+    Cancelling,
     Completed,
     Failed,
 }
@@ -171,18 +190,46 @@ public sealed class InMemorySampleSearchDataSeedJobStore : ISampleSearchDataSeed
         {
             return false;
         }
-        if (entry.State != SampleSearchDataSeedJobState.Running)
+        // Only signal the token if the seeder is still running. If the job already
+        // reached a terminal (Completed / Failed) state — most 24 h-preset seeds finish
+        // in ~3 s and beat the user's click — the return-true handoff below still lets
+        // the controller proceed with row rollback. This is the "Cancel = interrupt +
+        // rollback" contract: the rollback undoes THIS run's rows even if the seeder
+        // itself finished before the button landed.
+        if (entry.State == SampleSearchDataSeedJobState.Running)
         {
-            return false;
+            lock (entry.Sync)
+            {
+                entry.State = SampleSearchDataSeedJobState.Cancelling;
+            }
+            try
+            {
+                entry.CancellationSource.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Race window: the seeder's finally block disposed the CTS on the same
+                // thread that transitioned Running → Completed. Not fatal — the row-
+                // rollback still runs; return true so the caller proceeds.
+            }
         }
-        try
+        return true;
+    }
+
+    public void MarkCancelling(Guid jobId)
+    {
+        if (!_jobs.TryGetValue(jobId, out var entry))
         {
-            entry.CancellationSource.Cancel();
-            return true;
+            return;
         }
-        catch (ObjectDisposedException)
+        lock (entry.Sync)
         {
-            return false;
+            // Only Running → Cancelling is a legal transition; a terminal-state job
+            // stays where it is.
+            if (entry.State == SampleSearchDataSeedJobState.Running)
+            {
+                entry.State = SampleSearchDataSeedJobState.Cancelling;
+            }
         }
     }
 

@@ -173,6 +173,51 @@
         return line;
     }
 
+    // Place the tooltip in the upper-left quadrant of the cursor by default so the
+    // cursor tip (upper-left of most pointer glyphs) never occludes the first line of
+    // the readout. When the cursor is close to the viewport top / left edge the tooltip
+    // would clip out; flip to another quadrant so the whole tooltip stays visible:
+    //
+    //     ┌──────────┐            ┌──────────┐
+    //     │ tooltip  │            │ tooltip  │
+    //     └────────┐/│            │\┌────────┘
+    //              *                * ← cursor
+    //     upper-left (default)     upper-right (LEFT-edge flip)
+    //
+    //     * cursor                * cursor
+    //     │┌────────┐             ┌────────┐│
+    //     ││ tooltip│             │ tooltip││
+    //     │└────────┘             └────────┘│
+    //     lower-left (TOP-edge flip)     lower-right (both flips)
+    //
+    // The 10 px offset keeps the tooltip's nearest corner from touching the cursor.
+    function positionTooltip(evt, tt) {
+        var offset = 10;
+        // Read the rendered size after content is set so getBoundingClientRect gives us
+        // the true measure of the box we're placing.
+        var box = tt.getBoundingClientRect();
+        var vw = window.innerWidth || document.documentElement.clientWidth;
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+
+        // Default quadrant: upper-left of cursor.
+        var left = evt.clientX - box.width - offset;
+        var top = evt.clientY - box.height - offset;
+
+        // If it would clip past the LEFT edge, flip horizontally.
+        if (left < 0) { left = evt.clientX + offset; }
+        // If it would clip past the TOP edge, flip vertically.
+        if (top < 0) { top = evt.clientY + offset; }
+
+        // Belt-and-braces: keep the tooltip inside the RIGHT / BOTTOM edges after either
+        // flip in case an aggressive cursor position pushes it off. Clamp instead of flipping
+        // again so we never toggle-loop on a small viewport.
+        if (left + box.width > vw) { left = Math.max(0, vw - box.width - offset); }
+        if (top + box.height > vh) { top = Math.max(0, vh - box.height - offset); }
+
+        tt.style.left = left + 'px';
+        tt.style.top = top + 'px';
+    }
+
     // Cursor coord → SVG-viewBox coord. Prefer the native getScreenCTM path; fall back
     // to a proportional map when the browser hasn't computed a CTM yet.
     function toSvgCoords(svg, evt) {
@@ -248,8 +293,7 @@
             var valueLabel = (values[idxRaw] || 0).toLocaleString('en-GB') + suffix;
             tooltip.textContent = whenLabel + ' — ' + valueLabel;
             tooltip.style.display = 'block';
-            tooltip.style.left = (evt.clientX + 12) + 'px';
-            tooltip.style.top = (evt.clientY + 12) + 'px';
+            positionTooltip(evt, tooltip);
         });
 
         svg.addEventListener('mouseleave', function () {
@@ -333,8 +377,7 @@
                 escapeHtml(msLabel) + '<br>' +
                 'query: ' + escapeHtml(qLabel);
             tooltip.style.display = 'block';
-            tooltip.style.left = (evt.clientX + 12) + 'px';
-            tooltip.style.top = (evt.clientY + 12) + 'px';
+            positionTooltip(evt, tooltip);
         });
 
         svg.addEventListener('mouseleave', function () {

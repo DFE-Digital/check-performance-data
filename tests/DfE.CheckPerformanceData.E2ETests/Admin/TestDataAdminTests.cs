@@ -371,9 +371,10 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
 
     private static async Task SaveScreenshotAsync(IPage page, string filename)
     {
-        // Round-8 screenshots kept the "round8" subfolder; the round-9 additions land in
-        // "round9". The filename pattern (seed-in-progress-modal.png, seed-completed-modal.png,
-        // seed-cancelled-modal.png) is used to disambiguate; older assets stay put.
+        // Older search-ux screenshots remain under their existing subfolder; the newer
+        // seed-progress-modal shots land under a sibling folder. The filename pattern
+        // (seed-in-progress-modal.png, seed-completed-modal.png, seed-cancelled-modal.png)
+        // is used to route so both sets stay grouped by capture surface.
         var subFolder = filename.StartsWith("seed-in-progress-modal", StringComparison.Ordinal)
             || filename.StartsWith("seed-completed-modal", StringComparison.Ordinal)
             || filename.StartsWith("seed-cancelled-modal", StringComparison.Ordinal)

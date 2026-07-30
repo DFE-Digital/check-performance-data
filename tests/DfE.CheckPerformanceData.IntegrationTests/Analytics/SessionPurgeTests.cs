@@ -11,6 +11,7 @@ using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using NSubstitute;
 
@@ -171,6 +172,127 @@ public sealed class SessionPurgeTests
         Assert.Equal(0, payload.RootElement.GetProperty("eventsDeleted").GetInt32());
         Assert.Equal(0, payload.RootElement.GetProperty("resultsDeleted").GetInt32());
         Assert.Equal(0, payload.RootElement.GetProperty("messagesDeleted").GetInt32());
+    }
+
+    // Transactional invariant: if the audit-entry write step throws inside
+    // ExecuteInTransactionAsync, every side effect the controller made must roll back
+    // — no partial delete without a matching audit row. Reproduces by injecting a
+    // wrapper IPortalDbContext whose SaveChangesAsync throws only when the tracked
+    // change set contains an AuditEntry with EntityType == "SearchSession" (i.e. the
+    // moment the controller enrols the audit row). Events + messages must still be
+    // present after the throw, and no AuditEntry may have landed.
+    [Fact]
+    public async Task Delete_WhenAuditWriteThrows_RollsBackEventsAndMessages_AndWritesNoAudit()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+        await TruncateAuditsAsync();
+        const string sessionId = "session-audit-throws";
+
+        long parentEventId;
+        await using (var seedCtx = _fixture.CreateContext())
+        {
+            var parent = new SearchEvent
+            {
+                OccurredAtUtc = DateTime.UtcNow.AddMinutes(-2),
+                SessionId = sessionId,
+                QueryRaw = "should-survive-rollback",
+                QueryNormalised = "should-survive-rollback",
+                ResultsPages = 1,
+                ResultsBlocks = 0,
+                LatencyMs = 8,
+            };
+            seedCtx.SearchEvents.Add(parent);
+            await seedCtx.SaveChangesAsync();
+            parentEventId = parent.Id;
+
+            seedCtx.SearchEventResults.Add(new SearchEventResult
+            {
+                SearchEventId = parent.Id,
+                Position = 1,
+                ResultKind = "page",
+                ResultKey = "/help/rollback",
+                Rank = 0.5f,
+            });
+            await seedCtx.SaveChangesAsync();
+        }
+
+        // Seed a message on the same session so the messages purge inside the tx has
+        // something to unwind.
+        await using (var msgCtx = _fixture.CreateContext())
+        {
+            var messages = new DbSearchMessageService(msgCtx);
+            await messages.CreateAsync(sessionId, "rollback me", null, null, CancellationToken.None);
+        }
+
+        await using var context = BuildContextWithAuditInterceptor(_fixture);
+        var messageService = new DbSearchMessageService(context);
+        var query = new SearchAnalyticsQueryService(context);
+        var currentUser = Substitute.For<ICurrentUserService>();
+        currentUser.UserId.Returns("acting-admin-sub");
+        var controller = BuildController(context, query, messageService, currentUser);
+
+        // The controller wraps its work in ExecuteInTransactionAsync. When our
+        // interceptor throws on the audit-write step the whole tx rolls back and
+        // the exception surfaces here.
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            controller.Delete(sessionId, CancellationToken.None));
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+
+        // Events, results, messages ALL survive — the tx rolled everything back.
+        Assert.Equal(1, await ScalarCountAsync(conn,
+            "SELECT COUNT(*) FROM search_events WHERE session_id = @s;", ("s", sessionId)));
+        Assert.Equal(1, await ScalarCountAsync(conn,
+            "SELECT COUNT(*) FROM search_event_results WHERE search_event_id = @id;",
+            ("id", parentEventId)));
+        Assert.Equal(1, await ScalarCountAsync(conn,
+            "SELECT COUNT(*) FROM search_messages WHERE session_id = @s;", ("s", sessionId)));
+
+        // No audit entry landed. Count against the exact EntityType so a shared-fixture
+        // audit row from another test doesn't skew the read.
+        Assert.Equal(0, await ScalarCountAsync(conn,
+            "SELECT COUNT(*) FROM \"AuditEntries\" WHERE \"EntityType\" = 'SearchSession' AND \"EntityId\" = @s;",
+            ("s", sessionId)));
+    }
+
+    // Builds a PortalDbContext with an EF interceptor that raises on
+    // SavingChangesAsync whenever the tracked change set contains an Added
+    // AuditEntry for a SearchSession — the exact moment the controller is trying
+    // to enrol the audit row inside its transaction. Any other SaveChangesAsync
+    // call (seed setup, message service, etc.) passes through untouched.
+    private static PortalDbContext BuildContextWithAuditInterceptor(PostgresFixture fixture)
+    {
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<PortalDbContext>()
+            .UseNpgsql(fixture.ConnectionString, npgsql => npgsql.EnableRetryOnFailure())
+            .AddInterceptors(new ThrowingSearchSessionAuditInterceptor())
+            .Options;
+        return new PortalDbContext(options, new FakeCurrentUserService());
+    }
+
+    private sealed class ThrowingSearchSessionAuditInterceptor
+        : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>>
+            SavingChangesAsync(
+                Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData,
+                Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+                CancellationToken cancellationToken = default)
+        {
+            var ctx = eventData.Context;
+            if (ctx is not null)
+            {
+                var pendingAuditForSession = ctx.ChangeTracker.Entries<AuditEntry>()
+                    .Any(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Added
+                              && e.Entity.EntityType == "SearchSession");
+                if (pendingAuditForSession)
+                {
+                    throw new InvalidOperationException(
+                        "Simulated failure at audit-write step — transaction must roll back.");
+                }
+            }
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
     }
 
     [Fact]

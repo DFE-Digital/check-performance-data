@@ -215,6 +215,62 @@ public sealed class SampleSearchDataVarianceTests
         }
     }
 
+    // Byte-identical determinism: SeedAsync with the same span + eventCount + nowUtc + seed
+    // must produce IDENTICAL event rows across independent runs. The pre-existing
+    // SameSeed_ProducesIdenticalTimestampSequence fact only checks timestamps ordered by
+    // primary key; this one strengthens the guarantee to the full row-tuple
+    // (occurred_at_utc, query_raw, latency_ms) ordered by occurred_at_utc so any drift in
+    // the RNG walk affecting query or latency selection is caught even when timestamps
+    // stay stable.
+    [Fact]
+    public async Task SeedAsync_SameSeed_ProducesByteIdenticalEventTuples()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var now = new DateTime(2026, 07, 29, 12, 00, 00, DateTimeKind.Utc);
+
+        var sut1 = CreateSut();
+        await sut1.SeedAsync(TimeSpan.FromDays(30), 500, 0, now, seed: 20260728,
+            cancellationToken: CancellationToken.None);
+        var firstTuples = await EventTuplesAsync();
+
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var sut2 = CreateSut();
+        await sut2.SeedAsync(TimeSpan.FromDays(30), 500, 0, now, seed: 20260728,
+            cancellationToken: CancellationToken.None);
+        var secondTuples = await EventTuplesAsync();
+
+        Assert.Equal(firstTuples.Count, secondTuples.Count);
+        // Compare tuple-by-tuple ordered by occurred_at_utc so the diff pinpoints
+        // exactly which event drifted if a future variance change breaks the guarantee.
+        for (var i = 0; i < firstTuples.Count; i++)
+        {
+            Assert.Equal(firstTuples[i], secondTuples[i]);
+        }
+    }
+
+    private async Task<List<(DateTime OccurredAtUtc, string QueryRaw, int LatencyMs)>> EventTuplesAsync()
+    {
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        // Order by occurred_at_utc so a run difference in insert order (e.g. batch
+        // rework) does not by itself skew equality. Include id as a stable tiebreaker
+        // so two events at the same ms don't shuffle between runs.
+        cmd.CommandText = @"
+            SELECT occurred_at_utc, query_raw, latency_ms
+            FROM search_events
+            ORDER BY occurred_at_utc, id;";
+        var tuples = new List<(DateTime, string, int)>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            tuples.Add((reader.GetDateTime(0), reader.GetString(1), reader.GetInt32(2)));
+        }
+        return tuples;
+    }
+
     private async Task<List<long>> DailyCountsAsync()
     {
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);

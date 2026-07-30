@@ -266,6 +266,77 @@ public sealed class SampleSearchDataRollbackAndEmaTests
         Assert.Equal(0.42, after, precision: 6);
     }
 
+    // Cancel race: MarkCompleted vs RequestCancel firing on overlapping threads. The
+    // small preset (500 events, 24 h window) finishes in a few seconds; if the click
+    // lands after MarkCompleted has already fired the store transitions Running ->
+    // Completed and RequestCancel sees a terminal state. If it lands before the last
+    // batch flush the seeder throws OperationCanceledException on the next
+    // ThrowIfCancellationRequested and the finally rolls back. Either path is legal —
+    // the test guarantees the store ends in Cancelled or Completed (never Faulted /
+    // ObjectDisposed torn) AND that the rollback dropped every row this iteration
+    // wrote. Run 20 concurrent iterations to hit both branches of the race.
+    [Fact]
+    public async Task ConcurrentCancelDuringRunningSeeds_AllIterationsEndCleanAndFullyRollBack()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var iterations = new List<Task>(20);
+        for (var i = 0; i < 20; i++)
+        {
+            iterations.Add(RunOneIterationAsync());
+        }
+        await Task.WhenAll(iterations);
+
+        // Every iteration cleaned up after itself — search_events count is zero.
+        // (Real-world seeds that don't get cancelled leave rows, but this test's
+        // iterations all Cancel between 0 and 50 ms and the Cancel handler rolls back
+        // every row the job wrote. If any iteration didn't roll back, this count is
+        // non-zero.)
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        var remainingEvents = await ScalarLongAsync(conn, "SELECT COUNT(*) FROM search_events;");
+        Assert.Equal(0L, remainingEvents);
+    }
+
+    private async Task RunOneIterationAsync()
+    {
+        var (controller, _, store) = BuildController();
+
+        // Fire the seed synchronously; the controller kicks a background task and
+        // returns a redirect with the JobId in RouteValues.
+        var post = controller.SeedSampleSearchData("24h", eventCount: 500, messageCount: 0);
+        var redirect = Assert.IsType<RedirectToActionResult>(post);
+        var jobId = (Guid)redirect.RouteValues!["jobId"]!;
+
+        // Sleep for a random 0-50 ms then Cancel. Straddles the "before first batch",
+        // "mid-run", and "already-Completed" boundaries of the seeder's lifecycle.
+        var delayMs = Random.Shared.Next(0, 50);
+        await Task.Delay(delayMs);
+
+        // Cancel: must NOT throw ObjectDisposedException even when the seeder's
+        // finally already ran (Cancelling code path guards for that).
+        var cancelResult = await controller.CancelSampleSearchDataSeed(jobId, CancellationToken.None);
+        Assert.IsType<OkObjectResult>(cancelResult);
+
+        // Wait for the store to observe a terminal state.
+        await WaitForTerminalAsync(controller, jobId);
+
+        // Only Completed or Failed are legal terminal states for the store enum;
+        // cancelled runs land as Completed too (the seeder's OperationCanceledException
+        // path calls MarkCompleted with a "cancelled" note). Faulted / torn states
+        // would produce Failed with an unrelated exception message.
+        var snap = store.Get(jobId);
+        Assert.NotNull(snap);
+        Assert.NotEqual(SampleSearchDataSeedJobState.Running, snap!.State);
+        Assert.NotEqual(SampleSearchDataSeedJobState.Cancelling, snap.State);
+        if (snap.State == SampleSearchDataSeedJobState.Failed)
+        {
+            Assert.False(
+                (snap.ErrorMessage ?? string.Empty).Contains("ObjectDisposed", StringComparison.OrdinalIgnoreCase),
+                $"Iteration reached Failed with ObjectDisposedException — cancel race is not clean. Message: {snap.ErrorMessage}");
+        }
+    }
+
     private static async Task WaitForRunningAsync(
         ISampleSearchDataSeedJobStore store, Guid jobId)
     {

@@ -185,6 +185,98 @@ public sealed class SearchEventWriterTests
             $"Timed out after {timeout} waiting for count predicate; last seen count = {lastSeen}.");
     }
 
+    // Shutdown drain: writer's ExecuteAsync post-loop tail drains anything already in
+    // the channel via TryRead so no in-flight event is dropped on service stop. This
+    // fact enqueues a burst that stresses that path — enqueue 50 events immediately
+    // before signalling shutdown so several of them likely haven't been flushed by the
+    // steady-cadence loop when Cancel fires. All 50 must land in search_events by the
+    // time StopAsync returns.
+    [Fact]
+    public async Task StopAsync_DrainsEverythingQueuedInChannel_BeforeShutdown()
+    {
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var channel = new SearchAnalyticsChannel();
+        var fakeSink = new RecordingSink();
+
+        await using var services = BuildServices(_ => fakeSink);
+        var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+
+        // Deliberately-long flush interval — the drain we care about is the shutdown
+        // TryRead loop in ExecuteAsync's tail, not the steady flush. Long interval
+        // makes it very likely that most of the 50 events sit in the channel when
+        // StopAsync fires; the shutdown-drain path is the only way they can land.
+        var writer = new SearchEventWriter(
+            channel, scopeFactory, NullLogger<SearchEventWriter>.Instance,
+            batchSize: 100,
+            flushInterval: TimeSpan.FromSeconds(30),
+            retryDelay: TimeSpan.FromMilliseconds(100));
+
+        using var cts = new CancellationTokenSource();
+        await writer.StartAsync(cts.Token);
+
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < 50; i++)
+        {
+            var dto = new SearchEventDto(
+                OccurredAtUtc: now.AddSeconds(i),
+                SessionId: "shutdown-drain",
+                QueryRaw: "d-" + i,
+                QueryNormalised: "d-" + i,
+                Scope: null,
+                ResultsPages: 0,
+                ResultsBlocks: 0,
+                LatencyMs: 1,
+                Results: []);
+            Assert.True(channel.Channel.Writer.TryWrite(dto),
+                $"Enqueue of DTO {i} must fit inside the default 1000-capacity channel.");
+        }
+
+        // Give the loop a beat to notice the head-item and start; the point is that the
+        // 30 s flush interval prevents the loop from flushing everything before we
+        // signal shutdown. StopAsync's own cancellation + the ExecuteAsync tail is
+        // what has to drain the rest.
+        await Task.Delay(TimeSpan.FromMilliseconds(50));
+
+        cts.Cancel();
+        await writer.StopAsync(CancellationToken.None);
+
+        // All 50 events must have made it to the fake sink across one or more batches.
+        var totalReceived = fakeSink.Batches.Sum(b => b.Count);
+        Assert.Equal(50, totalReceived);
+        Assert.True(fakeSink.Batches.Count >= 1,
+            "Fake sink should have received at least one batch by shutdown drain.");
+    }
+
+    // Records every batch handed to RecordBatchAsync without persisting. Owns its own
+    // synchronisation because the writer resolves the sink on a background thread and
+    // multiple flushes may race. Cheap enough to include as a nested test helper.
+    private sealed class RecordingSink : ISearchAnalyticsSink
+    {
+        private readonly object _sync = new();
+        private readonly List<IReadOnlyList<SearchEventDto>> _batches = new();
+
+        public IReadOnlyList<IReadOnlyList<SearchEventDto>> Batches
+        {
+            get { lock (_sync) return _batches.ToList(); }
+        }
+
+        public Task RecordBatchAsync(
+            IReadOnlyList<SearchEventDto> events, CancellationToken cancellationToken)
+        {
+            lock (_sync)
+            {
+                // Copy the input so a later Clear on the writer's own buffer can't
+                // mutate what the test snapshot inspects.
+                _batches.Add(events.ToList());
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task<int> PurgeExpiredAsync(TimeSpan olderThan, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
+    }
+
     // Composes with a real sink; increments the caller-supplied counter every time
     // RecordBatchAsync is entered so the test can assert "sink was called more than
     // once" (proving the writer survived the first throw). Uses an out-of-scope counter

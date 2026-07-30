@@ -376,6 +376,111 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
         }
     }
 
+    // --- Pure JS helpers exposed on window: formatDuration + computeEtaSeconds ---
+
+    // The seed progress modal renders the running ETA via two small helpers exported on
+    // window for ad-hoc DevTools use: formatDuration (seconds -> human string) and
+    // computeEtaSeconds (blended cumulative + persisted rate estimator). Both are pure
+    // functions with named edge cases in their comments — this test executes them in the
+    // real browser JS engine on /admin/test-data/sample-search-data and asserts every one
+    // of those documented cases.
+    [SkippableFact]
+    public async Task SeedSampleSearchData_JsHelpers_FormatDurationAndComputeEtaSecondsBehaveAsDocumented()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/test-data/sample-search-data");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            // The two helpers are exposed on window at script load — assert they're both
+            // functions before drilling into behaviour so a rename/removal fails loud.
+            var exposureOk = await Page.EvaluateAsync<bool>(
+                "() => typeof window.__seedFormatDuration === 'function' && typeof window.__seedComputeEtaSeconds === 'function'");
+            Assert.True(exposureOk,
+                "Both __seedFormatDuration and __seedComputeEtaSeconds must be exposed on window.");
+
+            // ---- formatDuration ----
+            //   47   -> "47 seconds"
+            //   93   -> "1 minute 33 seconds"
+            //   4335 -> "1 hour 12 minutes 15 seconds"
+            //   3600 -> "1 hour"                (skip zero minute/second components)
+            //   3660 -> "1 hour 1 minute"       (skip zero second component)
+            //   0    -> "0 seconds"             (fallback when everything is zero)
+            var duration47 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(47)");
+            var duration93 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(93)");
+            var duration4335 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(4335)");
+            var duration3600 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(3600)");
+            var duration3660 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(3660)");
+            var duration0 = await Page.EvaluateAsync<string>("() => window.__seedFormatDuration(0)");
+
+            Assert.Equal("47 seconds", duration47);
+            Assert.Equal("1 minute 33 seconds", duration93);
+            Assert.Equal("1 hour 12 minutes 15 seconds", duration4335);
+            Assert.Equal("1 hour", duration3600);
+            Assert.Equal("1 hour 1 minute", duration3660);
+            Assert.Equal("0 seconds", duration0);
+
+            // ---- computeEtaSeconds ----
+            // Cumulative faster than persisted -> take the shorter estimate.
+            //   written=1000, total=2000, startedAtMs=now-10s, persisted=0.1 (=10 eps).
+            //   Cumulative = 1000 / 10 = 100 eps -> remaining 1000 / 100 = 10 s.
+            //   Persisted alone would have been 1000 / 10 = 100 s.
+            //   With elapsedS >= 3 and written >= 100, the impl picks max(cumulative,
+            //   persisted) = 100 eps, giving 10 s.
+            var etaCumulative = await Page.EvaluateAsync<int?>(@"
+                () => {
+                    var now = Date.now();
+                    return window.__seedComputeEtaSeconds(1000, 2000, now - 10000, now, 0.1);
+                }");
+            Assert.Equal(10, etaCumulative);
+
+            // Insufficient data: elapsedS < 3 -> fall back to persisted rate.
+            //   written=50, total=1000, startedAtMs=now-1s, persisted=0.1 (=10 eps).
+            //   Only-persisted branch: remaining 950 / 10 = 95 s.
+            var etaFallback = await Page.EvaluateAsync<int?>(@"
+                () => {
+                    var now = Date.now();
+                    return window.__seedComputeEtaSeconds(50, 1000, now - 1000, now, 0.1);
+                }");
+            Assert.Equal(95, etaFallback);
+
+            // Written >= total -> 0 s left (Math.max(0, …) branch is short-circuited
+            // by the impl before the rate calculation runs).
+            var etaComplete = await Page.EvaluateAsync<int?>(@"
+                () => {
+                    var now = Date.now();
+                    return window.__seedComputeEtaSeconds(2000, 2000, now - 10000, now, 0.1);
+                }");
+            Assert.Equal(0, etaComplete);
+
+            // Zero / missing total -> null (no denominator, cannot estimate).
+            var etaZeroTotal = await Page.EvaluateAsync<int?>(@"
+                () => {
+                    var now = Date.now();
+                    return window.__seedComputeEtaSeconds(100, 0, now - 10000, now, 0.1);
+                }");
+            Assert.Null(etaZeroTotal);
+
+            var etaMissingTotal = await Page.EvaluateAsync<int?>(@"
+                () => {
+                    var now = Date.now();
+                    return window.__seedComputeEtaSeconds(100, null, now - 10000, now, 0.1);
+                }");
+            Assert.Null(etaMissingTotal);
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     // --- Danger zone: delete seeded + delete all data ---

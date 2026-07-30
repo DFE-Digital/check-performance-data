@@ -111,6 +111,73 @@ public sealed class SampleSearchDataSeederHitPoolTests
     }
 
     [Fact]
+    public async Task SeedAsync_With500PlusPagesAndBlocks_StillEmitsBothKinds()
+    {
+        // Regression: BuildHitPoolAsync used to do pages.Concat(blocks).Take(500), so a
+        // corpus of >=500 live pages silently dropped every block. Verify the fix keeps
+        // both kinds present in the seeded rows.
+        await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
+
+        var pageKeys = Enumerable.Range(0, 800)
+            .Select(i => $"/help/page-{i:0000}")
+            .ToArray();
+        var blockKeys = new[] { "block-nav", "block-hero", "block-footer" };
+
+        var pageRepo = Substitute.For<IPageNodeRepository>();
+        pageRepo.GetTreeAsync().Returns(pageKeys
+            .Select(p => new PageNodeTreeItemDto
+            {
+                Id = Guid.NewGuid(),
+                ParentId = null,
+                Segment = p.TrimStart('/'),
+                Path = p.TrimStart('/'),
+                Title = p.TrimStart('/'),
+                PageType = "content",
+                HasLiveVersion = true,
+            })
+            .ToList());
+
+        var blockService = Substitute.For<IContentBlockService>();
+        blockService.GetAllAsync().Returns(blockKeys
+            .Select(k => new ContentBlockDto { Key = k, BlockType = "text", Value = "sample" })
+            .ToList());
+
+        var seeder = new SampleSearchDataSeeder(
+            sink: new DbSearchAnalyticsSink(_fixture.CreateContext()),
+            messagesGateway: new DbSampleSearchDataGateway(_fixture.CreateContext()),
+            pageRepository: pageRepo,
+            contentBlockService: blockService);
+
+        var now = new DateTime(2026, 07, 28, 12, 00, 00, DateTimeKind.Utc);
+        var result = await seeder.SeedAsync(
+            span: TimeSpan.FromDays(7),
+            eventCount: 200,
+            messageCount: 0,
+            nowUtc: now,
+            seed: 7777,
+            cancellationToken: CancellationToken.None);
+
+        Assert.True(result.ResultsCreated > 0);
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT result_kind, COUNT(*) FROM search_event_results GROUP BY result_kind;";
+        var counts = new Dictionary<string, long>(StringComparer.Ordinal);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            counts[reader.GetString(0)] = reader.GetInt64(1);
+        }
+
+        Assert.True(counts.TryGetValue("page", out var pageCount) && pageCount > 0,
+            "Expected at least one page-kind result row.");
+        Assert.True(counts.TryGetValue("block", out var blockCount) && blockCount > 0,
+            "Expected at least one block-kind result row even with 800 live pages in the pool.");
+    }
+
+    [Fact]
     public async Task SeedAsync_WithBothCmsDependenciesNull_StillRunsUsingSentinelFallback()
     {
         await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);

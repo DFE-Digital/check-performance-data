@@ -421,8 +421,7 @@ public sealed class SampleSearchDataSeeder(
                 .ToList();
         }
 
-        var combined = pages.Concat(blocks).ToArray();
-        if (combined.Length == 0)
+        if (pages.Count == 0 && blocks.Count == 0)
         {
             // Nothing to seed against — fires when the DB is empty OR when a caller
             // constructs the seeder with both CMS deps null. Return a fixed pool that
@@ -432,11 +431,21 @@ public sealed class SampleSearchDataSeeder(
             return SentinelHitPool;
         }
 
-        if (combined.Length > PoolCap)
+        // Keep every block: block corpora are dozens of rows, not hundreds, and dropping
+        // them entirely (as `pages.Concat(blocks).Take(PoolCap)` did when pages >= PoolCap)
+        // means the block-side dashboards render empty. Fill the remaining budget with
+        // pages, then fall back to a proportional split only if the block corpus is
+        // pathologically large on its own.
+        if (blocks.Count >= PoolCap)
         {
-            combined = combined.Take(PoolCap).ToArray();
+            var halfBlocks = blocks.Take(PoolCap / 2).ToList();
+            var halfPages = pages.Take(PoolCap - halfBlocks.Count).ToList();
+            return halfPages.Concat(halfBlocks).Select(t => (t.Item1, t.Item2)).ToArray();
         }
-        return combined;
+
+        var pageBudget = Math.Max(0, PoolCap - blocks.Count);
+        var trimmedPages = pages.Count > pageBudget ? pages.Take(pageBudget).ToList() : pages;
+        return trimmedPages.Concat(blocks).Select(t => (t.Item1, t.Item2)).ToArray();
     }
 
     // Picks 3-10 hits for a non-zero-result event. Roughly 5% of the time inflate to 20+

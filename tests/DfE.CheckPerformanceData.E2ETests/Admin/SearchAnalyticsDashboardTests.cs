@@ -156,7 +156,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev")).ToHaveCountAsync(0);
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next a")).ToBeVisibleAsync();
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round6/admin-pager-first.png");
+            await SaveScreenshotAsync("pagination/admin-pager-first.png");
 
             // Navigate directly to page 5 — the truncated pager on page 1 hides the "5"
             // link (only 1,2,3,...,last-3,last-2,last are rendered) so a URL jump is the
@@ -176,7 +176,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.True(midPageLinks < 12,
                 $"Expected < 12 numbered page items on a mid-range page (truncated), got {midPageLinks}.");
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round6/admin-pager-middle.png");
+            await SaveScreenshotAsync("pagination/admin-pager-middle.png");
 
             // Every <th> on the drill-in table has a title attribute.
             await AssertEveryHeaderHasTitleAsync(
@@ -203,7 +203,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__prev a")).ToBeVisibleAsync();
             await Expect(Page.Locator("nav.govuk-pagination .govuk-pagination__next")).ToHaveCountAsync(0);
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round6/admin-pager-last.png");
+            await SaveScreenshotAsync("pagination/admin-pager-last.png");
         }
         finally
         {
@@ -308,7 +308,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
 
             await Page.StabiliseAsync();
             await SaveScreenshotAsync("admin-search-latency-tile.png");
-            await SaveScreenshotAsync("round7/admin-search-latency-tile-timings.png");
+            await SaveScreenshotAsync("analytics-drill-ins/admin-search-latency-tile-timings.png");
         }
         finally
         {
@@ -351,7 +351,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Equal(168, await fallbackRows.CountAsync());
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round7/admin-search-heatmap.png");
+            await SaveScreenshotAsync("analytics-drill-ins/admin-search-heatmap.png");
         }
         finally
         {
@@ -410,7 +410,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             }
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round7/admin-search-zero-result-funnel.png");
+            await SaveScreenshotAsync("analytics-drill-ins/admin-search-zero-result-funnel.png");
         }
         finally
         {
@@ -446,7 +446,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 context: "request timings drill-in table");
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round7/admin-search-request-timings-drill.png");
+            await SaveScreenshotAsync("analytics-drill-ins/admin-search-request-timings-drill.png");
         }
         finally
         {
@@ -740,7 +740,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             Assert.Contains(xTickTexts30, t => monthShort.IsMatch(t));
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round11/admin-search-30d.png");
+            await SaveScreenshotAsync("adaptive-charts/admin-search-30d.png");
 
             // Hover crosshair — dispatch a mousemove directly on the SVG at a coord inside
             // the plot area and verify a tooltip element with mapped values becomes visible.
@@ -771,7 +771,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 "Two crosshair lines (vertical + horizontal) should be visible on hover.");
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round11/admin-search-hover-crosshair.png");
+            await SaveScreenshotAsync("adaptive-charts/admin-search-hover-crosshair.png");
 
             // Aggregate toggle — flip the checkbox; the form auto-submits via the small JS
             // handler. The reloaded page should have ?aggregate=week in the URL and the
@@ -802,7 +802,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 .ToBeVisibleAsync();
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round11/admin-search-aggregated.png");
+            await SaveScreenshotAsync("adaptive-charts/admin-search-aggregated.png");
 
             // Aggregate-mode hover — the tooltip must show weekday + time only. The
             // bucket ISO timestamps are anchored to a synthetic Monday (2001-01-01
@@ -836,7 +836,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 $"Aggregate-mode tooltip should NOT contain a 4-digit year (anchor date leaking); got: '{aggTooltipText}'");
 
             await Page.StabiliseAsync();
-            await SaveScreenshotAsync("round11/admin-search-aggregated-hover.png");
+            await SaveScreenshotAsync("adaptive-charts/admin-search-aggregated-hover.png");
         }
         finally
         {

@@ -17,7 +17,9 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 //         actually landed events.
 //
 // Runs against a live container; Linux-only per the same font-metrics constraint the
-// round-3 + round-7 shots use. Screenshots land under Snapshots/search-ux/round8/.
+// messages + analytics-drill-ins snapshot shots use. Screenshots land under
+// Snapshots/search-ux/seed-admin/ (or seed-progress/ / danger-zone/ depending on the
+// captured surface — see SaveScreenshotAsync below for the routing).
 [Collection("E2E")]
 [Trait("Category", "W4")]
 public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
@@ -630,11 +632,11 @@ public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageT
         var subFolder = filename.StartsWith("seed-in-progress-modal", StringComparison.Ordinal)
             || filename.StartsWith("seed-completed-modal", StringComparison.Ordinal)
             || filename.StartsWith("seed-cancelled-modal", StringComparison.Ordinal)
-                ? "round9"
+                ? "seed-progress"
                 : (filename.StartsWith("delete-", StringComparison.Ordinal)
                     || filename.StartsWith("test-data-danger-zone", StringComparison.Ordinal))
                         ? "danger-zone"
-                        : "round8";
+                        : "seed-admin";
         var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", subFolder);
         Directory.CreateDirectory(dir);
         await page.ScreenshotAsync(new PageScreenshotOptions

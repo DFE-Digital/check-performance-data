@@ -207,7 +207,7 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
 
     private static async Task SaveScreenshotAsync(IPage page, string filename)
     {
-        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", "round3");
+        var dir = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Snapshots", "search-ux", "messages");
         Directory.CreateDirectory(dir);
         await page.ScreenshotAsync(new PageScreenshotOptions
         {

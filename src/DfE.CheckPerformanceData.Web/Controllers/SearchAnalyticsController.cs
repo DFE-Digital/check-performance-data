@@ -135,10 +135,13 @@ public sealed class SearchAnalyticsController : Controller
             latencyPercentileSeries = await _query.GetLatencyPercentilesOverTimeAsync(fromUtc, toUtc, bucketSize, ct);
         }
 
-        // Inline top-pages card: fetch the first page of the drill-in reader so the view can
-        // render a top-10 table alongside top-queries and top-zero-result. Total row count
-        // decides whether the "View all top pages by search impressions →" link renders.
+        // Inline top-pages + top-blocks cards: fetch the first page of each reader so the view
+        // can render two top-10 tables alongside top-queries and top-zero-result. Total row
+        // counts decide whether the "View all top X by search impressions →" link renders on
+        // either card. Kinds are split at the query layer so the pages card is genuinely
+        // pages-only (blocks used to leak in as plain-text mid-list rows).
         var (topPages, topPagesTotal) = await _query.GetTopPagesAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
+        var (topBlocks, topBlocksTotal) = await _query.GetTopBlocksAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
 
         // Round-7 additions: request-timings scatter (sampled), weekday × hour heatmap,
         // zero-result outcome funnel, prior-window summary for anomaly chips. All four
@@ -165,6 +168,8 @@ public sealed class SearchAnalyticsController : Controller
             LatencyPercentileSeries = latencyPercentileSeries,
             TopPages = topPages,
             TopPagesTotalCount = topPagesTotal,
+            TopBlocks = topBlocks,
+            TopBlocksTotalCount = topBlocksTotal,
             RequestTimings = requestTimings,
             RequestTimingsTotalCount = totalCount,
             WeekdayHourGrid = weekdayHourGrid,
@@ -285,6 +290,40 @@ public sealed class SearchAnalyticsController : Controller
         if (page < 1) page = 1;
 
         var (rows, total) = await _query.GetTopPagesAsync(fromUtc, toUtc, page, pageSize, ct);
+
+        return View("~/Views/Admin/Search/Pages.cshtml", new SearchAnalyticsPagesDrillInViewModel
+        {
+            Rows = rows,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
+        });
+    }
+
+    // Sibling of the Pages drill-in filtered to block hits. Reuses the same view because the
+    // table shape is identical — the view already renders non-URL result_key values as plain
+    // text (via the LooksLikeUrl helper), so a block-only result set naturally reads as a
+    // list of block keys. Title copy is the only per-action tweak.
+    [HttpGet("Blocks")]
+    public async Task<IActionResult> Blocks(
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        int page = 1,
+        CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = "Top content blocks by search impressions";
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        var (rows, total) = await _query.GetTopBlocksAsync(fromUtc, toUtc, page, pageSize, ct);
 
         return View("~/Views/Admin/Search/Pages.cshtml", new SearchAnalyticsPagesDrillInViewModel
         {

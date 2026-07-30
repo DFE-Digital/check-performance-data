@@ -377,6 +377,47 @@
                 }
             </div>
         </div>
+
+        @* Top content blocks — sibling of Top pages, split so block keys (which are not
+           navigable URLs) don't sit mid-list in a card the reader expects to be pages. *@
+        <div class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h2 class="govuk-summary-card__title">Top content blocks</h2>
+            </div>
+            <div class="govuk-summary-card__content">
+                @if (Model.TopBlocks.Count == 0)
+                {
+                    <p class="govuk-body">No content blocks surfaced in this window.</p>
+                }
+                else
+                {
+                    <table class="govuk-table">
+                        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top @Model.TopBlocks.Count content blocks by search impressions in the selected window</caption>
+                        <thead class="govuk-table__head">
+                            <tr class="govuk-table__row">
+                                <th class="govuk-table__header" scope="col" title="Key of the content block that appeared in results. Blocks render inside pages and do not have their own URL.">Content block</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this block appeared in any user's result set in the window.">Impressions</th>
+                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many distinct search terms surfaced this block in the window.">Unique queries</th>
+                            </tr>
+                        </thead>
+                        <tbody class="govuk-table__body">
+                            @foreach (var row in Model.TopBlocks)
+                            {
+                                <tr class="govuk-table__row">
+                                    <td class="govuk-table__cell"><code>@row.ResultKey</code></td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.UniqueQueryCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (Model.TopBlocksTotalCount > Model.TopBlocks.Count)
+                    {
+                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Blocks?range=@Model.RangeKey">View all top content blocks by search impressions &rarr;</a></p>
+                    }
+                }
+            </div>
+        </div>
     </div>
 </div>
 

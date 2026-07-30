@@ -200,11 +200,22 @@ public interface ISearchAnalyticsQueryService
         int pageSize,
         CancellationToken cancellationToken = default);
 
-    // Top pages by impression count in the window. Reads search_event_results joined to
-    // search_events, groups by result_key (URL), returns pages ordered by impressions DESC.
-    // UniqueQueryCount is the number of distinct parent search events that returned the page
-    // — the "how many different searches surfaced this page" figure.
+    // Top pages by impression count in the window. Filtered to result_kind = 'page' so
+    // content blocks do not leak into a card the admin reads as "pages surfaced in search".
+    // UniqueQueryCount is the number of distinct parent search events that returned the page.
     Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopPagesAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    // Sibling of GetTopPagesAsync filtered to result_kind = 'block'. Same shape — the
+    // ResultKey column carries the block key (e.g. "banner", "school-census-dates"), not a
+    // URL, so the caller renders it as plain text rather than a link. Split from top-pages
+    // so the two admin cards can be scanned independently and neither has to explain why a
+    // non-navigable entry sits mid-list.
+    Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopBlocksAsync(
         DateTime fromUtc,
         DateTime toUtc,
         int page,

@@ -46,6 +46,16 @@ public sealed class SearchAnalyticsIndexViewModel
     // /admin/Search/Pages.
     public required int TopPagesTotalCount { get; init; }
 
+    // Top 10 content blocks by search impressions, split out from TopPages because a block
+    // key is not navigable — rendering blocks in a card labelled "Top pages" produced
+    // plain-text entries mid-list that the reader mistook for a rendering bug.
+    public required IReadOnlyList<TopPageRow> TopBlocks { get; init; }
+
+    // Total distinct-block count in the window. When > TopBlocks.Count the view renders a
+    // "View all top content blocks by search impressions →" link that lands on
+    // /admin/Search/Blocks.
+    public required int TopBlocksTotalCount { get; init; }
+
     // A sampled slice of individual search events for the request-timings scatter chart
     // that renders BELOW the latency-percentiles chart when the latency tile is active.
     // Sampled to no more than ~2000 rows to keep the DOM tight; the caller renders a

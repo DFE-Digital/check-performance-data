@@ -955,26 +955,45 @@ LIMIT @limit OFFSET @offset;";
         return (rows, total);
     }
 
-    public async Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopPagesAsync(
+    public Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopPagesAsync(
         DateTime fromUtc,
         DateTime toUtc,
         int page,
         int pageSize,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ReadTopHitsByKindAsync(fromUtc, toUtc, "page", page, pageSize, cancellationToken);
+
+    public Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> GetTopBlocksAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default) =>
+        ReadTopHitsByKindAsync(fromUtc, toUtc, "block", page, pageSize, cancellationToken);
+
+    // Shared reader behind GetTopPages/GetTopBlocks. Splitting on result_kind is important
+    // because pages and blocks live in the same table but are semantically different — a
+    // page is a URL you can navigate to, a block is a snippet that gets rendered on any
+    // number of host pages. Grouping them together would produce a "Top pages" card with
+    // non-navigable entries mid-list, which is exactly the bug this method's callers avoid.
+    private async Task<(IReadOnlyList<TopPageRow> Rows, int TotalCount)> ReadTopHitsByKindAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        string kind,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 1;
 
-        // Joins result rows to their parent event so the window predicate applies to the parent's
-        // occurred_at_utc. UniqueQueryCount is distinct parent events — "how many separate
-        // searches surfaced this page in the window". Same tie-break (result_key ASC) as the
-        // top-queries reader so the paged view is deterministic across identical queries.
         const string countSql = @"
 SELECT COUNT(*) FROM (
     SELECT r.result_key
     FROM search_event_results r
     JOIN search_events e ON e.id = r.search_event_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND r.result_kind = @kind
     GROUP BY r.result_key
 ) p;";
 
@@ -986,6 +1005,7 @@ SELECT
 FROM search_event_results r
 JOIN search_events e ON e.id = r.search_event_id
 WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+  AND r.result_kind = @kind
 GROUP BY r.result_key
 ORDER BY impressions DESC, r.result_key ASC
 LIMIT @limit OFFSET @offset;";
@@ -995,6 +1015,7 @@ LIMIT @limit OFFSET @offset;";
         {
             command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
             command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("kind", NpgsqlDbType.Text) { Value = kind });
         }, reader =>
         {
             total = Convert.ToInt32(reader.GetInt64(0));
@@ -1005,6 +1026,7 @@ LIMIT @limit OFFSET @offset;";
         {
             command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
             command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("kind", NpgsqlDbType.Text) { Value = kind });
             command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
             command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
         }, reader =>

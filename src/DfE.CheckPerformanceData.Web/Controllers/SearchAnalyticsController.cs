@@ -268,13 +268,17 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["AdminWide"] = true;
 
+        // Reject out-of-band buckets rather than silently clamping — an admin editing the
+        // URL should see a 404, not a differently-labelled result set. Matches the sibling
+        // SeriesDrillIn behaviour on an unknown series key.
+        if (weekday < 1 || weekday > 7 || hour < 0 || hour > 23)
+        {
+            return NotFound();
+        }
+
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
-
-        // Clamp defensively so a hand-edited URL still lands on a sensible surface.
-        if (weekday < 1 || weekday > 7) weekday = 1;
-        if (hour < 0 || hour > 23) hour = 0;
 
         var (rows, total) = await _query.GetPagedEventsInWeekdayHourBucketAsync(
             fromUtc, toUtc, weekday, hour, page, pageSize, ct);

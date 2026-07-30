@@ -57,12 +57,11 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
     }
 
     [Theory]
-    [InlineData(0, 12, 1, 12)]      // weekday too low → clamped to 1
-    [InlineData(8, 12, 1, 12)]      // weekday too high → clamped to 1
-    [InlineData(1, -1, 1, 0)]       // hour too low → clamped to 0
-    [InlineData(1, 24, 1, 0)]       // hour too high → clamped to 0
-    public async Task HeatmapCell_OutOfBandTuple_ClampsToDefaults(
-        int weekdayIn, int hourIn, int expectedWeekday, int expectedHour)
+    [InlineData(0, 12)]      // weekday too low
+    [InlineData(8, 12)]      // weekday too high
+    [InlineData(1, -1)]      // hour too low
+    [InlineData(1, 24)]      // hour too high
+    public async Task HeatmapCell_OutOfBandTuple_ReturnsNotFound(int weekdayIn, int hourIn)
     {
         await TruncateAsync();
 
@@ -70,10 +69,7 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
             range: "7d", from: null, to: null,
             weekday: weekdayIn, hour: hourIn, page: 1, ct: CancellationToken.None);
 
-        var view = Assert.IsType<ViewResult>(result);
-        var model = Assert.IsType<SearchAnalyticsHeatmapCellViewModel>(view.Model);
-        Assert.Equal(expectedWeekday, model.Weekday);
-        Assert.Equal(expectedHour, model.Hour);
+        Assert.IsType<NotFoundResult>(result);
     }
 
     [Fact]

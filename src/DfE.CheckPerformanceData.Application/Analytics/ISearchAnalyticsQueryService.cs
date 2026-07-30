@@ -253,6 +253,27 @@ public interface ISearchAnalyticsQueryService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    // Aggregate recovery statistics for zero-result-having sessions in the window.
+    // Sessions with any zero-result event are counted; of those, "recovered" is any
+    // session that later received a >0-result event and "sent feedback" is any session
+    // that also filed a search_messages row. Feeds the recovery-rate line on the
+    // zero-result-outcomes card.
+    Task<ZeroResultRecoveryStats> GetZeroResultRecoveryStatsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default);
+
+    // Paged list of zero-result-having sessions with each session's full search chain
+    // in the window (oldest-first). Ordered by (chain length DESC, session_id ASC) so
+    // the sessions where users tried hardest surface first. Feeds the drill-in that
+    // lets an editor see refinement patterns and spot common corrections.
+    Task<(IReadOnlyList<ZeroResultJourney> Rows, int TotalCount)> GetZeroResultJourneysAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     // Events that landed in a single (weekday, hour) cell of the "When people search"
     // heatmap. `weekday` is ISO 8601 (1 = Monday, 7 = Sunday); `hour` is 0–23 in UTC.
     // Returns one page of the matching events ordered by occurred_at_utc DESC (newest

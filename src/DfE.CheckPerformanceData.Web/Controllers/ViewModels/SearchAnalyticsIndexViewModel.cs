@@ -89,4 +89,10 @@ public sealed class SearchAnalyticsIndexViewModel
     // prior data" hint (a custom range spanning > 45 days puts the prior window outside
     // the sink's 90-day retention).
     public required SearchAnalyticsSummaryDeltas SummaryDeltas { get; init; }
+
+    // Recovery statistics for zero-result-having sessions in the window. Feeds a
+    // contextualising line beneath the zero-result-outcomes funnel ("of those N
+    // sessions, Y% eventually got results"). Zeros are a valid state (rendered as
+    // "no zero-result sessions in this window").
+    public required ZeroResultRecoveryStats RecoveryStats { get; init; }
 }

@@ -3,6 +3,11 @@
 @model DfE.CheckPerformanceData.Application.Analytics.ZeroResultOutcomeSummary
 @{
     var summary = Model ?? new ZeroResultOutcomeSummary(0, 0, 0, 0, 0);
+    // The parent view passes recovery stats + range key via ViewData so this partial
+    // can render the contextualising "of those N sessions, Y% eventually got results"
+    // line + link to the drill-in without changing its own model contract.
+    var recovery = ViewData["ZeroResultRecoveryStats"] as ZeroResultRecoveryStats;
+    var rangeKey = (ViewData["RangeKey"] as string) ?? "7d";
 
     string FormatPercent(int part, int whole)
     {
@@ -56,6 +61,18 @@
                     </div>
                 </div>
             </div>
+
+            @if (recovery is not null && recovery.SessionsWithAnyZeroResult > 0)
+            {
+                <p class="govuk-body-s sa-funnel__recovery">
+                    <strong>Recovery:</strong>
+                    @FormatPercent(recovery.RecoveredCount, recovery.SessionsWithAnyZeroResult)
+                    of these sessions eventually got at least one result;
+                    @FormatPercent(recovery.AbandonedCount, recovery.SessionsWithAnyZeroResult)
+                    left empty-handed without telling us.
+                    <a class="govuk-link" href="/admin/Search/ZeroResultJourneys?range=@rangeKey">See every refinement chain &rarr;</a>
+                </p>
+            }
         }
     </div>
 </section>

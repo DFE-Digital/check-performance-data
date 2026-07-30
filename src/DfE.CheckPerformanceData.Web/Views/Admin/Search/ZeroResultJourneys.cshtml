@@ -1,0 +1,133 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsZeroResultJourneysViewModel
+@{
+    string PageLink(int p) =>
+        $"/admin/Search/ZeroResultJourneys?range={Uri.EscapeDataString(Model.RangeKey)}&page={p}";
+
+    static string MaskedSessionId(string sessionId) =>
+        string.IsNullOrEmpty(sessionId)
+            ? "(unknown)"
+            : (sessionId.Length <= 8 ? sessionId : sessionId[..8] + "…");
+
+    string FormatPct(int part, int whole)
+    {
+        if (whole <= 0) return "—";
+        return (100d * part / whole).ToString("0", CultureInfo.CurrentCulture) + "%";
+    }
+
+    var stats = Model.RecoveryStats;
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Zero-result recovery journeys</h1>
+
+<p class="govuk-body">
+    Every session that hit at least one zero-result search during the selected window,
+    with the full chronological chain of queries they tried. Sessions where users tried
+    the most surface first — the longer chains are the ones worth looking at for content
+    or synonym gaps.
+</p>
+
+<section class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title">Recovery summary</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        @if (stats.SessionsWithAnyZeroResult == 0)
+        {
+            <p class="govuk-body">No zero-result searches in this window — every session got at least one hit.</p>
+        }
+        else
+        {
+            <p class="govuk-body">
+                @stats.SessionsWithAnyZeroResult.ToString("N0", CultureInfo.CurrentCulture) sessions hit at least one zero-result search.
+                Of those:
+            </p>
+            <ul class="govuk-list govuk-list--bullet">
+                <li><strong>@stats.RecoveredCount.ToString("N0", CultureInfo.CurrentCulture) (@FormatPct(stats.RecoveredCount, stats.SessionsWithAnyZeroResult))</strong> eventually got a result — they refined their query and found something.</li>
+                <li><strong>@stats.AbandonedCount.ToString("N0", CultureInfo.CurrentCulture) (@FormatPct(stats.AbandonedCount, stats.SessionsWithAnyZeroResult))</strong> abandoned — never got a result, never told us.</li>
+                <li><strong>@stats.SentFeedbackCount.ToString("N0", CultureInfo.CurrentCulture) (@FormatPct(stats.SentFeedbackCount, stats.SessionsWithAnyZeroResult))</strong> sent us feedback via the "not what you were expecting?" link (may overlap with recovered).</li>
+            </ul>
+        }
+    </div>
+</section>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No zero-result journeys in this window.</p>
+}
+else
+{
+    var firstRow = ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    <p class="govuk-body-s govuk-hint">
+        Showing sessions @firstRow to @lastRow of @Model.TotalCount.ToString("N0", CultureInfo.CurrentCulture).
+    </p>
+
+    @foreach (var journey in Model.Rows)
+    {
+        var stepCount = journey.Steps.Count;
+        var zeroCount = journey.Steps.Count(s => s.ResultsTotal == 0);
+        var outcomeLabel = journey.EventuallyRecovered
+            ? "Recovered"
+            : (journey.SentFeedback ? "Sent feedback" : "Abandoned");
+        var outcomeClass = journey.EventuallyRecovered
+            ? "govuk-tag--green"
+            : (journey.SentFeedback ? "govuk-tag--blue" : "govuk-tag--red");
+
+        <section class="govuk-summary-card govuk-!-margin-bottom-4 sa-summary-card sa-journey-card">
+            <div class="govuk-summary-card__title-wrapper">
+                <h3 class="govuk-summary-card__title govuk-!-font-size-19">
+                    <a class="govuk-link" href="/admin/Search/Session/@journey.SessionId" title="@journey.SessionId">
+                        <code>@MaskedSessionId(journey.SessionId)</code>
+                    </a>
+                </h3>
+                <span class="govuk-tag @outcomeClass">@outcomeLabel</span>
+            </div>
+            <div class="govuk-summary-card__content">
+                <p class="govuk-body-s govuk-hint">
+                    @stepCount.ToString("N0", CultureInfo.CurrentCulture) searches (@zeroCount zero-result) between
+                    @journey.Steps.First().OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture) and
+                    @journey.Steps.Last().OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture).
+                </p>
+                <ol class="govuk-list govuk-list--number sa-journey-chain">
+                    @foreach (var step in journey.Steps)
+                    {
+                        var isZero = step.ResultsTotal == 0;
+                        var resultsLabel = isZero
+                            ? "0 results"
+                            : (step.ResultsTotal == 1 ? "1 result" : $"{step.ResultsTotal.ToString("N0", CultureInfo.CurrentCulture)} results");
+                        var stepClass = isZero ? "sa-journey-step sa-journey-step--zero" : "sa-journey-step";
+                        <li class="@stepClass">
+                            <time datetime="@step.OccurredAtUtc.ToString("o", CultureInfo.InvariantCulture)">
+                                @step.OccurredAtUtc.ToString("HH:mm:ss", CultureInfo.InvariantCulture) UTC
+                            </time>
+                            &mdash;
+                            @if (!string.IsNullOrEmpty(step.Query))
+                            {
+                                <a class="govuk-link" href="/search?q=@Uri.EscapeDataString(step.Query)"
+                                   target="_blank" rel="noopener noreferrer">@step.Query</a>
+                            }
+                            else
+                            {
+                                <span class="govuk-hint">(empty query)</span>
+                            }
+                            &mdash; <strong>@resultsLabel</strong>
+                        </li>
+                    }
+                </ol>
+            </div>
+        </section>
+    }
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}

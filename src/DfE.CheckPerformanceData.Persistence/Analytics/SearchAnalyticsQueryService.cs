@@ -1232,6 +1232,194 @@ LIMIT @limit OFFSET @offset;";
         return (rows, total);
     }
 
+    // Session-level recovery stats for zero-result-having sessions. Three CTEs feed a
+    // single aggregate:
+    //   * sessions_with_zero — every session id that had at least one zero-result event
+    //     in the window (BOOL_OR aggregation).
+    //   * recovered — sessions above that later received at least one >0-result event
+    //     inside the window.
+    //   * feedback — sessions above that filed at least one search_messages row inside
+    //     the window.
+    // Feedback and recovery are non-exclusive: a session can both refine successfully
+    // AND send feedback. Abandoned = SessionsWithAnyZeroResult - Recovered - (feedback-
+    // only slice) is computed by the caller so this reader stays close to the shape of
+    // its underlying data.
+    public async Task<ZeroResultRecoveryStats> GetZeroResultRecoveryStatsAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+WITH sessions_with_zero AS (
+    SELECT session_id
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY session_id
+    HAVING BOOL_OR(zero_results)
+),
+recovered AS (
+    SELECT DISTINCT s.session_id
+    FROM sessions_with_zero s
+    JOIN search_events e ON e.session_id = s.session_id
+    WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND NOT e.zero_results
+),
+feedback AS (
+    SELECT DISTINCT s.session_id
+    FROM sessions_with_zero s
+    JOIN search_messages m ON m.session_id = s.session_id
+    WHERE m.occurred_at_utc >= @from AND m.occurred_at_utc < @to
+)
+SELECT
+    (SELECT COUNT(*) FROM sessions_with_zero)::int AS total_sessions,
+    (SELECT COUNT(*) FROM recovered)::int          AS recovered_count,
+    (SELECT COUNT(*) FROM feedback)::int           AS feedback_count;";
+
+        var total = 0;
+        var recovered = 0;
+        var feedback = 0;
+        await ReadAsync(sql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = reader.GetInt32(0);
+            recovered = reader.GetInt32(1);
+            feedback = reader.GetInt32(2);
+        });
+
+        // "Abandoned" = neither recovered NOR sent feedback. The aggregate above doesn't
+        // give us the recovered∩feedback intersection, so take a conservative upper bound
+        // on "did not abandon" (recovered + feedback capped at total). This slightly
+        // understates abandoned when a session both recovered AND sent feedback, but
+        // the drill-in surfaces the precise state per session so the headline can stay
+        // simple + non-alarming.
+        var didNotAbandon = Math.Min(total, recovered + feedback);
+        var abandoned = Math.Max(0, total - didNotAbandon);
+
+        return new ZeroResultRecoveryStats(total, recovered, abandoned, feedback);
+    }
+
+    // Paged list of zero-result-having sessions with each session's full search chain
+    // in the window (oldest-first). Two-query shape: aggregate count, then a JOIN that
+    // fetches every event for the paged slice of session_ids in one round-trip so the
+    // chain assembly stays O(N) client-side. Ordering: chain length DESC, session_id
+    // ASC — long struggles surface first, deterministic tie-break.
+    public async Task<(IReadOnlyList<ZeroResultJourney> Rows, int TotalCount)> GetZeroResultJourneysAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+
+        const string countSql = @"
+SELECT COUNT(*)::int FROM (
+    SELECT session_id
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY session_id
+    HAVING BOOL_OR(zero_results)
+) s;";
+
+        // Rank sessions by their in-window chain length (event count) desc, id asc, take
+        // the requested page, then fan out to every event for the ids on that page. One
+        // ORDER BY at the outer SELECT gives per-session chronological chains.
+        const string pageSql = @"
+WITH ranked AS (
+    SELECT session_id, COUNT(*) AS chain_length
+    FROM search_events
+    WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+    GROUP BY session_id
+    HAVING BOOL_OR(zero_results)
+    ORDER BY COUNT(*) DESC, session_id ASC
+    LIMIT @limit OFFSET @offset
+),
+page_sessions AS (
+    SELECT session_id FROM ranked
+),
+events AS (
+    SELECT e.session_id, e.occurred_at_utc, e.query_normalised, e.results_total,
+           e.zero_results
+    FROM search_events e
+    JOIN page_sessions p ON p.session_id = e.session_id
+    WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+),
+feedback AS (
+    SELECT DISTINCT m.session_id
+    FROM search_messages m
+    JOIN page_sessions p ON p.session_id = m.session_id
+    WHERE m.occurred_at_utc >= @from AND m.occurred_at_utc < @to
+),
+recovered AS (
+    SELECT DISTINCT e.session_id
+    FROM search_events e
+    JOIN page_sessions p ON p.session_id = e.session_id
+    WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND NOT e.zero_results
+)
+SELECT
+    e.session_id,
+    e.occurred_at_utc,
+    e.query_normalised,
+    e.results_total,
+    (r.session_id IS NOT NULL) AS recovered,
+    (f.session_id IS NOT NULL) AS sent_feedback
+FROM events e
+LEFT JOIN recovered r ON r.session_id = e.session_id
+LEFT JOIN feedback f ON f.session_id = e.session_id
+ORDER BY (SELECT chain_length FROM ranked WHERE ranked.session_id = e.session_id) DESC,
+         e.session_id ASC,
+         e.occurred_at_utc ASC;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+        }, reader =>
+        {
+            total = reader.GetInt32(0);
+        });
+
+        var journeysBySession = new Dictionary<string, (List<RefinementStep> Steps, bool Recovered, bool Sent)>();
+        var order = new List<string>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var sessionId = reader.GetString(0);
+            var occurredAt = DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc);
+            var query = reader.IsDBNull(2) ? null : reader.GetString(2);
+            var results = reader.GetInt32(3);
+            var recovered = reader.GetBoolean(4);
+            var sent = reader.GetBoolean(5);
+            if (!journeysBySession.TryGetValue(sessionId, out var acc))
+            {
+                acc = (new List<RefinementStep>(), recovered, sent);
+                journeysBySession[sessionId] = acc;
+                order.Add(sessionId);
+            }
+            acc.Steps.Add(new RefinementStep(occurredAt, query, results));
+        });
+
+        var rows = order
+            .Select(id =>
+            {
+                var acc = journeysBySession[id];
+                return new ZeroResultJourney(id, acc.Steps, acc.Recovered, acc.Sent);
+            })
+            .ToList();
+        return (rows, total);
+    }
+
     // Weekday × hour-of-day search volume heatmap. Postgres EXTRACT(ISODOW) returns
     // 1..7 with Monday=1 (matches the UK-audience week-start convention) and
     // EXTRACT(HOUR) returns 0..23 in the storage timezone (which is UTC on both events

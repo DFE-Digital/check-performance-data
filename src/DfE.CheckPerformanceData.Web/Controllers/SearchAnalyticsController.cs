@@ -151,6 +151,7 @@ public sealed class SearchAnalyticsController : Controller
         var weekdayHourGrid = await _query.GetSearchesByWeekdayAndHourAsync(fromUtc, toUtc, ct);
         var zeroResultOutcomes = await _query.GetZeroResultOutcomeFunnelAsync(fromUtc, toUtc, ct);
         var summaryDeltas = await _query.GetSummaryDeltasAsync(fromUtc, toUtc, ct);
+        var recoveryStats = await _query.GetZeroResultRecoveryStatsAsync(fromUtc, toUtc, ct);
 
         return View("~/Views/Admin/Search/Index.cshtml", new SearchAnalyticsIndexViewModel
         {
@@ -175,6 +176,7 @@ public sealed class SearchAnalyticsController : Controller
             WeekdayHourGrid = weekdayHourGrid,
             ZeroResultOutcomes = zeroResultOutcomes,
             SummaryDeltas = summaryDeltas,
+            RecoveryStats = recoveryStats,
             AggregateMode = aggregateMode,
         });
     }
@@ -210,6 +212,42 @@ public sealed class SearchAnalyticsController : Controller
             FromUtc = fromUtc,
             ToUtc = toUtc,
             RangeKey = rangeKey,
+        });
+    }
+
+    // Zero-result recovery journeys drill-in. Renders one card per session with a full
+    // chronological chain of the searches that session ran; only sessions with at least
+    // one zero-result event appear. Editors use this to spot common corrections and
+    // decide whether to add synonyms, rename content, or create missing pages.
+    [HttpGet("ZeroResultJourneys")]
+    public async Task<IActionResult> ZeroResultJourneys(
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        int page = 1,
+        CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["Title"] = "Zero-result recovery journeys";
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        var stats = await _query.GetZeroResultRecoveryStatsAsync(fromUtc, toUtc, ct);
+        var (rows, total) = await _query.GetZeroResultJourneysAsync(fromUtc, toUtc, page, pageSize, ct);
+
+        return View("~/Views/Admin/Search/ZeroResultJourneys.cshtml", new SearchAnalyticsZeroResultJourneysViewModel
+        {
+            Rows = rows,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
+            RecoveryStats = stats,
         });
     }
 

@@ -151,3 +151,30 @@ public sealed record SearchAnalyticsSummaryDeltas(
     double PriorZeroResultRatePercent,
     int PriorP95LatencyMs,
     bool Available);
+
+// Headline recovery statistics for zero-result-having sessions in the current window.
+// Contextualises the "N% of queries returned zero results" summary tile — most of those
+// users refine and get answers, so the raw zero-result rate over-reads as "N% of users
+// failed" when actually only a small subset genuinely couldn't find what they wanted.
+public sealed record ZeroResultRecoveryStats(
+    int SessionsWithAnyZeroResult,
+    int RecoveredCount,        // eventually got a >0-result event after any zero-result
+    int AbandonedCount,        // never got a >0-result event AND did not send feedback
+    int SentFeedbackCount);    // sent a feedback message (may or may not have recovered)
+
+// One step in a session's refinement chain — the raw event, ordered oldest-first by
+// occurred_at_utc.
+public sealed record RefinementStep(
+    DateTime OccurredAtUtc,
+    string? Query,
+    int ResultsTotal);
+
+// A single session's complete refinement journey. Only sessions with at least one
+// zero-result event during the window are included. The steps list captures every
+// search this session ran in the window (chronological), so a reader can see exactly
+// what the user tried and whether they eventually recovered.
+public sealed record ZeroResultJourney(
+    string SessionId,
+    IReadOnlyList<RefinementStep> Steps,
+    bool EventuallyRecovered,
+    bool SentFeedback);

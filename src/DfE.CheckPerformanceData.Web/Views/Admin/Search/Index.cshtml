@@ -250,7 +250,14 @@
 
 @* Zero-result outcomes funnel card. Session-level rollup — the acceptance calls it
    "wonderful for a client demo" so the empty-state copy and tile alignment matter. *@
-@await Html.PartialAsync("~/Views/Admin/Search/_ZeroResultFunnel.cshtml", Model.ZeroResultOutcomes)
+@{
+    var funnelViewData = new ViewDataDictionary(ViewData)
+    {
+        ["ZeroResultRecoveryStats"] = Model.RecoveryStats,
+        ["RangeKey"] = Model.RangeKey,
+    };
+}
+@await Html.PartialAsync("~/Views/Admin/Search/_ZeroResultFunnel.cshtml", Model.ZeroResultOutcomes, funnelViewData)
 
 @* Top queries + top zero-result queries + top pages. Each in its own summary card so the
    three tables share layout conventions. Top pages replaces the old bottom link. *@

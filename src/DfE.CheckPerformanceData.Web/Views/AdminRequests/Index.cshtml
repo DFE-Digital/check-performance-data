@@ -2,7 +2,7 @@
 @using DfE.CheckPerformanceData.Application.UncommittedRequests
 @model IReadOnlyList<UncommittedRequestRow>
 @{
-    ViewData["Title"] = "Current window requests";
+    ViewData["Title"] = "All requests";
 
     string TagClass(DecisionStatus s) => s switch
     {
@@ -21,7 +21,7 @@
 
 <a href="/admin" class="govuk-back-link">Back to administration</a>
 
-<h1 class="govuk-heading-xl">Current window requests</h1>
+<h1 class="govuk-heading-xl">All requests</h1>
 
 @if (TempData["ZendeskReplayMessage"] is string replayMessage)
 {
@@ -44,7 +44,7 @@
 
 @if (Model.Count == 0)
 {
-    <p class="govuk-body">There are no requests for the current open window.</p>
+    <p class="govuk-body">There are no requests.</p>
 }
 else
 {
@@ -52,6 +52,7 @@ else
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Reference</th>
+                <th scope="col" class="govuk-table__header">Window</th>
                 <th scope="col" class="govuk-table__header">Organisation URN</th>
                 <th scope="col" class="govuk-table__header">Pupil</th>
                 <th scope="col" class="govuk-table__header">Request type</th>
@@ -68,6 +69,7 @@ else
             {
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@row.ReferenceNumber</td>
+                    <td class="govuk-table__cell">@(string.IsNullOrEmpty(row.WindowTitle) ? "—" : row.WindowTitle)</td>
                     <td class="govuk-table__cell">@row.OrganisationUrn</td>
                     <td class="govuk-table__cell">@($"{row.PupilFirstname} {row.PupilSurname}".Trim())</td>
                     <td class="govuk-table__cell">@row.RequestTypeDescription</td>

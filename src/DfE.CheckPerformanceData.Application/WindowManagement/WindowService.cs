@@ -7,7 +7,12 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset now = timeProvider.GetLocalNow();
-        List<CheckingWindowDto> windows = await windowRepository.GetAllWindowsAsync(now.DateTime, cancellationToken);
+        List<CheckingWindowDto> windows = await windowRepository.GetAllWindowsAsync(cancellationToken);
+
+        foreach (CheckingWindowDto window in windows)
+        {
+            window.IsOpen = window.StartDate <= now.DateTime && now.DateTime <= window.EndDate;
+        }
 
         return new PageResult
         {

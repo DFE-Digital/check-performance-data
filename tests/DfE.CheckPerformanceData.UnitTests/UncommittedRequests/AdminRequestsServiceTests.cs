@@ -35,12 +35,11 @@ public class AdminRequestsServiceTests
     }
 
     [Fact]
-    public async Task GetAsync_PassesLocalNowToRepository()
+    public async Task GetAsync_RequestsAllWindowsFromRepository()
     {
         await _sut.GetAsync(CancellationToken.None);
 
-        await _repository.Received(1)
-            .GetForOpenWindowsAsync(new DateTime(2026, 6, 19, 9, 0, 0), Arg.Any<CancellationToken>());
+        await _repository.Received(1).GetAllAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -51,6 +50,7 @@ public class AdminRequestsServiceTests
             new()
             {
                 ReferenceNumber = "ABC-123",
+                WindowTitle = "KS2 June 2026",
                 OrganisationUrn = 123456,
                 PupilFirstname = "Ada",
                 PupilSurname = "Lovelace",
@@ -63,7 +63,7 @@ public class AdminRequestsServiceTests
                 DecidedAtUtc = new DateTime(2026, 6, 18, 15, 0, 0, DateTimeKind.Utc)
             }
         };
-        _repository.GetForOpenWindowsAsync(Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+        _repository.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(rows);
 
         var result = await _sut.GetAsync(CancellationToken.None);

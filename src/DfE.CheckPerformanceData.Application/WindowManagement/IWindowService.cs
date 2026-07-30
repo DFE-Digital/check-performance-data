@@ -30,5 +30,6 @@ public sealed class CheckingWindowDto
     public string SchemaFileChecksum { get; set; } = string.Empty;
     public bool Validated { get; set; }
     public DateTime? ValidatedAt { get; set; }
+    public bool IsOpen { get; set; }
 }
 

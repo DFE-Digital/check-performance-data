@@ -26,7 +26,8 @@
             {
               "value": "permanent-exclusion",
               "label": "Admitted following permanent exclusion (not registered independent schools)",
-              "nextPageId": "permanent-exclusion"
+              "nextPageId": "permanent-exclusion",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "english-not-first-language",
@@ -34,9 +35,16 @@
               "nextPageId": "english-not-first-language"
             },
             {
+              "value": "completed-ks4-elsewhere",
+              "label": "Completed KS4 studies this academic year in year 11 at another school or college",
+              "nextPageId": "completed-ks4-elsewhere",
+              "visibleWhen": "PupilIsAddBack"
+            },
+            {
               "value": "child-missing-education",
               "label": "Child missing education",
-              "nextPageId": "child-missing-education"
+              "nextPageId": "child-missing-education",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "pupil-died",
@@ -46,23 +54,26 @@
             {
               "value": "dual-registered-moved",
               "label": "Dual registered or moved school",
-              "nextPageId": "dual-registered-moved"
+              "nextPageId": "dual-registered-moved",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "elective-home-education",
               "label": "Elective home education",
-              "nextPageId": "elective-home-education"
+              "nextPageId": "elective-home-education",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "not-on-roll",
               "label": "Not on roll",
               "nextPageId": "not-on-roll",
-              "visibleWhen": "SchoolIsIndependent"
+              "visibleWhen": ["SchoolIsIndependent", "PupilIsNotAddBack"]
             },
             {
               "value": "permanently-excluded",
               "label": "Permanently excluded from current school",
-              "nextPageId": "permanently-excluded"
+              "nextPageId": "permanently-excluded",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "permanently-left-england",
@@ -72,17 +83,26 @@
             {
               "value": "social-care-involvement",
               "label": "Social care involvement - including police or prison",
-              "nextPageId": "social-care"
+              "nextPageId": "social-care",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "life-limiting-illness",
               "label": "Life-limiting or critical illness",
-              "nextPageId": "life-limiting-illness"
+              "nextPageId": "life-limiting-illness",
+              "visibleWhen": "PupilIsNotAddBack"
             },
             {
               "value": "year-group-change",
               "label": "Year group change",
-              "nextPageId": "year-group-change-higher-lower"
+              "nextPageId": "year-group-change-higher-lower",
+              "visibleWhen": "PupilIsNotAddBack"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "nextPageId": "evidence",
+              "visibleWhen": "PupilIsAddBack"
             }
           ]
         }
@@ -191,6 +211,24 @@
           "hint" : "For example, 123/4567 or 1234567",
           "validator": "DfeNumber",
           "validationFailure": "Enter the DfE number of the school {pupilName}'s exam results should be transferred to",
+          "questionHelpTitle" : "How can I find a DfE number?",
+          "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
+        }
+      ]
+    },
+    {
+      "id": "completed-ks4-elsewhere",
+      "pageTitle": "School or college DfE number",
+      "nextPageId": "evidence",
+      "questions": [
+        {
+          "id": "completed-ks4-elsewhere-dfe-number",
+          "type": "FreeText",
+          "title": "What is the DfE number of the school or college where {pupilName} completed KS4?",
+          "summaryTitle": "School or college DfE number",
+          "hint" : "For example, 123/4567 or 1234567",
+          "validator": "DfeNumber",
+          "validationFailure": "Enter the DfE number of the school or college where {pupilName} completed KS4",
           "questionHelpTitle" : "How can I find a DfE number?",
           "questionHelpText" : "<p>To find the DfE number, search the school or college name on <a href=\"https://get-information-schools.service.gov.uk/\" target=\"_blank\">Get Information About Schools (opens in new window)</a></p>"
         }
@@ -595,7 +633,8 @@
           "id": "evidence",
           "type": "FileUpload",
           "title": "Upload files",
-          "hint": "Evidence must be in a PDF format"
+          "hint": "Evidence must be in a PDF format",
+          "optionalWhen": "EalWouldBeAutoRejected"
         },
         {
           "id": "how-evidence-supports",
@@ -604,7 +643,8 @@
           "hint": "Your request will not be accepted unless you provide the correct evidence",
           "summaryTitle": "How evidence demonstrates removal",
           "characterLimit": 1000,
-          "validationFailure": "Explain how the evidence supports removing {pupilName}"
+          "validationFailure": "Explain how the evidence supports removing {pupilName}",
+          "optionalWhen": "EalWouldBeAutoRejected"
         }
       ]
     }

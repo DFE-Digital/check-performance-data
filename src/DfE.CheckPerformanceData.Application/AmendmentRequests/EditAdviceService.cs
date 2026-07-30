@@ -10,7 +10,8 @@ public sealed class EditAdviceService(
     IRequestRepository requestRepository,
     IQuestionFlowService flowService,
     IJourneyValidationService validationService,
-    ICurrentUserService currentUserService) : IEditAdviceService
+    ICurrentUserService currentUserService,
+    IQuestionOptionalityService optionalityService) : IEditAdviceService
 {
     public async Task<AmendmentAdvice?> BuildAsync(Guid windowId, string referenceNumber, RequestState journey)
     {
@@ -57,7 +58,9 @@ public sealed class EditAdviceService(
         var evidencePage = flowService.GetReachableEvidencePage(config, journey.QuestionAnswers);
         if (evidencePage is null) return [];
 
-        var result = validationService.ValidateEvidencePage(evidencePage, journey, PupilName(journey));
+        var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(evidencePage, ctx);
+        var result = validationService.ValidateEvidencePage(evidencePage, journey, PupilName(journey), conditionallyOptional);
         return result?.Messages ?? [];
     }
 

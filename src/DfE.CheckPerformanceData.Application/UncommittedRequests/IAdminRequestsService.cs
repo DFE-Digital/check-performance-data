@@ -2,8 +2,7 @@ namespace DfE.CheckPerformanceData.Application.UncommittedRequests;
 
 public interface IAdminRequestsService
 {
-    // SubmittedUnCommitted change requests for the current open checking window,
-    // with their rules-engine outcome.
+    // All change requests across every checking window, with their rules-engine outcome.
     Task<IReadOnlyList<UncommittedRequestRow>> GetAsync(CancellationToken cancellationToken);
 
     // Quick-and-dirty test hook: rebuild a RequestDocument for every SubmittedUnCommitted

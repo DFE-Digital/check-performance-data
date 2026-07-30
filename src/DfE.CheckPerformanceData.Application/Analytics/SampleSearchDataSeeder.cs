@@ -1,3 +1,6 @@
+using DfE.CheckPerformanceData.Application.ContentBlocks;
+using DfE.CheckPerformanceData.Application.PageTree;
+
 namespace DfE.CheckPerformanceData.Application.Analytics;
 
 // Development-only seeder that fabricates a plausible mix of search-event + feedback-message
@@ -18,7 +21,9 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 //     drill into.
 public sealed class SampleSearchDataSeeder(
     ISearchAnalyticsSink sink,
-    ISampleSearchDataGateway messagesGateway)
+    ISampleSearchDataGateway messagesGateway,
+    IPageNodeRepository? pageRepository = null,
+    IContentBlockService? contentBlockService = null)
 {
     // Realistic-sounding queries the CMS surface would see. Mix of admin-facing help lookups
     // (submitting amendments, exam-entry codes, absence guidance) so the top-queries tile
@@ -62,22 +67,12 @@ public sealed class SampleSearchDataSeeder(
         "I can't find where to change the CMS page length setting from search.",
     ];
 
-    // Hit URL pool used to populate search_event_results rows on non-zero events. Mix of
-    // /help, /wiki, /guidance and content-block keys so the top-pages and top-blocks tiles
-    // both have something to show. Rank values (0.05-0.99) are unitless relevance scores
-    // that mimic what SearchEventMapper.From derives from a real SearchTelemetryEvent.
-    private static readonly (string Kind, string Key)[] HitPool =
-    [
-        ("page",  "/help/getting-started"), ("page", "/help/submit-amendment"),
-        ("page",  "/help/faq"), ("page", "/wiki/dsi-roles"),
-        ("page",  "/wiki/rules-engine"), ("page", "/wiki/data-pipeline"),
-        ("page",  "/wiki/wiki-sandbox"), ("page", "/support/contact-helpline"),
-        ("page",  "/support/common-issues"), ("page", "/support/security-advice"),
-        ("page",  "/guidance/ks2-checking"), ("page", "/guidance/ks4-checking"),
-        ("page",  "/guidance/post-16"), ("block", "banner"), ("block", "footer"),
-        ("block", "helpline-contact"), ("block", "amendment-window-notice"),
-        ("block", "ks4-exam-entry"), ("block", "school-census-dates"),
-    ];
+    // The hit pool used to populate search_event_results rows on non-zero events is
+    // NO LONGER a hardcoded literal — it is loaded at seed-start from the real CMS state
+    // via the injected repositories: every live PageNode contributes one ("page", path)
+    // entry and every ContentBlock contributes one ("block", key) entry. That way the
+    // Top pages + Top content blocks admin cards surface entities admins can actually
+    // navigate to, instead of fictional keys the seeder invented. See BuildHitPoolAsync.
 
     // Per-hour weight table (24 buckets, Mon..Fri). Peaks 09:00-11:00 and 14:00-16:00,
     // tapers overnight. Weekend traffic is a flat 10% of weekday hours (applied at the
@@ -116,6 +111,13 @@ public sealed class SampleSearchDataSeeder(
         {
             return new SampleSearchDataSeedResult(0, 0, 0);
         }
+
+        // Load the hit pool from real CMS state before any RNG use so the pool is stable
+        // across a single seed run (and a run whose RNG seed is identical produces the
+        // same distribution over the same pool). When the DB has no pages AND no blocks
+        // the pool falls back to a single-entry stub so a fresh empty DB still emits
+        // valid (all-zero-result) events rather than crashing.
+        var hitPool = await BuildHitPoolAsync(cancellationToken);
 
         var rng = new Random(seed);
         var fromUtc = nowUtc - span;
@@ -196,7 +198,7 @@ public sealed class SampleSearchDataSeeder(
             }
             else
             {
-                (results, pages, blocks) = PickHits(rng);
+                (results, pages, blocks) = PickHits(rng, hitPool);
             }
             resultsCreated += results.Count;
 
@@ -349,10 +351,59 @@ public sealed class SampleSearchDataSeeder(
         return (int)latency;
     }
 
+    // Loads real pages + blocks from the CMS. Pages contribute one ("page", "/path") entry
+    // each; blocks contribute one ("block", "key") entry each. The pool is capped at 500 to
+    // keep the per-run memory + random-draw distribution reasonable. When either dependency
+    // is null (older tests that construct the seeder without wiring the CMS), or when the
+    // DB has no live pages or blocks, falls back to a single-entry sentinel so PickHits
+    // terminates rather than throwing on an empty pool.
+    private async Task<(string Kind, string Key)[]> BuildHitPoolAsync(CancellationToken cancellationToken)
+    {
+        const int PoolCap = 500;
+
+        List<(string, string)> pages = new();
+        List<(string, string)> blocks = new();
+
+        if (pageRepository is not null)
+        {
+            var pageTree = await pageRepository.GetTreeAsync();
+            pages = pageTree
+                .Where(p => !string.IsNullOrWhiteSpace(p.Path))
+                .Select(p => ("page", "/" + p.Path.TrimStart('/')))
+                .ToList();
+        }
+
+        if (contentBlockService is not null)
+        {
+            var blockList = await contentBlockService.GetAllAsync();
+            blocks = blockList
+                .Where(b => !string.IsNullOrWhiteSpace(b.Key))
+                .Select(b => ("block", b.Key))
+                .ToList();
+        }
+
+        var combined = pages.Concat(blocks).ToArray();
+        if (combined.Length == 0)
+        {
+            // Nothing to seed against. Return a single sentinel so PickHits still
+            // terminates. Realistically fires when the DB is empty OR when a test
+            // constructs the seeder without wiring the CMS deps.
+            return [("page", "/help/getting-started")];
+        }
+
+        if (combined.Length > PoolCap)
+        {
+            combined = combined.Take(PoolCap).ToArray();
+        }
+        return combined;
+    }
+
     // Picks 3-10 hits for a non-zero-result event. Roughly 5% of the time inflate to 20+
     // hits so the top-N pages tiles have a few high-hit rows. Rank decays from top down
     // so the sorted order looks realistic (best match first).
-    private static (IReadOnlyList<SearchEventResultDto> Results, int Pages, int Blocks) PickHits(Random rng)
+    private static (IReadOnlyList<SearchEventResultDto> Results, int Pages, int Blocks) PickHits(
+        Random rng,
+        (string Kind, string Key)[] hitPool)
     {
         var roll = rng.NextDouble();
         int hitCount;
@@ -368,7 +419,7 @@ public sealed class SampleSearchDataSeeder(
         var maxAttempts = hitCount * 3;
         for (var attempt = 0; attempt < maxAttempts && results.Count < hitCount; attempt++)
         {
-            var (kind, key) = HitPool[rng.Next(HitPool.Length)];
+            var (kind, key) = hitPool[rng.Next(hitPool.Length)];
             if (!seenKeys.Add(kind + "::" + key)) continue;
             var rank = (float)(1.0 - (position - 1) * 0.03 - rng.NextDouble() * 0.05);
             if (rank < 0.05f) rank = 0.05f;

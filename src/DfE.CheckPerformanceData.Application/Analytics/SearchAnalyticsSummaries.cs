@@ -76,14 +76,6 @@ public sealed record TopPageRow(
     int ImpressionCount,
     int UniqueQueryCount);
 
-// A row on the top-content-blocks admin card. Adds the CMS side's last-seen-on hint so
-// the reader can see WHERE a popular block is currently rendered — the search sink
-// records that a block surfaced, but not which host page users landed on, so we surface
-// the most-recently-rendered page path as the best-available proxy.
-public sealed record TopContentBlockRow(
-    string Key,
-    int ImpressionCount,
-    string? LastSeenPath);
 
 // The last search a session ran, used by the feedback form so the user can see (and support
 // can later see) exactly what the system returned for their query. Nullable return from the

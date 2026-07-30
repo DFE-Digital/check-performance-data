@@ -394,7 +394,6 @@
                         <thead class="govuk-table__head">
                             <tr class="govuk-table__row">
                                 <th class="govuk-table__header" scope="col" title="Key of the content block that appeared in results. Blocks render inside pages and do not have their own URL.">Content block</th>
-                                <th class="govuk-table__header" scope="col" title="Most recent page that rendered this block. A block can appear on more than one page; the CMS records only the last one it was seen on, so this is a best-available hint rather than an exhaustive host list.">Last seen on</th>
                                 <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this block appeared in any user's result set in the window.">Impressions</th>
                             </tr>
                         </thead>
@@ -402,18 +401,7 @@
                             @foreach (var row in Model.TopBlocks)
                             {
                                 <tr class="govuk-table__row">
-                                    <td class="govuk-table__cell"><code>@row.Key</code></td>
-                                    <td class="govuk-table__cell">
-                                        @if (!string.IsNullOrEmpty(row.LastSeenPath))
-                                        {
-                                            <a class="govuk-link" href="@row.LastSeenPath"
-                                               target="_blank" rel="noopener noreferrer">@row.LastSeenPath</a>
-                                        }
-                                        else
-                                        {
-                                            <span class="govuk-hint govuk-!-font-size-16">—</span>
-                                        }
-                                    </td>
+                                    <td class="govuk-table__cell"><code>@row.ResultKey</code></td>
                                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
                                 </tr>
                             }

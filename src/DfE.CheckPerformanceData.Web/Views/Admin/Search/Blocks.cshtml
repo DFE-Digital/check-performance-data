@@ -1,0 +1,67 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsPagesDrillInViewModel
+@{
+    ViewData["Title"] = "Top content blocks by search impressions";
+    var rangeQs = "range=" + Uri.EscapeDataString(Model.RangeKey);
+    string PageLink(int p) => $"/admin/Search/Blocks?{rangeQs}&page={p}";
+    const string tableId = "sa-blocks-table";
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Top content blocks by search impressions</h1>
+<p class="govuk-body">
+    Every content block that surfaced in a result set in the selected window, ordered by impressions.
+</p>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No content blocks surfaced in this window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount content block@(Model.TotalCount == 1 ? "" : "s").
+    </p>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="sa-blocks-filter">Filter loaded rows</label>
+        <div class="govuk-hint">Instant filter, no server round-trip.</div>
+        <input class="govuk-input sa-filter-input" id="sa-blocks-filter"
+               type="search" data-filter-target="@tableId" autocomplete="off" />
+    </div>
+
+    <table class="govuk-table" id="@tableId">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top content blocks by search impressions</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="Key of the content block that appeared in results.">Block key</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many times this block appeared in any user's result set in the window.">Impressions</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row" data-filter-key="@row.ResultKey">
+                    <td class="govuk-table__cell">@row.ResultKey</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}
+
+@section Scripts {
+    <script src="~/js/search-analytics.js" asp-append-version="true"></script>
+}

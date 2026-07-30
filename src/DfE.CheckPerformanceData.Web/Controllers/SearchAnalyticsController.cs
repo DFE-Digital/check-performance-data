@@ -399,10 +399,10 @@ public sealed class SearchAnalyticsController : Controller
         });
     }
 
-    // Sibling of the Pages drill-in filtered to block hits. Reuses the same view because the
-    // table shape is identical — the view already renders non-URL result_key values as plain
-    // text (via the LooksLikeUrl helper), so a block-only result set naturally reads as a
-    // list of block keys. Title copy is the only per-action tweak.
+    // Sibling of the Pages drill-in filtered to block hits. Shares the paged view-model
+    // shape but not the view — the block surface's title, H1, copy, empty-state, filter
+    // input id and pager URL all differ from the pages equivalent, so a shared view would
+    // require per-caller branching. Blocks.cshtml is a small dedicated view instead.
     [HttpGet("Blocks")]
     public async Task<IActionResult> Blocks(
         string? range,
@@ -412,7 +412,6 @@ public sealed class SearchAnalyticsController : Controller
         CancellationToken ct = default)
     {
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
-        ViewData["Title"] = "Top content blocks by search impressions";
         ViewData["AdminWide"] = true;
 
         var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
@@ -421,7 +420,7 @@ public sealed class SearchAnalyticsController : Controller
 
         var (rows, total) = await _query.GetTopBlocksAsync(fromUtc, toUtc, page, pageSize, ct);
 
-        return View("~/Views/Admin/Search/Pages.cshtml", new SearchAnalyticsPagesDrillInViewModel
+        return View("~/Views/Admin/Search/Blocks.cshtml", new SearchAnalyticsPagesDrillInViewModel
         {
             Rows = rows,
             TotalCount = total,

@@ -182,6 +182,9 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
             range: "24h", from: null, to: null, page: 1, ct: CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
+        // Regression: the action previously returned Pages.cshtml, so the drill-in
+        // rendered with the wrong title/H1/copy and the pager linked back to /Pages.
+        Assert.Equal("~/Views/Admin/Search/Blocks.cshtml", view.ViewName);
         var model = Assert.IsType<SearchAnalyticsPagesDrillInViewModel>(view.Model);
         Assert.Equal(2, model.TotalCount);
         Assert.Equal(2, model.Rows.Count);

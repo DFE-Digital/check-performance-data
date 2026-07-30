@@ -67,12 +67,23 @@ public enum VolumeBucketSize
 
 // A row in the top-pages drill-in. ResultKey is the page URL (or block key — the same
 // column carries either kind of hit). ImpressionCount is how many result rows referenced
-// this page in the window; UniqueQueryCount is how many distinct parent search events
-// returned it (i.e. distinct searches whose results included this page).
+// this page in the window. UniqueQueryCount is retained on the record for callers that
+// need the distinct-search figure, but the shipped admin surface drops it: the sink
+// canonicaliser (Phase 1.08) already ensures each search returns each URL at most once,
+// so the two counts are always equal on the surfaces that use this record.
 public sealed record TopPageRow(
     string ResultKey,
     int ImpressionCount,
     int UniqueQueryCount);
+
+// A row on the top-content-blocks admin card. Adds the CMS side's last-seen-on hint so
+// the reader can see WHERE a popular block is currently rendered — the search sink
+// records that a block surfaced, but not which host page users landed on, so we surface
+// the most-recently-rendered page path as the best-available proxy.
+public sealed record TopContentBlockRow(
+    string Key,
+    int ImpressionCount,
+    string? LastSeenPath);
 
 // The last search a session ran, used by the feedback form so the user can see (and support
 // can later see) exactly what the system returned for their query. Nullable return from the

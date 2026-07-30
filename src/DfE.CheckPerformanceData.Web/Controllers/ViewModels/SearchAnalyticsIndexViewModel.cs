@@ -48,8 +48,10 @@ public sealed class SearchAnalyticsIndexViewModel
 
     // Top 10 content blocks by search impressions, split out from TopPages because a block
     // key is not navigable — rendering blocks in a card labelled "Top pages" produced
-    // plain-text entries mid-list that the reader mistook for a rendering bug.
-    public required IReadOnlyList<TopPageRow> TopBlocks { get; init; }
+    // plain-text entries mid-list that the reader mistook for a rendering bug. Rows carry
+    // the CMS's last-seen-on hint so the reader can jump to whichever page is currently
+    // hosting the popular block.
+    public required IReadOnlyList<TopContentBlockRow> TopBlocks { get; init; }
 
     // Total distinct-block count in the window. When > TopBlocks.Count the view renders a
     // "View all top content blocks by search impressions →" link that lands on

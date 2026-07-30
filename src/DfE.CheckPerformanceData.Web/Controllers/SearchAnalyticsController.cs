@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.ContentBlocks;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
@@ -27,6 +28,7 @@ public sealed class SearchAnalyticsController : Controller
     private readonly ISearchMessageService? _messages;
     private readonly IPortalDbContext? _dbContext;
     private readonly ICurrentUserService? _currentUserService;
+    private readonly IContentBlockService? _contentBlocks;
 
     // The default time window if no ?range= is supplied. Chosen to give admins one week of
     // trend visibility on first landing — enough to see week-over-week zero-result drift
@@ -64,13 +66,15 @@ public sealed class SearchAnalyticsController : Controller
         ISettingService settings,
         ISearchMessageService? messages = null,
         IPortalDbContext? dbContext = null,
-        ICurrentUserService? currentUserService = null)
+        ICurrentUserService? currentUserService = null,
+        IContentBlockService? contentBlocks = null)
     {
         _query = query;
         _settings = settings;
         _messages = messages;
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _contentBlocks = contentBlocks;
     }
 
     [HttpGet("")]
@@ -143,6 +147,29 @@ public sealed class SearchAnalyticsController : Controller
         var (topPages, topPagesTotal) = await _query.GetTopPagesAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
         var (topBlocks, topBlocksTotal) = await _query.GetTopBlocksAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
 
+        // Enrich top blocks with the CMS side's LastSeenPath so the card can show which
+        // page currently hosts each popular block. When the ContentBlockService isn't wired
+        // (older tests, minimal harnesses), skip the join and hand back rows with the hint
+        // set to null — the view already renders that path.
+        IReadOnlyList<TopContentBlockRow> topBlocksEnriched;
+        if (_contentBlocks is not null && topBlocks.Count > 0)
+        {
+            var allBlocks = await _contentBlocks.GetAllAsync();
+            var pathByKey = allBlocks.ToDictionary(b => b.Key, b => b.LastSeenPath);
+            topBlocksEnriched = topBlocks
+                .Select(r => new TopContentBlockRow(
+                    r.ResultKey,
+                    r.ImpressionCount,
+                    pathByKey.GetValueOrDefault(r.ResultKey)))
+                .ToList();
+        }
+        else
+        {
+            topBlocksEnriched = topBlocks
+                .Select(r => new TopContentBlockRow(r.ResultKey, r.ImpressionCount, null))
+                .ToList();
+        }
+
         // Round-7 additions: request-timings scatter (sampled), weekday × hour heatmap,
         // zero-result outcome funnel, prior-window summary for anomaly chips. All four
         // ride the same window bounds as the summary + top-N reads above so the page tells
@@ -168,7 +195,7 @@ public sealed class SearchAnalyticsController : Controller
             LatencyPercentileSeries = latencyPercentileSeries,
             TopPages = topPages,
             TopPagesTotalCount = topPagesTotal,
-            TopBlocks = topBlocks,
+            TopBlocks = topBlocksEnriched,
             TopBlocksTotalCount = topBlocksTotal,
             RequestTimings = requestTimings,
             RequestTimingsTotalCount = totalCount,

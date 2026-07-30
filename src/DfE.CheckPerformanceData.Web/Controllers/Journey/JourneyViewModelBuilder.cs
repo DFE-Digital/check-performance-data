@@ -190,17 +190,8 @@ public sealed class JourneyViewModelBuilder(
         };
     }
 
-    private JourneyConditionContext BuildConditionContext(RequestState journey) => new()
-    {
-        Journey = journey,
-        User = new JourneyUserContext
-        {
-            OrganisationUrn = currentUserService.OrganisationUrn,
-            OrganisationId = currentUserService.OrganisationId,
-            OrganisationName = currentUserService.OrganisationName,
-            OrganisationTypeId = currentUserService.OrganisationTypeId
-        }
-    };
+    private JourneyConditionContext BuildConditionContext(RequestState journey) =>
+        JourneyConditionContextFactory.Create(journey, currentUserService);
 
     internal static string GetPupilName(RequestState journey) =>
         journey.SelectedPupil is { } p ? $"{p.Firstname} {p.Surname}".Trim() : string.Empty;

@@ -21,7 +21,10 @@ public sealed class JourneyController(
     ICheckYourPupilDataService pupilDataService,
     IJourneyViewModelBuilder viewModelBuilder,
     IAnalyticsService analytics,
-    ICurrentUserService currentUserService) : Controller
+    ICurrentUserService currentUserService,
+    IOptionVisibilityService optionVisibilityService,
+    IQuestionOptionalityService optionalityService,
+    IOriginCountryLanguageCapture originCountryLanguageCapture) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
 
@@ -242,6 +245,9 @@ public sealed class JourneyController(
         var newAnswers = new Dictionary<string, QuestionAnswer>();
         var pupilName = JourneyViewModelBuilder.GetPupilName(journey);
         var isValid = true;
+        var conditionContext = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, conditionContext);
+        bool IsMandatory(Question q) => !q.Optional && !conditionallyOptional.Contains(q.Id);
 
         // Commit a file the user selected in Browse but didn't click "Upload file" for — clicking
         // Continue with a file staged should attach it rather than report "upload a file".
@@ -262,7 +268,7 @@ public sealed class JourneyController(
                 // When a staged file failed validation the upload error already explains the
                 // problem — don't also tell the user to upload a file for the same field.
                 var explainedByUploadError = pendingUploadError is not null && question.Id == fileQuestion?.Id;
-                if (files.Count == 0 && !question.Optional && !explainedByUploadError)
+                if (files.Count == 0 && IsMandatory(question) && !explainedByUploadError)
                 {
                     ModelState.AddModelError(question.Id, "Upload at least one file before continuing");
                     isValid = false;
@@ -275,13 +281,29 @@ public sealed class JourneyController(
             else
             {
                 var answer = ReadFormAnswer(question);
-                // visibleWhen is a render-only gate: radio values are not validated against
-                // the visible-options set here. A user who hand-crafts a hidden option value
-                // will be routed into that branch and their request will reach Zendesk staff,
-                // who review all submissions before acting on them.
+
+                // visibleWhen gates selection as well as rendering: a posted radio value
+                // that is not among this user's visible options (hidden by a condition,
+                // or not a defined option at all) is rejected with the question's own
+                // validation message, exactly as if nothing was selected. This backs the
+                // add-back policy restriction (PBI 292525) server-side.
+                if (question.Type == QuestionType.Radio && question.Options is { Count: > 0 }
+                    && journeyService.IsAnswered(question, answer)
+                    && optionVisibilityService.GetVisibleOptions(question, conditionContext)
+                        .All(o => o.Value != answer.TextValue))
+                {
+                    var hiddenFailure = question.ValidationFailure is not null
+                        ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName)
+                        : "Select an option";
+                    ModelState.AddModelError(question.Id, hiddenFailure);
+                    isValid = false;
+                    newAnswers[question.Id] = answer;
+                    continue;
+                }
+
                 // Required answers are validated unconditionally; optional answers are
                 // still format-checked (char limit, real date) when they have been filled in.
-                if (!question.Optional || journeyService.IsAnswered(question, answer))
+                if (IsMandatory(question) || journeyService.IsAnswered(question, answer))
                 {
                     var resolvedValidationFailure = question.ValidationFailure is not null
                         ? JourneyTemplate.Resolve(question.ValidationFailure, pupilName) : null;
@@ -353,6 +375,11 @@ public sealed class JourneyController(
             });
         }
 
+        // Store the origin country's official languages whenever this page (re-)answers
+        // the country question, so the evidence page's optionality condition and the
+        // rules engine read consistent facts (PBI 292266).
+        await originCountryLanguageCapture.ApplyAsync(journey, newAnswers, HttpContext.RequestAborted);
+
         if (fromSummary)
         {
             var oldNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
@@ -360,7 +387,12 @@ public sealed class JourneyController(
             foreach (var (qId, answer) in newAnswers)
                 journey.QuestionAnswers[qId] = answer;
 
-            HttpContext.Session.SaveRequestState(windowId, s => s.QuestionAnswers = journey.QuestionAnswers);
+            HttpContext.Session.SaveRequestState(windowId, s =>
+            {
+                s.QuestionAnswers = journey.QuestionAnswers;
+                s.OriginCountryCode = journey.OriginCountryCode;
+                s.OriginCountryLanguages = journey.OriginCountryLanguages;
+            });
 
             var newNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
 
@@ -401,6 +433,8 @@ public sealed class JourneyController(
         {
             s.QuestionAnswers = journey.QuestionAnswers;
             s.QuestionHistory = journey.QuestionHistory;
+            s.OriginCountryCode = journey.OriginCountryCode;
+            s.OriginCountryLanguages = journey.OriginCountryLanguages;
         });
 
         return nextId is null
@@ -550,6 +584,18 @@ public sealed class JourneyController(
         if (nextExpected is not null)
             return RedirectToAction(nameof(Page), new { windowId, pageId = nextExpected });
 
+        // Evidence optionality is conditional (PBI 292266), so an answer changed from this page
+        // — First language, say — can turn a waived evidence page back into a mandatory one
+        // without the user passing through it again. Nothing between here and submission
+        // re-validates, so re-check and send them back. Only for a page already visited:
+        // GetNavigationGuard bounces an unvisited page back here once the journey is complete,
+        // which would loop.
+        var evidencePage = flowService.GetReachableEvidencePage(config, journey.QuestionAnswers);
+        if (evidencePage is not null
+            && journey.QuestionHistory.Contains(evidencePage.Id)
+            && !IsEvidencePageValid(evidencePage, journey, JourneyViewModelBuilder.GetPupilName(journey)))
+            return RedirectToAction(nameof(Page), new { windowId, pageId = evidencePage.Id });
+
         var fromBulk = HttpContext.Session.IsBulkEditMode(windowId);
         var fromEdit = HttpContext.Session.IsSingleEditMode(windowId);
         return View(viewModelBuilder.BuildSummaryVm(windowId, journey, config, fromBulk: fromBulk, fromEdit: fromEdit));
@@ -654,13 +700,26 @@ public sealed class JourneyController(
             if (page is not null)
             {
                 // Capture any unsaved non-file answers from the form
+                var newAnswers = new Dictionary<string, QuestionAnswer>();
                 foreach (var question in page.Questions.Where(q => q.Type != QuestionType.FileUpload))
                 {
                     var answer = ReadFormAnswer(question);
                     if (!string.IsNullOrWhiteSpace(answer.TextValue))
-                        HttpContext.Session.SaveRequestState(windowId,
-                            s => s.QuestionAnswers[question.Id] = answer);
+                        newAnswers[question.Id] = answer;
                 }
+
+                // Mirrors PagePost: recover the country code the autocomplete's hidden _code
+                // field loses on a re-POST, so a "Save and exit" here doesn't overwrite the
+                // good answer with CodeValue = null and leave OriginCountryLanguages stale.
+                await originCountryLanguageCapture.ApplyAsync(journey, newAnswers, HttpContext.RequestAborted);
+
+                HttpContext.Session.SaveRequestState(windowId, s =>
+                {
+                    foreach (var (qId, answer) in newAnswers)
+                        s.QuestionAnswers[qId] = answer;
+                    s.OriginCountryCode = journey.OriginCountryCode;
+                    s.OriginCountryLanguages = journey.OriginCountryLanguages;
+                });
                 journey = HttpContext.Session.GetRequestState(windowId);
             }
         }
@@ -708,8 +767,12 @@ public sealed class JourneyController(
         return IsEvidencePageValid(page, journey, pupilName) ? RequestStatus.ReadyToSubmit : RequestStatus.InProgress;
     }
 
-    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName) =>
-        journeyService.ValidateEvidencePage(page, journey, pupilName) is null;
+    private bool IsEvidencePageValid(JourneyPage page, RequestState journey, string pupilName)
+    {
+        var ctx = JourneyConditionContextFactory.Create(journey, currentUserService);
+        var conditionallyOptional = optionalityService.GetConditionallyOptionalQuestionIds(page, ctx);
+        return journeyService.ValidateEvidencePage(page, journey, pupilName, conditionallyOptional) is null;
+    }
 
     // ── Confirmation ───────────────────────────────────────────────────────
 

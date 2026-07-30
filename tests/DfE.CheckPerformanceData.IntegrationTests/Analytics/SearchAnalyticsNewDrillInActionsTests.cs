@@ -113,6 +113,34 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
     }
 
     [Fact]
+    public async Task ZeroResultJourneys_SuccessBeforeZero_IsNotCountedAsRecovered()
+    {
+        // Regression: recovery-stats used to count ANY successful event in the window as
+        // recovery, so success-at-10:00 + zero-at-11:00 was marked recovered even though
+        // the session's last action was still a zero-result. The CTE now enforces that
+        // the successful event must land AFTER the session's first zero-result, matching
+        // the sibling funnel CTE.
+        await TruncateAsync();
+
+        var now = DateTime.UtcNow;
+        await SeedEventsAsync(
+            NewEvent(now.AddMinutes(-30), "s-mid",  "specific",   results: 5, latency: 10),
+            NewEvent(now.AddMinutes(-20), "s-mid",  "garbage",    results: 0, latency: 10));
+
+        var result = await Sut().ZeroResultJourneys(
+            range: "24h", from: null, to: null, page: 1, ct: CancellationToken.None);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var model = Assert.IsType<SearchAnalyticsZeroResultJourneysViewModel>(view.Model);
+        Assert.Equal(1, model.RecoveryStats.SessionsWithAnyZeroResult);
+        Assert.Equal(0, model.RecoveryStats.RecoveredCount);
+        Assert.Equal(1, model.RecoveryStats.AbandonedCount);
+        // The session's row must not carry Recovered=true either.
+        var session = Assert.Single(model.Rows);
+        Assert.False(session.Recovered);
+    }
+
+    [Fact]
     public async Task ZeroResultJourneys_EmptyWindow_RendersEmptyRowsAndZeroStats()
     {
         await TruncateAsync();

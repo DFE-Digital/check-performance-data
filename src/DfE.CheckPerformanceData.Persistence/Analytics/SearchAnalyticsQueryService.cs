@@ -1261,31 +1261,39 @@ LIMIT @limit OFFSET @offset;";
         DateTime toUtc,
         CancellationToken cancellationToken = default)
     {
+        // "Recovered" requires a successful event AFTER the session's first zero-result,
+        // not any successful event in the window. Without the ordering guard, a session
+        // that ran a success at 10:00 and then a zero-result at 11:00 would be labelled
+        // recovered even though the last thing they did was fail — and the sibling
+        // GetZeroResultOutcomeFunnelAsync (which does enforce the ordering) would report
+        // a lower "refined" figure for the same window, so the two cards disagreed.
         const string sql = @"
-WITH sessions_with_zero AS (
-    SELECT session_id
+WITH first_zero AS (
+    SELECT session_id, MIN(occurred_at_utc) AS first_zero_utc
     FROM search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+      AND zero_results
     GROUP BY session_id
-    HAVING BOOL_OR(zero_results)
 ),
 recovered AS (
-    SELECT DISTINCT s.session_id
-    FROM sessions_with_zero s
-    JOIN search_events e ON e.session_id = s.session_id
+    SELECT DISTINCT fz.session_id
+    FROM first_zero fz
+    JOIN search_events e ON e.session_id = fz.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND e.occurred_at_utc > fz.first_zero_utc
       AND NOT e.zero_results
 ),
 feedback AS (
-    SELECT DISTINCT s.session_id
-    FROM sessions_with_zero s
-    JOIN search_messages m ON m.session_id = s.session_id
+    SELECT DISTINCT fz.session_id
+    FROM first_zero fz
+    JOIN search_messages m ON m.session_id = fz.session_id
     WHERE m.submitted_at_utc >= @from AND m.submitted_at_utc < @to
+      AND m.submitted_at_utc > fz.first_zero_utc
 )
 SELECT
-    (SELECT COUNT(*) FROM sessions_with_zero)::int AS total_sessions,
-    (SELECT COUNT(*) FROM recovered)::int          AS recovered_count,
-    (SELECT COUNT(*) FROM feedback)::int           AS feedback_count;";
+    (SELECT COUNT(*) FROM first_zero)::int AS total_sessions,
+    (SELECT COUNT(*) FROM recovered)::int  AS recovered_count,
+    (SELECT COUNT(*) FROM feedback)::int   AS feedback_count;";
 
         var total = 0;
         var recovered = 0;
@@ -1366,11 +1374,20 @@ feedback AS (
     JOIN page_sessions p ON p.session_id = m.session_id
     WHERE m.submitted_at_utc >= @from AND m.submitted_at_utc < @to
 ),
-recovered AS (
-    SELECT DISTINCT e.session_id
+first_zero AS (
+    SELECT p.session_id, MIN(e.occurred_at_utc) AS first_zero_utc
     FROM search_events e
     JOIN page_sessions p ON p.session_id = e.session_id
     WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND e.zero_results
+    GROUP BY p.session_id
+),
+recovered AS (
+    SELECT DISTINCT fz.session_id
+    FROM first_zero fz
+    JOIN search_events e ON e.session_id = fz.session_id
+    WHERE e.occurred_at_utc >= @from AND e.occurred_at_utc < @to
+      AND e.occurred_at_utc > fz.first_zero_utc
       AND NOT e.zero_results
 )
 SELECT

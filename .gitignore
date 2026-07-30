@@ -500,12 +500,6 @@ terraform/domains/infrastructure/vendor
 terraform.tfstate*
 *.lscache
 
-# Claude / superpowers working files — local only, never committed.
-# Superpowers data now lives outside the repo at C:\Repos\DfE\.superpowers
-.superpowers/
-docs/superpowers/
-CLAUDE.md
-.claude/
 /.playwright-mcp
 .specify/
 .clinerules/

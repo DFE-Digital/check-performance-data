@@ -18,13 +18,13 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // 100k-row corpus. Runs each of the four dashboard reads 30 times per fresh controller
 // scope, captures per-call latency via Stopwatch, computes p95 and asserts against the
 // documented budgets. Also captures EXPLAIN (ANALYZE, BUFFERS) plan output for each
-// aggregate SQL and writes it to the sibling search-analytics-dashboard folder under
-// the out-of-repo planning tree, so the plan file records the plans as they landed.
+// aggregate SQL and dumps it to xUnit test output, so a failing budget still has the
+// query plan on hand for triage.
 //
 // Categorised Slow: excluded from the fast inner-loop test run, includes ~100k COPY seed
 // + 4 × 30 read iterations + 4 EXPLAIN captures — total wall time under ~30s on the
-// current CI Postgres image. The threat register called out DoS risk from a long EXPLAIN
-// blocking other tests; the Slow trait moves it to a dedicated pre-close pass.
+// current CI Postgres image. A long EXPLAIN can block other tests, so the Slow trait
+// moves it to a dedicated pre-close pass.
 [Collection(nameof(PostgresCollection))]
 [Trait("Category", "Slow")]
 public sealed class SearchAnalyticsLatencyTests
@@ -86,15 +86,18 @@ public sealed class SearchAnalyticsLatencyTests
         _output.WriteLine($"ZeroResults drill-in p95 = {zeroP95}ms (budget {DrillInP95BudgetMs}ms)");
         _output.WriteLine($"Pages drill-in p95 = {pagesP95}ms (budget {DrillInP95BudgetMs}ms)");
 
-        // Capture EXPLAIN plans regardless of pass/fail so the verification file is always
-        // written to disk — a failing budget still wants the plan for triage.
+        // Capture EXPLAIN plans regardless of pass/fail so a failing budget still surfaces
+        // the query plan for triage in xUnit output.
         var window = TimeSpan.FromDays(7);
         var now = DateTime.UtcNow;
         var from = now - window;
         var plans = await CaptureExplainPlansAsync(from, now);
 
-        await WriteVerificationFileAsync(
-            landingP95, queriesP95, zeroP95, pagesP95, plans);
+        foreach (var plan in plans)
+        {
+            _output.WriteLine($"--- {plan.Label} ---");
+            _output.WriteLine(plan.Plan);
+        }
 
         Assert.True(landingP95 < LandingP95BudgetMs,
             $"Landing p95 was {landingP95}ms, expected < {LandingP95BudgetMs}ms.");
@@ -377,105 +380,4 @@ LIMIT 20;";
         return buf.ToString();
     }
 
-    // --- VERIFICATION.md ---------------------------------------------------
-
-    // Resolves the worktree root by walking up from the test-assembly base directory until
-    // finding a folder that contains src/ — the git worktree top. Discovers the sibling
-    // search-analytics-dashboard folder under the out-of-repo planning tree (its name is
-    // owned by the planner, not this test) and writes VERIFICATION.md into it. Fails-open:
-    // a missing folder prompts a warning to test output rather than an assertion failure —
-    // the p95 numbers are the invariant.
-    private async Task WriteVerificationFileAsync(
-        long landingP95, long queriesP95, long zeroP95, long pagesP95,
-        IReadOnlyList<ExplainPlan> plans)
-    {
-        var worktreeRoot = FindWorktreeRoot();
-        if (worktreeRoot is null)
-        {
-            _output.WriteLine("WARNING: could not resolve worktree root; skipping verification file write.");
-            return;
-        }
-
-        var planningDir = FindOrCreatePlanningDir(worktreeRoot);
-        var basename = ComputeVerificationFilename(planningDir);
-        var path = Path.Combine(planningDir, basename);
-
-        var sb = new StringBuilder();
-        sb.AppendLine("# Search analytics — verification (EXPLAIN plans + p95 latencies)");
-        sb.AppendLine();
-        sb.AppendLine("Corpus: **100k search_events rows spread across the 90-day retention window** + **10k result rows attached to events in the last 7 days** across 200 distinct pages.");
-        sb.AppendLine("Every plan below is captured against the same fixture-backed Postgres 17 container.");
-        sb.AppendLine();
-        sb.AppendLine("## Observed p95 latencies");
-        sb.AppendLine();
-        sb.AppendLine("| Surface | p95 (ms) | Budget (ms) |");
-        sb.AppendLine("| ------- | -------: | ----------: |");
-        sb.AppendLine($"| Landing dashboard | {landingP95} | {LandingP95BudgetMs} |");
-        sb.AppendLine($"| Drill-in: Queries | {queriesP95} | {DrillInP95BudgetMs} |");
-        sb.AppendLine($"| Drill-in: ZeroResults | {zeroP95} | {DrillInP95BudgetMs} |");
-        sb.AppendLine($"| Drill-in: Pages | {pagesP95} | {DrillInP95BudgetMs} |");
-        sb.AppendLine();
-
-        foreach (var plan in plans)
-        {
-            sb.AppendLine($"## {plan.Label}");
-            sb.AppendLine();
-            sb.AppendLine("```");
-            sb.Append(plan.Plan);
-            if (!plan.Plan.EndsWith('\n')) sb.AppendLine();
-            sb.AppendLine("```");
-            sb.AppendLine();
-        }
-
-        await File.WriteAllTextAsync(path, sb.ToString());
-        _output.WriteLine($"VERIFICATION.md written to {path}");
-    }
-
-    private static string? FindWorktreeRoot()
-    {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null)
-        {
-            // Worktree root has both src/ (this is a .NET solution root) AND either
-            // Makefile or the .git file (git worktrees write .git as a file, not a dir).
-            if (Directory.Exists(Path.Combine(dir.FullName, "src"))
-                && (File.Exists(Path.Combine(dir.FullName, ".git"))
-                    || Directory.Exists(Path.Combine(dir.FullName, ".git"))))
-            {
-                return dir.FullName;
-            }
-            dir = dir.Parent;
-        }
-        return null;
-    }
-
-    // Finds an existing phase folder under .planning/phases/ whose name ends with the
-    // search-analytics-dashboard suffix (the phase-directory naming pattern is owned by
-    // the planner — this test discovers it rather than hardcoding the numeric prefix).
-    // If no matching folder exists on disk, creates one at .planning/phases/search-analytics-dashboard.
-    private static string FindOrCreatePlanningDir(string worktreeRoot)
-    {
-        var phasesRoot = Path.Combine(worktreeRoot, ".planning", "phases");
-        if (Directory.Exists(phasesRoot))
-        {
-            var match = Directory.GetDirectories(phasesRoot)
-                .FirstOrDefault(d => d.EndsWith("search-analytics-dashboard", StringComparison.Ordinal));
-            if (match is not null) return match;
-        }
-        var fallback = Path.Combine(phasesRoot, "search-analytics-dashboard");
-        Directory.CreateDirectory(fallback);
-        return fallback;
-    }
-
-    // Reuses the discovered phase folder's numeric prefix so the file basename matches the
-    // existing plan+summary naming pattern (e.g. XX-VERIFICATION.md alongside XX-YY-SUMMARY.md).
-    // If the folder name has no numeric prefix we fall back to a plain VERIFICATION.md.
-    private static string ComputeVerificationFilename(string planningDir)
-    {
-        var folder = new DirectoryInfo(planningDir).Name;
-        var dashIndex = folder.IndexOf('-');
-        if (dashIndex <= 0) return "VERIFICATION.md";
-        var prefix = folder[..dashIndex];
-        return $"{prefix}-VERIFICATION.md";
-    }
 }

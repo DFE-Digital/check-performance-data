@@ -33,7 +33,7 @@ flowchart LR
 |---|---|---|
 | `DfE.CheckPerformanceData.Domain` | Pure domain types | **Enums only**: `CheckingWindowType {KS4June, KS2, Post16, KS4Autumn}`, `KeyStages {KS2, KS4, Post16}`, `RequestType`, `RequestStatus`, `WorkerStatus`, `CountryKind`. No entity classes. |
 | `DfE.CheckPerformanceData.Application` | Interfaces, DTOs, use cases | Also hosts the **rules-engine evaluator** (`Application/RulesEngine/RulesEngine.cs`), journey engine types, analytics event records, Notify contracts. |
-| `DfE.CheckPerformanceData.Persistence` | Data layer | `PortalDbContext` (+ `IPortalDbContext`), all entities, **all 40 EF migrations**, repositories, audit interceptor. Owns Npgsql. (Note: CLAUDE.md's five-layer list omits this project; EF Core lives here, **not** Infrastructure.) |
+| `DfE.CheckPerformanceData.Persistence` | Data layer | `PortalDbContext` (+ `IPortalDbContext`), all entities, **all 40 EF migrations**, repositories, audit interceptor. Owns Npgsql. EF Core lives in this project, **not** in `Infrastructure`. |
 | `DfE.CheckPerformanceData.Infrastructure` | External adapters | Azure Blob clients, `PostgresQueueService`, Zendesk (Refit), GOV.UK Notify, DfE Sign-In OIDC + API client, DfE Analytics adapter, blob rules provider/seeder. No DbContext. |
 | `DfE.CheckPerformanceData.Web` | ASP.NET Core MVC front end | Controllers, Razor views, GOV.UK/DfE frontend, session-backed journeys, admin area. |
 | `DfE.CheckPerformanceData.RulesEngineWorker` | Background worker | Queue consumers (`RulesConsumer`, `ZendeskConsumer`), rules-config self-seeder, DLQ retention job, health endpoints. |

@@ -303,7 +303,7 @@ The design principle: **no PII in the sink at all; PII in messages only where th
 - **Erasure** is straightforward because the sink is session-keyed: the session-drill-in delete button drops every event, result, and message for that session in one transaction. There's no need for a "GDPR delete service" that hunts across tables by subject id — we don't have a subject id to hunt.
 - **Retention** is the second line of defence: even if nobody ever deletes anything, events age out at 90 days and messages at 365 days by default (both settings-driven), so unactioned data doesn't accumulate forever.
 
-The Phase 6 privacy notice needs one clause that says all of this in user-facing language; a copy draft is stashed at `.planning/notes/2026-07-27-phase6-privacy-notice-copy.md` for the executor that eventually writes the privacy page.
+The site's privacy notice should include a clause that summarises the above in user-facing language: no personal data in search events; email in a feedback message only if the user typed one; erasure is one-click per session; retention is bounded and settings-driven.
 
 ---
 

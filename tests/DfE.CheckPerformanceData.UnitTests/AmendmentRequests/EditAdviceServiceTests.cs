@@ -17,6 +17,7 @@ public class EditAdviceServiceTests
     private readonly IQuestionFlowService _flow = Substitute.For<IQuestionFlowService>();
     private readonly IJourneyValidationService _validation = Substitute.For<IJourneyValidationService>();
     private readonly ICurrentUserService _user = Substitute.For<ICurrentUserService>();
+    private readonly IQuestionOptionalityService _optionalityService = Substitute.For<IQuestionOptionalityService>();
     private readonly EditAdviceService _sut;
 
     public EditAdviceServiceTests()
@@ -24,7 +25,9 @@ public class EditAdviceServiceTests
         _user.OrganisationUrn.Returns("123456");
         _flow.GetConfigAsync(Arg.Any<WhatToChange>(), Arg.Any<CheckingWindowType>())
             .Returns(new QuestionFlowConfig { FirstPageId = "select-pupil", Pages = [] });
-        _sut = new EditAdviceService(_repo, _flow, _validation, _user);
+        _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
+            .Returns(new HashSet<string>());
+        _sut = new EditAdviceService(_repo, _flow, _validation, _user, _optionalityService);
     }
 
     private static RequestState Journey(WhatToChange type) => new()
@@ -111,7 +114,7 @@ public class EditAdviceServiceTests
         var evidencePage = new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload };
         _flow.GetReachableEvidencePage(Arg.Any<QuestionFlowConfig>(), Arg.Any<Dictionary<string, QuestionAnswer>>())
             .Returns(evidencePage);
-        _validation.ValidateEvidencePage(evidencePage, Arg.Any<RequestState>(), Arg.Any<string>())
+        _validation.ValidateEvidencePage(evidencePage, Arg.Any<RequestState>(), Arg.Any<string>(), Arg.Any<IReadOnlySet<string>?>())
             .Returns(new EvidenceValidationResult { Messages = ["Upload at least one file before continuing"] });
 
         var advice = await _sut.BuildAsync(WindowId, "REF001", Journey(WhatToChange.Include));

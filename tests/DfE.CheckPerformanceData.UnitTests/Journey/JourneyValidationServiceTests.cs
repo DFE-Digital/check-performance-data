@@ -475,6 +475,33 @@ public class JourneyValidationServiceTests
     }
 
     [Fact]
+    public void ValidateEvidencePage_ConditionallyOptionalQuestions_NoMessagesWhenEmpty()
+    {
+        var page = new JourneyPage
+        {
+            Id = "evidence",
+            Type = PageType.EvidenceUpload,
+            Questions =
+            [
+                new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload evidence" },
+                new Question
+                {
+                    Id = "how-evidence-supports",
+                    Type = QuestionType.TextArea,
+                    Title = "How does the evidence demonstrate why the pupil should be removed?",
+                    ValidationFailure = "Explain how the evidence supports removing {pupilName}"
+                }
+            ]
+        };
+        var journey = new RequestState();
+
+        var result = _sut.ValidateEvidencePage(page, journey, "Jane Smith",
+            new HashSet<string> { "evidence", "how-evidence-supports" });
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public void ValidateEvidencePage_WhenRequireAtLeastOneUnmet_ReturnsSummaryMessage()
     {
         var page = new JourneyPage

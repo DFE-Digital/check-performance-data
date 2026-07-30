@@ -1128,6 +1128,220 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
+    // --- Volume-chart crosshair tooltip: upper-left default + corner clip-flip ---
+
+    // positionTooltip's default quadrant is upper-left of the cursor; when the tooltip
+    // would clip past the left/top viewport edge it flips to the opposite quadrant so
+    // it stays visible. This test proves both branches on the volume chart on
+    // /admin/Search/: hover mid-chart asserts upper-left placement, hover a point 10 px
+    // inside the top-left corner of the SVG asserts the tooltip is fully inside the
+    // viewport (a flipped-quadrant guarantee — no negative left/top).
+    [SkippableFact]
+    public async Task VolumeChart_TooltipPositioning_UpperLeftDefault_AndClipFlipsAtTopLeftCorner()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            // A window that reliably renders enough buckets to give the crosshair
+            // something to snap to. Default landing (fixture-seeded corpus) is dense
+            // enough — matches the shape the AdaptiveAxes_HoverCrosshair_AndAggregateToggle
+            // test uses for the same crosshair path.
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/?range=30d&bucket=1d");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            var volumeSvg = Page.Locator("[data-sa-panel='volume'] svg.sa-chart[data-sa-crosshair='true']").First;
+            await volumeSvg.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            var box = await volumeSvg.BoundingBoxAsync();
+            Assert.NotNull(box);
+            Assert.True(box!.Width > 0 && box.Height > 0,
+                $"SVG bounding box must have non-zero dimensions; got X={box.X} Y={box.Y} W={box.Width} H={box.Height}.");
+
+            // --- (a) Mid-chart hover: default upper-left quadrant ---
+            var midX = box.X + box.Width * 0.55;
+            var midY = box.Y + box.Height * 0.55;
+            Assert.True(double.IsFinite(midX) && double.IsFinite(midY),
+                $"Computed cursor coords must be finite; got midX={midX} midY={midY} " +
+                $"(box X={box.X} Y={box.Y} W={box.Width} H={box.Height}).");
+            // Dispatch mousemove synthetically — matches the pattern used by
+            // AdaptiveAxes_HoverCrosshair_AndAggregateToggle. The volume chart JS listens
+            // for mousemove on the SVG and calls positionTooltip(evt, tt); the injected
+            // event carries clientX/clientY which the tooltip position calculation uses.
+            await volumeSvg.DispatchEventAsync("mousemove", new Dictionary<string, object>
+            {
+                ["clientX"] = (int)Math.Round(midX),
+                ["clientY"] = (int)Math.Round(midY),
+                ["bubbles"] = true,
+            });
+
+            var tooltip = Page.Locator(".sa-chart__crosshair-tooltip");
+            await Expect(tooltip).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 5000 });
+
+            var midBox = await tooltip.BoundingBoxAsync();
+            Assert.NotNull(midBox);
+            Assert.True(midBox!.X + midBox.Width <= midX,
+                $"Mid-hover: tooltip right edge ({midBox.X + midBox.Width}) should sit at or left of cursorX ({midX}).");
+            Assert.True(midBox.Y + midBox.Height <= midY,
+                $"Mid-hover: tooltip bottom edge ({midBox.Y + midBox.Height}) should sit at or above cursorY ({midY}).");
+
+            // --- (b) Near-viewport-top-left hover: clip-flip keeps tooltip fully on-screen ---
+            // positionTooltip's default upper-left placement subtracts the tooltip width
+            // and height (plus a 24 px offset) from the cursor. When the cursor sits so
+            // close to the top-left of the viewport that the default placement would push
+            // the tooltip to negative left/top, the JS flips horizontally / vertically to
+            // keep it on-screen. To trigger both flips reliably we scroll the volume chart
+            // to the top of the viewport (so plot area starts near clientY=0) and hover at
+            // a cursor coord inside the plot area but close enough to viewport (0, 0) that
+            // the default upper-left placement would clip.
+            await volumeSvg.EvaluateAsync("svg => svg.scrollIntoView({block: 'start'})");
+            await Task.Delay(200);
+            var scrolledBox = await volumeSvg.BoundingBoxAsync();
+            Assert.NotNull(scrolledBox);
+
+            // Read the plot-area padding the SVG exposes so we place the cursor JUST inside
+            // padLeft / padTop — the crosshair JS hides the tooltip outside plot bounds.
+            var padLeft = await volumeSvg.EvaluateAsync<double>(
+                "svg => parseFloat(svg.getAttribute('data-sa-plot-left')) || 0");
+            var padTop = await volumeSvg.EvaluateAsync<double>(
+                "svg => parseFloat(svg.getAttribute('data-sa-plot-top')) || 0");
+            // SVG's own viewBox to client-coord ratio — a padLeft of 60 SVG units at a
+            // viewBox width of 800 rendered at 1200 px client width means the client-space
+            // padLeft is padLeft * 1200 / 800 = 90 px.
+            var clientPadLeft = await volumeSvg.EvaluateAsync<double>(@"
+                svg => {
+                    var vb = svg.viewBox.baseVal;
+                    var r = svg.getBoundingClientRect();
+                    var padLeft = parseFloat(svg.getAttribute('data-sa-plot-left')) || 0;
+                    return padLeft * (r.width / vb.width);
+                }");
+            var clientPadTop = await volumeSvg.EvaluateAsync<double>(@"
+                svg => {
+                    var vb = svg.viewBox.baseVal;
+                    var r = svg.getBoundingClientRect();
+                    var padTop = parseFloat(svg.getAttribute('data-sa-plot-top')) || 0;
+                    return padTop * (r.height / vb.height);
+                }");
+
+            var cornerX = scrolledBox!.X + clientPadLeft + 5;
+            var cornerY = scrolledBox.Y + clientPadTop + 5;
+            Assert.True(double.IsFinite(cornerX) && double.IsFinite(cornerY),
+                $"cornerX/cornerY must be finite; got cornerX={cornerX} cornerY={cornerY}.");
+            await volumeSvg.DispatchEventAsync("mousemove", new Dictionary<string, object>
+            {
+                ["clientX"] = (int)Math.Round(cornerX),
+                ["clientY"] = (int)Math.Round(cornerY),
+                ["bubbles"] = true,
+            });
+
+            // Small settle so the tooltip's next positionTooltip run has laid out.
+            await Task.Delay(150);
+            var cornerBox = await tooltip.BoundingBoxAsync();
+            Assert.NotNull(cornerBox);
+            Assert.True(cornerBox!.X >= 0,
+                $"Corner-hover: tooltip left edge should be >= 0 after clip-flip; got X={cornerBox.X} " +
+                $"(cursor at {cornerX},{cornerY}, tooltip {cornerBox.Width}x{cornerBox.Height}).");
+            Assert.True(cornerBox.Y >= 0,
+                $"Corner-hover: tooltip top edge should be >= 0 after clip-flip; got Y={cornerBox.Y}.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Heatmap cell tooltip: reuses the crosshair tooltip element + upper-left rule ---
+
+    // Round-13 (Lance's dictated feedback): the weekday × hour heatmap cells now surface
+    // the crosshair tooltip on hover with the same upper-left-of-cursor placement +
+    // corner-flip behaviour as the crosshair charts. This test hovers a mid-grid cell,
+    // asserts the tooltip renders with a weekday label ("Mon" / "Tue" / …) and the
+    // "searches on" copy, then asserts upper-left placement. A second hover on the
+    // Mon-00 corner cell exercises the clip-flip path so the tooltip stays visible.
+    [SkippableFact]
+    public async Task Heatmap_CellHover_TooltipShowsWeekdayAndSearchesOn_AndFlipsAtCorner()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-heatmap-card").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            var cells = Page.Locator(".sa-heatmap rect.sa-heatmap__cell");
+            Assert.Equal(168, await cells.CountAsync());
+
+            // --- (a) Mid-grid cell hover: tooltip renders in upper-left with weekday copy ---
+            // The 84th cell (7×24 grid, mid) is deep enough that the flip guards don't
+            // fire in the mid-grid case. Use its own bounding rect to derive the cursor
+            // coordinates so we hover the cell's centre.
+            var midCell = cells.Nth(84);
+            var cellBox = await midCell.BoundingBoxAsync();
+            Assert.NotNull(cellBox);
+            var midX = cellBox!.X + cellBox.Width * 0.5;
+            var midY = cellBox.Y + cellBox.Height * 0.5;
+            await midCell.DispatchEventAsync("mousemove", new Dictionary<string, object>
+            {
+                ["clientX"] = (int)Math.Round(midX),
+                ["clientY"] = (int)Math.Round(midY),
+                ["bubbles"] = true,
+            });
+
+            var tooltip = Page.Locator(".sa-chart__crosshair-tooltip");
+            await Expect(tooltip).ToBeVisibleAsync(new LocatorAssertionsToBeVisibleOptions { Timeout = 5000 });
+            var text = (await tooltip.InnerTextAsync()).Trim();
+            Assert.Contains("searches on", text, StringComparison.OrdinalIgnoreCase);
+            var weekdayShort = new System.Text.RegularExpressions.Regex(
+                @"\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b");
+            Assert.True(weekdayShort.IsMatch(text),
+                $"Heatmap tooltip should include a short weekday label; got: '{text}'");
+
+            var midTooltipBox = await tooltip.BoundingBoxAsync();
+            Assert.NotNull(midTooltipBox);
+            Assert.True(midTooltipBox!.X + midTooltipBox.Width <= midX,
+                $"Mid-heatmap: tooltip right ({midTooltipBox.X + midTooltipBox.Width}) should be at or left of cursorX ({midX}).");
+            Assert.True(midTooltipBox.Y + midTooltipBox.Height <= midY,
+                $"Mid-heatmap: tooltip bottom ({midTooltipBox.Y + midTooltipBox.Height}) should be at or above cursorY ({midY}).");
+
+            // --- (b) Mon-00 corner cell hover: clip-flip keeps the tooltip on-screen ---
+            var cornerCell = cells.First; // Row 0 (Mon), col 0 (00:00)
+            var cornerBox = await cornerCell.BoundingBoxAsync();
+            Assert.NotNull(cornerBox);
+            var cornerX = cornerBox!.X + cornerBox.Width * 0.5;
+            var cornerY = cornerBox.Y + cornerBox.Height * 0.5;
+            await cornerCell.DispatchEventAsync("mousemove", new Dictionary<string, object>
+            {
+                ["clientX"] = (int)Math.Round(cornerX),
+                ["clientY"] = (int)Math.Round(cornerY),
+                ["bubbles"] = true,
+            });
+            await Task.Delay(150);
+            var cornerTooltipBox = await tooltip.BoundingBoxAsync();
+            Assert.NotNull(cornerTooltipBox);
+            Assert.True(cornerTooltipBox!.X >= 0,
+                $"Corner-heatmap: tooltip left should be >= 0 after clip-flip; got {cornerTooltipBox.X}.");
+            Assert.True(cornerTooltipBox.Y >= 0,
+                $"Corner-heatmap: tooltip top should be >= 0 after clip-flip; got {cornerTooltipBox.Y}.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     private void AttachCookieToContext(string? cookieHeader)

@@ -43,7 +43,7 @@ public sealed class SubmittedRequestViewModel
 
     public string ByLineTitle => Status switch
     {
-        RequestStatus.Withdrawn => "Withdrawn by",
+        RequestStatus.Withdrawn => "Submitted by",
         RequestStatus.NotSubmitted => "Saved by",
         RequestStatus.InProgress or RequestStatus.ReadyToSubmit => "Last saved by",
         _ => "Submitted by" // SubmittedUnCommitted, SubmittedCommitted

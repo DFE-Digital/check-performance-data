@@ -275,7 +275,7 @@ public class SubmittedRequestControllerTests
 
     // T11: ByLineTitle tests for SubmittedRequestViewModel
     [Theory]
-    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.Withdrawn, "Submitted by")]
     [InlineData(RequestStatus.NotSubmitted, "Saved by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
@@ -369,7 +369,7 @@ public class SubmittedRequestControllerTests
 
     // T14: ByLineTitle tests for ConfirmDataCorrectViewModel
     [Theory]
-    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.Withdrawn, "Submitted by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
     [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]

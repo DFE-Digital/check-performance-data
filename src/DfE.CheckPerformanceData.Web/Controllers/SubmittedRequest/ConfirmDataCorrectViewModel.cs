@@ -18,7 +18,7 @@ public sealed class ConfirmDataCorrectViewModel
 
     public string ByLineTitle => Status switch
     {
-        RequestStatus.Withdrawn => "Withdrawn by",
+        RequestStatus.Withdrawn => "Submitted by",
         RequestStatus.InProgress or RequestStatus.ReadyToSubmit => "Last saved by",
         _ => "Submitted by"
     };

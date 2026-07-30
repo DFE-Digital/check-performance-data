@@ -162,7 +162,7 @@ public sealed class RequestService(
             return new RequestDeletionResult(WasHardDeleted: true, pupilName, row.RequestType);
         }
 
-        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber, currentUserService.Email, DateTime.UtcNow);
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var deadline = window.EndDate;

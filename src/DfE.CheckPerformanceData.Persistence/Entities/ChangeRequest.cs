@@ -20,6 +20,8 @@ public class ChangeRequest
     public required Guid SubmittedById { get; init; }
     public required string SubmittedByName { get; init; }
     public string? SubmittedByEmail { get; init; }
+    public string? WithdrawnByEmail { get; init; }
+    public DateTime? WithdrawnAt { get; init; }
     public required RequestStatus Status { get; init; }
     public required string ReferenceNumber { get; init; }
     public required RequestType RequestType { get; init; }

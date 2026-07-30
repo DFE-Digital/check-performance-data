@@ -263,6 +263,89 @@ public class SubmittedRequestControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // ── ByLineTitle for withdrawn status ───────────────────────────────────
+
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    public void ConfirmDataCorrectViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
+    {
+        var vm = new ConfirmDataCorrectViewModel
+        {
+            WindowId = WindowId,
+            Status = status,
+            ReferenceNumber = Reference
+        };
+
+        Assert.Equal(expected, vm.ByLineTitle);
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.NotSubmitted, "Saved by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    public void SubmittedRequestViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
+    {
+        var vm = new SubmittedRequestViewModel
+        {
+            WindowId = WindowId,
+            WhatToChange = WhatToChange.Remove,
+            Status = status,
+            PupilName = "Jane Smith",
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference
+        };
+
+        Assert.Equal(expected, vm.ByLineTitle);
+    }
+
+    // ── Null withdrawal fields (legacy data) ────────────────────────────────
+
+    [Fact]
+    public async Task View_WhenStatusWithdrawnAndNullWithdrawalFields_RendersGracefully()
+    {
+        _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
+        {
+            WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.Withdrawn,
+            PupilName = "Jane Smith",
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.View(WindowId, Reference);
+
+        var vm = Assert.IsType<SubmittedRequestViewModel>(((ViewResult)result).Model);
+        Assert.Equal("Withdrawn by", vm.ByLineTitle);
+        Assert.Null(vm.WithdrawnByEmail);
+        Assert.Equal(string.Empty, vm.WithdrawnAtText);
+    }
+
+    [Fact]
+    public async Task ViewConfirmation_WhenStatusWithdrawnAndNullWithdrawalFields_RendersGracefully()
+    {
+        _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
+        {
+            Status = RequestStatus.Withdrawn,
+            SubmittedByEmail = null,
+            SubmittedAt = null,
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.ViewConfirmation(WindowId, Reference);
+
+        var vm = Assert.IsType<ConfirmDataCorrectViewModel>(((ViewResult)result).Model);
+        Assert.Equal("Withdrawn by", vm.ByLineTitle);
+        Assert.Null(vm.WithdrawnByEmail);
+        Assert.Equal(string.Empty, vm.WithdrawnAtText);
+    }
+
     [Fact]
     public async Task Delete_WhenNoRowWasFound_EmitsNoEvent()
     {
@@ -275,7 +358,7 @@ public class SubmittedRequestControllerTests
 
     // T11: ByLineTitle tests for SubmittedRequestViewModel
     [Theory]
-    [InlineData(RequestStatus.Withdrawn, "Submitted by")]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
     [InlineData(RequestStatus.NotSubmitted, "Saved by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
@@ -369,7 +452,7 @@ public class SubmittedRequestControllerTests
 
     // T14: ByLineTitle tests for ConfirmDataCorrectViewModel
     [Theory]
-    [InlineData(RequestStatus.Withdrawn, "Submitted by")]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
     [InlineData(RequestStatus.InProgress, "Last saved by")]
     [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
     [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]

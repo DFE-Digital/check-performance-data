@@ -18,6 +18,8 @@ public sealed class SubmittedRequestViewModel
     public required string ReferenceNumber { get; init; }
     public string? SubmittedByEmail { get; init; }
     public DateTime? SubmittedAt { get; init; }
+    public string? WithdrawnByEmail { get; init; }
+    public string WithdrawnAtText { get; init; } = string.Empty;
 
     public string WhatToChangeLabel => WhatToChange switch
     {
@@ -43,10 +45,10 @@ public sealed class SubmittedRequestViewModel
 
     public string ByLineTitle => Status switch
     {
-        RequestStatus.Withdrawn => "Submitted by",
+        RequestStatus.Withdrawn => "Withdrawn by",
         RequestStatus.NotSubmitted => "Saved by",
         RequestStatus.InProgress or RequestStatus.ReadyToSubmit => "Last saved by",
-        _ => "Submitted by" // SubmittedUnCommitted, SubmittedCommitted
+        _ => "Submitted by"
     };
 
     public bool ShowReferenceNumber => Status != RequestStatus.Withdrawn

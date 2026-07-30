@@ -688,7 +688,7 @@ public class RequestServiceTests
         Assert.Equal("Jane Smith", result.PupilName);
         await _requestRepository.Received(1).DeleteAsync(WindowId, 100000L, "REF001");
         await _requestStateBlobClient.Received(1).DeleteAsync(WindowId, "REF001");
-        await _requestRepository.DidNotReceive().WithdrawAsync(WindowId, 100000L, "REF001");
+        await _requestRepository.DidNotReceive().WithdrawAsync(Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<DateTime>());
     }
 
     [Fact]
@@ -702,9 +702,29 @@ public class RequestServiceTests
         var result = await _sut.DeleteAsync(WindowId, "REF001");
 
         Assert.False(result.WasHardDeleted);
-        await _requestRepository.Received(1).WithdrawAsync(WindowId, 100000L, "REF001");
+        await _requestRepository.Received(1).WithdrawAsync(Arg.Is<Guid>(g => g == WindowId), Arg.Is<long>(l => l == 100000L), Arg.Is<string>(s => s == "REF001"), Arg.Any<string>(), Arg.Any<DateTime>());
         await _requestRepository.DidNotReceive().DeleteAsync(WindowId, 100000L, "REF001");
         await _requestStateBlobClient.DidNotReceive().DeleteAsync(WindowId, "REF001");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenSubmitted_PassesCurrentUserEmailAndUtcNowToWithdrawAsync()
+    {
+        _currentUser.Email.Returns("withdrew@education.gov.uk");
+        var before = DateTime.UtcNow;
+        _requestRepository.GetAmendmentRequestAsync(WindowId, 100000L, "REF001")
+            .Returns(AmendmentRow(RequestStatus.SubmittedUnCommitted, "Jane", "Smith"));
+        _checkYourPupilDataService.GetCheckingWindowAsync(WindowId)
+            .Returns(new CheckingWindowDto { Id = WindowId, Title = "KS4 June", KeyStage = KeyStages.KS4, CheckingWindowType = CheckingWindowType.KS4June, StartDate = DateTime.UtcNow, EndDate = new(2026, 6, 26, 17, 0, 0) });
+
+        await _sut.DeleteAsync(WindowId, "REF001");
+
+        await _requestRepository.Received(1).WithdrawAsync(
+            Arg.Is<Guid>(g => g == WindowId),
+            Arg.Is<long>(l => l == 100000L),
+            Arg.Is<string>(s => s == "REF001"),
+            Arg.Is<string>(e => e == "withdrew@education.gov.uk"),
+            Arg.Is<DateTime>(d => d >= before && d <= DateTime.UtcNow));
     }
 
     private static AmendmentRequestData AmendmentRow(RequestStatus status, string first, string surname) =>

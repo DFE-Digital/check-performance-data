@@ -11,6 +11,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     public Task<List<PageNodeTreeItemDto>> GetTreeAsync() =>
         context.PageNodes
             .AsNoTracking()
+            .Where(n => n.DeletedDate == null)
             .OrderBy(n => n.ParentId)
             .ThenBy(n => n.SortOrder)
             .ThenBy(n => n.CreatedDate)

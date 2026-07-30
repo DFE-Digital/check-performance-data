@@ -17,14 +17,17 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
-        string inputCsvFile,
-        string inputCsvChecksum,
-        string schemaFile,
-        string schemaChecksum,
+        IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        if (datasets.Count == 0)
+        {
+            yield return Failed("No ingress datasets are configured for this window.");
+            yield break;
+        }
+
         if (!blobClients.TryGetValue("app", out var sourceBlobClient))
         {
             logger.LogWarning("Ingress storage client is not configured");
@@ -34,65 +37,197 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         string errorLogBlobName = $"{checkingWindowId}_error_log.txt";
         BlobContainerClient container = sourceBlobClient.GetBlobContainerClient(checkingWindowId.ToString());
+        bool multipleDatasets = datasets.Count > 1;
 
-        // re-validate the stored files against the checksums captured at upload time.
-        
-        byte[]? csvBytes = null;
-        string? schemaJson = null;
-        string? loadError = null;
-        string? checksumError = null;
-        try
+        // Records from every dataset are merged per school, so one run produces the complete file.
+        Dictionary<string, JArray> mergedBySchool = new();
+        Dictionary<string, int> recordCountBySchool = new();
+        StringBuilder errorLogBuilder = new StringBuilder();
+        int totalErrors = 0;
+        int recordsRead = 0;
+        int recordsValidated = 0;
+
+        // A fresh, timestamped summary file is written on every real run, so runs never overwrite
+        // each other's summary.
+        string summaryBlobName = $"{checkingWindowId}_summary_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+
+        // Wipe output left by a previous run before anything is written. Safe now that a single
+        // run produces every dataset's output.
+        if (clearExistingFiles && !validateOnly)
         {
-            csvBytes = await DownloadBytesAsync(container, $"ingress/{inputCsvFile}", cancellationToken);
-            byte[] schemaBytes = await DownloadBytesAsync(container, $"schema/{schemaFile}", cancellationToken);
+            await ClearOutputAsync(container, checkingWindowId, errorLogBlobName, cancellationToken);
+        }
 
-            if (!ChecksumMatches(csvBytes, inputCsvChecksum))
+        foreach (IngressDataset dataset in datasets)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string label = multipleDatasets ? $" [{dataset.Name}]" : string.Empty;
+
+            // re-validate the stored files against the checksums captured at upload time.
+            byte[]? csvBytes = null;
+            string? schemaJson = null;
+            string? loadError = null;
+            string? checksumError = null;
+            try
             {
-                checksumError = $"Checksum failed for ingress file '{inputCsvFile}'.";
+                csvBytes = await DownloadBytesAsync(container, $"ingress/{dataset.InputCsvFile}", cancellationToken);
+                byte[] schemaBytes = await DownloadBytesAsync(container, $"schema/{dataset.SchemaFile}", cancellationToken);
+
+                if (!ChecksumMatches(csvBytes, dataset.InputCsvChecksum))
+                {
+                    checksumError = $"Checksum failed for ingress file '{dataset.InputCsvFile}'.";
+                }
+                else if (!ChecksumMatches(schemaBytes, dataset.SchemaChecksum))
+                {
+                    checksumError = $"Checksum failed for schema file '{dataset.SchemaFile}'.";
+                }
+                else
+                {
+                    schemaJson = Encoding.UTF8.GetString(schemaBytes);
+                }
             }
-            else if (!ChecksumMatches(schemaBytes, schemaChecksum))
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                checksumError = $"Checksum failed for schema file '{schemaFile}'.";
+                logger.LogWarning(ex, "Failed to load files for checking window {CheckingWindowId}", checkingWindowId);
+                loadError = ex.Message;
             }
-            else
+
+            if (loadError is not null)
             {
-                schemaJson = Encoding.UTF8.GetString(schemaBytes);
+                yield return Failed(loadError);
+                yield break;
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Failed to load files for checking window {CheckingWindowId}", checkingWindowId);
-            loadError = ex.Message;
-        }
 
-        if (loadError is not null)
-        {
-            yield return Failed(loadError);
-            yield break;
-        }
+            if (checksumError is not null)
+            {
+                yield return Failed(checksumError);
+                yield break;
+            }
 
-        if (checksumError is not null)
-        {
-            yield return Failed(checksumError);
-            yield break;
-        }
+            yield return new ValidationProgress("Checksums", $"Checksum passed{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
 
-        yield return new ValidationProgress("Checksums", "Checksum passed", 0, 0, 0, 0, false, false);
+            JSchema schema = JSchema.Parse(schemaJson!);
+            schema.AllowAdditionalProperties = false;
 
-        JSchema schema = JSchema.Parse(schemaJson!);
-        schema.AllowAdditionalProperties = false;
+            // Read the records and report how many there are.
+            List<IDictionary<string, object>> records;
+            using (var reader = new StreamReader(new MemoryStream(csvBytes!)))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                records = csv.GetRecords<dynamic>()
+                    .Cast<IDictionary<string, object>>()
+                    .ToList();
+            }
 
-        // Step 4-5: read the records and report how many there are.
-        List<IDictionary<string, object>> records;
-        using (var reader = new StreamReader(new MemoryStream(csvBytes!)))
-        using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-        {
-            records = csv.GetRecords<dynamic>()
-                .Cast<IDictionary<string, object>>()
+            recordsRead += records.Count;
+
+            yield return new ValidationProgress("Counting", $"{records.Count} records found{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
+
+            List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
+                .GroupBy(r => r["LAESTAB"]?.ToString() ?? "UnknownSchool")
                 .ToList();
+
+            // Validate every school group up front, collecting all errors rather than stopping at
+            // the first. The transformed payload for each clean group is accumulated so we can
+            // write it later only once we know every dataset is valid.
+            foreach (var group in groupedSchools)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string schoolId = group.Key;
+                int groupRecordCount = group.Count();
+                List<string> schoolErrors = new List<string>();
+
+                JArray jsonArray = new();
+                foreach (var row in group)
+                {
+                    jsonArray.Add(JObject.FromObject(row));
+                }
+
+                foreach (JObject record in jsonArray.Children<JObject>())
+                {
+                    RemoveFieldsNotInSchema(record, schema);
+                    EnsureSchemaFieldsExist(record, schema);
+                    SchemaTypeConvertor.ApplySchemaTypes(record, schema);
+
+                    if (schema.Properties.ContainsKey("Id"))
+                    {
+                        string? id = record["Id"]?.Value<string>();
+                        if (string.IsNullOrWhiteSpace(id))
+                        {
+                            record["Id"] = Guid.NewGuid().ToString();
+                        }
+                    }
+
+                    if (schema.Properties.ContainsKey("CheckingWindowId"))
+                    {
+                        string? id = record["CheckingWindowId"]?.Value<string>();
+                        if (string.IsNullOrWhiteSpace(id))
+                        {
+                            record["CheckingWindowId"] = checkingWindowId;
+                        }
+                    }
+
+                    // Inclusion by file of origin: the 16-19 non-included file has no P_INCL
+                    // column, so the marker is stamped here. Stamped BEFORE validation because
+                    // AllowAdditionalProperties is false — both 16-19 schemas must declare
+                    // INCLUDED as a boolean. Guarded by the schema check so KS4 is untouched.
+                    if (dataset.Included is bool included && schema.Properties.ContainsKey("INCLUDED"))
+                    {
+                        record["INCLUDED"] = included;
+                    }
+
+                    if (!record.IsValid(schema, out IList<string> errorMessages))
+                    {
+                        schoolErrors.AddRange(errorMessages);
+                    }
+                }
+
+                if (schoolErrors.Count > 0)
+                {
+                    totalErrors += schoolErrors.Count;
+                    errorLogBuilder.AppendLine($"--- Validation Failed for School: {schoolId}{label} ---");
+                    foreach (var errorMessage in schoolErrors)
+                    {
+                        errorLogBuilder.AppendLine($"Row Error: {errorMessage}");
+                    }
+                    errorLogBuilder.AppendLine();
+                }
+                else
+                {
+                    if (!mergedBySchool.TryGetValue(schoolId, out JArray? existing))
+                    {
+                        existing = new JArray();
+                        mergedBySchool[schoolId] = existing;
+                    }
+
+                    foreach (JObject record in jsonArray.Children<JObject>().ToList())
+                    {
+                        existing.Add(record);
+                    }
+                }
+
+                // The summary counts every record read, clean or not, across all datasets.
+                recordCountBySchool[schoolId] = recordCountBySchool.GetValueOrDefault(schoolId) + groupRecordCount;
+                recordsValidated += groupRecordCount;
+
+                yield return new ValidationProgress(
+                    "Validating",
+                    $"Validated {recordsValidated} of {recordsRead} records{label}",
+                    recordsRead,
+                    recordsValidated,
+                    0,
+                    totalErrors,
+                    false,
+                    false);
+            }
         }
 
-        int recordsRead = records.Count;
+        // Per-school record counts for the summary CSV and the on-screen table, across every
+        // dataset. Built from all groups so the summary is complete whether the run passes or fails.
+        IReadOnlyList<SchoolRecordCount> schoolSummary = recordCountBySchool
+            .Select(kv => new SchoolRecordCount(kv.Key, kv.Value))
+            .ToList();
 
         if (recordsRead == 0)
         {
@@ -100,115 +235,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             yield break;
         }
 
-        yield return new ValidationProgress("Counting", $"{recordsRead} records found", recordsRead, 0, 0, 0, false, false);
-
-        List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
-            .GroupBy(r => r["LAESTAB"]?.ToString() ?? "UnknownSchool")
-            .ToList();
-
-        // Per-school record counts for the summary CSV and the on-screen table. Built from every
-        // group so the summary is complete whether the run passes or fails.
-        IReadOnlyList<SchoolRecordCount> schoolSummary = groupedSchools
-            .Select(g => new SchoolRecordCount(g.Key, g.Count()))
-            .ToList();
-
-        // A fresh, timestamped summary file is written on every real run, so runs never overwrite
-        // each other's summary.
-        string summaryBlobName = $"{checkingWindowId}_summary_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
-
-        // Optionally wipe any output left by a previous run before we start. This only applies
-        // to a real (saving) run — a validate-only run never touches stored output.
-        if (clearExistingFiles && !validateOnly)
-        {
-            await ClearOutputAsync(container, checkingWindowId, errorLogBlobName, cancellationToken);
-        }
-
-        // Step 6a: validate every school group up front, collecting all errors rather than
-        // stopping at the first. The transformed payload for each clean group is kept so we can
-        // write it later only once we know the whole file is valid.
-        List<(string SchoolId, JArray Json, int RecordCount)> processedGroups = new();
-        StringBuilder errorLogBuilder = new StringBuilder();
-        int totalErrors = 0;
-        int recordsValidated = 0;
-
-        foreach (var group in groupedSchools)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            string schoolId = group.Key;
-            int groupRecordCount = group.Count();
-            List<string> schoolErrors = new List<string>();
-
-            //string serializedPayload = JsonConvert.SerializeObject(group);
-            //JArray jsonArray = JArray.Parse(serializedPayload);
-
-            JArray jsonArray = new();
-            foreach (var row in group)
-            {
-                jsonArray.Add(JObject.FromObject(row));
-            }
-            
-            foreach (JObject record in jsonArray.Children<JObject>())
-            {
-                RemoveFieldsNotInSchema(record, schema);
-                EnsureSchemaFieldsExist(record, schema);
-                SchemaTypeConvertor.ApplySchemaTypes(record, schema);
-
-                if (schema.Properties.ContainsKey("Id"))
-                {
-                    string? id = record["Id"]?.Value<string>();
-                    if (string.IsNullOrWhiteSpace(id))
-                    {
-                        record["Id"] = Guid.NewGuid().ToString();
-                    }
-                }
-
-                if (schema.Properties.ContainsKey("CheckingWindowId"))
-                {
-                    string? id = record["CheckingWindowId"]?.Value<string>();
-                    if (string.IsNullOrWhiteSpace(id))
-                    {
-                        record["CheckingWindowId"] = checkingWindowId;
-                    }
-                }
-
-                if (!record.IsValid(schema, out IList<string> errorMessages))
-                {
-                    schoolErrors.AddRange(errorMessages);
-                }
-            }
-
-            if (schoolErrors.Count > 0)
-            {
-                totalErrors += schoolErrors.Count;
-                errorLogBuilder.AppendLine($"--- Validation Failed for School: {schoolId} ---");
-                foreach (var errorMessage in schoolErrors)
-                {
-                    errorLogBuilder.AppendLine($"Row Error: {errorMessage}");
-                }
-                errorLogBuilder.AppendLine();
-            }
-            else
-            {
-                processedGroups.Add((schoolId, jsonArray, groupRecordCount));
-            }
-
-            recordsValidated += groupRecordCount;
-
-            yield return new ValidationProgress(
-                "Validating",
-                $"Validated {recordsValidated} of {recordsRead} records",
-                recordsRead,
-                recordsValidated,
-                0,
-                totalErrors,
-                false,
-                false);
-        }
-
-        // Any error at all means nothing is saved. Persist the full error log so every error can
-        // be retrieved, then report a failure summary. A validate-only run writes nothing to
-        // storage, so its errors come back on the stream only.
+        // Any error in ANY dataset means nothing is saved. Persist the full error log so every
+        // error can be retrieved, then report a failure summary. A validate-only run writes
+        // nothing to storage, so its errors come back on the stream only.
         if (totalErrors > 0)
         {
             // Even on failure we still persist the summary (record counts per school) so there is
@@ -229,7 +258,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             yield return new ValidationProgress(
                 "Failed",
-                $"Validation failed with {totalErrors} error(s) across {groupedSchools.Count} school(s). No data files saved.",
+                $"Validation failed with {totalErrors} error(s) across {schoolSummary.Count} school(s). No data files saved.",
                 recordsRead,
                 recordsValidated,
                 0,
@@ -257,14 +286,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             yield break;
         }
 
-        // Step 6b: the whole file is valid, so write one JSON file per school. Track written files
+        // Every dataset is valid, so write one merged JSON file per school. Track written files
         // so partial output from an I/O failure can be rolled back.
         List<string> writtenBlobNames = new List<string>();
         int recordsProcessed = 0;
         int filesWritten = 0;
         string? writeError = null;
 
-        foreach (var (schoolId, jsonArray, groupRecordCount) in processedGroups)
+        foreach ((string schoolId, JArray jsonArray) in mergedBySchool)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -282,7 +311,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             writtenBlobNames.Add(outputBlobName);
             filesWritten++;
-            recordsProcessed += groupRecordCount;
+            recordsProcessed += jsonArray.Count;
 
             yield return new ValidationProgress(
                 "Processing",

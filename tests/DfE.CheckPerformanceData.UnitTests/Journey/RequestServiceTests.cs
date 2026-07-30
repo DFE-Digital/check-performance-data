@@ -234,7 +234,7 @@ public class RequestServiceTests
             DateOfBirth = "02/02/2010",
             Age = 16,
             Cypmd_Id = "CYPMD456",
-            Upn = "456456",
+            Identifier = "456456",
             Pincl = 402
         };
         journey.MatchedPupilId = journey.MatchedPupil.Id.ToString();
@@ -798,7 +798,7 @@ public class RequestServiceTests
             DateOfBirth = "01/01/2010",
             Age = 16,
             Cypmd_Id = "CYPMD123",
-            Upn = "123123"
+            Identifier = "123123"
         };
         return state;
     }

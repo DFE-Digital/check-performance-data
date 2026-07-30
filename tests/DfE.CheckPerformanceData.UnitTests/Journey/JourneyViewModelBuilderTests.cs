@@ -53,7 +53,7 @@ public class JourneyViewModelBuilderTests
     private static readonly PupilDto Pupil = new()
     {
         Id = Guid.NewGuid(), Firstname = "Jane", Surname = "Smith",
-        DateOfBirth = "27/07/2010", Sex = "F", Age = 16, Cypmd_Id = "CYPMD123", Upn = "UPN001"
+        DateOfBirth = "27/07/2010", Sex = "F", Age = 16, Cypmd_Id = "CYPMD123", Identifier = "UPN001"
     };
 
     public JourneyViewModelBuilderTests()
@@ -136,7 +136,7 @@ public class JourneyViewModelBuilderTests
         var matchPupil = new PupilDto
         {
             Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe",
-            DateOfBirth = "02/02/2010", Sex = "M", Age = 16, Cypmd_Id = "CYPMD456", Upn = "UPN002"
+            DateOfBirth = "02/02/2010", Sex = "M", Age = 16, Cypmd_Id = "CYPMD456", Identifier = "UPN002"
         };
         var matchPage = new JourneyPage
         {

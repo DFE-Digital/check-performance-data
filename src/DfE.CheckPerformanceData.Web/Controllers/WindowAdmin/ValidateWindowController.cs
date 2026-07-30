@@ -63,12 +63,22 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
+        // A Post16 window supplies two datasets (included + non-included); every other type one.
+        // They are ingested in a single run so both populations land in one blob per school.
+        IReadOnlyList<IngressDataset> datasets = window.Datasets
+            .OrderBy(d => d.SortOrder)
+            .Select(d => new IngressDataset(
+                d.Name,
+                d.IngressFile,
+                d.IngressFileChecksum,
+                d.SchemaFile,
+                d.SchemaFileChecksum,
+                d.Included))
+            .ToList();
+
         await foreach (ValidationProgress progress in processor.ProcessAsync(
                            window.Id,
-                           window.IngressFile,
-                           window.IngressFileChecksum,
-                           window.SchemaFile,
-                           window.SchemaFileChecksum,
+                           datasets,
                            cancellationToken: cancellationToken))
         {
             if (progress is { IsComplete: true, IsError: false })

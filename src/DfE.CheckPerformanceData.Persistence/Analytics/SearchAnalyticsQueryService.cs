@@ -1163,6 +1163,75 @@ LIMIT @limit OFFSET @offset;";
         return (rows, total);
     }
 
+    public async Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedEventsInWeekdayHourBucketAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int weekday,
+        int hour,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 1;
+        // Server-side clamp: EXTRACT(ISODOW) is 1..7 and EXTRACT(HOUR) is 0..23. An
+        // out-of-band value never matches any row so the query returns empty — but
+        // let's not send garbage to Postgres.
+        if (weekday < 1 || weekday > 7 || hour < 0 || hour > 23)
+        {
+            return (Array.Empty<RequestTimingPoint>(), 0);
+        }
+
+        const string countSql = @"
+SELECT COUNT(*)::int
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND EXTRACT(ISODOW FROM occurred_at_utc)::int = @weekday
+  AND EXTRACT(HOUR   FROM occurred_at_utc)::int = @hour;";
+
+        const string pageSql = @"
+SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+  AND EXTRACT(ISODOW FROM occurred_at_utc)::int = @weekday
+  AND EXTRACT(HOUR   FROM occurred_at_utc)::int = @hour
+ORDER BY occurred_at_utc DESC, id DESC
+LIMIT @limit OFFSET @offset;";
+
+        var total = 0;
+        await ReadAsync(countSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("weekday", NpgsqlDbType.Integer) { Value = weekday });
+            command.Parameters.Add(new NpgsqlParameter("hour", NpgsqlDbType.Integer) { Value = hour });
+        }, reader =>
+        {
+            total = reader.GetInt32(0);
+        });
+
+        var rows = new List<RequestTimingPoint>();
+        await ReadAsync(pageSql, cancellationToken, command =>
+        {
+            command.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = fromUtc });
+            command.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = toUtc });
+            command.Parameters.Add(new NpgsqlParameter("weekday", NpgsqlDbType.Integer) { Value = weekday });
+            command.Parameters.Add(new NpgsqlParameter("hour", NpgsqlDbType.Integer) { Value = hour });
+            command.Parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = pageSize });
+            command.Parameters.Add(new NpgsqlParameter("offset", NpgsqlDbType.Integer) { Value = (page - 1) * pageSize });
+        }, reader =>
+        {
+            var occurredAt = DateTime.SpecifyKind(reader.GetDateTime(0), DateTimeKind.Utc);
+            var latency = reader.GetInt32(1);
+            var sessionId = reader.GetString(2);
+            var query = reader.IsDBNull(3) ? null : reader.GetString(3);
+            var resultsTotal = reader.GetInt32(4);
+            rows.Add(new RequestTimingPoint(occurredAt, latency, sessionId, query, resultsTotal));
+        });
+
+        return (rows, total);
+    }
+
     // Weekday × hour-of-day search volume heatmap. Postgres EXTRACT(ISODOW) returns
     // 1..7 with Monday=1 (matches the UK-audience week-start convention) and
     // EXTRACT(HOUR) returns 0..23 in the storage timezone (which is UTC on both events

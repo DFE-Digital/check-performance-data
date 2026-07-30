@@ -92,11 +92,15 @@
                     var hourEndLabel = ((h + 1) % 24).ToString("00", CultureInfo.InvariantCulture);
                     var tooltip = $"{count:N0} search{(count == 1 ? string.Empty : "es")} on {WeekdayLabel(weekday)} at {HourLabel(h)}:00–{hourEndLabel}:00 UTC";
                     var innerH = (cellHeight - cellPadding).ToString("0.##", CultureInfo.InvariantCulture);
-                    // data-sa-tooltip carries the same text that the crosshair-style JS renders
-                    // on hover; the JS positions it upper-left of the cursor so the cursor body
-                    // never covers it. Native <title> is intentionally omitted — the browser
-                    // renders it below-right and CSS cannot reposition native tooltips.
-                    @Html.Raw($"<rect class=\"sa-heatmap__cell\" x=\"{xStr}\" y=\"{yTop}\" width=\"{wStr}\" height=\"{innerH}\" rx=\"1.5\" ry=\"1.5\" fill=\"{CellColour(count)}\" data-sa-count=\"{count}\" data-sa-weekday=\"{weekday}\" data-sa-hour=\"{h}\" data-sa-tooltip=\"{System.Net.WebUtility.HtmlEncode(tooltip)}\" />")
+                    // Cell rect wrapped in an SVG anchor so clicking drills into every search
+                    // that landed in this (weekday, hour) bucket during the current window.
+                    // data-sa-tooltip drives the shared crosshair-style tooltip (positioned
+                    // upper-left of the cursor via search-analytics.js). Native <title> is
+                    // intentionally omitted — the browser renders it below-right and CSS
+                    // cannot reposition native tooltips.
+                    var rangeQs = System.Net.WebUtility.HtmlEncode((ViewData["RangeKey"] as string) ?? "7d");
+                    var href = $"/admin/Search/HeatmapCell?range={rangeQs}&weekday={weekday}&hour={h}";
+                    @Html.Raw($"<a href=\"{href}\" xlink:href=\"{href}\"><rect class=\"sa-heatmap__cell\" x=\"{xStr}\" y=\"{yTop}\" width=\"{wStr}\" height=\"{innerH}\" rx=\"1.5\" ry=\"1.5\" fill=\"{CellColour(count)}\" data-sa-count=\"{count}\" data-sa-weekday=\"{weekday}\" data-sa-hour=\"{h}\" data-sa-tooltip=\"{System.Net.WebUtility.HtmlEncode(tooltip)}\" /></a>")
                 }
             }
 

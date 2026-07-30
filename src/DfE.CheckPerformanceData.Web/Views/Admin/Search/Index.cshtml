@@ -243,7 +243,10 @@
 
 @* Heatmap card (weekday × hour-of-day). Server-rendered SVG grid — no client-side
    chart library. Positioned between the interactive charts and the top-N tables. *@
-@await Html.PartialAsync("~/Views/Admin/Search/_WeekdayHourHeatmap.cshtml", Model.WeekdayHourGrid)
+@{
+    var heatmapViewData = new ViewDataDictionary(ViewData) { ["RangeKey"] = Model.RangeKey };
+}
+@await Html.PartialAsync("~/Views/Admin/Search/_WeekdayHourHeatmap.cshtml", Model.WeekdayHourGrid, heatmapViewData)
 
 @* Zero-result outcomes funnel card. Session-level rollup — the acceptance calls it
    "wonderful for a client demo" so the empty-state copy and tile alignment matter. *@
@@ -270,7 +273,6 @@
                             <tr class="govuk-table__row">
                                 <th class="govuk-table__header" scope="col" title="The normalised search term users typed. Grouped so 'Widget' and 'widget' count together.">Query</th>
                                 <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many times this query was fired in the selected window.">Searches</th>
-                                <th class="govuk-table__header govuk-table__header--numeric" scope="col" title="How many of those searches returned no page or content-block hits.">Zero-result count</th>
                             </tr>
                         </thead>
                         <tbody class="govuk-table__body">
@@ -282,7 +284,6 @@
                                            target="_blank" rel="noopener noreferrer">@row.QueryNormalised</a>
                                     </td>
                                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
-                                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ZeroResultCount.ToString("N0", CultureInfo.CurrentCulture)</td>
                                 </tr>
                             }
                         </tbody>

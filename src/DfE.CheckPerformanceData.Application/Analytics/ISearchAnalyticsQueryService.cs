@@ -253,6 +253,21 @@ public interface ISearchAnalyticsQueryService
         int pageSize,
         CancellationToken cancellationToken = default);
 
+    // Events that landed in a single (weekday, hour) cell of the "When people search"
+    // heatmap. `weekday` is ISO 8601 (1 = Monday, 7 = Sunday); `hour` is 0–23 in UTC.
+    // Returns one page of the matching events ordered by occurred_at_utc DESC (newest
+    // first) plus the total count so the drill-in view can render a GDS pager. Used from
+    // the heatmap cell click-through so admins can inspect "who was searching Wednesday
+    // 10 am and what did they get?".
+    Task<(IReadOnlyList<RequestTimingPoint> Rows, int TotalCount)> GetPagedEventsInWeekdayHourBucketAsync(
+        DateTime fromUtc,
+        DateTime toUtc,
+        int weekday,
+        int hour,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     // Weekday × hour-of-day search-volume grid for the heatmap card. Returns every
     // (weekday, hour) tuple in the 7 × 24 = 168-cell grid — cells with no events over
     // the window carry Count = 0 so the SVG has no visual gaps. Weekday follows ISO 8601

@@ -213,6 +213,60 @@ public sealed class SearchAnalyticsController : Controller
         });
     }
 
+    // Heatmap cell drill-in. Reached from clicking a (weekday, hour) cell on the "When
+    // people search" heatmap. Renders one row per matching search event inside the
+    // current time window with the same shape as the request-timings paged drill-in
+    // (timestamp, latency, query, results, session link). Weekday is ISO 8601 (1 = Mon).
+    [HttpGet("HeatmapCell")]
+    public async Task<IActionResult> HeatmapCell(
+        string? range,
+        DateTime? from,
+        DateTime? to,
+        int weekday = 1,
+        int hour = 0,
+        int page = 1,
+        CancellationToken ct = default)
+    {
+        ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
+        ViewData["AdminWide"] = true;
+
+        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var pageSize = await ResolvePageSizeAsync();
+        if (page < 1) page = 1;
+
+        // Clamp defensively so a hand-edited URL still lands on a sensible surface.
+        if (weekday < 1 || weekday > 7) weekday = 1;
+        if (hour < 0 || hour > 23) hour = 0;
+
+        var (rows, total) = await _query.GetPagedEventsInWeekdayHourBucketAsync(
+            fromUtc, toUtc, weekday, hour, page, pageSize, ct);
+
+        var weekdayLabel = weekday switch
+        {
+            1 => "Monday", 2 => "Tuesday", 3 => "Wednesday", 4 => "Thursday",
+            5 => "Friday", 6 => "Saturday", 7 => "Sunday", _ => "Monday",
+        };
+        var hourEnd = (hour + 1) % 24;
+        var hourLabel = $"{hour:00}:00–{hourEnd:00}:00 UTC";
+
+        ViewData["Title"] = $"Searches on {weekdayLabel} at {hourLabel}";
+
+        return View("~/Views/Admin/Search/HeatmapCell.cshtml", new SearchAnalyticsHeatmapCellViewModel
+        {
+            Rows = rows,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize,
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            RangeKey = rangeKey,
+            Weekday = weekday,
+            Hour = hour,
+            WeekdayLabel = weekdayLabel,
+            HourLabel = hourLabel,
+        });
+    }
+
     [HttpGet("Queries")]
     public async Task<IActionResult> Queries(
         string? range,

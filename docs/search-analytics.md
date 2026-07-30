@@ -269,23 +269,41 @@ Same time-window filter as the landing page, but one full page dedicated to one 
 
 ---
 
-## User-facing feedback (`/Search/Feedback`)
+## Messages — the user feedback path
+
+The messages flow gives users a way to tell us when search isn't working, and gives admins a way to see + reply to those reports. It is the ONE place in the analytics surface where a user can, by their own choice, share PII (their email) — and everything about the design makes that a consented, reversible act.
+
+### For the user (`/Search/Feedback`)
 
 Under every `/search` result page there's an inset-text link: **"Not the results you were expecting?"**. That takes the user to a GDS form:
 
 - **What were you looking for?** — free-text, required.
 - **What did you actually get?** — free-text, optional.
-- **Your email address** (optional, pre-filled from the DfE Sign-in claim if signed in) — with a "hide my email" checkbox that **drops the value BEFORE persist** (not after — the value never reaches the database).
+- **Your email address** — **optional**. The user chooses whether to leave it. If they leave it, we can reply to them directly about their issue. If they don't, we still capture and act on the feedback — we just can't get back to them personally. The field is pre-filled from the DfE Sign-in claim as a convenience for signed-in users, but a **"hide my email"** checkbox drops the value **before persist** (not after — the value never reaches the database in the hidden case), so a signed-in user who ticks that box gets exactly the same anonymity as an anonymous visitor.
+- The form re-renders the user's most recent search hits below the fields so they can see what the model saw when they clicked the link. If validation fails on submit (e.g. missing "what were you looking for"), the hits panel + the auto-filled email are both preserved through the re-render.
 
-The form also renders the user's most recent search results so they can see what the model saw. On submit → `DbSearchMessageService.CreateAsync` writes a `search_messages` row keyed by session id + occurred-at + email (or null). The confirmation view thanks them and shows a link back to `/search`.
+Session id is **server-rendered readonly** on the form via `HttpContext.Session.Id` — the same id the sink is emitting for that user's searches — so the message row lands in the same session bucket the searches did. A client can't tamper with the session id to detach a message from its search history or attach it to someone else's.
 
-Session id is server-rendered readonly on the form so the same session-id that the sink is emitting is the one that lands on the message row — no client-side session id manipulation.
+On submit → `DbSearchMessageService.CreateAsync` writes one `search_messages` row (`session_id`, `occurred_at_utc`, `what_looking_for`, `what_got`, `email` or null, `is_read = false`). The confirmation view thanks the user and links back to `/search`.
 
-Admin side reads these in `/admin/Messages/Inbox`:
+### For admins (`/admin/Messages/Inbox` + drill-ins)
 
-- Sortable + filterable + paginated list.
-- Detail view leads with the user's own text (what were you looking for + what got), then shows a snapshot of the session's pre-submission search — the same numbered hit list the user was staring at when they clicked feedback.
-- A **Messages badge** in the top nav shows the count of unread search-feedback + waiting DLQ items combined (`MessagesBadgeViewComponent`).
+- **Inbox list** — sortable (by date, by is-read, by has-email), filterable (unread only, has email, text search), paginated via the shared `PagerViewComponent`. Every row shows the session id (first 8 chars), a preview of "what were you looking for", the datestamp, and a small badge for the email/no-email + read/unread state.
+- **Detail view** at `/admin/Messages/Inbox/{id}` — leads with the user's own text (what were you looking for + what did you actually get) so the reader isn't wading through metadata to find the actual message. Below the message, a snapshot of the session's pre-submission search — the same numbered hit list the user was staring at when they clicked feedback — via `ISearchAnalyticsQueryService.GetLatestSearchForSessionAtOrBeforeAsync`. If the user left an email, it's rendered as a `mailto:` link so an admin can respond in one click; otherwise the field simply reads "(user did not leave a contact address)" so the admin isn't left guessing.
+- **Session drill-in** at `/admin/Search/Session/{id}` — same session id, but the full search-analytics view: every event for that session, every feedback message, and a **"Delete this session"** confirm-modal-gated button that drops all events + all results + all messages for that session id in one transaction, and writes an `AuditEntry(Action = "SearchSessionDelete")`. Useful for the "please erase my data" support ask (see [How this squares with GDPR](#how-this-squares-with-gdpr) below).
+- **Messages badge** in the admin top-bar (`MessagesBadgeViewComponent`) — a small count that combines **unread search-feedback messages** + **items sitting in the dead-letter queue**. One badge, one number, so an admin sees at a glance whether anything needs their attention.
+
+### How this squares with GDPR
+
+The design principle: **no PII in the sink at all; PII in messages only where the user has explicitly opted in.**
+
+- **Search events** carry no email, no user id, no organisation, no IP. There's nothing to consent to and nothing to erase.
+- **Feedback messages** may carry an email — but only if the user typed it (or left the pre-fill in place). Leaving it blank, or ticking "hide my email", is a one-click decision the user makes on the same form they type the message into. There is no dark pattern, no pre-checked opt-in, no fine print.
+- **When a user does leave an email**, they've done so with a clear purpose: they want a reply. Treating that as a legitimate use of their data (Article 6(1)(a) / (b) — consent + performance of the request they made) means we can act on it without a separate consent flow.
+- **Erasure** is straightforward because the sink is session-keyed: the session-drill-in delete button drops every event, result, and message for that session in one transaction. There's no need for a "GDPR delete service" that hunts across tables by subject id — we don't have a subject id to hunt.
+- **Retention** is the second line of defence: even if nobody ever deletes anything, events age out at 90 days and messages at 365 days by default (both settings-driven), so unactioned data doesn't accumulate forever.
+
+The Phase 6 privacy notice needs one clause that says all of this in user-facing language; a copy draft is stashed at `.planning/notes/2026-07-27-phase6-privacy-notice-copy.md` for the executor that eventually writes the privacy page.
 
 ---
 
@@ -381,4 +399,4 @@ If you use the default header name, the `ValidateAntiForgeryToken` filter silent
 - **Emitters never await the sink.** `SinkAndLogSearchTelemetry.TryWrite` returns immediately. If your emitter's tests want to observe a row landing in Postgres, they need to await the `SearchEventWriter`'s next drain — see `SearchAnalyticsIntegrationTests` for the pattern (poll with backoff, or inject a synchronous test-double sink).
 - **Zero-result queries at Warn.** `LoggerSearchTelemetry` logs zero-result searches at `Warn` (in addition to the `SearchAnalyticsDroppedCounter`), so an operator watching logs sees them without any dashboard access. This is intentional — the dashboard is the analytical view, the Warn line is the operational alert.
 - **The `CMS:SearchDebugOn` toggle is a Phase 1.07 knob.** It promotes per-hit + per-exclusion Debug lines to Info. Not part of the analytics dashboard, but if you turn it on you'll see a lot more log volume — the sink and the dashboard don't care either way.
-- **No PII — deliberate, not accidental.** Please don't add a `user_id` or `organisation` column to the sink because "we might want to slice by school later". Phase 1.11 was rescoped mid-flight specifically to avoid the DPO ticket that a PII sink would need. If a per-school slice becomes a requirement, the right pattern is a separate opt-in sink with its own retention + reveal service, not a widening of this one.
+- **PII in the sink is deliberately zero; PII in messages is user-opt-in.** Please don't add a `user_id`, `organisation`, or IP column to `search_events` because "we might want to slice by school later" — Phase 1.11 was rescoped mid-flight specifically to keep the sink PII-free. The one PII touchpoint anywhere in this surface is the **optional email on the feedback form** (see [Messages — the user feedback path](#messages--the-user-feedback-path)), and it's optional-by-design so the user consents in the same act of typing it. If a per-school slice becomes a requirement later, the right pattern is a separate opt-in sink with its own consent surface, its own retention, and its own reveal service — not a widening of this one.

@@ -132,17 +132,28 @@ public sealed class SampleSearchDataSeederHitPoolTests
 
         Assert.Equal(40, result.EventsCreated);
 
-        // With no wired CMS deps the seeder falls back to a single sentinel ("page",
-        // "/help/getting-started"). Non-zero events must still emit hit rows against that
-        // sentinel — a zero-events result would break the top-pages tile even during
-        // demo-on-empty-db scenarios.
+        // With no wired CMS deps the seeder falls back to the internal sentinel pool. That
+        // pool MUST be big enough to satisfy the 3-25 hits-per-event invariant PickHits
+        // promises: seenKeys dedup + a single-entry pool would collapse every event to one
+        // hit and flatten Top Pages / Top Content Blocks / long-tail histograms to a
+        // single row.
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             SELECT COUNT(DISTINCT result_key) FROM search_event_results;";
         var distinct = (long)(await cmd.ExecuteScalarAsync())!;
-        Assert.True(distinct >= 1,
-            "Expected at least one distinct result_key from the sentinel fallback.");
+        // 40 events with variable hit counts; the sentinel pool has 30 distinct entries and
+        // the seed is deterministic — expect the run to touch a broad slice of the pool.
+        Assert.True(distinct >= 15,
+            $"Expected the sentinel pool to expose >=15 distinct result_key values on a 40-event run; got {distinct}.");
+
+        // Both kinds must be represented so the block-side dashboards are non-empty on a
+        // demo-on-empty-db seed.
+        await using var kindCmd = conn.CreateCommand();
+        kindCmd.CommandText = @"
+            SELECT COUNT(DISTINCT result_kind) FROM search_event_results;";
+        var kinds = (long)(await kindCmd.ExecuteScalarAsync())!;
+        Assert.Equal(2, kinds);
     }
 }

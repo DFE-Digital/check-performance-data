@@ -87,6 +87,45 @@ public sealed class SampleSearchDataSeeder(
 
     private const double WeekendDampen = 0.10;
 
+    // Fixed hit pool used when the CMS DB is empty AND no wired dependencies contribute
+    // entries. Must be large enough that PickHits (dedup via seenKeys, up to 25 hits/event)
+    // can honour the promised 3-25 hits per non-zero-result event; 20 pages + 10 blocks
+    // covers the upper bound comfortably and gives the Top Pages / Top Content Blocks
+    // tiles a realistic mix on a fresh empty DB.
+    private static readonly (string Kind, string Key)[] SentinelHitPool =
+    [
+        ("page", "/help/getting-started"),
+        ("page", "/help/submitting-amendments"),
+        ("page", "/help/exam-entry-codes"),
+        ("page", "/help/checking-performance-data"),
+        ("page", "/help/notes-of-amendments"),
+        ("page", "/help/absence"),
+        ("page", "/help/ks4-guidance"),
+        ("page", "/help/ks2-guidance"),
+        ("page", "/help/post16-guidance"),
+        ("page", "/help/attainment-8"),
+        ("page", "/help/progress-8"),
+        ("page", "/help/ebacc"),
+        ("page", "/help/pupil-premium"),
+        ("page", "/help/school-details"),
+        ("page", "/help/downloading-data"),
+        ("page", "/help/user-accounts"),
+        ("page", "/help/permissions"),
+        ("page", "/help/contact"),
+        ("page", "/help/faq"),
+        ("page", "/help/glossary"),
+        ("block", "banner-notice"),
+        ("block", "footer-contact"),
+        ("block", "helpline-hours"),
+        ("block", "email-support"),
+        ("block", "how-to-navigate"),
+        ("block", "faq-summary"),
+        ("block", "quick-links"),
+        ("block", "keyboard-shortcuts"),
+        ("block", "accessibility-statement"),
+        ("block", "cookie-notice"),
+    ];
+
     // Runs one seed pass. Returns per-table counts so the caller can put them in a
     // success banner + audit payload. NowUtc + Seed are parameters so tests can pin
     // deterministic behaviour — the controller passes DateTime.UtcNow + a session-derived
@@ -385,10 +424,12 @@ public sealed class SampleSearchDataSeeder(
         var combined = pages.Concat(blocks).ToArray();
         if (combined.Length == 0)
         {
-            // Nothing to seed against. Return a single sentinel so PickHits still
-            // terminates. Realistically fires when the DB is empty OR when a test
-            // constructs the seeder without wiring the CMS deps.
-            return [("page", "/help/getting-started")];
+            // Nothing to seed against — fires when the DB is empty OR when a caller
+            // constructs the seeder with both CMS deps null. Return a fixed pool that
+            // is BIG ENOUGH to honour the 3-25 hits invariant PickHits promises: with
+            // dedup via seenKeys, a single-entry pool would collapse every event to
+            // one hit and flatten the Top Pages / Top Content Blocks / long-tail tiles.
+            return SentinelHitPool;
         }
 
         if (combined.Length > PoolCap)

@@ -10,11 +10,6 @@
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-
-    static string MaskedSessionId(string sessionId) =>
-        string.IsNullOrEmpty(sessionId)
-            ? "(unknown)"
-            : (sessionId.Length <= 8 ? sessionId : sessionId[..8] + "…");
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -65,7 +60,7 @@ else
                     <td class="govuk-table__cell">@row.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)</td>
                     <td class="govuk-table__cell">
                         <a class="govuk-link" href="/admin/Search/Session/@row.SessionId" title="@row.SessionId">
-                            <code>@MaskedSessionId(row.SessionId)</code>
+                            <code>@row.SessionId.MaskSessionId()</code>
                         </a>
                     </td>
                     <td class="govuk-table__cell">

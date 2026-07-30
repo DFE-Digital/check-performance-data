@@ -8,11 +8,6 @@
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-
-    static string MaskedSessionId(string sessionId) =>
-        string.IsNullOrEmpty(sessionId)
-            ? "(unknown)"
-            : (sessionId.Length <= 8 ? sessionId : sessionId[..8] + "…");
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -64,7 +59,7 @@ else
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">@bucketStart.ToString("u", CultureInfo.InvariantCulture)</td>
                     <td class="govuk-table__cell">@row.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)</td>
-                    <td class="govuk-table__cell"><code title="@row.SessionId">@MaskedSessionId(row.SessionId)</code></td>
+                    <td class="govuk-table__cell"><code title="@row.SessionId">@row.SessionId.MaskSessionId()</code></td>
                     <td class="govuk-table__cell">@(row.Query ?? string.Empty)</td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.ResultsTotal.ToString("N0", CultureInfo.CurrentCulture)</td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.LatencyMs.ToString("N0", CultureInfo.CurrentCulture)</td>

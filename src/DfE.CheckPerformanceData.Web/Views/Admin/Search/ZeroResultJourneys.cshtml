@@ -5,11 +5,6 @@
     string PageLink(int p) =>
         $"/admin/Search/ZeroResultJourneys?range={Uri.EscapeDataString(Model.RangeKey)}&page={p}";
 
-    static string MaskedSessionId(string sessionId) =>
-        string.IsNullOrEmpty(sessionId)
-            ? "(unknown)"
-            : (sessionId.Length <= 8 ? sessionId : sessionId[..8] + "…");
-
     string FormatPct(int part, int whole)
     {
         if (whole <= 0) return "—";
@@ -83,7 +78,7 @@ else
             <div class="govuk-summary-card__title-wrapper">
                 <h3 class="govuk-summary-card__title govuk-!-font-size-19">
                     <a class="govuk-link" href="/admin/Search/Session/@journey.SessionId" title="@journey.SessionId">
-                        <code>@MaskedSessionId(journey.SessionId)</code>
+                        <code>@journey.SessionId.MaskSessionId()</code>
                     </a>
                 </h3>
                 <span class="govuk-tag @outcomeClass">@outcomeLabel</span>

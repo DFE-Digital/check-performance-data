@@ -52,13 +52,6 @@
     }
     string Y(int ms) => YPixel(ms).ToString("0.##", CultureInfo.InvariantCulture);
 
-    // Truncate the session id for the hover title so a screen-reader announcement stays
-    // succinct; the paged drill-in shows the full value in a proper table column.
-    static string MaskedSessionId(string sessionId) =>
-        string.IsNullOrEmpty(sessionId)
-            ? "(unknown)"
-            : (sessionId.Length <= 8 ? sessionId : sessionId[..8] + "…");
-
     var ariaLabel = points.Count == 0
         ? "Request timings scatter: no data."
         : $"Request timings scatter: {points.Count} events plotted, peak latency {maxLatency} ms.";
@@ -153,7 +146,7 @@ else
 
         @foreach (var point in points)
         {
-            @Html.Raw($"<circle cx=\"{X(point.OccurredAtUtc)}\" cy=\"{Y(point.LatencyMs)}\" r=\"3\" fill=\"#5694ca\" fill-opacity=\"0.7\" stroke=\"#1d70b8\" stroke-width=\"0.5\" aria-hidden=\"true\"><title>{System.Net.WebUtility.HtmlEncode($"{point.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)} — {point.LatencyMs} ms — session {MaskedSessionId(point.SessionId)}")}</title></circle>")
+            @Html.Raw($"<circle cx=\"{X(point.OccurredAtUtc)}\" cy=\"{Y(point.LatencyMs)}\" r=\"3\" fill=\"#5694ca\" fill-opacity=\"0.7\" stroke=\"#1d70b8\" stroke-width=\"0.5\" aria-hidden=\"true\"><title>{System.Net.WebUtility.HtmlEncode($"{point.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)} — {point.LatencyMs} ms — session {point.SessionId.MaskSessionId()}")}</title></circle>")
         }
     </svg>
 
@@ -196,7 +189,7 @@ else
                     {
                         <tr class="govuk-table__row">
                             <td class="govuk-table__cell">@pt.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)</td>
-                            <td class="govuk-table__cell"><code title="@pt.SessionId">@MaskedSessionId(pt.SessionId)</code></td>
+                            <td class="govuk-table__cell"><code title="@pt.SessionId">@pt.SessionId.MaskSessionId()</code></td>
                             <td class="govuk-table__cell">@(pt.Query ?? string.Empty)</td>
                             <td class="govuk-table__cell govuk-table__cell--numeric">@pt.ResultsTotal.ToString("N0", CultureInfo.CurrentCulture)</td>
                             <td class="govuk-table__cell govuk-table__cell--numeric">@pt.LatencyMs.ToString("N0", CultureInfo.CurrentCulture)</td>

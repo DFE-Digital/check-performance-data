@@ -436,16 +436,23 @@ ORDER BY b.bucket;";
     //   2. The Postgres INTERVAL literal used as the generate_series step.
     // The 15-minute variant is the only one that cannot map to a single date_trunc unit; it
     // buckets to hour then adds a 15-minute multiple of (minute / 15).
+    // date_trunc(unit, timestamptz) evaluates in the DB session's TimeZone setting, so
+    // bucket edges shift twice a year with DST if the session is not UTC. Wrap the
+    // timestamptz in "AT TIME ZONE 'UTC'" first (converts to a plain timestamp on the UTC
+    // clock face), date_trunc that, then wrap in "AT TIME ZONE 'UTC'" again (interprets
+    // the truncated clock face AS UTC and returns a timestamptz). End result is a proper
+    // timestamptz whose UTC value equals the truncated UTC of the input, so downstream
+    // comparisons with @from / @to (also timestamptz) don't rely on session-TZ coercion.
     private static (string BucketExprFormat, string IntervalLiteral) BucketSqlPieces(VolumeBucketSize bucketSize) =>
         bucketSize switch
         {
             VolumeBucketSize.FifteenMinutes => (
-                "date_trunc('hour', {0}) + INTERVAL '15 minutes' * (EXTRACT(MINUTE FROM {0})::int / 15)",
+                "(date_trunc('hour', {0} AT TIME ZONE 'UTC') + INTERVAL '15 minutes' * (EXTRACT(MINUTE FROM {0} AT TIME ZONE 'UTC')::int / 15)) AT TIME ZONE 'UTC'",
                 "INTERVAL '15 minutes'"),
-            VolumeBucketSize.Hour  => ("date_trunc('hour', {0})",  "INTERVAL '1 hour'"),
-            VolumeBucketSize.Day   => ("date_trunc('day', {0})",   "INTERVAL '1 day'"),
-            VolumeBucketSize.Week  => ("date_trunc('week', {0})",  "INTERVAL '1 week'"),
-            VolumeBucketSize.Month => ("date_trunc('month', {0})", "INTERVAL '1 month'"),
+            VolumeBucketSize.Hour  => ("date_trunc('hour',  {0} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", "INTERVAL '1 hour'"),
+            VolumeBucketSize.Day   => ("date_trunc('day',   {0} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", "INTERVAL '1 day'"),
+            VolumeBucketSize.Week  => ("date_trunc('week',  {0} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", "INTERVAL '1 week'"),
+            VolumeBucketSize.Month => ("date_trunc('month', {0} AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'", "INTERVAL '1 month'"),
             _ => throw new ArgumentOutOfRangeException(nameof(bucketSize), bucketSize, "Unknown bucket size."),
         };
 
@@ -505,8 +512,8 @@ FROM generate_series(1, 7) AS w(weekday)
 CROSS JOIN generate_series(0, 23) AS hh(hour)
 LEFT JOIN (
     SELECT
-        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
-        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
         {countExpr}::int AS value
     FROM search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to{extraWhere}
@@ -547,8 +554,8 @@ FROM generate_series(1, 7) AS w(weekday)
 CROSS JOIN generate_series(0, 23) AS hh(hour)
 LEFT JOIN (
     SELECT
-        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
-        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
         percentile_cont(0.05) WITHIN GROUP (ORDER BY latency_ms) AS p5,
         percentile_cont(0.50) WITHIN GROUP (ORDER BY latency_ms) AS p50,
         percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95
@@ -1182,19 +1189,24 @@ LIMIT @limit OFFSET @offset;";
             return (Array.Empty<RequestTimingPoint>(), 0);
         }
 
+        // EXTRACT on a timestamptz converts to the DB session's TimeZone setting BEFORE
+        // extracting the field. The connection string sets no TimeZone parameter, so on a
+        // Postgres whose session default is Europe/London the same URL returns different
+        // rows twice a year across the BST/GMT switch. AT TIME ZONE 'UTC' pins the field
+        // extraction to UTC clock-face values regardless of the session's default.
         const string countSql = @"
 SELECT COUNT(*)::int
 FROM search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
-  AND EXTRACT(ISODOW FROM occurred_at_utc)::int = @weekday
-  AND EXTRACT(HOUR   FROM occurred_at_utc)::int = @hour;";
+  AND EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @weekday
+  AND EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @hour;";
 
         const string pageSql = @"
 SELECT occurred_at_utc, latency_ms, session_id, query_raw, results_total
 FROM search_events
 WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
-  AND EXTRACT(ISODOW FROM occurred_at_utc)::int = @weekday
-  AND EXTRACT(HOUR   FROM occurred_at_utc)::int = @hour
+  AND EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @weekday
+  AND EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int = @hour
 ORDER BY occurred_at_utc DESC, id DESC
 LIMIT @limit OFFSET @offset;";
 
@@ -1421,10 +1433,12 @@ ORDER BY (SELECT chain_length FROM ranked WHERE ranked.session_id = e.session_id
     }
 
     // Weekday × hour-of-day search volume heatmap. Postgres EXTRACT(ISODOW) returns
-    // 1..7 with Monday=1 (matches the UK-audience week-start convention) and
-    // EXTRACT(HOUR) returns 0..23 in the storage timezone (which is UTC on both events
-    // and query bindings). A generate_series-based CROSS JOIN produces the 168-cell
-    // spine; LEFT JOIN gap-fills empty cells to zero so the SVG grid has no holes.
+    // 1..7 with Monday=1 (matches the UK-audience week-start convention). EXTRACT on a
+    // timestamptz converts to the DB session's TimeZone BEFORE extracting the field, so
+    // occurred_at_utc AT TIME ZONE 'UTC' pins the extraction to UTC regardless of the
+    // Postgres session's default. A generate_series-based CROSS JOIN produces the
+    // 168-cell spine; LEFT JOIN gap-fills empty cells to zero so the SVG grid has no
+    // holes.
     public async Task<IReadOnlyList<WeekdayHourBucket>> GetSearchesByWeekdayAndHourAsync(
         DateTime fromUtc,
         DateTime toUtc,
@@ -1439,8 +1453,8 @@ FROM generate_series(1, 7) AS w(weekday)
 CROSS JOIN generate_series(0, 23) AS h(hour)
 LEFT JOIN (
     SELECT
-        EXTRACT(ISODOW FROM occurred_at_utc)::int AS weekday,
-        EXTRACT(HOUR   FROM occurred_at_utc)::int AS hour,
+        EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
+        EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
         COUNT(*)::int AS c
     FROM search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to

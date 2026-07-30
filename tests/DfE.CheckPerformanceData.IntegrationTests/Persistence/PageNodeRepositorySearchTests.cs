@@ -224,7 +224,7 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
     // The widened SearchPagesAsync returns kept rows (ExcludedBy == null) alongside rows
     // the SQL-tier CASE tagged as excluded — service-tier consumers filter excluded rows
     // out of user-facing results and into telemetry. The facts below pin the widened
-    // shape: per-field ranks populated on kept rows, exclusion slugs matching Phase 1.06's
+    // shape: per-field ranks populated on kept rows, exclusion slugs matching the shipped
     // seven-slug taxonomy on the corresponding excluded rows, and an excluded-cap of
     // max * 3 so a high-exclusion corpus can't starve exclusion visibility.
 

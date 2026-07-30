@@ -8,10 +8,10 @@ namespace DfE.CheckPerformanceData.IntegrationTests.PageTree;
 
 // Verifies the sample-page seeder writes to the CURRENT content-type entities
 // (PageNode + PageNodeVersion) and NOT to the retired WikiPage / WikiPageVersion tables
-// that Phase 1.05's DropWikiPagePlumbing migration removed. Guards against a future
-// regression where someone re-plumbs the seeder onto the old tables (there is no code
-// path to do so today — the seeder goes through IPageNodeService — but pinning the
-// invariant on a real Postgres schema catches the day someone would.
+// that the DropWikiPagePlumbing migration removed. Guards against a future regression
+// where someone re-plumbs the seeder onto the old tables (there is no code path to do
+// so today — the seeder goes through IPageNodeService — but pinning the invariant on
+// a real Postgres schema catches the day someone would.
 [Collection(nameof(PostgresCollection))]
 public sealed class SamplePageNodeSeederEntityTypeTests
 {
@@ -71,9 +71,9 @@ public sealed class SamplePageNodeSeederEntityTypeTests
         Assert.True(pageNodeVersionCount >= 13,
             $"Expected at least 13 PageNodeVersion rows (one working + one published per sample); got {pageNodeVersionCount}.");
 
-        // Retired wiki tables must not exist in the current schema — Phase 1.05 dropped
-        // them. Query information_schema.tables so the assertion works whether the tables
-        // are absent (correct) or present (would flag a schema regression).
+        // Retired wiki tables must not exist in the current schema — the DropWikiPagePlumbing
+        // migration removed them. Query information_schema.tables so the assertion works
+        // whether the tables are absent (correct) or present (would flag a schema regression).
         var wikiPagesTableExists = await ScalarLongAsync(conn, @"
             SELECT COUNT(*) FROM information_schema.tables
             WHERE table_schema = 'public'

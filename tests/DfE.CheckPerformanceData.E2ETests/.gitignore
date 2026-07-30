@@ -1,7 +1,7 @@
 # Visual-regression baselines under Snapshots/linux-chromium/ ARE committed —
-# Phase 2.4 unified the execution environment via the containerized Playwright
-# .NET image, so canonical Linux-Chromium baselines apply equally to every dev
-# machine and to CI. Diff/actual PNGs from test runs stay untracked.
+# the containerized Playwright .NET image unifies the execution environment,
+# so canonical Linux-Chromium baselines apply equally to every dev machine and
+# to CI. Diff/actual PNGs from test runs stay untracked.
 
 # Diff/actual/expected outputs written by PageSnapshotExtensions on failure:
 /Snapshots/**/*.diff.png

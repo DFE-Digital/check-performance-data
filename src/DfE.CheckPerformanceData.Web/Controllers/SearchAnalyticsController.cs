@@ -182,9 +182,9 @@ public sealed class SearchAnalyticsController : Controller
     }
 
     // Paged drill-in for the request-timings scatter. Shares the shared time-window
-    // filter partial + the round-6 shared pager so the drill-in matches every other
-    // admin paged surface exactly. Reached from the scatter chart's "open the paged
-    // view" link when the sample-limit kicks in.
+    // filter partial + the shared pager so the drill-in matches every other admin
+    // paged surface exactly. Reached from the scatter chart's "open the paged view"
+    // link when the sample-limit kicks in.
     [HttpGet("RequestTimings")]
     public async Task<IActionResult> RequestTimings(
         string? range,
@@ -619,10 +619,10 @@ public sealed class SearchAnalyticsController : Controller
         return Redirect("/admin/Search/");
     }
 
-    // Reads CMS:PageLength for the drill-in tables. The admin admin setting is trusted verbatim
-    // (floor 1 only, no upper clamp) — Phase 1.10 UAT locked this convention: admin editors own
-    // the value and drill-ins render it, no URL override. Falls back to DefaultPageSize when the
-    // stored value is missing or non-positive.
+    // Reads CMS:PageLength for the drill-in tables. The admin setting is trusted verbatim
+    // (floor 1 only, no upper clamp): admin editors own the value and drill-ins render it,
+    // with no URL override. Falls back to DefaultPageSize when the stored value is missing
+    // or non-positive.
     private async Task<int> ResolvePageSizeAsync()
     {
         var size = await _settings.GetIntAsync(SettingKeys.CmsPageLength);

@@ -10,12 +10,12 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 //
 // Data-shape goals (drives the SeedAsync distribution choices):
 //   * Weekday × hour weighting peaks in UK working hours (Mon-Fri, 09:00-17:00), tapers
-//     overnight, drops further at weekends — matches the shape the round-7 heatmap card
-//     is designed to visualise.
+//     overnight, drops further at weekends — matches the shape the weekday-hour heatmap
+//     card is designed to visualise.
 //   * ~15% zero-result queries (garbage strings + typos) so the funnel card and zero-result
 //     top-N tile have something to show.
 //   * Latency skew: log-normal-ish (median ~40 ms, p95 ~150 ms) with a rare multi-second
-//     outlier per ~1000 events so the round-7 request-timings scatter has real dispersion.
+//     outlier per ~1000 events so the request-timings scatter has real dispersion.
 //   * Session pool sized to give a mix of one-off searchers and power users (some sessions
 //     run 20+ events) — mirrors real traffic and gives the session drill-in something to
 //     drill into.
@@ -339,8 +339,8 @@ public sealed class SampleSearchDataSeeder(
         var u1 = 1.0 - rng.NextDouble();
         var u2 = 1.0 - rng.NextDouble();
         var z = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
-        // ln-median ~ ln(40) = 3.69; sigma 0.55 gives p95 ~ 150 ms which matches the shape
-        // the round-7 acceptance calls out.
+        // ln-median ~ ln(40) = 3.69; sigma 0.55 gives p95 ~ 150 ms — matches the shape the
+        // request-timings scatter is expected to display.
         var latency = Math.Exp(3.69 + 0.55 * z);
         // Outage inflation lands here — cap at 6000 ms so a single elevated hour does
         // not blow the scatter's Y-axis.

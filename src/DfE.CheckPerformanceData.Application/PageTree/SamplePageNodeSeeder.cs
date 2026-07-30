@@ -10,12 +10,12 @@ namespace DfE.CheckPerformanceData.Application.PageTree;
 // are wiki-type (raw HTML body) so the legacy wiki render path stays exercised by tests and
 // manual browsing.
 //
-// Verified 2026-07-28 — seeds PageNode / PageNodeVersion rows via IPageNodeService.
-// CreatePageAsync -> SaveWorkingContentAsync -> PublishDraftAsync (NOT the retired
-// WikiPage / WikiPageVersion entities, which Phase 1.05's DropWikiPagePlumbing
-// migration removed). "wiki" here is the PageType discriminator on PageNode, not
-// the old WikiPage entity — see PageNodeService.CreatePageAsync + the wiki-typed
-// Content saved as raw HTML for Wiki.cshtml consumption.
+// Seeds PageNode / PageNodeVersion rows via IPageNodeService.CreatePageAsync ->
+// SaveWorkingContentAsync -> PublishDraftAsync (NOT the retired WikiPage /
+// WikiPageVersion entities, which the DropWikiPagePlumbing migration removed).
+// "wiki" here is the PageType discriminator on PageNode, not the old WikiPage
+// entity — see PageNodeService.CreatePageAsync + the wiki-typed Content saved as
+// raw HTML for Wiki.cshtml consumption.
 public sealed class SamplePageNodeSeeder(IPageNodeService pageNodes)
 {
     public async Task<int> SeedAsync(string? userId = "system")

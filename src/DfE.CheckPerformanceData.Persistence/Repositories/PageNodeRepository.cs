@@ -140,8 +140,8 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 x.Node,
                 x.Live,
                 // RankTotal — sum of the two vectors when Live exists, Node vector alone for
-                // draft-page rows. Same ORDER BY expression Phase 1.06 pinned; the draft
-                // branch only fires for excluded rows so kept-row ordering is unchanged.
+                // draft-page rows. The draft branch only fires for excluded rows, so kept-row
+                // ordering is unchanged.
                 RankTotal = x.Live != null
                     ? x.Node.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
                       + x.Live.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
@@ -159,14 +159,14 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                     ? (float?)EF.Functions.ToTsVector("english", x.Live.BodyPlainText)
                         .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
                     : null,
-                // Chained ternary translates to CASE WHEN. Order matches Phase 1.06's WHERE
-                // precedence (AppearInSearch checked first, then Live != null).
+                // Chained ternary translates to CASE WHEN. WHERE precedence: AppearInSearch
+                // checked first, then Live != null.
                 ExcludedBy = !x.Node.AppearInSearch
                     ? "pagenode-appearinsearch-false"
                     : (x.Live == null ? "draft-page" : (string?)null),
             });
 
-        // Kept rows LIMITed at the user-facing count with the shipped Phase 1.06 ORDER BY.
+        // Kept rows LIMITed at the user-facing count with the shipped ORDER BY.
         var keptQuery = widened
             .Where(x => x.ExcludedBy == null)
             .OrderByDescending(x => x.RankTotal)

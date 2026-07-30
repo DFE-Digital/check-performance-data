@@ -69,8 +69,8 @@ public enum VolumeBucketSize
 // column carries either kind of hit). ImpressionCount is how many result rows referenced
 // this page in the window. UniqueQueryCount is retained on the record for callers that
 // need the distinct-search figure, but the shipped admin surface drops it: the sink
-// canonicaliser (Phase 1.08) already ensures each search returns each URL at most once,
-// so the two counts are always equal on the surfaces that use this record.
+// canonicaliser already ensures each search returns each URL at most once, so the two
+// counts are always equal on the surfaces that use this record.
 public sealed record TopPageRow(
     string ResultKey,
     int ImpressionCount,

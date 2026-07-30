@@ -21,8 +21,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // Booting the full app via WebApplicationFactory<Program> would require the whole DfE
 // Sign-In / Azure Blob / distributed Postgres cache surface — an order of magnitude
 // heavier than the load path this test targets. The direct decorator-level assertion
-// exercises the same pipeline (the HTTP-to-decorator hop was proven in Phase 1.10's
-// search resilience tests). Trait "Slow" excludes it from the fast inner-loop run.
+// exercises the same pipeline; the HTTP-to-decorator hop is covered by the search-
+// resilience test suite. Trait "Slow" excludes it from the fast inner-loop run.
 [Collection(nameof(PostgresCollection))]
 [Trait("Category", "Slow")]
 public sealed class SinkLoadTests

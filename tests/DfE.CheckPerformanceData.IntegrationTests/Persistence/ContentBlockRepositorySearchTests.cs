@@ -134,7 +134,7 @@ public sealed class ContentBlockRepositorySearchTests(PostgresFixture fixture)
     // SQL-tier CASE tagged as excluded. Service-tier consumers apply a defensive filter
     // to drop excluded rows out of user-facing results; the next wave threads them into
     // telemetry. The facts below pin the widened shape: per-field ranks populated on
-    // kept rows and exclusion slugs matching Phase 1.06's three block-corpus SQL-tier
+    // kept rows and exclusion slugs matching the shipped three block-corpus SQL-tier
     // filter slugs on the corresponding excluded rows.
 
     [Fact]

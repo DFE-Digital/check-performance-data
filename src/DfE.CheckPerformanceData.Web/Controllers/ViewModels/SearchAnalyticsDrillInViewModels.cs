@@ -11,9 +11,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 // SQL filter, not in the rendered row shape — so one view-model shape covers both. Pages has
 // a distinct row shape (TopPageRow), so its own view-model.
 //
-// PageSize is trusted verbatim from CMS:PageLength (floor 1 only) per the settings convention
-// established in Phase 1.10 UAT: admin editors set the value and drill-ins render it. No
-// per-request URL override.
+// PageSize is trusted verbatim from CMS:PageLength (floor 1 only): admin editors set the
+// value and drill-ins render it. No per-request URL override.
 
 public sealed class SearchAnalyticsQueryDrillInViewModel
 {

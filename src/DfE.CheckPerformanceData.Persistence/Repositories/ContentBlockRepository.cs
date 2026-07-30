@@ -55,7 +55,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
             .Select(b => new
             {
                 Block = b,
-                // Combined Rank — unchanged from Phase 1.06.
+                // Combined Rank on the tsvector column.
                 Rank = b.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
                 // Per-field ranks — additive projections; every WebSearchToTsQuery call
                 // site inlined (its config arg is [NotParameterized]; hoisting throws).
@@ -63,8 +63,8 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
                     .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
                 RankValue = (float?)EF.Functions.ToTsVector("english", b.ValuePlainText)
                     .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedQuery)),
-                // Chained ternary translates to CASE WHEN. Precedence matches Phase 1.06's
-                // implicit ordering: key-prefix filter runs before the AppearInSearch check.
+                // Chained ternary translates to CASE WHEN. Precedence: key-prefix filter
+                // runs before the AppearInSearch check.
                 ExcludedBy = b.Key.StartsWith("e2e-")
                     ? "e2e-key"
                     : b.Key == "guidance-ks4-2026-nav"
@@ -74,7 +74,7 @@ public sealed class ContentBlockRepository(IPortalDbContext context) : IContentB
                             : (string?)null,
             });
 
-        // Kept rows LIMITed at the user-facing count with the shipped Phase 1.06 ORDER BY.
+        // Kept rows LIMITed at the user-facing count with the shipped ORDER BY.
         var keptQuery = widened
             .Where(x => x.ExcludedBy == null)
             .OrderByDescending(x => x.Rank)

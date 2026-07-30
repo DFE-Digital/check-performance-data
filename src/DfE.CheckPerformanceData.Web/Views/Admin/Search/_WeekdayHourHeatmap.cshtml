@@ -98,8 +98,12 @@
                     // upper-left of the cursor via search-analytics.js). Native <title> is
                     // intentionally omitted — the browser renders it below-right and CSS
                     // cannot reposition native tooltips.
-                    var rangeQs = System.Net.WebUtility.HtmlEncode((ViewData["RangeKey"] as string) ?? "7d");
-                    var href = $"/admin/Search/HeatmapCell?range={rangeQs}&weekday={weekday}&hour={h}";
+                    // RangeQuery is the pre-built range querystring from Index.cshtml (either
+                    // "range=<key>" for a preset or "range=custom&from=<iso>&to=<iso>" for a
+                    // custom window). Falling back to "range=7d" matches the controller's
+                    // default when no window info was threaded in.
+                    var rangeQs = (ViewData["RangeQuery"] as string) ?? "range=7d";
+                    var href = $"/admin/Search/HeatmapCell?{rangeQs}&weekday={weekday}&hour={h}";
                     @Html.Raw($"<a href=\"{href}\" xlink:href=\"{href}\"><rect class=\"sa-heatmap__cell\" x=\"{xStr}\" y=\"{yTop}\" width=\"{wStr}\" height=\"{innerH}\" rx=\"1.5\" ry=\"1.5\" fill=\"{CellColour(count)}\" data-sa-count=\"{count}\" data-sa-weekday=\"{weekday}\" data-sa-hour=\"{h}\" data-sa-tooltip=\"{System.Net.WebUtility.HtmlEncode(tooltip)}\" /></a>")
                 }
             }

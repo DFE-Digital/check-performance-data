@@ -8,6 +8,10 @@
     // line + link to the drill-in without changing its own model contract.
     var recovery = ViewData["ZeroResultRecoveryStats"] as ZeroResultRecoveryStats;
     var rangeKey = (ViewData["RangeKey"] as string) ?? "7d";
+    // RangeQuery is the pre-built range querystring from Index.cshtml (either
+    // "range=<key>" for a preset or "range=custom&from=<iso>&to=<iso>" for a custom
+    // window). Falls back to a bare "range=<key>" if the parent view didn't thread it.
+    var rangeQs = (ViewData["RangeQuery"] as string) ?? ("range=" + Uri.EscapeDataString(rangeKey));
 
     string FormatPercent(int part, int whole)
     {
@@ -70,7 +74,7 @@
                     of these sessions eventually got at least one result;
                     @FormatPercent(recovery.AbandonedCount, recovery.SessionsWithAnyZeroResult)
                     left empty-handed without telling us.
-                    <a class="govuk-link" href="/admin/Search/ZeroResultJourneys?range=@rangeKey">See every refinement chain &rarr;</a>
+                    <a class="govuk-link" href="/admin/Search/ZeroResultJourneys?@rangeQs">See every refinement chain &rarr;</a>
                 </p>
             }
         }

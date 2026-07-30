@@ -16,7 +16,7 @@
         _              => ("Search analytics", "/admin/Search/", "", ""),
     };
 
-    var rangeQs = $"range={Uri.EscapeDataString(Model.RangeKey)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
+    var rangeQs = $"{SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
     string PageLink(int p) => $"{actionPath}?{rangeQs}&page={p}";
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
@@ -25,7 +25,7 @@
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
 
-<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey&bucket=@Model.BucketKey">Back to search analytics</a>
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
 
 <h1 class="govuk-heading-xl">@title</h1>
 

@@ -2,7 +2,7 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsPagesDrillInViewModel
 @{
     ViewData["Title"] = "Top pages by search impressions";
-    var rangeQs = "range=" + Uri.EscapeDataString(Model.RangeKey);
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
     string PageLink(int p) => $"/admin/Search/Pages?{rangeQs}&page={p}";
     const string tableId = "sa-pages-table";
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;

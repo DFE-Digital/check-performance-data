@@ -4,7 +4,8 @@
 @{
     // Paged drill-in for the request-timings scatter. One row per search event over
     // the window, newest first, paged by CMS:PageLength.
-    string PageLink(int p) => $"/admin/Search/RequestTimings?range={Uri.EscapeDataString(Model.RangeKey)}&page={p}";
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    string PageLink(int p) => $"/admin/Search/RequestTimings?{rangeQs}&page={p}";
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
@@ -12,7 +13,7 @@
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
 
-<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey">Back to search analytics</a>
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
 
 <h1 class="govuk-heading-xl">Request timings</h1>
 

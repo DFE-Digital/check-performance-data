@@ -2,8 +2,8 @@
 @using DfE.CheckPerformanceData.Web.Controllers.ViewModels
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsZeroResultJourneysViewModel
 @{
-    string PageLink(int p) =>
-        $"/admin/Search/ZeroResultJourneys?range={Uri.EscapeDataString(Model.RangeKey)}&page={p}";
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    string PageLink(int p) => $"/admin/Search/ZeroResultJourneys?{rangeQs}&page={p}";
 
     string FormatPct(int part, int whole)
     {
@@ -16,7 +16,7 @@
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
 
-<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey">Back to search analytics</a>
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
 
 <h1 class="govuk-heading-xl">Zero-result recovery journeys</h1>
 

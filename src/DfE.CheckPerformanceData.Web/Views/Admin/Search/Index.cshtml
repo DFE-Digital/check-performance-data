@@ -22,7 +22,8 @@
     // 90-day-by-15-minute window (~8600 buckets) does not paint the DOM. Anything longer
     // renders a "View all X data →" link to the per-series drill-in.
     ViewContext.ViewData["sa-inline-row-cap"] = 20;
-    var chartQuery = $"range={Uri.EscapeDataString(Model.RangeKey)}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    var chartQuery = $"{rangeQs}&bucket={Uri.EscapeDataString(Model.BucketKey)}";
     ViewContext.ViewData["sa-drillin-volume-url"]  = $"/admin/Search/Volume?{chartQuery}";
     ViewContext.ViewData["sa-drillin-latency-url"] = $"/admin/Search/LatencyOverTime?{chartQuery}";
 
@@ -244,7 +245,11 @@
 @* Heatmap card (weekday × hour-of-day). Server-rendered SVG grid — no client-side
    chart library. Positioned between the interactive charts and the top-N tables. *@
 @{
-    var heatmapViewData = new ViewDataDictionary(ViewData) { ["RangeKey"] = Model.RangeKey };
+    var heatmapViewData = new ViewDataDictionary(ViewData)
+    {
+        ["RangeKey"] = Model.RangeKey,
+        ["RangeQuery"] = rangeQs,
+    };
 }
 @await Html.PartialAsync("~/Views/Admin/Search/_WeekdayHourHeatmap.cshtml", Model.WeekdayHourGrid, heatmapViewData)
 
@@ -255,6 +260,7 @@
     {
         ["ZeroResultRecoveryStats"] = Model.RecoveryStats,
         ["RangeKey"] = Model.RangeKey,
+        ["RangeQuery"] = rangeQs,
     };
 }
 @await Html.PartialAsync("~/Views/Admin/Search/_ZeroResultFunnel.cshtml", Model.ZeroResultOutcomes, funnelViewData)
@@ -295,7 +301,7 @@
                             }
                         </tbody>
                     </table>
-                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?range=@Model.RangeKey">View all top queries &rarr;</a></p>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Queries?@rangeQs">View all top queries &rarr;</a></p>
                 }
             </div>
         </div>
@@ -332,7 +338,7 @@
                             }
                         </tbody>
                     </table>
-                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?range=@Model.RangeKey">View all zero-result queries &rarr;</a></p>
+                    <p class="govuk-body"><a class="govuk-link" href="/admin/Search/ZeroResults?@rangeQs">View all zero-result queries &rarr;</a></p>
                 }
             </div>
         </div>
@@ -378,7 +384,7 @@
                     </table>
                     @if (Model.TopPagesTotalCount > Model.TopPages.Count)
                     {
-                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Pages?range=@Model.RangeKey">View all top pages by search impressions &rarr;</a></p>
+                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Pages?@rangeQs">View all top pages by search impressions &rarr;</a></p>
                     }
                 }
             </div>
@@ -417,7 +423,7 @@
                     </table>
                     @if (Model.TopBlocksTotalCount > Model.TopBlocks.Count)
                     {
-                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Blocks?range=@Model.RangeKey">View all top content blocks by search impressions &rarr;</a></p>
+                        <p class="govuk-body"><a class="govuk-link" href="/admin/Search/Blocks?@rangeQs">View all top content blocks by search impressions &rarr;</a></p>
                     }
                 }
             </div>

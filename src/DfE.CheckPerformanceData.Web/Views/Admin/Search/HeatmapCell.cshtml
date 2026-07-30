@@ -6,15 +6,16 @@
     // One row per search event that landed in this (weekday, hour) bucket during the
     // window, newest first, paged by CMS:PageLength.
     string PageLink(int p) =>
-        $"/admin/Search/HeatmapCell?range={Uri.EscapeDataString(Model.RangeKey)}&weekday={Model.Weekday}&hour={Model.Hour}&page={p}";
+        $"/admin/Search/HeatmapCell?{SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc)}&weekday={Model.Weekday}&hour={Model.Hour}&page={p}";
 
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
 
-<a class="govuk-back-link" href="/admin/Search/?range=@Model.RangeKey">Back to search analytics</a>
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
 
 <h1 class="govuk-heading-xl">Searches on @Model.WeekdayLabel at @Model.HourLabel</h1>
 

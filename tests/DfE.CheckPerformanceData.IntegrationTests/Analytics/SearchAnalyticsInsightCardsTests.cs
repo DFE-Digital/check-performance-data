@@ -354,4 +354,62 @@ public sealed class SearchAnalyticsInsightCardsTests
         await context.Database.ExecuteSqlRawAsync(
             "TRUNCATE TABLE search_events RESTART IDENTITY CASCADE; TRUNCATE TABLE search_messages RESTART IDENTITY CASCADE;");
     }
+
+    // ── EXTRACT-UTC regression under a non-UTC session ─────────────────────
+    // EXTRACT(field FROM timestamptz) evaluates in the DB session's TimeZone. Without an
+    // explicit "AT TIME ZONE 'UTC'", a Europe/London session would bucket 23:30 UTC on a
+    // Tuesday into Wednesday 00:30 BST — wrong weekday AND wrong hour. Verify the query
+    // service's SQL survives a session TZ change by opening a Europe/London-typed
+    // connection and running the same aggregate.
+
+    [Fact]
+    public async Task WeekdayHourAggregate_UnderEuropeLondonSession_MatchesUtcBucketing()
+    {
+        await ResetAllAsync();
+
+        // 2026-06-30 (Tuesday) 23:30 UTC → BST is +1 → 2026-07-01 (Wednesday) 00:30.
+        // Under UTC bucketing this event lives at (weekday=2, hour=23). If the query
+        // pulled the field extraction into the session TZ, it would land at (3, 0).
+        var boundaryEvent = new DateTime(2026, 6, 30, 23, 30, 0, DateTimeKind.Utc);
+        await SeedAsync(NewEvent(boundaryEvent, "s-boundary", "q", results: 1, latency: 10));
+
+        var fromUtc = new DateTime(2026, 6, 24, 0, 0, 0, DateTimeKind.Utc);
+        var toUtc   = new DateTime(2026, 7, 3,  0, 0, 0, DateTimeKind.Utc);
+
+        // Reuse the exact SQL the service issues. Timezone is set on the RAW Npgsql
+        // connection via SET TIMEZONE before the query, mirroring what a mis-configured
+        // production Postgres would silently do to every query.
+        const string sql = @"
+SELECT
+    EXTRACT(ISODOW FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS weekday,
+    EXTRACT(HOUR   FROM occurred_at_utc AT TIME ZONE 'UTC')::int AS hour,
+    COUNT(*)::int AS c
+FROM search_events
+WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
+GROUP BY 1, 2;";
+
+        await using var conn = new Npgsql.NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using (var tz = conn.CreateCommand())
+        {
+            tz.CommandText = "SET TIMEZONE = 'Europe/London';";
+            await tz.ExecuteNonQueryAsync();
+        }
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.Parameters.Add(new Npgsql.NpgsqlParameter("from", NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = fromUtc });
+        cmd.Parameters.Add(new Npgsql.NpgsqlParameter("to",   NpgsqlTypes.NpgsqlDbType.TimestampTz) { Value = toUtc });
+
+        var buckets = new List<(int Weekday, int Hour, int Count)>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            buckets.Add((reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)));
+        }
+
+        var single = Assert.Single(buckets);
+        Assert.Equal(2,  single.Weekday);       // Tuesday under UTC
+        Assert.Equal(23, single.Hour);          // 23:00 under UTC (NOT Wednesday 00:00 BST)
+        Assert.Equal(1,  single.Count);
+    }
 }

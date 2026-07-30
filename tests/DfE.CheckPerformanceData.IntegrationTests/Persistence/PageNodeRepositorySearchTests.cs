@@ -342,4 +342,24 @@ public sealed class PageNodeRepositorySearchTests(PostgresFixture fixture)
         var expected = Enumerable.Range(0, 15).Select(i => $"widget-hidden-{i:D2}").ToList();
         Assert.Equal(expected, excludedPaths);
     }
+
+    // ── GetTreeAsync soft-delete filter ────────────────────────────────────
+    // The interface XML doc has always promised "all live (non-deleted) nodes". The
+    // implementation now filters DeletedDate IS NULL. Callers depend on this (sample
+    // seeder hit-pool, MoveNode sibling reorder, staging comparisons) — a soft-deleted
+    // row leaking through causes 404-linked seed data and inflated sibling indices.
+
+    [Fact]
+    public async Task GetTreeAsync_ExcludesSoftDeletedNodes()
+    {
+        await TruncateAsync();
+        var live    = BuildPageAt("keep-me",   "Keep me");
+        var deleted = BuildPage("gone",        "Gone",     deletedDate: DateTime.UtcNow.AddDays(-1));
+        await SeedAsync((live, "live body"), (deleted, "gone body"));
+
+        var tree = await Repo().GetTreeAsync();
+
+        Assert.Contains(tree, n => n.Id == live.Id);
+        Assert.DoesNotContain(tree, n => n.Id == deleted.Id);
+    }
 }

@@ -219,9 +219,11 @@ public sealed class SampleSearchDataVarianceTests
     // must produce IDENTICAL event rows across independent runs. The pre-existing
     // SameSeed_ProducesIdenticalTimestampSequence fact only checks timestamps ordered by
     // primary key; this one strengthens the guarantee to the full row-tuple
-    // (occurred_at_utc, query_raw, latency_ms) ordered by occurred_at_utc so any drift in
-    // the RNG walk affecting query or latency selection is caught even when timestamps
-    // stay stable.
+    // (occurred_at_utc, query_raw, latency_ms, session_id) ordered by occurred_at_utc so
+    // any drift in the RNG walk affecting query / latency / session selection is caught
+    // even when timestamps stay stable. session_id is projected explicitly because it is
+    // the surface an operator navigates back to (drill-in URL: /admin/Search/Session/{id})
+    // so its determinism is load-bearing on the "same seed → same demo" contract.
     [Fact]
     public async Task SeedAsync_SameSeed_ProducesByteIdenticalEventTuples()
     {
@@ -250,7 +252,7 @@ public sealed class SampleSearchDataVarianceTests
         }
     }
 
-    private async Task<List<(DateTime OccurredAtUtc, string QueryRaw, int LatencyMs)>> EventTuplesAsync()
+    private async Task<List<(DateTime OccurredAtUtc, string QueryRaw, int LatencyMs, string SessionId)>> EventTuplesAsync()
     {
         await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
         await conn.OpenAsync();
@@ -259,14 +261,14 @@ public sealed class SampleSearchDataVarianceTests
         // rework) does not by itself skew equality. Include id as a stable tiebreaker
         // so two events at the same ms don't shuffle between runs.
         cmd.CommandText = @"
-            SELECT occurred_at_utc, query_raw, latency_ms
+            SELECT occurred_at_utc, query_raw, latency_ms, session_id
             FROM search_events
             ORDER BY occurred_at_utc, id;";
-        var tuples = new List<(DateTime, string, int)>();
+        var tuples = new List<(DateTime, string, int, string)>();
         await using var reader = await cmd.ExecuteReaderAsync();
         while (await reader.ReadAsync())
         {
-            tuples.Add((reader.GetDateTime(0), reader.GetString(1), reader.GetInt32(2)));
+            tuples.Add((reader.GetDateTime(0), reader.GetString(1), reader.GetInt32(2), reader.GetString(3)));
         }
         return tuples;
     }

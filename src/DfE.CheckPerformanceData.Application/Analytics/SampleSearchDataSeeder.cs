@@ -181,10 +181,18 @@ public sealed class SampleSearchDataSeeder(
 
         // Session pool: ~200 synthetic sessions is enough to give a mix of one-off + power
         // users while keeping the top-users tile populated with real data. Reduce to eventCount/3
-        // if a tiny seed run would exhaust the pool.
+        // if a tiny seed run would exhaust the pool. Session IDs are drawn from `rng` (not
+        // Guid.NewGuid) so the seeder's "same seed → same run" contract holds all the way
+        // through to the drill-in URLs: a demo/repro that captures /admin/Search/Session/{id}
+        // from one run finds the same session on a re-run.
         var sessionPoolSize = Math.Max(8, Math.Min(200, Math.Max(1, eventCount / 3)));
+        var sessionIdBytes = new byte[16];
         var sessions = Enumerable.Range(0, sessionPoolSize)
-            .Select(_ => Guid.NewGuid().ToString("N"))
+            .Select(_ =>
+            {
+                rng.NextBytes(sessionIdBytes);
+                return new Guid(sessionIdBytes).ToString("N");
+            })
             .ToArray();
 
         // Weight-biased session picker: give a handful of sessions much higher chance of

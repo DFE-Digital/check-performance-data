@@ -2,8 +2,6 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
 public class WindowService(IWindowRepository windowRepository, TimeProvider timeProvider): IWindowService
 {
-    private const int WindowClosingHour = 17;
-
     public async Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset now = timeProvider.GetLocalNow();
@@ -23,16 +21,16 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task<CheckingWindowDto> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await windowRepository.GetByIdAsync(id, cancellationToken);
 
+    // Start and end dates carry the admin-chosen time-of-day (defaulting to 00:00 / 17:00
+    // for new windows, but editable), so both are persisted exactly as supplied.
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
-        ApplyWindowOpeningHours(window);
         EnsureDatasetsMatchType(window);
         await windowRepository.UpdateAsync(window, cancellationToken);
     }
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
-        ApplyWindowOpeningHours(window);
         EnsureDatasetsMatchType(window);
         return await windowRepository.CreateAsync(window, cancellationToken);
     }
@@ -52,15 +50,5 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
         }
 
         window.Datasets = wanted;
-    }
-
-    /// <summary>
-    /// A checking window always opens at midnight on its start date and closes at 17:00 on its end
-    /// date. Admins choose dates only, so any time component carried on the supplied dates is replaced.
-    /// </summary>
-    private static void ApplyWindowOpeningHours(CheckingWindowDto window)
-    {
-        window.StartDate = window.StartDate.Date;
-        window.EndDate = window.EndDate.Date.AddHours(WindowClosingHour);
     }
 }

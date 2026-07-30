@@ -35,12 +35,22 @@ else
                type="search" data-filter-target="@tableId" autocomplete="off" />
     </div>
 
+    @{
+        // Distinct-queries column: hidden when the canonicaliser's "each search returns
+        // each block at most once" invariant holds. Shown as a diagnostic when at least
+        // one row disagrees, so a duplicate-result-row regression is visible.
+        var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
+    }
     <table class="govuk-table" id="@tableId">
         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top content blocks by search impressions</caption>
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header" title="Key of the content block that appeared in results.">Block key</th>
                 <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many times this block appeared in any user's result set in the window.">Impressions</th>
+                @if (showDistinct)
+                {
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="Number of distinct searches that surfaced this block. Should equal Impressions; a lower value would indicate a duplicate result-row regression.">Distinct searches</th>
+                }
             </tr>
         </thead>
         <tbody class="govuk-table__body">
@@ -49,6 +59,10 @@ else
                 <tr class="govuk-table__row" data-filter-key="@row.ResultKey">
                     <td class="govuk-table__cell">@row.ResultKey</td>
                     <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    @if (showDistinct)
+                    {
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.UniqueQueryCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    }
                 </tr>
             }
         </tbody>

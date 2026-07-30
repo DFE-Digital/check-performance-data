@@ -1268,7 +1268,7 @@ feedback AS (
     SELECT DISTINCT s.session_id
     FROM sessions_with_zero s
     JOIN search_messages m ON m.session_id = s.session_id
-    WHERE m.occurred_at_utc >= @from AND m.occurred_at_utc < @to
+    WHERE m.submitted_at_utc >= @from AND m.submitted_at_utc < @to
 )
 SELECT
     (SELECT COUNT(*) FROM sessions_with_zero)::int AS total_sessions,
@@ -1352,7 +1352,7 @@ feedback AS (
     SELECT DISTINCT m.session_id
     FROM search_messages m
     JOIN page_sessions p ON p.session_id = m.session_id
-    WHERE m.occurred_at_utc >= @from AND m.occurred_at_utc < @to
+    WHERE m.submitted_at_utc >= @from AND m.submitted_at_utc < @to
 ),
 recovered AS (
     SELECT DISTINCT e.session_id

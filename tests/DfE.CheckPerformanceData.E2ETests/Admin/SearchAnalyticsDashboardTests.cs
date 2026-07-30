@@ -1342,6 +1342,111 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
+    // --- Click-through: heatmap cell drills into a paged list of matching searches ---
+
+    [SkippableFact]
+    public async Task HeatmapCell_ClickThrough_LandsOnFilteredDrillInPage()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-heatmap-card").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // Pick a cell mid-grid (Wednesday-ish, working hours) so we hit a realistic
+            // bucket rather than a corner cell that may render empty in a fresh seed.
+            var cells = Page.Locator(".sa-heatmap rect.sa-heatmap__cell");
+            Assert.Equal(168, await cells.CountAsync());
+            var midCell = cells.Nth(60);      // ~Wed 12:00 in the row-major (weekday, hour) fan-out
+
+            var weekday = await midCell.GetAttributeAsync("data-sa-weekday");
+            var hour = await midCell.GetAttributeAsync("data-sa-hour");
+            Assert.NotNull(weekday);
+            Assert.NotNull(hour);
+
+            // Click the enclosing anchor — the <a> wraps the <rect> for the drill-in URL.
+            // Playwright's Click bubbles up so the anchor's default navigation fires.
+            await midCell.ClickAsync();
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            var landedUrl = Page.Url;
+            Assert.Contains("/admin/Search/HeatmapCell", landedUrl, StringComparison.Ordinal);
+            Assert.Contains($"weekday={weekday}", landedUrl, StringComparison.Ordinal);
+            Assert.Contains($"hour={hour}", landedUrl, StringComparison.Ordinal);
+
+            // Either a filled table (data path) or the empty-state paragraph (no matches
+            // in that hour) — both are legit renders for the seed corpus.
+            var table = Page.Locator("main table");
+            var emptyState = Page.Locator("main p.govuk-body:has-text(\"No searches\")");
+            var hasTable = await table.CountAsync() > 0;
+            var hasEmpty = await emptyState.CountAsync() > 0;
+            Assert.True(hasTable || hasEmpty,
+                "HeatmapCell drill-in should render either a results table or an empty-state paragraph.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // --- Click-through: zero-result funnel "See every refinement chain" drill-in ---
+
+    [SkippableFact]
+    public async Task ZeroResultJourneys_LinkFromFunnel_LandsOnJourneysPage()
+    {
+        Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
+            "Playwright browser test Linux-only");
+
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            AttachCookieToContext(adminCookie);
+
+            var response = await Page.GotoAsync($"{Fixture.BaseUrl}/admin/Search/");
+            Assert.NotNull(response);
+            Assert.Equal(200, response!.Status);
+
+            await Page.Locator(".sa-funnel-card").WaitForAsync(
+                new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+
+            // The link only surfaces when there is at least one zero-result session; on
+            // an empty seed the funnel card renders its empty-state paragraph instead.
+            // Handle both branches so this test survives a slim demo corpus.
+            var link = Page.Locator("a.govuk-link:has-text(\"See every refinement chain\")");
+            if (await link.CountAsync() == 0)
+            {
+                var emptyState = Page.Locator(".sa-funnel-card p.govuk-body:has-text(\"No zero-result searches\")");
+                await Expect(emptyState).ToBeVisibleAsync();
+                return;
+            }
+
+            await link.First.ClickAsync();
+            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            Assert.Contains("/admin/Search/ZeroResultJourneys", Page.Url, StringComparison.Ordinal);
+
+            // Recovery-summary card + at least one journey card (or a graceful empty-state
+            // if the seed happens to have no zero-result-having sessions in the default
+            // window). Either shape counts as "the page rendered".
+            var summaryCard = Page.Locator("main .govuk-summary-card, main .govuk-inset-text");
+            Assert.True(await summaryCard.CountAsync() > 0,
+                "ZeroResultJourneys page should render at least one summary-card or inset panel.");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
     // --- Helpers ---
 
     private void AttachCookieToContext(string? cookieHeader)

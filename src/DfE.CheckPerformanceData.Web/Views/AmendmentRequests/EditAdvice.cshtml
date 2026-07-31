@@ -40,10 +40,26 @@
     </dl>
 }
 
+
+
+@if (Model.SavedAt is not null)
+{
+    <h2 class="govuk-heading-m">Last saved by</h2>
+    <dl class="govuk-summary-list govuk-!-margin-bottom-9">
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Email</dt>
+            <dd class="govuk-summary-list__value">@(Model.SavedByEmail ?? "Email address is not available")</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">When</dt>
+            <dd class="govuk-summary-list__value">@Model.SavedAtText</dd>
+        </div>
+    </dl>
+}
+
 <div class="govuk-inset-text">
     <p class="govuk-body">@Model.AdviceText</p>
 </div>
-
 
 <form method="post" action="@Url.Action("Continue", "AmendmentRequests", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
     @Html.AntiForgeryToken()

@@ -83,7 +83,9 @@ public sealed class SubmittedRequestService(
             // The ChangeRequests row is the single source of truth for who saved/submitted
             // the request and when (set for both drafts and submissions).
             SubmittedByEmail = row.SubmittedByEmail,
-            SubmittedAt = row.Submitted
+            SubmittedAt = row.Submitted,
+            WithdrawnByEmail = row.WithdrawnByEmail,
+            WithdrawnAt = row.WithdrawnAt
         };
     }
 
@@ -99,6 +101,8 @@ public sealed class SubmittedRequestService(
             Status = row.Status,
             SubmittedByEmail = row.SubmittedByEmail,
             SubmittedAt = row.Submitted,
+            WithdrawnByEmail = row.WithdrawnByEmail,
+            WithdrawnAt = row.WithdrawnAt,
             ReferenceNumber = row.ReferenceNumber
         };
     }

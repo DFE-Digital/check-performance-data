@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
@@ -16,7 +17,18 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
         Converters = { new JsonStringEnumConverter(), new NullToEmptyStringJsonConverter() }
     };
 
-    public async Task<IReadOnlyList<PupilRecord>?> GetPupilsAsync(Guid windowId, string laestab)
+    /// <summary>The concrete deserialisation target for a window type. Post16 has its own
+    /// supplier schema (FORENAMES, ULN, stamped INCLUDED); every other type uses the KS4 shape.</summary>
+    public static Type RecordTypeFor(CheckingWindowType windowType)
+        => windowType == CheckingWindowType.Post16 ? typeof(Post16PupilRecord) : typeof(PupilRecord);
+
+    // Public so the pupil-schema tests bind supplier JSON exactly as production does.
+    public static IReadOnlyList<IPupilRecord> Deserialize(ReadOnlySpan<byte> utf8Json, CheckingWindowType windowType)
+        => windowType == CheckingWindowType.Post16
+            ? JsonSerializer.Deserialize<List<Post16PupilRecord>>(utf8Json, JsonOptions) ?? []
+            : JsonSerializer.Deserialize<List<PupilRecord>>(utf8Json, JsonOptions) ?? [];
+
+    public async Task<IReadOnlyList<IPupilRecord>?> GetPupilsAsync(Guid windowId, string laestab, CheckingWindowType windowType)
     {
         var blob = GetBlobClient(windowId, laestab);
 
@@ -25,19 +37,20 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
 
         var response = await blob.DownloadContentAsync();
         // Malformed JSON intentionally throws so corrupt files surface rather than read as empty.
-        return JsonSerializer.Deserialize<List<PupilRecord>>(response.Value.Content, JsonOptions);
+        return Deserialize(response.Value.Content.ToMemory().Span, windowType);
     }
 
     public async Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => await GetBlobClient(windowId, laestab).ExistsAsync();
 
-    public async Task UploadPupilsAsync(Guid windowId, string laestab, IReadOnlyList<PupilRecord> pupils)
+    public async Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
         await container.CreateIfNotExistsAsync();
 
         var blob = container.GetBlobClient(BlobName(laestab));
-        var json = JsonSerializer.Serialize(pupils, JsonOptions);
+        // Serialise against the runtime type so each record's own [JsonPropertyName] map is used.
+        var json = JsonSerializer.Serialize<List<T>>(pupils, JsonOptions);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
         await blob.UploadAsync(stream, overwrite: true);
     }

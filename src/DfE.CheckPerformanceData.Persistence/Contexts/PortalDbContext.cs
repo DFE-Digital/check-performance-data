@@ -14,6 +14,7 @@ public sealed class PortalDbContext(
     ICurrentUserService currentUserService) : DbContext(options), IPortalDbContext
 {
     public DbSet<CheckingWindow> CheckingWindows => Set<CheckingWindow>();
+    public DbSet<CheckingWindowDataset> CheckingWindowDatasets => Set<CheckingWindowDataset>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
@@ -37,6 +38,7 @@ public sealed class PortalDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new CheckingWindowConfiguration());
+        modelBuilder.ApplyConfiguration(new CheckingWindowDatasetConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());

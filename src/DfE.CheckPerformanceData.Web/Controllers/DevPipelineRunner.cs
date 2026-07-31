@@ -68,21 +68,23 @@ public sealed class DevPipelineRunner
 
         // Derive laestab from the UPN when not explicitly provided.
         // UPN format: ALLLEEEESSSSC (13 chars) — A + 3-digit LEA + 4-digit school + serial + check.
+        // KS4 only: a Post16 pupil's identifier is a ULN, which has no laestab embedded in it, so
+        // callers must pass laestab explicitly for a 16-19 window.
         if (laestab is null && pupilUpn is not null && pupilUpn.Length >= 13)
             laestab = $"{pupilUpn.Substring(1, 3)}/{pupilUpn.Substring(4, 4)}";
 
         // Look up the real pupil from blob storage so we get the true PupilId (needed for
         // conflict matching), verified name fields, etc. Supports both UPN and name-based
         // matching — the caller can supply either.
-        PupilRecord? matchedPupil = null;
+        IPupilRecord? matchedPupil = null;
         if (windowId is not null && laestab is not null)
         {
-            var pupils = await _pupilBlob.GetPupilsAsync(resolvedWindowId, laestab);
+            var pupils = await _pupilBlob.GetPupilsAsync(resolvedWindowId, laestab, CheckingWindowType.KS4June);
             if (pupils is not null)
             {
                 if (pupilUpn is not null)
                     matchedPupil = pupils.FirstOrDefault(p =>
-                        p.Upn.Equals(pupilUpn, StringComparison.OrdinalIgnoreCase));
+                        p.Identifier.Equals(pupilUpn, StringComparison.OrdinalIgnoreCase));
                 else if (pupilFirstName is not null && pupilSurname is not null)
                     matchedPupil = pupils.FirstOrDefault(p =>
                         p.Firstname.Equals(pupilFirstName, StringComparison.OrdinalIgnoreCase) &&
@@ -91,7 +93,7 @@ public sealed class DevPipelineRunner
         }
 
         var resolvedPupilId = matchedPupil?.Id ?? pupilId;
-        var resolvedPupilUpn = matchedPupil?.Upn ?? pupilUpn ?? "UPN1";
+        var resolvedPupilUpn = matchedPupil?.Identifier ?? pupilUpn ?? "UPN1";
         var resolvedPupilFirstname = matchedPupil?.Firstname ?? pupilFirstName ?? "Bob";
         var resolvedPupilSurname = matchedPupil?.Surname ?? pupilSurname ?? "Smith";
         var resolvedSubmittedById = userId ?? Guid.NewGuid();

@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Domain.Enums
 @using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest
 @model SubmittedRequestViewModel
 
@@ -91,14 +92,28 @@ else
 
 <h2 class="govuk-heading-m">@Model.ByLineTitle</h2>
 <dl class="govuk-summary-list govuk-!-margin-bottom-9">
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">Email</dt>
-        <dd class="govuk-summary-list__value">@Model.SubmittedByEmail</dd>
-    </div>
-    <div class="govuk-summary-list__row">
-        <dt class="govuk-summary-list__key">When</dt>
-        <dd class="govuk-summary-list__value">@Model.SubmittedAtText</dd>
-    </div>
+    @if (Model.Status == RequestStatus.Withdrawn)
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Email</dt>
+            <dd class="govuk-summary-list__value">@(Model.WithdrawnByEmail ?? "Email address is not available")</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">When</dt>
+            <dd class="govuk-summary-list__value">@Model.WithdrawnAtText</dd>
+        </div>
+    }
+    else
+    {
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">Email</dt>
+            <dd class="govuk-summary-list__value">@(Model.SubmittedByEmail ?? "Email address is not available")</dd>
+        </div>
+        <div class="govuk-summary-list__row">
+            <dt class="govuk-summary-list__key">When</dt>
+            <dd class="govuk-summary-list__value">@Model.SubmittedAtText</dd>
+        </div>
+    }
     @if (Model.ShowReferenceNumber)
     {
         <div class="govuk-summary-list__row">

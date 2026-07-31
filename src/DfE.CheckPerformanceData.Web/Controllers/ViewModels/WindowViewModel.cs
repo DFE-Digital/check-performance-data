@@ -40,25 +40,19 @@ public class WindowEditItem : AdminPage
         get => $"{BaseEditUrl}/checking-window-type";
     }
     //data
-    public string? IngressFile { get; set; }
-    public string IngressFileLink
-    {
-        get => $"{BaseEditUrl}/ingress-file";
-    }
+    /// <summary>One row pair per ingress dataset. A Post16 window has two (included +
+    /// non-included); every other type has one.</summary>
+    public IReadOnlyList<DatasetSummaryRow> Datasets { get; set; } = [];
+
     public string? OutputPath { get; set; }
-    public string? SchemaFile { get; set; }
-    public string SchemaFileLink
-    {
-        get => $"{BaseEditUrl}/schema-file";
-    }
     public bool ValidationSuccess { get; set; } = false;
     public DateTime? ValidationDate { get; set; }
     public bool IsPublished { get; set; } = false;
     public Guid? PublishedId { get; set; }
     
-    private bool HasRequiredFiles =>
-        !string.IsNullOrWhiteSpace(IngressFile) &&
-        !string.IsNullOrWhiteSpace(SchemaFile);
+    // Every dataset must have both files — a Post16 window is not validatable until both the
+    // included and non-included CSV/schema pairs are chosen, because they ingest in one run.
+    private bool HasRequiredFiles => Datasets.Count > 0 && Datasets.All(d => d.IsComplete);
 
     private bool HasValidDates
     {
@@ -73,5 +67,20 @@ public class WindowEditItem : AdminPage
     }
 
     public bool IsValidatable => HasValidDates && HasRequiredFiles;
-        
+
+}
+
+public sealed class DatasetSummaryRow
+{
+    public required Guid WindowId { get; init; }
+    public required string Name { get; init; }
+    public required string Label { get; init; }
+    public string? IngressFile { get; init; }
+    public string? SchemaFile { get; init; }
+
+    public string IngressFileLink => $"/admin/windows/{WindowId}/ingress-file/{Name}";
+    public string SchemaFileLink => $"/admin/windows/{WindowId}/schema-file/{Name}";
+
+    public bool IsComplete =>
+        !string.IsNullOrWhiteSpace(IngressFile) && !string.IsNullOrWhiteSpace(SchemaFile);
 }

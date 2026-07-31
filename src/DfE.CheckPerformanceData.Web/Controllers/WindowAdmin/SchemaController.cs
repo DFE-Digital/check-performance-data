@@ -17,8 +17,8 @@ public class SchemaController(
 
     private const string PageView = "~/Views/WindowAdmin/Schema.cshtml";
 
-    [HttpGet("admin/windows/{id:guid}/schema-file")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    [HttpGet("admin/windows/{id:guid}/schema-file/{dataset}")]
+    public async Task<IActionResult> Index(Guid id, string dataset, CancellationToken cancellationToken)
     {
         CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
 
@@ -27,18 +27,27 @@ public class SchemaController(
             return NotFound();
         }
 
+        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+
+        if (target is null)
+        {
+            return NotFound();
+        }
+
         SchemaItem model = new SchemaItem()
         {
             WindowId = window.Id,
-            SchemaFile = window.SchemaFile,
-            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id }),
+            SchemaFile = target.SchemaFile,
+            Dataset = target.Name,
+            DatasetLabel = DatasetLabels.For(target.Name),
+            PostUrl = Url.Action("Submit", "Schema", new { id = window.Id, dataset = target.Name }),
         };
         return View(PageView, model);
     }
 
-    [HttpPost("admin/windows/{id:guid}/schema-file")]
+    [HttpPost("admin/windows/{id:guid}/schema-file/{dataset}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Submit(Guid id, SchemaItem model, CancellationToken cancellationToken)
+    public async Task<IActionResult> Submit(Guid id, string dataset, SchemaItem model, CancellationToken cancellationToken)
     {
         if (id != model.WindowId)
         {
@@ -96,8 +105,23 @@ public class SchemaController(
             },
             cancellationToken);
 
-        window.SchemaFile = schemaFileName;
-        window.SchemaFileChecksum = checksum;
+        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+
+        if (target is null)
+        {
+            return NotFound();
+        }
+
+        target.SchemaFile = schemaFileName;
+        target.SchemaFileChecksum = checksum;
+
+        // Legacy scalar columns mirror the first dataset for one release (rollback safety).
+        if (target.SortOrder == 0)
+        {
+            window.SchemaFile = schemaFileName;
+            window.SchemaFileChecksum = checksum;
+        }
+
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", new { id });

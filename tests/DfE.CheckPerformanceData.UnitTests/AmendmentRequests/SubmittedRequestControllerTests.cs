@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
@@ -262,6 +263,89 @@ public class SubmittedRequestControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // ── ByLineTitle for withdrawn status ───────────────────────────────────
+
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    public void ConfirmDataCorrectViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
+    {
+        var vm = new ConfirmDataCorrectViewModel
+        {
+            WindowId = WindowId,
+            Status = status,
+            ReferenceNumber = Reference
+        };
+
+        Assert.Equal(expected, vm.ByLineTitle);
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.NotSubmitted, "Saved by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    public void SubmittedRequestViewModel_ByLineTitle_ReturnsExpectedText(RequestStatus status, string expected)
+    {
+        var vm = new SubmittedRequestViewModel
+        {
+            WindowId = WindowId,
+            WhatToChange = WhatToChange.Remove,
+            Status = status,
+            PupilName = "Jane Smith",
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference
+        };
+
+        Assert.Equal(expected, vm.ByLineTitle);
+    }
+
+    // ── Null withdrawal fields (legacy data) ────────────────────────────────
+
+    [Fact]
+    public async Task View_WhenStatusWithdrawnAndNullWithdrawalFields_RendersGracefully()
+    {
+        _service.GetAsync(WindowId, Reference).Returns(new SubmittedRequestView
+        {
+            WhatToChange = WhatToChange.Remove,
+            Status = RequestStatus.Withdrawn,
+            PupilName = "Jane Smith",
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.View(WindowId, Reference);
+
+        var vm = Assert.IsType<SubmittedRequestViewModel>(((ViewResult)result).Model);
+        Assert.Equal("Withdrawn by", vm.ByLineTitle);
+        Assert.Null(vm.WithdrawnByEmail);
+        Assert.Equal(string.Empty, vm.WithdrawnAtText);
+    }
+
+    [Fact]
+    public async Task ViewConfirmation_WhenStatusWithdrawnAndNullWithdrawalFields_RendersGracefully()
+    {
+        _service.GetConfirmDataCorrectAsync(WindowId, Reference).Returns(new ConfirmDataCorrectView
+        {
+            Status = RequestStatus.Withdrawn,
+            SubmittedByEmail = null,
+            SubmittedAt = null,
+            ReferenceNumber = Reference
+        });
+
+        var result = await _sut.ViewConfirmation(WindowId, Reference);
+
+        var vm = Assert.IsType<ConfirmDataCorrectViewModel>(((ViewResult)result).Model);
+        Assert.Equal("Withdrawn by", vm.ByLineTitle);
+        Assert.Null(vm.WithdrawnByEmail);
+        Assert.Equal(string.Empty, vm.WithdrawnAtText);
+    }
+
     [Fact]
     public async Task Delete_WhenNoRowWasFound_EmitsNoEvent()
     {
@@ -270,5 +354,202 @@ public class SubmittedRequestControllerTests
         await _sut.Delete(WindowId, Reference);
 
         await _analytics.DidNotReceive().TrackAsync(Arg.Any<AnalyticsEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    // T11: ByLineTitle tests for SubmittedRequestViewModel
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.NotSubmitted, "Saved by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.SubmittedCommitted, "Submitted by")]
+    public void ByLineTitle_ReturnsCorrectTitleForStatus(RequestStatus status, string expected)
+    {
+        var view = SubmittedRequestViewModelForStatus(status);
+
+        Assert.Equal(expected, view.ByLineTitle);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_HidesForWithdrawn()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.Withdrawn);
+
+        Assert.False(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_HidesForNotSubmitted()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.NotSubmitted);
+
+        Assert.False(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_HidesForDraftInConfirmingDelete()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.InProgress, true);
+
+        Assert.False(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_ShowsForDraftNotConfirmingDelete()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.InProgress, false);
+
+        Assert.True(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_ShowsForSubmittedUnCommitted()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedUnCommitted);
+
+        Assert.True(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ShowReferenceNumber_ShowsForSubmittedCommitted()
+    {
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedCommitted);
+
+        Assert.True(view.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void SubmittedAtText_UsesLondonTime_Format()
+    {
+        var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
+        var view = SubmittedRequestViewModelForStatus(RequestStatus.SubmittedCommitted, false, submittedAt);
+
+        Assert.Equal(LondonTime.ToSubmittedAtText(submittedAt), view.SubmittedAtText);
+    }
+
+    private static SubmittedRequestViewModel SubmittedRequestViewModelForStatus(
+        RequestStatus status,
+        bool confirmingDelete = false,
+        DateTime? submittedAt = null)
+    {
+        return new SubmittedRequestViewModel
+        {
+            WindowId = WindowId,
+            WhatToChange = WhatToChange.Remove,
+            Status = status,
+            ConfirmingDelete = confirmingDelete,
+            PupilName = "Jane Smith",
+            FirstRecordDisplay = null,
+            SecondRecordDisplay = null,
+            Rows = [],
+            Files = [],
+            ReferenceNumber = Reference,
+            SubmittedByEmail = "test@test.com",
+            SubmittedAt = submittedAt
+        };
+    }
+
+    // T14: ByLineTitle tests for ConfirmDataCorrectViewModel
+    [Theory]
+    [InlineData(RequestStatus.Withdrawn, "Withdrawn by")]
+    [InlineData(RequestStatus.InProgress, "Last saved by")]
+    [InlineData(RequestStatus.ReadyToSubmit, "Last saved by")]
+    [InlineData(RequestStatus.SubmittedUnCommitted, "Submitted by")]
+    [InlineData(RequestStatus.SubmittedCommitted, "Submitted by")]
+    public void ConfirmDataCorrect_ByLineTitle_ReturnsCorrectTitleForStatus(RequestStatus status, string expected)
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(status);
+
+        Assert.Equal(expected, vm.ByLineTitle);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_HidesForInProgress()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.InProgress);
+
+        Assert.False(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_HidesForReadyToSubmit()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.ReadyToSubmit);
+
+        Assert.False(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_HidesForConfirmingDelete()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted, true);
+
+        Assert.False(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_ShowsForSubmittedUnCommitted()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted, false);
+
+        Assert.True(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_ShowsForSubmittedCommitted()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedCommitted, false);
+
+        Assert.True(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowReferenceNumber_HidesWhenConfirmingDeleteAndHashCodeInProgress()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.InProgress, true);
+
+        Assert.False(vm.ShowReferenceNumber);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_SubmittedAtText_UsesLondonTime_Format()
+    {
+        var submittedAt = new DateTime(2026, 6, 16, 9, 30, 0);
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedCommitted, false, submittedAt);
+
+        Assert.Equal(LondonTime.ToSubmittedAtText(submittedAt), vm.SubmittedAtText);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowDeleteButton_HidesForWithdrawn()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.Withdrawn);
+
+        Assert.False(vm.ShowDeleteButton);
+    }
+
+    [Fact]
+    public void ConfirmDataCorrect_ShowDeleteButton_ShowsForSubmittedUnCommitted()
+    {
+        var vm = ConfirmDataCorrectViewModelForStatus(RequestStatus.SubmittedUnCommitted);
+
+        Assert.True(vm.ShowDeleteButton);
+    }
+
+    private static ConfirmDataCorrectViewModel ConfirmDataCorrectViewModelForStatus(
+        RequestStatus status,
+        bool confirmingDelete = false,
+        DateTime? submittedAt = null)
+    {
+        return new ConfirmDataCorrectViewModel
+        {
+            WindowId = WindowId,
+            Status = status,
+            ConfirmingDelete = confirmingDelete,
+            SubmittedByEmail = "test@test.com",
+            SubmittedAt = submittedAt,
+            ReferenceNumber = Reference
+        };
     }
 }

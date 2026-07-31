@@ -23,13 +23,16 @@ public sealed class EndDateController(IWindowService windowService): Controller
         {
             WindowId = Guid.Empty,
             DateValue = draft.EndDate,
+            // New windows default to closing at 17:00; the admin can change it.
+            Hour = draft.EndDate?.Hour ?? DefaultEndHour,
+            Minute = draft.EndDate?.Minute ?? 0,
             PostUrl =  Url.Action("Submit", "EndDate"),
             CancelUrl =  Url.Action("Index", "CancelCreation")
         };
 
         return View(PageView, model);
     }
-    
+
     [HttpGet("admin/windows/{id:guid}/end-date")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
@@ -44,6 +47,8 @@ public sealed class EndDateController(IWindowService windowService): Controller
         {
             WindowId = window.Id,
             DateValue = window.EndDate,
+            Hour = window.EndDate.Hour,
+            Minute = window.EndDate.Minute,
             PostUrl =  Url.Action("Update", "EndDate", new { id = window.Id}),
             CancelUrl = Url.Action("Index", "Summary", new { id = window.Id})
         };
@@ -62,14 +67,17 @@ public sealed class EndDateController(IWindowService windowService): Controller
             return BadRequest("No draft data");
         }
 
-        DateValidation(model, null);
-        
-        if (ModelState.ErrorCount > 0)
+        if (ModelState.IsValid)
+        {
+            DateValidation(model.DateTimeValue, null);
+        }
+
+        if (!ModelState.IsValid)
         {
             return View(PageView, model);
         }
 
-        draft.EndDate = model.DateValue;
+        draft.EndDate = model.DateTimeValue;
         HttpContext.Session.SetObject("CheckingWindowDraft", draft);
 
         return Redirect(draft.NextController(Url));
@@ -81,35 +89,40 @@ public sealed class EndDateController(IWindowService windowService): Controller
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
-        DateValidation(model, window);
-        
-        if (ModelState.ErrorCount > 0)
+        if (ModelState.IsValid)
+        {
+            DateValidation(model.DateTimeValue, window);
+        }
+
+        if (!ModelState.IsValid)
         {
             return View(PageView, model);
         }
-        
+
         if (id != model.WindowId)
         {
             return BadRequest();
         }
 
-        window.EndDate = model.DateValue.Value;
+        window.EndDate = model.DateTimeValue!.Value;
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("Index", "Summary", new { id });
     }
 
-    public void DateValidation(WindowDateEditItem model, CheckingWindowDto? windowDto)
+    public void DateValidation(DateTime? value, CheckingWindowDto? windowDto)
     {
-        if (model.DateValue < DateTime.UtcNow.Date)
+        if (value < DateTime.UtcNow.Date)
         {
-            ModelState.AddModelError(nameof(model.DateValue), "End date can not occur in the past.");
+            ModelState.AddModelError(nameof(WindowDateEditItem.DateValue), "End date can not occur in the past.");
         }
 
-        if (windowDto != null && model.DateValue < windowDto.StartDate)
+        if (windowDto != null && value < windowDto.StartDate)
         {
-            ModelState.AddModelError(nameof(model.DateValue),
-                $"End date can not occur before the start date ({windowDto.EndDate:dd MM yyyy}).");
+            ModelState.AddModelError(nameof(WindowDateEditItem.DateValue),
+                $"End date can not occur before the start date ({windowDto.StartDate:dd MM yyyy HH:mm}).");
         }
     }
+
+    private const int DefaultEndHour = 17;
 }

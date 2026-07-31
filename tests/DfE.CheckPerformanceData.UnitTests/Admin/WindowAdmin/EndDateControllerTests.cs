@@ -78,15 +78,15 @@ public class EndDateControllerTests
         EndDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
         controller.Url = _urlHelper;
 
-        DateTime startDate = DateTime.UtcNow.AddMonths(1);
-        WindowDateEditItem model = new WindowDateEditItem { DateValue = startDate };
+        DateTime day = DateTime.UtcNow.AddMonths(1).Date;
+        WindowDateEditItem model = new WindowDateEditItem { DateValue = day, Hour = 17, Minute = 0 };
 
         IActionResult result = await controller.Submit(model, CancellationToken.None);
 
         Assert.NotNull(stored);
         CheckingWindowDraft? savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
-        Assert.Equal(startDate, savedDraft!.EndDate);
+        Assert.Equal(day.AddHours(17), savedDraft!.EndDate);
         Assert.IsType<RedirectResult>(result);
     }
 
@@ -169,6 +169,31 @@ public class EndDateControllerTests
         RedirectToActionResult redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("Summary", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Edit_post_persists_the_edited_time_of_day()
+    {
+        IWindowService? windowService = Substitute.For<IWindowService>();
+
+        Guid id = Guid.NewGuid();
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
+
+        EndDateController controller = BuildController(windowService, new DefaultHttpContext());
+
+        WindowDateEditItem model = new WindowDateEditItem
+        {
+            WindowId = id,
+            DateValue = new DateTime(2027, 1, 15),
+            Hour = 16,
+            Minute = 45
+        };
+
+        await controller.Update(id, model, CancellationToken.None);
+
+        await windowService.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.EndDate == new DateTime(2027, 1, 15, 16, 45, 0)),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

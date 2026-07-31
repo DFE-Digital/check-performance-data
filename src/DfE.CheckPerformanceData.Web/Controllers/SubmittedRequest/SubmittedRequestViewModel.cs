@@ -18,6 +18,8 @@ public sealed class SubmittedRequestViewModel
     public required string ReferenceNumber { get; init; }
     public string? SubmittedByEmail { get; init; }
     public DateTime? SubmittedAt { get; init; }
+    public string? WithdrawnByEmail { get; init; }
+    public string WithdrawnAtText { get; init; } = string.Empty;
 
     public string WhatToChangeLabel => WhatToChange switch
     {
@@ -41,11 +43,17 @@ public sealed class SubmittedRequestViewModel
 
     public bool IsDraft => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit;
 
-    // Drafts haven't been submitted yet, so the by-line reads "Saved by" rather than "Submitted by".
-    public string ByLineTitle => IsDraft ? "Saved by" : "Submitted by";
+    public string ByLineTitle => Status switch
+    {
+        RequestStatus.Withdrawn => "Withdrawn by",
+        RequestStatus.NotSubmitted => "Saved by",
+        RequestStatus.InProgress or RequestStatus.ReadyToSubmit => "Last saved by",
+        _ => "Submitted by"
+    };
 
-    // On the delete confirmation page a draft has no meaningful reference number to show in the by-line.
-    public bool ShowReferenceNumber => !(ConfirmingDelete && IsDraft);
+    public bool ShowReferenceNumber => Status != RequestStatus.Withdrawn
+                                     && Status != RequestStatus.NotSubmitted
+                                     && !(ConfirmingDelete && IsDraft);
 
     public string ConfirmDeleteTitle => Status is RequestStatus.InProgress or RequestStatus.ReadyToSubmit
         ? $"Are you sure you want to delete {PupilName} from your saved requests"

@@ -12,8 +12,8 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
     IWindowService windowService,
     IReadOnlyDictionary<string, BlobServiceClient> blobClients) : Controller
 {
-    [HttpGet("admin/windows/{id:guid}/ingress-file")]
-    public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
+    [HttpGet("admin/windows/{id:guid}/ingress-file/{dataset}")]
+    public async Task<IActionResult> Index(Guid id, string dataset, CancellationToken cancellationToken)
     {
         if (!blobClients.TryGetValue("ingress", out var ingressBlobClient))
         {
@@ -33,18 +33,20 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             WindowId = id,
             Container = null,
             Folders = containers,
-            Files = []
+            Files = [],
+            Dataset = dataset,
+            DatasetLabel = DatasetLabels.For(dataset)
         };
 
         return View("~/Views/WindowAdmin/IngressFile.cshtml", model);
     }
     
-    [HttpGet("admin/windows/{id:guid}/ingress-file/browse")]
-    public async Task<IActionResult> Browse(Guid id, string container, string? path, CancellationToken cancellationToken)
+    [HttpGet("admin/windows/{id:guid}/ingress-file/{dataset}/browse")]
+    public async Task<IActionResult> Browse(Guid id, string dataset, string container, string? path, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(container))
         {
-            return RedirectToAction(nameof(Index), new { id });
+            return RedirectToAction(nameof(Index), new { id, dataset });
         }
 
         if (!blobClients.TryGetValue("ingress", out var ingressBlobClient))
@@ -89,7 +91,9 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             CurrentPath = currentPath,
             ParentPath = GetParentPath(currentPath),
             Folders = folders,
-            Files = files
+            Files = files,
+            Dataset = dataset,
+            DatasetLabel = DatasetLabels.For(dataset)
         };
 
         return View("~/Views/WindowAdmin/IngressFile.cshtml", model);
@@ -113,22 +117,22 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
         return trimmedPath[..(lastSlashIndex + 1)];
     }
 
-    [HttpPost("admin/windows/{id:guid}/ingress-file")]
+    [HttpPost("admin/windows/{id:guid}/ingress-file/{dataset}")]
     [RequestSizeLimit(100_000_000)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Select(Guid id, string selectedFile, CancellationToken cancellationToken)
+    public async Task<IActionResult> Select(Guid id, string dataset, string selectedFile, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(selectedFile))
         {
             ModelState.AddModelError(nameof(selectedFile), "Select an ingress file");
-            return RedirectToAction(nameof(Index), new { id });
+            return RedirectToAction(nameof(Index), new { id, dataset });
         }
 
         int separatorIndex = selectedFile.IndexOf('/');
         if (separatorIndex <= 0 || separatorIndex == selectedFile.Length - 1)
         {
             ModelState.AddModelError(nameof(selectedFile), "Select an ingress file");
-            return RedirectToAction(nameof(Index), new { id });
+            return RedirectToAction(nameof(Index), new { id, dataset });
         }
 
         string sourceContainer = selectedFile[..separatorIndex];
@@ -185,8 +189,23 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             },
             cancellationToken);
 
-        window.IngressFile = ingressFileName;
-        window.IngressFileChecksum = checksum;
+        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+
+        if (target is null)
+        {
+            return NotFound();
+        }
+
+        target.IngressFile = ingressFileName;
+        target.IngressFileChecksum = checksum;
+
+        // Legacy scalar columns mirror the first dataset for one release (rollback safety).
+        if (target.SortOrder == 0)
+        {
+            window.IngressFile = ingressFileName;
+            window.IngressFileChecksum = checksum;
+        }
+
         await windowService.UpdateAsync(window, cancellationToken);
 
         return RedirectToAction("index", "Summary", new { id = id });

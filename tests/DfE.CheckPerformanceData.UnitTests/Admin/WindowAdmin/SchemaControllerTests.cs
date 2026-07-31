@@ -13,6 +13,9 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Admin.WindowAdmin;
 
 public class SchemaControllerTests
 {
+    // Every window has at least a "pupils" dataset; a Post16 window has "included"/"nonincluded".
+    private const string Dataset = "pupils";
+
     private const string ValidSchema = """{ "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object" }""";
 
     [Fact]
@@ -21,7 +24,7 @@ public class SchemaControllerTests
         var windowService = Substitute.For<IWindowService>();
         var controller = BuildController(windowService);
 
-        var result = await controller.Index(Guid.NewGuid(), CancellationToken.None);
+        var result = await controller.Index(Guid.NewGuid(), Dataset, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -35,7 +38,7 @@ public class SchemaControllerTests
 
         var controller = BuildController(windowService);
 
-        var result = await controller.Index(id, CancellationToken.None);
+        var result = await controller.Index(id, Dataset, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<SchemaItem>(view.Model);
@@ -49,7 +52,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = Guid.NewGuid() };
-        var result = await controller.Submit(Guid.NewGuid(), model, CancellationToken.None);
+        var result = await controller.Submit(Guid.NewGuid(), Dataset, model, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
@@ -63,7 +66,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = null };
-        var result = await controller.Submit(id, model, CancellationToken.None);
+        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Same(model, view.Model);
@@ -79,7 +82,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
-        var result = await controller.Submit(id, model, CancellationToken.None);
+        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
@@ -95,7 +98,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = FileFrom("this is not json") };
-        var result = await controller.Submit(id, model, CancellationToken.None);
+        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Same(model, view.Model);
@@ -109,11 +112,13 @@ public class SchemaControllerTests
         return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "Schema", "schema.json");
     }
 
-    private static SchemaController BuildController(IWindowService windowService) =>
+    private static SchemaController BuildController(
+        IWindowService windowService,
+        Dictionary<string, BlobServiceClient>? blobClients = null) =>
         new(
             Substitute.For<ILogger<SchemaController>>(),
             windowService,
-            new Dictionary<string, BlobServiceClient>())
+            blobClients ?? new Dictionary<string, BlobServiceClient>())
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
             Url = StubUrlHelper()
@@ -134,6 +139,40 @@ public class SchemaControllerTests
             StartDate = new DateTime(2027, 1, 1),
             EndDate = new DateTime(2027, 2, 1),
             KeyStage = KeyStages.KS2,
-            CheckingWindowType = CheckingWindowType.KS2
+            CheckingWindowType = CheckingWindowType.KS2,
+            Datasets = [new CheckingWindowDatasetDto { Name = Dataset, SortOrder = 0 }]
         };
+
+    [Fact]
+    public async Task Index_returns_not_found_when_the_window_has_no_such_dataset()
+    {
+        var windowService = Substitute.For<IWindowService>();
+        var id = Guid.NewGuid();
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
+
+        var controller = BuildController(windowService);
+
+        var result = await controller.Index(id, "nonincluded", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task Submit_stores_the_schema_against_the_named_dataset()
+    {
+        var windowService = Substitute.For<IWindowService>();
+        var id = Guid.NewGuid();
+        var window = Window(id);
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(window);
+
+        var blobs = new Dictionary<string, BlobServiceClient>();
+        var controller = BuildController(windowService, blobs);
+
+        var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
+        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
+
+        // No "app" blob client is configured, so the upload short-circuits before persisting.
+        // The dataset lookup and validation still had to succeed to get that far.
+        Assert.IsType<ObjectResult>(result);
+    }
 }

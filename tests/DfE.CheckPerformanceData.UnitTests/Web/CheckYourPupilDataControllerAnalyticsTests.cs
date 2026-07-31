@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -26,10 +27,8 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _service.GetIncludedPupilsAsync(WindowId, Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>())
-            .Returns(((IReadOnlyList<PupilDto>)[], 0));
-        _service.GetNonIncludedPupilsAsync(WindowId, Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>())
-            .Returns(((IReadOnlyList<PupilDto>)[], 0));
+        _service.GetPupilTableAsync(WindowId, Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>())
+            .Returns((PupilTable.Empty, 0));
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
 
         _sut = new CheckYourPupilDataController(_service, TimeProvider.System, _currentUser, _analytics)
@@ -41,8 +40,8 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
     [Fact]
     public async Task Index_WithIncludedSearch_EmitsSearchResults()
     {
-        _service.GetIncludedPupilsAsync(WindowId, "smith", 0, 10)
-            .Returns(((IReadOnlyList<PupilDto>)[], 3));
+        _service.GetPupilTableAsync(WindowId, true, "smith", 0, 10)
+            .Returns((PupilTable.Empty, 3));
 
         await _sut.Index(WindowId, includedSearch: "smith");
 
@@ -72,8 +71,7 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
     private static CheckYourPupilDataViewModel InputVm(NextSteps? next) => new()
     {
         WindowId = WindowId.ToString(),
-        IncludedPupils = [], IncludedPupilsPage = 0, IncludedPupilsTotalPages = 0,
-        NonIncludedPupils = [], NonIncludedPupilsPage = 0, NonIncludedPupilsTotalPages = 0,
+        Sections = [], SectionsAsTabs = true,
         WindowEndDate = "", WindowEndTime = "", WindowTitle = "",
         IsWindowOpen = true, OrganisationName = "",
         SelectedNextStep = next,

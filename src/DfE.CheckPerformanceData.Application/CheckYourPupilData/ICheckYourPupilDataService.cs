@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 
@@ -5,11 +7,13 @@ namespace DfE.CheckPerformanceData.Application.CheckYourPupilData;
 
 public interface ICheckYourPupilDataService
 {
-    Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetIncludedPupilsAsync(Guid windowId, string? search, int page, int pageSize);
-    Task<(IReadOnlyList<PupilDto> Items, int TotalCount)> GetNonIncludedPupilsAsync(Guid windowId, string? search, int page, int pageSize);
+    /// <summary>One page of a population, already projected to the window type's column set.</summary>
+    Task<(PupilTable Table, int TotalCount)> GetPupilTableAsync(Guid windowId, bool included, string? search, int page, int pageSize);
+
+    /// <summary>Every pupil in a population, projected to the window type's CSV column set.</summary>
+    Task<PupilTable> GetPupilCsvAsync(Guid windowId, bool included);
+
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
-    Task<IReadOnlyList<PupilCsvDto>> GetIncludedPupilsCsvAsync(Guid windowId);
-    Task<IReadOnlyList<PupilCsvDto>> GetNonIncludedPupilsCsvAsync(Guid windowId);
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
         PupilFilter filter, Guid? excludeId = null);
 
@@ -32,7 +36,12 @@ public sealed class PupilDto
     public required string DateOfBirth { get; init; }
     public required int Age { get; init; }
     public required string Cypmd_Id { get; init; }
-    public required string Upn { get; init; }
+
+    /// <summary>UPN for KS4, ULN for Post16. The serialised name stays "Upn" so session state,
+    /// the requests blob, ChangeRequest.PupilUpn and RequestDocument.PupilDetails.Upn are
+    /// unaffected by the model-side rename.</summary>
+    [JsonPropertyName("Upn")]
+    public required string Identifier { get; init; }
 
     /// <summary>Inclusion status code from the pupil record (e.g. 401). Not required so
     /// sessions serialised before this field existed still deserialise; 0 = not supplied.</summary>
@@ -40,23 +49,3 @@ public sealed class PupilDto
 }
 
 public record PupilSuggestionDto(Guid Id, string Label);
-
-public sealed class PupilCsvDto
-{
-    public required string Upn { get; init; }
-    public required string CypmdId { get; init; }
-    public required string Surname { get; init; }
-    public required string Firstname { get; init; }
-    public required string Sex { get; init; }
-    public required string DateOfBirth { get; init; }
-    public required int Age { get; init; }
-    public required int Pincl { get; init; }
-    public required string Laestab { get; init; }
-    public required string Urn { get; init; }
-    public required string EntryDate { get; init; }
-    public required string SenF { get; init; }
-    public required string FirstLanguage { get; init; }
-    public required string Ethnicity { get; init; }
-    public required string ActualYearGroup { get; init; }
-    public required bool NewMobile { get; init; }
-}

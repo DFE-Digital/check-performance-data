@@ -80,15 +80,15 @@ public class StartDateControllerTests
         StartDateController controller = BuildController(windowService, new DefaultHttpContext { Session = session });
         controller.Url = _urlHelper;
 
-        DateTime startDate = DateTime.UtcNow.AddMonths(1);
-        WindowDateEditItem model = new WindowDateEditItem { DateValue = startDate };
+        DateTime day = DateTime.UtcNow.AddMonths(1).Date;
+        WindowDateEditItem model = new WindowDateEditItem { DateValue = day, Hour = 9, Minute = 30 };
 
         IActionResult result = await controller.Submit(model, CancellationToken.None);
 
         Assert.NotNull(stored);
         CheckingWindowDraft? savedDraft = JsonSerializer.Deserialize<CheckingWindowDraft>(Encoding.UTF8.GetString(stored!));
         Assert.NotNull(savedDraft);
-        Assert.Equal(startDate, savedDraft!.StartDate);
+        Assert.Equal(day.AddHours(9).AddMinutes(30), savedDraft!.StartDate);
 
         RedirectResult redirect = Assert.IsType<RedirectResult>(result);
     }
@@ -172,6 +172,31 @@ public class StartDateControllerTests
         RedirectToActionResult redirect = Assert.IsType<RedirectToActionResult>(result);
         Assert.Equal("Index", redirect.ActionName);
         Assert.Equal("Summary", redirect.ControllerName);
+    }
+
+    [Fact]
+    public async Task Edit_post_persists_the_edited_time_of_day()
+    {
+        IWindowService? windowService = Substitute.For<IWindowService>();
+
+        Guid id = Guid.NewGuid();
+        windowService.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(Window(id));
+
+        StartDateController controller = BuildController(windowService, new DefaultHttpContext());
+
+        WindowDateEditItem model = new WindowDateEditItem
+        {
+            WindowId = id,
+            DateValue = new DateTime(2027, 1, 15),
+            Hour = 8,
+            Minute = 15
+        };
+
+        await controller.Update(id, model, CancellationToken.None);
+
+        await windowService.Received(1).UpdateAsync(
+            Arg.Is<CheckingWindowDto>(w => w.StartDate == new DateTime(2027, 1, 15, 8, 15, 0)),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]

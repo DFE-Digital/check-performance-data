@@ -13,6 +13,7 @@ public interface IPortalDbContext
     DbSet<ChangeRequest> ChangeRequests { get; }
     DbSet<AuditEntry> AuditEntries { get; }
     DbSet<CheckingWindow> CheckingWindows { get; }
+    DbSet<CheckingWindowDataset> CheckingWindowDatasets { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }

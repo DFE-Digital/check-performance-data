@@ -162,7 +162,7 @@ public sealed class RequestService(
             return new RequestDeletionResult(WasHardDeleted: true, pupilName, row.RequestType);
         }
 
-        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber);
+        await requestRepository.WithdrawAsync(windowId, urn, referenceNumber, currentUserService.Email, DateTime.UtcNow);
 
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
         var deadline = window.EndDate;
@@ -209,7 +209,7 @@ public sealed class RequestService(
             ReferenceNumber = journey.ReferenceNumber!,
             OrganisationUrn = OrganisationUrnLong,
             PupilId = journey.SelectedPupil!.Id,
-            PupilUpn = journey.SelectedPupil.Upn,
+            PupilUpn = journey.SelectedPupil.Identifier,
             PupilFirstname = journey.SelectedPupil.Firstname,
             PupilSurname = journey.SelectedPupil.Surname,
             // Stored as UTC and converted to London time at display. The column is
@@ -269,7 +269,7 @@ public sealed class RequestService(
                 DateOfBirth = pupil.DateOfBirth,
                 Sex = pupil.Sex,
                 Age = pupil.Age,
-                Upn = pupil.Upn,
+                Upn = pupil.Identifier,
                 Pincl = pupil.Pincl
             },
             MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
@@ -281,7 +281,7 @@ public sealed class RequestService(
                 DateOfBirth = mp.DateOfBirth,
                 Sex = mp.Sex,
                 Age = mp.Age,
-                Upn = mp.Upn,
+                Upn = mp.Identifier,
                 Pincl = mp.Pincl
             } : null,
             Answers = answers

@@ -421,7 +421,7 @@ public class JourneyControllerTests
     public async Task SummaryConfirm_AfterSuccess_ClearsMatchedPupil()
     {
         var state = ValidSession(history: ["page-1"]);
-        state.MatchedPupil = new PupilDto { Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe", Sex = "M", DateOfBirth = "02/02/2010", Age = 16, Cypmd_Id = "CYPMD456", Upn = "456456" };
+        state.MatchedPupil = new PupilDto { Id = Guid.NewGuid(), Firstname = "John", Surname = "Doe", Sex = "M", DateOfBirth = "02/02/2010", Age = 16, Cypmd_Id = "CYPMD456", Identifier = "456456" };
         state.MatchedPupilId = state.MatchedPupil.Id.ToString();
         state.MatchedPupilLabel = "Doe, John";
         SetupSession(state);
@@ -1375,7 +1375,7 @@ public class JourneyControllerTests
                 DateOfBirth = "01/01/2010",
                 Age = 16,
                 Cypmd_Id = "CYPMD123",
-                Upn = "123123"
+                Identifier = "123123"
             }
         };
         return state;

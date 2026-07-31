@@ -16,6 +16,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
     // because access to a group is implied by access to any of its children.
     public static readonly IReadOnlyList<string> AllSections = new[]
     {
+        "dashboard",
         "content-pages",
         "content-blocks",
         "deleted-pages",

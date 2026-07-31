@@ -25,8 +25,9 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var groups = entries.Where(e => e.ParentKey is null).ToList();
 
-		Assert.Equal(5, groups.Count);
+		Assert.Equal(6, groups.Count);
 		var groupKeys = groups.Select(g => g.Key).ToHashSet();
+		Assert.Contains("dashboard", groupKeys);
 		Assert.Contains("cms-admin", groupKeys);
 		Assert.Contains("system-admin", groupKeys);
 		Assert.Contains("storage-admin", groupKeys);
@@ -62,7 +63,7 @@ public sealed class AdminNavRegistryGroupingTests
 
 		var keys = entries.Select(e => e.Key).ToList();
 
-		Assert.Equal(26, keys.Count);
+		Assert.Equal(27, keys.Count);
 		Assert.Equal(keys.Count, keys.Distinct().Count());
 	}
 

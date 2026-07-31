@@ -17,9 +17,10 @@ public sealed class AdminNavRegistryTests
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
 
-		Assert.Equal(26, entries.Count);
+		Assert.Equal(27, entries.Count);
 
 		var titles = entries.Select(e => e.Title).ToList();
+		Assert.Contains("Dashboard", titles);
 		Assert.DoesNotContain("Version retention", titles);
 		Assert.Contains("Content staging import/export", titles);
 		Assert.Contains("Pages", titles);

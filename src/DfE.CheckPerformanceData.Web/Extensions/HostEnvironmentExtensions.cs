@@ -4,6 +4,16 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 
 // Environment predicates that gate destructive admin surfaces.
 //
+// Deployment ladder for this application (ASPNETCORE_ENVIRONMENT names — see
+// terraform/application/config/*.yml):
+//
+//   Development   — every developer's local docker-compose stack.
+//   Review        — per-PR ephemeral review app on AKS (short-lived).
+//   QA            — the shared long-lived test environment on Azure. This is
+//                   where the client's testers do their sit-down testing.
+//   Preproduction — staging clone of production.
+//   Production    — customer-facing live service.
+//
 // Deliberate whitelist (not `!IsProduction()`): a future environment tier — a new
 // "Staging" ring, an on-prem UAT clone — is off by default rather than silently
 // inheriting delete-all rights, and the review comes back to touch this file.
@@ -18,12 +28,17 @@ public static class HostEnvironmentExtensions
     // The seed-sample-search-data admin page + every destructive endpoint on it are
     // allowed to render / execute only in these environments:
     //
-    //   Development — local docker-compose stack.
-    //   Review      — per-PR ephemeral review app on AKS.
+    //   Development — every developer's local stack (that's where the person clicking
+    //                 the button owns the DB).
+    //   QA          — the shared long-lived Azure test environment. Testers WANT to
+    //                 wipe the sink between test passes; that is the whole point of
+    //                 the "test environment".
     //
-    // Explicit denylist by omission: QA, Preproduction and Production always fall through
-    // to the false branch. That is the point — nobody should be able to click "Delete all
-    // search data" on a customer-facing sink and hope the button was disabled somewhere.
+    // Explicit denylist by omission: Review, Preproduction and Production always fall
+    // through to the false branch. Review is left out because a mis-configured PR
+    // review app could otherwise clear real-shape data mid-review; Preproduction and
+    // Production are obvious. Nobody should be able to click "Delete all search data"
+    // on a customer-facing sink and hope the button was disabled somewhere else.
     public static bool IsSampleDataAdminEnvironment(this IHostEnvironment env) =>
-        env.IsDevelopment() || env.IsEnvironment(ReviewEnvironmentName);
+        env.IsDevelopment() || env.IsEnvironment(QaEnvironmentName);
 }

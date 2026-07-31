@@ -14,15 +14,20 @@ namespace DfE.CheckPerformanceData.UnitTests.Web.Extensions;
 public sealed class HostEnvironmentExtensionsTests
 {
     [Theory]
-    [InlineData("Development", true)]
-    [InlineData("Review",      true)]
-    [InlineData("QA",          false)]
-    [InlineData("Preproduction", false)]
-    [InlineData("Production",  false)]
-    [InlineData("Staging",     false)] // hypothetical future tier — off by default
-    [InlineData("",            false)]
+    // Whitelist — the developer's local stack + the shared Azure test env.
+    [InlineData("Development",    true)]
+    [InlineData("QA",             true)]
+    // Denylist — Review is per-PR ephemeral (should not accidentally wipe review
+    // data); Preproduction / Production are the obvious ones.
+    [InlineData("Review",         false)]
+    [InlineData("Preproduction",  false)]
+    [InlineData("Production",     false)]
+    // Hypothetical future tier — off by default; a new whitelist entry is a
+    // deliberate opt-in, not silent inheritance.
+    [InlineData("Staging",        false)]
+    [InlineData("",               false)]
     [InlineData("Some-Custom-Env", false)]
-    public void IsSampleDataAdminEnvironment_HonoursTheDevelopmentAndReviewWhitelist(
+    public void IsSampleDataAdminEnvironment_HonoursTheDevelopmentAndQaWhitelist(
         string environmentName, bool expected)
     {
         var env = Substitute.For<IHostEnvironment>();

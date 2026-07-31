@@ -7,6 +7,11 @@
     const string tableId = "sa-blocks-table";
     var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
     var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    // Distinct-queries column: hidden when the canonicaliser's "each search returns each
+    // block at most once" invariant holds. Shown as a diagnostic when at least one row
+    // disagrees, so a duplicate-result-row regression is visible.
+    var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -35,12 +40,6 @@ else
                type="search" data-filter-target="@tableId" autocomplete="off" />
     </div>
 
-    @{
-        // Distinct-queries column: hidden when the canonicaliser's "each search returns
-        // each block at most once" invariant holds. Shown as a diagnostic when at least
-        // one row disagrees, so a duplicate-result-row regression is visible.
-        var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
-    }
     <table class="govuk-table" id="@tableId">
         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top content blocks by search impressions</caption>
         <thead class="govuk-table__head">

@@ -13,6 +13,12 @@
     // is to show the raw key, not to guess a landing page.
     static bool LooksLikeUrl(string key) =>
         !string.IsNullOrEmpty(key) && (key.StartsWith('/') || key.StartsWith("http", StringComparison.OrdinalIgnoreCase));
+
+    // Distinct-queries column: hidden when the canonicaliser's "each search returns each
+    // URL at most once" invariant holds (impressions == distinct searches on every row —
+    // the common case). Shown as a diagnostic when at least one row disagrees, so a
+    // duplicate-result-row regression is visible rather than silently inflating Impressions.
+    var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
 }
 
 <link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
@@ -43,14 +49,6 @@ else
                type="search" data-filter-target="@tableId" autocomplete="off" />
     </div>
 
-    @{
-        // Distinct-queries column: hidden when the canonicaliser's "each search returns
-        // each URL at most once" invariant holds (impressions == distinct searches on
-        // every row on the page — the common case). Shown as a diagnostic when at least
-        // one row disagrees, so a duplicate-result-row regression is visible to admins
-        // rather than silently inflating the headline impression figure.
-        var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
-    }
     <table class="govuk-table" id="@tableId">
         <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top pages by search impressions</caption>
         <thead class="govuk-table__head">

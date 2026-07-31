@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -27,7 +28,7 @@ public sealed class FakePupilDataBlobClient : IPupilDataBlobClient
     public Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId)
         => Task.FromResult<IReadOnlyList<string>>(
             _store.Keys.Where(k => k.WindowId == windowId)
-                .Select(k => k.Laestab.Replace("/", string.Empty))
+                .Select(k => LaestabNormaliser.Normalise(k.Laestab))
                 .Distinct()
                 .ToList());
 

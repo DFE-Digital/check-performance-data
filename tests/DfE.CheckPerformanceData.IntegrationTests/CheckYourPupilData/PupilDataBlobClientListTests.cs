@@ -26,6 +26,24 @@ public sealed class PupilDataBlobClientListTests(AzuriteFixture azurite)
     }
 
     [Fact]
+    public async Task ListSchoolLaestabsAsync_NormalisesLaestabsThatAreNotDigitsOnly()
+    {
+        // The ingress writes the LAESTAB column through verbatim, so a supplier file carrying
+        // "860/4070" or a padded value produces a blob name that would not join against the
+        // digits-only laestab on an OrganisationLogin row. The listing is the documented
+        // digits-only side of that join, so it must normalise.
+        var windowId = Guid.NewGuid();
+        var service = new BlobServiceClient(azurite.ConnectionString);
+        var container = service.GetBlobContainerClient(windowId.ToString());
+        await container.CreateAsync();
+        await container.UploadBlobAsync("data/860/4070_pupils.json", BinaryData.FromString("[]"));
+
+        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(windowId);
+
+        Assert.Equal(["8604070"], laestabs);
+    }
+
+    [Fact]
     public async Task ListSchoolLaestabsAsync_MissingContainer_ReturnsEmpty()
     {
         var service = new BlobServiceClient(azurite.ConnectionString);

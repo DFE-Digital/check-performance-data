@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -55,8 +56,15 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
         var laestabs = new List<string>();
         await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, CancellationToken.None))
         {
-            if (blob.Name.EndsWith(suffix, StringComparison.Ordinal))
-                laestabs.Add(blob.Name[prefix.Length..^suffix.Length]);
+            if (!blob.Name.EndsWith(suffix, StringComparison.Ordinal))
+                continue;
+
+            // Normalise rather than trusting the blob name: the ingress writes the supplier's
+            // LAESTAB column through verbatim, so anything other than a clean digit string
+            // would silently fail to join against the digits-only laestab on a login row.
+            var laestab = LaestabNormaliser.Normalise(blob.Name[prefix.Length..^suffix.Length]);
+            if (laestab.Length > 0 && !laestabs.Contains(laestab))
+                laestabs.Add(laestab);
         }
         return laestabs;
     }

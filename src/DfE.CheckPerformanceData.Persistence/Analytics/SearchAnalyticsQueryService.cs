@@ -238,7 +238,7 @@ LIMIT @limit;";
         CancellationToken cancellationToken = default) =>
         ReadSingleSeriesAsync(fromUtc, toUtc, bucketSize,
             countExpr: "COUNT(DISTINCT session_id)",
-            extraFilter: null,
+            zeroResultsOnly: false,
             cancellationToken);
 
     public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountOverTimeAsync(
@@ -248,7 +248,7 @@ LIMIT @limit;";
         CancellationToken cancellationToken = default) =>
         ReadSingleSeriesAsync(fromUtc, toUtc, bucketSize,
             countExpr: "COUNT(*)",
-            extraFilter: "zero_results = true",
+            zeroResultsOnly: true,
             cancellationToken);
 
     // Shared read for the two single-series-per-bucket surfaces (unique users, zero-result
@@ -260,14 +260,14 @@ LIMIT @limit;";
         DateTime toUtc,
         VolumeBucketSize bucketSize,
         string countExpr,
-        string? extraFilter,
+        bool zeroResultsOnly,
         CancellationToken cancellationToken)
     {
         var (bucketExprFmt, intervalLiteral) = BucketSqlPieces(bucketSize);
         var spineStart = string.Format(bucketExprFmt, "@from");
         var spineEnd = string.Format(bucketExprFmt, "@to");
         var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
-        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+        var extraWhere = zeroResultsOnly ? " AND zero_results = true" : string.Empty;
 
         var sql = $@"
 SELECT
@@ -471,7 +471,7 @@ ORDER BY b.bucket;";
         CancellationToken cancellationToken = default) =>
         ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
             countExpr: "COUNT(*)",
-            extraFilter: null,
+            zeroResultsOnly: false,
             cancellationToken);
 
     public Task<IReadOnlyList<VolumeBucket>> GetUniqueSessionsAggregatedByWeekdayHourAsync(
@@ -480,7 +480,7 @@ ORDER BY b.bucket;";
         CancellationToken cancellationToken = default) =>
         ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
             countExpr: "COUNT(DISTINCT session_id)",
-            extraFilter: null,
+            zeroResultsOnly: false,
             cancellationToken);
 
     public Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountAggregatedByWeekdayHourAsync(
@@ -489,17 +489,17 @@ ORDER BY b.bucket;";
         CancellationToken cancellationToken = default) =>
         ReadWeekdayHourAggregateAsync(fromUtc, toUtc,
             countExpr: "COUNT(*)",
-            extraFilter: "zero_results = true",
+            zeroResultsOnly: true,
             cancellationToken);
 
     private async Task<IReadOnlyList<VolumeBucket>> ReadWeekdayHourAggregateAsync(
         DateTime fromUtc,
         DateTime toUtc,
         string countExpr,
-        string? extraFilter,
+        bool zeroResultsOnly,
         CancellationToken cancellationToken)
     {
-        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+        var extraWhere = zeroResultsOnly ? " AND zero_results = true" : string.Empty;
 
         // ISO weekday: 1=Mon..7=Sun. hour: 0..23. Group by that pair and gap-fill via a
         // 7 x 24 spine so cells without events render as 0 on the chart.
@@ -610,7 +610,7 @@ ORDER BY w.weekday, hh.hour;";
         CancellationToken cancellationToken = default) =>
         ReadPagedSingleSeriesAsync(fromUtc, toUtc, bucketSize, page, pageSize,
             countExpr: "COUNT(DISTINCT session_id)",
-            extraFilter: null,
+            zeroResultsOnly: false,
             cancellationToken);
 
     public Task<(IReadOnlyList<VolumeBucket> Rows, int TotalCount)> GetPagedZeroResultCountOverTimeAsync(
@@ -622,7 +622,7 @@ ORDER BY w.weekday, hh.hour;";
         CancellationToken cancellationToken = default) =>
         ReadPagedSingleSeriesAsync(fromUtc, toUtc, bucketSize, page, pageSize,
             countExpr: "COUNT(*)",
-            extraFilter: "zero_results = true",
+            zeroResultsOnly: true,
             cancellationToken);
 
     public Task<(IReadOnlyList<LatencyBucket> Rows, int TotalCount)> GetPagedLatencyPercentilesOverTimeAsync(
@@ -717,7 +717,7 @@ LIMIT @limit OFFSET @offset;";
         int page,
         int pageSize,
         string countExpr,
-        string? extraFilter,
+        bool zeroResultsOnly,
         CancellationToken cancellationToken)
     {
         if (page < 1) page = 1;
@@ -727,7 +727,7 @@ LIMIT @limit OFFSET @offset;";
         var spineStart = string.Format(bucketExprFmt, "@from");
         var spineEnd = string.Format(bucketExprFmt, "@to");
         var groupedBucketExpr = string.Format(bucketExprFmt, "occurred_at_utc");
-        var extraWhere = extraFilter is null ? string.Empty : $" AND {extraFilter}";
+        var extraWhere = zeroResultsOnly ? " AND zero_results = true" : string.Empty;
 
         var countSql = $@"
 SELECT COUNT(*) FROM (

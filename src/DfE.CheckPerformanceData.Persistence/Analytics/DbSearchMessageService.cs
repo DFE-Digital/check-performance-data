@@ -230,14 +230,16 @@ public sealed class DbSearchMessageService : ISearchMessageService
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            var affected = await _dbContext.Database.ExecuteSqlRawAsync(
-                @"WITH victims AS (
-                      SELECT id FROM search_messages
-                      WHERE submitted_at_utc < {0}
-                      LIMIT " + PurgeBatchSize + @"
-                  )
-                  DELETE FROM search_messages WHERE id IN (SELECT id FROM victims);",
-                new object[] { cutoff },
+            // ExecuteSqlAsync (FormattableString overload) parameterises every
+            // interpolated value — cutoff AND PurgeBatchSize — so the SQL text
+            // itself carries no runtime concatenation. Silences EF1003.
+            var affected = await _dbContext.Database.ExecuteSqlAsync(
+                $@"WITH victims AS (
+                       SELECT id FROM search_messages
+                       WHERE submitted_at_utc < {cutoff}
+                       LIMIT {PurgeBatchSize}
+                   )
+                   DELETE FROM search_messages WHERE id IN (SELECT id FROM victims);",
                 cancellationToken);
 
             if (affected <= 0)

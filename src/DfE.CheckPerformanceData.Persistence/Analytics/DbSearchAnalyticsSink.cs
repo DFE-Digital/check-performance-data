@@ -108,14 +108,18 @@ public sealed class DbSearchAnalyticsSink : ISearchAnalyticsSink
         // shape under the hood.
         while (!cancellationToken.IsCancellationRequested)
         {
-            var affected = await _dbContext.Database.ExecuteSqlRawAsync(
-                @"WITH victims AS (
-                      SELECT id FROM search_events
-                      WHERE occurred_at_utc < {0}
-                      LIMIT " + PurgeBatchSize + @"
-                  )
-                  DELETE FROM search_events WHERE id IN (SELECT id FROM victims);",
-                new object[] { cutoff },
+            // ExecuteSqlAsync (FormattableString overload) parameterises every
+            // interpolated value — both cutoff and PurgeBatchSize — so the SQL text
+            // itself carries no runtime input concatenation. Silences EF1003 and
+            // narrows the trust boundary: no future contributor can smuggle a
+            // request value in via string concat.
+            var affected = await _dbContext.Database.ExecuteSqlAsync(
+                $@"WITH victims AS (
+                       SELECT id FROM search_events
+                       WHERE occurred_at_utc < {cutoff}
+                       LIMIT {PurgeBatchSize}
+                   )
+                   DELETE FROM search_events WHERE id IN (SELECT id FROM victims);",
                 cancellationToken);
 
             if (affected <= 0)

@@ -1,6 +1,13 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SeedSampleSearchDataViewModel
+@inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnv
 @{
     ViewData["Title"] = "Seed sample search data";
+    // Delete-all wipes EVERY row in the sink, including live user traffic. Whitelist the
+    // environments it may render / submit in — Development + Review only — even though
+    // the page-level env gate today already blocks anything else. If the page-level gate
+    // ever loosens (a future need to demo on QA, say), the button stays whitelist-only
+    // and prod/preprod can never render it. The endpoint mirrors this check server-side.
+    var deleteAllAllowed = HostEnv.IsSampleDataAdminEnvironment();
     var progressUrl = "/admin/test-data/sample-search-data/progress";
     var cancelUrlBase = "/admin/test-data/sample-search-data/";
     var dashboardUrl = "/admin/Search/";
@@ -195,19 +202,27 @@
         @* Delete all — same shape but adds a typed-confirmation gate. The confirm=DELETE
            form field is populated by JS from the input; JS-less fallback submits the
            button with a hidden confirm=DELETE input pre-populated so the endpoint still
-           accepts the request. *@
-        <form method="post" action="/admin/test-data/sample-search-data/delete-all"
-              id="delete-all-form"
-              data-testid="delete-all-form">
-            @Html.AntiForgeryToken()
-            <input type="hidden" name="confirm" value="DELETE" data-role="delete-all-confirm-hidden" />
-            <button type="submit" class="govuk-button govuk-button--warning"
-                    data-module="govuk-button"
-                    data-testid="delete-all-open"
-                    data-open-modal="delete-all-modal">
-                Delete all data
-            </button>
-        </form>
+           accepts the request.
+
+           Env-gated: rendered only in Development + Review. The controller endpoint
+           enforces the same allowlist server-side, so hiding the button is the UX
+           layer of a defence-in-depth pair — nobody accidentally clicks a button that
+           isn't there. *@
+        @if (deleteAllAllowed)
+        {
+            <form method="post" action="/admin/test-data/sample-search-data/delete-all"
+                  id="delete-all-form"
+                  data-testid="delete-all-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="confirm" value="DELETE" data-role="delete-all-confirm-hidden" />
+                <button type="submit" class="govuk-button govuk-button--warning"
+                        data-module="govuk-button"
+                        data-testid="delete-all-open"
+                        data-open-modal="delete-all-modal">
+                    Delete all data
+                </button>
+            </form>
+        }
     </div>
 </div>
 
@@ -250,7 +265,10 @@
     </div>
 </dialog>
 
-@* Confirm modal — delete all, with typed-confirmation gate. *@
+@* Confirm modal — delete all, with typed-confirmation gate. Env-gated the same way
+   the form above is: no dangling modal markup on production / preproduction / QA. *@
+@if (deleteAllAllowed)
+{
 <dialog id="delete-all-modal"
         class="govuk-modal-dialogue__box seed-progress-modal"
         aria-labelledby="delete-all-modal-title"
@@ -299,6 +317,7 @@
         </div>
     </div>
 </dialog>
+}
 
 @* Progress modal for the seed run. Opens as soon as the form is submitted; polls the
    in-memory job store every 500 ms; transitions to a Completed / Failed / Cancelled

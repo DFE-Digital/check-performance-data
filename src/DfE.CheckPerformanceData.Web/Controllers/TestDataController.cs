@@ -8,19 +8,23 @@ using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-// Dev-only surface for the seed-sample-search-data admin page. Gated by two independent
-// controls:
+// Sample-data admin surface for the seed-sample-search-data page. Gated by two
+// independent controls:
 //   * [RequireAdminSection(TestDataGroup)] — a fresh-DB admin has this grant through
 //     DefaultAdminAccessSeeder.AllSections; editor-only users 404 at the attribute.
-//   * IHostEnvironment.IsDevelopment() — production returns 404 verbatim even for a
-//     principal that carries the grant. The endpoint is destructive-adjacent so the
-//     env guard is defence-in-depth alongside the section-access check.
+//   * IHostEnvironment.IsSampleDataAdminEnvironment() — explicit whitelist of
+//     Development + Review (per-PR review app). QA, Preproduction and Production
+//     return 404 verbatim even for a principal that carries the section grant. The
+//     endpoint is destructive-adjacent (the Danger zone can DELETE ALL rows in the
+//     sink including live traffic) so the env guard is defence-in-depth alongside
+//     the section-access check.
 //
 // Seed runs are non-blocking: the POST creates a job in the store, kicks the seeder onto
 // a background Task.Run with its own scope, and redirects to the same page with a jobId
@@ -75,7 +79,7 @@ public sealed class TestDataController : Controller
     [HttpGet("sample-search-data")]
     public async Task<IActionResult> SampleSearchData(Guid? jobId = null)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }
@@ -109,7 +113,7 @@ public sealed class TestDataController : Controller
         int? eventCount,
         int? messageCount)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }
@@ -155,7 +159,7 @@ public sealed class TestDataController : Controller
     [HttpGet("sample-search-data/progress")]
     public IActionResult SampleSearchDataProgress(Guid jobId)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }
@@ -201,7 +205,7 @@ public sealed class TestDataController : Controller
     public async Task<IActionResult> CancelSampleSearchDataSeed(
         Guid jobId, CancellationToken cancellationToken)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }
@@ -277,7 +281,7 @@ public sealed class TestDataController : Controller
     public async Task<IActionResult> DeleteSeededSampleSearchData(
         CancellationToken cancellationToken)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }
@@ -310,7 +314,7 @@ public sealed class TestDataController : Controller
         [FromQuery(Name = "confirm")] string? confirmQuery,
         CancellationToken cancellationToken)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsSampleDataAdminEnvironment())
         {
             return NotFound();
         }

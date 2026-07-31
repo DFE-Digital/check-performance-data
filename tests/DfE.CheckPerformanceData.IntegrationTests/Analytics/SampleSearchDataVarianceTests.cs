@@ -7,9 +7,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
 // Contract tests for the multi-scale variance the seeder layers on top of its static
 // weekday × hour weights so a 90-day quarter (or 365-day year) doesn't come out as
-// twelve near-identical weeks. Lance's report: "every week in the resulting dashboard
-// looks pretty much the same — no big spikes, no dips, no visible variance week-to-
-// week." Variance comes from three independent stacked sources:
+// twelve near-identical weeks — no big spikes, no dips, no visible variance
+// week-to-week. Variance comes from three independent stacked sources:
 //   1. Weekly multiplier — one draw per ISO week, [0.5, 1.8] with light autocorrelation.
 //   2. Daily anomalies — ~5% "spike days" (2×-3×) and ~10% "quiet days" (0.2×-0.4×).
 //   3. Outage bursts — 1-2 per quarter, 3-6 h contiguous windows with elevated latency

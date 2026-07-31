@@ -158,7 +158,7 @@ public sealed class SearchControllerPaginationTests
     }
 
     // The admin setting is trusted below the URL-override floor too — a small value
-    // like 5 must be honoured verbatim. Regression guard for the earlier iteration that
+    // like 5 must be honoured verbatim. Regression guard for an earlier version that
     // clamped the setting-derived value to 10, silently ignoring the admin's intent.
     [Fact]
     [Trait("search-case", "pagination")]

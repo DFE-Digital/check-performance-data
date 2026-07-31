@@ -373,9 +373,9 @@ public sealed class SearchTelemetryE2ETests(PostgresFixture fixture)
     // queries have to project + rank + tag every one of ~300 rows. Runs the top-level
     // SearchAsync 30 times against the composed service graph and reads LatencyMsTotal off
     // the captured event each iteration. Sorts ascending and takes index 29 as the 95th
-    // percentile per the plan's simple 30-sample rule (also equal to the max — the most
+    // percentile via the simple 30-sample rule (also equal to the max — the most
     // conservative reading for a small sample size). Asserts p95 < 300ms to honour the
-    // read-latency budget captured in the search PRD.
+    // read-latency budget.
     //
     // The probe is self-diagnostic: it exists so a future widening or index-drop that
     // pushes latency over budget trips this fact rather than being noticed in production.

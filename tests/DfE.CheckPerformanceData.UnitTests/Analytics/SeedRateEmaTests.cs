@@ -3,9 +3,9 @@ using DfE.CheckPerformanceData.Application.Analytics;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Analytics;
 
 // Locks the exponential-moving-average smoothing applied to the persisted
-// SearchAnalytics:SeedSecondsPerEvent value after each non-cancelled seed run. Lance's
-// requirement (verbatim): "update that value after the second seeding session if the
-// value is different" — with a base default of 0.1 s/event so first-run ETAs are
+// SearchAnalytics:SeedSecondsPerEvent value after each non-cancelled seed run. The stored
+// value must refresh after each subsequent seeding session so ETAs stay accurate —
+// with a base default of 0.1 s/event so first-run ETAs are
 // conservative. EMA with alpha=0.3 gives adaptive smoothing so a single outlier run does
 // not dominate but consistent shifts (machine change) converge in a few runs.
 public sealed class SeedRateEmaTests

@@ -53,7 +53,7 @@ public sealed class PagerModelTests
     [Fact]
     public void MidRangeOnThirtyFour_RendersFirstMiddleAndLastBlocksSeparatedByEllipses()
     {
-        // The exact case Lance flagged: 34 buckets on the drill-in, current in the middle.
+        // The exact reported case: 34 buckets on the drill-in, current in the middle.
         // Three blocks separated by two ellipses.
         var items = PagerModel.BuildItems(currentPage: 5, totalPages: 34);
 
@@ -116,7 +116,7 @@ public sealed class PagerModelTests
     [Fact]
     public void CurrentOverlappingFirstEdge_DedupesInsteadOfSplitting()
     {
-        // Lance's dedupe case: current=4, edge=3, neighbours=1 → first-range [1,2,3] and
+        // The dedupe case: current=4, edge=3, neighbours=1 → first-range [1,2,3] and
         // middle-range [3,4,5] overlap by 3. The overlap merges into a single continuous
         // block instead of rendering 3 twice with an ellipsis between them.
         var items = PagerModel.BuildItems(currentPage: 4, totalPages: 34);

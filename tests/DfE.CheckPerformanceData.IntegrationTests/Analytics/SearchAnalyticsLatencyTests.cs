@@ -29,7 +29,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 [Trait("Category", "Slow")]
 public sealed class SearchAnalyticsLatencyTests
 {
-    // p95 budgets from the plan's success_criteria on a 100k-row synthetic corpus.
+    // p95 budgets for the dashboard reads on a 100k-row synthetic corpus.
     private const int LandingP95BudgetMs = 400;
     private const int DrillInP95BudgetMs = 200;
 
@@ -37,7 +37,7 @@ public sealed class SearchAnalyticsLatencyTests
     // 95th percentile (the 28.5th ordered value) without dominating wall-clock time.
     private const int Samples = 30;
 
-    // How many rows to seed. The plan pins 100k as the read-side budget-guard corpus.
+    // How many rows to seed. 100k is the read-side budget-guard corpus size.
     private const int SeedEvents = 100_000;
 
     // How many result rows to attach so the top-pages read has non-trivial work to do.
@@ -61,7 +61,7 @@ public sealed class SearchAnalyticsLatencyTests
         // Spread the 100k seed events evenly across the full 90-day retention window so a
         // 7-day read filters to ~7/90ths of rows — matches production density (retention
         // = 90d, cast a 7d slice by default) and gives the composite indexes selectivity to
-        // work with. The default P02 seeder packs everything into a ~28h window at 1s
+        // work with. The default sample-data seeder packs everything into a ~28h window at 1s
         // intervals which does not exercise the range-filter path the production reads take.
         await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
         await SeedEventsAcross90DaysAsync(SeedEvents);

@@ -26,7 +26,7 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 //
 // Mirrors WikiTemplateRenderTests: spin up a minimal MVC host, resolve the composite view
 // engine, render the view with isMainPage:false so _ViewStart / _AdminLayout are skipped.
-// The plan's controller-scope assertions live in SearchAnalyticsControllerTests; this class
+// Controller-scope assertions live in SearchAnalyticsControllerTests; this class
 // only exercises the view template's own markup rules.
 public sealed class SearchAnalyticsIndexViewRenderTests
 {
@@ -110,7 +110,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
 
         var html = await RenderIndexAsync(model);
 
-        // Real chart replaces the P03 placeholder — SVG root + WCAG 1.1.1 details fallback.
+        // Real chart replaces the earlier placeholder — SVG root + WCAG 1.1.1 details fallback.
         Assert.Contains("<svg", html);
         Assert.Contains("sa-chart", html);
         Assert.Contains("<details class=\"govuk-details\"", html);
@@ -299,7 +299,7 @@ public sealed class SearchAnalyticsIndexViewRenderTests
 
         // The aggregate checkbox should sit AFTER the bucket-size radios and BEFORE the
         // Apply filters submit button so the visual grouping reads: window -> bucket ->
-        // aggregate -> apply (Lance's UAT ask for B3).
+        // aggregate -> apply.
         var bucketIdx = formBody.IndexOf("Chart bucket size", StringComparison.Ordinal);
         var aggregateIdx = formBody.IndexOf("data-sa-aggregate-toggle=\"true\"", StringComparison.Ordinal);
         var applyIdx = formBody.IndexOf("Apply filters", StringComparison.Ordinal);

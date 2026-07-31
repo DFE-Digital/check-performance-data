@@ -32,8 +32,8 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Search;
 // avoided because Views/_ViewStart.cshtml → _Layout.cshtml → _GovUkPageTemplate pulls
 // in the whole content-blocks + admin-nav dependency graph (EditableContentViewComponent
 // etc.) — same reason SearchAnalyticsAuthTests split HTTP auth checks from
-// controller-scope model + view-render assertions in P03. Direct action invocation
-// proves the two invariants the plan cares about most:
+// controller-scope model + view-render assertions. Direct action invocation
+// proves the two most important invariants:
 //   1. context.Session.Id — NOT any client-supplied field — is what lands in
 //      search_messages.session_id
 //   2. HideMyEmail ticked drops the email BEFORE persist so the DB row's email column

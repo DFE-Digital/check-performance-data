@@ -188,7 +188,7 @@
    In aggregate mode each chart's X-axis reads Mon 00:00 .. Sun 23:00 (168 cyclic buckets);
    otherwise it's the raw time-series over the selected window. Titles unified per tile —
    the outer section header carries the label; the inner _VolumeChart partial's own
-   "Volume over time" header has been removed to avoid the duplicated title Lance flagged. *@
+   "Volume over time" header has been removed to avoid a duplicated title. *@
 <div class="sa-chart-panel" data-sa-panel="volume">
     <h2 class="govuk-heading-m">Search volume over time@(Model.AggregateMode ? " — typical week" : "")</h2>
     @await Html.PartialAsync("~/Views/Admin/Search/_VolumeChart.cshtml", Model.VolumeSeries)

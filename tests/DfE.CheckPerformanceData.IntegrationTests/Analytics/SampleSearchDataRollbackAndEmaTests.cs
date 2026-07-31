@@ -150,8 +150,8 @@ public sealed class SampleSearchDataRollbackAndEmaTests
         }
     }
 
-    // Verifies deliverable #1: the DELETE endpoint interrupts + rolls back — even when
-    // the seeder has already Completed. Reproduces Lance's report: for the 24 h preset
+    // Verifies the DELETE endpoint interrupts + rolls back — even when
+    // the seeder has already Completed. Reproduces the reported bug: for the 24 h preset
     // the seed finishes in ~3 s and the RequestCancel guard (before this fix)
     // rejected the cancel because state != Running.
     [Fact]
@@ -209,7 +209,7 @@ public sealed class SampleSearchDataRollbackAndEmaTests
             $"Expected at least one SampleSearchDataSeedRolledBack audit entry; got {auditCount}.");
     }
 
-    // Deliverable #2: after a successful non-cancelled seed the stored per-event rate
+    // After a successful non-cancelled seed the stored per-event rate
     // moves. Since the run duration is small the measured value dominates via the
     // EMA blend — the assertion is directional (moved toward measured) rather than
     // matching an exact number, because wall-clock is inherently jittery.
@@ -240,7 +240,7 @@ public sealed class SampleSearchDataRollbackAndEmaTests
             $"Stored value must remain strictly positive; got {after}.");
     }
 
-    // Deliverable #3: a cancelled seed does NOT touch the stored per-event rate. A
+    // A cancelled seed does NOT touch the stored per-event rate. A
     // cancelled run is arbitrary in length and reflects nothing about the machine's
     // actual throughput.
     [Fact]

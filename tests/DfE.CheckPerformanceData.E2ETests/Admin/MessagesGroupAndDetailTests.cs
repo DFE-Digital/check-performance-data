@@ -13,7 +13,7 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 //     search snapshot (query + hit list) so an admin can see what the user was looking at.
 //
 // Runs against a live container: Playwright drives a real Chromium browser through the
-// deployment reachable at CPD_E2E_BASE_URL. Screenshots for handoff land under
+// deployment reachable at CPD_E2E_BASE_URL. Screenshots for manual review land under
 // tests/DfE.CheckPerformanceData.E2ETests/Snapshots/search-ux/. Linux-only for browser
 // install parity; visual assertions on other OSes drift on font metrics.
 [Collection("E2E")]
@@ -201,7 +201,7 @@ public sealed class MessagesGroupAndDetailTests(PlaywrightFixture fixture) : See
         }]).GetAwaiter().GetResult();
     }
 
-    // Handoff screenshots — path-safe under the test project so the human reviewer can browse
+    // Screenshots — path-safe under the test project so a reviewer can browse
     // them from git.
     private Task SaveScreenshotAsync(string filename) => SaveScreenshotAsync(Page, filename);
 

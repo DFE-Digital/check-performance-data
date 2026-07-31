@@ -38,7 +38,7 @@ public sealed class SessionCookieLifetimeTests
         Assert.Equal(TimeSpan.FromMinutes(15), options.IdleTimeout);
     }
 
-    // Landmine #2: Cookie.MaxAge is a browser-side Set-Cookie hint. A replayed cookie past
+    // Subtle trap: Cookie.MaxAge is a browser-side Set-Cookie hint. A replayed cookie past
     // its MaxAge still hits a live server-side session that the sliding idle timeout would
     // keep refreshing. Server-side enforcement of the absolute lifetime lives in
     // SessionAbsoluteLifetimeMiddleware — this test guards against a well-meaning refactor

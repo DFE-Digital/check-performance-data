@@ -12,8 +12,8 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // always-link + prior-search-preserved-on-validation-error on /Search/Feedback.
 //
 // Runs against a live container: Playwright drives a real Chromium browser through the
-// deployment reachable at CPD_E2E_BASE_URL. Screenshots for handoff land under
-// tests/DfE.CheckPerformanceData.E2ETests/Snapshots/search-ux/ so the human reviewer can
+// deployment reachable at CPD_E2E_BASE_URL. Screenshots for manual review land under
+// tests/DfE.CheckPerformanceData.E2ETests/Snapshots/search-ux/ so a reviewer can
 // eyeball them before merging. Linux-only for browser install parity; visual assertions
 // on other OSes drift on font metrics.
 [Collection("E2E")]
@@ -183,7 +183,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 Page.Locator("table.govuk-table thead th"),
                 context: "volume drill-in table");
 
-            // Refresh the round-5 handoff shot so the human reviewer sees the truncated
+            // Refresh the screenshot so a reviewer sees the truncated
             // pager instead of the 34-page wall.
             await SaveScreenshotAsync("admin-search-volume-drill-in.png");
 
@@ -290,7 +290,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
             var latencyPolylines = Page.Locator("[data-sa-panel=\"latency\"] svg.sa-chart:not(.sa-chart--scatter) polyline");
             Assert.Equal(3, await latencyPolylines.CountAsync());
 
-            // Round-7: the latency tile also reveals a SECOND panel — the request-timings
+            // The latency tile also reveals a SECOND panel — the request-timings
             // scatter chart. Assert both panels are visible and the scatter carries at
             // least a handful of <circle> dots.
             var latencyPanels = Page.Locator("[data-sa-panel=\"latency\"]");
@@ -316,7 +316,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- Round-7: heatmap card renders a 168-cell weekday × hour grid ---------
+    // --- Heatmap card renders a 168-cell weekday × hour grid ------------------
 
     [SkippableFact]
     public async Task Dashboard_WeekdayHourHeatmap_RendersFullGridAndDataTable()
@@ -359,7 +359,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- Round-7: zero-result outcomes funnel card ---------------------------
+    // --- Zero-result outcomes funnel card ------------------------------------
 
     [SkippableFact]
     public async Task Dashboard_ZeroResultFunnel_RendersThreeTilesOrEmptyState()
@@ -418,7 +418,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- Round-7: request timings drill-in page ------------------------------
+    // --- Request timings drill-in page ---------------------------------------
 
     [SkippableFact]
     public async Task RequestTimingsDrillIn_RendersPagedTableAndPagerAndTooltipHeaders()
@@ -454,7 +454,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }
     }
 
-    // --- Round-7: anomaly chip DOM shape check -------------------------------
+    // --- Anomaly chip DOM shape check ----------------------------------------
 
     // Anomaly chips render as small <span class="sa-anomaly-chip"> tags beneath each stat
     // tile ONLY when the current window differs by more than +/-10% from the same-length
@@ -610,8 +610,8 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         Assert.All(relValues, r => Assert.Equal("_blank", r));
 
         // The form's user-visible copy must not contain kind labels for the hit rows.
-        // Round-1 shipped labels like "home - content block" and "…/help/foo page"; the
-        // fix strips both. Assert on "content block" verbatim (the phrase never appears
+        // Earlier versions shipped labels like "home - content block" and "…/help/foo page";
+        // the fix strips both. Assert on "content block" verbatim (the phrase never appears
         // in a legitimate URL). Do NOT regex-match the word "page" alone — URL segments
         // like "…creating-a-page" contain it and produce false positives; if a future
         // change reintroduces a " - page" suffix, a follow-on assertion on the specific
@@ -1257,7 +1257,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
 
     // --- Heatmap cell tooltip: reuses the crosshair tooltip element + upper-left rule ---
 
-    // Round-13 (Lance's dictated feedback): the weekday × hour heatmap cells now surface
+    // The weekday × hour heatmap cells surface
     // the crosshair tooltip on hover with the same upper-left-of-cursor placement +
     // corner-flip behaviour as the crosshair charts. This test hovers a mid-grid cell,
     // asserts the tooltip renders with a weekday label ("Mon" / "Tue" / …) and the
@@ -1463,7 +1463,7 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
         }]).GetAwaiter().GetResult();
     }
 
-    // Handoff screenshots — path-safe under the test project so the human reviewer can
+    // Screenshots — path-safe under the test project so a reviewer can
     // browse them from git. Not versus a baseline; not a visual-regression assertion.
     private Task SaveScreenshotAsync(string filename) => SaveScreenshotAsync(Page, filename);
 

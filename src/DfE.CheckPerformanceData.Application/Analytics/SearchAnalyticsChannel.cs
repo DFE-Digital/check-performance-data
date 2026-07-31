@@ -14,8 +14,8 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 // that must never receive false; the analytics decorator specifically wants the false
 // return so it can bump the drop counter and log a warn line.
 //
-// Functionally this delivers the plan's intent — "prefer the older recorded stream over
-// a burst of new writes when the sink is stalled" — because when the buffer is full the
+// Functionally this prefers the older recorded stream over a burst of new writes when
+// the sink is stalled: when the buffer is full the
 // TryWrite is refused and the newest event is the one that never lands. The trade-off is
 // that under sustained overload the newest events shed first; the drop counter counts
 // them so an operator can see the shed.

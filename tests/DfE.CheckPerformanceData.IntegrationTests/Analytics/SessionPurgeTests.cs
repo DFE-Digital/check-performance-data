@@ -17,8 +17,8 @@ using NSubstitute;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
-// Integration coverage of the session-scoped purge action. Asserts the transactional
-// invariant the plan makes load-bearing: all three deletes (events + results via
+// Integration coverage of the session-scoped purge action. Asserts the load-bearing
+// transactional invariant: all three deletes (events + results via
 // CASCADE + messages) AND the AuditEntry row must exist after commit, or none of them.
 [Collection(nameof(PostgresCollection))]
 public sealed class SessionPurgeTests

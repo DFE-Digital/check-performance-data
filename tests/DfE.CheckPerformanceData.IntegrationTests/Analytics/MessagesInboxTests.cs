@@ -34,7 +34,7 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
 // Controller-scope + view-render coverage of the admin messages inbox list. Follows the
-// P03/P04/P05 pattern of splitting HTTP-level auth checks (which need a HostBuilder +
+// established pattern of splitting HTTP-level auth checks (which need a HostBuilder +
 // TestServer) from controller-scope model checks (direct action invocation against a
 // real DbContext) — the full pipeline with the admin layout drags in the content-blocks
 // dep graph. Auth is asserted at HTTP level here; sort / filter / paginate + view render

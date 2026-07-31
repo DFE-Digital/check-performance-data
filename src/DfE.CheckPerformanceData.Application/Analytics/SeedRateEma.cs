@@ -8,8 +8,8 @@ namespace DfE.CheckPerformanceData.Application.Analytics;
 //     doesn't dominate the estimate.
 //   * A genuine machine-throughput shift (running on a laptop vs a workstation) converges
 //     in three-to-five subsequent runs.
-// Lance's ask (verbatim): "update that value after the second seeding session if the
-// value is different… so that it remains somewhat accurate."
+// The stored value is refreshed after every completed seeding session so the ETA shown
+// on the seed page stays reasonably accurate over time.
 public static class SeedRateEma
 {
     // Weight given to the most recent measurement. 0.3 is the pragmatic choice — a

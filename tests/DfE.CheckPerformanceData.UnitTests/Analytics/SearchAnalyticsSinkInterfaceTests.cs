@@ -8,8 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace DfE.CheckPerformanceData.UnitTests.Analytics;
 
 // Locks in the write-side surface for search analytics. Two interfaces (sink for events,
-// service for messages) in one folder — one owner per table set. Landmine #12: the sink
-// deliberately does NOT expose a messages-purge method; downstream plans (P02 retention
+// service for messages) in one folder — one owner per table set. Deliberate constraint:
+// the sink does NOT expose a messages-purge method; downstream consumers (the retention
 // job) call the message service instead. If a messages-purge method appears on the sink,
 // the retention job has two ways to delete the same table and the tests will drift out
 // of sync.
@@ -37,7 +37,7 @@ public sealed class SearchAnalyticsSinkInterfaceTests
         Assert.Equal(typeof(CancellationToken), purgeParams[1].ParameterType);
     }
 
-    // Landmine #12: messages-purge lives on ISearchMessageService, NOT the sink. If a
+    // Guard: messages-purge lives on ISearchMessageService, NOT the sink. If a
     // planner adds it to the sink surface later the retention job could delete the same
     // rows twice via two different paths — this test guards the boundary.
     [Fact]
@@ -88,7 +88,7 @@ public sealed class SearchAnalyticsSinkInterfaceTests
         Assert.True(typeof(ISearchMessageService).IsAssignableFrom(typeof(DbSearchMessageService)));
     }
 
-    // Prove the DI registrations exist so downstream P02 code that resolves these
+    // Prove the DI registrations exist so downstream code that resolves these
     // interfaces via constructor injection can actually stand up. Reads
     // AddPersistenceDependencies through the same code path the Web + Worker hosts use.
     [Fact]

@@ -143,7 +143,7 @@ public sealed class SearchAnalyticsController : Controller
         var (topPages, topPagesTotal) = await _query.GetTopPagesAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
         var (topBlocks, topBlocksTotal) = await _query.GetTopBlocksAsync(fromUtc, toUtc, page: 1, pageSize: TopNLimit, ct);
 
-        // Round-7 additions: request-timings scatter (sampled), weekday × hour heatmap,
+        // Deeper diagnostics: request-timings scatter (sampled), weekday × hour heatmap,
         // zero-result outcome funnel, prior-window summary for anomaly chips. All four
         // ride the same window bounds as the summary + top-N reads above so the page tells
         // one consistent story about "this window".

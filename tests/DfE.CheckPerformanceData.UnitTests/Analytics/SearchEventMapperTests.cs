@@ -90,7 +90,7 @@ public sealed class SearchEventMapperTests
     }
 
     // A pure-page hit + a hybrid (block contributor count > 0) hit — the hybrid resolves as
-    // a block per the plan rule ("each hit is counted once; a hybrid resolves as a block
+    // a block per the counting rule ("each hit is counted once; a hybrid resolves as a block
     // hit"). The DTO's per-corpus counts must match, and the per-result list must carry
     // one row per hit — never per-contributor.
     [Fact]

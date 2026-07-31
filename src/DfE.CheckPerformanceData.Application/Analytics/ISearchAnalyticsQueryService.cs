@@ -93,8 +93,7 @@ public interface ISearchAnalyticsQueryService
     // filtered to zero_results = true; SearchCount carries the count of zero-result events
     // per bucket. Feeds the interactive "Zero-result rate" chart — the tile shows the
     // rate over the whole window, the chart shows when the zero-result queries actually
-    // occurred (per Lance's ask: "the number of result counts in the graph below and what
-    // time they occurred").
+    // occurred and how many landed in each bucket.
     Task<IReadOnlyList<VolumeBucket>> GetZeroResultCountOverTimeAsync(
         DateTime fromUtc,
         DateTime toUtc,

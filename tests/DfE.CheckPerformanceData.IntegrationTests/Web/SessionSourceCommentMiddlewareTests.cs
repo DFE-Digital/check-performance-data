@@ -87,7 +87,7 @@ public sealed class SessionSourceCommentMiddlewareTests
         Assert.DoesNotContain("<!-- session: ", body);
     }
 
-    // Landmine #1 divergence #2: unlike the diagnostic-footer middleware this DOES fire
+    // Deliberate divergence: unlike the diagnostic-footer middleware this DOES fire
     // on non-200 responses so error pages and 404 pages users see also carry the id.
     [Fact]
     public async Task Error500HtmlResponse_ContainsSessionComment()

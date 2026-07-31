@@ -534,7 +534,7 @@ public sealed class SampleSearchDataSeeder(
 
             // Weekly multipliers with light autocorrelation.
             //   next = clamp(prev × (0.7 + 0.6 × rng), 0.5, 1.8)
-            // starting from 1.0. Recipe mirrors the coordinator's guidance.
+            // starting from 1.0.
             var weekly = new double[totalWeeks];
             weekly[0] = 1.0;
             for (var w = 1; w < totalWeeks; w++)

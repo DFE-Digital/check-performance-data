@@ -28,8 +28,11 @@ public sealed class OrganisationLoginRepositoryTests(PostgresFixture fixture) : 
     {
         await using var context = fixture.CreateContext();
         var repo = new OrganisationLoginRepository(context);
-        var from = new DateTime(2026, 07, 01, 0, 0, 0, DateTimeKind.Utc);
-        var to = new DateTime(2026, 07, 31, 23, 59, 59, DateTimeKind.Utc);
+        // Derived from UtcNow, not a fixed calendar month: RecordAsync stamps rows with
+        // DateTime.UtcNow, so a hard-coded month stops containing them the moment the
+        // calendar moves on and the test would start failing on a date rather than a change.
+        var from = DateTime.UtcNow.AddDays(-1);
+        var to = DateTime.UtcNow.AddDays(1);
 
         // Two logins by the same school + one by another school inside the range.
         await repo.RecordAsync(new OrganisationLoginRecord("user-1", 142313, "8604070", "Kingsmead School"));

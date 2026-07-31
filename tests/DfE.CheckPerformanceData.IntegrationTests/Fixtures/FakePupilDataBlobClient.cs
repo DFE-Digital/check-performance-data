@@ -24,6 +24,13 @@ public sealed class FakePupilDataBlobClient : IPupilDataBlobClient
     public Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => Task.FromResult(_store.ContainsKey((windowId, laestab)));
 
+    public Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId)
+        => Task.FromResult<IReadOnlyList<string>>(
+            _store.Keys.Where(k => k.WindowId == windowId)
+                .Select(k => k.Laestab.Replace("/", string.Empty))
+                .Distinct()
+                .ToList());
+
     public Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord
     {
         _store[(windowId, laestab)] = pupils.Cast<IPupilRecord>().ToList();

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -42,6 +43,23 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
 
     public async Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => await GetBlobClient(windowId, laestab).ExistsAsync();
+
+    public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId)
+    {
+        var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
+        if (!await container.ExistsAsync())
+            return [];
+
+        const string prefix = "data/";
+        const string suffix = "_pupils.json";
+        var laestabs = new List<string>();
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, CancellationToken.None))
+        {
+            if (blob.Name.EndsWith(suffix, StringComparison.Ordinal))
+                laestabs.Add(blob.Name[prefix.Length..^suffix.Length]);
+        }
+        return laestabs;
+    }
 
     public async Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord
     {

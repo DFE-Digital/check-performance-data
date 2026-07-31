@@ -137,7 +137,7 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
         Assert.Equal(1, model.RecoveryStats.AbandonedCount);
         // The session's row must not carry Recovered=true either.
         var session = Assert.Single(model.Rows);
-        Assert.False(session.Recovered);
+        Assert.False(session.EventuallyRecovered);
     }
 
     [Fact]

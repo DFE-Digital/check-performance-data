@@ -29,7 +29,7 @@ public sealed class HomeController() : Controller
     // comment). Without this the default 404 is text/plain and users cannot quote a
     // session id from a page they never really saw.
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult NotFound()
+    public new IActionResult NotFound()
     {
         Response.StatusCode = 404;
         return View();

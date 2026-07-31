@@ -119,7 +119,7 @@ else
             : yAxisLabel);
     <details class="govuk-details">
         <summary class="govuk-details__summary">
-            <span class="govuk-details__summary-text">View @yAxisLabel.ToLowerInvariant() data table</span>
+            <span class="govuk-details__summary-text">View @((yAxisLabel ?? string.Empty).ToLowerInvariant()) data table</span>
         </summary>
         <div class="govuk-details__text">
             <table class="govuk-table">

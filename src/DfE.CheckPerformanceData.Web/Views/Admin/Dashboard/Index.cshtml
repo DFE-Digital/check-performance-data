@@ -31,10 +31,18 @@ else
 
     @if (Model.Metrics is { } metrics)
     {
-        <p class="govuk-body-s govuk-!-margin-bottom-6" data-next-refresh-ms="@Model.NextRefreshInMs.ToString("F0")">
+        <p class="govuk-body-s govuk-!-margin-bottom-2" data-next-refresh-ms="@Model.NextRefreshInMs.ToString("F0")">
             Last refreshed at @metrics.RefreshedAtUtc.ToString("HH:mm") UTC on @metrics.RefreshedAtUtc.ToString("d MMMM yyyy").
-            Figures refresh every @Model.RefreshMinutes minutes.
+            <span data-auto-refresh-status role="status">Figures refresh every @Model.RefreshMinutes minutes.</span>
         </p>
+
+        @* WCAG 2.2 SC 2.2.2: the page auto-reloads, so users must be able to stop it. Hidden
+           until the script has actually scheduled a reload — without JS nothing auto-updates
+           and the control would be a dead end. *@
+        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-6"
+                data-stop-auto-refresh hidden>
+            Stop automatic refresh
+        </button>
 
         <h2 class="govuk-heading-m">School engagement</h2>
         <div class="dash-tiles">
@@ -90,10 +98,24 @@ else
             var caption = document.querySelector('[data-next-refresh-ms]');
             if (!caption) { return; }
             var ms = parseInt(caption.getAttribute('data-next-refresh-ms'), 10);
-            if (!isNaN(ms) && ms > 0) {
-                // 5s of slack so the cache entry has definitely expired when we reload.
-                window.setTimeout(function () { window.location.reload(); }, ms + 5000);
-            }
+            if (isNaN(ms) || ms <= 0) { return; }
+
+            // 5s of slack so the cache entry has definitely expired when we reload.
+            var timer = window.setTimeout(function () { window.location.reload(); }, ms + 5000);
+
+            // The reload is auto-updating content, so offer a way to stop it (WCAG 2.2 SC 2.2.2).
+            var stopButton = document.querySelector('[data-stop-auto-refresh]');
+            if (!stopButton) { return; }
+            var status = document.querySelector('[data-auto-refresh-status]');
+            stopButton.hidden = false;
+            stopButton.addEventListener('click', function () {
+                window.clearTimeout(timer);
+                stopButton.hidden = true;
+                if (status) {
+                    status.textContent =
+                        'Automatic refresh is off. Reload the page to see newer figures.';
+                }
+            });
         })();
     </script>
 }

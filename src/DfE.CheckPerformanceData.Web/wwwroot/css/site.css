@@ -1951,3 +1951,10 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
     margin-bottom: 0;
     color: #505a5f;
 }
+
+/* The stop-auto-refresh control is hidden until the script schedules a reload. .govuk-button
+   sets display:inline-block, which beats the browser's own [hidden] rule, so the hidden state
+   needs an author rule of its own — otherwise the control shows for users without JS. */
+[data-stop-auto-refresh][hidden] {
+    display: none;
+}

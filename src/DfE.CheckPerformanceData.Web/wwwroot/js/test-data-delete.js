@@ -84,11 +84,17 @@
             confirmBtn.setAttribute('disabled', 'disabled');
             var body = new FormData();
             if (token) body.append('__RequestVerificationToken', token);
+            // redirect: 'manual' — the server 302s back to the seed page after writing
+            // the "Deleted N events…" TempData banner. If the fetch FOLLOWS that 302
+            // it triggers a GET on the target URL, which reads and clears TempData
+            // silently — then the subsequent window.location.reload() lands on an
+            // empty TempData and no banner renders. Manual keeps TempData intact
+            // until the browser reload triggers the real GET that renders it.
             fetch(form.action, {
                 method: 'POST',
                 body: body,
                 credentials: 'same-origin',
-                redirect: 'follow'
+                redirect: 'manual'
             }).then(function () {
                 closeModal(modal);
                 window.location.reload();
@@ -138,11 +144,13 @@
             var body = new FormData();
             if (token) body.append('__RequestVerificationToken', token);
             body.append('confirm', TYPED_LITERAL);
+            // redirect: 'manual' — same reason as wireDeleteSeeded: don't let fetch
+            // silently consume the TempData banner by following the 302.
             fetch(form.action, {
                 method: 'POST',
                 body: body,
                 credentials: 'same-origin',
-                redirect: 'follow'
+                redirect: 'manual'
             }).then(function () {
                 closeModal(modal);
                 window.location.reload();

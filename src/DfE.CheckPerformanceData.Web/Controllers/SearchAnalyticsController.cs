@@ -92,7 +92,7 @@ public sealed class SearchAnalyticsController : Controller
         // admin sidebar is collapsed. Every other search-analytics action follows suit.
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var (bucketSize, bucketKey) = ResolveBucketSize(bucket, toUtc - fromUtc);
 
         var totalCount = await _query.GetRowCountAsync(fromUtc, toUtc, ct);
@@ -197,7 +197,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = "Request timings";
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -231,7 +231,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = "Zero-result recovery journeys";
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -276,7 +276,7 @@ public sealed class SearchAnalyticsController : Controller
             return NotFound();
         }
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -321,7 +321,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = "Top queries";
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -351,7 +351,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = "Zero-result queries";
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -381,7 +381,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = "Top pages by search impressions";
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -414,7 +414,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["AdminActiveKey"] = AdminNavKeys.SearchAnalytics;
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
 
@@ -474,7 +474,7 @@ public sealed class SearchAnalyticsController : Controller
         ViewData["Title"] = title;
         ViewData["AdminWide"] = true;
 
-        var (fromUtc, toUtc, rangeKey) = ResolveWindow(range, from, to);
+        var (fromUtc, toUtc, rangeKey) = ResolveWindowFromRequest(range, from, to);
         var (bucketSize, bucketKey) = ResolveBucketSize(bucket, toUtc - fromUtc);
         var pageSize = await ResolvePageSizeAsync();
         if (page < 1) page = 1;
@@ -630,6 +630,45 @@ public sealed class SearchAnalyticsController : Controller
     {
         var size = await _settings.GetIntAsync(SettingKeys.CmsPageLength);
         return size > 0 ? size : DefaultPageSize;
+    }
+
+    // Instance wrapper around ResolveWindow that first backfills `from` / `to` from the
+    // raw HttpContext.Request.Query when model binding left them null. Under the
+    // ASP.NET Core 10 runtime on this project, DateTime? parameters on a GET action
+    // silently bind to null even when the query string carries a valid ISO date — see
+    // e.g. `?range=custom&from=2026-06-16&to=2026-07-31` losing from/to at the binder
+    // and the custom-range custom-window never taking effect (E2E:
+    // ApplyFilters_WithAggregateOnAndCustomRange_PreservesAggregateAndCustomWindowInUrl).
+    // Manual parse via InvariantCulture + RoundtripKind matches the format the filter
+    // form's date inputs post back and what SearchAnalyticsRangeQuery.Build emits, so
+    // the drill-in round-trip closes properly. Every action on this controller routes
+    // through here — one shared fallback, no drift.
+    private (DateTime FromUtc, DateTime ToUtc, string RangeKey) ResolveWindowFromRequest(
+        string? range,
+        DateTime? from,
+        DateTime? to)
+    {
+        if (from is null)
+        {
+            var raw = Request?.Query["from"].ToString();
+            if (!string.IsNullOrEmpty(raw) && DateTime.TryParse(
+                raw, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                from = parsed;
+            }
+        }
+        if (to is null)
+        {
+            var raw = Request?.Query["to"].ToString();
+            if (!string.IsNullOrEmpty(raw) && DateTime.TryParse(
+                raw, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                to = parsed;
+            }
+        }
+        return ResolveWindow(range, from, to);
     }
 
     // Resolves the (from, to, rangeKey) triple from the ?range=, ?from=, ?to= query

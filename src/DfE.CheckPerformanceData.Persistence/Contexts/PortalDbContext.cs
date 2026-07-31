@@ -31,6 +31,7 @@ public sealed class PortalDbContext(
     public DbSet<PageNodeVersion> PageNodeVersions => Set<PageNodeVersion>();
     public DbSet<AdminSectionAccess> AdminSectionAccesses => Set<AdminSectionAccess>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
+    public DbSet<OrganisationLogin> OrganisationLogins => Set<OrganisationLogin>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +53,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new PageNodeVersionConfiguration());
         modelBuilder.ApplyConfiguration(new AdminSectionAccessConfiguration());
         modelBuilder.ApplyConfiguration(new AppLogConfiguration());
+        modelBuilder.ApplyConfiguration(new OrganisationLoginConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

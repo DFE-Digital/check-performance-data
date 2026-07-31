@@ -28,6 +28,7 @@ public interface IPortalDbContext
     DbSet<PageNodeVersion> PageNodeVersions { get; }
     DbSet<AdminSectionAccess> AdminSectionAccesses { get; }
     DbSet<AppLog> AppLogs { get; }
+    DbSet<OrganisationLogin> OrganisationLogins { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

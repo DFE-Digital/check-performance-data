@@ -96,6 +96,8 @@ try
    
     builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
     builder.Services.Configure<ClaritySettings>(builder.Configuration.GetSection("Clarity"));
+    builder.Services.Configure<DfE.CheckPerformanceData.Application.Dashboard.DashboardSettings>(
+        builder.Configuration.GetSection("Dashboard"));
     var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
     
     builder.Services

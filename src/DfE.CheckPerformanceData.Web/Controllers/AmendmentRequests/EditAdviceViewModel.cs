@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Web.Extensions;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.AmendmentRequests;
 
 public sealed class EditAdviceViewModel
@@ -13,4 +15,9 @@ public sealed class EditAdviceViewModel
 
     /// <summary>Where the Back link returns to (Amendment requests index, or the bulk review page when editing from a batch).</summary>
     public required string BackUrl { get; init; }
+
+    public string? SavedByEmail { get; init; }
+    public DateTime? SavedAt { get; init; }
+
+    public string SavedAtText => LondonTime.ToSubmittedAtText(SavedAt);
 }

@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730165706_ChangeRequests_WithdrawnByEmailAt")]
+    partial class ChangeRequests_WithdrawnByEmailAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -431,55 +434,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("CheckingWindows");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowDataset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<Guid>("CheckingWindowId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool?>("Included")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("IngressFile")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("IngressFileChecksum")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("SchemaFile")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("SchemaFileChecksum")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CheckingWindowId", "Name")
-                        .IsUnique();
-
-                    b.ToTable("CheckingWindowDatasets");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>
@@ -1019,15 +973,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Navigation("Validated");
                 });
 
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindowDataset", b =>
-                {
-                    b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", null)
-                        .WithMany("Datasets")
-                        .HasForeignKey("CheckingWindowId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlockVersion", b =>
                 {
                     b.HasOne("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", "ContentBlock")
@@ -1057,11 +1002,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("PageNode");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.CheckingWindow", b =>
-                {
-                    b.Navigation("Datasets");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ContentBlock", b =>

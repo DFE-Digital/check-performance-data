@@ -56,11 +56,13 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
             .UpsertAsync(Data(windowId, "REF-WD-OTHER", RequestStatus.SubmittedUnCommitted, organisationUrn: 999999));
 
         await new RequestRepository(_fixture.CreateContext())
-            .WithdrawAsync(windowId, 100000, "REF-WD-1");
+            .WithdrawAsync(windowId, 100000, "REF-WD-1", "withdrew@school.gov.uk", new DateTime(2026, 7, 30, 10, 0, 0, DateTimeKind.Utc));
 
         await using var ctx = _fixture.CreateContext();
         var withdrawn = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-1");
         Assert.Equal(RequestStatus.Withdrawn, withdrawn.Status);
+        Assert.Equal("withdrew@school.gov.uk", withdrawn.WithdrawnByEmail);
+        Assert.Equal(new DateTime(2026, 7, 30, 10, 0, 0, DateTimeKind.Utc), withdrawn.WithdrawnAt);
         var other = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-OTHER");
         Assert.Equal(RequestStatus.SubmittedUnCommitted, other.Status);
     }
@@ -75,7 +77,7 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
 
         // Withdraw scoped to a different org should match nothing.
         await new RequestRepository(_fixture.CreateContext())
-            .WithdrawAsync(windowId, 999999, "REF-WD-2");
+            .WithdrawAsync(windowId, 999999, "REF-WD-2", "other@school.gov.uk", new DateTime(2026, 7, 30, 10, 0, 0, DateTimeKind.Utc));
 
         await using var ctx = _fixture.CreateContext();
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-WD-2");

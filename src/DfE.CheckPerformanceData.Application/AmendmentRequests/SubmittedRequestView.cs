@@ -21,6 +21,8 @@ public sealed class SubmittedRequestView
     public required string ReferenceNumber { get; init; }
     public string? SubmittedByEmail { get; init; }
     public DateTime? SubmittedAt { get; init; }
+    public string? WithdrawnByEmail { get; init; }
+    public DateTime? WithdrawnAt { get; init; }
 }
 
 public sealed class SubmittedRequestAnswerRow

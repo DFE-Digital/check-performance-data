@@ -1922,3 +1922,32 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
     display: none;
   }
 }
+
+/* PBI 288143: admin dashboard metric tiles (mirrors the observability tile idiom) */
+.dash-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.dash-tile {
+    border: 1px solid #b1b4b6;
+    border-left: 5px solid #505a5f;
+    padding: 15px;
+    background: #ffffff;
+}
+
+.dash-tile--success { border-left-color: #00703c; }
+.dash-tile--warning { border-left-color: #f47738; }
+.dash-tile--error { border-left-color: #d4351c; }
+.dash-tile--info { border-left-color: #1d70b8; }
+
+.dash-tile__value {
+    margin-bottom: 5px;
+}
+
+.dash-tile__label {
+    margin-bottom: 0;
+    color: #505a5f;
+}

@@ -123,6 +123,28 @@ public class DashboardServiceTests
         await _requests.Received(1).GetRequestAggregatesAsync(windowB, Arg.Any<CancellationToken>());
     }
 
+    // A misconfigured Dashboard:RefreshMinutes must degrade to "no caching benefit", never to a
+    // 500 on the dashboard page: IMemoryCache rejects a non-positive relative expiration.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public async Task GetMetricsAsync_WithNonPositiveRefreshMinutes_StillReturnsMetrics(int refreshMinutes)
+    {
+        var windowId = Guid.NewGuid();
+        _blobClient.ListSchoolLaestabsAsync(windowId).Returns([]);
+        _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+        _requests.GetRequestAggregatesAsync(windowId, Arg.Any<CancellationToken>())
+            .Returns(EmptyAggregates());
+        var sut = new DashboardService(
+            _blobClient, _logins, _requests, _cache,
+            Options.Create(new DashboardSettings { RefreshMinutes = refreshMinutes }));
+
+        var metrics = await sut.GetMetricsAsync(Window(windowId));
+
+        Assert.Equal(windowId, metrics.WindowId);
+    }
+
     private static DashboardRequestAggregates EmptyAggregates() => new()
     {
         TotalRequests = 0,

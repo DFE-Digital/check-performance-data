@@ -34,7 +34,7 @@ public sealed class AdminDashboardController(
             return View(IndexView, new AdminDashboardViewModel
             {
                 OpenWindows = [],
-                RefreshMinutes = settings.Value.RefreshMinutes,
+                RefreshMinutes = settings.Value.EffectiveRefreshMinutes,
             });
         }
 
@@ -46,7 +46,7 @@ public sealed class AdminDashboardController(
             OpenWindows = openWindows.Select(w => new AdminDashboardViewModel.WindowOption(w.Id, w.Title)).ToList(),
             SelectedWindowId = selected.Id,
             Metrics = metrics,
-            RefreshMinutes = settings.Value.RefreshMinutes,
+            RefreshMinutes = settings.Value.EffectiveRefreshMinutes,
         });
     }
 }

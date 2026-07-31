@@ -20,7 +20,7 @@ public sealed class DashboardService(
             return cached;
 
         var metrics = await BuildAsync(window, cancellationToken);
-        cache.Set(cacheKey, metrics, TimeSpan.FromMinutes(settings.Value.RefreshMinutes));
+        cache.Set(cacheKey, metrics, TimeSpan.FromMinutes(settings.Value.EffectiveRefreshMinutes));
         return metrics;
     }
 

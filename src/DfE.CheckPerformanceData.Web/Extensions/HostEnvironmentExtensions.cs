@@ -26,19 +26,18 @@ public static class HostEnvironmentExtensions
     public const string PreproductionEnvironmentName = "Preproduction";
 
     // The seed-sample-search-data admin page + every destructive endpoint on it are
-    // allowed to render / execute only in these environments:
+    // allowed to render / execute in every environment EXCEPT Preproduction and
+    // Production:
     //
-    //   Development — every developer's local stack (that's where the person clicking
-    //                 the button owns the DB).
-    //   QA          — the shared long-lived Azure test environment. Testers WANT to
-    //                 wipe the sink between test passes; that is the whole point of
-    //                 the "test environment".
+    //   Development — every developer's local stack.
+    //   Review      — per-PR ephemeral review app on AKS.
+    //   QA          — the shared long-lived Azure test environment.
     //
-    // Explicit denylist by omission: Review, Preproduction and Production always fall
-    // through to the false branch. Review is left out because a mis-configured PR
-    // review app could otherwise clear real-shape data mid-review; Preproduction and
-    // Production are obvious. Nobody should be able to click "Delete all search data"
-    // on a customer-facing sink and hope the button was disabled somewhere else.
+    // Explicit denylist by omission: Preproduction and Production always fall through
+    // to false. Nobody should be able to click "Delete all search data" on a
+    // customer-facing sink and hope the button was disabled somewhere else.
     public static bool IsSampleDataAdminEnvironment(this IHostEnvironment env) =>
-        env.IsDevelopment() || env.IsEnvironment(QaEnvironmentName);
+        env.IsDevelopment()
+        || env.IsEnvironment(ReviewEnvironmentName)
+        || env.IsEnvironment(QaEnvironmentName);
 }

@@ -3,10 +3,10 @@
 @{
     ViewData["Title"] = "Seed sample search data";
     // Delete-all wipes EVERY row in the sink, including live user traffic. Whitelist
-    // the environments it may render / submit in — Development (every developer's
-    // local stack) + QA (the shared Azure test environment). Review, Preproduction
-    // and Production must never render this button. The endpoint mirrors the same
-    // check server-side; the view gate is UX belt-and-braces.
+    // the environments it may render / submit in — Development, Review (per-PR review
+    // app) and QA (shared Azure test environment). Preproduction and Production must
+    // never render this button. The endpoint mirrors the same check server-side; the
+    // view gate is UX belt-and-braces.
     var deleteAllAllowed = HostEnv.IsSampleDataAdminEnvironment();
     var progressUrl = "/admin/test-data/sample-search-data/progress";
     var cancelUrlBase = "/admin/test-data/sample-search-data/";
@@ -204,7 +204,7 @@
            button with a hidden confirm=DELETE input pre-populated so the endpoint still
            accepts the request.
 
-           Env-gated: rendered only in Development + QA. The controller endpoint enforces
+           Env-gated: rendered only in Development + Review + QA. The controller endpoint enforces
            the same allowlist server-side, so hiding the button is the UX layer of a
            defence-in-depth pair — nobody accidentally clicks a button that isn't there. *@
         @if (deleteAllAllowed)
@@ -265,7 +265,7 @@
 </dialog>
 
 @* Confirm modal — delete all, with typed-confirmation gate. Env-gated the same way
-   the form above is: no dangling modal markup on Review / Preproduction / Production. *@
+   the form above is: no dangling modal markup on Preproduction / Production. *@
 @if (deleteAllAllowed)
 {
 <dialog id="delete-all-modal"

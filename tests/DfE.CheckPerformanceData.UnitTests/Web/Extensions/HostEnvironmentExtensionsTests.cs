@@ -14,12 +14,11 @@ namespace DfE.CheckPerformanceData.UnitTests.Web.Extensions;
 public sealed class HostEnvironmentExtensionsTests
 {
     [Theory]
-    // Whitelist — the developer's local stack + the shared Azure test env.
+    // Whitelist — every non-customer-facing environment.
     [InlineData("Development",    true)]
+    [InlineData("Review",         true)]
     [InlineData("QA",             true)]
-    // Denylist — Review is per-PR ephemeral (should not accidentally wipe review
-    // data); Preproduction / Production are the obvious ones.
-    [InlineData("Review",         false)]
+    // Denylist — the only environments that must never render the destructive surface.
     [InlineData("Preproduction",  false)]
     [InlineData("Production",     false)]
     // Hypothetical future tier — off by default; a new whitelist entry is a
@@ -27,7 +26,7 @@ public sealed class HostEnvironmentExtensionsTests
     [InlineData("Staging",        false)]
     [InlineData("",               false)]
     [InlineData("Some-Custom-Env", false)]
-    public void IsSampleDataAdminEnvironment_HonoursTheDevelopmentAndQaWhitelist(
+    public void IsSampleDataAdminEnvironment_AllowsEveryNonProductionTier(
         string environmentName, bool expected)
     {
         var env = Substitute.For<IHostEnvironment>();

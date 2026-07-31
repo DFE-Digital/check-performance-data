@@ -19,13 +19,13 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // independent controls:
 //   * [RequireAdminSection(TestDataGroup)] — a fresh-DB admin has this grant through
 //     DefaultAdminAccessSeeder.AllSections; editor-only users 404 at the attribute.
-//   * IHostEnvironment.IsSampleDataAdminEnvironment() — explicit whitelist of
-//     Development (every developer's local stack) + QA (the shared Azure test
-//     environment where testers reset the sink between passes). Review,
-//     Preproduction and Production return 404 verbatim even for a principal that
-//     carries the section grant. The endpoint is destructive-adjacent (the Danger
-//     zone can DELETE ALL rows in the sink including live traffic) so the env
-//     guard is defence-in-depth alongside the section-access check.
+//   * IHostEnvironment.IsSampleDataAdminEnvironment() — whitelist of Development
+//     (every developer's local stack), Review (per-PR review app) and QA (the
+//     shared Azure test environment). Preproduction and Production return 404
+//     verbatim even for a principal that carries the section grant. The endpoint
+//     is destructive-adjacent (the Danger zone can DELETE ALL rows in the sink
+//     including live traffic) so the env guard is defence-in-depth alongside the
+//     section-access check.
 //
 // Seed runs are non-blocking: the POST creates a job in the store, kicks the seeder onto
 // a background Task.Run with its own scope, and redirects to the same page with a jobId

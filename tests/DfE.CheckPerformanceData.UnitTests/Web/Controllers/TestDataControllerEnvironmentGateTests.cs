@@ -22,7 +22,6 @@ public sealed class TestDataControllerEnvironmentGateTests
     [Theory]
     [InlineData("Production")]
     [InlineData("Preproduction")]
-    [InlineData("Review")]
     [InlineData("Some-Custom-Env")]
     [InlineData("")]
     public async Task DeleteAllSampleSearchData_OnNonWhitelistedEnvironment_ReturnsNotFound(
@@ -53,6 +52,7 @@ public sealed class TestDataControllerEnvironmentGateTests
 
     [Theory]
     [InlineData("Development")]
+    [InlineData("Review")]
     [InlineData("QA")]
     public async Task DeleteAllSampleSearchData_OnWhitelistedEnvironment_DoesNotShortCircuitToNotFound(
         string environmentName)

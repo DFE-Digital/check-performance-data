@@ -59,7 +59,7 @@ flowchart LR
 | `Web/Controllers/SearchAnalyticsController.cs` | The admin dashboard + every drill-in under `/admin/Search/`. |
 | `Web/Controllers/SearchFeedbackController.cs` | User-facing feedback form at `/Search/Feedback`. |
 | `Web/Controllers/MessagesController.cs` | Admin messages inbox at `/admin/Messages/Inbox`. |
-| `Web/Controllers/TestDataController.cs` | Seed sample search data page at `/admin/test-data/sample-search-data`. Gated to Development + QA only via `IHostEnvironment.IsSampleDataAdminEnvironment()`. |
+| `Web/Controllers/TestDataController.cs` | Seed sample search data page at `/admin/test-data/sample-search-data`. Gated to non-customer-facing environments (Development + Review + QA) via `IHostEnvironment.IsSampleDataAdminEnvironment()`; Preproduction and Production 404. |
 
 ### Persistence
 
@@ -338,7 +338,7 @@ The channel + writer knobs (`SearchAnalyticsChannel` capacity, `SearchEventWrite
 
 ## Seeding sample data (non-prod only)
 
-`/admin/test-data/sample-search-data` fills the sink with realistic-looking traffic so the dashboard has content to demo. **Development + Test only** — `IHostEnvironment.IsSampleDataAdminEnvironment()` returns true for the local `Development` docker stack and for the shared `QA` (test) environment, and 404s every endpoint (page load, seed POST, progress poll, cancel, delete-seeded, delete-all) on `Review`, `Preproduction` and `Production` even for a principal with the admin section grant.
+`/admin/test-data/sample-search-data` fills the sink with realistic-looking traffic so the dashboard has content to demo. **Non-customer-facing environments only** — `IHostEnvironment.IsSampleDataAdminEnvironment()` returns true for `Development` (every developer's local stack), `Review` (per-PR ephemeral) and `QA` (shared Azure test environment), and 404s every endpoint (page load, seed POST, progress poll, cancel, delete-seeded, delete-all) on `Preproduction` and `Production` even for a principal with the admin section grant.
 
 ### What it generates
 
@@ -373,7 +373,7 @@ That's why every sink row carries the `job_id` column — so `WHERE job_id = @id
 A `Danger zone` section on the same page has two additional destructive actions:
 
 - **Delete seeded data** — one-click confirm modal. Deletes every row with `is_seeded = true` across all three tables in one transaction. Real (`is_seeded = false`) rows are preserved. Same page-level env whitelist as the seed action.
-- **Delete all data** — typed-DELETE confirmation. TRUNCATE-equivalent across the three tables. Wipes real user traffic too; the extra guard is a second belt-and-braces env check in the view (the button and its modal are only rendered on Development + QA) so a future change that loosens the page-level gate can't accidentally expose it on `Review` / `Preproduction` / `Production`. The controller endpoint mirrors the same whitelist server-side.
+- **Delete all data** — typed-DELETE confirmation. TRUNCATE-equivalent across the three tables. Wipes real user traffic too; the extra guard is a second belt-and-braces env check in the view (the button and its modal are only rendered on Development + Review + QA) so a future change that loosens the page-level gate can't accidentally expose it on `Review` / `Preproduction` / `Production`. The controller endpoint mirrors the same whitelist server-side.
 
 Both write per-table row counts to the audit trail.
 

@@ -54,6 +54,8 @@ public static class DependencyManager
         services.AddScoped<Application.UncommittedRequests.IUncommittedRequestsRepository,
             Repositories.UncommittedRequestsRepository>();
         services.AddScoped<ICountryRepository, CountryRepository>();
+        services.AddScoped<Application.Dashboard.IOrganisationLoginRepository, Repositories.OrganisationLoginRepository>();
+        services.AddScoped<Application.Dashboard.IDashboardRequestRepository, Repositories.DashboardRequestRepository>();
         services.AddScoped<Application.RulesConfig.IRulesConfigVersionRepository,
             Repositories.RulesConfigVersionRepository>();
         services.AddScoped<Application.PageTree.IPageNodeRepository, Repositories.PageNodeRepository>();

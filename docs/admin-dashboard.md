@@ -22,7 +22,7 @@ substance (no metric data is reachable) but deliberately not rendered as a visib
 ## Login tracking
 
 Nothing recorded sign-ins before this feature. The DfE Sign-In `OnTokenValidated` hook now
-appends an `organisation_logins` row (user id, URN, digits-only laestab, organisation name,
+appends an `OrganisationLogins` row (user id, URN, digits-only laestab, organisation name,
 UTC timestamp) after successful claims enrichment. Recording is wrapped in try/catch — a
 failure can never block sign-in. Rows are append-only; the dashboard deduplicates at query
 time. Logins recorded before the feature shipped obviously do not exist, so "Logged in"
@@ -31,7 +31,20 @@ undercounts for windows that opened before deployment.
 ## Refresh behaviour
 
 Figures are computed on demand and cached per window for `Dashboard:RefreshMinutes`
-(default 15). The page shows the computation time and reloads itself via a small
-progressive-enhancement script once the cache is due to expire; without JavaScript the
-figures simply refresh on the next manual reload after expiry. The cache is per pod, so
-with two replicas the two pods may refresh at slightly different moments.
+(default 15, floored at 1 — a configured 0 or negative would otherwise be rejected by
+`IMemoryCache` and fail the page). The page shows the computation time and reloads itself
+via a small progressive-enhancement script once the cache is due to expire; without
+JavaScript the figures simply refresh on the next manual reload after expiry. The cache is
+per pod, so with two replicas the two pods may refresh at slightly different moments.
+
+Because the reload is auto-updating content, a "Stop automatic refresh" button cancels it
+(WCAG 2.2 SC 2.2.2). The button only appears once the script has scheduled a reload, so it
+is absent — along with the auto-refresh itself — when JavaScript is unavailable.
+
+## Data protection note
+
+`OrganisationLogins` is a new store of personal data: it keeps the DfE Sign-In user id and a
+timestamp for every successful school sign-in, with no retention limit and no purge job. The
+dashboard itself reads only the URN, laestab and timestamp — the user id is stored but not
+used by any current feature. Retention and whether the user id is needed at all are open
+questions for the service's DPIA.

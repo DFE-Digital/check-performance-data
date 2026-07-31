@@ -102,7 +102,15 @@ else
     </ul>
 
     var bucketIsoJson = "[" + string.Join(",", buckets.Select(b => "\"" + b.BucketStart.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture) + "\"")) + "]";
+    // Three series baked separately so the tooltip can announce all three per bucket.
+    // The visible circles are p50; announcing only p95 (the historic single-value shape)
+    // creates a jarring visual/tooltip mismatch when a p50 dot sits near 1 ms but the
+    // bucket's p95 is 55 ms. seriesValuesJson kept as the p95 fallback so any consumer
+    // that ignores the *-series attributes still gets sensible readout content.
     var seriesValuesJson = "[" + string.Join(",", buckets.Select(b => b.P95Ms.ToString(CultureInfo.InvariantCulture))) + "]";
+    var seriesValuesP5Json  = "[" + string.Join(",", buckets.Select(b => b.P5Ms.ToString(CultureInfo.InvariantCulture)))  + "]";
+    var seriesValuesP50Json = "[" + string.Join(",", buckets.Select(b => b.P50Ms.ToString(CultureInfo.InvariantCulture))) + "]";
+    var seriesValuesP95Json = "[" + string.Join(",", buckets.Select(b => b.P95Ms.ToString(CultureInfo.InvariantCulture))) + "]";
     <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
          aria-label="@ariaLabel" focusable="false"
          data-sa-crosshair="true"
@@ -114,7 +122,10 @@ else
          data-sa-plot-height="@plotH"
          data-sa-buckets="@bucketIsoJson"
          data-sa-values="@seriesValuesJson"
-         data-sa-value-suffix=" ms (p95)">
+         data-sa-values-p5="@seriesValuesP5Json"
+         data-sa-values-p50="@seriesValuesP50Json"
+         data-sa-values-p95="@seriesValuesP95Json"
+         data-sa-value-suffix=" ms">
         <title>Latency percentiles (p5 / p50 / p95) over time in milliseconds</title>
 
         <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"

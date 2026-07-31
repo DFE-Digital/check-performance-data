@@ -321,6 +321,10 @@
     border-radius: 2px;
     z-index: 10000;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    /* Honour newlines set via textContent so multi-line tooltips (e.g. the
+       latency-percentiles chart listing p5/p50/p95) render as separate rows
+       instead of collapsing onto one visual line. */
+    white-space: pre-line;
     white-space: nowrap;
 }
 

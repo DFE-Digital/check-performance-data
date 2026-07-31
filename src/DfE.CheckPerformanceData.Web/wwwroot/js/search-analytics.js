@@ -249,12 +249,21 @@
         var plotH = parseFloat(svg.getAttribute('data-sa-plot-height')) || 0;
         var suffix = svg.getAttribute('data-sa-value-suffix') || '';
 
-        var buckets, values;
+        var buckets, values, valuesP5, valuesP50, valuesP95;
         try {
             buckets = JSON.parse(svg.getAttribute('data-sa-buckets') || '[]');
             values = JSON.parse(svg.getAttribute('data-sa-values') || '[]');
+            // Optional per-series arrays for charts that render more than one line
+            // (e.g. the latency-percentiles chart). When present, the tooltip lists
+            // every series' value for the bucket instead of just the single `values`
+            // entry — otherwise a visible p50 dot near 1 ms plus a tooltip announcing
+            // the sibling p95 at 55 ms reads as broken.
+            valuesP5  = JSON.parse(svg.getAttribute('data-sa-values-p5')  || 'null');
+            valuesP50 = JSON.parse(svg.getAttribute('data-sa-values-p50') || 'null');
+            valuesP95 = JSON.parse(svg.getAttribute('data-sa-values-p95') || 'null');
         } catch (e) { return; }
         if (!buckets.length) { return; }
+        var hasPercentileSeries = Array.isArray(valuesP5) && Array.isArray(valuesP50) && Array.isArray(valuesP95);
 
         var windowSpanMs = 0;
         if (buckets.length >= 2) {
@@ -293,8 +302,16 @@
             hLine.setAttribute('visibility', 'visible');
 
             var whenLabel = formatTimestamp(buckets[idxRaw], windowSpanMs);
-            var valueLabel = (values[idxRaw] || 0).toLocaleString('en-GB') + suffix;
-            tooltip.textContent = whenLabel + ' — ' + valueLabel;
+            var tooltipText;
+            if (hasPercentileSeries) {
+                var p5  = (valuesP5[idxRaw]  || 0).toLocaleString('en-GB');
+                var p50 = (valuesP50[idxRaw] || 0).toLocaleString('en-GB');
+                var p95 = (valuesP95[idxRaw] || 0).toLocaleString('en-GB');
+                tooltipText = whenLabel + '\np5 ' + p5 + suffix + ' · p50 ' + p50 + suffix + ' · p95 ' + p95 + suffix;
+            } else {
+                tooltipText = whenLabel + ' — ' + (values[idxRaw] || 0).toLocaleString('en-GB') + suffix;
+            }
+            tooltip.textContent = tooltipText;
             tooltip.style.display = 'block';
             positionTooltip(evt, tooltip);
         });

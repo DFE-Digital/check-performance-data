@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Middleware;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -80,6 +81,60 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         var readBody = await read.Content.ReadAsStringAsync();
 
         Assert.Equal("(none)", readBody);
+    }
+
+    // The cap is documented as "start over", and the admin-facing setting text promises a
+    // fresh identity. Session.Clear() alone cannot deliver that: ASP.NET's Session.Id is
+    // derived from the cookie and has no regenerate API, so it outlives the wipe. The
+    // analytics identity is therefore app-owned and stored in the session, which makes the
+    // wipe rotate it. Without rotation a replayed cookie keeps one id forever and every
+    // search it makes is attributed to a single unbounded "session".
+    [Fact]
+    [Trait("Category", "Slow")]
+    public async Task SecondRequest_AfterAbsoluteLimit_RotatesTheAnalyticsSessionId()
+    {
+        using var host = await BuildProbeIdentityHostAsync(absoluteHours: 0.0005);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var firstBody = await first.Content.ReadAsStringAsync();
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, firstSessionId) = SplitProbe(firstBody);
+
+        Assert.NotEqual("(none)", firstIdentity);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(2500));
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, secondSessionId) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", secondIdentity);
+        Assert.NotEqual(firstIdentity, secondIdentity);
+
+        // Pins the reason the app-owned id exists: the framework's own id does NOT rotate
+        // across the cap, so anything keyed on it would still be pinned to one session.
+        Assert.Equal(firstSessionId, secondSessionId);
+    }
+
+    [Fact]
+    public async Task RequestsWithinTheCap_KeepTheSameAnalyticsSessionId()
+    {
+        using var host = await BuildProbeIdentityHostAsync(absoluteHours: 1);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, _) = SplitProbe(await first.Content.ReadAsStringAsync());
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, _) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", firstIdentity);
+        Assert.Equal(firstIdentity, secondIdentity);
     }
 
     [Fact]
@@ -183,6 +238,54 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
             .StartAsync();
 
         return host;
+    }
+
+    // Probe writes "<app-owned identity>|<framework Session.Id>" so a single request can
+    // assert on both.
+    private static async Task<IHost> BuildProbeIdentityHostAsync(double absoluteHours)
+    {
+        var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+
+                web.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["SearchAnalytics:SessionAbsoluteHours"] =
+                            absoluteHours.ToString("0.0######", System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                });
+
+                web.ConfigureServices((ctx, services) =>
+                {
+                    services.AddDistributedMemoryCache();
+                    services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
+                });
+
+                web.Configure(app =>
+                {
+                    app.UseSession();
+                    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+                    app.Run(async context =>
+                    {
+                        await context.Session.LoadAsync();
+                        var identity = CpdSessionIdentity.Peek(context.Session) ?? "(none)";
+                        await context.Response.WriteAsync($"{identity}|{context.Session.Id}");
+                    });
+                });
+            })
+            .StartAsync();
+
+        return host;
+    }
+
+    private static (string Identity, string SessionId) SplitProbe(string body)
+    {
+        var parts = body.Split('|', 2);
+        Assert.Equal(2, parts.Length);
+        return (parts[0], parts[1]);
     }
 
     private static string ExtractSessionCookie(HttpResponseMessage response)

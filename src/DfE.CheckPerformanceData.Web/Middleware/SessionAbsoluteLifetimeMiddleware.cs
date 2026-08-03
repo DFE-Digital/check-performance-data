@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 
@@ -15,9 +16,12 @@ namespace DfE.CheckPerformanceData.Web.Middleware;
 // through Session.SetString is what materialises the ASP.NET session cookie in the
 // first place. Reading Session.Id without any write is a no-op — the framework
 // lazy-writes on first store mutation, so without this middleware, downstream code
-// that reads Session.Id would see a fresh id on every request. Placing this middleware
+// that reads the session would see a fresh id on every request. Placing this middleware
 // immediately after UseSession() gives every downstream consumer (feedback form,
 // source-comment injector, sink emitter) a stable session identity to work with.
+//
+// That identity is CpdSessionIdentity, not ASP.NET's Session.Id, precisely so the cap
+// can rotate it — the framework id is cookie-derived and survives Session.Clear().
 public sealed class SessionAbsoluteLifetimeMiddleware
 {
     private const string StartKey = "_sessionStartedAtUtc";
@@ -49,25 +53,33 @@ public sealed class SessionAbsoluteLifetimeMiddleware
         var now = DateTime.UtcNow;
 
         var startedStr = context.Session.GetString(StartKey);
+        if (startedStr is not null
+            && DateTime.TryParse(
+                   startedStr,
+                   CultureInfo.InvariantCulture,
+                   DateTimeStyles.RoundtripKind,
+                   out var started)
+            && now - started >= cap)
+        {
+            // Past the absolute cap even under continuous activity — wipe the session and
+            // start over. Clearing also discards the analytics identity, so the Ensure
+            // below mints a fresh one: that is what makes the cutoff observable downstream.
+            // (Session.Id itself cannot rotate — see CpdSessionIdentity.)
+            context.Session.Clear();
+            startedStr = null;
+        }
+
         if (startedStr is null)
         {
-            // First access for this session: stamp the start time. This SetString is
-            // what commits the session cookie on the response — see the class docstring.
+            // First access for this session, or the first access after a cap wipe: stamp
+            // the start time. This SetString is what commits the session cookie on the
+            // response — see the class docstring.
             context.Session.SetString(StartKey, now.ToString("O", CultureInfo.InvariantCulture));
         }
-        else if (DateTime.TryParse(
-                     startedStr,
-                     CultureInfo.InvariantCulture,
-                     DateTimeStyles.RoundtripKind,
-                     out var started)
-                 && now - started >= cap)
-        {
-            // Past the absolute cap even under continuous activity — wipe the session
-            // and start over. The next request under the fresh cookie will re-stamp
-            // the start key at the top of this method.
-            context.Session.Clear();
-            context.Session.SetString(StartKey, now.ToString("O", CultureInfo.InvariantCulture));
-        }
+
+        // Establish (or re-establish) the app-owned analytics identity every request. It is
+        // a no-op once stored, so the cost is a dictionary lookup on the loaded session.
+        CpdSessionIdentity.Ensure(context.Session);
 
         await _next(context);
     }

@@ -1,4 +1,5 @@
 using System.Text;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 
@@ -17,9 +18,12 @@ namespace DfE.CheckPerformanceData.Web.Middleware;
 // The SSE (text/event-stream) short-circuit IS preserved — buffering an infinite
 // stream to inject a body-close comment would break the stream and hold memory
 // forever. The session-cookie commit that SessionAbsoluteLifetimeMiddleware performs
-// (via SetString on first access) is what makes Session.Id stable here; without that
-// side effect, reading Session.Id would return a fresh id on every request because
-// the framework lazy-writes the cookie on first store mutation.
+// (via SetString on first access) is what makes the identity stable here; without that
+// side effect the session store would never be written and the framework would never
+// issue a cookie, because it lazy-writes on first store mutation.
+//
+// The comment carries CpdSessionIdentity, which is what the analytics sink records — so
+// an id a user quotes to support matches the rows support will look up.
 public sealed class SessionSourceCommentMiddleware
 {
     private const string ConfigKey = "SearchAnalytics:ShowSessionComment";
@@ -71,7 +75,7 @@ public sealed class SessionSourceCommentMiddleware
                 return;
             }
 
-            var sessionId = context.Session?.Id ?? string.Empty;
+            var sessionId = CpdSessionIdentity.Peek(context.Session) ?? string.Empty;
             var comment = $"{CommentPrefix}{sessionId} -->";
             var injected = InjectBeforeBodyClose(html, comment);
             var bytes = Encoding.UTF8.GetBytes(injected);

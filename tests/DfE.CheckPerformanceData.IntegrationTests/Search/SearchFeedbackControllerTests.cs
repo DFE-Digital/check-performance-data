@@ -7,6 +7,7 @@ using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Session;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -486,7 +487,15 @@ public sealed class SearchFeedbackControllerTests
     private sealed class FakeSession : ISession
     {
         private readonly Dictionary<string, byte[]> _store = new();
-        public FakeSession(string id) { Id = id; }
+
+        // Seeds the app-owned analytics identity as well as the framework id, standing in
+        // for the lifetime middleware having already run. The controller reads the former
+        // (it rotates at the absolute cap; Session.Id cannot).
+        public FakeSession(string id)
+        {
+            Id = id;
+            this.SetString(CpdSessionIdentity.IdKey, id);
+        }
         public bool IsAvailable => true;
         public string Id { get; }
         public IEnumerable<string> Keys => _store.Keys;

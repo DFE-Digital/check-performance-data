@@ -355,6 +355,25 @@ public sealed class SearchAnalyticsInsightCardsTests
             "Retention was lowered to 14 days, so the prior window has been purged and the deltas should be unavailable.");
     }
 
+    [Theory]
+    [InlineData(0)]   // zero-width window
+    [InlineData(-3)]  // inverted window
+    public async Task GetSummaryDeltas_NonPositiveWindow_IsUnavailable_WithoutQuerying(int hours)
+    {
+        // Guard ahead of the retention check: a zero-width or inverted window has no prior
+        // period to compare against, so it must report unavailable rather than derive a
+        // negative-width prior window and query against it.
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        var deltas = await CreateService()
+            .GetSummaryDeltasAsync(now, now.AddHours(hours), CancellationToken.None);
+
+        Assert.False(deltas.Available);
+        Assert.Equal(0, deltas.PriorTotalCount);
+        Assert.Equal(0, deltas.PriorUniqueSessions);
+    }
+
     // --- Helpers -------------------------------------------------------------
 
     private ISearchAnalyticsQueryService CreateService(int retentionDays = 90) =>

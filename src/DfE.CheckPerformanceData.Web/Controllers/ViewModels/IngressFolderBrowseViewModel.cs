@@ -21,4 +21,11 @@ public class IngressFolderBrowseViewModel
     public required IReadOnlyList<string> Files { get; init; }
 
     public bool IsChoosingContainer => Container is null;
+
+    /// <summary>Which of the window's datasets this file is being chosen for, e.g. "pupils",
+    /// "included", "nonincluded".</summary>
+    public string Dataset { get; init; } = "pupils";
+
+    /// <summary>Human label for the page heading, e.g. "Included pupils".</summary>
+    public string DatasetLabel { get; init; } = "Pupils";
 }

@@ -3,6 +3,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Web.Extensions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest;
@@ -59,7 +60,9 @@ public sealed class SubmittedRequestController(
             }).ToList(),
             ReferenceNumber = request.ReferenceNumber,
             SubmittedByEmail = request.SubmittedByEmail,
-            SubmittedAt = request.SubmittedAt
+            SubmittedAt = request.SubmittedAt,
+            WithdrawnByEmail = request.WithdrawnByEmail,
+            WithdrawnAtText = LondonTime.ToSubmittedAtText(request.WithdrawnAt)
         });
     }
 
@@ -76,6 +79,8 @@ public sealed class SubmittedRequestController(
             ConfirmingDelete = confirmingDelete,
             SubmittedByEmail = request.SubmittedByEmail,
             SubmittedAt = request.SubmittedAt,
+            WithdrawnByEmail = request.WithdrawnByEmail,
+            WithdrawnAtText = LondonTime.ToSubmittedAtText(request.WithdrawnAt),
             ReferenceNumber = request.ReferenceNumber
         });
     }

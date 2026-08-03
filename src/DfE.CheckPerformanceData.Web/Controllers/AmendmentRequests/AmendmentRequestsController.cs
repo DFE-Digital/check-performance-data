@@ -214,7 +214,9 @@ public sealed class AmendmentRequestsController(
             AdviceText = advice.AdviceText,
             EvidenceMessages = advice.EvidenceMessages,
             ReasonForRemoval = advice.ReasonForRemoval,
-            BackUrl = backUrl
+            BackUrl = backUrl,
+            SavedByEmail = advice.SubmittedByEmail,
+            SavedAt = advice.SubmittedAt
         });
     }
 

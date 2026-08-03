@@ -13,5 +13,7 @@ public sealed class ConfirmDataCorrectData
     public required RequestStatus Status { get; init; }
     public string? SubmittedByEmail { get; init; }
     public required DateTime Submitted { get; init; }
+    public string? WithdrawnByEmail { get; init; }
+    public DateTime? WithdrawnAt { get; init; }
     public required string ReferenceNumber { get; init; }
 }

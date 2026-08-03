@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace DfE.CheckPerformanceData.Application.Journey;
 
 public sealed class Question
@@ -23,4 +25,13 @@ public sealed class Question
     /// name is ignored. See CLAUDE.md → Question Flow.
     /// </summary>
     public string? Validator { get; init; }
+
+    /// <summary>
+    /// Names of the <see cref="IJourneyCondition"/>s that must ALL evaluate true
+    /// for this question's answer to become optional (overriding <see cref="Optional"/>
+    /// = false). An unregistered name leaves the question mandatory (fail closed).
+    /// JSON accepts a bare string or an array, like <see cref="QuestionOption.VisibleWhen"/>.
+    /// </summary>
+    [JsonConverter(typeof(VisibleWhenJsonConverter))]
+    public IReadOnlyList<string>? OptionalWhen { get; init; }
 }

@@ -16,10 +16,11 @@ public interface IRequestRepository
     Task<ConfirmDataCorrectData?> GetConfirmDataCorrectAsync(Guid windowId, long organisationUrn, string referenceNumber);
 
     /// <summary>
-    /// Soft-deletes a request by setting its status to <see cref="Domain.Enums.RequestStatus.Withdrawn"/>.
+    /// Soft-deletes a request by setting its status to <see cref="Domain.Enums.RequestStatus.Withdrawn"/>
+    /// and recording who withdrew it and when.
     /// Scoped by window + org + reference so a school cannot withdraw another school's request.
     /// </summary>
-    Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber);
+    Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber, string withdrawnByEmail, DateTime withdrawnAt);
 
     /// <summary>
     /// Hard-deletes a request row. Used for in-progress / ready-to-submit drafts.

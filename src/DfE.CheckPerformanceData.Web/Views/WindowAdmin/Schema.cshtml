@@ -18,7 +18,7 @@
     <input type="hidden" name="WindowId" value="@Model.WindowId" />
 
     <govuk-file-upload name="Schema" id="Schema" class="govuk-file-upload">
-        <govuk-file-upload-label is-page-heading="true" class="govuk-label--l">Upload a JSON schema file</govuk-file-upload-label>
+        <govuk-file-upload-label is-page-heading="true" class="govuk-label--l">Upload a JSON schema file for @Model.DatasetLabel</govuk-file-upload-label>
         <govuk-file-upload-error-message asp-validation-for="@Model.Schema" />
     </govuk-file-upload>
 

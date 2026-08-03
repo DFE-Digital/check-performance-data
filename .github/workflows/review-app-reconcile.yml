@@ -20,7 +20,6 @@ env:
   GLOBAL_CONFIG_PATH: global_config
   TF_VARS_PATH: terraform/application/config
   TERRAFORM_BASE: terraform/application
-  TF_FILE: terraform.tf
   SERVICE_NAME: check-performance-data
   RESOURCE_GROUP_NAME: s189t01-cypd-rv-rg
   STORAGE_ACCOUNT_NAME: s189t01cypdrvtfsa
@@ -52,7 +51,6 @@ jobs:
           resource-group-name: ${{ env.RESOURCE_GROUP_NAME }}
           storage-account-name: ${{ env.STORAGE_ACCOUNT_NAME }}
           terraform-base: ${{ env.TERRAFORM_BASE }}
-          tf-file: ${{ env.TF_FILE }}
           service-name: ${{ env.SERVICE_NAME }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           github-repo: ${{ github.repository }}
@@ -90,7 +88,7 @@ jobs:
         shell: bash
         run: |
           echo "PR_NUMBER=${{ matrix.pr_number }}" >> $GITHUB_ENV
-          echo "ENVIRONMENT=pr-${{ matrix.pr_number }}" >> $GITHUB_ENV
+          echo "ENVIRONMENT=pr-${PR_NUMBER}" >> $GITHUB_ENV
           source global_config/review.sh
           echo "AZURE_RESOURCE_PREFIX=${AZURE_RESOURCE_PREFIX}" >> $GITHUB_ENV
           echo "CONFIG_SHORT=${CONFIG_SHORT}" >> $GITHUB_ENV
@@ -104,10 +102,10 @@ jobs:
           azure-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          terraform-base: ${{ env.TERRAFORM_BASE }}
-          tf-file: ${{ env.TF_FILE }}
+          gcp-wip: ${{ vars.GCP_WIP }}
+          gcp-project-id: ${{ vars.GCP_PROJECT_ID }}
           pr-number: ${{ matrix.pr_number }}
           resource-group-name: ${{ env.RESOURCE_GROUP_NAME }}
           storage-account-name: ${{ env.STORAGE_ACCOUNT_NAME }}
           container-name: ${{ env.CONTAINER_NAME }}
-          tf-state-file: review-${{ matrix.pr_number }}_kubernetes.tfstate
+          tf-state-file: "${{ env.ENVIRONMENT }}_kubernetes.tfstate"

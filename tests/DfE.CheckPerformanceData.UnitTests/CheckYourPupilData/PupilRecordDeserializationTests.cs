@@ -189,4 +189,35 @@ public class PupilRecordDeserializationTests
         Assert.Equal(string.Empty, pupil.Sex);
         Assert.Equal(string.Empty, pupil.Ethnicity);
     }
+
+    [Theory]
+    [InlineData(401, true)]
+    [InlineData(403, true)]
+    [InlineData(414, true)]
+    [InlineData(421, true)]
+    [InlineData(431, true)]
+    [InlineData(402, false)]
+    [InlineData(404, false)]
+    public void IsIncluded_follows_the_ks4_pincl_codes(int pincl, bool expected)
+    {
+        var pupil = DeserializeSingle($$"""[ { "P_INCL": {{pincl}} } ]""");
+
+        Assert.Equal(expected, pupil.IsIncluded);
+    }
+
+    [Fact]
+    public void IsIncluded_is_false_when_pincl_is_absent()
+    {
+        var pupil = DeserializeSingle("""[ { "SURNAME": "Smith" } ]""");
+
+        Assert.False(pupil.IsIncluded);
+    }
+
+    [Fact]
+    public void Identifier_is_the_upn_for_ks4()
+    {
+        var pupil = DeserializeSingle("""[ { "UPN": "A860407000001B" } ]""");
+
+        Assert.Equal("A860407000001B", pupil.Identifier);
+    }
 }

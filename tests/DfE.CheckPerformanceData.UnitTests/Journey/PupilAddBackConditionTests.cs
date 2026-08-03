@@ -15,7 +15,7 @@ public class PupilAddBackConditionTests
                 {
                     Id = Guid.NewGuid(), Firstname = "Test", Surname = "Pupil",
                     Sex = "F", DateOfBirth = "01/09/2010", Age = 15,
-                    Cypmd_Id = "C1", Upn = "U1", Pincl = code
+                    Cypmd_Id = "C1", Identifier = "U1", Pincl = code
                 }
                 : null
         },

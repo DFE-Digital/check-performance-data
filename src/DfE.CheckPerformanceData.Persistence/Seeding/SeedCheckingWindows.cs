@@ -7,7 +7,18 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 
 public static class SeedCheckingWindows
 {
-    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId)
+    // A KS4-style window ingests one supplier file; a Post16 window ingests two (included +
+    // non-included), so each window is seeded with the dataset slots its type requires.
+    private static List<CheckingWindowDataset> DatasetsFor(CheckingWindowType type) =>
+        type == CheckingWindowType.Post16
+            ?
+            [
+                new CheckingWindowDataset { Name = "included", Included = true, SortOrder = 0 },
+                new CheckingWindowDataset { Name = "nonincluded", Included = false, SortOrder = 1 }
+            ]
+            : [new CheckingWindowDataset { Name = "pupils", Included = null, SortOrder = 0 }];
+
+    public static async Task ExecuteSeed(IPortalDbContext dbContext, Guid openKs4WindowId, Guid closedKs4WindowId, Guid post16WindowId)
     {
         await dbContext.ChangeRequests.ExecuteDeleteAsync();
         await dbContext.CheckingWindows.ExecuteDeleteAsync();
@@ -19,7 +30,8 @@ public static class SeedCheckingWindows
             EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
-            Title = "Key Stage 4 June"
+            Title = "Key Stage 4 June",
+            Datasets = DatasetsFor(CheckingWindowType.KS4June)
         };
 
         var closedKs4JuneWindow = new CheckingWindow
@@ -29,9 +41,21 @@ public static class SeedCheckingWindows
             EndDate = DateTime.Now.AddYears(-1).AddDays(+13).Date.AddHours(17),
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
-            Title = "KS4 June"
+            Title = "KS4 June",
+            Datasets = DatasetsFor(CheckingWindowType.KS4June)
         };
-        
+
+        var openPost16Window = new CheckingWindow
+        {
+            Id = post16WindowId,
+            StartDate = DateTime.Now.AddDays(-1),
+            EndDate = DateTime.Now.AddDays(+13).Date.AddHours(17),
+            KeyStage = KeyStages.Post16,
+            CheckingWindowType = CheckingWindowType.Post16,
+            Title = "16 to 19",
+            Datasets = DatasetsFor(CheckingWindowType.Post16)
+        };
+
         await dbContext.CheckingWindows.AddRangeAsync(
             openKs4JuneWindow,
             // new CheckingWindow
@@ -70,8 +94,8 @@ public static class SeedCheckingWindows
             //     CheckingWindowType = CheckingWindowType.Post16,
             //     Title = "16-18"
             // },
-            closedKs4JuneWindow
-            
+            closedKs4JuneWindow,
+            openPost16Window
         );
         
         await dbContext.SaveChangesAsync();

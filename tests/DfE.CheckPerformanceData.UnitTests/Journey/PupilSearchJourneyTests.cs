@@ -25,6 +25,8 @@ public class PupilSearchJourneyTests
     private readonly IFileStorageService _fileStorageService = Substitute.For<IFileStorageService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IOptionVisibilityService _optionVisibilityService = Substitute.For<IOptionVisibilityService>();
+    private readonly IQuestionOptionalityService _optionalityService = Substitute.For<IQuestionOptionalityService>();
+    private readonly IOriginCountryLanguageCapture _languageCapture = Substitute.For<IOriginCountryLanguageCapture>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
@@ -83,7 +85,7 @@ public class PupilSearchJourneyTests
         DateOfBirth = "01/01/2010",
         Age = 16,
         Cypmd_Id = "CYPMD123",
-        Upn = "UPN001"
+        Identifier = "UPN001"
     };
 
     private static readonly PupilDto MatchPupil = new()
@@ -95,7 +97,7 @@ public class PupilSearchJourneyTests
         DateOfBirth = "02/02/2010",
         Age = 16,
         Cypmd_Id = "CYPMD456",
-        Upn = "UPN002"
+        Identifier = "UPN002"
     };
 
     public PupilSearchJourneyTests()
@@ -111,6 +113,9 @@ public class PupilSearchJourneyTests
         _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
             .Returns(new DuplicateCheckResult.NoConflict());
 
+        _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
+            .Returns(new HashSet<string>());
+
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
@@ -118,7 +123,7 @@ public class PupilSearchJourneyTests
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
-            _optionVisibilityService)
+            _optionVisibilityService, _optionalityService, _languageCapture)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

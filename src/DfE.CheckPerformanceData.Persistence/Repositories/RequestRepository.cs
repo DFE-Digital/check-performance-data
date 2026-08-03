@@ -274,16 +274,21 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 Status = r.Status,
                 ReferenceNumber = r.ReferenceNumber,
                 SubmittedByEmail = r.SubmittedByEmail,
-                Submitted = r.Submitted
+                Submitted = r.Submitted,
+                WithdrawnByEmail = r.WithdrawnByEmail,
+                WithdrawnAt = r.WithdrawnAt
             })
             .FirstOrDefaultAsync();
 
-    public Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
+    public Task WithdrawAsync(Guid windowId, long organisationUrn, string referenceNumber, string withdrawnByEmail, DateTime withdrawnAt) =>
         db.ChangeRequests
             .Where(r => r.WindowId == windowId
                 && r.OrganisationUrn == organisationUrn
                 && r.ReferenceNumber == referenceNumber)
-            .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, RequestStatus.Withdrawn));
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, RequestStatus.Withdrawn)
+                .SetProperty(r => r.WithdrawnByEmail, withdrawnByEmail)
+                .SetProperty(r => r.WithdrawnAt, withdrawnAt));
 
     public Task DeleteAsync(Guid windowId, long organisationUrn, string referenceNumber) =>
         db.ChangeRequests
@@ -304,6 +309,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                 Status = r.Status,
                 SubmittedByEmail = r.SubmittedByEmail,
                 Submitted = r.Submitted,
+                WithdrawnByEmail = r.WithdrawnByEmail,
+                WithdrawnAt = r.WithdrawnAt,
                 ReferenceNumber = r.ReferenceNumber
             })
             .FirstOrDefaultAsync();

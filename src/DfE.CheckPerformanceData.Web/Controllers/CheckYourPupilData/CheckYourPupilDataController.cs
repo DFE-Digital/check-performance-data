@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -32,8 +33,8 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     [Route("CheckYourPupilData/{windowId}/download/all")]
     public async Task<IActionResult> DownloadAll(Guid windowId)
     {
-        var included = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
-        var nonIncluded = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
+        var included = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
+        var nonIncluded = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: false);
 
         var includedCsv = PupilCsvGenerator.Generate(included);
         var nonIncludedCsv = PupilCsvGenerator.Generate(nonIncluded);
@@ -60,7 +61,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     public async Task<IActionResult> DownloadIncluded(Guid windowId)
     {
         var filename = await GenerateCsvFileName(windowId, "pupil-include");
-        var pupils = await checkYourPupilDataService.GetIncludedPupilsCsvAsync(windowId);
+        var pupils = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: true);
         var bytes = PupilCsvGenerator.Generate(pupils);
         return File(bytes, "text/csv", filename);
     }
@@ -84,7 +85,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     public async Task<IActionResult> DownloadNonIncluded(Guid windowId)
     {
         var filename = await GenerateCsvFileName(windowId, "pupil-non-include");
-        var pupils = await checkYourPupilDataService.GetNonIncludedPupilsCsvAsync(windowId);
+        var pupils = await checkYourPupilDataService.GetPupilCsvAsync(windowId, included: false);
         var bytes = PupilCsvGenerator.Generate(pupils);
         return File(bytes, "text/csv", filename);
     }
@@ -119,11 +120,11 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         string? includedSearch,
         string? nonIncludedSearch)
     {
-        var (included, includedTotal) = await checkYourPupilDataService.GetIncludedPupilsAsync(windowId, includedSearch, includedPage, PageSize);
-        var (nonIncluded, nonIncludedTotal) = await checkYourPupilDataService.GetNonIncludedPupilsAsync(windowId, nonIncludedSearch, nonIncludedPage, PageSize);
+        var (includedTable, includedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: true, includedSearch, includedPage, PageSize);
+        var (nonIncludedTable, nonIncludedTotal) = await checkYourPupilDataService.GetPupilTableAsync(windowId, included: false, nonIncludedSearch, nonIncludedPage, PageSize);
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
 
-        // Fire only on a real search (a term was entered), per tab — never the term itself.
+        // Fire only on a real search (a term was entered), per section — never the term itself.
         if (!string.IsNullOrEmpty(includedSearch))
             await analytics.TrackSafeAsync(new PupilDataSearchResultsEvent { ResultCount = includedTotal, ActiveTab = "included" });
         if (!string.IsNullOrEmpty(nonIncludedSearch))
@@ -132,6 +133,38 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         var now = timeProvider.GetLocalNow().DateTime;
         var journey = HttpContext.Session.GetRequestState(windowId);
 
+        List<PupilTableSection> sections =
+        [
+            new()
+            {
+                Key = "included",
+                TabLabel = "Included pupils",
+                Heading = "Pupil included",
+                DownloadAction = nameof(DownloadIncluded),
+                DownloadLinkText = "pupil included",
+                EmptyContentKey = "check-pupil-data-no-included-data-content",
+                EmptyContentHtml = """<p>There's no pupil included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
+                Table = includedTable,
+                Page = includedPage,
+                TotalPages = TotalPages(includedTotal),
+                Search = includedSearch
+            },
+            new()
+            {
+                Key = "nonIncluded",
+                TabLabel = "Non-included pupils",
+                Heading = "Pupil non-include",
+                DownloadAction = nameof(DownloadNonIncluded),
+                DownloadLinkText = "pupil non-included",
+                EmptyContentKey = "check-pupil-data-no-non-included-data-content",
+                EmptyContentHtml = """<p>There's no pupil non-included data for your school to check in this window. If you believe this is incorrect, you can <a href="/contact">send us a message</a> or call us on 0300 131 2768</p>""",
+                Table = nonIncludedTable,
+                Page = nonIncludedPage,
+                TotalPages = TotalPages(nonIncludedTotal),
+                Search = nonIncludedSearch
+            }
+        ];
+
         return new CheckYourPupilDataViewModel
         {
             SelectedNextStep = journey.SelectedNextStep,
@@ -139,28 +172,14 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             WindowEndDate = window.EndDate.ToString("dddd d MMMM yyyy"),
             WindowEndTime = window.EndDate.ToString("htt").ToLower(),
             WindowTitle = window.Title,
-            IncludedPupils = included.Select(ToPupilRow).ToList(),
-            IncludedPupilsPage = includedPage,
-            IncludedPupilsTotalPages = TotalPages(includedTotal),
-            IncludedSearch = includedSearch,
-            NonIncludedPupils = nonIncluded.Select(ToPupilRow).ToList(),
-            NonIncludedPupilsPage = nonIncludedPage,
-            NonIncludedPupilsTotalPages = TotalPages(nonIncludedTotal),
-            NonIncludedSearch = nonIncludedSearch,
+            Sections = sections,
+            // 16-19 stacks both populations in one "Pupils" tab, because there the tab axis is
+            // dataset (the other 16-19 import files become sibling tabs later), not inclusion.
+            SectionsAsTabs = window.CheckingWindowType != CheckingWindowType.Post16,
             IsWindowOpen = window.StartDate <= now && now <= window.EndDate,
             OrganisationName = currentUserService.OrganisationName
         };
     }
-
-    private static PupilRow ToPupilRow(PupilDto p) => new()
-    {
-        Surname = p.Surname,
-        Firstname = p.Firstname,
-        Sex = p.Sex,
-        DateOfBirth = p.DateOfBirth,
-        Age = p.Age,
-        Cypmd_Id = p.Cypmd_Id
-    };
 
     private static int TotalPages(int count) => (int)Math.Ceiling(count / (double)PageSize);
 }

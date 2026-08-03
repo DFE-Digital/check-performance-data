@@ -106,7 +106,11 @@ try
         .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
-        .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
+        .AddAdminNavEntries(
+            includeDangerZone: !builder.Environment.IsProduction(),
+            // Same whitelist TestDataController enforces, so the tile and the page it links
+            // to appear and disappear together instead of the tile leading to a 404.
+            includeSampleSearchData: builder.Environment.IsSampleDataAdminEnvironment());
 
     // Gates the /search <!-- rank: N --> debug comment AND the log-level promotion of
     // per-hit / per-exclusion telemetry breadcrumbs. Backed by the CMS settings store so

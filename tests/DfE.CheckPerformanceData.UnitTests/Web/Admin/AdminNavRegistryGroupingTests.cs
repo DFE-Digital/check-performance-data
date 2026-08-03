@@ -11,7 +11,7 @@ public sealed class AdminNavRegistryGroupingTests
 	private static IReadOnlyList<IAdminNavEntry> ResolveEntries()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 		var provider = services.BuildServiceProvider();
 		return provider.GetServices<IAdminNavEntry>().ToList();
 	}

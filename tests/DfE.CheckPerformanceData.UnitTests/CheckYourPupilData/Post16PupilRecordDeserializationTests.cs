@@ -4,7 +4,7 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.CheckYourPupilData;
 
-// Guards the 16-19 supplier schemas (16-19-Included-pupil-schema / 16-19-Nonincluded-pupil-schema).
+// Guards the 16-19 supplier schemas for included and non-included pupil records.
 // Deserializes through PupilDataBlobClient.JsonOptions so the tests bind exactly as production does.
 public class Post16PupilRecordDeserializationTests
 {

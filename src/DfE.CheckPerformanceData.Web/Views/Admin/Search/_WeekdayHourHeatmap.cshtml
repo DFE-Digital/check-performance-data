@@ -1,0 +1,158 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model IReadOnlyList<WeekdayHourBucket>
+@{
+    // Weekday × hour-of-day search-volume heatmap. Server-rendered SVG — one <rect> per
+    // cell, 7 rows × 24 columns = 168 cells. Colour scales pale-blue → GDS-blue by
+    // volume so a hot cell is visually loud without abandoning the palette. No client
+    // library.
+    var buckets = Model ?? Array.Empty<WeekdayHourBucket>();
+
+    // A stable per-weekday-per-hour lookup — the reader guarantees 168 rows but iterate
+    // the grid explicitly so the SVG columns render in the right order regardless.
+    var byCell = buckets.ToDictionary(b => (b.Weekday, b.Hour), b => b.Count);
+
+    var maxCount = buckets.Count == 0 ? 0 : buckets.Max(b => b.Count);
+
+    // Layout tokens.
+    const int width = 700;
+    const int labelWidthLeft = 44;   // room for Mon / Tue / ...
+    const int labelHeightTop = 20;   // room for the hour ticks
+    const int cellPadding = 2;       // between cells
+    const int rows = 7;
+    const int cols = 24;
+    var plotW = width - labelWidthLeft;
+    const int cellHeight = 26;       // ~7 rows × 26 = 182px tall plot area
+    var plotH = rows * cellHeight;
+    var height = labelHeightTop + plotH + 40; // + legend + axis title
+
+    var cellWidth = (plotW - cellPadding * cols) / (double)cols;
+
+    static string WeekdayLabel(int weekday) => weekday switch
+    {
+        1 => "Mon", 2 => "Tue", 3 => "Wed", 4 => "Thu",
+        5 => "Fri", 6 => "Sat", 7 => "Sun", _ => "??",
+    };
+
+    // Linear pale-to-strong blue interpolation. Pale = govuk-blue tinted way toward
+    // white; strong = govuk-blue itself. Zero cells render at the palest tint so an
+    // "empty grid" still shows the shape of the plot area.
+    string CellColour(int count)
+    {
+        if (maxCount == 0) return "#f2f6fa";
+        var fraction = (double)count / maxCount;
+        // (r,g,b) endpoints: pale = (242,246,250); strong = (29,112,184).
+        var r = (int)Math.Round(242 - (242 - 29) * fraction);
+        var g = (int)Math.Round(246 - (246 - 112) * fraction);
+        var b = (int)Math.Round(250 - (250 - 184) * fraction);
+        return $"#{r:x2}{g:x2}{b:x2}";
+    }
+
+    static string HourLabel(int hour) => hour.ToString("00", CultureInfo.InvariantCulture);
+}
+
+<section class="govuk-summary-card govuk-!-margin-bottom-6 sa-summary-card sa-heatmap-card" aria-labelledby="sa-heatmap-title">
+    <div class="govuk-summary-card__title-wrapper">
+        <h2 class="govuk-summary-card__title" id="sa-heatmap-title">When people search</h2>
+    </div>
+    <div class="govuk-summary-card__content">
+        <p class="govuk-body-s">
+            Search volume by weekday and hour of day (UTC) over the selected window. Darker
+            cells mean more searches happened at that time.
+        </p>
+
+        <svg class="sa-chart sa-heatmap" viewBox="0 0 @width @height" role="img"
+             aria-label="Search volume heatmap, 7 weekdays by 24 hours."
+             data-sa-heatmap="true"
+             focusable="false">
+            <title>Searches per weekday × hour-of-day (UTC)</title>
+
+            @* Hour-column labels (00 / 06 / 12 / 18). *@
+            @for (var h = 0; h < cols; h += 6)
+            {
+                var x = labelWidthLeft + h * (cellWidth + cellPadding) + (cellWidth / 2d);
+                var xStr = x.ToString("0.##", CultureInfo.InvariantCulture);
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xStr}\" y=\"{labelHeightTop - 4}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{HourLabel(h)}</text>")
+            }
+
+            @* One row per weekday. *@
+            @for (var wIdx = 0; wIdx < rows; wIdx++)
+            {
+                var weekday = wIdx + 1; // ISO: 1..7
+                var yTop = labelHeightTop + wIdx * cellHeight;
+                var labelY = yTop + cellHeight / 2 + 4;
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{labelWidthLeft - 8}\" y=\"{labelY}\" text-anchor=\"end\" fill=\"#505a5f\" font-size=\"11\">{WeekdayLabel(weekday)}</text>")
+
+                for (var h = 0; h < cols; h++)
+                {
+                    var count = byCell.TryGetValue((weekday, h), out var c) ? c : 0;
+                    var xL = labelWidthLeft + h * (cellWidth + cellPadding);
+                    var xStr = xL.ToString("0.##", CultureInfo.InvariantCulture);
+                    var wStr = (cellWidth - cellPadding).ToString("0.##", CultureInfo.InvariantCulture);
+                    var hourEndLabel = ((h + 1) % 24).ToString("00", CultureInfo.InvariantCulture);
+                    var tooltip = $"{count:N0} search{(count == 1 ? string.Empty : "es")} on {WeekdayLabel(weekday)} at {HourLabel(h)}:00–{hourEndLabel}:00 UTC";
+                    var innerH = (cellHeight - cellPadding).ToString("0.##", CultureInfo.InvariantCulture);
+                    // Cell rect wrapped in an SVG anchor so clicking drills into every search
+                    // that landed in this (weekday, hour) bucket during the current window.
+                    // data-sa-tooltip drives the shared crosshair-style tooltip (positioned
+                    // upper-left of the cursor via search-analytics.js). Native <title> is
+                    // intentionally omitted — the browser renders it below-right and CSS
+                    // cannot reposition native tooltips.
+                    // RangeQuery is the pre-built range querystring from Index.cshtml (either
+                    // "range=<key>" for a preset or "range=custom&from=<iso>&to=<iso>" for a
+                    // custom window). Falling back to "range=7d" matches the controller's
+                    // default when no window info was threaded in.
+                    var rangeQs = (ViewData["RangeQuery"] as string) ?? "range=7d";
+                    var href = $"/admin/Search/HeatmapCell?{rangeQs}&weekday={weekday}&hour={h}";
+                    @Html.Raw($"<a href=\"{href}\" xlink:href=\"{href}\"><rect class=\"sa-heatmap__cell\" x=\"{xStr}\" y=\"{yTop}\" width=\"{wStr}\" height=\"{innerH}\" rx=\"1.5\" ry=\"1.5\" fill=\"{CellColour(count)}\" data-sa-count=\"{count}\" data-sa-weekday=\"{weekday}\" data-sa-hour=\"{h}\" data-sa-tooltip=\"{System.Net.WebUtility.HtmlEncode(tooltip)}\" /></a>")
+                }
+            }
+
+            @* Legend gradient bar under the plot. *@
+            @{
+                var legendTop = labelHeightTop + plotH + 12;
+                var legendLeft = labelWidthLeft;
+                var legendWidth = 240;
+                const int legendHeight = 12;
+            }
+            <defs>
+                <linearGradient id="sa-heatmap-gradient" x1="0" x2="1" y1="0" y2="0">
+                    <stop offset="0%" stop-color="#f2f6fa" />
+                    <stop offset="100%" stop-color="#1d70b8" />
+                </linearGradient>
+            </defs>
+            <rect x="@legendLeft" y="@legendTop" width="@legendWidth" height="@legendHeight"
+                  fill="url(#sa-heatmap-gradient)" stroke="#b1b4b6" stroke-width="0.5" aria-hidden="true" />
+            <text class="sa-chart__axis-tick" x="@legendLeft" y="@(legendTop + legendHeight + 14)" text-anchor="start" fill="#505a5f" font-size="11">0 searches</text>
+            <text class="sa-chart__axis-tick" x="@(legendLeft + legendWidth)" y="@(legendTop + legendHeight + 14)" text-anchor="end" fill="#505a5f" font-size="11">@(maxCount.ToString("N0", CultureInfo.CurrentCulture)) searches</text>
+        </svg>
+
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View heatmap data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Searches by weekday and hour of day (UTC)</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header" title="Day of the week for the row.">Weekday</th>
+                            <th scope="col" class="govuk-table__header" title="Hour of day in UTC. Cells cover the hour beginning at this time.">Hour (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many searches ran in that weekday and hour over the selected window.">Searches</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var b in buckets)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@WeekdayLabel(b.Weekday)</td>
+                                <td class="govuk-table__cell">@HourLabel(b.Hour):00</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@b.Count.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    </div>
+</section>

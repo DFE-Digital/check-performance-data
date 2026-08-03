@@ -96,35 +96,10 @@ else
         </tbody>
     </table>
 
-    @if (Model.TotalPages > 1)
+    @await Component.InvokeAsync("Pager", new
     {
-        <nav class="govuk-pagination" role="navigation" aria-label="Pagination">
-            @if (Model.Page > 1)
-            {
-                <div class="govuk-pagination__prev">
-                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page - 1)" rel="prev">
-                        <span class="govuk-pagination__link-title">Previous</span>
-                    </a>
-                </div>
-            }
-            <ul class="govuk-pagination__list">
-                @for (var p = 1; p <= Model.TotalPages; p++)
-                {
-                    var current = p == Model.Page;
-                    <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
-                        <a class="govuk-link govuk-pagination__link" href="@PageLink(p)"
-                           aria-label="Page @p" @(current ? "aria-current=page" : "")>@p</a>
-                    </li>
-                }
-            </ul>
-            @if (Model.Page < Model.TotalPages)
-            {
-                <div class="govuk-pagination__next">
-                    <a class="govuk-link govuk-pagination__link" href="@PageLink(Model.Page + 1)" rel="next">
-                        <span class="govuk-pagination__link-title">Next</span>
-                    </a>
-                </div>
-            }
-        </nav>
-    }
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
 }

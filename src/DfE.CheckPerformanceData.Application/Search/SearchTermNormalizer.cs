@@ -25,7 +25,9 @@ public static class SearchTermNormalizer
         return tokens.Length <= 1 ? trimmed : string.Join(" OR ", tokens);
     }
 
-    private static bool ContainsWebSearchOperator(string q)
+    // Exposed so the zero-result hyphen fallback (see SiteSearchService.SearchAsync) can
+    // skip retry when the raw query already carries an intent-bearing websearch operator.
+    public static bool ContainsWebSearchOperator(string q)
     {
         if (q.Contains('"')) return true;
         foreach (var t in q.Split([' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries))

@@ -141,49 +141,22 @@ else
         </tbody>
     </table>
 
-    @* Numbered pagination matching Help/Search and CheckYourPupilData. Shows first, last,
-       current, and one either side of current; ellipses fill the gaps. All filter query
-       params are carried through so paging preserves the current view. *@
-    @if (Model.TotalPages > 1)
+    string LogPageLink(int p) => Url.Action("Index", "AppLogs", new
     {
-        object PageLink(int p) => new
-        {
-            level = Model.Level,
-            category = Model.Category,
-            search = Model.Search,
-            from = Model.From,
-            to = Model.To,
-            page = p
-        };
+        level = Model.Level,
+        category = Model.Category,
+        search = Model.Search,
+        from = Model.From,
+        to = Model.To,
+        page = p
+    }) ?? string.Empty;
 
-        <govuk-pagination>
-            @if (Model.Page > 1)
-            {
-                <govuk-pagination-previous href="@Url.Action("Index", "AppLogs", PageLink(Model.Page - 1))">Previous</govuk-pagination-previous>
-            }
-
-            @for (var p = 1; p <= Model.TotalPages; p++)
-            {
-                var showPage = p == 1
-                               || p == Model.TotalPages
-                               || (p >= Model.Page - 1 && p <= Model.Page + 1);
-                if (showPage)
-                {
-                    <govuk-pagination-item href="@Url.Action("Index", "AppLogs", PageLink(p))"
-                                           current="@(p == Model.Page)">@p</govuk-pagination-item>
-                }
-                else if ((p == 2 && Model.Page - 1 > 2) || (p == Model.TotalPages - 1 && Model.Page + 1 < Model.TotalPages - 1))
-                {
-                    <govuk-pagination-ellipsis></govuk-pagination-ellipsis>
-                }
-            }
-
-            @if (Model.Page < Model.TotalPages)
-            {
-                <govuk-pagination-next href="@Url.Action("Index", "AppLogs", PageLink(Model.Page + 1))">Next</govuk-pagination-next>
-            }
-        </govuk-pagination>
-    }
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)LogPageLink,
+    })
 }
 
 <govuk-confirm-modal id="app-logs-clear-modal"

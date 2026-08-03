@@ -35,7 +35,9 @@ internal sealed class ContentBlockConfiguration : IEntityTypeConfiguration<Conte
         builder.Property(b => b.SearchVector)
             .HasColumnType("tsvector")
             .HasComputedColumnSql(
+                // Weight 'A' — see SearchWeights.KeywordsWeight
                 @"setweight(to_tsvector('english', coalesce(""Keywords"", '')), 'A') || "
+                // Weight 'B' — see SearchWeights.ValueWeight
                 + @"setweight(to_tsvector('english', coalesce(""ValuePlainText"", '')), 'B')",
                 stored: true);
 

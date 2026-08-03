@@ -1,0 +1,63 @@
+@using DfE.CheckPerformanceData.Web.ViewComponents
+@using DfE.CheckPerformanceData.Web.ViewComponents.Pager
+@model PagerRenderModel
+@* Renders nothing when the pager has no items — the algorithm returns an empty list for
+   single-page corpora, so a caller can invoke the component unconditionally without
+   guarding on Model.TotalPages > 1 at every site. *@
+@if (Model.Items.Count == 0)
+{
+    return;
+}
+<nav class="govuk-pagination" role="navigation" aria-label="@Model.AriaLabel">
+    @{
+        var pageItems = new List<PagerRenderItem>();
+        PagerRenderItem? prev = null;
+        PagerRenderItem? next = null;
+        foreach (var it in Model.Items)
+        {
+            switch (it.Item.Kind)
+            {
+                case PagerItemKind.Previous: prev = it; break;
+                case PagerItemKind.Next:     next = it; break;
+                default:                     pageItems.Add(it); break;
+            }
+        }
+    }
+    @if (prev is not null && !prev.Item.IsDisabled)
+    {
+        <div class="govuk-pagination__prev">
+            <a class="govuk-link govuk-pagination__link" href="@prev.Href" rel="prev">
+                <span class="govuk-pagination__link-title">
+                    Previous<span class="govuk-visually-hidden"> page</span>
+                </span>
+            </a>
+        </div>
+    }
+    <ul class="govuk-pagination__list">
+        @foreach (var it in pageItems)
+        {
+            if (it.Item.Kind == PagerItemKind.Ellipsis)
+            {
+                <li class="govuk-pagination__item govuk-pagination__item--ellipses">&ctdot;</li>
+            }
+            else
+            {
+                var current = it.Item.IsCurrent;
+                <li class="govuk-pagination__item @(current ? "govuk-pagination__item--current" : "")">
+                    <a class="govuk-link govuk-pagination__link" href="@it.Href"
+                       aria-label="Page @it.Item.PageNumber" @(current ? "aria-current=page" : "")>@it.Item.PageNumber</a>
+                </li>
+            }
+        }
+    </ul>
+    @if (next is not null && !next.Item.IsDisabled)
+    {
+        <div class="govuk-pagination__next">
+            <a class="govuk-link govuk-pagination__link" href="@next.Href" rel="next">
+                <span class="govuk-pagination__link-title">
+                    Next<span class="govuk-visually-hidden"> page</span>
+                </span>
+            </a>
+        </div>
+    }
+</nav>

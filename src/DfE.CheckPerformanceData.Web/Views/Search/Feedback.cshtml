@@ -1,0 +1,220 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchFeedbackViewModel
+@{
+    ViewData["Title"] = "Send us a note about a search";
+
+    var whatLookingForError = ViewData.ModelState["WhatLookingFor"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var whatGotError = ViewData.ModelState["WhatGot"]?.Errors.FirstOrDefault()?.ErrorMessage;
+    var emailError = ViewData.ModelState["Email"]?.Errors.FirstOrDefault()?.ErrorMessage;
+
+    // The textarea's initial content is either the user's re-posted value (on validation
+    // failure) or the server's pre-fill string. Never both — the re-post wins because the
+    // user was in the middle of typing when they hit submit.
+    var whatGotInitial = !string.IsNullOrEmpty(Model.WhatGot)
+        ? Model.WhatGot
+        : Model.PriorSearchPrefill;
+
+    // Resolves a clickable href for one hit in the "Your last search" list.
+    //   - pages: the ResultKey already IS the URL — use it verbatim.
+    //   - well-known content blocks: "home" maps to the site root so a user searching for
+    //     the homepage lands somewhere useful rather than nowhere.
+    //   - anything else: surface a self-service link to /search?q=<block-key> so the user
+    //     can inspect what the site would have returned for that key.
+    // Never renders a bare unlinked hit.
+    static string ResolveHitHref(string kind, string key)
+    {
+        if (string.Equals(kind, "page", StringComparison.OrdinalIgnoreCase))
+            return key;
+        if (string.Equals(key, "home", StringComparison.OrdinalIgnoreCase))
+            return "/";
+        return "/search?q=" + Uri.EscapeDataString(key);
+    }
+}
+
+<div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+        <a class="govuk-back-link" href="javascript:history.back()">Back</a>
+
+        <h1 class="govuk-heading-xl">Send us a note about a search</h1>
+
+        <p class="govuk-body">
+            If a search did not return what you expected, tell us what you were looking for
+            and what came back. Support can use your session ID (below) to look at the
+            searches you have run.
+        </p>
+
+        @if (Model.PriorSearch is { } prior)
+        {
+            <div class="govuk-summary-card">
+                <div class="govuk-summary-card__title-wrapper">
+                    <h2 class="govuk-summary-card__title">Your last search on this site</h2>
+                </div>
+                <div class="govuk-summary-card__content">
+                    <dl class="govuk-summary-list">
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Query</dt>
+                            <dd class="govuk-summary-list__value">@prior.Query</dd>
+                        </div>
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">When</dt>
+                            <dd class="govuk-summary-list__value">
+                                @prior.OccurredAtUtc.ToString("HH:mm", CultureInfo.InvariantCulture) on @prior.OccurredAtUtc.ToString("d MMM yyyy", CultureInfo.InvariantCulture) (UTC)
+                            </dd>
+                        </div>
+                        <div class="govuk-summary-list__row">
+                            <dt class="govuk-summary-list__key">Results returned</dt>
+                            <dd class="govuk-summary-list__value">@prior.ResultsTotal.ToString("N0", CultureInfo.InvariantCulture)</dd>
+                        </div>
+                    </dl>
+
+                    @if (prior.Hits.Count == 0)
+                    {
+                        <p class="govuk-body">No results were returned for that search.</p>
+                    }
+                    else
+                    {
+                        <h3 class="govuk-heading-s">Results the search returned</h3>
+                        <ol class="govuk-list govuk-list--number">
+                            @foreach (var hit in prior.Hits)
+                            {
+                                <li>
+                                    @* Every hit renders as a link opening in a new tab so the user
+                                       can inspect the result without losing their place on the
+                                       feedback form. No kind label — the user does not care about
+                                       the page-vs-block distinction, only about whether the link
+                                       goes somewhere useful. *@
+                                    <a class="govuk-link"
+                                       href="@ResolveHitHref(hit.Kind, hit.Key)"
+                                       target="_blank" rel="noopener noreferrer">@hit.Key</a>
+                                </li>
+                            }
+                        </ol>
+                        @if (prior.Hits.Count < prior.ResultsTotal)
+                        {
+                            <p class="govuk-hint">
+                                Showing the first @prior.Hits.Count of @prior.ResultsTotal results.
+                            </p>
+                        }
+                    }
+                </div>
+            </div>
+        }
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="govuk-error-summary" data-module="govuk-error-summary">
+                <div role="alert">
+                    <h2 class="govuk-error-summary__title">There is a problem</h2>
+                    <div class="govuk-error-summary__body">
+                        <ul class="govuk-list govuk-error-summary__list">
+                            @foreach (var (key, entry) in ViewData.ModelState)
+                            {
+                                foreach (var err in entry.Errors)
+                                {
+                                    <li><a href="#@key">@err.ErrorMessage</a></li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <form method="post" action="/Search/Feedback" novalidate>
+            @Html.AntiForgeryToken()
+
+            @* Session ID — server-rendered readonly display. This value is NOT submitted
+               back to the controller; even if the client alters the posted value, the
+               action re-reads HttpContext.Session.Id and ignores this field. *@
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="SessionIdDisplayOnly">Your session ID</label>
+                <div id="session-id-hint" class="govuk-hint">
+                    Quote this if you contact us again about the same problem.
+                </div>
+                <input class="govuk-input"
+                       id="SessionIdDisplayOnly"
+                       name="SessionIdDisplayOnly"
+                       value="@Model.SessionId"
+                       readonly
+                       aria-describedby="session-id-hint" />
+            </div>
+
+            <div class="govuk-form-group @(whatLookingForError is not null ? "govuk-form-group--error" : "")">
+                <label class="govuk-label" for="WhatLookingFor">What were you looking for?</label>
+                <div id="WhatLookingFor-hint" class="govuk-hint">
+                    Describe the topic, page or answer you expected to find.
+                </div>
+                @if (whatLookingForError is not null)
+                {
+                    <p class="govuk-error-message" id="WhatLookingFor-error">
+                        <span class="govuk-visually-hidden">Error:</span> @whatLookingForError
+                    </p>
+                }
+                <textarea class="govuk-textarea @(whatLookingForError is not null ? "govuk-textarea--error" : "")"
+                          id="WhatLookingFor"
+                          name="WhatLookingFor"
+                          rows="4"
+                          aria-describedby="WhatLookingFor-hint@(whatLookingForError is not null ? " WhatLookingFor-error" : "")">@Model.WhatLookingFor</textarea>
+            </div>
+
+            <div class="govuk-form-group @(whatGotError is not null ? "govuk-form-group--error" : "")">
+                <label class="govuk-label" for="WhatGot">What did you actually get?</label>
+                <div id="WhatGot-hint" class="govuk-hint">
+                    If you searched already, we have pre-filled the query and result count.
+                </div>
+                @if (whatGotError is not null)
+                {
+                    <p class="govuk-error-message" id="WhatGot-error">
+                        <span class="govuk-visually-hidden">Error:</span> @whatGotError
+                    </p>
+                }
+                <textarea class="govuk-textarea @(whatGotError is not null ? "govuk-textarea--error" : "")"
+                          id="WhatGot"
+                          name="WhatGot"
+                          rows="4"
+                          aria-describedby="WhatGot-hint@(whatGotError is not null ? " WhatGot-error" : "")">@whatGotInitial</textarea>
+            </div>
+
+            <p class="govuk-body">If you provide your email address, it will be sent to the support team so they can reply to you.</p>
+
+            <div class="govuk-form-group @(emailError is not null ? "govuk-form-group--error" : "")">
+                <label class="govuk-label" for="Email">Email address (optional)</label>
+                @if (emailError is not null)
+                {
+                    <p class="govuk-error-message" id="Email-error">
+                        <span class="govuk-visually-hidden">Error:</span> @emailError
+                    </p>
+                }
+                <input class="govuk-input @(emailError is not null ? "govuk-input--error" : "")"
+                       id="Email"
+                       name="Email"
+                       type="email"
+                       autocomplete="email"
+                       value="@Model.Email"
+                       @(emailError is not null ? "aria-describedby=\"Email-error\"" : "") />
+            </div>
+
+            <div class="govuk-form-group">
+                <div class="govuk-checkboxes" data-module="govuk-checkboxes">
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input"
+                               id="HideMyEmail"
+                               name="HideMyEmail"
+                               type="checkbox"
+                               value="true"
+                               @(Model.HideMyEmail ? "checked" : "") />
+                        <label class="govuk-label govuk-checkboxes__label" for="HideMyEmail">
+                            Hide my email address from the support team
+                        </label>
+                        <div class="govuk-hint govuk-checkboxes__hint">
+                            If you tick this box we will not store your email address, so we will
+                            not be able to reply.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="govuk-button" type="submit" data-module="govuk-button">Send</button>
+        </form>
+    </div>
+</div>

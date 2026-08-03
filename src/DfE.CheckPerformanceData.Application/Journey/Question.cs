@@ -22,7 +22,7 @@ public sealed class Question
     /// <summary>
     /// Optional name of an <c>IFormatValidator</c> applied to this question's
     /// answer once it is non-empty (e.g. <c>"DfeNumber"</c>). An unregistered
-    /// name is ignored. See CLAUDE.md → Question Flow.
+    /// name is ignored.
     /// </summary>
     public string? Validator { get; init; }
 

@@ -23,4 +23,15 @@ public sealed class HomeController() : Controller
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
+
+    // Targeted by UseStatusCodePagesWithReExecute so unmapped routes render text/html
+    // via the full MVC pipeline (including the shared layout + injected session
+    // comment). Without this the default 404 is text/plain and users cannot quote a
+    // session id from a page they never really saw.
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public new IActionResult NotFound()
+    {
+        Response.StatusCode = 404;
+        return View();
+    }
 }

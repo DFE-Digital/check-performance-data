@@ -1507,13 +1507,20 @@ ORDER BY w.weekday, h.hour;";
     {
         const string sql = @"
 WITH first_zero AS (
-    SELECT session_id,
-           MIN(occurred_at_utc) AS first_zero_utc,
-           MIN(query_normalised) AS first_zero_query
+    -- DISTINCT ON rather than MIN(): the baseline must be the query that actually ran
+    -- first, and MIN(query_normalised) is the alphabetically smallest zero-result query
+    -- in the session instead. With the wrong baseline a genuine refinement can compare
+    -- equal to it and be misfiled as silent, which undercounted refined sessions and put
+    -- this card at odds with the journeys drill-in. id breaks ties on identical instants
+    -- so the pick is deterministic.
+    SELECT DISTINCT ON (session_id)
+           session_id,
+           occurred_at_utc  AS first_zero_utc,
+           query_normalised AS first_zero_query
     FROM search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
       AND zero_results = true
-    GROUP BY session_id
+    ORDER BY session_id, occurred_at_utc, id
 ),
 refined AS (
     SELECT DISTINCT fz.session_id

@@ -228,6 +228,30 @@ public sealed class SearchAnalyticsInsightCardsTests
     }
 
     [Fact]
+    public async Task GetZeroResultOutcomeFunnel_ComparesAgainstTheChronologicallyFirstZeroQuery()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddHours(-3);
+
+        // The session searched "zebra", got nothing, then refined to "apple" and still got
+        // nothing. That is a refinement. Taking the alphabetically smallest zero-result
+        // query as the baseline picks "apple" — the refinement then looks identical to its
+        // own baseline and the session is misfiled as silent. The baseline has to be the
+        // query that actually ran first.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(10), "s-order", "zebra", results: 0, latency: 10),
+            NewEvent(from.AddMinutes(20), "s-order", "apple", results: 0, latency: 10));
+
+        var summary = await CreateService().GetZeroResultOutcomeFunnelAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(1, summary.TotalZeroResultSessions);
+        Assert.Equal(1, summary.RefinedCount);
+        Assert.Equal(0, summary.SilentCount);
+    }
+
+    [Fact]
     public async Task GetZeroResultOutcomeFunnel_ReturnsZeros_WhenWindowIsEmpty()
     {
         await ResetAllAsync();

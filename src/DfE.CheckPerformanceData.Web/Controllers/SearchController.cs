@@ -105,17 +105,12 @@ public sealed class SearchController(
             });
         }
 
-        // Page over-clamp: if the user asked for page 12 of a corpus with 3 pages, re-issue
-        // at the last valid page. Costs one extra call in the pathological case; keeps the
-        // shape trivial. A canonicalised corpus with zero hits (or an invalid query) leaves
-        // TotalPages at 0 — the guard below ensures we do not re-issue in that case.
-        if (result.TotalPages > 0 && oneIndexedPage > result.TotalPages)
-        {
-            oneIndexedPage = result.TotalPages;
-            query = query with { Page = oneIndexedPage };
-            result = await searchService.SearchAsync(query);
-        }
-
+        // Page over-clamp is handled inside the search service, which pages an already-
+        // materialised list and so can land on the last valid page without a second pass.
+        // Re-issuing from here would run both corpus searches again and record a second
+        // telemetry event for the same user request. Read the page back off the result
+        // (zero-indexed internally, one-indexed at the URL boundary) so the view reflects
+        // wherever the service actually landed.
         return View("Index", new SiteSearchViewModel
         {
             Query = result.CurrentQuery,
@@ -124,7 +119,7 @@ public sealed class SearchController(
             Hits = result.Hits,
             IncludePages = includePagesResolved,
             IncludeContentBlocks = includeContentBlocksResolved,
-            Page = oneIndexedPage,
+            Page = result.Page + 1,
             PageSize = effectivePageSize,
             TotalCount = result.TotalCount,
         });

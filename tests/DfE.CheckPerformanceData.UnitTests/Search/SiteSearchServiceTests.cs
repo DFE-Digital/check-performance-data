@@ -280,6 +280,51 @@ public class SiteSearchServiceTests
         Assert.Empty(_telemetry.Events);
     }
 
+    // Pagination is an in-memory Skip/Take over the already-materialised canonical list, so
+    // a page past the end can be clamped right here — and must be, because the caller's only
+    // alternative is to notice the over-run and call SearchAsync again. That second call ran
+    // the searches a second time and emitted its own telemetry event, so one user request
+    // recorded two search rows and double-counted itself across every analytics chart.
+    [Fact]
+    public async Task SearchAsync_PageBeyondTheLastPage_ClampsInPlace_AndEmitsOneEventOnly()
+    {
+        var hits = Enumerable.Range(0, 45)
+            .Select(i => Page(Guid.NewGuid(), $"guidance/p{i}", $"Page {i}"))
+            .ToList();
+        _pageRepo.SearchPagesAsync("widget", Arg.Any<string?>(), Arg.Any<int>()).Returns(hits);
+
+        var result = await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "widget",
+            IncludePages: true,
+            IncludeContentBlocks: false,
+            Page: 99,
+            PageSize: 20));
+
+        // 45 hits at 20 per page = 3 pages; Page is zero-indexed on the result.
+        Assert.Equal(3, result.TotalPages);
+        Assert.Equal(2, result.Page);
+        Assert.Equal(5, result.Hits.Count);
+
+        Assert.Single(_telemetry.Events);
+        await _pageRepo.Received(1).SearchPagesAsync("widget", Arg.Any<string?>(), Arg.Any<int>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_EmptyCorpus_LeavesTheRequestedPageAlone()
+    {
+        // Nothing to clamp against — TotalPages is 0, so the requested page passes through
+        // and the view renders its own empty state.
+        var result = await _sut.SearchAsync(new SiteSearchQuery(
+            Query: "widget",
+            IncludePages: true,
+            IncludeContentBlocks: false,
+            Page: 99,
+            PageSize: 20));
+
+        Assert.Equal(0, result.TotalPages);
+        Assert.Empty(result.Hits);
+    }
+
     private static PageSearchHitRaw Page(Guid id, string path, string title) => new()
     {
         PageId = id,

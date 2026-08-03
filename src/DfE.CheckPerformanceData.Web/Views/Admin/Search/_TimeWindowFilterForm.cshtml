@@ -12,7 +12,11 @@
     // views always render the linear time series.
     var isCustom = string.Equals(Model.RangeKey, "custom", StringComparison.Ordinal);
     var fromValue = isCustom ? Model.FromUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
-    var toValue = isCustom ? Model.ToUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty;
+    // ToUtc is the exclusive upper bound; the date input has to show the inclusive end
+    // date the admin picked, or re-submitting the form would walk the window forward.
+    var toValue = isCustom
+        ? SearchAnalyticsRangeQuery.InclusiveEndDate(Model.ToUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+        : string.Empty;
 }
 
 <form method="get" action="@Model.FormAction" class="sa-filters govuk-!-margin-bottom-6">

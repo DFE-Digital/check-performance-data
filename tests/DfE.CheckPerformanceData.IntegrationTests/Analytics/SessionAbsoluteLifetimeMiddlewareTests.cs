@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Web.Session;
@@ -137,6 +139,34 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         Assert.Equal(firstIdentity, secondIdentity);
     }
 
+    // SearchAnalytics:SessionAbsoluteHours is declared as an editable, DB-backed admin
+    // setting, so the value an admin saves has to be the one the middleware enforces.
+    // Reading only IConfiguration made the settings page a no-op: edits saved and
+    // displayed but never changed the cap.
+    [Fact]
+    [Trait("Category", "Slow")]
+    public async Task StoredSetting_OverridesTheConfiguredAbsoluteHours()
+    {
+        // Configuration says a day; the admin has saved ~1.8 seconds. The stored value wins.
+        using var host = await BuildProbeIdentityHostAsync(
+            absoluteHours: 24, storedAbsoluteHours: 0.0005);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, _) = SplitProbe(await first.Content.ReadAsStringAsync());
+
+        await Task.Delay(TimeSpan.FromMilliseconds(2500));
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, _) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", firstIdentity);
+        Assert.NotEqual(firstIdentity, secondIdentity);
+    }
+
     [Fact]
     public void ConfiguredAbsoluteHours_AreClampedAtHardMaximum()
     {
@@ -241,8 +271,10 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
     }
 
     // Probe writes "<app-owned identity>|<framework Session.Id>" so a single request can
-    // assert on both.
-    private static async Task<IHost> BuildProbeIdentityHostAsync(double absoluteHours)
+    // assert on both. storedAbsoluteHours, when supplied, registers a stub ISettingService
+    // standing in for an admin-saved value so the config-vs-stored precedence is testable.
+    private static async Task<IHost> BuildProbeIdentityHostAsync(
+        double absoluteHours, double? storedAbsoluteHours = null)
     {
         var host = await new HostBuilder()
             .ConfigureWebHost(web =>
@@ -262,6 +294,11 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
                 {
                     services.AddDistributedMemoryCache();
                     services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
+                    if (storedAbsoluteHours is { } stored)
+                    {
+                        services.AddScoped<ISettingService>(_ => new StubSettingService(
+                            SettingKeys.SearchAnalyticsSessionAbsoluteHours, stored));
+                    }
                 });
 
                 web.Configure(app =>

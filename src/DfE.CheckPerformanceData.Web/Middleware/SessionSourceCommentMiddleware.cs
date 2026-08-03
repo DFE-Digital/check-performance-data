@@ -1,7 +1,9 @@
 using System.Text;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Middleware;
 
@@ -31,17 +33,21 @@ public sealed class SessionSourceCommentMiddleware
     private const string CommentPrefix = "<!-- session: ";
 
     private readonly RequestDelegate _next;
-    private readonly bool _enabled;
+    private readonly IConfiguration _configuration;
 
     public SessionSourceCommentMiddleware(RequestDelegate next, IConfiguration configuration)
     {
         _next = next;
-        _enabled = configuration.GetValue<bool?>(ConfigKey) ?? true;
+        _configuration = configuration;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!_enabled || !ShouldIntercept(context))
+        // Read per request, not once at construction: this is an editable admin setting,
+        // and a middleware instance lives for the life of the process — capturing the flag
+        // in the constructor meant an admin could turn the comment off, see the setting
+        // saved, and still have every response carry it until the next deploy.
+        if (!await IsEnabledAsync(context) || !ShouldIntercept(context))
         {
             await _next(context);
             return;
@@ -87,6 +93,19 @@ public sealed class SessionSourceCommentMiddleware
         {
             context.Response.Body = originalBody;
         }
+    }
+
+    // Stored admin value wins over appsettings. ISettingService is scoped and is absent in
+    // bare middleware test hosts, so fall back to configuration rather than hard-failing.
+    private async Task<bool> IsEnabledAsync(HttpContext context)
+    {
+        var settings = context.RequestServices?.GetService<ISettingService>();
+        if (settings is not null)
+        {
+            return await settings.GetBoolAsync(SettingKeys.SearchAnalyticsShowSessionComment);
+        }
+
+        return _configuration.GetValue<bool?>(ConfigKey) ?? true;
     }
 
     private static bool ShouldIntercept(HttpContext context) =>

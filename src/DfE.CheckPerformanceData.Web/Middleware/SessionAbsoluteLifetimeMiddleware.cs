@@ -1,7 +1,9 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Middleware;
 
@@ -43,12 +45,27 @@ public sealed class SessionAbsoluteLifetimeMiddleware
     public static double ResolveAbsoluteHours(double configured) =>
         Math.Clamp(configured, MinAbsoluteHours, MaxAbsoluteHours);
 
+    // The cap is an editable admin setting, so the stored value has to win over
+    // appsettings — otherwise the settings page saves and displays a value that never
+    // takes effect. ISettingService is scoped, hence the per-request resolve; it is
+    // absent in bare middleware test hosts and in any pipeline composed without the
+    // application services, so fall back to configuration rather than hard-failing.
+    private async Task<double> ReadConfiguredHoursAsync(HttpContext context)
+    {
+        var settings = context.RequestServices?.GetService<ISettingService>();
+        if (settings is not null)
+        {
+            return await settings.GetDoubleAsync(SettingKeys.SearchAnalyticsSessionAbsoluteHours);
+        }
+
+        return _configuration.GetValue<double?>(ConfigKey) ?? DefaultAbsoluteHours;
+    }
+
     public async Task InvokeAsync(HttpContext context)
     {
         await context.Session.LoadAsync();
 
-        var configured = _configuration.GetValue<double?>(ConfigKey) ?? DefaultAbsoluteHours;
-        var absoluteHours = ResolveAbsoluteHours(configured);
+        var absoluteHours = ResolveAbsoluteHours(await ReadConfiguredHoursAsync(context));
         var cap = TimeSpan.FromHours(absoluteHours);
         var now = DateTime.UtcNow;
 

@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -25,7 +26,10 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 // absolute lifetime cap is enforced server-side by SessionAbsoluteLifetimeMiddleware.
 public static class SessionServiceCollectionExtensions
 {
-    public const string IdleMinutesKey = "SearchAnalytics:SessionIdleMinutes";
+    // Configuration-only: SessionOptions is read once when the pipeline is built, so this
+    // cannot be an editable admin setting (see SettingDefinitions). One source of truth
+    // for the key name even so.
+    public const string IdleMinutesKey = SettingKeys.SearchAnalyticsSessionIdleMinutes;
     public const int DefaultIdleMinutes = 60;
 
     public static IServiceCollection AddCpdSession(

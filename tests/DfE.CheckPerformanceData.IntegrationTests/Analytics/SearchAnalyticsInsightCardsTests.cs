@@ -1,5 +1,6 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -316,10 +317,50 @@ public sealed class SearchAnalyticsInsightCardsTests
         Assert.False(deltas.Available, "Deltas should be Unavailable when the prior window pushes outside retention.");
     }
 
+    // Retention is admin-configurable (clamped 1..365). The availability gate has to use
+    // that value, not a fixed 90 days: raise retention and valid comparison chips vanish;
+    // lower it and the deltas render against rows the purge has already removed, showing a
+    // surge that is really just missing history.
+    [Fact]
+    public async Task GetSummaryDeltas_AvailabilityFollowsTheConfiguredRetention_WhenRaised()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        // 60-day window: the prior window spans 120d..60d ago. Outside a 90-day retention,
+        // comfortably inside a 200-day one.
+        var currentFrom = now.AddDays(-60);
+
+        var deltas = await CreateService(retentionDays: 200)
+            .GetSummaryDeltasAsync(currentFrom, now, CancellationToken.None);
+
+        Assert.True(deltas.Available,
+            "Retention was raised to 200 days, so the prior window is within retention and the deltas should be available.");
+    }
+
+    [Fact]
+    public async Task GetSummaryDeltas_AvailabilityFollowsTheConfiguredRetention_WhenLowered()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        // 10-day window: the prior window spans 20d..10d ago — inside a 90-day retention
+        // but already purged under a 14-day one.
+        var currentFrom = now.AddDays(-10);
+
+        var deltas = await CreateService(retentionDays: 14)
+            .GetSummaryDeltasAsync(currentFrom, now, CancellationToken.None);
+
+        Assert.False(deltas.Available,
+            "Retention was lowered to 14 days, so the prior window has been purged and the deltas should be unavailable.");
+    }
+
     // --- Helpers -------------------------------------------------------------
 
-    private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+    private ISearchAnalyticsQueryService CreateService(int retentionDays = 90) =>
+        new SearchAnalyticsQueryService(
+            _fixture.CreateContext(),
+            new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, retentionDays));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

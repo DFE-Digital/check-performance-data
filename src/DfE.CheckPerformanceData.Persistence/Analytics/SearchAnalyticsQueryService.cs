@@ -1,5 +1,6 @@
 using System.Data;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -29,10 +30,12 @@ public sealed class SearchAnalyticsQueryService : ISearchAnalyticsQueryService
     private static readonly TimeSpan HourBucketThreshold = TimeSpan.FromHours(48);
 
     private readonly IPortalDbContext _dbContext;
+    private readonly ISettingService _settings;
 
-    public SearchAnalyticsQueryService(IPortalDbContext dbContext)
+    public SearchAnalyticsQueryService(IPortalDbContext dbContext, ISettingService settings)
     {
         _dbContext = dbContext;
+        _settings = settings;
     }
 
     public async Task<SearchAnalyticsSummary> GetSummaryAsync(
@@ -1609,7 +1612,14 @@ SELECT
 
         var priorFrom = fromUtc - width;
         var priorTo = fromUtc;
-        var retentionFloor = DateTime.UtcNow - TimeSpan.FromDays(90);
+
+        // The floor is the configured retention, not a fixed 90 days. Hardcoding it meant
+        // that raising retention silently hid comparison chips the data could support, and
+        // lowering it rendered deltas against rows the purge had already taken — history
+        // disappearing under the comparison window reads as a surge in the current one.
+        var retentionDays = SearchAnalyticsRetention.ClampEventDays(
+            await _settings.GetIntAsync(SettingKeys.SearchAnalyticsRetentionDays));
+        var retentionFloor = DateTime.UtcNow - TimeSpan.FromDays(retentionDays);
         if (priorFrom < retentionFloor)
         {
             return new SearchAnalyticsSummaryDeltas(0, 0, 0, 0, Available: false);

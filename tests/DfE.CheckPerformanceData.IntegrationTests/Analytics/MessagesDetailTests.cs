@@ -5,11 +5,11 @@ using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -244,7 +244,9 @@ public sealed class MessagesDetailTests
             await eventsContext.SaveChangesAsync();
         }
 
-        var queryService = new SearchAnalyticsQueryService(_fixture.CreateContext());
+        var queryService = new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var controller = BuildController(messages, queryService, currentUserSub: "admin-sub");
 
         var result = await controller.Detail(id, CancellationToken.None);

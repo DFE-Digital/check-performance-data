@@ -34,11 +34,18 @@ public sealed class SessionAbsoluteLifetimeMiddleware
 
     private readonly RequestDelegate _next;
     private readonly IConfiguration _configuration;
+    private readonly TimeProvider _timeProvider;
 
-    public SessionAbsoluteLifetimeMiddleware(RequestDelegate next, IConfiguration configuration)
+    // The cap is a wall-clock comparison, so the clock is a dependency rather than an
+    // ambient call. Taking it as TimeProvider lets the tests step time forward exactly
+    // instead of sleeping and hoping — a sleeping test is at the mercy of any host clock
+    // correction, which on a VM can move UtcNow backwards by seconds mid-test.
+    public SessionAbsoluteLifetimeMiddleware(
+        RequestDelegate next, IConfiguration configuration, TimeProvider timeProvider)
     {
         _next = next;
         _configuration = configuration;
+        _timeProvider = timeProvider;
     }
 
     // Public + static so a unit test can pin the clamp without booting the full pipeline.
@@ -67,7 +74,7 @@ public sealed class SessionAbsoluteLifetimeMiddleware
 
         var absoluteHours = ResolveAbsoluteHours(await ReadConfiguredHoursAsync(context));
         var cap = TimeSpan.FromHours(absoluteHours);
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         var startedStr = context.Session.GetString(StartKey);
         if (startedStr is not null

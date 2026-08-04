@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Extensions;
@@ -49,6 +50,10 @@ public static class SessionServiceCollectionExtensions
             options.Cookie.IsEssential = true;
             options.Cookie.SecurePolicy = securePolicy;
         });
+
+        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a test host
+        // that registered a controllable clock first keeps it.
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

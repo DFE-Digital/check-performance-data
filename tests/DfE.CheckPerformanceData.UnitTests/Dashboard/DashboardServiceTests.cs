@@ -153,4 +153,33 @@ public class DashboardServiceTests
         RequiringScrutiny = 0,
         SubmittingUrns = [],
     };
+
+    // Findings 5+6 from review: SchoolsSubmitted must count the same population by the same
+    // key as the adjacent tiles — eligible schools, by laestab. A URN with no eligible login
+    // in the window (LA, admin org, or a school whose blob is absent) must not count, so
+    // "Submitted amendments" can never exceed "Eligible schools".
+    [Fact]
+    public async Task GetMetricsAsync_SubmittingUrnWithoutEligibleLogin_NotCountedAsSchoolSubmitted()
+    {
+        var windowId = Guid.NewGuid();
+        _blobClient.ListSchoolLaestabsAsync(windowId, Arg.Any<CancellationToken>())
+            .Returns(["1111111", "2222222"]);
+        _logins.GetDistinctLoginsBetweenAsync(Arg.Any<DateTime>(), Arg.Any<DateTime>(), Arg.Any<CancellationToken>())
+            .Returns([new SchoolLogin(111, "1111111")]);
+        _requests.GetRequestAggregatesAsync(windowId, Arg.Any<CancellationToken>())
+            .Returns(new DashboardRequestAggregates
+            {
+                TotalRequests = 5,
+                AutoApproved = 1,
+                AutoRejected = 1,
+                RequiringScrutiny = 1,
+                SubmittingUrns = [111, 999], // 999 has no eligible login in the window
+            });
+
+        var metrics = await CreateSut().GetMetricsAsync(Window(windowId));
+
+        Assert.Equal(1, metrics.SchoolsSubmitted);      // 999 excluded
+        Assert.Equal(0, metrics.LoggedInNotSubmitted);  // the one logged-in school submitted
+        Assert.Equal(5, metrics.TotalRequests);         // request tiles are unaffected
+    }
 }

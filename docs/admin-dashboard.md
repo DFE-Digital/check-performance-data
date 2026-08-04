@@ -14,10 +14,15 @@ substance (no metric data is reachable) but deliberately not rendered as a visib
 | Eligible schools | Schools with a pupil file (`data/{laestab}_pupils.json`) in the window's blob container |
 | Logged in | Distinct eligible schools with an `OrganisationLogin` row timestamped inside the window's start–end dates |
 | Not logged in | Eligible schools minus Logged in |
-| Submitted amendments | Distinct organisation URNs with a submitted request for the window |
-| Logged in (not submitted) | Logged-in schools whose URN has no submitted request |
+| Submitted amendments | Distinct eligible schools (by laestab) whose URN has a submitted request; the URN→laestab mapping comes from the window's own login rows |
+| Logged in (not submitted) | Logged in minus Submitted amendments |
 | Total individual pupil amendment requests | Requests with status SubmittedUnCommitted or SubmittedCommitted (drafts, withdrawn and not-submitted excluded) |
 | Auto-approved / Auto-rejected / Requests requiring scrutiny | Submitted requests by rules-engine `Outcome`; undecided requests count only in the total |
+
+All five engagement tiles count the same population (eligible schools) by the same key
+(laestab). One consequence: a submitter whose login row failed to record (recording is
+deliberately non-blocking) drops off "Submitted amendments", though its requests still
+count in the request tiles.
 
 ## Login tracking
 

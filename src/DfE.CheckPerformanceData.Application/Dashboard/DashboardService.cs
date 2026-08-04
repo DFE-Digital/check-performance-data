@@ -43,11 +43,16 @@ public sealed class DashboardService(
 
         var aggregates = await requestRepository.GetRequestAggregatesAsync(window.Id, cancellationToken);
         var submittingUrns = aggregates.SubmittingUrns.ToHashSet();
-        var loggedInNotSubmitted = eligibleLogins
-            .Where(l => !submittingUrns.Contains(l.OrganisationUrn))
+        // Submissions arrive keyed by URN but every other school tile counts eligible
+        // schools by laestab, so map URN → laestab through the window's own logins (a
+        // submitter must have signed in during the window). Keeps all five engagement
+        // tiles on one population and one key: a submitting org with no eligible login
+        // (LA, admin, missing pupil blob) no longer inflates "Submitted amendments",
+        // and a school seen under two URNs cannot count as "logged in, not submitted".
+        var submittedLaestabs = eligibleLogins
+            .Where(l => submittingUrns.Contains(l.OrganisationUrn))
             .Select(l => l.NormalisedLaestab)
-            .Distinct()
-            .Count();
+            .ToHashSet(StringComparer.Ordinal);
 
         return new DashboardMetrics
         {
@@ -56,8 +61,8 @@ public sealed class DashboardService(
             EligibleSchools = eligible.Count,
             LoggedIn = loggedInSchools,
             NotLoggedIn = eligible.Count - loggedInSchools,
-            SchoolsSubmitted = submittingUrns.Count,
-            LoggedInNotSubmitted = loggedInNotSubmitted,
+            SchoolsSubmitted = submittedLaestabs.Count,
+            LoggedInNotSubmitted = loggedInSchools - submittedLaestabs.Count,
             TotalRequests = aggregates.TotalRequests,
             AutoApproved = aggregates.AutoApproved,
             AutoRejected = aggregates.AutoRejected,

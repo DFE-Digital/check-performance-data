@@ -2,7 +2,6 @@ namespace DfE.CheckPerformanceData.Application.Dashboard;
 
 /// <summary>A login row to append. Laestab must already be normalised (digits only).</summary>
 public sealed record OrganisationLoginRecord(
-    string UserId,
     long OrganisationUrn,
     string NormalisedLaestab,
     string OrganisationName);

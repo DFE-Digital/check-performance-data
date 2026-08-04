@@ -11,7 +11,6 @@ public sealed class OrganisationLoginRepository(IPortalDbContext context) : IOrg
     {
         context.OrganisationLogins.Add(new OrganisationLogin
         {
-            UserId = record.UserId,
             OrganisationUrn = record.OrganisationUrn,
             Laestab = record.NormalisedLaestab,
             OrganisationName = record.OrganisationName,

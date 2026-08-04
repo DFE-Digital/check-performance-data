@@ -35,9 +35,9 @@ public sealed class OrganisationLoginRepositoryTests(PostgresFixture fixture) : 
         var to = DateTime.UtcNow.AddDays(1);
 
         // Two logins by the same school + one by another school inside the range.
-        await repo.RecordAsync(new OrganisationLoginRecord("user-1", 142313, "8604070", "Kingsmead School"));
-        await repo.RecordAsync(new OrganisationLoginRecord("user-2", 142313, "8604070", "Kingsmead School"));
-        await repo.RecordAsync(new OrganisationLoginRecord("user-3", 100001, "9334070", "Other School"));
+        await repo.RecordAsync(new OrganisationLoginRecord(142313, "8604070", "Kingsmead School"));
+        await repo.RecordAsync(new OrganisationLoginRecord(142313, "8604070", "Kingsmead School"));
+        await repo.RecordAsync(new OrganisationLoginRecord(100001, "9334070", "Other School"));
 
         var logins = await repo.GetDistinctLoginsBetweenAsync(from, to);
 
@@ -51,7 +51,7 @@ public sealed class OrganisationLoginRepositoryTests(PostgresFixture fixture) : 
     {
         await using var context = fixture.CreateContext();
         var repo = new OrganisationLoginRepository(context);
-        await repo.RecordAsync(new OrganisationLoginRecord("user-4", 200002, "1112222", "Early School"));
+        await repo.RecordAsync(new OrganisationLoginRecord(200002, "1112222", "Early School"));
 
         // A range in the past cannot contain the row just written with UtcNow.
         var logins = await repo.GetDistinctLoginsBetweenAsync(

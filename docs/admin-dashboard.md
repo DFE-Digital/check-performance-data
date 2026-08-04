@@ -27,7 +27,7 @@ count in the request tiles.
 ## Login tracking
 
 Nothing recorded sign-ins before this feature. The DfE Sign-In `OnTokenValidated` hook now
-appends an `OrganisationLogins` row (user id, URN, digits-only laestab, organisation name,
+appends an `OrganisationLogins` row (URN, digits-only laestab, organisation name,
 UTC timestamp) after successful claims enrichment. Recording is wrapped in try/catch — a
 failure can never block sign-in. Rows are append-only; the dashboard deduplicates at query
 time. Logins recorded before the feature shipped obviously do not exist, so "Logged in"
@@ -48,8 +48,9 @@ is absent — along with the auto-refresh itself — when JavaScript is unavaila
 
 ## Data protection note
 
-`OrganisationLogins` is a new store of personal data: it keeps the DfE Sign-In user id and a
-timestamp for every successful school sign-in, with no retention limit and no purge job. The
-dashboard itself reads only the URN, laestab and timestamp — the user id is stored but not
-used by any current feature. Retention and whether the user id is needed at all are open
-questions for the service's DPIA.
+`OrganisationLogins` stores organisation-level data only: URN, digits-only laestab,
+organisation name and a UTC timestamp. The DfE Sign-In user id was captured in an early
+revision but dropped before release on data-minimisation grounds — no feature read it and
+the table has no retention limit. Login inserts are also excluded from the audit trail
+(`audit_entries`), which would otherwise have kept a second copy of every row. Retention
+of the remaining append-only rows is still an open question for the service's DPIA.

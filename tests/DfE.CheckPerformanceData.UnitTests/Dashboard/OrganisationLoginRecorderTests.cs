@@ -28,7 +28,7 @@ public class OrganisationLoginRecorderTests
         await CreateSut().RecordLoginAsync("user-1", EnrichedIdentity("142313", "860/4070", "Kingsmead School"));
 
         await _repository.Received(1).RecordAsync(
-            new OrganisationLoginRecord("user-1", 142313, "8604070", "Kingsmead School"),
+            new OrganisationLoginRecord(142313, "8604070", "Kingsmead School"),
             Arg.Any<CancellationToken>());
     }
 
@@ -52,7 +52,7 @@ public class OrganisationLoginRecorderTests
         await CreateSut().RecordLoginAsync("user-1", EnrichedIdentity("142313", "8604070", name: null));
 
         await _repository.Received(1).RecordAsync(
-            new OrganisationLoginRecord("user-1", 142313, "8604070", string.Empty),
+            new OrganisationLoginRecord(142313, "8604070", string.Empty),
             Arg.Any<CancellationToken>());
     }
 

@@ -35,7 +35,10 @@ public sealed class OrganisationLoginRecorder(
             return;
         }
 
+        // userId is used only for the skip-log above — the row itself stores organisation
+        // data only. The DfE Sign-In user id was dropped on data-minimisation grounds: no
+        // feature reads it and the table has no retention limit (see docs/admin-dashboard.md).
         await repository.RecordAsync(
-            new OrganisationLoginRecord(userId, urn, laestab, name), cancellationToken);
+            new OrganisationLoginRecord(urn, laestab, name), cancellationToken);
     }
 }

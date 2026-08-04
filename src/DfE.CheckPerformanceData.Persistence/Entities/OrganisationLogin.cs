@@ -4,16 +4,14 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace DfE.CheckPerformanceData.Persistence.Entities;
 
 /// <summary>
-/// One successful DfE Sign-In sign-in by a school/organisation user. Appended by the
+/// One successful DfE Sign-In sign-in by a school/organisation user, stored as organisation
+/// data only (no user id — dropped on data-minimisation grounds). Appended by the
 /// OnTokenValidated hook after claims enrichment succeeds; read only by the admin dashboard's
 /// engagement metrics. Append-only — dedup happens at query time.
 /// </summary>
 public sealed class OrganisationLogin
 {
     public Guid Id { get; init; }
-
-    /// <summary>DfE Sign-In user id (the NameIdentifier / sub claim).</summary>
-    public required string UserId { get; init; }
 
     public required long OrganisationUrn { get; init; }
 
@@ -37,7 +35,6 @@ public sealed class OrganisationLoginConfiguration : IEntityTypeConfiguration<Or
         builder.Property(x => x.Id)
             .HasDefaultValueSql("gen_random_uuid()");
 
-        builder.Property(x => x.UserId).IsRequired().HasMaxLength(100);
         builder.Property(x => x.Laestab).IsRequired().HasMaxLength(20);
         builder.Property(x => x.OrganisationName).IsRequired().HasMaxLength(500);
 

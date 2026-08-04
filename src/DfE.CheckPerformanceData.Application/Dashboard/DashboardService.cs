@@ -27,7 +27,7 @@ public sealed class DashboardService(
     private async Task<DashboardMetrics> BuildAsync(
         CheckingWindowDto window, CancellationToken cancellationToken)
     {
-        var eligible = (await pupilDataBlobClient.ListSchoolLaestabsAsync(window.Id))
+        var eligible = (await pupilDataBlobClient.ListSchoolLaestabsAsync(window.Id, cancellationToken))
             .ToHashSet(StringComparer.Ordinal);
 
         // Window dates are stored without a kind; Npgsql requires Utc for timestamptz params.

@@ -45,16 +45,16 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
     public async Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => await GetBlobClient(windowId, laestab).ExistsAsync();
 
-    public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId)
+    public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId, CancellationToken cancellationToken = default)
     {
         var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
-        if (!await container.ExistsAsync())
+        if (!await container.ExistsAsync(cancellationToken))
             return [];
 
         const string prefix = "data/";
         const string suffix = "_pupils.json";
-        var laestabs = new List<string>();
-        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, CancellationToken.None))
+        var laestabs = new HashSet<string>(StringComparer.Ordinal);
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
         {
             if (!blob.Name.EndsWith(suffix, StringComparison.Ordinal))
                 continue;
@@ -63,10 +63,10 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
             // LAESTAB column through verbatim, so anything other than a clean digit string
             // would silently fail to join against the digits-only laestab on a login row.
             var laestab = LaestabNormaliser.Normalise(blob.Name[prefix.Length..^suffix.Length]);
-            if (laestab.Length > 0 && !laestabs.Contains(laestab))
+            if (laestab.Length > 0)
                 laestabs.Add(laestab);
         }
-        return laestabs;
+        return laestabs.ToList();
     }
 
     public async Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord

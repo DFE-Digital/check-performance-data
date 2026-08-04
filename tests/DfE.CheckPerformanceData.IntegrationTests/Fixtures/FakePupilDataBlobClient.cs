@@ -25,7 +25,7 @@ public sealed class FakePupilDataBlobClient : IPupilDataBlobClient
     public Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => Task.FromResult(_store.ContainsKey((windowId, laestab)));
 
-    public Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId)
+    public Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId, CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<string>>(
             _store.Keys.Where(k => k.WindowId == windowId)
                 .Select(k => LaestabNormaliser.Normalise(k.Laestab))

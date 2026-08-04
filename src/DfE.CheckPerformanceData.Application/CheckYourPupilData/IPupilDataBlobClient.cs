@@ -28,7 +28,7 @@ public interface IPupilDataBlobClient
     /// (one <c>data/{laestab}_pupils.json</c> per school). Empty when the container does not
     /// exist. This is the dashboard's definition of "schools eligible to request amendments".
     /// </summary>
-    Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId);
+    Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId, CancellationToken cancellationToken = default);
 
     /// <summary>Writes a school's pupil file. Used only by development data seeding.</summary>
     Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord;

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using DfE.CheckPerformanceData.Application.Dashboard;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -53,5 +54,40 @@ public class OrganisationLoginRecorderTests
         await _repository.Received(1).RecordAsync(
             new OrganisationLoginRecord("user-1", 142313, "8604070", string.Empty),
             Arg.Any<CancellationToken>());
+    }
+
+    // A capturing logger because asserting log LEVEL through NSubstitute's ILogger is
+    // awkward (generic TState). Levels list is enough — messages are not contract.
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<LogLevel> Levels { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null!;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter)
+            => Levels.Add(logLevel);
+    }
+
+    [Fact]
+    public async Task RecordLoginAsync_OrgWithoutLaestab_LogsInformationNotWarning()
+    {
+        var logger = new CapturingLogger<OrganisationLoginRecorder>();
+        var sut = new OrganisationLoginRecorder(_repository, logger);
+
+        // An LA: valid URN, no laestab claim — a normal, expected path.
+        await sut.RecordLoginAsync("user-1", EnrichedIdentity("142313", laestab: null, "Some LA"));
+
+        Assert.Equal([LogLevel.Information], logger.Levels);
+    }
+
+    [Fact]
+    public async Task RecordLoginAsync_MalformedUrn_LogsWarning()
+    {
+        var logger = new CapturingLogger<OrganisationLoginRecorder>();
+        var sut = new OrganisationLoginRecorder(_repository, logger);
+
+        await sut.RecordLoginAsync("user-1", EnrichedIdentity("not-a-number", "860/4070", "Some School"));
+
+        Assert.Equal([LogLevel.Warning], logger.Levels);
     }
 }

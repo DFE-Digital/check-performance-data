@@ -17,10 +17,21 @@ public sealed class OrganisationLoginRecorder(
         if (!long.TryParse(urnValue, out var urn) || laestab.Length == 0)
         {
             // Some DfE Sign-In organisations (e.g. LAs) legitimately carry no laestab; those
-            // logins are not school engagement, so skipping is correct rather than an error.
-            logger.LogWarning(
-                "Organisation login not recorded for user {UserId}: URN '{Urn}' or laestab missing/invalid.",
-                userId, urnValue);
+            // logins are not school engagement, so skipping is a normal path — Information,
+            // not admin-surface noise. A URN that is present but not numeric is genuinely
+            // malformed claim data and keeps the Warning.
+            if (!string.IsNullOrEmpty(urnValue) && !long.TryParse(urnValue, out _))
+            {
+                logger.LogWarning(
+                    "Organisation login not recorded for user {UserId}: URN '{Urn}' is not numeric.",
+                    userId, urnValue);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Organisation login not recorded for user {UserId}: organisation has no school laestab.",
+                    userId);
+            }
             return;
         }
 

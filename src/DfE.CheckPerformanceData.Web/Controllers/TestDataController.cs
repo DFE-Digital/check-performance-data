@@ -495,12 +495,16 @@ public sealed class TestDataController : Controller
             }
             else
             {
-                _jobStore.MarkCompleted(jobId, auditId);
-
                 // Adaptive EMA of the per-event seconds rate. Only fires on non-cancelled
                 // non-failed completions — a cancelled or failed run doesn't reflect true
                 // throughput. Isolated in its own try/catch so a settings-store hiccup
-                // never derails the job state transition above.
+                // never derails the job state transition below.
+                //
+                // This runs BEFORE MarkCompleted so that "job reports terminal" implies
+                // "the new rate is already readable". With the order reversed, anything
+                // that polls for the terminal state and then reads the rate — the seed
+                // page itself, and the test covering this — could observe the old value,
+                // because the save had not landed yet.
                 try
                 {
                     var settings = scope.ServiceProvider.GetService<ISettingService>();
@@ -523,6 +527,8 @@ public sealed class TestDataController : Controller
                     // Non-fatal. The next seed will just start from the previous stored
                     // value and re-attempt the blend.
                 }
+
+                _jobStore.MarkCompleted(jobId, auditId);
             }
         }
         catch

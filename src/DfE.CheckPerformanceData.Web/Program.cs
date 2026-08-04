@@ -368,14 +368,16 @@ try
     // DfE Analytics: stream a web_request event to BigQuery per request when configured.
     // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
     // review and local boot without GCP. The matching middleware is added below under
-    // the same flag. The RequestFilter keeps health-probe noise out of the dataset.
+    // the same flag. The RequestFilter (see AnalyticsRequestFilter) keeps health probes,
+    // static assets and scanner/bot noise out of the dataset.
     var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
     if (analyticsEnabled)
     {
         builder.Services
             .AddDfeAnalytics()
             .AddAspNetCoreIntegration(options =>
-                options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
+                options.RequestFilter = AnalyticsRequestFilter.ShouldTrack);
+
         builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
         // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
         // is sent as its own row, auto-enriched with request + organisation context.

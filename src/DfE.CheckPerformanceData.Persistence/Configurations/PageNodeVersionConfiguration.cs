@@ -23,6 +23,7 @@ internal sealed class PageNodeVersionConfiguration : IEntityTypeConfiguration<Pa
         builder.Property(v => v.SearchVector)
             .HasColumnType("tsvector")
             .HasComputedColumnSql(
+                // Weight 'D' — see SearchWeights.BodyWeight
                 @"setweight(to_tsvector('english', coalesce(""BodyPlainText"", '')), 'D')",
                 stored: true);
 

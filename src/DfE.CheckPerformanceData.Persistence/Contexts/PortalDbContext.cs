@@ -32,6 +32,9 @@ public sealed class PortalDbContext(
     public DbSet<AdminSectionAccess> AdminSectionAccesses => Set<AdminSectionAccess>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
     public DbSet<OrganisationLogin> OrganisationLogins => Set<OrganisationLogin>();
+    public DbSet<SearchEvent> SearchEvents => Set<SearchEvent>();
+    public DbSet<SearchEventResult> SearchEventResults => Set<SearchEventResult>();
+    public DbSet<SearchMessage> SearchMessages => Set<SearchMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +57,9 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new AdminSectionAccessConfiguration());
         modelBuilder.ApplyConfiguration(new AppLogConfiguration());
         modelBuilder.ApplyConfiguration(new OrganisationLoginConfiguration());
+        modelBuilder.ApplyConfiguration(new SearchEventConfiguration());
+        modelBuilder.ApplyConfiguration(new SearchEventResultConfiguration());
+        modelBuilder.ApplyConfiguration(new SearchMessageConfiguration());
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -103,6 +109,12 @@ public sealed class PortalDbContext(
             // message writes one, so auditing them would double write volume on the hottest path
             // and retain reference numbers in audit_entries beyond the metrics retention purge.
             if (entry.Entity is QueueMetricEvent) continue;
+            // Search-analytics events + hit rows are the same shape of high-volume telemetry:
+            // every visitor search writes one parent + N children, so auditing them would
+            // dominate the audit table and retain session ids past the events-retention purge.
+            // Feedback messages ARE audited — they represent a deliberate user action.
+            if (entry.Entity is SearchEvent) continue;
+            if (entry.Entity is SearchEventResult) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

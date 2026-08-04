@@ -1,0 +1,195 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Application.Analytics
+@model IReadOnlyList<VolumeBucket>
+@{
+    // Dual-axis line chart, server-rendered inline SVG. Y1 (searches) is blue with a square marker;
+    // Y2 (unique sessions) is green with a circle marker — series are distinguished by SHAPE + colour,
+    // never colour alone (WCAG 1.4.1). Every chart carries a <details><table> data-table fallback
+    // (WCAG 1.1.1). No client-side chart library — the SVG is the whole rendered surface.
+    var buckets = Model ?? Array.Empty<VolumeBucket>();
+
+    const int width = 700;
+    const int height = 260;
+    // Wider left/bottom padding leaves room for tick labels on both axes.
+    const int padLeft = 56;
+    const int padBottom = 44;
+    const int padTop = 20;
+    const int padRight = 56;
+
+    var plotW = width - padLeft - padRight;
+    var plotH = height - padTop - padBottom;
+
+    var maxSearches = buckets.Count == 0 ? 0 : buckets.Max(b => b.SearchCount);
+    var maxUnique = buckets.Count == 0 ? 0 : buckets.Max(b => b.UniqueSessionCount);
+    var safeSearches = maxSearches == 0 ? 1 : maxSearches;
+    var safeUnique = maxUnique == 0 ? 1 : maxUnique;
+
+    string X(int index) => buckets.Count <= 1
+        ? (padLeft + plotW / 2).ToString(CultureInfo.InvariantCulture)
+        : (padLeft + (plotW * (double)index / (buckets.Count - 1))).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y1(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeSearches)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    string Y2(int count) =>
+        (padTop + plotH - (plotH * (double)count / safeUnique)).ToString("0.##", CultureInfo.InvariantCulture);
+
+    var searchPoints = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y1(b.SearchCount)}"));
+    var sessionPoints = string.Join(" ", buckets.Select((b, i) => $"{X(i)},{Y2(b.UniqueSessionCount)}"));
+
+    var ariaLabel = buckets.Count == 0
+        ? "Search volume over the selected window: no data."
+        : $"Search volume over the selected window: peak {maxSearches} searches, {buckets[^1].SearchCount} in the most recent bucket. Unique sessions peak {maxUnique}.";
+
+    // Adaptive X-axis tick labels via the shared ChartAxisTicks helper — one code path
+    // decides how many ticks to place + which format to use based on the window span the
+    // buckets cover. Rules: <=24h HH:mm, <=7d "ddd d", <=30d "d MMM", <=90d "d MMM", wider
+    // "MMM yyyy". Label overlap is prevented by treating each label as ~72 px wide and
+    // capping the tick count to fit the plot width.
+    var xTicks = ChartAxisTicks.XAxisTicks(
+        buckets.Select(b => b.BucketStart).ToArray(),
+        plotWidthPx: plotW);
+
+    // Adaptive Y-axis: 3-5 "nice" ticks. Fractions returned by the helper are 0..1 against
+    // the max of each of the two Y-scales (searches + unique sessions).
+    var yFractions = ChartAxisTicks.YAxisFractions(maxSearches);
+}
+
+<div class="sa-chart-panel">
+    @* Inner "Volume over time" heading removed — the outer section (see Index.cshtml)
+       already labels the tile so an inner heading would duplicate it. *@
+    @if (buckets.Count == 0)
+    {
+        <p class="govuk-body">No data to chart for this window.</p>
+    }
+    else
+    {
+        <ul class="sa-chart__legend">
+            <li class="sa-chart__legend-item">
+                <span class="sa-chart__legend-glyph--square" aria-hidden="true"></span>
+                <span class="govuk-body-s">Searches</span>
+            </li>
+            <li class="sa-chart__legend-item">
+                <span class="sa-chart__legend-glyph--circle" aria-hidden="true"></span>
+                <span class="govuk-body-s">Unique sessions</span>
+            </li>
+        </ul>
+
+        // Bucket-timestamp array + max-value pair emitted to the DOM as data attributes so
+        // the crosshair-tooltip JS (see wwwroot/js/search-analytics.js) can pick out the
+        // nearest bucket to the cursor and render "Wed 24 Jul, 14:00 — 32 searches" without
+        // a network round-trip. ISO-format the timestamps for JS Date parsing.
+        var bucketIsoJson = "[" + string.Join(",", buckets.Select(b => "\"" + b.BucketStart.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture) + "\"")) + "]";
+        var seriesValuesJson = "[" + string.Join(",", buckets.Select(b => b.SearchCount.ToString(CultureInfo.InvariantCulture))) + "]";
+        <svg class="sa-chart" viewBox="0 0 @width @height" role="img"
+             aria-label="@ariaLabel" focusable="false"
+             data-sa-crosshair="true"
+             data-sa-plot-left="@padLeft"
+             data-sa-plot-top="@padTop"
+             data-sa-plot-width="@plotW"
+             data-sa-plot-height="@plotH"
+             data-sa-buckets="@bucketIsoJson"
+             data-sa-values="@seriesValuesJson"
+             data-sa-value-suffix=" searches">
+            <title>Search volume over time — searches (blue) and unique sessions (green)</title>
+
+            @* Plot area frame — left, right, bottom axes. *@
+            <line x1="@padLeft" y1="@padTop" x2="@padLeft" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@(padLeft + plotW)" y1="@padTop" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+            <line x1="@padLeft" y1="@(padTop + plotH)" x2="@(padLeft + plotW)" y2="@(padTop + plotH)"
+                  stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+
+            @* Y-axis tick labels — left scale is Searches (blue), right scale is Unique sessions (green).
+               Nice-number ticks via the adaptive helper. Rendered via Html.Raw because Razor
+               otherwise parses inline <text> inside a @foreach block as its own control-flow
+               marker (RZ1023). SVG elements are namespace-safe regardless. *@
+            @foreach (var fraction in yFractions)
+            {
+                var y = padTop + plotH - (plotH * fraction);
+                var yStr = y.ToString("0.##", CultureInfo.InvariantCulture);
+                var yTextStr = (y + 4).ToString("0.##", CultureInfo.InvariantCulture);
+                <line x1="@padLeft" y1="@yStr" x2="@(padLeft + plotW)" y2="@yStr"
+                      stroke="#f3f2f1" stroke-width="1" aria-hidden="true" />
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft - 6}\" y=\"{yTextStr}\" text-anchor=\"end\" fill=\"#1d70b8\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxSearches)}</text>")
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{padLeft + plotW + 6}\" y=\"{yTextStr}\" text-anchor=\"start\" fill=\"#00703c\" font-size=\"11\">{ChartAxisTicks.YAxisLabel(fraction, maxUnique)}</text>")
+            }
+
+            @* X-axis tick labels — adaptive time labels. Anchored middle beneath the tick point. *@
+            @foreach (var tick in xTicks)
+            {
+                var xPos = X(tick.Index);
+                <line x1="@xPos" y1="@(padTop + plotH)" x2="@xPos"
+                      y2="@(padTop + plotH + 4)" stroke="#b1b4b6" stroke-width="1" aria-hidden="true" />
+                @Html.Raw($"<text class=\"sa-chart__axis-tick\" x=\"{xPos}\" y=\"{padTop + plotH + 18}\" text-anchor=\"middle\" fill=\"#505a5f\" font-size=\"11\">{System.Net.WebUtility.HtmlEncode(tick.Label)}</text>")
+            }
+
+            @* Axis-title labels — colour-matched to their scale so admins know which value
+               belongs to which axis without reading the legend twice. Emitted outside a
+               code block so no Razor <text> ambiguity. *@
+            <text class="sa-chart__axis-title" x="@(padLeft - 6)" y="@(padTop - 6)" text-anchor="end" fill="#1d70b8" font-size="10">Searches</text>
+            <text class="sa-chart__axis-title" x="@(padLeft + plotW + 6)" y="@(padTop - 6)" text-anchor="start" fill="#00703c" font-size="10">Unique sessions</text>
+            <text class="sa-chart__axis-title" x="@(padLeft + plotW / 2)" y="@(height - 4)" text-anchor="middle" fill="#505a5f" font-size="10">Time (UTC)</text>
+
+            <polyline fill="none" stroke="#1d70b8" stroke-width="2" points="@searchPoints" aria-hidden="true" />
+            <polyline fill="none" stroke="#00703c" stroke-width="2" points="@sessionPoints" aria-hidden="true" />
+
+            @* Y1 markers are 4×4 rects (blue); Y2 markers are r=3 circles (green). Series
+               distinguished by shape as well as colour so the chart is legible without colour. *@
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <rect x="@X(i)" y="@Y1(buckets[i].SearchCount)" width="4" height="4"
+                      transform="translate(-2,-2)" fill="#1d70b8" aria-hidden="true" />
+            }
+            @for (var i = 0; i < buckets.Count; i++)
+            {
+                <circle cx="@X(i)" cy="@Y2(buckets[i].UniqueSessionCount)" r="3"
+                        fill="#00703c" aria-hidden="true" />
+            }
+        </svg>
+
+        @* Cap the inline fallback table so a 90-day-by-15-minute (~8600 rows) window does
+           not paint 200 kB of DOM under the chart. When the total bucket count exceeds the
+           cap, a "View all volume data →" link points to the drill-in page which shows the
+           same chart with a paged table underneath. *@
+        var inlineCapRaw = ViewContext.ViewData["sa-inline-row-cap"] as int?;
+        var inlineCap = inlineCapRaw is { } capValue && capValue > 0 ? capValue : 20;
+        var drillInUrl = ViewContext.ViewData["sa-drillin-volume-url"] as string;
+        var displayedBuckets = buckets.Count > inlineCap ? buckets.Take(inlineCap).ToList() : (IReadOnlyList<VolumeBucket>)buckets;
+        <details class="govuk-details">
+            <summary class="govuk-details__summary">
+                <span class="govuk-details__summary-text">View volume data table</span>
+            </summary>
+            <div class="govuk-details__text">
+                <table class="govuk-table">
+                    <caption class="govuk-table__caption govuk-table__caption--s">Search volume per bucket</caption>
+                    <thead class="govuk-table__head">
+                        <tr class="govuk-table__row">
+                            <th scope="col" class="govuk-table__header" title="Start of the time bucket. Bucket width follows the Chart bucket size selector above.">Bucket (UTC)</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many searches were fired during this bucket.">Searches</th>
+                            <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many distinct browser sessions searched in that bucket.">Unique sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="govuk-table__body">
+                        @foreach (var bucket in displayedBuckets)
+                        {
+                            <tr class="govuk-table__row">
+                                <td class="govuk-table__cell">@bucket.BucketStart.ToString("u")</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.SearchCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                <td class="govuk-table__cell govuk-table__cell--numeric">@bucket.UniqueSessionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (buckets.Count > inlineCap && !string.IsNullOrEmpty(drillInUrl))
+                {
+                    <p class="govuk-body">
+                        Showing the first @displayedBuckets.Count of @buckets.Count.ToString("N0", CultureInfo.CurrentCulture) buckets.
+                        <a class="govuk-link" href="@drillInUrl">View all volume data &rarr;</a>
+                    </p>
+                }
+            </div>
+        </details>
+    }
+</div>

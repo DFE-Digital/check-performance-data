@@ -1,0 +1,78 @@
+@using System.Globalization
+@using DfE.CheckPerformanceData.Web.Controllers.ViewModels
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsRequestTimingsViewModel
+@{
+    // Paged drill-in for the request-timings scatter. One row per search event over
+    // the window, newest first, paged by CMS:PageLength.
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    string PageLink(int p) => $"/admin/Search/RequestTimings?{rangeQs}&page={p}";
+
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Request timings</h1>
+
+<p class="govuk-body">
+    Every individual search request in the selected window, most recent first. One row
+    per event; the scatter chart on the dashboard plots the same points.
+</p>
+
+@await Html.PartialAsync("~/Views/Admin/Search/_TimeWindowFilterForm.cshtml", new TimeWindowFilterModel
+{
+    FormAction = "/admin/Search/RequestTimings",
+    RangeKey = Model.RangeKey,
+    FromUtc = Model.FromUtc,
+    ToUtc = Model.ToUtc,
+    BucketKey = "1h",
+})
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No searches in this window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount.ToString("N0", CultureInfo.CurrentCulture) requests.
+    </p>
+
+    <table class="govuk-table">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Individual request timings</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="Start of the search event, in UTC.">Bucket start</th>
+                <th scope="col" class="govuk-table__header" title="When the search ran, in UTC.">Occurred at (UTC)</th>
+                <th scope="col" class="govuk-table__header" title="Session identifier for the visitor. Masked to the first 8 characters for readability; full value on hover.">Session</th>
+                <th scope="col" class="govuk-table__header" title="The raw text the user searched for.">Query</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many hits the search returned.">Results</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How long the request took, in milliseconds.">Latency (ms)</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                var bucketStart = new DateTime(row.OccurredAtUtc.Year, row.OccurredAtUtc.Month, row.OccurredAtUtc.Day, row.OccurredAtUtc.Hour, 0, 0, DateTimeKind.Utc);
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">@bucketStart.ToString("u", CultureInfo.InvariantCulture)</td>
+                    <td class="govuk-table__cell">@row.OccurredAtUtc.ToString("u", CultureInfo.InvariantCulture)</td>
+                    <td class="govuk-table__cell"><code title="@row.SessionId">@row.SessionId.MaskSessionId()</code></td>
+                    <td class="govuk-table__cell">@(row.Query ?? string.Empty)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ResultsTotal.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.LatencyMs.ToString("N0", CultureInfo.CurrentCulture)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}

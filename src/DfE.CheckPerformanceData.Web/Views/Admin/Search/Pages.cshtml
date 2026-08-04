@@ -1,0 +1,99 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.SearchAnalyticsPagesDrillInViewModel
+@{
+    ViewData["Title"] = "Top pages by search impressions";
+    var rangeQs = SearchAnalyticsRangeQuery.Build(Model.RangeKey, Model.FromUtc, Model.ToUtc);
+    string PageLink(int p) => $"/admin/Search/Pages?{rangeQs}&page={p}";
+    const string tableId = "sa-pages-table";
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    // Result keys that look like a URL become new-tab links. Anything else (block keys,
+    // rare content-block-only impressions) renders in-place — the drill-in table's job
+    // is to show the raw key, not to guess a landing page.
+    static bool LooksLikeUrl(string key) =>
+        !string.IsNullOrEmpty(key) && (key.StartsWith('/') || key.StartsWith("http", StringComparison.OrdinalIgnoreCase));
+
+    // Distinct-queries column: hidden when the canonicaliser's "each search returns each
+    // URL at most once" invariant holds (impressions == distinct searches on every row —
+    // the common case). Shown as a diagnostic when at least one row disagrees, so a
+    // duplicate-result-row regression is visible rather than silently inflating Impressions.
+    var showDistinct = Model.Rows.Any(r => r.ImpressionCount != r.UniqueQueryCount);
+}
+
+<link rel="stylesheet" href="~/css/search-analytics.css" asp-append-version="true" />
+
+<a class="govuk-back-link" href="/admin/Search/?@rangeQs">Back to search analytics</a>
+
+<h1 class="govuk-heading-xl">Top pages by search impressions</h1>
+<p class="govuk-body">
+    Every page that appeared in a result set in the selected window, ordered by impressions.
+    Content-block impressions are listed separately at
+    <a class="govuk-link" href="/admin/Search/Blocks?@rangeQs">Top content blocks by search impressions</a>.
+</p>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No page impressions recorded in this window.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount page@(Model.TotalCount == 1 ? "" : "s").
+    </p>
+
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="sa-pages-filter">Filter loaded rows</label>
+        <div class="govuk-hint">Instant filter, no server round-trip.</div>
+        <input class="govuk-input sa-filter-input" id="sa-pages-filter"
+               type="search" data-filter-target="@tableId" autocomplete="off" />
+    </div>
+
+    <table class="govuk-table" id="@tableId">
+        <caption class="govuk-table__caption govuk-table__caption--s govuk-visually-hidden">Top pages by search impressions</caption>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="URL of the page (or key of a content block) that appeared in results.">Page URL</th>
+                <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="How many times this page appeared in any user's result set in the window.">Impressions</th>
+                @if (showDistinct)
+                {
+                    <th scope="col" class="govuk-table__header govuk-table__header--numeric" title="Number of distinct searches that surfaced this page. Should equal Impressions; a lower value would indicate a duplicate result-row regression.">Distinct searches</th>
+                }
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row" data-filter-key="@row.ResultKey">
+                    <td class="govuk-table__cell">
+                        @if (LooksLikeUrl(row.ResultKey))
+                        {
+                            <a class="govuk-link" href="@row.ResultKey"
+                               target="_blank" rel="noopener noreferrer">@row.ResultKey</a>
+                        }
+                        else
+                        {
+                            @row.ResultKey
+                        }
+                    </td>
+                    <td class="govuk-table__cell govuk-table__cell--numeric">@row.ImpressionCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    @if (showDistinct)
+                    {
+                        <td class="govuk-table__cell govuk-table__cell--numeric">@row.UniqueQueryCount.ToString("N0", CultureInfo.CurrentCulture)</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}
+
+@section Scripts {
+    <script src="~/js/search-analytics.js" asp-append-version="true"></script>
+}

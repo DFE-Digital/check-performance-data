@@ -34,6 +34,39 @@ public sealed class SettingService(ISettingRepository repository) : ISettingServ
             : int.Parse(Require(key).DefaultValue);
     }
 
+    public async Task<double> GetDoubleAsync(string key)
+    {
+        var raw = await GetValueAsync(key);
+        // InvariantCulture on the parse + the fallback so a "0.10" stored on one host
+        // reads identically on a comma-decimal locale. GetValueAsync already resolves
+        // the code-declared default when nothing is stored, so raw is never null.
+        return double.TryParse(raw,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed)
+            ? parsed
+            : double.Parse(Require(key).DefaultValue,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public async Task<bool> GetBoolAsync(string key)
+    {
+        var definition = Require(key);
+        var stored = await repository.GetValueAsync(key);
+        // Unset / blank stored value falls straight back to the code-declared default so a
+        // freshly provisioned environment behaves the same as one with the value cleared.
+        // For non-blank stored values, bool.TryParse handles case-insensitive true/false;
+        // anything else is treated as garbage and also falls back to the default rather
+        // than being silently coerced to false.
+        if (string.IsNullOrWhiteSpace(stored))
+            return bool.Parse(definition.DefaultValue);
+
+        return bool.TryParse(stored, out var parsed)
+            ? parsed
+            : bool.Parse(definition.DefaultValue);
+    }
+
     public async Task SaveAsync(string key, string? value)
     {
         _ = Require(key); // reject unknown keys before touching the store

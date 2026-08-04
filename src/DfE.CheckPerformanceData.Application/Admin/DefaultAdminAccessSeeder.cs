@@ -12,8 +12,9 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
 
     // Every section reachable from the admin left-nav. Kept in sync with AdminNavKeys — anything
     // added there that should be grantable also needs to appear here so the settings page has a
-    // row for it. Container-only groups (cms-admin, system-admin, rules-engine-group) are omitted
-    // because access to a group is implied by access to any of its children.
+    // row for it. Container-only groups (cms-admin, system-admin, rules-engine-group, messages-group)
+    // are omitted because access to a group is implied by access to any of its children — with one
+    // exception noted below.
     public static readonly IReadOnlyList<string> AllSections = new[]
     {
         "dashboard",
@@ -39,6 +40,16 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
         "uncommitted-requests",
         "reset-seed-data",
         "share-admin",
+        "search-analytics",
+        "messages-inbox",
+        // Exception to the "container-only groups are omitted" rule above. The Test data
+        // sub-group's controller uses this key as its [RequireAdminSection] gate so a single
+        // admin grant covers every seeder page in the group. Without it a fresh-DB admin
+        // would 404 on the group landing / seed-sample-search-data page.
+        "test-data-group",
+        // Own-key grant for the search-data seed tile so FilterByAccess (which checks each
+        // tile's own Key when it has a Url) shows the tile in the sidebar for admins.
+        "seed-sample-search-data",
     };
 
     public async Task SeedIfEmptyAsync()

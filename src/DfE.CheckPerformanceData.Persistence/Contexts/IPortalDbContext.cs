@@ -29,6 +29,9 @@ public interface IPortalDbContext
     DbSet<AdminSectionAccess> AdminSectionAccesses { get; }
     DbSet<AppLog> AppLogs { get; }
     DbSet<OrganisationLogin> OrganisationLogins { get; }
+    DbSet<SearchEvent> SearchEvents { get; }
+    DbSet<SearchEventResult> SearchEventResults { get; }
+    DbSet<SearchMessage> SearchMessages { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task ExecuteInTransactionAsync(Func<Task> work, CancellationToken cancellationToken = default);

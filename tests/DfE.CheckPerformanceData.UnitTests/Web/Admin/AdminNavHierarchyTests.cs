@@ -4,17 +4,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Admin;
 
-// Pins the Phase 3.15 deep (3-4 level) admin nav IA under System administration:
+// Pins the deep (3-4 level) admin nav IA under System administration:
 //   Rules Engine
 //     Pipeline dashboard
 //       Debug Pipelines        (dev-gated)
 //     Queues
 //       Rules Engine Queue
 //       Zendesk Queue
-//       Dead Letter Queue
 //     Rules Engine configuration
 //   System settings
-// Also guards removal of the Visual regression dashboard tile.
+// The Dead-letter queue tile now sits under the top-level Messages group alongside the
+// Search-feedback inbox, not under Queues. Also guards removal of the Visual regression
+// dashboard tile.
 public sealed class AdminNavHierarchyTests
 {
     private static IReadOnlyList<IAdminNavEntry> ResolveEntries()
@@ -115,10 +116,10 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal("/admin/queues", queues.Url);
     }
 
-    // --- Three_Queue_Children_Sit_Under_Queues ---
+    // --- Two_Queue_Children_Sit_Under_Queues ---
 
     [Fact]
-    public void Three_Queue_Children_Sit_Under_Queues()
+    public void Two_Queue_Children_Sit_Under_Queues()
     {
         var entries = ResolveEntries();
 
@@ -127,7 +128,9 @@ public sealed class AdminNavHierarchyTests
             .OrderBy(e => e.Order)
             .ToList();
 
-        Assert.Equal(3, queueChildren.Count);
+        // Queues holds just the two working queues now; the dead-letter queue moved to the
+        // top-level Messages group so its count consolidates with the search-feedback inbox.
+        Assert.Equal(2, queueChildren.Count);
 
         Assert.Equal(AdminNavKeys.RulesEngineQueue, queueChildren[0].Key);
         Assert.Equal("Rules Engine Queue", queueChildren[0].Title);
@@ -136,10 +139,6 @@ public sealed class AdminNavHierarchyTests
         Assert.Equal(AdminNavKeys.ZendeskQueue, queueChildren[1].Key);
         Assert.Equal("Zendesk Queue", queueChildren[1].Title);
         Assert.Equal("/admin/queues/list/zendesk", queueChildren[1].Url);
-
-        Assert.Equal(AdminNavKeys.DeadLetterQueue, queueChildren[2].Key);
-        Assert.Equal("Dead Letter Queue", queueChildren[2].Title);
-        Assert.Equal("/admin/queues/dlq", queueChildren[2].Url);
     }
 
     // --- RulesConfig_Is_RulesEngineGroup_Child ---
@@ -163,6 +162,44 @@ public sealed class AdminNavHierarchyTests
 
         Assert.Equal(AdminNavKeys.SystemAdmin, settings.ParentKey);
         Assert.Equal("/admin/settings", settings.Url);
+    }
+
+    // --- TestDataGroup_Is_SystemAdmin_Child ---
+
+    [Fact]
+    public void TestDataGroup_Is_SystemAdmin_Child()
+    {
+        var group = Single("test-data-group");
+
+        Assert.Equal(AdminNavKeys.SystemAdmin, group.ParentKey);
+        Assert.Equal("Test data", group.Title);
+        Assert.Equal(string.Empty, group.Url);
+        Assert.True(group.Enabled);
+    }
+
+    // --- SeedSampleTiles_Sit_Under_TestDataGroup ---
+
+    [Fact]
+    public void SeedSampleTiles_Sit_Under_TestDataGroup()
+    {
+        var entries = ResolveEntries();
+
+        var children = entries
+            .Where(e => e.ParentKey == "test-data-group")
+            .OrderBy(e => e.Order)
+            .ToList();
+
+        Assert.Equal(2, children.Count);
+
+        // Order 10: the renamed CMS-pages seeder.
+        Assert.Equal("seed-sample-pages", children[0].Key);
+        Assert.Equal("Seed sample CMS pages", children[0].Title);
+        Assert.Equal("/admin/pages/sample-seed", children[0].Url);
+
+        // Order 20: the new search-data seeder.
+        Assert.Equal("seed-sample-search-data", children[1].Key);
+        Assert.Equal("Seed sample search data", children[1].Title);
+        Assert.Equal("/admin/test-data/sample-search-data", children[1].Url);
     }
 
     // --- VisualRegression_Entry_Is_Removed ---

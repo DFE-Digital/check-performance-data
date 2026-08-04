@@ -64,7 +64,11 @@
       body.append(input.name, input.value);
     });
     var headers = { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' };
-    if (token) headers['RequestVerificationToken'] = token;
+    // Program.cs configures Antiforgery.HeaderName = 'X-XSRF-TOKEN'; the framework's default
+    // 'RequestVerificationToken' name silently 400s every POST that reaches the pipeline via
+    // fetch. Match the configured header name so the AJAX path actually reaches the server
+    // and the .catch() form-submit fallback isn't the load-bearing route.
+    if (token) headers['X-XSRF-TOKEN'] = token;
 
     fetch(form.action, {
       method: (form.method || 'post').toUpperCase(),

@@ -1,0 +1,341 @@
+/* Search-analytics admin dashboard styles. GDS palette only — no new colour, font or spacing
+   tokens. Raw px is used only inside the bespoke chart / tile constructs (GDS has no component
+   for these); spacing around them stays on the GDS scale via govuk-!-* classes in the markup. */
+
+/* --- Tiles ---------------------------------------------------------------- */
+
+/* Mirrors .obs-tile from observability.css. Bottom-margin between tile rows uses the
+   16px bespoke off-scale value (declared in the UI spec spacing scale) — sits between
+   GDS -3 (15px) and -4 (20px).
+   Overrides the govuk-grid-column-one-quarter width the child columns carry so a 16px
+   gap between four tiles doesn't push the last tile onto its own row on a wide viewport
+   (four 25% widths + three 16px gaps overflows the 100% row). */
+.sa-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.sa-tiles > .govuk-grid-column-one-quarter {
+    flex: 1 1 200px;
+    min-width: 200px;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+    width: auto;
+}
+
+.sa-tile {
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-bottom: 4px solid #b1b4b6;
+    padding: 16px;
+    min-width: 200px;
+    height: 100%;
+    box-sizing: border-box;
+    /* When rendered as <button> (interactive tile switcher) we override the browser button
+       styles so the tile looks identical to the pre-interactive markup. */
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.sa-tile:focus {
+    outline: 3px solid #ffdd00;
+    outline-offset: 0;
+}
+
+/* Active tile: darker border + light-blue background so the swap is visible at a glance
+   without relying on colour alone. aria-pressed=true is set by the JS; the class mirror
+   is what CSS reads. Both are applied together — tests can assert either. */
+.sa-tile--active,
+.sa-tile[aria-pressed="true"] {
+    border-bottom-color: #1d70b8;
+    background: #f2f6fa;
+    box-shadow: inset 0 0 0 1px #1d70b8;
+}
+
+.sa-tile__value {
+    margin-bottom: 4px;
+}
+
+.sa-tile__label {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* --- Chart panel ---------------------------------------------------------- */
+
+.sa-chart-panel {
+    border: 1px solid #f3f2f1;
+    padding: 16px;
+    margin-top: 24px;
+    margin-bottom: 24px;
+}
+
+.sa-chart {
+    width: 100%;
+    height: auto;
+    background: #ffffff;
+}
+
+/* Chart legend sits above the SVG. Series glyphs are shape + colour, not colour alone:
+   a blue rect for Y1 and a green circle for Y2 (matches the SVG markers). */
+.sa-chart__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+}
+
+.sa-chart__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sa-chart__legend-glyph--square {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #1d70b8;
+}
+
+.sa-chart__legend-glyph--circle {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #00703c;
+    border-radius: 50%;
+}
+
+/* Legend-line variants for the latency chart's three-line legend (p50 solid, p95 dashed,
+   p5 dotted). Kept short + wide so the dash / dot pattern is legible in the swatch. */
+.sa-chart__legend-line--solid {
+    display: inline-block;
+    width: 24px;
+    height: 3px;
+    background: #1d70b8;
+}
+
+.sa-chart__legend-line--dashed {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top: 3px dashed #d4351c;
+}
+
+.sa-chart__legend-line--dotted {
+    display: inline-block;
+    width: 24px;
+    height: 0;
+    border-top: 3px dotted #505a5f;
+}
+
+/* Chart-panel visibility. Only used by the JS tile switcher — server never hides a panel
+   on load so the no-JS path shows every chart stacked. */
+.sa-chart-panel--hidden {
+    display: none;
+}
+
+/* --- Filter form + drill-in text-filter ---------------------------------- */
+
+.sa-filters {
+    padding: 16px 0;
+    margin-bottom: 24px;
+}
+
+/* Filter input above a drill-in table. The JS filter hides <tr[data-filter-key]> rows
+   whose key does not include the input value. Server rendering shows all rows by default. */
+.sa-filter-input {
+    max-width: 20em;
+    margin-bottom: 8px;
+}
+
+/* --- Tile tooltip cue --------------------------------------------------- */
+
+/* Give tiles a subtle "hover me" cursor so the tooltip is discoverable. */
+.sa-tile[title] {
+    cursor: help;
+}
+
+/* --- Summary card housing top-queries + top-zero-results tables --------- */
+
+/* The dashboard's stacked cards use the standard govuk-summary-card component; the
+   only override is small vertical padding so the caption sits closer to the table. */
+.sa-summary-card .govuk-table {
+    margin-bottom: 0;
+}
+
+/* --- Chart axis text ---------------------------------------------------- */
+
+/* Both axis-tick labels and axis-title labels render as native <text>. They inherit
+   the SVG's font stack so they match the surrounding body copy without extra CSS. */
+.sa-chart__axis-tick,
+.sa-chart__axis-title {
+    font-family: "GDS Transport", arial, sans-serif;
+}
+
+/* --- Anomaly chip beneath each stat tile ---------------------------------- */
+
+/* Small tag rendered under a tile's big number when the current window differs by more
+   than +/- 10% from the same-length prior window. Colours: green for a favourable
+   direction (searches up / users up / zero-rate down / p95 down), red for unfavourable,
+   grey when the delta is neutral. Sits inline so it slots into the tile without
+   pushing the label down. */
+.sa-anomaly-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "GDS Transport", arial, sans-serif;
+    line-height: 1.3;
+    border-radius: 3px;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.sa-anomaly-chip--favourable {
+    background: #cce2d8;
+    color: #005a30;
+}
+
+.sa-anomaly-chip--unfavourable {
+    background: #f6d7d2;
+    color: #942514;
+}
+
+.sa-anomaly-chip--neutral {
+    background: #eeeeee;
+    color: #383f43;
+}
+
+/* Hint text (replaces the chip when the prior window falls outside retention). */
+.sa-anomaly-hint {
+    display: inline-block;
+    margin-top: 4px;
+    color: #505a5f;
+    font-style: italic;
+}
+
+/* --- Weekday x hour heatmap card ---------------------------------------- */
+
+.sa-heatmap-card .sa-heatmap {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 8px;
+}
+
+.sa-heatmap__cell {
+    stroke: #ffffff;
+    stroke-width: 0.5;
+    transition: stroke 0.15s ease-in-out;
+}
+
+.sa-heatmap__cell:hover {
+    stroke: #0b0c0c;
+    stroke-width: 1.5;
+    cursor: help;
+}
+
+/* --- Zero-result outcome funnel card ------------------------------------ */
+
+.sa-funnel-card .sa-funnel {
+    margin-top: 8px;
+}
+
+.sa-funnel__subtitle {
+    color: #505a5f;
+}
+
+.sa-funnel__tile {
+    background: #ffffff;
+    border: 1px solid #f3f2f1;
+    border-bottom: 4px solid #b1b4b6;
+    padding: 16px;
+    height: 100%;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.sa-funnel__tile--refined {
+    border-bottom-color: #00703c; /* green - the good outcome */
+}
+
+.sa-funnel__tile--feedback {
+    border-bottom-color: #1d70b8; /* blue - an actionable outcome */
+}
+
+.sa-funnel__tile--silent {
+    border-bottom-color: #b1b4b6; /* neutral grey - inconclusive */
+}
+
+.sa-funnel__value {
+    margin-bottom: 4px;
+}
+
+.sa-funnel__label {
+    margin-bottom: 4px;
+    color: #0b0c0c;
+    font-weight: 600;
+}
+
+.sa-funnel__pct {
+    margin-bottom: 0;
+    color: #505a5f;
+}
+
+/* --- Scatter chart under the latency tile ------------------------------- */
+
+.sa-chart--scatter {
+    display: block;
+}
+
+.sa-chart__sample-hint {
+    color: #505a5f;
+    margin-top: 4px;
+}
+
+/* --- Hover crosshair + tooltip ------------------------------------------ */
+
+.sa-chart[data-sa-crosshair="true"] {
+    cursor: crosshair;
+}
+
+.sa-chart__crosshair-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #0b0c0c;
+    color: #ffffff;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-family: "GDS Transport", arial, sans-serif;
+    border-radius: 2px;
+    z-index: 10000;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    /* Honour newlines set via textContent so multi-line tooltips (e.g. the
+       latency-percentiles chart listing p5/p50/p95) render as separate rows
+       instead of collapsing onto one visual line. */
+    white-space: pre-line;
+    white-space: nowrap;
+}
+
+/* --- Aggregate-to-typical-week toggle ----------------------------------- */
+
+.sa-aggregate-toggle {
+    margin-bottom: 12px;
+}
+
+.sa-aggregate-toggle__form {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}

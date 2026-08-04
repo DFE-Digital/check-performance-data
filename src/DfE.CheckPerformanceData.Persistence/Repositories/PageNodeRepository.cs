@@ -11,6 +11,7 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
     public Task<List<PageNodeTreeItemDto>> GetTreeAsync() =>
         context.PageNodes
             .AsNoTracking()
+            .Where(n => n.DeletedDate == null)
             .OrderBy(n => n.ParentId)
             .ThenBy(n => n.SortOrder)
             .ThenBy(n => n.CreatedDate)
@@ -50,7 +51,36 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
             .Select(n => new PublishedPageInfoDto(n.Path, n.Title))
             .FirstOrDefaultAsync();
 
-    public Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
+    public async Task<List<PageSearchHitRaw>> SearchPagesAsync(string term, string? scopePath, int max)
+    {
+        var primary = await SearchPagesOnceAsync(term, scopePath, max);
+
+        // Zero-result hyphen fallback: if the primary websearch_to_tsquery run returned no
+        // KEPT rows and the term contains a hyphen (and isn't operator-only), retry once
+        // with hyphens replaced by spaces. Mirrors the SiteSearchService.SearchAsync fallback
+        // so direct repository callers get the same URL-slug matching (websearch_to_tsquery
+        // on a hyphenated slug emits a compound-lexeme phrase clause that misses the
+        // per-word tsvector; the space-normalised retry catches those). Zero cost when the
+        // primary already matched; exempts operator-bearing inputs so an explicit -negation
+        // or "phrase" isn't second-guessed.
+        var hasKept = false;
+        for (int i = 0; i < primary.Count; i++)
+        {
+            if (primary[i].ExcludedBy is null) { hasKept = true; break; }
+        }
+
+        if (!hasKept
+            && !string.IsNullOrEmpty(term)
+            && term.Contains('-')
+            && !SearchTermNormalizer.ContainsWebSearchOperator(term))
+        {
+            return await SearchPagesOnceAsync(term.Replace('-', ' '), scopePath, max);
+        }
+
+        return primary;
+    }
+
+    private Task<List<PageSearchHitRaw>> SearchPagesOnceAsync(string term, string? scopePath, int max)
     {
         // Full-text ranked search across two vectors — PageNode.SearchVector (Keywords A, Title
         // B, Subtitle C) and PageNodeVersion.SearchVector (BodyPlainText D). A row matches if
@@ -68,16 +98,28 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
         // Whitespace between plain words is turned into OR so "merge booga" doesn't hit zero
         // when "booga" isn't in the corpus. Queries that already use websearch operators
         // (OR / "phrase" / -negation) are passed through untouched.
+        //
+        // The widened projection surfaces every tsquery-matching row — kept rows carry
+        // ExcludedBy = null, dropped rows carry a slug identifying which silent filter
+        // discarded them. Four per-field ts_rank columns (Keywords / Title / Subtitle / Body)
+        // ride alongside the combined RankTotal so downstream telemetry can answer "why
+        // did this rank above that". Filter WHERE clauses that used to hide rows —
+        // AppearInSearch = false pages and pages without a live version — become CASE
+        // branches; structural filters (DeletedDate, PageType != "folder", scope path)
+        // stay as WHERE clauses. Two subqueries with independent Take values (max for
+        // kept, max * 3 for excluded) UNION-ALL together so a high-exclusion corpus
+        // can't starve exclusion visibility. Note RankBody / BodyPlainText are absent on
+        // draft-excluded rows because the excluded reason is precisely the missing live
+        // version — the projection substitutes null / empty-string so downstream code
+        // never NREs.
         var normalisedTerm = SearchTermNormalizer.OrJoinWhitespace(term);
         var scopePrefix = string.IsNullOrEmpty(scopePath) ? null : scopePath + "/";
 
-        var query = context.PageNodes
+        var widened = context.PageNodes
             .AsNoTracking()
             .Where(n => n.DeletedDate == null)
             // Folder pages are containers only — nothing to render, nothing to link to.
             .Where(n => n.PageType != "folder")
-            // Editors can hide a page from search while leaving it published — respect that here.
-            .Where(n => n.AppearInSearch)
             .Where(n => scopePath == null || n.Path == scopePath || n.Path.StartsWith(scopePrefix!))
             .Select(n => new
             {
@@ -87,21 +129,48 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                     .Select(v => new { v.BodyPlainText, v.SearchVector })
                     .FirstOrDefault()
             })
-            // A draft-only page has no IsCurrent version — skip it so unpublished drafts stay
-            // out of public results.
-            .Where(x => x.Live != null)
+            // Only rows the tsquery actually matched — the CASE tags kept-vs-excluded WITHIN
+            // that set. Live is null-guarded so draft-only pages that match on the Node
+            // vector still surface (tagged draft-page below).
             .Where(x =>
                 x.Node.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
-                || x.Live!.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)))
+                || (x.Live != null
+                    && x.Live.SearchVector.Matches(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))))
             .Select(x => new
             {
                 x.Node,
                 x.Live,
-                Rank =
-                    x.Node.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
-                    + x.Live!.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
-            })
-            .OrderByDescending(x => x.Rank)
+                // RankTotal — sum of the two vectors when Live exists, Node vector alone for
+                // draft-page rows. The draft branch only fires for excluded rows, so kept-row
+                // ordering is unchanged.
+                RankTotal = x.Live != null
+                    ? x.Node.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+                      + x.Live.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+                    : x.Node.SearchVector.Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)),
+                // Per-field ranks — additive projections; do not feed ORDER BY. Every call
+                // site inlines EF.Functions.WebSearchToTsQuery (its config arg is
+                // [NotParameterized]; hoisting throws at translation time).
+                RankKeywords = (float?)EF.Functions.ToTsVector("english", x.Node.Keywords ?? string.Empty)
+                    .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)),
+                RankTitle = (float?)EF.Functions.ToTsVector("english", x.Node.Title)
+                    .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)),
+                RankSubtitle = (float?)EF.Functions.ToTsVector("english", x.Node.Subtitle ?? string.Empty)
+                    .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm)),
+                RankBody = x.Live != null
+                    ? (float?)EF.Functions.ToTsVector("english", x.Live.BodyPlainText)
+                        .Rank(EF.Functions.WebSearchToTsQuery("english", normalisedTerm))
+                    : null,
+                // Chained ternary translates to CASE WHEN. WHERE precedence: AppearInSearch
+                // checked first, then Live != null.
+                ExcludedBy = !x.Node.AppearInSearch
+                    ? "pagenode-appearinsearch-false"
+                    : (x.Live == null ? "draft-page" : (string?)null),
+            });
+
+        // Kept rows LIMITed at the user-facing count with the shipped ORDER BY.
+        var keptQuery = widened
+            .Where(x => x.ExcludedBy == null)
+            .OrderByDescending(x => x.RankTotal)
             .ThenBy(x => x.Node.Path)  // stable tie-break
             .Take(max)
             .Select(x => new PageSearchHitRaw
@@ -111,10 +180,43 @@ public sealed class PageNodeRepository(IPortalDbContext context) : IPageNodeRepo
                 Title = x.Node.Title,
                 Subtitle = x.Node.Subtitle,
                 BodyPlainText = x.Live!.BodyPlainText,
-                Rank = x.Rank,
+                Rank = x.RankTotal,
+                RankKeywords = x.RankKeywords,
+                RankTitle = x.RankTitle,
+                RankSubtitle = x.RankSubtitle,
+                RankBody = x.RankBody,
+                ExcludedBy = x.ExcludedBy,
             });
 
-        return query.ToListAsync();
+        // Excluded rows soft-capped at max * 3 — visibility for telemetry without a runaway
+        // scan when a corpus has thousands of hidden-from-search rows. Same ORDER BY as
+        // the kept subquery so the top-ranked exclusions surface first (most diagnostically
+        // interesting: rows that came close to being a hit) and the subset is deterministic
+        // between runs.
+        var excludedQuery = widened
+            .Where(x => x.ExcludedBy != null)
+            .OrderByDescending(x => x.RankTotal)
+            .ThenBy(x => x.Node.Path)
+            .Take(max * 3)
+            .Select(x => new PageSearchHitRaw
+            {
+                PageId = x.Node.Id,
+                Path = x.Node.Path,
+                Title = x.Node.Title,
+                Subtitle = x.Node.Subtitle,
+                BodyPlainText = x.Live != null ? x.Live.BodyPlainText : string.Empty,
+                Rank = x.RankTotal,
+                RankKeywords = x.RankKeywords,
+                RankTitle = x.RankTitle,
+                RankSubtitle = x.RankSubtitle,
+                RankBody = x.RankBody,
+                ExcludedBy = x.ExcludedBy,
+            });
+
+        // LINQ Concat translates to SQL UNION ALL — kept rows first (up to max), then the
+        // excluded rows (up to max * 3). Downstream consumers filter ExcludedBy != null out
+        // of user-facing surfaces and into telemetry.
+        return keptQuery.Concat(excludedQuery).ToListAsync();
     }
 
     public Task<PageNodeDto?> GetByIdAsync(Guid id) =>

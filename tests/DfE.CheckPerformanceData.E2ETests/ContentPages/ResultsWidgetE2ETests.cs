@@ -144,48 +144,40 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
 
     // ============================================================
     // 2. Pagination component appears + navigating changes the URL and result set.
-    // Seeds 9 PageNodes with a unique token in their titles + shrinks CMS:PageLength to 3
-    // so the search hits fill exactly 3 pages regardless of what content the deployed
-    // env already carries (review-app corpora can be much smaller than local dev).
+    // Seeds 25 PageNodes with a unique token in their titles so 25 hits at the shared
+    // 20-per-page default fill exactly two pages, regardless of what content the deployed
+    // env already carries. The shared page-size resolver clamps to [10, 50] so no
+    // CMS:PageLength override is needed — the default keeps us well inside the window.
     // ============================================================
     [Fact]
     public async Task PaginationAppearsAndNavigates_ForMultiPageTerm()
     {
         var (_, url, _) = await SeedResultsPageAsync();
-        var searchToken = await SeedSearchableFixturesAsync(count: 9);
+        var searchToken = await SeedSearchableFixturesAsync(count: 25);
 
-        try
-        {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "3");
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
 
-            await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
+        // Pagination is present at all — the __list is only rendered when TotalPages > 1.
+        await Expect(Page.Locator(".govuk-pagination__list")).ToBeVisibleAsync();
 
-            // Pagination is present at all — the __list is only rendered when TotalPages > 1.
-            await Expect(Page.Locator(".govuk-pagination__list")).ToBeVisibleAsync();
+        // Snapshot the first-page items' titles so we can compare against page 2.
+        var page1Titles = await Page.Locator(".cypmd-search-results ul.govuk-list > li h3 a")
+            .AllInnerTextsAsync();
+        Assert.NotEmpty(page1Titles);
 
-            // Snapshot the first-page items' titles so we can compare against page 2.
-            var page1Titles = await Page.Locator(".cypmd-search-results ul.govuk-list > li h3 a")
-                .AllInnerTextsAsync();
-            Assert.NotEmpty(page1Titles);
+        // Click the numbered "2" item (its href carries page=2).
+        await Page.Locator(".govuk-pagination__link[href*='page=2']").First.ClickAsync();
+        await Page.WaitForURLAsync($"**{url}?**page=2**");
 
-            // Click the numbered "2" item (its href carries page=2).
-            await Page.Locator(".govuk-pagination__link[href*='page=2']").First.ClickAsync();
-            await Page.WaitForURLAsync($"**{url}?**page=2**");
+        var page2Titles = await Page.Locator(".cypmd-search-results ul.govuk-list > li h3 a")
+            .AllInnerTextsAsync();
+        Assert.NotEmpty(page2Titles);
 
-            var page2Titles = await Page.Locator(".cypmd-search-results ul.govuk-list > li h3 a")
-                .AllInnerTextsAsync();
-            Assert.NotEmpty(page2Titles);
+        // Page 2 must not be identical to page 1 (otherwise the pager didn't page).
+        Assert.NotEqual(page1Titles, page2Titles);
 
-            // Page 2 must not be identical to page 1 (otherwise the pager didn't page).
-            Assert.NotEqual(page1Titles, page2Titles);
-
-            // Previous appears on page 2 — back-nav is available.
-            await Expect(Page.Locator(".govuk-pagination__prev a")).ToBeVisibleAsync();
-        }
-        finally
-        {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "20");
-        }
+        // Previous appears on page 2 — back-nav is available.
+        await Expect(Page.Locator(".govuk-pagination__prev a")).ToBeVisibleAsync();
     }
 
     // ============================================================
@@ -206,38 +198,45 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
         await Expect(Page.Locator(".cypmd-search-results"))
             .ToContainTextAsync("Enter at least 2 characters.");
 
-        // Nonsense q that produces no matches → widget emptyText (default).
-        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q=zzzzzz-no-such-term");
+        // Nonsense q that produces no matches → widget emptyText (default). Deliberately
+        // hyphen-free so the shared hyphen-fallback path can't widen the query into
+        // whitespace-separated stopwords and re-hit actual content.
+        await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q=zzzzzznosuchtermxyzzy");
         await Expect(Page.Locator(".cypmd-search-results"))
             .ToContainTextAsync("No results found.");
     }
 
     // ============================================================
     // 4. CMS:PageLength setting drives the effective page size.
+    // The admin setting is trusted — small values like 5 are honoured verbatim, and a
+    // value above the URL-override ceiling still rides through. Walks between the
+    // default (20) and a below-URL-clamp value (5) to prove both branches.
     // ============================================================
     [Fact]
     public async Task SettingChange_AdjustsResultsPerPage()
     {
         var (_, url, _) = await SeedResultsPageAsync();
-        // Seed exactly 10 fixtures so the assertion below can pin the exact page count:
-        //   pageSize=10 → 1 page (0 pagination page-links).
-        //   pageSize=2  → 5 pages (max page link = 5).
-        var searchToken = await SeedSearchableFixturesAsync(count: 10);
+        // Seed 25 fixtures so both branches show pagination and both page counts
+        // are pinnable:
+        //   pageSize=20 → 2 pages, 20 items on page 1.
+        //   pageSize=5  → 5 pages, 5 items on page 1 (max page link >= 5).
+        var searchToken = await SeedSearchableFixturesAsync(count: 25);
 
-        // Baseline at pageSize=10: the fixture set fits in a single page.
         try
         {
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "10");
+            // Baseline at pageSize=20 (the shared default).
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "20");
             await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
             var baselineItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
-            Assert.Equal(10, baselineItems);
+            Assert.Equal(20, baselineItems);
 
-            // Shrink to 2 — 10 hits => exactly 5 pages.
-            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "2");
+            // Shrink to 5 — the admin setting is trusted below the URL-override floor;
+            // 25 hits => 5 pages of 5.
+            await CmsSeedHelpers.SetAdminSettingAsync(Fixture, "CMS:PageLength", "5");
 
             await Page.GotoAsync($"{Fixture.BaseUrl}{url}?q={searchToken}");
             var newItems = await Page.Locator(".cypmd-search-results ul.govuk-list > li").CountAsync();
-            Assert.Equal(2, newItems);
+            Assert.Equal(5, newItems);
 
             // The pagination must now reference more pages than at baseline. Read the
             // highest page number referenced in a pagination link href — a direct read of
@@ -248,7 +247,7 @@ public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPa
                     return m ? parseInt(m[1], 10) : 0;
                 }))");
             Assert.True(maxPageOnLinks >= 5,
-                $"Expected pagination to reference >= page 5 with pageSize=2, got max page={maxPageOnLinks}.");
+                $"Expected pagination to reference >= page 5 with pageSize=5, got max page={maxPageOnLinks}.");
         }
         finally
         {

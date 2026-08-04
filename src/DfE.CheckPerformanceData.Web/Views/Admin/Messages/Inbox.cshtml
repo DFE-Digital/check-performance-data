@@ -1,0 +1,125 @@
+@using System.Globalization
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.MessagesInboxViewModel
+@{
+    ViewData["Title"] = "Search feedback";
+    var firstRow = Model.TotalCount == 0 ? 0 : ((Model.Page - 1) * Model.PageSize) + 1;
+    var lastRow = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+
+    string SortLink(string field)
+    {
+        // Toggle direction only when the caller is re-clicking the currently-sorted
+        // column; a fresh column always starts with the sort direction the field
+        // reads best in (submittedAt → newest-first, isRead → unread-first).
+        var toggledDir = Model.Sort == field
+            ? (Model.Dir == "asc" ? "desc" : "asc")
+            : (field == "isRead" ? "asc" : "desc");
+        var qs = $"?sort={Uri.EscapeDataString(field)}&dir={Uri.EscapeDataString(toggledDir)}";
+        if (!string.IsNullOrEmpty(Model.Filter))
+        {
+            qs += "&filter=" + Uri.EscapeDataString(Model.Filter);
+        }
+        return "/admin/Messages/Inbox" + qs;
+    }
+
+    string PageLink(int p)
+    {
+        var qs = $"?sort={Uri.EscapeDataString(Model.Sort)}&dir={Uri.EscapeDataString(Model.Dir)}&page={p}";
+        if (!string.IsNullOrEmpty(Model.Filter))
+        {
+            qs += "&filter=" + Uri.EscapeDataString(Model.Filter);
+        }
+        return "/admin/Messages/Inbox" + qs;
+    }
+
+    string SortMarker(string field) =>
+        Model.Sort == field ? (Model.Dir == "asc" ? " ↑" : " ↓") : string.Empty;
+
+    static string Short(string sessionId) =>
+        sessionId.Length <= 8 ? sessionId : sessionId.Substring(0, 8) + "…";
+}
+
+<h1 class="govuk-heading-xl">Search feedback</h1>
+
+<p class="govuk-body">
+    Feedback submitted from the site's search results. Mark a message read for the team
+    once you have opened it, or drill in to see the session's search history.
+</p>
+
+<form method="get" action="/admin/Messages/Inbox" class="govuk-!-margin-bottom-4">
+    <div class="govuk-form-group">
+        <label class="govuk-label" for="messages-filter">Filter by first-line preview</label>
+        <div class="govuk-hint">Matches anywhere in the message body — case-insensitive.</div>
+        <input class="govuk-input govuk-input--width-30" id="messages-filter" name="filter"
+               type="search" value="@Model.Filter" autocomplete="off" />
+    </div>
+    <input type="hidden" name="sort" value="@Model.Sort" />
+    <input type="hidden" name="dir" value="@Model.Dir" />
+    <button class="govuk-button govuk-button--secondary" data-module="govuk-button" type="submit">Apply filter</button>
+    <a class="govuk-link govuk-!-margin-left-2" href="/admin/Messages/Inbox">Reset</a>
+</form>
+
+@if (Model.TotalCount == 0)
+{
+    <p class="govuk-body">No messages match the current filter.</p>
+}
+else
+{
+    <p class="govuk-body-s govuk-hint">
+        Showing @firstRow to @lastRow of @Model.TotalCount message@(Model.TotalCount == 1 ? "" : "s").
+    </p>
+
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header" title="When the message was submitted (UTC). Click to sort by newest / oldest first.">
+                    <a class="govuk-link" href="@SortLink("submittedAt")">Submitted@(SortMarker("submittedAt"))</a>
+                </th>
+                <th scope="col" class="govuk-table__header" title="The opaque browser session ID linking the message to its author's search history. Hover to see the full ID.">Session</th>
+                <th scope="col" class="govuk-table__header" title="Whether the author provided an email address so admins can reply.">Email</th>
+                <th scope="col" class="govuk-table__header" title="Read / unread flag. Click to group unread first (or read first on the next click).">
+                    <a class="govuk-link" href="@SortLink("isRead")">Read@(SortMarker("isRead"))</a>
+                </th>
+                <th scope="col" class="govuk-table__header" title="First line of the message body. Click through for the full message plus the author's recent search history.">Preview</th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            @foreach (var row in Model.Rows)
+            {
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">
+                        @row.SubmittedAtUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                    </td>
+                    <td class="govuk-table__cell">
+                        <abbr title="@row.SessionId">@Short(row.SessionId)</abbr>
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (row.HasEmail)
+                        {
+                            <span class="govuk-tag">Email</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        @if (row.IsRead)
+                        {
+                            <span class="govuk-tag govuk-tag--grey">Read</span>
+                        }
+                        else
+                        {
+                            <span class="govuk-tag govuk-tag--blue">New</span>
+                        }
+                    </td>
+                    <td class="govuk-table__cell">
+                        <a class="govuk-link" href="/admin/Messages/Inbox/@row.Id">@row.FirstLinePreview</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @await Component.InvokeAsync("Pager", new
+    {
+        currentPage = Model.Page,
+        totalPages = Model.TotalPages,
+        urlBuilder = (Func<int, string>)PageLink,
+    })
+}

@@ -1,0 +1,121 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h1 class="govuk-heading-xl">Dashboard</h1>
+<p class="govuk-body">Overview of schools and their amendment requests.</p>
+
+@if (!Model.HasOpenWindows)
+{
+    <div class="govuk-inset-text">
+        There are no open checking windows. Metrics are shown while a checking window is open.
+    </div>
+}
+else
+{
+    <form method="get" action="/admin/dashboard">
+        <div class="govuk-form-group">
+            <label class="govuk-label" for="windowId">Checking window</label>
+            <select class="govuk-select" id="windowId" name="windowId">
+                @foreach (var window in Model.OpenWindows)
+                {
+                    <option value="@window.Id" selected="@(window.Id == Model.SelectedWindowId)">@window.Title</option>
+                }
+            </select>
+            <button type="submit" class="govuk-button govuk-button--secondary govuk-!-margin-left-2 govuk-!-margin-bottom-0" data-module="govuk-button">
+                View
+            </button>
+        </div>
+    </form>
+
+    @if (Model.Metrics is { } metrics)
+    {
+        <p class="govuk-body-s govuk-!-margin-bottom-2" data-next-refresh-ms="@Model.NextRefreshInMs.ToString("F0")">
+            Last refreshed at @metrics.RefreshedAtUtc.ToString("HH:mm") UTC on @metrics.RefreshedAtUtc.ToString("d MMMM yyyy").
+            <span data-auto-refresh-status role="status">Figures refresh every @Model.RefreshMinutes minutes.</span>
+        </p>
+
+        @* WCAG 2.2 SC 2.2.2: the page auto-reloads, so users must be able to stop it. Hidden
+           until the script has actually scheduled a reload — without JS nothing auto-updates
+           and the control would be a dead end. *@
+        <button type="button" class="govuk-button govuk-button--secondary govuk-!-margin-bottom-6"
+                data-stop-auto-refresh hidden>
+            Stop automatic refresh
+        </button>
+
+        <h2 class="govuk-heading-m">School engagement</h2>
+        <div class="dash-tiles">
+            <div class="dash-tile">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.EligibleSchools</p>
+                <p class="govuk-body-s dash-tile__label">Eligible schools</p>
+            </div>
+            <div class="dash-tile dash-tile--success">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.LoggedIn</p>
+                <p class="govuk-body-s dash-tile__label">Logged in</p>
+            </div>
+            <div class="dash-tile dash-tile--warning">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.NotLoggedIn</p>
+                <p class="govuk-body-s dash-tile__label">Not logged in</p>
+            </div>
+            <div class="dash-tile dash-tile--success">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.SchoolsSubmitted</p>
+                <p class="govuk-body-s dash-tile__label">Submitted amendments</p>
+            </div>
+            <div class="dash-tile dash-tile--warning">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.LoggedInNotSubmitted</p>
+                <p class="govuk-body-s dash-tile__label">Logged in (not submitted)</p>
+            </div>
+        </div>
+
+        <h2 class="govuk-heading-m">Amendment requests</h2>
+        <div class="dash-tiles">
+            <div class="dash-tile">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.TotalRequests</p>
+                <p class="govuk-body-s dash-tile__label">Total individual pupil amendment requests</p>
+            </div>
+            <div class="dash-tile dash-tile--success">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.AutoApproved</p>
+                <p class="govuk-body-s dash-tile__label">Auto-approved</p>
+            </div>
+            <div class="dash-tile dash-tile--error">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.AutoRejected</p>
+                <p class="govuk-body-s dash-tile__label">Auto-rejected</p>
+            </div>
+            <div class="dash-tile dash-tile--info">
+                <p class="govuk-heading-xl dash-tile__value">@metrics.RequiringScrutiny</p>
+                <p class="govuk-body-s dash-tile__label">Requests requiring scrutiny</p>
+            </div>
+        </div>
+    }
+}
+
+@section Scripts {
+    <script>
+        // Progressive enhancement: reload once the cached figures are due to refresh.
+        // Without JS the page still works — users refresh manually.
+        (function () {
+            var caption = document.querySelector('[data-next-refresh-ms]');
+            if (!caption) { return; }
+            var ms = parseInt(caption.getAttribute('data-next-refresh-ms'), 10);
+            if (isNaN(ms) || ms <= 0) { return; }
+
+            // 5s of slack so the cache entry has definitely expired when we reload.
+            var timer = window.setTimeout(function () { window.location.reload(); }, ms + 5000);
+
+            // The reload is auto-updating content, so offer a way to stop it (WCAG 2.2 SC 2.2.2).
+            var stopButton = document.querySelector('[data-stop-auto-refresh]');
+            if (!stopButton) { return; }
+            var status = document.querySelector('[data-auto-refresh-status]');
+            stopButton.hidden = false;
+            stopButton.addEventListener('click', function () {
+                window.clearTimeout(timer);
+                stopButton.hidden = true;
+                if (status) {
+                    status.textContent =
+                        'Automatic refresh is off. Reload the page to see newer figures.';
+                }
+            });
+        })();
+    </script>
+}

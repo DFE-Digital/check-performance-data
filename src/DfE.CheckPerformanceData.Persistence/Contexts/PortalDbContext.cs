@@ -31,6 +31,7 @@ public sealed class PortalDbContext(
     public DbSet<PageNodeVersion> PageNodeVersions => Set<PageNodeVersion>();
     public DbSet<AdminSectionAccess> AdminSectionAccesses => Set<AdminSectionAccess>();
     public DbSet<AppLog> AppLogs => Set<AppLog>();
+    public DbSet<OrganisationLogin> OrganisationLogins => Set<OrganisationLogin>();
     public DbSet<SearchEvent> SearchEvents => Set<SearchEvent>();
     public DbSet<SearchEventResult> SearchEventResults => Set<SearchEventResult>();
     public DbSet<SearchMessage> SearchMessages => Set<SearchMessage>();
@@ -55,6 +56,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new PageNodeVersionConfiguration());
         modelBuilder.ApplyConfiguration(new AdminSectionAccessConfiguration());
         modelBuilder.ApplyConfiguration(new AppLogConfiguration());
+        modelBuilder.ApplyConfiguration(new OrganisationLoginConfiguration());
         modelBuilder.ApplyConfiguration(new SearchEventConfiguration());
         modelBuilder.ApplyConfiguration(new SearchEventResultConfiguration());
         modelBuilder.ApplyConfiguration(new SearchMessageConfiguration());
@@ -113,6 +115,11 @@ public sealed class PortalDbContext(
             // Feedback messages ARE audited — they represent a deliberate user action.
             if (entry.Entity is SearchEvent) continue;
             if (entry.Entity is SearchEventResult) continue;
+            // Organisation logins are the same shape of high-volume telemetry: every school
+            // sign-in appends one, so auditing them would double the write volume of each
+            // login and keep a second copy of organisation data in audit_entries, which has
+            // no retention purge.
+            if (entry.Entity is OrganisationLogin) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var audit = new AuditEntry

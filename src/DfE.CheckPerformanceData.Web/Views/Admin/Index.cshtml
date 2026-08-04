@@ -24,16 +24,33 @@
 
 @foreach (var group in Model.Roots)
 {
+    @* Most top-level entries are pure containers (empty Url) that exist only to head their
+       child tiles. One that carries a Url is a page in its own right, so its heading has to
+       be a link — otherwise the section is a dead end on the landing page. *@
+    var groupIsNavigable = group.Entry.Enabled && !string.IsNullOrEmpty(group.Entry.Url);
+
     <section class="admin-nav-group govuk-!-margin-bottom-8"
              aria-labelledby="@($"group-{group.Entry.Key}")">
-        <h2 id="@($"group-{group.Entry.Key}")" class="govuk-heading-l">@group.Entry.Title</h2>
+        <h2 id="@($"group-{group.Entry.Key}")" class="govuk-heading-l">
+            @if (groupIsNavigable)
+            {
+                <a class="govuk-link" href="@group.Entry.Url">@group.Entry.Title</a>
+            }
+            else
+            {
+                @group.Entry.Title
+            }
+        </h2>
         <p class="govuk-body">@group.Entry.Description</p>
 
-        <ul class="govuk-list admin-nav-list">
-            @foreach (var child in group.Children)
-            {
-                @await Html.PartialAsync("_AdminLandingTile", new AdminLandingNodePartialModel(child, 3))
-            }
-        </ul>
+        @if (group.Children.Count > 0)
+        {
+            <ul class="govuk-list admin-nav-list">
+                @foreach (var child in group.Children)
+                {
+                    @await Html.PartialAsync("_AdminLandingTile", new AdminLandingNodePartialModel(child, 3))
+                }
+            </ul>
+        }
     </section>
 }

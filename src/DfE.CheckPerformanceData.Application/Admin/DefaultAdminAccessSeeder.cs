@@ -17,6 +17,7 @@ public sealed class DefaultAdminAccessSeeder(IAdminSectionAccessRepository repos
     // exception noted below.
     public static readonly IReadOnlyList<string> AllSections = new[]
     {
+        "dashboard",
         "content-pages",
         "content-blocks",
         "deleted-pages",

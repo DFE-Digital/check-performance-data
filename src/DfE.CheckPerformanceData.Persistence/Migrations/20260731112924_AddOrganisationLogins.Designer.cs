@@ -3,6 +3,7 @@ using System;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using NpgsqlTypes;
@@ -12,9 +13,11 @@ using NpgsqlTypes;
 namespace DfE.CheckPerformanceData.Persistence.Migrations
 {
     [DbContext(typeof(PortalDbContext))]
-    partial class PortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731112924_AddOrganisationLogins")]
+    partial class AddOrganisationLogins
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -131,225 +134,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasDatabaseName("ix_queue_metrics_events_reference");
 
                     b.ToTable("queue_metrics_events", (string)null);
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEvent", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<bool>("IsSeeded")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_seeded");
-
-                    b.Property<string>("JobId")
-                        .HasColumnType("text")
-                        .HasColumnName("job_id");
-
-                    b.Property<int>("LatencyMs")
-                        .HasColumnType("integer")
-                        .HasColumnName("latency_ms");
-
-                    b.Property<DateTime>("OccurredAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at_utc");
-
-                    b.Property<string>("QueryNormalised")
-                        .HasColumnType("text")
-                        .HasColumnName("query_normalised");
-
-                    b.Property<string>("QueryRaw")
-                        .HasColumnType("text")
-                        .HasColumnName("query_raw");
-
-                    b.Property<int>("ResultsBlocks")
-                        .HasColumnType("integer")
-                        .HasColumnName("results_blocks");
-
-                    b.Property<int>("ResultsPages")
-                        .HasColumnType("integer")
-                        .HasColumnName("results_pages");
-
-                    b.Property<int>("ResultsTotal")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("integer")
-                        .HasColumnName("results_total")
-                        .HasComputedColumnSql("results_pages + results_blocks", true);
-
-                    b.Property<string>("Scope")
-                        .HasColumnType("text")
-                        .HasColumnName("scope");
-
-                    b.Property<string>("SessionId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("session_id");
-
-                    b.Property<bool>("ZeroResults")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("boolean")
-                        .HasColumnName("zero_results")
-                        .HasComputedColumnSql("(results_pages + results_blocks) = 0", true);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JobId")
-                        .HasDatabaseName("ix_search_events_job_id")
-                        .HasFilter("job_id IS NOT NULL");
-
-                    b.HasIndex("OccurredAtUtc")
-                        .HasDatabaseName("ix_search_events_occurred_at");
-
-                    b.HasIndex("QueryNormalised")
-                        .HasDatabaseName("ix_search_events_query_normalised");
-
-                    b.HasIndex("SessionId")
-                        .HasDatabaseName("ix_search_events_session_id");
-
-                    b.HasIndex("OccurredAtUtc", "QueryNormalised")
-                        .HasDatabaseName("ix_search_events_occurred_at_query_normalised")
-                        .HasFilter("query_normalised IS NOT NULL");
-
-                    b.HasIndex("OccurredAtUtc", "SessionId")
-                        .HasDatabaseName("ix_search_events_occurred_at_session_id");
-
-                    b.HasIndex("ZeroResults", "OccurredAtUtc")
-                        .HasDatabaseName("ix_search_events_zero_results_occurred_at")
-                        .HasFilter("zero_results = true");
-
-                    b.ToTable("search_events", (string)null);
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEventResult", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<bool>("IsSeeded")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_seeded");
-
-                    b.Property<string>("JobId")
-                        .HasColumnType("text")
-                        .HasColumnName("job_id");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("integer")
-                        .HasColumnName("position");
-
-                    b.Property<float>("Rank")
-                        .HasColumnType("real")
-                        .HasColumnName("rank");
-
-                    b.Property<string>("ResultKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("result_key");
-
-                    b.Property<string>("ResultKind")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("result_kind");
-
-                    b.Property<long>("SearchEventId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("search_event_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("JobId")
-                        .HasDatabaseName("ix_search_event_results_job_id")
-                        .HasFilter("job_id IS NOT NULL");
-
-                    b.HasIndex("SearchEventId")
-                        .HasDatabaseName("ix_search_event_results_search_event_id");
-
-                    b.ToTable("search_event_results", (string)null);
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchMessage", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Email")
-                        .HasColumnType("text")
-                        .HasColumnName("email");
-
-                    b.Property<bool>("IsRead")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_read");
-
-                    b.Property<bool>("IsSeeded")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_seeded");
-
-                    b.Property<string>("JobId")
-                        .HasColumnType("text")
-                        .HasColumnName("job_id");
-
-                    b.Property<DateTime?>("ReadAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("read_at_utc");
-
-                    b.Property<string>("ReadByAdminSub")
-                        .HasColumnType("text")
-                        .HasColumnName("read_by_admin_sub");
-
-                    b.Property<string>("SessionId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("session_id");
-
-                    b.Property<DateTime>("SubmittedAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at_utc");
-
-                    b.Property<string>("WhatGot")
-                        .HasColumnType("text")
-                        .HasColumnName("what_got");
-
-                    b.Property<string>("WhatLookingFor")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("what_looking_for");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsRead")
-                        .HasDatabaseName("ix_search_messages_is_read");
-
-                    b.HasIndex("JobId")
-                        .HasDatabaseName("ix_search_messages_job_id")
-                        .HasFilter("job_id IS NOT NULL");
-
-                    b.HasIndex("SessionId")
-                        .HasDatabaseName("ix_search_messages_session_id");
-
-                    b.HasIndex("SubmittedAtUtc")
-                        .HasDatabaseName("ix_search_messages_submitted_at");
-
-                    b.ToTable("search_messages", (string)null);
                 });
 
             modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.ShareToken", b =>
@@ -970,6 +754,11 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.Property<long>("OrganisationUrn")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("LoggedInAtUtc");
@@ -1227,15 +1016,6 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("Settings");
-                });
-
-            modelBuilder.Entity("DfE.CheckPerformance.Persistence.Entities.SearchEventResult", b =>
-                {
-                    b.HasOne("DfE.CheckPerformance.Persistence.Entities.SearchEvent", null)
-                        .WithMany()
-                        .HasForeignKey("SearchEventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.ChangeRequest", b =>

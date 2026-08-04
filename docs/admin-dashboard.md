@@ -33,6 +33,13 @@ failure can never block sign-in. Rows are append-only; the dashboard deduplicate
 time. Logins recorded before the feature shipped obviously do not exist, so "Logged in"
 undercounts for windows that opened before deployment.
 
+Window boundaries are compared as UTC: window start/end dates are stored without a
+timezone (window admins enter wall-clock times) and the login query treats them as UTC,
+matching how the deployed service — whose pods run UTC — evaluates window opening
+elsewhere. During British Summer Time the boundary is therefore one hour later than UK
+wall-clock. A service-wide decision on window timezone handling is out of this feature's
+scope.
+
 ## Refresh behaviour
 
 Figures are computed on demand and cached per window for `Dashboard:RefreshMinutes`
@@ -40,7 +47,9 @@ Figures are computed on demand and cached per window for `Dashboard:RefreshMinut
 `IMemoryCache` and fail the page). The page shows the computation time and reloads itself
 via a small progressive-enhancement script once the cache is due to expire; without
 JavaScript the figures simply refresh on the next manual reload after expiry. The cache is
-per pod, so with two replicas the two pods may refresh at slightly different moments.
+per pod, so with two replicas the two pods may refresh at slightly different moments — two
+admins (or one admin whose auto-refresh lands on the other pod) can briefly see different
+figures and "Last refreshed" times. Accepted for a metrics view.
 
 Because the reload is auto-updating content, a "Stop automatic refresh" button cancels it
 (WCAG 2.2 SC 2.2.2). The button only appears once the script has scheduled a reload, so it

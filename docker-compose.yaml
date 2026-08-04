@@ -76,6 +76,8 @@ services:
       - ZendeskSettings__Domain=${ZendeskSettings_Domain}
       - ZendeskSettings__Email=${ZendeskSettings_Email}
       - ZendeskSettings__ApiToken=${ZendeskSettings_ApiToken}
+      - ZendeskSettings__ClientId=${ZendeskSettings_ClientId}
+      - ZendeskSettings__ClientSecret=${ZendeskSettings_ClientSecret}
       - SchoolCheckingExercise__TargetViewTitle=${SchoolCheckingExercise_TargetViewTitle}
       - SchoolCheckingExercise__GroupId=${SchoolCheckingExercise_GroupId}
       - SchoolCheckingExercise__BrandId=${SchoolCheckingExercise_BrandId}

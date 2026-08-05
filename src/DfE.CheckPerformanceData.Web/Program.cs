@@ -18,7 +18,6 @@ using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
@@ -71,13 +70,13 @@ try
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction())
-        .AddCpdSearchTelemetry();
+        .AddCpdSearchTelemetry()
+        .AddCpdNotifications()
+        .AddCpdAppLogSink(configuration);
 
     // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
     // the admin Danger zone "Reset seed data" action.
     builder.Services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
-
-    builder.Services.AddScoped<IEmailLinkGenerator, DfE.CheckPerformanceData.Web.Notify.EmailLinkGenerator>();
 
     // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
     // it and the real DfE cookie scheme based on which cookie is present. Registered
@@ -125,38 +124,6 @@ try
 
         builder.Services.AddScoped<IClaimsTransformation, DevImpersonationClaimsTransformer>();
     }
-
-    builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
-
-    // Email sending is fire-and-forget: the request thread enqueues onto an in-process channel
-    // (ChannelNotificationDispatcher, a singleton shared with the background worker) and returns;
-    // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
-    // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
-    builder.Services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
-    builder.Services.AddSingleton<INotificationDispatcher>(sp =>
-        sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
-    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
-
-    // Postgres log sink. The provider is additive: Serilog / console keep working. Options
-    // bind from AppLogSink:{MinLevel,BatchSize,FlushInterval,…}; sensible defaults apply if
-    // the section is missing.
-    var logSinkOptions = new DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions();
-    builder.Configuration.GetSection(DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions.SectionName)
-        .Bind(logSinkOptions);
-    builder.Services.AddSingleton(logSinkOptions);
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.AppLogChannel>();
-    // Singleton because DatabaseLoggerProvider is a singleton. Under the hood it reads
-    // IHttpContextAccessor.HttpContext (backed by AsyncLocal) so per-request path / user
-    // / correlation resolve correctly. Background-service logs (no request in flight)
-    // simply get nulls.
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext,
-        DfE.CheckPerformanceData.Web.Logging.HttpLogRequestContext>();
-    // The provider is a singleton that resolves the shared channel + options from DI. Registering
-    // it as ILoggerProvider hooks it into the ambient logger factory alongside console/Serilog.
-    builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider,
-        DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
-    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Logging.DatabaseLogWriter>();
 
     builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
     builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();

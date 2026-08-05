@@ -1,4 +1,3 @@
-using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
@@ -8,19 +7,15 @@ using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
-using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
-using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Serilog;
 using Serilog.Formatting.Compact;
 using DfE.CheckPerformanceData.Web.Startup;
@@ -61,47 +56,12 @@ try
         .AddCpdNotifications()
         .AddCpdAppLogSink(configuration)
         .AddCpdQueue(configuration)
-        .AddCpdJourneyAndCmsServices();
+        .AddCpdJourneyAndCmsServices()
+        .AddCpdBlobStorage(configuration);
 
     builder.AddCpdDevImpersonation();
 
     builder.AddCpdDataProtection();
-
-    builder.Services.AddSingleton(_ =>
-        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
-
-    builder.Services.AddSingleton<IReadOnlyDictionary<string, BlobServiceClient>>(_ =>
-    {
-        var clients = new Dictionary<string, BlobServiceClient>();
-        var appConn = builder.Configuration.GetConnectionString("AzureStorage");
-        if (!string.IsNullOrEmpty(appConn))
-            clients["app"] = new BlobServiceClient(appConn);
-        var ingressConn = builder.Configuration.GetConnectionString("IngressStorage");
-        if (!string.IsNullOrEmpty(ingressConn))
-            clients["ingress"] = new BlobServiceClient(ingressConn);
-        return clients;
-    });
-    builder.Services.Configure<DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions>(
-        builder.Configuration.GetSection(
-            DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions.SectionName));
-    builder.Services.TryAddSingleton(TimeProvider.System);
-    builder.Services.AddScoped<
-        DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
-        DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
-    // Lets the dev-data seeding orchestrator self-seed the rules-config blobs in dev/E2E. In
-    // deployed environments the rules-engine worker seeds them; that worker isn't part of the
-    // local web stack, so without this the admin rules editor 404s on a fresh environment.
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Infrastructure.RulesEngine.RulesConfigSeeder>();
-    // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
-    //if (builder.Environment.IsDevelopment())
-        builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
-    // else
-    //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
-    //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
-    builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
-    builder.Services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
-    builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
-    builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
     builder.AddCpdSessionStore();
 

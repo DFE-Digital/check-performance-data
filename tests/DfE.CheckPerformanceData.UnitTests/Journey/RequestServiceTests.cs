@@ -491,6 +491,38 @@ public class RequestServiceTests
         Assert.Equal("Remove", captured.RequestTypeDescription);
     }
 
+    // AmendmentType is the typed counterpart of the RequestTypeDescription prefix — it must be
+    // carried from the journey rather than parsed back out of the display copy.
+    [Theory]
+    [InlineData(WhatToChange.Remove)]
+    [InlineData(WhatToChange.Include)]
+    [InlineData(WhatToChange.Merge)]
+    public async Task SaveDraftAsync_SetsAmendmentTypeFromSelectedWhatToChange(WhatToChange whatToChange)
+    {
+        var journey = ValidJourney();
+        journey.SelectedWhatToChange = whatToChange;
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.SaveDraftAsync(WindowId, journey, RequestStatus.InProgress);
+
+        Assert.Equal(whatToChange, captured!.AmendmentType);
+    }
+
+    // A ConfirmCorrect declaration is not an amendment, so it must leave the column null
+    // rather than defaulting to the first enum member.
+    [Fact]
+    public async Task ConfirmDataCorrectAsync_LeavesAmendmentTypeNull()
+    {
+        ChangeRequestData? captured = null;
+        _requestRepository.UpsertAsync(Arg.Do<ChangeRequestData>(d => captured = d));
+
+        await _sut.ConfirmDataCorrectAsync(WindowId, "CYPMD_KS4June_ABC1234", DateTime.UtcNow.AddDays(20));
+
+        Assert.Equal(RequestType.ConfirmCorrect, captured!.RequestType);
+        Assert.Null(captured.AmendmentType);
+    }
+
     [Theory]
     [InlineData(RequestStatus.InProgress)]
     [InlineData(RequestStatus.ReadyToSubmit)]

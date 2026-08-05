@@ -221,7 +221,8 @@ public sealed class RequestService(
             SubmittedByEmail = currentUserService.Email,
             Status = status,
             RequestType = RequestType.Amendment,
-            RequestTypeDescription = BuildRequestTypeDescription(journey, config)
+            RequestTypeDescription = BuildRequestTypeDescription(journey, config),
+            AmendmentType = journey.SelectedWhatToChange
         };
 
     private RequestDocument BuildRequestDocument(JourneySubmissionContext context, QuestionFlowConfig config, Guid changeRequestId)

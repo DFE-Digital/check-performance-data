@@ -1,15 +1,9 @@
 using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Middleware;
 using DfE.CheckPerformanceData.Persistence;
-using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
-using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Web.Seeding;
 using GovUk.Frontend.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -36,8 +30,6 @@ try
 
     builder.AddCpdCoreWeb();
 
-    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
-
     builder.Services
         .AddCpdSettings(configuration)
         .AddDfeApiClient(builder.Configuration)
@@ -63,21 +55,7 @@ try
 
     var app = builder.Build();
 
-    await app.MigrateDatabaseAsync();
-
-    using (var scope = app.Services.CreateScope())
-    {
-        // Countries back the country autocomplete and must exist in every environment,
-        // including Production. Seeded idempotently and content-aware: a no-op when the table
-        // already matches the embedded seed data, a full reseed when the CSV/entries change.
-        // Safe to run unconditionally on every startup, unlike the dev-only data seeding below.
-        await SeedCountries.ExecuteSeed(scope.ServiceProvider.GetRequiredService<IPortalDbContext>());
-
-        await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
-        await scope.ServiceProvider
-            .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
-            .SeedIfEmptyAsync();
-    }
+    await app.RunCpdStartupTasksAsync();
 
     app.UseForwardedHeaders();
 
@@ -102,12 +80,6 @@ try
         app.UseExceptionHandler("/Home/Error");
         // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
         app.UseHsts();
-    }
-
-    if (seedData)
-    {
-        using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();
     }
 
     app.UseHttpsRedirection();

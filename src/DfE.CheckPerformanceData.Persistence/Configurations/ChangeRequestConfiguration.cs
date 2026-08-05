@@ -59,6 +59,10 @@ internal sealed class ChangeRequestConfiguration : IEntityTypeConfiguration<Chan
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(x => x.AmendmentType)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         builder.Property(x => x.Outcome)
             .HasConversion<string>()
             .HasMaxLength(20);

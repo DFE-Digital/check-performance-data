@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;

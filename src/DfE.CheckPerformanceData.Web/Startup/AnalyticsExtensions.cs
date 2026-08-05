@@ -1,6 +1,5 @@
 using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
-using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Web.Analytics;
 

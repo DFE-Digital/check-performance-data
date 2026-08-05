@@ -1,6 +1,4 @@
 using Azure.Storage.Blobs;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;

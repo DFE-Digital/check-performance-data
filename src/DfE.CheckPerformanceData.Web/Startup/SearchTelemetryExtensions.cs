@@ -1,4 +1,3 @@
-using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Web.Analytics;
 

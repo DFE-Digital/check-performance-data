@@ -30,7 +30,14 @@ public sealed class QuestionPartialModel
     public IReadOnlyList<FileAnswer> UploadedFiles => ExistingAnswer?.FileValues ?? [];
     public int TotalPages => UploadedFiles.Sum(f => f.PageCount);
     public bool AtLimit => MaxEvidencePages > 0 && TotalPages >= MaxEvidencePages;
-    public string DescribedBy => UploadError is not null || Error is not null ? "fileUpload-hint fileUpload-error" : "fileUpload-hint";
+    // Only reference ids that _FileUpload.cshtml actually renders. Naming a missing element
+    // in aria-describedby leaves a dangling reference that resolves to nothing, so a question
+    // with no hint would silently announce no description at all.
+    public string DescribedBy => string.Join(" ", new[]
+    {
+        Question.Hint is not null ? "fileUpload-hint" : null,
+        UploadError is not null || Error is not null ? "fileUpload-error" : null
+    }.Where(id => id is not null));
     public IReadOnlyList<FileUploadRow> UploadedFileRows => UploadedFiles.Select(f => new FileUploadRow(f)).ToList();
 }
 

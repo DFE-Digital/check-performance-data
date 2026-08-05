@@ -88,3 +88,9 @@ ZendeskTicketFields__CorrectionReason31Id: 0
 ZendeskTicketFields__AdmissionDateId: 0
  
 ZendeskTicketFields__ForenameCypmdId: 0
+ 
+ZendeskTicketFields__DciRefCypmdId: 0
+ 
+ZendeskTicketFields__AgeCypmdId: 0
+ 
+ZendeskTicketFields__DecisionReasonApprovedId: 0

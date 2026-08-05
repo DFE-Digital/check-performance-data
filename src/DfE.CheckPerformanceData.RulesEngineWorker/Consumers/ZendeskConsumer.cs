@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Azure.Storage.Blobs;
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Observability;
 using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -257,6 +258,14 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         AddDecisionCustomFields(dto, decision);
         MapPupilFields(dto, message);
+        AddRequestFields(dto, message);
+        AddCycleFields(dto, message);
+        MapKeyStageField(dto, message);
+        AddCorrectionFields(dto, message);
+        MapLdsMatchedPupilIdField(dto, message);
+        MapDfeEstablishmentNumberField(dto, message);
+        MapAdmissionDateField(dto, message);
+        AddDecisionReasonField(dto, decision);
         return dto;
     }
 
@@ -399,6 +408,275 @@ public sealed class ZendeskConsumer : ConsumerBase
                     Id = sexId.Value,
                     Value = sexValue,
                 });
+            }
+        }
+    }
+
+    // FR-002 / FR-003: DCI Ref (CYPMD) from the request reference number; Age (CYPMD) from
+    // the pupil's age. Omitted when the field ID is unset (FR-014).
+    private void AddRequestFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        var dciRefId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DciRefCypmdName);
+        if (dciRefId.HasValue && !string.IsNullOrEmpty(message.ReferenceNumber))
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = dciRefId.Value,
+                Value = message.ReferenceNumber,
+            });
+        }
+
+        var ageId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AgeCypmdName);
+        if (ageId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = ageId.Value,
+                Value = message.Pupil.Age.ToString(CultureInfo.InvariantCulture),
+            });
+        }
+    }
+
+    // FR-004 / FR-005: cycle year and month from the submission instant.
+    private void AddCycleFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        var cycleYearId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName);
+        if (cycleYearId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = cycleYearId.Value,
+                Value = message.SubmittedAt.Year.ToString(CultureInfo.InvariantCulture),
+            });
+        }
+
+        var cycleMonthId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName);
+        if (cycleMonthId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = cycleMonthId.Value,
+                Value = message.SubmittedAt.Month.ToString(CultureInfo.InvariantCulture),
+            });
+        }
+    }
+
+    // FR-006: key stage from the checking window type via the field's option map. Omitted
+    // when no option exists for the window (e.g. KS4/Post16 until confirmed) — FR-014.
+    private void MapKeyStageField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var keyStageId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.KeyStageName);
+        if (keyStageId.HasValue && !string.IsNullOrEmpty(message.CheckingWindowType))
+        {
+            var keyStageValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, message.CheckingWindowType);
+            if (!string.IsNullOrEmpty(keyStageValue))
+            {
+                dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = keyStageId.Value,
+                    Value = keyStageValue,
+                });
+            }
+            else
+            {
+                _logger.LogWarning("No key stage option for checking window type '{WindowType}', skipping field.", message.CheckingWindowType);
+            }
+        }
+    }
+
+    // FR-009 / FR-010 / FR-011: correction type (31_ for Remove requests), correction reason
+    // (via the removal-reason map) and reason for removal. Omitted for non-Remove requests and
+    // when a removal reason maps to no correction code (logged for review, FR-014 edge case).
+    private void AddCorrectionFields(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        // Only Remove requests carry correction type/reason and reason for removal this phase.
+        if (!message.RequestTypeCode.StartsWith("Remove", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+
+        var correctionTypeId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName);
+        if (correctionTypeId.HasValue)
+        {
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = correctionTypeId.Value,
+                Value = ZendeskTicketFieldOptions.CorrectionType.Correction31,
+            });
+        }
+
+        // The removal reason is the RequestTypeCode suffix after "Remove - ", e.g. "pupil-died".
+        var removalReason = message.RequestTypeCode.Length > "Remove".Length
+            ? message.RequestTypeCode["Remove".Length..].TrimStart('-', ' ')
+            : string.Empty;
+
+        if (string.IsNullOrEmpty(removalReason))
+        {
+            return;
+        }
+
+        var correctionReasonId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name);
+        if (correctionReasonId.HasValue)
+        {
+            var correctionReasonValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason);
+            if (!string.IsNullOrEmpty(correctionReasonValue))
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = correctionReasonId.Value,
+                    Value = correctionReasonValue,
+                });
+            }
+            else
+            {
+                _logger.LogWarning("No correction reason (31) code for removal reason '{RemovalReason}', skipping field.", removalReason);
+            }
+        }
+
+        var reasonForRemovalId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName);
+        if (reasonForRemovalId.HasValue)
+        {
+            var reasonForRemovalValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+            if (!string.IsNullOrEmpty(reasonForRemovalValue))
+            {
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = reasonForRemovalId.Value,
+                    Value = reasonForRemovalValue,
+                });
+            }
+            else
+            {
+                _logger.LogWarning("No reason for removal option for removal reason '{RemovalReason}', skipping field.", removalReason);
+            }
+        }
+    }
+
+    // FR-007: LDS matched pupil ID from the matched record, falling back to the submitted
+    // pupil. 0 = not supplied, so the field is omitted (FR-014).
+    private void MapLdsMatchedPupilIdField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
+        var matchRef = (message.MatchedPupil ?? message.Pupil).MatchRef;
+        if (fieldId.HasValue && matchRef > 0)
+        {
+            dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = fieldId.Value,
+                Value = matchRef.ToString(CultureInfo.InvariantCulture),
+            });
+        }
+    }
+
+    // FR-008: DfE Establishment Number from the requesting school's LAESTAB. Empty = not
+    // supplied, so the field is omitted (FR-014).
+    private void MapDfeEstablishmentNumberField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
+        if (fieldId.HasValue && !string.IsNullOrEmpty(message.School.Laestab))
+        {
+            dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
+            {
+                Id = fieldId.Value,
+                Value = message.School.Laestab,
+            });
+        }
+    }
+
+    // FR-012: admission date from the pupil record's ENTRYDAT (the same date the portal shows
+    // as its "Admission date" column). ENTRYDAT is supplier-defined format, normalised to ISO
+    // yyyy-MM-dd. Omitted + logged when absent/unparseable (FR-014).
+    private void MapAdmissionDateField(CreateTicketRequestDto dto, RequestDocument message)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName);
+        if (fieldId.HasValue)
+        {
+            var isoDate = PupilDateFormatter.ToIsoDate(message.Pupil.EntryDate);
+            if (!string.IsNullOrWhiteSpace(isoDate))
+            {
+                dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = fieldId.Value,
+                    Value = isoDate,
+                });
+            }
+            else
+            {
+                _logger.LogWarning("Admission date absent for Reference={Reference}, skipping field.", message.ReferenceNumber);
+            }
+        }
+    }
+
+    // FR-013: Decision Reason - Approved from the rules outcome key via the curated tagger map.
+    // Omitted when the outcome has no mapping (FR-014).
+    private void AddDecisionReasonField(CreateTicketRequestDto dto, Decision decision)
+    {
+        if (_ticketFieldService is null)
+        {
+            return;
+        }
+
+        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName);
+        if (fieldId.HasValue)
+        {
+            var option = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, decision.OutcomeKey);
+            if (!string.IsNullOrEmpty(option))
+            {
+                dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+                dto.Ticket.CustomFields.Add(new CustomFieldDto
+                {
+                    Id = fieldId.Value,
+                    Value = option,
+                });
+            }
+            else
+            {
+                _logger.LogWarning("No Decision Reason - Approved option for outcome '{OutcomeKey}', skipping field.", decision.OutcomeKey);
             }
         }
     }

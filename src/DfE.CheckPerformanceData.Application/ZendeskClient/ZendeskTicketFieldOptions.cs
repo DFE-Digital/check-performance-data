@@ -49,6 +49,7 @@ public static class ZendeskTicketFieldOptions
         public const string Ks1 = "ks1";
         public const string Ks2 = "ks2";
         public const string Ks3 = "ks3";
+        public const string Ks4 = "ks4";
     }
 
     /// <summary>
@@ -65,7 +66,34 @@ public static class ZendeskTicketFieldOptions
     /// </summary>
     public static class ReasonForRemoval
     {
+        public const string Deceased = "deceased";
         public const string TerminalCriticalIllness = "terminal_critical_illness";
+    }
+
+    /// <summary>
+    /// Options for "Correction reason (31)" field (ID: 19058912556690), keyed on the
+    /// removal-reason option value (the suffix of <c>RequestTypeCode</c>, e.g.
+    /// <c>pupil-died</c>). The option VALUE strings are read from the Zendesk field's
+    /// option list — not synthesised (FR-010). <c>4_31</c> is the documented example
+    /// from FR-010 (deceased → code 4).
+    /// </summary>
+    public static class CorrectionReason31
+    {
+        public const string PupilDied = "4_31";
+    }
+
+    /// <summary>
+    /// Options for "Decision Reason - Approved" tagger field (ID: 19056477269010), keyed on
+    /// the rules-engine <c>Decision.OutcomeKey</c>. The option strings are the field's EXACT
+    /// tagger values retrieved from the Zendesk API (FR-013) — they do not follow a single
+    /// concatenation pattern, so they are curated here rather than generated.
+    /// </summary>
+    public static class DecisionReasonApproved
+    {
+        public const string Deceased = "deceased_criteria_met";
+        public const string NotOnRoll = "not_on_roll_apprentice_criteria_met";
+        public const string YearGroupChange = "year_group_changed_to_year_10";
+        public const string TerminalCriticalIllness = "terminal/critical_illness_-_criteria_met";
     }
 
     /// <summary>
@@ -82,6 +110,8 @@ public static class ZendeskTicketFieldOptions
             ZendeskTicketFieldConstants.KeyStageName => KeyStageHelpers.GetOption(optionName),
             ZendeskTicketFieldConstants.SexName => SexHelpers.GetOption(optionName),
             ZendeskTicketFieldConstants.ReasonForRemovalName => ReasonForRemovalHelpers.GetOption(optionName),
+            ZendeskTicketFieldConstants.CorrectionReason31Name => CorrectionReason31Helpers.GetOption(optionName),
+            ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedHelpers.GetOption(optionName),
             _ => null
         };
     }
@@ -137,9 +167,13 @@ public static class ZendeskTicketFieldOptions
             { "ks1", KeyStage.Ks1 },
             { "ks2", KeyStage.Ks2 },
             { "ks3", KeyStage.Ks3 },
+            { "ks4", KeyStage.Ks4 },
+            { "KS4June", KeyStage.Ks4 },
+            { "KS4Autumn", KeyStage.Ks4 },
             { "key stage 1", KeyStage.Ks1 },
             { "key stage 2", KeyStage.Ks2 },
-            { "key stage 3", KeyStage.Ks3 }
+            { "key stage 3", KeyStage.Ks3 },
+            { "key stage 4", KeyStage.Ks4 }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;
@@ -162,8 +196,41 @@ public static class ZendeskTicketFieldOptions
     {
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
+            // Authoritative Zendesk option strings from the field's option list
+            // (spec field table, field ID 19381440546322). The "pupil died" removal
+            // reason maps to option "deceased". The remaining removal-reason options
+            // are not yet confirmed; unmapped reasons are omitted + warning-logged (FR-014).
             { "terminal_critical_illness", ReasonForRemoval.TerminalCriticalIllness },
-            { "terminal critical illness", ReasonForRemoval.TerminalCriticalIllness }
+            { "terminal critical illness", ReasonForRemoval.TerminalCriticalIllness },
+            { "pupil-died", ReasonForRemoval.Deceased },
+            { "pupil died", ReasonForRemoval.Deceased }
+        };
+
+        public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;
+    }
+
+    private static class CorrectionReason31Helpers
+    {
+        private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Documented example from FR-010: deceased -> code 4. The remaining
+            // removal-reason -> correction-code mappings are confirmed with the
+            // Zendesk field option list during implementation (T003); unmapped
+            // removal reasons are omitted + warning-logged (FR-014).
+            { "pupil-died", CorrectionReason31.PupilDied }
+        };
+
+        public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;
+    }
+
+    private static class DecisionReasonApprovedHelpers
+    {
+        private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Deceased", DecisionReasonApproved.Deceased },
+            { "NotOnRoll", DecisionReasonApproved.NotOnRoll },
+            { "YearGroupChange", DecisionReasonApproved.YearGroupChange },
+            { "TerminalCriticalIllness", DecisionReasonApproved.TerminalCriticalIllness }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

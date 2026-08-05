@@ -30,4 +30,21 @@ public static class PupilDateFormatter
             ? date.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
             : raw;
     }
+
+    /// <summary>
+    /// Normalises a supplier pupil date (<c>DOB</c> / <c>ENTRYDAT</c>) to ISO
+    /// <c>yyyy-MM-dd</c> — the form the Zendesk Admission date field expects. Accepts the
+    /// same supplier shapes as <see cref="ToDisplayDate"/>; anything unrecognised is returned
+    /// unchanged so a value we don't recognise is never silently dropped.
+    /// </summary>
+    public static string ToIsoDate(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return raw ?? string.Empty;
+
+        return DateTime.TryParseExact(raw.Trim(), AcceptedFormats, CultureInfo.InvariantCulture,
+                   DateTimeStyles.None, out var date)
+            ? date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : raw;
+    }
 }

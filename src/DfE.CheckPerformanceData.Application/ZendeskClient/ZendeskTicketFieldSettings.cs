@@ -31,6 +31,9 @@ public sealed class ZendeskTicketFieldSettings
     public long? CorrectionReason31Id { get; set; }
     public long? ReasonForRemovalId { get; set; }
     public long? CypmdId { get; set; }
+    public long? DciRefCypmdId { get; set; }
+    public long? AgeCypmdId { get; set; }
+    public long? DecisionReasonApprovedId { get; set; }
 
     /// <summary>
     /// Gets the field ID by field name.
@@ -57,6 +60,9 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.CorrectionReason31Name => CorrectionReason31Id,
             ZendeskTicketFieldConstants.ReasonForRemovalName => ReasonForRemovalId,
             ZendeskTicketFieldConstants.CypmdName => CypmdId,
+            ZendeskTicketFieldConstants.DciRefCypmdName => DciRefCypmdId,
+            ZendeskTicketFieldConstants.AgeCypmdName => AgeCypmdId,
+            ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedId,
             _ => null
         };
     }
@@ -85,7 +91,10 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.SexName, SexId),
             (ZendeskTicketFieldConstants.CorrectionReason31Name, CorrectionReason31Id),
             (ZendeskTicketFieldConstants.ReasonForRemovalName, ReasonForRemovalId),
-            (ZendeskTicketFieldConstants.CypmdName, CypmdId)
+            (ZendeskTicketFieldConstants.CypmdName, CypmdId),
+            (ZendeskTicketFieldConstants.DciRefCypmdName, DciRefCypmdId),
+            (ZendeskTicketFieldConstants.AgeCypmdName, AgeCypmdId),
+            (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId)
         };
     }
 }

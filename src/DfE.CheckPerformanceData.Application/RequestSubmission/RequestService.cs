@@ -258,7 +258,10 @@ public sealed class RequestService(
             School = new SchoolDetails
             {
                 Urn = currentUserService.OrganisationUrn,
-                Name = currentUserService.OrganisationName
+                Name = currentUserService.OrganisationName,
+                Laestab = string.IsNullOrEmpty(pupil.Laestab)
+                    ? currentUserService.OrganisationLaestab
+                    : pupil.Laestab
             },
             Pupil = new PupilDetails
             {
@@ -270,7 +273,9 @@ public sealed class RequestService(
                 Sex = pupil.Sex,
                 Age = pupil.Age,
                 Upn = pupil.Identifier,
-                Pincl = pupil.Pincl
+                Pincl = pupil.Pincl,
+                MatchRef = pupil.MatchRef,
+                EntryDate = pupil.EntryDate
             },
             MatchedPupil = context.MatchedPupil is { } mp ? new PupilDetails
             {
@@ -282,7 +287,9 @@ public sealed class RequestService(
                 Sex = mp.Sex,
                 Age = mp.Age,
                 Upn = mp.Identifier,
-                Pincl = mp.Pincl
+                Pincl = mp.Pincl,
+                MatchRef = mp.MatchRef,
+                EntryDate = mp.EntryDate
             } : null,
             Answers = answers
         };

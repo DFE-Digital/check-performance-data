@@ -100,6 +100,9 @@ public sealed class CheckYourPupilDataRepository(
         Age = p.Age,
         Cypmd_Id = p.Cypmd_Id,
         Identifier = p.Identifier,
-        Pincl = p.Pincl ?? 0
+        Pincl = p.Pincl ?? 0,
+        MatchRef = p.MatchRef,
+        Laestab = p.Laestab,
+        EntryDate = p.EntryDate
     };
 }

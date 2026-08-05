@@ -20,6 +20,13 @@ public interface IPupilRecord
     string Cypmd_Id { get; }
     string Laestab { get; }
 
+    /// <summary>LDS match reference (MATCHREF) from the pupil record. 0 = not supplied.</summary>
+    int MatchRef { get; }
+
+    /// <summary>School admission date (ENTRYDAT) from the pupil record. Raw supplier string;
+    /// empty = not supplied (Post16 supplier files have no ENTRYDAT).</summary>
+    string EntryDate { get; }
+
     /// <summary>UPN for KS4, ULN for Post16. Neither key stage has both.</summary>
     string Identifier { get; }
 

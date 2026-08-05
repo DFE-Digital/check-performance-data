@@ -24,7 +24,6 @@ using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using DfE.CheckPerformanceData.Web.Settings;
 using DfE.CheckPerformanceData.Web.PageTree;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
@@ -35,9 +34,7 @@ using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Newtonsoft.Json.Schema;
 using Serilog;
 using Serilog.Formatting.Compact;
 using DfE.CheckPerformanceData.Web.Startup;
@@ -61,21 +58,12 @@ try
 
     builder.UseCpdSerilog();
 
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-        options.KnownProxies.Clear();
-    });
+    builder.AddCpdCoreWeb();
 
-    builder.Services.AddHttpContextAccessor();
-   
-    builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
-    builder.Services.Configure<ClaritySettings>(builder.Configuration.GetSection("Clarity"));
-    builder.Services.Configure<DfE.CheckPerformanceData.Application.Dashboard.DashboardSettings>(
-        builder.Configuration.GetSection("Dashboard"));
     var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
-    
+
     builder.Services
+        .AddCpdSettings(configuration)
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
@@ -139,15 +127,6 @@ try
     builder.Services.AddSingleton<
         DfE.CheckPerformanceData.Application.Search.ISearchZeroResultsCounter,
         DfE.CheckPerformanceData.Application.Search.SearchZeroResultsCounter>();
-
-    string? newtonsoftLicenseKey = configuration
-        .GetSection("NewtonsoftLicenseKey")
-        .Get<string>() ?? null;
-
-    if (newtonsoftLicenseKey is not null)
-    {
-        License.RegisterLicense(newtonsoftLicenseKey);
-    }
 
     // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
     // the admin Danger zone "Reset seed data" action.
@@ -305,24 +284,6 @@ try
     builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
     builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
-    builder.Services.AddAntiforgery(options =>
-    {
-        options.HeaderName = "X-XSRF-TOKEN";
-    });
-    
-    // Setting to null to allow controller-level request size limits
-    builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
-
-    builder.Services.AddControllersWithViews();
-
-    builder.Services.AddAuthorization(options =>
-    {
-        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .Build();
-    });
-
-    builder.Services.AddMemoryCache();
     // Session must be backed by a store shared across all web replicas. Production runs multiple
     // pods, so the default AddDistributedMemoryCache (per-pod, despite the name) would lose the
     // in-progress journey RequestState whenever a follow-up request load-balances to a different
@@ -338,8 +299,6 @@ try
         options.CreateInfrastructure = true;
     });
     builder.Services.AddCpdSession(builder.Configuration, builder.Environment);
-
-    builder.Services.AddHealthChecks();
 
     // DfE Analytics: stream a web_request event to BigQuery per request when configured.
     // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,

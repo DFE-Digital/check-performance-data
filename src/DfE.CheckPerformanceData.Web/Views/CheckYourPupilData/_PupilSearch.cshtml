@@ -35,7 +35,7 @@
                         clearRouteValues[other.PageParam] = other.Page;
                         clearRouteValues[other.SearchParam] = other.Search;
                     }
-                    <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "CheckYourPupilData", clearRouteValues)">Clear</a>
+                    <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "CheckYourPupilData", clearRouteValues)">Clear</a>
                 }
             </div>
         </div>

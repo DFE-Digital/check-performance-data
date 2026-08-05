@@ -47,7 +47,7 @@
                 }
                 @if (card.CanUpload)
                 {
-                    <a class="govuk-button govuk-button--secondary" data-module="govuk-button"
+                    <a role="button" draggable="false" class="govuk-button govuk-button--secondary" data-module="govuk-button"
                        href="/admin/rules/upload/@historyType">Upload @file</a>
                 }
                 @if (card.HasHistory)

@@ -10,11 +10,6 @@ using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Web.Seeding;
-using DfE.CheckPerformanceData.Web.Analytics;
-using DfE.CheckPerformanceData.Application.Analytics;
-using DfE.CheckPerformanceData.Infrastructure.Analytics;
-using Dfe.Analytics;
-using Dfe.Analytics.AspNetCore;
 using GovUk.Frontend.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -57,38 +52,14 @@ try
         .AddCpdAppLogSink(configuration)
         .AddCpdQueue(configuration)
         .AddCpdJourneyAndCmsServices()
-        .AddCpdBlobStorage(configuration);
+        .AddCpdBlobStorage(configuration)
+        .AddCpdBigQueryAnalytics(configuration);
 
     builder.AddCpdDevImpersonation();
 
     builder.AddCpdDataProtection();
 
     builder.AddCpdSessionStore();
-
-    // DfE Analytics: stream a web_request event to BigQuery per request when configured.
-    // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
-    // review and local boot without GCP. The matching middleware is added below under
-    // the same flag. The RequestFilter (see AnalyticsRequestFilter) keeps health probes,
-    // static assets and scanner/bot noise out of the dataset.
-    var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
-    if (analyticsEnabled)
-    {
-        builder.Services
-            .AddDfeAnalytics()
-            .AddAspNetCoreIntegration(options =>
-                options.RequestFilter = AnalyticsRequestFilter.ShouldTrack);
-
-        builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
-        // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
-        // is sent as its own row, auto-enriched with request + organisation context.
-        builder.Services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
-    }
-    else
-    {
-        // No-op so controllers can always inject IAnalyticsService; dev/review/local
-        // boot without GCP.
-        builder.Services.AddSingleton<IAnalyticsService, NullAnalyticsService>();
-    }
 
     var app = builder.Build();
 
@@ -178,10 +149,7 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
-    // After auth so the event captures the signed-in user's id + organisation claims;
-    // the RequestFilter configured above excludes health probes from the dataset.
-    if (analyticsEnabled)
-        app.UseDfeAnalytics();
+    app.UseCpdBigQueryAnalytics();
 
     // Sits after auth so the diagnostic comment sees the final principal claims;
     // before controllers so it can wrap their response body. The middleware itself

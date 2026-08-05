@@ -1,6 +1,7 @@
 @using System.Security.Claims
 @using DfE.CheckPerformanceData.Application.Settings
 @using DfE.CheckPerformanceData.Web.Authentication
+@using DfE.CheckPerformanceData.Web.Common
 @using DfE.CheckPerformanceData.Web.Controllers
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
@@ -48,6 +49,14 @@
     // DEV/QA/Preproduction never set Dev:ToolsEnabled, so the back door is hidden there.
     var devToolsEnabled = Configuration.GetValue<bool>(SettingKeys.DevToolsEnabled);
     var showImpersonateDropdown = devToolsEnabled && !HostEnvironment.IsProduction() && !showSignOut;
+
+    // "Error: " title prefix on a failed submission (GOV.UK Design System). Done here rather
+    // than per view so no page can forget it. ModelState covers the great majority — the
+    // journey controller adds its validation failures there. A page whose errors live only on
+    // its view model (the Summary conflict banner, for instance) sets ViewData["HasError"].
+    ViewData["Title"] = PageTitle.WithErrorPrefix(
+        ViewData["Title"] as string,
+        !ViewData.ModelState.IsValid || ViewData["HasError"] is true);
 }
 <head>
     @await Html.PartialAsync("_GtmHead")

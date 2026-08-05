@@ -4,6 +4,9 @@
 @{
     ViewBag.Title = "Check your answers";
     Layout = "_Layout";
+    // The duplicate-request conflict is carried on the view model, not ModelState, so the
+    // layout's "Error: " title rule needs telling about it explicitly.
+    ViewData["HasError"] = Model.ConflictError is not null;
 }
 
 @if (Model.FromBulk)

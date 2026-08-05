@@ -1,25 +1,18 @@
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Middleware;
-using DfE.CheckPerformanceData.Web.Services;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Seeding;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Queue;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
-using DfE.CheckPerformanceData.Infrastructure.Queue;
 using DfE.CheckPerformanceData.Web.Seeding;
-using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using DfE.CheckPerformanceData.Web.PageTree;
 using DfE.CheckPerformanceData.Web.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
@@ -66,28 +59,11 @@ try
         .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction())
         .AddCpdSearchTelemetry()
         .AddCpdNotifications()
-        .AddCpdAppLogSink(configuration);
-
-    // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
-    // the admin Danger zone "Reset seed data" action.
-    builder.Services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
+        .AddCpdAppLogSink(configuration)
+        .AddCpdQueue(configuration)
+        .AddCpdJourneyAndCmsServices();
 
     builder.AddCpdDevImpersonation();
-
-    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-    builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
-    builder.Services.AddScoped<IJourneyViewModelBuilder, JourneyViewModelBuilder>();
-
-    builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
-    builder.Services.AddScoped<IQueueService, PostgresQueueService>();
-    builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Services.GuidanceContentCopyService>();
-    builder.Services.AddSingleton<PayloadRedactor>();
-
-    builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();
-    builder.Services.AddScoped<PageNodePathValidator>();
 
     builder.AddCpdDataProtection();
 

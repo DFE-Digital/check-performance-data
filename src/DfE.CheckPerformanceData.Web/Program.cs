@@ -38,7 +38,11 @@ try
         .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
-        .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction())
+        .AddAdminNavEntries(
+            includeDangerZone: !builder.Environment.IsProduction(),
+            // Same whitelist TestDataController enforces, so the tile and the page it links
+            // to appear and disappear together instead of the tile leading to a 404.
+            includeSampleSearchData: builder.Environment.IsSampleDataAdminEnvironment())
         .AddCpdSearchTelemetry()
         .AddCpdNotifications()
         .AddCpdAppLogSink(configuration)

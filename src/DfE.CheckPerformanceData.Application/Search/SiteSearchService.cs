@@ -269,6 +269,22 @@ public sealed class SiteSearchService(
         // In-memory pagination on the canonicalised URL list. TotalCount is the accurate
         // post-canonicalisation count (up to the per-corpus fetch cap); Skip/Take carves
         // the requested page out of that ordered list.
+        //
+        // Over-run is clamped right here rather than by the caller. The list is already
+        // materialised, so the last valid page costs nothing extra — whereas a caller that
+        // notices the over-run can only fix it by calling SearchAsync again, which re-runs
+        // both corpus searches and emits a SECOND telemetry event. That made one user
+        // request record two search rows and double-count itself across the volume,
+        // unique-query, latency and per-result charts. An empty corpus has no page to clamp
+        // to, so the requested page passes through and the view renders its empty state.
+        var totalPages = canonicalised.Count > 0
+            ? (canonicalised.Count + safeSize - 1) / safeSize
+            : 0;
+        if (totalPages > 0 && safePage > totalPages)
+        {
+            safePage = totalPages;
+        }
+
         var pagedHits = canonicalised
             .Skip((safePage - 1) * safeSize)
             .Take(safeSize)

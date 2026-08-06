@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Queue;
+using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.ViewComponents;
@@ -10,6 +11,10 @@ namespace DfE.CheckPerformanceData.Web.ViewComponents;
 // landing so an admin can pick the specific inbox they want to inspect. Either read
 // throwing degrades to zero for that side rather than breaking the chrome — the badge is
 // a passive indicator, never a hard dependency of the layout.
+//
+// The two counts travel separately to the view: the total is one number, but the colour
+// keys off the dead-letter count so a dead-lettering queue keeps the red alarm the
+// standalone DLQ badge used to give it.
 public sealed class MessagesBadgeViewComponent(
     ISearchMessageService messages,
     IQueueAdminService queueAdminService) : ViewComponent
@@ -36,6 +41,8 @@ public sealed class MessagesBadgeViewComponent(
             dlq = 0;
         }
 
-        return View(unread + dlq);
+        // Kept separate rather than pre-summed: the badge shows the combined total but has
+        // to colour itself off the dead-letter count alone.
+        return View(new MessagesBadgeViewModel(unread, dlq));
     }
 }

@@ -3,7 +3,8 @@
 @model DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData.CheckYourPupilDataViewModel
 
 @{
-    ViewBag.Title = "Check Your Pupil Data";
+    // Matches the "check-pupil-data-title" EditableTitle <h1> default below.
+    ViewBag.Title = "Check your pupil data";
     Layout = "_Layout";
 }
 
@@ -67,7 +68,11 @@
         @Html.AntiForgeryToken()
         <govuk-radios for="SelectedNextStep">
             <govuk-radios-fieldset>
-                <govuk-radios-fieldset-legend is-page-heading="true" class="govuk-fieldset__legend--l">
+                @* Not is-page-heading: that renders the legend as an <h1>, and this page already
+                   has one (the "check-pupil-data-title" EditableTitle above). Two <h1>s leave the
+                   document with no single unambiguous title. The legend keeps the --l size so it
+                   looks unchanged. *@
+                <govuk-radios-fieldset-legend class="govuk-fieldset__legend--l">
                     What would you like to do?
                 </govuk-radios-fieldset-legend>
 

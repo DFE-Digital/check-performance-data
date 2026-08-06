@@ -12,7 +12,7 @@
         @* Url.Action (not a hard-coded /search?q=…) so a future route refactor does not
            strand the retry link. Model.Query survives the round-trip so the user does
            not lose what they typed. *@
-        <a class="govuk-button" href="@Url.Action("Index", "Search", new { q = Model.Query })">Try again</a>
+        <a role="button" draggable="false" data-module="govuk-button" class="govuk-button" href="@Url.Action("Index", "Search", new { q = Model.Query })">Try again</a>
 
         <div class="govuk-inset-text">
             Or you can <a class="govuk-link" href="@Url.Content("~/")">browse pages instead</a>.

@@ -1,5 +1,4 @@
-using DfE.CheckPerformanceData.Application.Search;
-using DfE.CheckPerformanceData.Web.Analytics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 
@@ -14,8 +13,8 @@ public static class SearchTelemetryExtensions
         // as Singleton would pin the first request's settings-repository to the process lifetime
         // and starve subsequent requests of the current toggle value.
         services.AddScoped<
-            DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
-            DfE.CheckPerformanceData.Application.Search.CmsSettingsSearchDebugOptions>();
+            Application.Search.ISearchDebugOptions,
+            Application.Search.CmsSettingsSearchDebugOptions>();
 
         // Emits a structured log per search request (Info summary, Debug/Info per-hit and
         // per-exclusion depending on the debug toggle, Warn zero-result). Registered as the
@@ -23,45 +22,45 @@ public static class SearchTelemetryExtensions
         // self-recursive lookup through ISearchTelemetry. Scoped because it depends on
         // Scoped ISearchDebugOptions — a Scoped service captured inside a Singleton would
         // leak the first request's toggle read across every subsequent request.
-        services.AddScoped<DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
+        services.AddScoped<Application.Search.LoggerSearchTelemetry>();
 
         // Composite decorator: wraps LoggerSearchTelemetry (as the inner) with an enqueue
         // onto the analytics channel. Registered against ISearchTelemetry so every /search
         // caller resolves the fan-out shape; the inner logger keeps working exactly as
         // before.
         services.AddScoped<
-            DfE.CheckPerformanceData.Application.Search.ISearchTelemetry,
-            DfE.CheckPerformanceData.Application.Analytics.SinkAndLogSearchTelemetry>();
+            Application.Search.ISearchTelemetry,
+            SinkAndLogSearchTelemetry>();
 
         // Analytics channel + writer + drop counter. The channel is a singleton (the same
         // instance must be seen by every request-scope decorator and the singleton writer
         // that drains it). The ChannelWriter side is factory-registered so the decorator's
         // ctor gets a typed writer without having to know about the wrapper.
-        services.AddSingleton<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>();
+        services.AddSingleton<SearchAnalyticsChannel>();
         services.AddSingleton(sp =>
-            sp.GetRequiredService<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>()
+            sp.GetRequiredService<SearchAnalyticsChannel>()
               .Channel.Writer);
         services.AddSingleton<
-            DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsDroppedCounter,
-            DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsDroppedCounter>();
+            ISearchAnalyticsDroppedCounter,
+            SearchAnalyticsDroppedCounter>();
         services.AddScoped<
-            DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsSessionProvider,
-            DfE.CheckPerformanceData.Web.Analytics.HttpContextSearchAnalyticsSessionProvider>();
-        services.AddHostedService<DfE.CheckPerformanceData.Web.Analytics.SearchEventWriter>();
+            ISearchAnalyticsSessionProvider,
+            Analytics.HttpContextSearchAnalyticsSessionProvider>();
+        services.AddHostedService<Analytics.SearchEventWriter>();
 
         // In-memory job store for the dev-only seed-sample-search-data admin page. Singleton
         // because the POST creates a job on one request and subsequent GETs (progress polls +
         // Cancel DELETE) must read the same instance across the request lifetime. Backed by
         // a ConcurrentDictionary; auto-evicts completed jobs after 5 minutes on new-job insert.
         services.AddSingleton<
-            DfE.CheckPerformanceData.Application.Analytics.ISampleSearchDataSeedJobStore,
-            DfE.CheckPerformanceData.Application.Analytics.InMemorySampleSearchDataSeedJobStore>();
+            ISampleSearchDataSeedJobStore,
+            InMemorySampleSearchDataSeedJobStore>();
 
         // Process-lifetime counter of zero-result searches. Interlocked-backed; safe under
         // concurrent request throughput. Read out-of-band by diagnostic surfaces.
         services.AddSingleton<
-            DfE.CheckPerformanceData.Application.Search.ISearchZeroResultsCounter,
-            DfE.CheckPerformanceData.Application.Search.SearchZeroResultsCounter>();
+            Application.Search.ISearchZeroResultsCounter,
+            Application.Search.SearchZeroResultsCounter>();
 
         return services;
     }

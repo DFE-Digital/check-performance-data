@@ -1,6 +1,8 @@
 using DfE.CheckPerformanceData.Web.Diagnostics;
 using DfE.CheckPerformanceData.Web.Middleware;
 using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Serilog;
 
 namespace DfE.CheckPerformanceData.Web.Startup;

@@ -2,6 +2,9 @@ using Dfe.Analytics;
 using Dfe.Analytics.AspNetCore;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Web.Analytics;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 

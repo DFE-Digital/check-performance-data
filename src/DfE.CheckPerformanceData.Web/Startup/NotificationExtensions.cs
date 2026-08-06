@@ -1,5 +1,5 @@
 using DfE.CheckPerformanceData.Application.Notify;
-using DfE.CheckPerformanceData.Web.Notify;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 
@@ -7,7 +7,7 @@ public static class NotificationExtensions
 {
     public static IServiceCollection AddCpdNotifications(this IServiceCollection services)
     {
-        services.AddScoped<IEmailLinkGenerator, DfE.CheckPerformanceData.Web.Notify.EmailLinkGenerator>();
+        services.AddScoped<IEmailLinkGenerator, Notify.EmailLinkGenerator>();
 
         services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
 
@@ -16,10 +16,10 @@ public static class NotificationExtensions
         // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
         // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
         services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
-        services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
+        services.AddSingleton<Notify.ChannelNotificationDispatcher>();
         services.AddSingleton<INotificationDispatcher>(sp =>
-            sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
-        services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
+            sp.GetRequiredService<Notify.ChannelNotificationDispatcher>());
+        services.AddHostedService<Notify.NotificationBackgroundService>();
 
         return services;
     }

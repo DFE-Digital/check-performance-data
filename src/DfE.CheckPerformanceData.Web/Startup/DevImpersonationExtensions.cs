@@ -1,6 +1,9 @@
 using DfE.CheckPerformanceData.Web.Authentication;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 

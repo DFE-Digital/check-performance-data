@@ -1,11 +1,13 @@
+using Serilog;
+using Serilog.Formatting.Compact;
+using System;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Web.Extensions;
-using GovUk.Frontend.AspNetCore;
-using Serilog;
-using Serilog.Formatting.Compact;
 using DfE.CheckPerformanceData.Web.Startup;
+using GovUk.Frontend.AspNetCore;
+using Microsoft.AspNetCore.Builder;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())

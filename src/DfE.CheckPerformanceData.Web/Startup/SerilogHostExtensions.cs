@@ -1,7 +1,9 @@
-using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 

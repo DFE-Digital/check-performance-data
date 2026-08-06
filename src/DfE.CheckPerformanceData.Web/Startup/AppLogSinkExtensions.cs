@@ -1,5 +1,5 @@
-using DfE.CheckPerformanceData.Application.Logging;
-using DfE.CheckPerformanceData.Web.Logging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 
@@ -11,7 +11,7 @@ public static class AppLogSinkExtensions
         // bind from AppLogSink:{MinLevel,BatchSize,FlushInterval,…}; sensible defaults apply if
         // the section is missing.
         var logSinkOptions = new DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions();
-        configuration.GetSection(DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions.SectionName)
+        configuration.GetSection(Application.Logging.AppLogSinkOptions.SectionName)
             .Bind(logSinkOptions);
         services.AddSingleton(logSinkOptions);
         services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.AppLogChannel>();
@@ -19,13 +19,11 @@ public static class AppLogSinkExtensions
         // IHttpContextAccessor.HttpContext (backed by AsyncLocal) so per-request path / user
         // / correlation resolve correctly. Background-service logs (no request in flight)
         // simply get nulls.
-        services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext,
-            DfE.CheckPerformanceData.Web.Logging.HttpLogRequestContext>();
+        services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext, Logging.HttpLogRequestContext>();
         // The provider is a singleton that resolves the shared channel + options from DI. Registering
         // it as ILoggerProvider hooks it into the ambient logger factory alongside console/Serilog.
-        services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider,
-            DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
-        services.AddHostedService<DfE.CheckPerformanceData.Web.Logging.DatabaseLogWriter>();
+        services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider, DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
+        services.AddHostedService<Logging.DatabaseLogWriter>();
 
         return services;
     }

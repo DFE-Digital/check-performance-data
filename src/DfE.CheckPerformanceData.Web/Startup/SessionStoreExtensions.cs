@@ -1,5 +1,7 @@
 using Community.Microsoft.Extensions.Caching.PostgreSql;
 using DfE.CheckPerformanceData.Web.Extensions;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 
 namespace DfE.CheckPerformanceData.Web.Startup;
 

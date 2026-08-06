@@ -356,7 +356,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
                 Id = upnId.Value,
-                Value = message.Pupil.Id,
+                Value = message.Pupil.Upn?.ToUpperInvariant(),
             });
         }
 

@@ -1,13 +1,11 @@
 using Serilog;
 using Serilog.Formatting.Compact;
-using System;
 using DfE.CheckPerformanceData.Application;
 using DfE.CheckPerformanceData.Infrastructure;
 using DfE.CheckPerformanceData.Persistence;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Startup;
 using GovUk.Frontend.AspNetCore;
-using Microsoft.AspNetCore.Builder;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -17,13 +15,8 @@ try
 {
     Log.Information("Starting application");
 
-    var builder = WebApplication.CreateBuilder(args);
-
-    // WebApplication.CreateBuilder already configures the configuration sources in
-    // the correct precedence (last wins): appsettings.json, appsettings.{Environment}.json,
-    // user secrets (Development), environment variables, command line. Re-adding
-    // appsettings.json here previously landed it after appsettings.{Environment}.json
-    // and silently clobbered environment-specific overrides.
+    var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(args);
+    
     var configuration = builder.Configuration;
 
     builder.UseCpdSerilog();
@@ -65,7 +58,7 @@ try
 
     app.Run();
 }
-catch (Exception e)
+catch (System.Exception e)
 {
     Log.Fatal(e, "Application terminated unexpectedly");
 }

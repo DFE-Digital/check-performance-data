@@ -74,7 +74,7 @@ sequenceDiagram
   C->>Cat: IsValidFor(EnquiryType, isAuthenticated)
   alt invalid or missing enquiry type
     C->>An: TrackSafeAsync(ValidationErrorEvent "no_selection")
-    C-->>U: 200 — re-render Index with error summary; typed fields preserved
+    C-->>U: 200 — re-render Index with error summary, typed fields preserved
   else valid
     C->>An: TrackSafeAsync(ContactUsSubmittedEvent {enquiry_type, is_authenticated})
     C->>Log: LogInformation (authenticated, laestab, enquiry type — no PII)

@@ -31,6 +31,7 @@ public static class AdminNavServiceCollectionExtensions
         // IConfiguration registration wins when present.
         services.TryAddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
 
+        services.AddSingleton<IAdminNavEntry, DashboardNavEntry>();
         services.AddSingleton<IAdminNavEntry, CmsAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemAdminGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, MessagesGroupNavEntry>();

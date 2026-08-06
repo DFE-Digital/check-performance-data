@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -42,6 +43,78 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
         await using var ctx = _fixture.CreateContext();
         var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-UPD-1");
         Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+    }
+
+    // AmendmentType has four write sites in UpsertAsync — insert and update on each of the
+    // submitted (SubmittedUnCommitted, transactional) and draft paths. Every one is covered
+    // because missing any single SetProperty/initialiser leaves the column silently null on
+    // that path only, which no other test would notice.
+
+    [Theory]
+    [InlineData(RequestStatus.InProgress)]              // draft path, insert
+    [InlineData(RequestStatus.SubmittedUnCommitted)]    // submitted path, insert
+    public async Task Upsert_Insert_PersistsAmendmentType(RequestStatus status)
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AT-INS", status, amendmentType: WhatToChange.Merge));
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-AT-INS");
+        Assert.Equal(WhatToChange.Merge, row.AmendmentType);
+    }
+
+    [Theory]
+    [InlineData(RequestStatus.InProgress)]              // draft path, update
+    [InlineData(RequestStatus.SubmittedUnCommitted)]    // submitted path, update
+    public async Task Upsert_Update_PersistsChangedAmendmentType(RequestStatus status)
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AT-UPD", status, amendmentType: WhatToChange.Remove));
+
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AT-UPD", status, amendmentType: WhatToChange.Include));
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-AT-UPD");
+        Assert.Equal(WhatToChange.Include, row.AmendmentType);
+    }
+
+    // ConfirmCorrect declarations have no amendment type, so null must survive the round trip
+    // rather than being coerced to a default enum member.
+    [Fact]
+    public async Task Upsert_WithNullAmendmentType_PersistsNull()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AT-NULL", amendmentType: null));
+
+        await using var ctx = _fixture.CreateContext();
+        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "REF-AT-NULL");
+        Assert.Null(row.AmendmentType);
+    }
+
+    // The column is configured HasConversion<string>(), so it must hold the readable enum name
+    // and not an ordinal — that is the whole point of storing it over parsing RequestTypeDescription.
+    [Fact]
+    public async Task AmendmentType_IsStoredAsItsEnumName()
+    {
+        await TruncateAsync();
+        var windowId = await SeedWindowAsync();
+        await new RequestRepository(_fixture.CreateContext())
+            .UpsertAsync(Data(windowId, "REF-AT-STR", amendmentType: WhatToChange.Include));
+
+        await using var conn = new NpgsqlConnection(_fixture.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"SELECT ""AmendmentType"" FROM ""ChangeRequests"" WHERE ""ReferenceNumber"" = 'REF-AT-STR';";
+        Assert.Equal("Include", await cmd.ExecuteScalarAsync() as string);
     }
 
     [Fact]
@@ -249,9 +322,11 @@ public sealed class RequestRepositoryUpsertTests(PostgresFixture fixture)
 
     private static ChangeRequestData Data(
         Guid windowId, string referenceNumber, RequestStatus status = RequestStatus.SubmittedUnCommitted,
-        long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null) =>
+        long organisationUrn = 100000, Guid? pupilId = null, string? pupilUpn = "UPN1", Guid? submittedById = null,
+        WhatToChange? amendmentType = WhatToChange.Remove) =>
         new()
         {
+            AmendmentType = amendmentType,
             WindowId = windowId,
             ReferenceNumber = referenceNumber,
             OrganisationUrn = organisationUrn,

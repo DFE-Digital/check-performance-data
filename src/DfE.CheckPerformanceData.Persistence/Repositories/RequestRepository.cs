@@ -138,7 +138,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                             .SetProperty(r => r.SubmittedByName, data.SubmittedByName)
                             .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
                             .SetProperty(r => r.RequestType, data.RequestType)
-                            .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription));
+                            .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
+                            .SetProperty(r => r.AmendmentType, data.AmendmentType));
                 }
                 else
                 {
@@ -159,7 +160,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                         SubmittedByEmail = data.SubmittedByEmail,
                         Status = data.Status,
                         RequestType = data.RequestType,
-                        RequestTypeDescription = data.RequestTypeDescription
+                        RequestTypeDescription = data.RequestTypeDescription,
+                        AmendmentType = data.AmendmentType
                     });
                     await db.SaveChangesAsync();
                 }
@@ -191,7 +193,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
                     .SetProperty(r => r.SubmittedByName, data.SubmittedByName)
                     .SetProperty(r => r.SubmittedByEmail, data.SubmittedByEmail)
                     .SetProperty(r => r.RequestType, data.RequestType)
-                    .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription));
+                    .SetProperty(r => r.RequestTypeDescription, data.RequestTypeDescription)
+                    .SetProperty(r => r.AmendmentType, data.AmendmentType));
             return draftExistingId;
         }
 
@@ -212,7 +215,8 @@ public sealed class RequestRepository(IPortalDbContext db) : IRequestRepository
             SubmittedByEmail = data.SubmittedByEmail,
             Status = data.Status,
             RequestType = data.RequestType,
-            RequestTypeDescription = data.RequestTypeDescription
+            RequestTypeDescription = data.RequestTypeDescription,
+            AmendmentType = data.AmendmentType
         });
         await db.SaveChangesAsync();
         return newId;

@@ -45,6 +45,20 @@ public sealed class AdminLandingViewTests
 		Assert.True(hasMutedClass, "Expected govuk-tag--grey or govuk-hint muted style.");
 	}
 
+	// --- AdminLanding_Links_Top_Level_Entries_That_Are_Navigable ---
+
+	[Fact]
+	public void AdminLanding_Links_Top_Level_Entries_That_Are_Navigable()
+	{
+		var view = ReadIndexView();
+
+		// Every top-level entry used to be a pure container (empty Url) whose only purpose was
+		// to head a list of child tiles. Dashboard is the first that is itself a page, so the
+		// landing must link the section heading — otherwise the section is a dead end and the
+		// page is reachable only from the sidebar.
+		Assert.Contains("group.Entry.Url", view);
+	}
+
 	// --- AdminLanding_Does_Not_Raw_Render_Registry_Strings ---
 
 	[Fact]

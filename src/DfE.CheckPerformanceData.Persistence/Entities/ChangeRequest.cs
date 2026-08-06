@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -26,6 +27,10 @@ public class ChangeRequest
     public required string ReferenceNumber { get; init; }
     public required RequestType RequestType { get; init; }
     public required string RequestTypeDescription { get; init; }
+    // Which kind of amendment this is, as a typed value rather than the prefix of the
+    // display-only RequestTypeDescription. Null for ConfirmCorrect declarations (which have no
+    // amendment type) and for rows written before this column existed.
+    public WhatToChange? AmendmentType { get; init; }
     public string? CrmId { get; init; }
 
     // Written by the rules engine consumer once it has decided on the request, and read

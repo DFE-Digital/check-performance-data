@@ -13,8 +13,8 @@ module "dfe_analytics" {
   environment           = var.environment
   gcp_keyring           = "cypd-key-ring"
   gcp_key               = "cypd-key"
-  gcp_taxonomy_id       = "3880857462098581356"
-  gcp_policy_tag_id     = "7713263433608555352"
+  gcp_taxonomy_id       = "7450003253557751837"
+  gcp_policy_tag_id     = "7087412595261736586"
 
   gcp_table_deletion_protection = var.gcp_table_deletion_protection
 }

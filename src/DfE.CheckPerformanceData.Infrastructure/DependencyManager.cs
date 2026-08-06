@@ -7,6 +7,7 @@ using Dfe.Analytics;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.ClaimsEnrichment;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -209,6 +210,22 @@ public static class DependencyManager
                     }
 
                     ctx.Principal!.AddIdentity(rolesIdentity);
+
+                    // Engagement metrics: record the successful sign-in. Metrics must never block sign-in,
+                    // so any failure here is logged and swallowed.
+                    try
+                    {
+                        var loginRecorder = ctx.HttpContext.RequestServices
+                            .GetRequiredService<IOrganisationLoginRecorder>();
+                        var loginUserId = ctx.Principal!.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+                        await loginRecorder.RecordLoginAsync(loginUserId, rolesIdentity);
+                    }
+                    catch (Exception ex)
+                    {
+                        ctx.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("DfeSignInEvents")
+                            .LogWarning(ex, "Failed to record organisation login for dashboard metrics.");
+                    }
 
                     // Clear any prior dev-impersonation marker on a fresh real sign-in so
                     // the user's effective role reflects their true DfE claims, not a

@@ -2,7 +2,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+using DfE.CheckPerformanceData.Application.Dashboard;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Infrastructure.BlobStorage;
@@ -42,6 +44,30 @@ public sealed class PupilDataBlobClient(BlobServiceClient blobServiceClient) : I
 
     public async Task<bool> HasPupilDataAsync(Guid windowId, string laestab)
         => await GetBlobClient(windowId, laestab).ExistsAsync();
+
+    public async Task<IReadOnlyList<string>> ListSchoolLaestabsAsync(Guid windowId, CancellationToken cancellationToken = default)
+    {
+        var container = blobServiceClient.GetBlobContainerClient(windowId.ToString());
+        if (!await container.ExistsAsync(cancellationToken))
+            return [];
+
+        const string prefix = "data/";
+        const string suffix = "_pupils.json";
+        var laestabs = new HashSet<string>(StringComparer.Ordinal);
+        await foreach (var blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
+        {
+            if (!blob.Name.EndsWith(suffix, StringComparison.Ordinal))
+                continue;
+
+            // Normalise rather than trusting the blob name: the ingress writes the supplier's
+            // LAESTAB column through verbatim, so anything other than a clean digit string
+            // would silently fail to join against the digits-only laestab on a login row.
+            var laestab = LaestabNormaliser.Normalise(blob.Name[prefix.Length..^suffix.Length]);
+            if (laestab.Length > 0)
+                laestabs.Add(laestab);
+        }
+        return laestabs.ToList();
+    }
 
     public async Task UploadPupilsAsync<T>(Guid windowId, string laestab, List<T> pupils) where T : IPupilRecord
     {

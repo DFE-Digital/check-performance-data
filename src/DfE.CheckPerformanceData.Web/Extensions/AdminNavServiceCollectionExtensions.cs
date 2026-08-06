@@ -15,7 +15,16 @@ public static class AdminNavServiceCollectionExtensions
 {
     // includeDangerZone gates the destructive "Danger zone" group + tile. Program.cs passes
     // !IsProduction() so the reset action is never registered (and so never reachable) in prod.
-    public static IServiceCollection AddAdminNavEntries(this IServiceCollection services, bool includeDangerZone = false)
+    //
+    // includeSampleSearchData gates the "Seed sample search data" tile against the same
+    // environment whitelist TestDataController enforces (Development / Review / QA).
+    // Registering it everywhere put a tile in the Preproduction and Production sidebars
+    // that only ever led to a 404. Both default to false: a missing tile is recoverable,
+    // a dead link on a customer-facing environment is not.
+    public static IServiceCollection AddAdminNavEntries(
+        this IServiceCollection services,
+        bool includeDangerZone = false,
+        bool includeSampleSearchData = false)
     {
         // Some entries may resolve state from configuration. Provide an empty fallback so a bare
         // service collection (e.g. in registry tests) can still resolve the entries; the host's own
@@ -35,7 +44,6 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, SearchAdminNavEntry>();
         services.AddSingleton<IAdminNavEntry, MessagesInboxNavEntry>();
         services.AddSingleton<IAdminNavEntry, SeedSamplePagesNavEntry>();
-        services.AddSingleton<IAdminNavEntry, SeedSampleSearchDataNavEntry>();
         services.AddSingleton<IAdminNavEntry, TestDataGroupNavEntry>();
         services.AddSingleton<IAdminNavEntry, SystemSettingsNavEntry>();
         services.AddSingleton<IAdminNavEntry, RoleSettingsNavEntry>();
@@ -54,6 +62,11 @@ public static class AdminNavServiceCollectionExtensions
         services.AddSingleton<IAdminNavEntry, ManageWindowNavEntry>();
         services.AddSingleton<IAdminNavEntry, TransactionsNavEntry>();
         services.AddSingleton<IAdminNavEntry, ReplaySubmissionsNavEntry>();
+
+        if (includeSampleSearchData)
+        {
+            services.AddSingleton<IAdminNavEntry, SeedSampleSearchDataNavEntry>();
+        }
 
         if (includeDangerZone)
         {

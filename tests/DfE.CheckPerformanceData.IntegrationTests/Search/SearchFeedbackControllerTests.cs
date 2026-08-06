@@ -3,27 +3,29 @@ using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Search;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Session;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Npgsql;
 using NSubstitute;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Search;
 
@@ -195,7 +197,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
         var controller = BuildController(messages, query, sessionId: sessionId);
 
@@ -216,7 +220,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
         var controller = BuildController(messages, query, sessionId: "session-with-no-history");
 
@@ -266,7 +272,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
         var controller = BuildController(messages, query, sessionId: sessionId);
 
@@ -295,7 +303,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.Email.Returns("editor@example.gov.uk");
 
@@ -315,7 +325,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.Email.Returns(string.Empty);
 
@@ -363,7 +375,9 @@ public sealed class SearchFeedbackControllerTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.Email.Returns("editor@example.gov.uk");
 
@@ -486,7 +500,15 @@ public sealed class SearchFeedbackControllerTests
     private sealed class FakeSession : ISession
     {
         private readonly Dictionary<string, byte[]> _store = new();
-        public FakeSession(string id) { Id = id; }
+
+        // Seeds the app-owned analytics identity as well as the framework id, standing in
+        // for the lifetime middleware having already run. The controller reads the former
+        // (it rotates at the absolute cap; Session.Id cannot).
+        public FakeSession(string id)
+        {
+            Id = id;
+            this.SetString(CpdSessionIdentity.IdKey, id);
+        }
         public bool IsAvailable => true;
         public string Id { get; }
         public IEnumerable<string> Keys => _store.Keys;

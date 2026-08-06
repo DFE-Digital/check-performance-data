@@ -5,10 +5,13 @@ namespace DfE.CheckPerformanceData.UnitTests.Web.Extensions;
 
 // Pins the shape the drill-in views assume:
 //   * preset (7d / 30d / …) → "range=<key>" (no from/to)
-//   * custom               → "range=custom&from=<iso>&to=<iso>"
+//   * custom               → "range=custom&from=<iso>&to=<yyyy-MM-dd>"
 //
-// The custom branch's from/to values are the ones ResolveWindow expects — ISO-8601
-// round-trip format — so a drill-in link built here parses back to the same window.
+// The custom branch's bounds are the ones ResolveWindow expects. `from` is an inclusive
+// instant and round-trips as ISO-8601. `to` is the inclusive end DATE — ResolveWindow
+// widens it to the following midnight to build the exclusive query bound, so the link
+// must carry the end date rather than the widened bound or each drill-in click would
+// push the window one day further out.
 public sealed class SearchAnalyticsRangeQueryTests
 {
     [Theory]
@@ -42,15 +45,15 @@ public sealed class SearchAnalyticsRangeQueryTests
     }
 
     [Fact]
-    public void Build_Custom_FromAndToParseBackToTheSameDateTime()
+    public void Build_Custom_EmitsBoundsTheModelBinderParsesBack()
     {
         // Regression: drill-in links used to emit only ?range=<key> even for custom, so
         // the controller's "custom needs both from and to" guard fell through and snapped
-        // to the 7-day default. Verify the from/to strings this helper writes are exactly
-        // the ISO-8601 round-trip format the ASP.NET model binder parses back to a UTC
-        // DateTime bit-for-bit.
+        // to the 7-day default. Verify both bounds are present and parseable, `from`
+        // bit-for-bit as a UTC instant and `to` as the inclusive end date.
         var from = new DateTime(2026, 5, 15, 8, 30, 0, DateTimeKind.Utc);
-        var to   = new DateTime(2026, 7, 20, 17, 45, 0, DateTimeKind.Utc);
+        // Exclusive upper bound covering everything up to the end of 20 July.
+        var to   = new DateTime(2026, 7, 21, 0, 0, 0, DateTimeKind.Utc);
 
         var qs = SearchAnalyticsRangeQuery.Build("custom", from, to);
 
@@ -62,13 +65,28 @@ public sealed class SearchAnalyticsRangeQueryTests
 
         var fromParsed = DateTime.Parse(parts["from"], CultureInfo.InvariantCulture,
             DateTimeStyles.RoundtripKind);
-        var toParsed = DateTime.Parse(parts["to"], CultureInfo.InvariantCulture,
-            DateTimeStyles.RoundtripKind);
 
         Assert.Equal(DateTimeKind.Utc, fromParsed.Kind);
-        Assert.Equal(DateTimeKind.Utc, toParsed.Kind);
         Assert.Equal(from, fromParsed);
-        Assert.Equal(to,   toParsed);
+
+        // The end date the admin picked — not the widened exclusive bound.
+        Assert.Equal("2026-07-20", parts["to"]);
+    }
+
+    [Fact]
+    public void InclusiveEndDate_ConvertsTheExclusiveBoundBackToTheChosenDay()
+    {
+        // Midnight-aligned bound: the day before.
+        Assert.Equal(
+            new DateTime(2026, 7, 20, 0, 0, 0, DateTimeKind.Utc),
+            SearchAnalyticsRangeQuery.InclusiveEndDate(
+                new DateTime(2026, 7, 21, 0, 0, 0, DateTimeKind.Utc)));
+
+        // Clamped-to-now bound (mid-day): that same day, since "now" still falls inside it.
+        Assert.Equal(
+            new DateTime(2026, 7, 20, 0, 0, 0, DateTimeKind.Utc),
+            SearchAnalyticsRangeQuery.InclusiveEndDate(
+                new DateTime(2026, 7, 20, 14, 15, 0, DateTimeKind.Utc)));
     }
 
     [Fact]

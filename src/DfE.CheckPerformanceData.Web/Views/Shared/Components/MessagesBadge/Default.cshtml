@@ -1,7 +1,12 @@
-@model int
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.MessagesBadgeViewModel
+@*
+    One number, two sources. TagClass turns red whenever the dead-letter queue is
+    non-empty so a failing queue still reads as an alarm rather than as inbox noise —
+    see MessagesBadgeViewModel.
+*@
 <li class="govuk-service-navigation__item">
     <a class="govuk-service-navigation__link" href="/admin/Messages">
         Messages
-        <strong class="govuk-tag @(Model > 0 ? "govuk-tag--blue" : "govuk-tag--grey")">@Model</strong>
+        <strong class="govuk-tag @Model.TagClass">@Model.Total</strong>
     </a>
 </li>

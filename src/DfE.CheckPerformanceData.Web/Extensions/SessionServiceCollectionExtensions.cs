@@ -1,7 +1,9 @@
+using DfE.CheckPerformanceData.Application.Settings;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
 namespace DfE.CheckPerformanceData.Web.Extensions;
@@ -25,7 +27,10 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 // absolute lifetime cap is enforced server-side by SessionAbsoluteLifetimeMiddleware.
 public static class SessionServiceCollectionExtensions
 {
-    public const string IdleMinutesKey = "SearchAnalytics:SessionIdleMinutes";
+    // Configuration-only: SessionOptions is read once when the pipeline is built, so this
+    // cannot be an editable admin setting (see SettingDefinitions). One source of truth
+    // for the key name even so.
+    public const string IdleMinutesKey = SettingKeys.SearchAnalyticsSessionIdleMinutes;
     public const int DefaultIdleMinutes = 60;
 
     public static IServiceCollection AddCpdSession(
@@ -45,6 +50,10 @@ public static class SessionServiceCollectionExtensions
             options.Cookie.IsEssential = true;
             options.Cookie.SecurePolicy = securePolicy;
         });
+
+        // SessionAbsoluteLifetimeMiddleware takes its clock from DI. TryAdd so a test host
+        // that registered a controllable clock first keeps it.
+        services.TryAddSingleton(TimeProvider.System);
 
         return services;
     }

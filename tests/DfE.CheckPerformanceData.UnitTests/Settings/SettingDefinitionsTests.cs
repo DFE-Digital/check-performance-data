@@ -17,6 +17,26 @@ public sealed class SettingDefinitionsTests
         Assert.Equal(expectedDefault, definition!.DefaultValue);
     }
 
+    // The session idle timeout is applied to SessionOptions when the request pipeline is
+    // built, and the framework reads that value once. Nothing can re-read it per request,
+    // so it cannot be honoured from the settings store — offering it as an editable
+    // setting produced a control that saved, redisplayed and changed nothing. It stays a
+    // configuration-only value; this pins that it is not advertised as editable.
+    [Fact]
+    public void All_DoesNotOfferTheSessionIdleTimeout_BecauseItIsFixedAtStartup()
+    {
+        Assert.Null(SettingDefinitions.Find(SettingKeys.SearchAnalyticsSessionIdleMinutes));
+    }
+
+    // The other two session settings ARE read per request, so they must stay editable.
+    [Theory]
+    [InlineData("SearchAnalytics:SessionAbsoluteHours")]
+    [InlineData("SearchAnalytics:ShowSessionComment")]
+    public void All_OffersThePerRequestSessionSettings(string key)
+    {
+        Assert.NotNull(SettingDefinitions.Find(key));
+    }
+
     [Fact]
     public void All_KeysAreUnique()
     {

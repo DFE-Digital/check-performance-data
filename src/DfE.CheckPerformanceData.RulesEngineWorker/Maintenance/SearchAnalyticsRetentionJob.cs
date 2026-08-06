@@ -26,13 +26,6 @@ public sealed class SearchAnalyticsRetentionJob : BackgroundService
     // cadence comes from SettingKeys.SearchAnalyticsRetentionIntervalMinutes.
     private static readonly TimeSpan DefaultInterval = TimeSpan.FromHours(1);
 
-    // Hard-caps applied in code so a mis-configured retention setting cannot disable
-    // the ceiling.
-    private const int EventsRetentionMinDays = 1;
-    private const int EventsRetentionMaxDays = 365;
-    private const int MessagesRetentionMinDays = 1;
-    private const int MessagesRetentionMaxDays = 730;
-
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SearchAnalyticsRetentionJob> _logger;
     private readonly TimeSpan? _intervalOverride;
@@ -105,10 +98,10 @@ public sealed class SearchAnalyticsRetentionJob : BackgroundService
         ISearchMessageService messageService,
         CancellationToken cancellationToken)
     {
-        var eventsDays = Math.Clamp(
-            await settings.GetIntAsync(SettingKeys.SearchAnalyticsRetentionDays),
-            EventsRetentionMinDays,
-            EventsRetentionMaxDays);
+        // Bounds are shared with the dashboard's prior-window availability gate so the two
+        // cannot drift — see SearchAnalyticsRetention.
+        var eventsDays = SearchAnalyticsRetention.ClampEventDays(
+            await settings.GetIntAsync(SettingKeys.SearchAnalyticsRetentionDays));
         var eventsPurged = await sink.PurgeExpiredAsync(
             TimeSpan.FromDays(eventsDays), cancellationToken);
         if (eventsPurged > 0)
@@ -118,10 +111,8 @@ public sealed class SearchAnalyticsRetentionJob : BackgroundService
                 eventsPurged, eventsDays);
         }
 
-        var messagesDays = Math.Clamp(
-            await settings.GetIntAsync(SettingKeys.SearchAnalyticsMessageRetentionDays),
-            MessagesRetentionMinDays,
-            MessagesRetentionMaxDays);
+        var messagesDays = SearchAnalyticsRetention.ClampMessageDays(
+            await settings.GetIntAsync(SettingKeys.SearchAnalyticsMessageRetentionDays));
         var messagesPurged = await messageService.PurgeExpiredMessagesAsync(
             TimeSpan.FromDays(messagesDays), cancellationToken);
         if (messagesPurged > 0)

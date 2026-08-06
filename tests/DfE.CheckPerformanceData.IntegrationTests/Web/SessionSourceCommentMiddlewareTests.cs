@@ -1,4 +1,6 @@
 using System.Net;
+using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Middleware;
 using Microsoft.AspNetCore.Builder;
@@ -149,7 +151,38 @@ public sealed class SessionSourceCommentMiddlewareTests
         Assert.DoesNotContain("<!-- session: ", body);
     }
 
-    private static async Task<IHost> BuildHostAsync(string responseKind, bool showSessionComment = true)
+    // The toggle is an editable admin setting, so the stored value has to beat appsettings
+    // and has to be read per request. It used to be captured in the middleware constructor
+    // from IConfiguration only: an admin could turn the comment off, see the setting saved,
+    // and still have every response carry the session id until the next deploy.
+    [Fact]
+    public async Task StoredSettingFalse_SuppressesInjection_EvenWhenConfigurationSaysTrue()
+    {
+        using var host = await BuildHostAsync(
+            responseKind: "html", showSessionComment: true, storedShowSessionComment: false);
+        var client = host.GetTestClient();
+
+        var response = await client.GetAsync("/");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("<!-- session: ", body);
+    }
+
+    [Fact]
+    public async Task StoredSettingTrue_InjectsEvenWhenConfigurationSaysFalse()
+    {
+        using var host = await BuildHostAsync(
+            responseKind: "html", showSessionComment: false, storedShowSessionComment: true);
+        var client = host.GetTestClient();
+
+        var response = await client.GetAsync("/");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Contains("<!-- session: ", body);
+    }
+
+    private static async Task<IHost> BuildHostAsync(
+        string responseKind, bool showSessionComment = true, bool? storedShowSessionComment = null)
     {
         var host = await new HostBuilder()
             .ConfigureWebHost(web =>
@@ -168,6 +201,11 @@ public sealed class SessionSourceCommentMiddlewareTests
                 {
                     services.AddDistributedMemoryCache();
                     services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
+                    if (storedShowSessionComment is { } stored)
+                    {
+                        services.AddScoped<ISettingService>(_ => new StubSettingService(
+                            SettingKeys.SearchAnalyticsShowSessionComment, stored));
+                    }
                 });
 
                 web.Configure(app =>

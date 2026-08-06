@@ -1,5 +1,6 @@
 using System.Data;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -29,10 +30,12 @@ public sealed class SearchAnalyticsQueryService : ISearchAnalyticsQueryService
     private static readonly TimeSpan HourBucketThreshold = TimeSpan.FromHours(48);
 
     private readonly IPortalDbContext _dbContext;
+    private readonly ISettingService _settings;
 
-    public SearchAnalyticsQueryService(IPortalDbContext dbContext)
+    public SearchAnalyticsQueryService(IPortalDbContext dbContext, ISettingService settings)
     {
         _dbContext = dbContext;
+        _settings = settings;
     }
 
     public async Task<SearchAnalyticsSummary> GetSummaryAsync(
@@ -1507,13 +1510,20 @@ ORDER BY w.weekday, h.hour;";
     {
         const string sql = @"
 WITH first_zero AS (
-    SELECT session_id,
-           MIN(occurred_at_utc) AS first_zero_utc,
-           MIN(query_normalised) AS first_zero_query
+    -- DISTINCT ON rather than MIN(): the baseline must be the query that actually ran
+    -- first, and MIN(query_normalised) is the alphabetically smallest zero-result query
+    -- in the session instead. With the wrong baseline a genuine refinement can compare
+    -- equal to it and be misfiled as silent, which undercounted refined sessions and put
+    -- this card at odds with the journeys drill-in. id breaks ties on identical instants
+    -- so the pick is deterministic.
+    SELECT DISTINCT ON (session_id)
+           session_id,
+           occurred_at_utc  AS first_zero_utc,
+           query_normalised AS first_zero_query
     FROM search_events
     WHERE occurred_at_utc >= @from AND occurred_at_utc < @to
       AND zero_results = true
-    GROUP BY session_id
+    ORDER BY session_id, occurred_at_utc, id
 ),
 refined AS (
     SELECT DISTINCT fz.session_id
@@ -1602,7 +1612,14 @@ SELECT
 
         var priorFrom = fromUtc - width;
         var priorTo = fromUtc;
-        var retentionFloor = DateTime.UtcNow - TimeSpan.FromDays(90);
+
+        // The floor is the configured retention, not a fixed 90 days. Hardcoding it meant
+        // that raising retention silently hid comparison chips the data could support, and
+        // lowering it rendered deltas against rows the purge had already taken — history
+        // disappearing under the comparison window reads as a surge in the current one.
+        var retentionDays = SearchAnalyticsRetention.ClampEventDays(
+            await _settings.GetIntAsync(SettingKeys.SearchAnalyticsRetentionDays));
+        var retentionFloor = DateTime.UtcNow - TimeSpan.FromDays(retentionDays);
         if (priorFrom < retentionFloor)
         {
             return new SearchAnalyticsSummaryDeltas(0, 0, 0, 0, Available: false);

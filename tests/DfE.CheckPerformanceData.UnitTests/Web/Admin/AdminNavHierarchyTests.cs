@@ -21,7 +21,7 @@ public sealed class AdminNavHierarchyTests
     private static IReadOnlyList<IAdminNavEntry> ResolveEntries()
     {
         var services = new ServiceCollection();
-        services.AddAdminNavEntries();
+        services.AddAdminNavEntries(includeSampleSearchData: true);
         using var provider = services.BuildServiceProvider();
         return provider.GetServices<IAdminNavEntry>().ToList();
     }

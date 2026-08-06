@@ -7,9 +7,9 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers;
+using NSubstitute;
 using Npgsql;
 using NpgsqlTypes;
-using NSubstitute;
 using Xunit.Abstractions;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
@@ -158,7 +158,9 @@ public sealed class SearchAnalyticsLatencyTests
     private SearchAnalyticsController MakeController()
     {
         var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var settings = Substitute.For<ISettingService>();
         settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
         return new SearchAnalyticsController(query, settings);

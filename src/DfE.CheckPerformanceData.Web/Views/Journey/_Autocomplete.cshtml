@@ -8,10 +8,6 @@
     var inputId = $"{Model.FieldName}-input";
     var suggestionsUrl = $"/{Model.Question.DataSource}/suggestions";
     var existingLabel = Model.ExistingAnswer?.TextValue ?? "";
-    var describedByParts = new List<string>();
-    if (Model.Question.Hint is not null) describedByParts.Add(hintId);
-    if (Model.HasError) describedByParts.Add(errorId);
-    var describedBy = string.Join(" ", describedByParts);
 }
 
 <div class="govuk-form-group @(Model.HasError ? "govuk-form-group--error" : "")">
@@ -50,8 +46,18 @@
         var suggestionsUrl = @Json.Serialize(suggestionsUrl);
         var hasError = @(Model.HasError ? "true" : "false");
         var initialLabel = @Json.Serialize(existingLabel);
-        var describedBy = @Json.Serialize(describedBy);
+        var hintText = @Json.Serialize(Model.Question.Hint ?? "");
+        var errorText = @Json.Serialize(Model.Error ?? "");
         var currentSuggestions = [];
+
+        // accessible-autocomplete owns the input's aria-describedby (it points at its own
+        // "#{id}__assistiveHint" element and rewrites it on every re-render), so passing
+        // aria-describedby as an option is silently discarded. tAssistiveHint sets the text of
+        // the element describedby already references, so the hint and error reach the same place.
+        var assistiveHint = (errorText ? 'Error: ' + errorText + '. ' : '')
+            + (hintText ? hintText + '. ' : '')
+            + 'When autocomplete results are available use up and down arrows to review and '
+            + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
 
         var autocompleteConfig = {
             element: document.querySelector('#' + fieldName + '-container'),
@@ -60,6 +66,7 @@
             displayMenu: 'overlay',
             minLength: 2,
             inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+            tAssistiveHint: function () { return assistiveHint; },
             source: function (query, populateResults) {
                 fetch(suggestionsUrl + '?query=' + encodeURIComponent(query))
                     .then(function (r) { return r.json(); })
@@ -83,10 +90,6 @@
             },
             confirmOnBlur: false
         };
-
-        if (describedBy) {
-            autocompleteConfig.inputAttributes = { 'aria-describedby': describedBy };
-        }
 
         accessibleAutocomplete(autocompleteConfig);
 

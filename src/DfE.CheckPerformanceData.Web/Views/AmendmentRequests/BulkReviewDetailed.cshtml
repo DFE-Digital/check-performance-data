@@ -19,7 +19,7 @@
     <div class="govuk-inset-text">
         <p class="govuk-body">None of the selected requests can be submitted. Resolve the duplicates above and try again.</p>
     </div>
-    <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Return to requests</a>
+    <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Return to requests</a>
 }
 else
 {

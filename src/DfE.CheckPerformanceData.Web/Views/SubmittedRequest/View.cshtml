@@ -138,7 +138,7 @@ else
 {
     if (Model.ShowDeleteButton)
     {
-        <a class="govuk-button govuk-button--warning" href="@Url.Action("ConfirmDelete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">Delete request</a>
+        <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--warning" href="@Url.Action("ConfirmDelete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">Delete request</a>
     }
 
     <p class="govuk-body">

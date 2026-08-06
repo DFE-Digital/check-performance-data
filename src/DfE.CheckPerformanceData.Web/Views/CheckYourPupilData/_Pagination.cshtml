@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Web.Common
 @model DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData.PaginationViewModel
 
 @{
@@ -30,9 +31,18 @@
         {
             <govuk-pagination-previous href="@PageUrl(Model.Section.Page - 1)" />
         }
-        @for (var i = 0; i < Model.Section.TotalPages; i++)
+        @* First page, last page, and the current page with one either side — see
+           PaginationWindow. A null entry is a skipped run, rendered as an ellipsis. *@
+        @foreach (var page in PaginationWindow.Build(Model.Section.Page, Model.Section.TotalPages))
         {
-            <govuk-pagination-item href="@PageUrl(i)" current="@(i == Model.Section.Page)">@(i + 1)</govuk-pagination-item>
+            if (page is null)
+            {
+                <govuk-pagination-ellipsis />
+            }
+            else
+            {
+                <govuk-pagination-item href="@PageUrl(page.Value)" current="@(page.Value == Model.Section.Page)">@(page.Value + 1)</govuk-pagination-item>
+            }
         }
         @if (Model.Section.Page < Model.Section.TotalPages - 1)
         {

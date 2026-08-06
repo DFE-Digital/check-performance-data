@@ -69,7 +69,7 @@
     </div>
 </form>
 
-<a id="app-logs-download" class="govuk-button govuk-button--secondary" data-module="govuk-button"
+<a role="button" draggable="false" id="app-logs-download" class="govuk-button govuk-button--secondary" data-module="govuk-button"
    href="/admin/system-administration/logs/download?@(Context.Request.QueryString.HasValue ? Context.Request.QueryString.Value?.TrimStart('?') : "")">
     Download CSV
 </a>

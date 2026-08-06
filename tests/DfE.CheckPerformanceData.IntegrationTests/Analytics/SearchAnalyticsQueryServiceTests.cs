@@ -14,7 +14,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // pre-fill helper). Every window bound is a server-owned DateTime and every SQL parameter
 // binds via Npgsql so the read path has no injection surface.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsQueryServiceTests
 {
     private readonly PostgresFixture _fixture;

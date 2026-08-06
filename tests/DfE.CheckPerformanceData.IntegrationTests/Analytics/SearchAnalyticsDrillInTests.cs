@@ -29,7 +29,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // Npgsql — the read path has no injection surface even though the paging inputs (page, pageSize)
 // arrive from the query string.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsDrillInTests
 {
     private readonly PostgresFixture _fixture;

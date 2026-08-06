@@ -8,7 +8,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // fixture impersonates for the whole collection. HTTP-level checks keep these robust against
 // CMS content state (the export endpoint works even on an empty environment).
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class ContentStagingTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;

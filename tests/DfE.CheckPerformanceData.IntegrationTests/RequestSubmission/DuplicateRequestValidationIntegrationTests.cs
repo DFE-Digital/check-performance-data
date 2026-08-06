@@ -18,7 +18,6 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.IntegrationTests.RequestSubmission;
 
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class DuplicateRequestValidationIntegrationTests
 {
     private readonly PostgresFixture _fixture;

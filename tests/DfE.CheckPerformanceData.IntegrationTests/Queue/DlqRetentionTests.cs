@@ -12,7 +12,6 @@ using DfE.CheckPerformanceData.Application.Notify;
 namespace DfE.CheckPerformanceData.IntegrationTests.Queue;
 
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class DlqRetentionTests
 {
     private readonly PostgresFixture _fixture;

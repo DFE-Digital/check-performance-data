@@ -5,7 +5,6 @@ using Microsoft.Playwright;
 namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class ContentBlockRenderTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     // Content-block leak accepted: no DELETE route on ContentBlockController. UUID-prefixed

@@ -20,7 +20,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // against a seeded corpus — by calling the Index action directly against a real IPortalDbContext
 // so the query service exercises the same SQL production runs.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsControllerTests
 {
     private readonly PostgresFixture _fixture;

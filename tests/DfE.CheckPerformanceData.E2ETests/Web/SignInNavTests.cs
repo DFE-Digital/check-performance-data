@@ -16,7 +16,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // actually delete the cookie, the claims transformer doesn't apply the editor
 // role, or the server-side rendering misreads the cookie value.
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class SignInNavTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

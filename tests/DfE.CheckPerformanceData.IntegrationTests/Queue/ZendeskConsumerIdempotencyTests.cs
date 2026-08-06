@@ -14,7 +14,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Queue;
 // as happens after a restart or a redrive) must still create no second ticket — the guarantee
 // rests on the database, not on in-memory state.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class ZendeskConsumerIdempotencyTests
 {
     private const string Reference = "REF-IDEM-001";

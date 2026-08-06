@@ -15,7 +15,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Wiki;
 // <div class="cypmd-search-results">. A descendant selector — ".cypmd-search-results
 // li h3 a" — matches both without needing an intermediate ul.govuk-list step.
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class SearchPaginationTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     // Track seeded pages for teardown so a failing test doesn't leave orphans that

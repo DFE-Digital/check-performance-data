@@ -21,7 +21,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // Snapshots/search-ux/seed-admin/ (or seed-progress/ / danger-zone/ depending on the
 // captured surface — see SaveScreenshotAsync below for the routing).
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class TestDataAdminTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     public override BrowserNewContextOptions ContextOptions() =>

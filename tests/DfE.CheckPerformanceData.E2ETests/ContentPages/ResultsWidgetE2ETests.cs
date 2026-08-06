@@ -13,7 +13,6 @@ namespace DfE.CheckPerformanceData.E2ETests.ContentPages;
 //   SiteSearchMergedPagedTests (service math)
 //   WidgetEditorContractTests (editor form fields)
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class ResultsWidgetE2ETests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     // Term with enough real-content hits to guarantee multi-page pagination at the

@@ -12,7 +12,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // per-stage dwell, decision-mix, per-message journey, and deploy markers. Real Postgres so
 // the date_trunc + generate_series SQL is exercised against the actual engine.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class MetricsQueryTests
 {
     private const string RulesEngineQueue = "rules-engine";

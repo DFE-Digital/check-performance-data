@@ -12,7 +12,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // the shared Postgres testcontainer so the SQL text — window predicates, CTEs, ordering,
 // server-side clamps — is contract-tested end-to-end rather than mocked out.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsRecoveryAndJourneyTests
 {
     private readonly PostgresFixture _fixture;

@@ -5,7 +5,6 @@ using Microsoft.Playwright.Xunit;
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class NotFoundTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

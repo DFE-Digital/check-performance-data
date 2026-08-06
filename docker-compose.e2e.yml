@@ -26,6 +26,10 @@ services:
     working_dir: /work
     environment:
       - CPD_E2E_BASE_URL=${CPD_E2E_BASE_URL:-http://web:8080}
+      # Visual regression is off unless asked for — `make test-e2e-visual` sets this.
+      # The baselines were captured in this image, so this is the only place a
+      # comparison is meaningful.
+      - CPD_E2E_VISUAL_REGRESSION=${CPD_E2E_VISUAL_REGRESSION:-}
       - NUGET_PACKAGES=/root/.nuget/packages
       - DOTNET_NOLOGO=1
       - DOTNET_CLI_TELEMETRY_OPTOUT=1

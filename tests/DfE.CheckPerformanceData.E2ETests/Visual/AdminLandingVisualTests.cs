@@ -6,7 +6,6 @@ using Microsoft.Playwright;
 namespace DfE.CheckPerformanceData.E2ETests.Visual;
 
 [Collection("E2E")]
-[Trait("Category", "W4")]
 [Trait("Category", "VisualRegression")]
 public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
@@ -18,6 +17,8 @@ public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : Seeding
     [SkippableFact]
     public async Task AdminLandingPage_MatchesSnapshot()
     {
+        Skip.IfNot(VisualRegressionSwitch.Enabled, VisualRegressionSwitch.SkipReason);
+
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 

@@ -7,7 +7,6 @@ using xRetry;
 namespace DfE.CheckPerformanceData.E2ETests.Pages;
 
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class RequestSubmissionPage(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

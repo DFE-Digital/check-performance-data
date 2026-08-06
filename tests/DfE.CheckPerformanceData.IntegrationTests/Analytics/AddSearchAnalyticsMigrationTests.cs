@@ -10,7 +10,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // two tables can be decoupled). The rescope invariant is that no PII columns exist on
 // search_events — a sink DB leak reveals nothing that ties a row to a person.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class AddSearchAnalyticsMigrationTests
 {
     private readonly PostgresFixture _fixture;

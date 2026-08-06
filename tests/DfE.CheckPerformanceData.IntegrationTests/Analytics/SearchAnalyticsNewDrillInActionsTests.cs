@@ -18,7 +18,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // testcontainer so route model binding, defensive clamps, and empty-state renders exercise
 // the same code path the browser hits.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsNewDrillInActionsTests
 {
     private readonly PostgresFixture _fixture;

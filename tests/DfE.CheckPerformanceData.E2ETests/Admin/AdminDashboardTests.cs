@@ -12,7 +12,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // users must be able to stop it). The button is hidden until the script schedules a
 // reload, then clicking it cancels the reload and announces via the role=status region.
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class AdminDashboardTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     public override BrowserNewContextOptions ContextOptions() =>

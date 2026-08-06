@@ -31,7 +31,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // pre-compiled Razor views are not discoverable from the IntegrationTests TestServer without a
 // full layout dependency graph, so admin-pass-through does not run through this HostBuilder.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsAuthTests
 {
     private readonly PostgresFixture _fixture;

@@ -27,7 +27,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // less bucket by hour; anything wider buckets by day. Every bucket bound + generate_series
 // step is server-computed and parameterised — the read path has no injection surface.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsChartTests
 {
     private readonly PostgresFixture _fixture;

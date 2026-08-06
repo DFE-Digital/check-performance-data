@@ -18,7 +18,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 /// two-overload RunOnceAsync that the test drives directly with collaborators.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class MetricsRetentionTests
 {
     private readonly PostgresFixture _fixture;

@@ -150,17 +150,17 @@ dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedNam
 # Single test by name
 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "FullyQualifiedName~SoftDeleteWikiPageTests"
 
-# Including visual regression (only meaningful on Linux or via make test-e2e)
-dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
+# Including visual regression — only meaningful inside the pinned container
+CPD_E2E_VISUAL_REGRESSION=1 dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 ```
 
-To run the full visual regression sweep from PowerShell — same as `make test-e2e`:
+To run the full visual regression sweep from PowerShell — same as `make test-e2e-visual`:
 
 ```powershell
-docker compose --profile e2e run --rm e2e-tests
+$env:CPD_E2E_VISUAL_REGRESSION=1; docker compose --profile e2e run --rm e2e-tests
 ```
 
-That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression (using the container's own baselines, regenerated on first run), and tears down.
+That builds the runner image (first time only), brings up dependencies, executes the full suite *including* visual regression against the committed baselines, and tears down. Without the variable the same command runs the functional suite and skips the comparisons.
 
 If you alternated between native and container runs and hit `NETSDK1047 'project.assets.json' doesn't have a target for 'net10.0/win-x64'`:
 
@@ -217,7 +217,7 @@ VS speaks `.slnx` natively in 17.12+ (LTSC) / 2026.
 | You want to… | Use |
 |--------------|-----|
 | Tight inner loop, functional tests only | PowerShell or VS/VSC Test Explorer with `Category!=VisualRegression` |
-| Validate visual regression before push / PR | `make test-e2e` (or `docker compose --profile e2e run --rm e2e-tests` from PowerShell) |
+| Validate visual regression before push / PR | `make test-e2e-visual` (or `CPD_E2E_VISUAL_REGRESSION=1 docker compose --profile e2e run --rm e2e-tests`) |
 | Step through a single failing test in a debugger | VS Code or VS, "Debug Test" |
 | Reproduce a CI failure exactly | `make test-e2e` — same image, same Linux-Chromium; rebuild the baseline inside the container before comparing |
 

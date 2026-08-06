@@ -93,3 +93,4 @@ ZendeskTicketFields__DciRefCypmdId: 28557688031250
 ZendeskTicketFields__AgeCypmdId: 28557798992018
  
 ZendeskTicketFields__DecisionReasonApprovedId: 19056477269010
+ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: false

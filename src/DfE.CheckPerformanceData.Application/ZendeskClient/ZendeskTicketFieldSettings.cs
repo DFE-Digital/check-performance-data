@@ -36,6 +36,13 @@ public sealed class ZendeskTicketFieldSettings
     public long? DecisionReasonApprovedId { get; set; }
 
     /// <summary>
+    /// When <c>true</c>, AutoRejected decisions also populate the "Decision Reason - Approved"
+    /// tagger field (in addition to AutoApproved, which always populates when mapped). Scrutiny
+    /// decisions are never tagged. Defaults to <c>false</c>.
+    /// </summary>
+    public bool PopulateDecisionReasonForAutoRejected { get; set; }
+
+    /// <summary>
     /// Gets the field ID by field name.
     /// </summary>
     public long? GetFieldIdByName(string fieldName)

@@ -653,7 +653,10 @@ public sealed class ZendeskConsumer : ConsumerBase
     }
 
     // FR-013: Decision Reason - Approved from the rules outcome key via the curated tagger map.
-    // Omitted when the outcome has no mapping (FR-014).
+    // Gated to auto-approved decisions (the field records the reason an APPROVED decision met
+    // its criteria); auto-rejected decisions additionally populate when the
+    // PopulateDecisionReasonForAutoRejected setting is enabled; scrutiny never does. Omitted
+    // when the decision is excluded or has no mapping (FR-014).
     private void AddDecisionReasonField(CreateTicketRequestDto dto, Decision decision)
     {
         if (_ticketFieldService is null)
@@ -662,22 +665,35 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
 
         var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName);
-        if (fieldId.HasValue)
+        if (!fieldId.HasValue)
         {
-            var option = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, decision.OutcomeKey);
-            if (!string.IsNullOrEmpty(option))
+            return;
+        }
+
+        var includeRejected = _ticketFieldService.PopulateDecisionReasonForAutoRejected;
+        var isIncludedStatus = decision.Status == DecisionStatus.AutoApproved
+            || (includeRejected && decision.Status == DecisionStatus.AutoRejected);
+        if (!isIncludedStatus)
+        {
+            _logger.LogDebug(
+                "Decision Reason - Approved not populated for {Status} decision (AutoRejected is included only when {Setting} is enabled).",
+                decision.Status, nameof(ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected));
+            return;
+        }
+
+        var option = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, decision.OutcomeKey);
+        if (!string.IsNullOrEmpty(option))
+        {
+            dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
+            dto.Ticket.CustomFields.Add(new CustomFieldDto
             {
-                dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
-                dto.Ticket.CustomFields.Add(new CustomFieldDto
-                {
-                    Id = fieldId.Value,
-                    Value = option,
-                });
-            }
-            else
-            {
-                _logger.LogWarning("No Decision Reason - Approved option for outcome '{OutcomeKey}', skipping field.", decision.OutcomeKey);
-            }
+                Id = fieldId.Value,
+                Value = option,
+            });
+        }
+        else
+        {
+            _logger.LogWarning("No Decision Reason - Approved option for outcome '{OutcomeKey}', skipping field.", decision.OutcomeKey);
         }
     }
 

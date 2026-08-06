@@ -167,6 +167,22 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Fact]
+    public void RemoveTicket_PopulatesCorrectionReason_ForYearGroupChange()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(25L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(26L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "year-group-change").Returns("17_31");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "YearGroupChange", "YGC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - year-group-change", "KS4June"), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 25 && (string)f.Value! == "31_");
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 26 && (string)f.Value! == "17_31");
+    }
+
+    [Fact]
     public void RemoveTicket_PopulatesKeyStage_ForKS4JuneWindow()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.KeyStageName).Returns(24L);
@@ -323,6 +339,63 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - other"), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 50);
+    }
+
+    [Fact]
+    public void DecisionReasonApproved_IsMappedForAnyAutoApprovedOutcomeKey()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "NotOnRoll").Returns("not_on_roll_criteria_met");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "NotOnRoll", "NOR-NONPOST16", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - not-on-roll"), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 50 && (string)f.Value! == "not_on_roll_criteria_met");
+    }
+
+    [Fact]
+    public void DecisionReasonApproved_IsOmitted_WhenDecisionNotAutoApproved()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 50);
+    }
+
+    [Fact]
+    public void DecisionReasonApproved_IsOmitted_WhenAutoRejectedAndFlagDisabled()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoRejected, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 50);
+    }
+
+    [Fact]
+    public void DecisionReasonApproved_IsMapped_WhenAutoRejectedAndFlagEnabled()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+        _ticketFieldService.PopulateDecisionReasonForAutoRejected.Returns(true);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoRejected, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 50 && (string)f.Value! == "deceased_criteria_met");
     }
 
     // --- helpers ---

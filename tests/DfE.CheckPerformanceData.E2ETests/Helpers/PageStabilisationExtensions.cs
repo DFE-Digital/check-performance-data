@@ -16,7 +16,18 @@ public static class PageStabilisationExtensions
     {
         await page.AddStyleTagAsync(new PageAddStyleTagOptions
         {
+            // The observability board's "Recent transitions" list is server-rendered empty and
+            // then filled live over SSE, one <li> per pipeline transition. Those rows accumulate
+            // in the database, so the list — and therefore the full-page screenshot — is taller on
+            // every successive run (observed 3165 -> 3315 -> 3375px), failing the dimension check
+            // no matter how often the baseline is rebaked. Suppressing the list is what makes the
+            // page snapshotable at all; masking or pinning a height would not help, because rows
+            // arriving between stabilisation and capture would still repaint inside the box. The
+            // "Recent transitions" heading is deliberately left visible so the baseline still
+            // shows the region exists. Nothing of visual-regression value is lost: the contents
+            // are live data that no baseline could pin.
             Content = "* { animation: none !important; transition: none !important; }"
+                      + " [data-obs-transitions] { display: none !important; }"
         });
 
         await page.WaitForLoadStateAsync(LoadState.Load);

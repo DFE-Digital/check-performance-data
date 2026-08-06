@@ -37,5 +37,6 @@
       <PackageReference Include="Refit.Newtonsoft.Json" />
       <PackageReference Include="Riok.Mapperly" />
       <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+      <PackageReference Include="System.Security.Cryptography.Xml" />
     </ItemGroup>
 </Project>

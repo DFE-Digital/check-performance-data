@@ -1,5 +1,6 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -228,6 +229,30 @@ public sealed class SearchAnalyticsInsightCardsTests
     }
 
     [Fact]
+    public async Task GetZeroResultOutcomeFunnel_ComparesAgainstTheChronologicallyFirstZeroQuery()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddHours(-3);
+
+        // The session searched "zebra", got nothing, then refined to "apple" and still got
+        // nothing. That is a refinement. Taking the alphabetically smallest zero-result
+        // query as the baseline picks "apple" — the refinement then looks identical to its
+        // own baseline and the session is misfiled as silent. The baseline has to be the
+        // query that actually ran first.
+        await SeedAsync(
+            NewEvent(from.AddMinutes(10), "s-order", "zebra", results: 0, latency: 10),
+            NewEvent(from.AddMinutes(20), "s-order", "apple", results: 0, latency: 10));
+
+        var summary = await CreateService().GetZeroResultOutcomeFunnelAsync(from, now, CancellationToken.None);
+
+        Assert.Equal(1, summary.TotalZeroResultSessions);
+        Assert.Equal(1, summary.RefinedCount);
+        Assert.Equal(0, summary.SilentCount);
+    }
+
+    [Fact]
     public async Task GetZeroResultOutcomeFunnel_ReturnsZeros_WhenWindowIsEmpty()
     {
         await ResetAllAsync();
@@ -292,10 +317,69 @@ public sealed class SearchAnalyticsInsightCardsTests
         Assert.False(deltas.Available, "Deltas should be Unavailable when the prior window pushes outside retention.");
     }
 
+    // Retention is admin-configurable (clamped 1..365). The availability gate has to use
+    // that value, not a fixed 90 days: raise retention and valid comparison chips vanish;
+    // lower it and the deltas render against rows the purge has already removed, showing a
+    // surge that is really just missing history.
+    [Fact]
+    public async Task GetSummaryDeltas_AvailabilityFollowsTheConfiguredRetention_WhenRaised()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        // 60-day window: the prior window spans 120d..60d ago. Outside a 90-day retention,
+        // comfortably inside a 200-day one.
+        var currentFrom = now.AddDays(-60);
+
+        var deltas = await CreateService(retentionDays: 200)
+            .GetSummaryDeltasAsync(currentFrom, now, CancellationToken.None);
+
+        Assert.True(deltas.Available,
+            "Retention was raised to 200 days, so the prior window is within retention and the deltas should be available.");
+    }
+
+    [Fact]
+    public async Task GetSummaryDeltas_AvailabilityFollowsTheConfiguredRetention_WhenLowered()
+    {
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        // 10-day window: the prior window spans 20d..10d ago — inside a 90-day retention
+        // but already purged under a 14-day one.
+        var currentFrom = now.AddDays(-10);
+
+        var deltas = await CreateService(retentionDays: 14)
+            .GetSummaryDeltasAsync(currentFrom, now, CancellationToken.None);
+
+        Assert.False(deltas.Available,
+            "Retention was lowered to 14 days, so the prior window has been purged and the deltas should be unavailable.");
+    }
+
+    [Theory]
+    [InlineData(0)]   // zero-width window
+    [InlineData(-3)]  // inverted window
+    public async Task GetSummaryDeltas_NonPositiveWindow_IsUnavailable_WithoutQuerying(int hours)
+    {
+        // Guard ahead of the retention check: a zero-width or inverted window has no prior
+        // period to compare against, so it must report unavailable rather than derive a
+        // negative-width prior window and query against it.
+        await ResetAllAsync();
+
+        var now = DateTime.UtcNow;
+        var deltas = await CreateService()
+            .GetSummaryDeltasAsync(now, now.AddHours(hours), CancellationToken.None);
+
+        Assert.False(deltas.Available);
+        Assert.Equal(0, deltas.PriorTotalCount);
+        Assert.Equal(0, deltas.PriorUniqueSessions);
+    }
+
     // --- Helpers -------------------------------------------------------------
 
-    private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+    private ISearchAnalyticsQueryService CreateService(int retentionDays = 90) =>
+        new SearchAnalyticsQueryService(
+            _fixture.CreateContext(),
+            new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, retentionDays));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

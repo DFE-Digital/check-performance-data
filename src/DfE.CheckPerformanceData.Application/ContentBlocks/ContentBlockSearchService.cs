@@ -82,7 +82,11 @@ public sealed class ContentBlockSearchService(
 
     private async Task<string?> ResolvePublishedPageTitleAsync(string path)
     {
-        var published = await pageNodeRepository.GetPublishedByPathAsync(path);
+        // LastSeenPath is a request path ("/help/foo") — it comes straight from
+        // HttpContext.Request.Path. PageNode.Path is stored without the leading slash
+        // ("help/foo"), so the lookup has to be normalised or it can never match and every
+        // block on a live CMS page gets dropped as "unpublished-target".
+        var published = await pageNodeRepository.GetPublishedByPathAsync(path.TrimStart('/'));
         if (published is not null) return published.Title;
 
         // Static Razor routes (e.g. "/", "/check-your-pupil-data") aren't in PageNodes but are

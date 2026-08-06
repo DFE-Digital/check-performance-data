@@ -1,5 +1,8 @@
+using DfE.CheckPerformanceData.Application.Settings;
+using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Web.Extensions;
 using DfE.CheckPerformanceData.Web.Middleware;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -52,17 +55,16 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         Assert.Equal(firstId, secondId);
     }
 
-    // Timing test — the fractional-hours override drops the cap into sub-second range so
-    // the test can prove the "even under continuous activity" invariant without waiting
-    // 24 real hours. Session.Id is stable across requests (derived from the same cookie)
-    // so the observable side effect of "cap crossed" is that per-session state written
-    // before the cap becomes inaccessible from the same cookie afterwards.
+    // Proves the "even under continuous activity" invariant by stepping the clock past a
+    // realistic 24-hour cap rather than sleeping past an artificially tiny one. Session.Id
+    // is stable across requests (derived from the same cookie) so the observable side
+    // effect of "cap crossed" is that per-session state written before the cap becomes
+    // inaccessible from the same cookie afterwards.
     [Fact]
-    [Trait("Category", "Slow")]
     public async Task SecondRequest_AfterAbsoluteLimit_ClearsSessionEvenUnderContinuousActivity()
     {
-        // Cap ~ 1.8 seconds (0.0005 h). Delay 2.5 s between requests to cross it.
-        using var host = await BuildProbeStateHostAsync(absoluteHours: 0.0005);
+        var clock = NewClock();
+        using var host = await BuildProbeStateHostAsync(absoluteHours: 24, clock: clock);
         var client = host.GetTestClient();
 
         // First request writes a marker into the session state.
@@ -71,7 +73,7 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         var cookie = ExtractSessionCookie(write);
         Assert.Equal("hello", writeBody);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(2500));
+        clock.Advance(TimeSpan.FromHours(25));
 
         // Second request past the cap reading the same key should see the wipe.
         var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/session-state?read=1");
@@ -80,6 +82,89 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         var readBody = await read.Content.ReadAsStringAsync();
 
         Assert.Equal("(none)", readBody);
+    }
+
+    // The cap is documented as "start over", and the admin-facing setting text promises a
+    // fresh identity. Session.Clear() alone cannot deliver that: ASP.NET's Session.Id is
+    // derived from the cookie and has no regenerate API, so it outlives the wipe. The
+    // analytics identity is therefore app-owned and stored in the session, which makes the
+    // wipe rotate it. Without rotation a replayed cookie keeps one id forever and every
+    // search it makes is attributed to a single unbounded "session".
+    [Fact]
+    public async Task SecondRequest_AfterAbsoluteLimit_RotatesTheAnalyticsSessionId()
+    {
+        var clock = NewClock();
+        using var host = await BuildProbeIdentityHostAsync(absoluteHours: 24, clock: clock);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var firstBody = await first.Content.ReadAsStringAsync();
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, firstSessionId) = SplitProbe(firstBody);
+
+        Assert.NotEqual("(none)", firstIdentity);
+
+        clock.Advance(TimeSpan.FromHours(25));
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, secondSessionId) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", secondIdentity);
+        Assert.NotEqual(firstIdentity, secondIdentity);
+
+        // Pins the reason the app-owned id exists: the framework's own id does NOT rotate
+        // across the cap, so anything keyed on it would still be pinned to one session.
+        Assert.Equal(firstSessionId, secondSessionId);
+    }
+
+    [Fact]
+    public async Task RequestsWithinTheCap_KeepTheSameAnalyticsSessionId()
+    {
+        using var host = await BuildProbeIdentityHostAsync(absoluteHours: 1);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, _) = SplitProbe(await first.Content.ReadAsStringAsync());
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, _) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", firstIdentity);
+        Assert.Equal(firstIdentity, secondIdentity);
+    }
+
+    // SearchAnalytics:SessionAbsoluteHours is declared as an editable, DB-backed admin
+    // setting, so the value an admin saves has to be the one the middleware enforces.
+    // Reading only IConfiguration made the settings page a no-op: edits saved and
+    // displayed but never changed the cap.
+    [Fact]
+    public async Task StoredSetting_OverridesTheConfiguredAbsoluteHours()
+    {
+        // Configuration says a week; the admin has saved one hour. The stored value wins,
+        // so stepping just over the hour must rotate the identity.
+        var clock = NewClock();
+        using var host = await BuildProbeIdentityHostAsync(
+            absoluteHours: 168, storedAbsoluteHours: 1, clock: clock);
+        var client = host.GetTestClient();
+
+        var first = await client.GetAsync("/_probe/identity");
+        var cookie = ExtractSessionCookie(first);
+        var (firstIdentity, _) = SplitProbe(await first.Content.ReadAsStringAsync());
+
+        clock.Advance(TimeSpan.FromMinutes(61));
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/_probe/identity");
+        req.Headers.Add("Cookie", cookie);
+        var second = await client.SendAsync(req);
+        var (secondIdentity, _) = SplitProbe(await second.Content.ReadAsStringAsync());
+
+        Assert.NotEqual("(none)", firstIdentity);
+        Assert.NotEqual(firstIdentity, secondIdentity);
     }
 
     [Fact]
@@ -139,7 +224,13 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
         return host;
     }
 
-    private static async Task<IHost> BuildProbeStateHostAsync(double absoluteHours)
+    // A fixed, arbitrary instant. Nothing asserts on the absolute value — only on deltas
+    // the test applies itself — so it just has to be stable within a run.
+    private static SteppableTimeProvider NewClock() =>
+        new(new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero));
+
+    private static async Task<IHost> BuildProbeStateHostAsync(
+        double absoluteHours, SteppableTimeProvider? clock = null)
     {
         var host = await new HostBuilder()
             .ConfigureWebHost(web =>
@@ -158,6 +249,11 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
                 web.ConfigureServices((ctx, services) =>
                 {
                     services.AddDistributedMemoryCache();
+                    // Registered ahead of AddCpdSession, whose TryAdd then leaves it alone.
+                    if (clock is not null)
+                    {
+                        services.AddSingleton<TimeProvider>(clock);
+                    }
                     services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
                 });
 
@@ -183,6 +279,66 @@ public sealed class SessionAbsoluteLifetimeMiddlewareTests
             .StartAsync();
 
         return host;
+    }
+
+    // Probe writes "<app-owned identity>|<framework Session.Id>" so a single request can
+    // assert on both. storedAbsoluteHours, when supplied, registers a stub ISettingService
+    // standing in for an admin-saved value so the config-vs-stored precedence is testable.
+    private static async Task<IHost> BuildProbeIdentityHostAsync(
+        double absoluteHours, double? storedAbsoluteHours = null, SteppableTimeProvider? clock = null)
+    {
+        var host = await new HostBuilder()
+            .ConfigureWebHost(web =>
+            {
+                web.UseTestServer();
+
+                web.ConfigureAppConfiguration((_, config) =>
+                {
+                    config.AddInMemoryCollection(new Dictionary<string, string?>
+                    {
+                        ["SearchAnalytics:SessionAbsoluteHours"] =
+                            absoluteHours.ToString("0.0######", System.Globalization.CultureInfo.InvariantCulture)
+                    });
+                });
+
+                web.ConfigureServices((ctx, services) =>
+                {
+                    services.AddDistributedMemoryCache();
+                    // Registered ahead of AddCpdSession, whose TryAdd then leaves it alone.
+                    if (clock is not null)
+                    {
+                        services.AddSingleton<TimeProvider>(clock);
+                    }
+                    services.AddCpdSession(ctx.Configuration, ctx.HostingEnvironment);
+                    if (storedAbsoluteHours is { } stored)
+                    {
+                        services.AddScoped<ISettingService>(_ => new StubSettingService(
+                            SettingKeys.SearchAnalyticsSessionAbsoluteHours, stored));
+                    }
+                });
+
+                web.Configure(app =>
+                {
+                    app.UseSession();
+                    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
+                    app.Run(async context =>
+                    {
+                        await context.Session.LoadAsync();
+                        var identity = CpdSessionIdentity.Peek(context.Session) ?? "(none)";
+                        await context.Response.WriteAsync($"{identity}|{context.Session.Id}");
+                    });
+                });
+            })
+            .StartAsync();
+
+        return host;
+    }
+
+    private static (string Identity, string SessionId) SplitProbe(string body)
+    {
+        var parts = body.Split('|', 2);
+        Assert.Equal(2, parts.Length);
+        return (parts[0], parts[1]);
     }
 
     private static string ExtractSessionCookie(HttpResponseMessage response)

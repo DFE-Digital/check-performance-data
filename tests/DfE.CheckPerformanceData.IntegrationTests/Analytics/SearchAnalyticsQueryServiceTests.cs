@@ -1,5 +1,6 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -315,7 +316,9 @@ public sealed class SearchAnalyticsQueryServiceTests
     // --- Helpers ---
 
     private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+        new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

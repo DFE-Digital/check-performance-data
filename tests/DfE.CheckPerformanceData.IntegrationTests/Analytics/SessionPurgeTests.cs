@@ -9,11 +9,11 @@ using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using NSubstitute;
+using Npgsql;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 
@@ -91,7 +91,9 @@ public sealed class SessionPurgeTests
         await messages.CreateAsync(sessionId, "message 2", null, null, CancellationToken.None);
         await messages.CreateAsync("other-session", "keep me", null, null, CancellationToken.None);
 
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns("acting-admin-sub");
         var controller = BuildController(context, query, messages, currentUser);
@@ -151,7 +153,9 @@ public sealed class SessionPurgeTests
 
         await using var context = _fixture.CreateContext();
         var messages = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns("acting-admin-sub");
         var controller = BuildController(context, query, messages, currentUser);
@@ -226,7 +230,9 @@ public sealed class SessionPurgeTests
 
         await using var context = BuildContextWithAuditInterceptor(_fixture);
         var messageService = new DbSearchMessageService(context);
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns("acting-admin-sub");
         var controller = BuildController(context, query, messageService, currentUser);

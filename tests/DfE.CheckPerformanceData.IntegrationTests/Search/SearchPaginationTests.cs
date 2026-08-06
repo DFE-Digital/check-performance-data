@@ -274,10 +274,11 @@ public sealed class SearchPaginationTests(PostgresFixture fixture)
 
         Assert.Null(result.InvalidReason);
         Assert.Equal(25, result.TotalCount);
-        Assert.Empty(result.Hits);
-        // Zero-indexed internal - the service slices past the array end and returns
-        // whatever's there (nothing). Not clamped to TotalPages - 1.
-        Assert.Equal(98, result.Page);
         Assert.Equal(2, result.TotalPages);
+        // A page past the end lands on the last valid page in the same call. Clamping here
+        // rather than leaving the caller to re-issue is what keeps one user request to one
+        // telemetry event; page is zero-indexed internally, so page 2 of 2 reads as 1.
+        Assert.Equal(1, result.Page);
+        Assert.Equal(5, result.Hits.Count);
     }
 }

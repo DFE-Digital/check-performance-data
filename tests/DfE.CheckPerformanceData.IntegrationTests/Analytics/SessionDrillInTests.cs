@@ -4,11 +4,11 @@ using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 
@@ -43,7 +43,9 @@ public sealed class SessionDrillInTests
         }
 
         await using var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var messages = new DbSearchMessageService(context);
         await messages.CreateAsync(sessionId, "message from session-drill-1", null, null, CancellationToken.None);
 
@@ -66,7 +68,9 @@ public sealed class SessionDrillInTests
         await SearchAnalyticsSeedHelpers.TruncateAllAsync(_fixture);
 
         await using var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var messages = new DbSearchMessageService(context);
 
         var controller = BuildController(context, query, messages);

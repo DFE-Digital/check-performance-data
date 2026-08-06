@@ -12,7 +12,7 @@ public sealed class AdminNavRegistryTests
 	public void AddAdminNavEntries_Registers_Hierarchical_Entries()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
@@ -65,7 +65,7 @@ public sealed class AdminNavRegistryTests
 	public void Tiles_Within_Each_Group_Have_Distinct_Orders_Per_UI_Spec()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entries = provider.GetServices<IAdminNavEntry>().ToList();
@@ -124,7 +124,7 @@ public sealed class AdminNavRegistryTests
 	public void DeletedPages_Tile_Links_To_Admin_Route()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -140,7 +140,7 @@ public sealed class AdminNavRegistryTests
 	public void SeedSamplePages_Tile_Has_PostHttpMethod_And_Sits_Under_TestDataGroup()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -163,7 +163,7 @@ public sealed class AdminNavRegistryTests
 	public void TestDataGroup_Is_SystemAdmin_Child_Container()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -182,7 +182,7 @@ public sealed class AdminNavRegistryTests
 	public void SeedSampleSearchData_Tile_Sits_Under_TestDataGroup_LinkingToTestDataSampleSearchData()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -201,7 +201,7 @@ public sealed class AdminNavRegistryTests
 	public void TestDataGroup_Children_Have_Distinct_Orders()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var testDataChildren = provider.GetServices<IAdminNavEntry>()
@@ -219,7 +219,7 @@ public sealed class AdminNavRegistryTests
 	public void SystemSettings_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminSettings()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -238,7 +238,7 @@ public sealed class AdminNavRegistryTests
 	public void DeadLetterQueue_Tile_Is_Enabled_MessagesGroup_Child_LinkingToDlq()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -258,7 +258,7 @@ public sealed class AdminNavRegistryTests
 	public void MessagesInbox_Tile_Is_Enabled_MessagesGroup_Child_TitledSearchFeedback()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -278,7 +278,7 @@ public sealed class AdminNavRegistryTests
 	public void MessagesGroup_Is_Root_Level_Group_Titled_Messages()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()
@@ -296,7 +296,7 @@ public sealed class AdminNavRegistryTests
 	public void RulesConfig_Tile_Is_Enabled_SystemAdmin_Child_LinkingToAdminRules()
 	{
 		var services = new ServiceCollection();
-		services.AddAdminNavEntries();
+		services.AddAdminNavEntries(includeSampleSearchData: true);
 
 		using var provider = services.BuildServiceProvider();
 		var entry = provider.GetServices<IAdminNavEntry>()

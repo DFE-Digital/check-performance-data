@@ -13,7 +13,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 //   - Zero-result → next-action outcome funnel (refined / feedback / silent)
 //   - Week-over-week prior-window summary (drives anomaly chips)
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsInsightCardsTests
 {
     private readonly PostgresFixture _fixture;

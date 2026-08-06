@@ -6,7 +6,6 @@ using Microsoft.Playwright;
 namespace DfE.CheckPerformanceData.E2ETests.Visual;
 
 [Collection("E2E")]
-[Trait("Category", "W4")]
 [Trait("Category", "VisualRegression")]
 public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

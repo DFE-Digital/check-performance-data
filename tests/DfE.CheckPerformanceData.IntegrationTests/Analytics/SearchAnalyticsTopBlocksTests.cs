@@ -13,7 +13,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // semantically different — a page is a URL, a block is a snippet — and mixing them on one
 // card produces a "Top pages" list with non-navigable entries mid-list.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsTopBlocksTests
 {
     private readonly PostgresFixture _fixture;

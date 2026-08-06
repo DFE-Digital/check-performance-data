@@ -17,7 +17,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // eyeball them before merging. Linux-only for browser install parity; visual assertions
 // on other OSes drift on font metrics.
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     public override BrowserNewContextOptions ContextOptions() =>

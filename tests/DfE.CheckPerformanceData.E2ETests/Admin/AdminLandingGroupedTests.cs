@@ -13,7 +13,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // 182); disabled rail row tabindex absent). The UI-SPEC is the source of truth
 // for those three values.
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class AdminLandingGroupedTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     public override BrowserNewContextOptions ContextOptions() =>

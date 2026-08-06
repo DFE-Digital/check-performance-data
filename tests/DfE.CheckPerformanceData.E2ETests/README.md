@@ -57,11 +57,12 @@ The thrown `XunitException` message ends with the absolute path to the `Snapshot
 
 | Trait | Filter | Use |
 |-------|--------|-----|
-| `W0` | `--filter "Category=W0"` | Harness smoke. |
-| `W1` | `--filter "Category=W1"` | Read-path browse. |
-| `W2` | `--filter "Category=W2"` | Soft-delete + warning-text + search sidebar. |
-| `W4` | `--filter "Category=W4"` | REST CRUD + visual regression. |
-| `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, skipped on Windows/macOS. |
+| `VisualRegression` | `--filter "Category=VisualRegression"` | Snapshot-diff tests only — Linux-only, and off unless `CPD_E2E_VISUAL_REGRESSION` is set. |
+| `Slow` | `--filter "Category!=Slow"` | Tests that wait on real timeouts or polling; exclude them for a quicker sweep. |
+
+Tests are otherwise grouped by folder rather than by trait — `Wiki/`, `Web/`,
+`Admin/`, `Visual/` — so scope a run with `--filter "FullyQualifiedName~Admin"`
+rather than reaching for a category.
 
 Quick functional sweep (excludes visual regression):
 
@@ -174,7 +175,7 @@ tests/DfE.CheckPerformanceData.E2ETests/
 
 1. Pick the appropriate folder (`Wiki/` for browser-driven wiki tests, `Web/` for HTTP and chrome/layout browser tests, `Visual/` for snapshots).
 2. Inherit `PageTest` for browser tests; omit inheritance for HTTP-only tests.
-3. Add `[Collection("E2E")]` and `[Trait("Category", "W{N}")]`.
+3. Add `[Collection("E2E")]`. Only add a `[Trait("Category", ...)]` if the test needs one of the traits in the table above.
 4. If the test creates wiki pages or content blocks, implement `IAsyncLifetime` with cleanup in `DisposeAsync`.
 5. Use the `e2e-{Guid:N}-` prefix on every slug/key.
 6. Use `_fixture.SeedClient` + `SeedHelpers.*` for HTTP seeding.
@@ -192,7 +193,6 @@ using Microsoft.Playwright.Xunit;
 namespace DfE.CheckPerformanceData.E2ETests.Web;
 
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class CookieBannerTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -252,7 +252,6 @@ What each line is doing — read alongside the seven-step checklist above:
 | Pattern | Why |
 |---|---|
 | `: PageTest` + primary-ctor `(PlaywrightFixture fixture)` | `PageTest` (from `Microsoft.Playwright.Xunit`) gives you `Page` and `Expect(...)` for free. The fixture comes from the collection (one Postgres + one running Web container shared by every test in `[Collection("E2E")]`). |
-| `[Trait("Category", "W1")]` | Categorises the test for the filter table in this README. `W1` = read-path browse. Pick the trait that matches what your test exercises so it runs (or skips) cleanly with the existing Make targets. |
 | `await Page.Context.ClearCookiesAsync()` *before* `GotoAsync` | The collection-shared `Page` carries cookies from earlier tests. Anonymous-state tests must clear first or risk a false-pass because a previous test left the consent cookie behind. |
 | `Page.Locator("[data-module=...]")` scoping + `banner.Locator("[data-accept-cookies]")` | Scope a parent locator once, then resolve child locators from it. Lazier than `Page.Locator(...)` everywhere, and reads as "click the accept button *inside this banner*", which mirrors the page structure. |
 | `Expect(...).ToBeVisibleAsync()` / `ToBeHiddenAsync()` | Both auto-wait up to 5s. `ToBeHiddenAsync()` is satisfied by the `hidden` HTML attribute, `display: none`, or `visibility: hidden` — so the banner's Razor `hidden` attribute counts as hidden without extra CSS assertions. |

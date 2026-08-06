@@ -19,7 +19,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 //   * Null dependencies (backward-compat): seeder still runs and emits results, using the
 //     internal sentinel fallback.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SampleSearchDataSeederHitPoolTests
 {
     private readonly PostgresFixture _fixture;

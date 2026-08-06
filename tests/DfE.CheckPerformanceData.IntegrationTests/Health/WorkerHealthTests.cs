@@ -22,7 +22,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Health;
 /// database reachability so a crash-looping or DB-isolated worker is detectable.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W3")]
 public sealed class WorkerHealthTests
 {
     private readonly PostgresFixture _fixture;

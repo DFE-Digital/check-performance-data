@@ -11,7 +11,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Visual;
 // snapshot is stable across runs. StabiliseAsync additionally strips animation/transition before
 // the capture.
 [Collection("E2E")]
-[Trait("Category", "W4")]
 [Trait("Category", "VisualRegression")]
 public sealed class ObservabilityVisualTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {

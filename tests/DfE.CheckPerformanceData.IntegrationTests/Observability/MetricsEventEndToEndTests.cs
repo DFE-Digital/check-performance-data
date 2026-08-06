@@ -15,7 +15,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 /// every field round-trips.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class MetricsEventEndToEndTests
 {
     private readonly PostgresFixture _fixture;

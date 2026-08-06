@@ -16,7 +16,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 //   - IdleTimeout honours the SearchAnalytics:SessionIdleMinutes override
 //   - Cookie.MaxAge is deliberately NOT set — that's a browser hint only; the server-
 //     side absolute-lifetime cap lives in SessionAbsoluteLifetimeMiddleware (test 3b)
-[Trait("Category", "W0")]
 public sealed class SessionCookieLifetimeTests
 {
     [Fact]

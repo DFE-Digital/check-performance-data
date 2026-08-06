@@ -24,7 +24,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.RulesEngine;
 /// or Pincl regresses, the matching decision no longer lands and this fails.
 /// </summary>
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class DevPipelinePresetRoutingTests
 {
     private static readonly RulesSnapshot Snapshot = LoadSeedSnapshot();

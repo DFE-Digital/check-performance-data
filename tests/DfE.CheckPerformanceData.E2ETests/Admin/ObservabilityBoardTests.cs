@@ -10,7 +10,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // stage + recent transitions) so the information is available without motion. The export CTA and
 // the board/export scripts are wired into the page. All assertions are DOM-level, not pixel.
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;
@@ -121,7 +120,6 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 // the rendered skeleton, the recent-transitions live region is present and animated tokens are
 // keyboard-focusable. Assertions are DOM/JS-level, not pixel.
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     [Fact]

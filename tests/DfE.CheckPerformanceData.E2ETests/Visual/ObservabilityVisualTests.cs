@@ -25,6 +25,8 @@ public sealed class ObservabilityVisualTests(PlaywrightFixture fixture) : Seedin
     [SkippableFact]
     public async Task DashboardPage_MatchesSnapshot()
     {
+        Skip.IfNot(VisualRegressionSwitch.Enabled, VisualRegressionSwitch.SkipReason);
+
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 

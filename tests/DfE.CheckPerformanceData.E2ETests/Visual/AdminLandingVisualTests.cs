@@ -18,6 +18,8 @@ public sealed class AdminLandingVisualTests(PlaywrightFixture fixture) : Seeding
     [SkippableFact]
     public async Task AdminLandingPage_MatchesSnapshot()
     {
+        Skip.IfNot(VisualRegressionSwitch.Enabled, VisualRegressionSwitch.SkipReason);
+
         Skip.IfNot(RuntimeInformation.IsOSPlatform(OSPlatform.Linux),
             "Visual regression Linux-only");
 

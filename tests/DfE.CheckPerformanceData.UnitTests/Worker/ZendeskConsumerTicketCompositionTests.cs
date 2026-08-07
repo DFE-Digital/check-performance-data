@@ -125,12 +125,26 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         Assert.Contains(ticket.CustomFields!, f => f.Id == 10 && (string)f.Value! == "123456");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 11 && (string)f.Value! == "c1");
-        Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value! == "p1");
+        // UPN comes from the pupil's Upn (upper-cased), not the internal pupil Id.
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value! == "UPN1");
         // Surname/forename are upper-cased before mapping.
         Assert.Contains(ticket.CustomFields!, f => f.Id == 13 && (string)f.Value! == "SMITH");
         Assert.Contains(ticket.CustomFields!, f => f.Id == 14 && (string)f.Value! == "BOB");
         // dd/MM/yyyy is normalised to ISO yyyy-MM-dd.
         Assert.Contains(ticket.CustomFields!, f => f.Id == 15 && (string)f.Value! == "2010-01-01");
+    }
+
+    [Fact]
+    public void UpnField_IsUpperCased()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.UpnName).Returns(12L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.Scrutiny, "Other", "OTH-DEF", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Other", "KS4", upn: "upn1"), decision).Ticket;
+
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 12 && (string)f.Value! == "UPN1");
     }
 
     // --- US1: message-derived fields (FR-002..006, FR-009, FR-010, FR-011) ---
@@ -401,9 +415,9 @@ public sealed class ZendeskConsumerTicketCompositionTests
     // --- helpers ---
 
     private static RequestDocument NewMessage(string whatToChange, params AnswerRecord[] answers) =>
-        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, answers);
+        NewMessage(whatToChange, "KS4", laestab: null, matchRef: 0, entryDate: null, upn: "UPN1", answers);
 
-    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, params AnswerRecord[] answers) => new()
+    private static RequestDocument NewMessage(string whatToChange, string windowType, string? laestab = null, int matchRef = 0, string? entryDate = null, string? upn = "UPN1", params AnswerRecord[] answers) => new()
     {
         ReferenceNumber = "REF",
         CheckingWindowId = Guid.NewGuid(),
@@ -416,7 +430,7 @@ public sealed class ZendeskConsumerTicketCompositionTests
         Pupil = new PupilDetails
         {
             Id = "p1", CypmdId = "c1", Firstname = "Bob", Surname = "Smith",
-            DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = "UPN1", MatchRef = matchRef,
+            DateOfBirth = "01/01/2010", Sex = "M", Age = 14, Upn = upn, MatchRef = matchRef,
             EntryDate = entryDate ?? string.Empty,
         },
         Answers = answers.ToList(),

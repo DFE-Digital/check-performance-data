@@ -268,13 +268,14 @@ public static class ZendeskTicketFieldOptions
         private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
         {
             // Authoritative Zendesk option strings from the field's option list
-            // (spec field table, field ID 19381440546322). The "pupil died" removal
-            // reason maps to option "deceased". The remaining removal-reason options
-            // are not yet confirmed; unmapped reasons are omitted + warning-logged (FR-014).
-            { "terminal_critical_illness", ReasonForRemoval.TerminalCriticalIllness },
-            { "terminal critical illness", ReasonForRemoval.TerminalCriticalIllness },
+            // (spec field table, field ID 19381440546322). Keyed on the RequestTypeCode
+            // removal-reason suffix (the flow option value), e.g. "life-limiting-illness".
+            // The "pupil died" removal reason maps to option "deceased". The remaining
+            // removal-reason options are not yet confirmed; unmapped reasons are omitted +
+            // warning-logged (FR-014).
             { "pupil-died", ReasonForRemoval.Deceased },
-            { "pupil died", ReasonForRemoval.Deceased }
+            { "pupil died", ReasonForRemoval.Deceased },
+            { "life-limiting-illness", ReasonForRemoval.TerminalCriticalIllness }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

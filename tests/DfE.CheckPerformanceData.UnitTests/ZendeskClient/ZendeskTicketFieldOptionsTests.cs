@@ -128,4 +128,25 @@ public sealed class ZendeskTicketFieldOptionsTests
 
         Assert.Null(value);
     }
+
+    [Theory]
+    [InlineData("pupil-died", "deceased")]
+    [InlineData("pupil died", "deceased")]
+    [InlineData("life-limiting-illness", "terminal_critical_illness")]
+    public void ReasonForRemoval_GetOptionValue_MapsRemovalReasons(string removalReason, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Theory]
+    [InlineData("permanent-exclusion")]
+    [InlineData("social-care-involvement")]
+    public void ReasonForRemoval_GetOptionValue_ReturnsNullForUnmappedRemovalReason(string removalReason)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
+
+        Assert.Null(value);
+    }
 }

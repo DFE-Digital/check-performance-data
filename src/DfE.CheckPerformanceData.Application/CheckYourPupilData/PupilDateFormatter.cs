@@ -47,4 +47,25 @@ public static class PupilDateFormatter
             ? date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : raw;
     }
+
+    /// <summary>
+    /// Like <see cref="ToIsoDate"/>, but signals parse failure instead of returning the raw
+    /// string. Returns <c>false</c> when the value is null, empty, or matches no accepted
+    /// supplier shape — the caller must then omit the field (e.g. a Zendesk admission date
+    /// that must never be sent raw, which would reject the whole ticket).
+    /// </summary>
+    public static bool TryToIsoDate(string? raw, out string isoDate)
+    {
+        isoDate = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        if (!DateTime.TryParseExact(raw.Trim(), AcceptedFormats, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var date))
+            return false;
+
+        isoDate = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return true;
+    }
 }

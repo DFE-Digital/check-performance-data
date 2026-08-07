@@ -269,6 +269,16 @@ public sealed class ZendeskConsumer : ConsumerBase
         return dto;
     }
 
+    // Returns the configured field ID, or null when it is unset or 0. production.yml sets
+    // every ZendeskTicketFields__*Id to 0 until the IDs are confirmed, and a custom field
+    // with Id = 0 makes Zendesk reject the whole ticket (422), so a configured 0 is treated
+    // exactly like "not configured" (FR-014). All field mappers must route through this.
+    private long? GetConfiguredFieldId(string fieldName)
+    {
+        var fieldId = _ticketFieldService?.GetFieldIdFromConfig(fieldName);
+        return fieldId is { } id && id > 0 ? id : null;
+    }
+
     private static string BuildDescription(RequestDocument message, Decision decision)
     {
         var sb = new StringBuilder();
@@ -330,7 +340,7 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
-        var schoolUrnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SchoolUrnName);
+        var schoolUrnId = GetConfiguredFieldId(ZendeskTicketFieldConstants.SchoolUrnName);
         if (schoolUrnId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -340,7 +350,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var cypmdFieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CypmdName);
+        var cypmdFieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CypmdName);
         if (cypmdFieldId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -350,7 +360,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var upnId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.UpnName);
+        var upnId = GetConfiguredFieldId(ZendeskTicketFieldConstants.UpnName);
         if (upnId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -360,7 +370,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var surnameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SurnameCypmdName);
+        var surnameId = GetConfiguredFieldId(ZendeskTicketFieldConstants.SurnameCypmdName);
         if (surnameId.HasValue && !string.IsNullOrEmpty(message.Pupil.Surname))
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -370,7 +380,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var forenameId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ForenameCypmdName);
+        var forenameId = GetConfiguredFieldId(ZendeskTicketFieldConstants.ForenameCypmdName);
         if (forenameId.HasValue && !string.IsNullOrEmpty(message.Pupil.Firstname))
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -380,7 +390,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var dobId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DateOfBirthCypmdName);
+        var dobId = GetConfiguredFieldId(ZendeskTicketFieldConstants.DateOfBirthCypmdName);
         if (dobId.HasValue && !string.IsNullOrEmpty(message.Pupil.DateOfBirth))
         {
             if (DateTime.TryParseExact(message.Pupil.DateOfBirth, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
@@ -397,7 +407,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
         }
 
-        var sexId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.SexName);
+        var sexId = GetConfiguredFieldId(ZendeskTicketFieldConstants.SexName);
         if (sexId.HasValue && !string.IsNullOrEmpty(message.Pupil.Sex))
         {
             var sexValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.SexName, message.Pupil.Sex);
@@ -423,7 +433,7 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
-        var dciRefId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DciRefCypmdName);
+        var dciRefId = GetConfiguredFieldId(ZendeskTicketFieldConstants.DciRefCypmdName);
         if (dciRefId.HasValue && !string.IsNullOrEmpty(message.ReferenceNumber))
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -433,7 +443,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var ageId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AgeCypmdName);
+        var ageId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AgeCypmdName);
         if (ageId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -454,7 +464,7 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
-        var cycleYearId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName);
+        var cycleYearId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleYearName);
         if (cycleYearId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -464,7 +474,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             });
         }
 
-        var cycleMonthId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName);
+        var cycleMonthId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CycleMonthName);
         if (cycleMonthId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -484,7 +494,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var keyStageId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.KeyStageName);
+        var keyStageId = GetConfiguredFieldId(ZendeskTicketFieldConstants.KeyStageName);
         if (keyStageId.HasValue && !string.IsNullOrEmpty(message.CheckingWindowType))
         {
             var keyStageValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, message.CheckingWindowType);
@@ -522,7 +532,7 @@ public sealed class ZendeskConsumer : ConsumerBase
 
         dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
 
-        var correctionTypeId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName);
+        var correctionTypeId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionTypeName);
         if (correctionTypeId.HasValue)
         {
             dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -542,7 +552,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var correctionReasonId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name);
+        var correctionReasonId = GetConfiguredFieldId(ZendeskTicketFieldConstants.CorrectionReason31Name);
         if (correctionReasonId.HasValue)
         {
             var correctionReasonValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, removalReason);
@@ -560,7 +570,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
         }
 
-        var reasonForRemovalId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName);
+        var reasonForRemovalId = GetConfiguredFieldId(ZendeskTicketFieldConstants.ReasonForRemovalName);
         if (reasonForRemovalId.HasValue)
         {
             var reasonForRemovalValue = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, removalReason);
@@ -588,7 +598,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
+        var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.LdsMatchedPupilIdName);
         var matchRef = (message.MatchedPupil ?? message.Pupil).MatchRef;
         if (fieldId.HasValue && matchRef > 0)
         {
@@ -610,7 +620,7 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
+        var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.DfeEstablishmentNumberName);
         if (fieldId.HasValue && !string.IsNullOrEmpty(message.School.Laestab))
         {
             dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
@@ -632,11 +642,10 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName);
+        var fieldId = GetConfiguredFieldId(ZendeskTicketFieldConstants.AdmissionDateName);
         if (fieldId.HasValue)
         {
-            var isoDate = PupilDateFormatter.ToIsoDate(message.Pupil.EntryDate);
-            if (!string.IsNullOrWhiteSpace(isoDate))
+            if (PupilDateFormatter.TryToIsoDate(message.Pupil.EntryDate, out var isoDate))
             {
                 dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
                 dto.Ticket.CustomFields.Add(new CustomFieldDto
@@ -647,7 +656,9 @@ public sealed class ZendeskConsumer : ConsumerBase
             }
             else
             {
-                _logger.LogWarning("Admission date absent for Reference={Reference}, skipping field.", message.ReferenceNumber);
+                _logger.LogWarning(
+                    "Unable to parse admission date '{EntryDate}' for Reference={Reference}, skipping field.",
+                    message.Pupil.EntryDate, message.ReferenceNumber);
             }
         }
     }
@@ -685,7 +696,7 @@ public sealed class ZendeskConsumer : ConsumerBase
 
     private void AddDecisionReasonTag(CreateTicketRequestDto dto, Decision decision, string fieldName)
     {
-        var fieldId = _ticketFieldService!.GetFieldIdFromConfig(fieldName);
+        var fieldId = GetConfiguredFieldId(fieldName);
         if (!fieldId.HasValue)
         {
             return;

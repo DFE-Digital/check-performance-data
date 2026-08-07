@@ -329,6 +329,53 @@ public sealed class ZendeskConsumerTicketCompositionTests
     }
 
     [Fact]
+    public void AdmissionDate_IsOmitted_WhenEntryDateUnparseable()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName).Returns(40L);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        // A supplier ENTRYDAT that matches no accepted format must never be sent raw to
+        // Zendesk (it would 422 the whole ticket); the field is omitted instead.
+        var msg = NewMessage("Remove - pupil-died", "KS2", entryDate: "01-09-2024");
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 40);
+    }
+
+    [Fact]
+    public void AllCustomFields_Omitted_WhenConfiguredFieldIdIsZero()
+    {
+        // production.yml sets every ZendeskTicketFields__*Id to 0. A configured 0 must be
+        // treated as "not configured" (FR-014); sending Id=0 to Zendesk 422s the whole ticket.
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DciRefCypmdName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AgeCypmdName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleYearName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CycleMonthName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.KeyStageName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionTypeName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.CorrectionReason31Name).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.ReasonForRemovalName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.LdsMatchedPupilIdName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DfeEstablishmentNumberName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.AdmissionDateName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(0L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonRejectedName).Returns(0L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.CorrectionReason31Name, "pupil-died").Returns("4_31");
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.ReasonForRemovalName, "pupil-died").Returns("deceased");
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.KeyStageName, "KS4June").Returns("ks4");
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+        var msg = NewMessage("Remove - pupil-died", "KS4June", laestab: "860/4070", matchRef: 10042, entryDate: "01/09/2024");
+
+        var ticket = consumer.BuildTicket(msg, decision).Ticket;
+
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 0);
+    }
+
+    [Fact]
     public void DecisionReasonApproved_IsMappedFromOutcomeKey()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);

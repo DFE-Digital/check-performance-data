@@ -98,13 +98,18 @@
                         <li class="govuk-service-navigation__item">
                             <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
                         </li>
-                        @if (User.Identity is { IsAuthenticated: true } && selectedWindowId is not null)
+                        @if (User.Identity is { IsAuthenticated: true })
                         {
+                            @if (selectedWindowId is not null)
+                            {
+                                <li class="govuk-service-navigation__item">
+                                    <a class="govuk-service-navigation__link"
+                                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>
+                                </li>
+                            }
+
                             <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>
-                            </li>
-                            <li class="govuk-service-navigation__item">
-                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = selectedWindowId })">Amendment requests</a>
+                                <a class="govuk-service-navigation__link" href="@Url.Action("Index", "EstablishmentAmendmentRequests")">Amendment requests</a>
                             </li>
                         }
                         @* Sign in / Sign out cluster.

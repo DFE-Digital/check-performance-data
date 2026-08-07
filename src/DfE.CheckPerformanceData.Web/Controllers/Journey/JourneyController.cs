@@ -318,6 +318,20 @@ public sealed class JourneyController(
             }
         }
 
+        // Cross-field date rules (AB#295246). Runs after the loop because it needs every answer
+        // on the page, and skips any question that already failed its own format check — the
+        // view model renders only the first error per question, so adding a second here would
+        // replace "must be a real date" with a comparison against a date the user never entered.
+        var dateRuleQuestionIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var violation in journeyService.ValidatePageDates(page, newAnswers, pupilName))
+        {
+            if (ModelState.TryGetValue(violation.QuestionId, out var existing) && existing.Errors.Count > 0)
+                continue;
+            ModelState.AddModelError(violation.QuestionId, violation.Message);
+            dateRuleQuestionIds.Add(violation.QuestionId);
+            isValid = false;
+        }
+
         // Page-level "at least one answered" rule (e.g. EvidenceUpload pages).
         var atLeastOne = journeyService.ValidateRequireAtLeastOne(page, newAnswers, pupilName);
         if (atLeastOne is not null)
@@ -334,6 +348,9 @@ public sealed class JourneyController(
             {
                 if (!ModelState.TryGetValue(q.Id, out var entry) || entry.Errors.Count == 0) continue;
                 if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); continue; }
+                // A cross-field failure is a well-formed date in the wrong place, not a malformed
+                // one — coding it as bad_date would hide the distinction the rule exists to make.
+                if (dateRuleQuestionIds.Contains(q.Id)) { codes.Add(ValidationErrorCoding.DateInconsistent); continue; }
                 newAnswers.TryGetValue(q.Id, out var ans);
                 var answered = ans is not null && journeyService.IsAnswered(q, ans);
                 codes.Add(ValidationErrorCoding.ForQuestion(q, answered));

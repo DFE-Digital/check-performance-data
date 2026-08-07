@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -64,6 +66,49 @@ public sealed class QuestionFlowValidatorAlignmentTests
         }
     }
 
+    /// <summary>
+    /// The same guard for the one rule that runs from code rather than config: the cross-field
+    /// date rules in <see cref="PageDateRules"/> address questions by id, and nothing at runtime
+    /// notices if the page or a question id is renamed in the flow JSON — the rules would simply
+    /// stop matching and the validation would silently stop happening.
+    /// </summary>
+    [Fact]
+    public void PageDateRules_QuestionIds_MatchTheShippedFlowConfig()
+    {
+        var page = AllFlowPages()
+            .SingleOrDefault(p => p.Page.Id == PageDateRules.EalDetailsPageId);
+
+        Assert.True(page.Page is not null,
+            $"No flow config contains a page '{PageDateRules.EalDetailsPageId}', which " +
+            $"PageDateRules addresses by id — its date rules would never run.");
+
+        string[] ruleIds =
+        [
+            PageDateRules.StartedAtSchool,
+            PageDateRules.FirstEnglishSchool,
+            PageDateRules.ArrivedInEngland
+        ];
+
+        foreach (var id in ruleIds)
+        {
+            var question = page.Page!.Questions.SingleOrDefault(q => q.Id == id);
+            Assert.True(question is not null,
+                $"{page.File}: page '{page.Page.Id}' has no question '{id}', which PageDateRules " +
+                $"compares — that rule would silently never fire.");
+            Assert.True(question!.Type == QuestionType.Date,
+                $"{page.File}: question '{id}' is {question.Type}, not Date — PageDateRules reads " +
+                $"it as a date answer and would always see it as unanswered.");
+        }
+
+        // The optionality of the arrival date is load-bearing: three of the seven rules are only
+        // evaluated when it has been filled in.
+        Assert.True(
+            page.Page!.Questions.Single(q => q.Id == PageDateRules.ArrivedInEngland).Optional,
+            $"{page.File}: '{PageDateRules.ArrivedInEngland}' is no longer optional. PageDateRules " +
+            $"treats a blank answer as 'rule not applicable' rather than an error — if the question " +
+            $"is now mandatory, confirm that is still the intended behaviour.");
+    }
+
     private static IEnumerable<string> ReferencedConditionNames(Question question)
     {
         foreach (var name in question.OptionalWhen ?? [])
@@ -96,14 +141,16 @@ public sealed class QuestionFlowValidatorAlignmentTests
             .ToHashSet(StringComparer.Ordinal);
     }
 
-    private static IEnumerable<(string File, Question Question)> AllFlowQuestions()
+    private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
+        AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
+
+    private static IEnumerable<(string File, JourneyPage Page)> AllFlowPages()
     {
         foreach (var file in Directory.GetFiles(LocateFlowsDirectory(), "*.json").Order())
         {
             var config = JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(file), JsonOptions)!;
             foreach (var page in config.Pages)
-            foreach (var question in page.Questions)
-                yield return (Path.GetFileName(file), question);
+                yield return (Path.GetFileName(file), page);
         }
     }
 

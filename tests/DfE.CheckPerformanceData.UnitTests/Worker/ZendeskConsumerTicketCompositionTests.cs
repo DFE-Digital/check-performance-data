@@ -387,7 +387,9 @@ public sealed class ZendeskConsumerTicketCompositionTests
     public void DecisionReasonApproved_IsOmitted_WhenAutoRejectedAndFlagDisabled()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonRejectedName).Returns(51L);
         _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonRejectedName, "Deceased").Returns("deceased_criteria_not_met");
 
         var consumer = NewConsumer();
         var decision = new Decision(DecisionStatus.AutoRejected, "Deceased", "DEC-1", Array.Empty<string>());
@@ -395,13 +397,16 @@ public sealed class ZendeskConsumerTicketCompositionTests
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
 
         Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 50);
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 51);
     }
 
     [Fact]
-    public void DecisionReasonApproved_IsMapped_WhenAutoRejectedAndFlagEnabled()
+    public void DecisionReasonRejected_IsMapped_WhenAutoRejectedAndFlagEnabled()
     {
         _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonRejectedName).Returns(51L);
         _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonRejectedName, "Deceased").Returns("deceased_criteria_not_met");
         _ticketFieldService.PopulateDecisionReasonForAutoRejected.Returns(true);
 
         var consumer = NewConsumer();
@@ -409,7 +414,26 @@ public sealed class ZendeskConsumerTicketCompositionTests
 
         var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
 
+        Assert.Contains(ticket.CustomFields!, f => f.Id == 51 && (string)f.Value! == "deceased_criteria_not_met");
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 50);
+    }
+
+    [Fact]
+    public void DecisionReasonRejected_IsOmitted_WhenAutoApproved()
+    {
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName).Returns(50L);
+        _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonRejectedName).Returns(51L);
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, "Deceased").Returns("deceased_criteria_met");
+        _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonRejectedName, "Deceased").Returns("deceased_criteria_not_met");
+        _ticketFieldService.PopulateDecisionReasonForAutoRejected.Returns(true);
+
+        var consumer = NewConsumer();
+        var decision = new Decision(DecisionStatus.AutoApproved, "Deceased", "DEC-1", Array.Empty<string>());
+
+        var ticket = consumer.BuildTicket(NewMessage("Remove - pupil-died"), decision).Ticket;
+
         Assert.Contains(ticket.CustomFields!, f => f.Id == 50 && (string)f.Value! == "deceased_criteria_met");
+        Assert.DoesNotContain(ticket.CustomFields ?? new(), f => f.Id == 51);
     }
 
     // --- helpers ---

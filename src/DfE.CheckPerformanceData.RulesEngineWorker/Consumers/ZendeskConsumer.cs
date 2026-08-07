@@ -652,11 +652,12 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
     }
 
-    // FR-013: Decision Reason - Approved from the rules outcome key via the curated tagger map.
-    // Gated to auto-approved decisions (the field records the reason an APPROVED decision met
-    // its criteria); auto-rejected decisions additionally populate when the
-    // PopulateDecisionReasonForAutoRejected setting is enabled; scrutiny never does. Omitted
-    // when the decision is excluded or has no mapping (FR-014).
+    // FR-013: Decision Reason - Approved / Decision Reason - Rejected from the rules outcome key
+    // via the curated tagger maps. AutoApproved decisions always populate the "Decision Reason -
+    // Approved" field (the field records the reason an APPROVED decision met its criteria);
+    // AutoRejected decisions populate the "Decision Reason - Rejected" field with the matching
+    // criteria-not-met tag when the PopulateDecisionReasonForAutoRejected setting is enabled;
+    // scrutiny never does. Omitted when the decision is excluded or has no mapping (FR-014).
     private void AddDecisionReasonField(CreateTicketRequestDto dto, Decision decision)
     {
         if (_ticketFieldService is null)
@@ -664,24 +665,33 @@ public sealed class ZendeskConsumer : ConsumerBase
             return;
         }
 
-        var fieldId = _ticketFieldService.GetFieldIdFromConfig(ZendeskTicketFieldConstants.DecisionReasonApprovedName);
+        if (decision.Status == DecisionStatus.AutoApproved)
+        {
+            AddDecisionReasonTag(dto, decision, ZendeskTicketFieldConstants.DecisionReasonApprovedName);
+            return;
+        }
+
+        if (decision.Status == DecisionStatus.AutoRejected
+            && _ticketFieldService.PopulateDecisionReasonForAutoRejected)
+        {
+            AddDecisionReasonTag(dto, decision, ZendeskTicketFieldConstants.DecisionReasonRejectedName);
+            return;
+        }
+
+        _logger.LogDebug(
+            "Decision reason not populated for {Status} decision (AutoRejected populates the Decision Reason - Rejected field only when {Setting} is enabled).",
+            decision.Status, nameof(ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected));
+    }
+
+    private void AddDecisionReasonTag(CreateTicketRequestDto dto, Decision decision, string fieldName)
+    {
+        var fieldId = _ticketFieldService!.GetFieldIdFromConfig(fieldName);
         if (!fieldId.HasValue)
         {
             return;
         }
 
-        var includeRejected = _ticketFieldService.PopulateDecisionReasonForAutoRejected;
-        var isIncludedStatus = decision.Status == DecisionStatus.AutoApproved
-            || (includeRejected && decision.Status == DecisionStatus.AutoRejected);
-        if (!isIncludedStatus)
-        {
-            _logger.LogDebug(
-                "Decision Reason - Approved not populated for {Status} decision (AutoRejected is included only when {Setting} is enabled).",
-                decision.Status, nameof(ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected));
-            return;
-        }
-
-        var option = _ticketFieldService.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonApprovedName, decision.OutcomeKey);
+        var option = _ticketFieldService!.GetOptionValue(fieldName, decision.OutcomeKey);
         if (!string.IsNullOrEmpty(option))
         {
             dto.Ticket.CustomFields ??= new List<CustomFieldDto>();
@@ -693,7 +703,7 @@ public sealed class ZendeskConsumer : ConsumerBase
         }
         else
         {
-            _logger.LogWarning("No Decision Reason - Approved option for outcome '{OutcomeKey}', skipping field.", decision.OutcomeKey);
+            _logger.LogWarning("No {FieldName} option for outcome '{OutcomeKey}', skipping field.", fieldName, decision.OutcomeKey);
         }
     }
 

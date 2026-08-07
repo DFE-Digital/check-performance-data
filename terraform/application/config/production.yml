@@ -94,4 +94,5 @@ ZendeskTicketFields__DciRefCypmdId: 0
 ZendeskTicketFields__AgeCypmdId: 0
  
 ZendeskTicketFields__DecisionReasonApprovedId: 0
-ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: false
+ZendeskTicketFields__DecisionReasonRejectedId: 0
+ZendeskTicketFields__PopulateDecisionReasonForAutoRejected: true

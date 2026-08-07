@@ -38,8 +38,9 @@ public interface IZendeskTicketFieldService
     string? GetOptionValue(string fieldName, string optionName);
 
     /// <summary>
-    /// Gets whether AutoRejected decisions should also populate the "Decision Reason - Approved"
-    /// field (AutoApproved decisions always populate when mapped; Scrutiny never does).
+    /// Gets whether AutoRejected decisions should populate the "Decision Reason - Rejected"
+    /// field (AutoApproved decisions always populate the "Decision Reason - Approved" field
+    /// when mapped; Scrutiny never does).
     /// Backed by <see cref="ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected"/>.
     /// </summary>
     bool PopulateDecisionReasonForAutoRejected { get; }

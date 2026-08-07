@@ -131,6 +131,42 @@ public static class ZendeskTicketFieldOptions
     }
 
     /// <summary>
+    /// Options for "Decision Reason - Rejected" tagger field (ID: 19197936168210), keyed on
+    /// the rules-engine <c>Decision.OutcomeKey</c>. The option strings are the field's EXACT
+    /// tagger VALUES retrieved from the Zendesk API — the <c>*_criteria_not_met</c> counterparts
+    /// of the approved map, but irregular and curated verbatim rather than derived (e.g. the
+    /// rejected value for <c>SocialCareInvolvement</c> is
+    /// <c>social_care_involvement_including_police_prison_criteria_not_met</c> — no slashes or
+    /// hyphens, unlike the approved value). Population is gated to auto-rejected decisions in
+    /// <c>ZendeskConsumer.AddDecisionReasonField</c> via
+    /// <see cref="ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected"/>; outcomes
+    /// whose decision is never auto-rejected (e.g. <c>Other</c>) have no entry and are omitted +
+    /// warning-logged (FR-014). Post16 not-on-roll variants are unreachable this phase.
+    /// </summary>
+    public static class DecisionReasonRejected
+    {
+        public const string Inclusion = "inclusion_criteria_not_met";
+        public const string AdmittedFollowingPermanentExclusion = "admitted_following_permanent_exclusion_criteria_not_met";
+        public const string AdmittedFromAbroadEal = "admitted_from_abroad_with_english_not_first_language_criteria_not_met";
+        public const string CompletedKs4Elsewhere = "add_back_removal_criteria_not_met";
+        public const string MergePupils = "merge_pupils_criteria_not_met";
+        public const string SocialCareInvolvement = "social_care_involvement_including_police_prison_criteria_not_met";
+        public const string TerminalCriticalIllness = "terminal_critical_illness_criteria_not_met";
+        public const string YearGroupChange = "year_group_change_criteria_not_met";
+        public const string Deceased = "deceased_criteria_not_met";
+        public const string ElectiveHomeEducation = "elective_home_education_criteria_not_met";
+        public const string MovedSchoolDualRegistration = "moved_school_dual_registration_criteria_not_met";
+        public const string NotOnRoll = "not_on_roll_criteria_not_met";
+        public const string PermanentlyExcludedFromCurrentSchool = "permanently_excluded_from_current_school_criteria_not_met";
+        public const string PermanentlyLeftEngland = "permanently_left_england_criteria_not_met";
+        public const string PupilMissingInEducation = "pupil_missing_in_education_criteria_not_met";
+        public const string AssessmentsDeferred = "one_or_more_end_of_key_stage_assessments_deferred_by_a_year_criteria_not_met";
+        public const string PupilAddedAfterSummerTerm = "pupil_added_to_school_roll_after_start_of_summer_term_criteria_not_met";
+        public const string PupilNotOnJuneList = "pupil_not_on_june_list_criteria_not_met";
+        public const string NotAtEndOf16To18Study = "not_at_end_of_16_to_18_study_criteria_not_met";
+    }
+
+    /// <summary>
     /// Gets the option value for a given field name and option name.
     /// Returns null if the field or option is not recognized.
     /// </summary>
@@ -146,6 +182,7 @@ public static class ZendeskTicketFieldOptions
             ZendeskTicketFieldConstants.ReasonForRemovalName => ReasonForRemovalHelpers.GetOption(optionName),
             ZendeskTicketFieldConstants.CorrectionReason31Name => CorrectionReason31Helpers.GetOption(optionName),
             ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedHelpers.GetOption(optionName),
+            ZendeskTicketFieldConstants.DecisionReasonRejectedName => DecisionReasonRejectedHelpers.GetOption(optionName),
             _ => null
         };
     }
@@ -292,6 +329,34 @@ public static class ZendeskTicketFieldOptions
             { "PupilAddedAfterSummerTerm", DecisionReasonApproved.PupilAddedAfterSummerTerm },
             { "PupilNotOnJuneList", DecisionReasonApproved.PupilNotOnJuneList },
             { "NotAtEndOf16To18Study", DecisionReasonApproved.NotAtEndOf16To18Study }
+        };
+
+        public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;
+    }
+
+    private static class DecisionReasonRejectedHelpers
+    {
+        private static readonly Dictionary<string, string> Map = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Inclusion", DecisionReasonRejected.Inclusion },
+            { "AdmittedFollowingPermanentExclusion", DecisionReasonRejected.AdmittedFollowingPermanentExclusion },
+            { "AdmittedFromAbroadEal", DecisionReasonRejected.AdmittedFromAbroadEal },
+            { "CompletedKs4Elsewhere", DecisionReasonRejected.CompletedKs4Elsewhere },
+            { "MergePupils", DecisionReasonRejected.MergePupils },
+            { "SocialCareInvolvement", DecisionReasonRejected.SocialCareInvolvement },
+            { "TerminalCriticalIllness", DecisionReasonRejected.TerminalCriticalIllness },
+            { "YearGroupChange", DecisionReasonRejected.YearGroupChange },
+            { "Deceased", DecisionReasonRejected.Deceased },
+            { "ElectiveHomeEducation", DecisionReasonRejected.ElectiveHomeEducation },
+            { "MovedSchoolDualRegistration", DecisionReasonRejected.MovedSchoolDualRegistration },
+            { "NotOnRoll", DecisionReasonRejected.NotOnRoll },
+            { "PermanentlyExcludedFromCurrentSchool", DecisionReasonRejected.PermanentlyExcludedFromCurrentSchool },
+            { "PermanentlyLeftEngland", DecisionReasonRejected.PermanentlyLeftEngland },
+            { "PupilMissingInEducation", DecisionReasonRejected.PupilMissingInEducation },
+            { "AssessmentsDeferred", DecisionReasonRejected.AssessmentsDeferred },
+            { "PupilAddedAfterSummerTerm", DecisionReasonRejected.PupilAddedAfterSummerTerm },
+            { "PupilNotOnJuneList", DecisionReasonRejected.PupilNotOnJuneList },
+            { "NotAtEndOf16To18Study", DecisionReasonRejected.NotAtEndOf16To18Study }
         };
 
         public static string? GetOption(string name) => Map.TryGetValue(name, out var value) ? value : null;

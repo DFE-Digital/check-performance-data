@@ -34,11 +34,12 @@ public sealed class ZendeskTicketFieldSettings
     public long? DciRefCypmdId { get; set; }
     public long? AgeCypmdId { get; set; }
     public long? DecisionReasonApprovedId { get; set; }
+    public long? DecisionReasonRejectedId { get; set; }
 
     /// <summary>
-    /// When <c>true</c>, AutoRejected decisions also populate the "Decision Reason - Approved"
-    /// tagger field (in addition to AutoApproved, which always populates when mapped). Scrutiny
-    /// decisions are never tagged. Defaults to <c>false</c>.
+    /// When <c>true</c>, AutoRejected decisions populate the "Decision Reason - Rejected"
+    /// tagger field (AutoApproved always populates the "Decision Reason - Approved" field
+    /// when mapped). Scrutiny decisions are never tagged. Defaults to <c>false</c>.
     /// </summary>
     public bool PopulateDecisionReasonForAutoRejected { get; set; }
 
@@ -70,6 +71,7 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.DciRefCypmdName => DciRefCypmdId,
             ZendeskTicketFieldConstants.AgeCypmdName => AgeCypmdId,
             ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedId,
+            ZendeskTicketFieldConstants.DecisionReasonRejectedName => DecisionReasonRejectedId,
             _ => null
         };
     }
@@ -101,7 +103,8 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.CypmdName, CypmdId),
             (ZendeskTicketFieldConstants.DciRefCypmdName, DciRefCypmdId),
             (ZendeskTicketFieldConstants.AgeCypmdName, AgeCypmdId),
-            (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId)
+            (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId),
+            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId)
         };
     }
 }

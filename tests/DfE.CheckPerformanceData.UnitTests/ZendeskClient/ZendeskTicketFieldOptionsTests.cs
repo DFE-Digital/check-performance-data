@@ -65,6 +65,41 @@ public sealed class ZendeskTicketFieldOptionsTests
     }
 
     [Theory]
+    [InlineData("Inclusion", "inclusion_criteria_not_met")]
+    [InlineData("AdmittedFollowingPermanentExclusion", "admitted_following_permanent_exclusion_criteria_not_met")]
+    [InlineData("AdmittedFromAbroadEal", "admitted_from_abroad_with_english_not_first_language_criteria_not_met")]
+    [InlineData("CompletedKs4Elsewhere", "add_back_removal_criteria_not_met")]
+    [InlineData("MergePupils", "merge_pupils_criteria_not_met")]
+    [InlineData("SocialCareInvolvement", "social_care_involvement_including_police_prison_criteria_not_met")]
+    [InlineData("TerminalCriticalIllness", "terminal_critical_illness_criteria_not_met")]
+    [InlineData("YearGroupChange", "year_group_change_criteria_not_met")]
+    [InlineData("Deceased", "deceased_criteria_not_met")]
+    [InlineData("ElectiveHomeEducation", "elective_home_education_criteria_not_met")]
+    [InlineData("MovedSchoolDualRegistration", "moved_school_dual_registration_criteria_not_met")]
+    [InlineData("NotOnRoll", "not_on_roll_criteria_not_met")]
+    [InlineData("PermanentlyExcludedFromCurrentSchool", "permanently_excluded_from_current_school_criteria_not_met")]
+    [InlineData("PermanentlyLeftEngland", "permanently_left_england_criteria_not_met")]
+    [InlineData("PupilMissingInEducation", "pupil_missing_in_education_criteria_not_met")]
+    [InlineData("AssessmentsDeferred", "one_or_more_end_of_key_stage_assessments_deferred_by_a_year_criteria_not_met")]
+    [InlineData("PupilAddedAfterSummerTerm", "pupil_added_to_school_roll_after_start_of_summer_term_criteria_not_met")]
+    [InlineData("PupilNotOnJuneList", "pupil_not_on_june_list_criteria_not_met")]
+    [InlineData("NotAtEndOf16To18Study", "not_at_end_of_16_to_18_study_criteria_not_met")]
+    public void DecisionReasonRejected_GetOptionValue_MapsEveryOutcomeKey(string outcomeKey, string expected)
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonRejectedName, outcomeKey);
+
+        Assert.Equal(expected, value);
+    }
+
+    [Fact]
+    public void DecisionReasonRejected_GetOptionValue_ReturnsNullForUnmappedOutcome()
+    {
+        var value = ZendeskTicketFieldOptions.GetOptionValue(ZendeskTicketFieldConstants.DecisionReasonRejectedName, "Other");
+
+        Assert.Null(value);
+    }
+
+    [Theory]
     [InlineData("permanent-exclusion", "13_31")]
     [InlineData("english-not-first-language", "2_31")]
     [InlineData("child-missing-education", "501_31")]

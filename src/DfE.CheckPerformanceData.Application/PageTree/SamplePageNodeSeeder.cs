@@ -178,7 +178,14 @@ public sealed class SamplePageNodeSeeder(IPageNodeService pageNodes)
                 "<p>The main KS4 checking exercise covers secondary school results. A separate re-checking window opens in June for results affected by appeals and re-marks.</p>"),
             new("post-16",          "Post-16 performance data",
                 "Post-16 performance data",
-                "<p>Performance results for sixth-form colleges, FE colleges and school sixth forms. Data is provisional until the checking window closes.</p>")
+                "<p>Performance results for sixth-form colleges, FE colleges and school sixth forms. Data is provisional until the checking window closes.</p>"),
+            // Deliberately one short paragraph. GDS guidance says not to use the
+            // back-to-top link on pages that fit the viewport, so the suppression
+            // needs a page with no meaningful scroll depth to prove itself against.
+            // Keep this body short — lengthening it silently weakens that check.
+            new("short-page",       "Short page",
+                "Short page",
+                "<p>A deliberately short page. There is not enough content here to scroll, so no back-to-top link should appear.</p>")
         ])
     ];
 }

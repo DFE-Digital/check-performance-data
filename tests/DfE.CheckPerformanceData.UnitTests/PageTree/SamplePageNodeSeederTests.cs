@@ -55,13 +55,14 @@ public class SamplePageNodeSeederTests
 
         var created = await new SamplePageNodeSeeder(svc).SeedAsync();
 
-        // 4 under /wiki (3 content + 1 wiki-typed) + 3 under each of the other three roots.
-        Assert.Equal(13, created);
+        // 4 under /wiki (3 content + 1 wiki-typed) + 3 under /help + 3 under /support
+        // + 4 under /guidance (3 topic pages + the deliberately short sample).
+        Assert.Equal(14, created);
         await svc.Received(3).CreatePageAsync(wiki.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
         await svc.Received(1).CreatePageAsync(wiki.Id,     "wiki-sandbox",    Arg.Any<string>(), "wiki",    "system");
         await svc.Received(3).CreatePageAsync(help.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
         await svc.Received(3).CreatePageAsync(support.Id,  Arg.Any<string>(), Arg.Any<string>(), "content", "system");
-        await svc.Received(3).CreatePageAsync(guidance.Id, Arg.Any<string>(), Arg.Any<string>(), "content", "system");
+        await svc.Received(4).CreatePageAsync(guidance.Id, Arg.Any<string>(), Arg.Any<string>(), "content", "system");
     }
 
     [Fact]
@@ -72,9 +73,9 @@ public class SamplePageNodeSeederTests
         await new SamplePageNodeSeeder(svc).SeedAsync();
 
         // Every created page has both a working-content save and a publish call.
-        await svc.Received(13).SaveWorkingContentAsync(
+        await svc.Received(14).SaveWorkingContentAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), "system");
-        await svc.Received(13).PublishDraftAsync(Arg.Any<Guid>(), "system");
+        await svc.Received(14).PublishDraftAsync(Arg.Any<Guid>(), "system");
     }
 
     [Fact]

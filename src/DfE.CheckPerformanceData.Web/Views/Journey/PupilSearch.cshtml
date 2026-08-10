@@ -137,6 +137,18 @@ else
                 },
                 confirmOnBlur: false
             });
+
+            // AB#295434 follow-up — see _Autocomplete.cshtml for the full rationale.
+            if (initialLabel) {
+                var input = document.getElementById('pupil-search');
+                var restoredUnedited = true;
+                input.addEventListener('input', function () { restoredUnedited = false; });
+                document.addEventListener('focus', function (e) {
+                    if (restoredUnedited && e.target === input) {
+                        e.stopImmediatePropagation();
+                    }
+                }, true);
+            }
         })();
     </script>
 }

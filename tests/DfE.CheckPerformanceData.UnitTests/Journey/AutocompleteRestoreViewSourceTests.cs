@@ -83,4 +83,29 @@ public sealed class AutocompleteRestoreViewSourceTests
 
         Assert.DoesNotContain(".value = initialLabel", view);
     }
+
+    [Fact]
+    public void Autocomplete_SuppressesFocusReopenForUneditedRestoredValue()
+    {
+        var view = ViewSource("_Autocomplete.cshtml");
+
+        // AB#295434 follow-up: accessible-autocomplete hardcodes validChoiceMade: false
+        // regardless of defaultValue, so a plain defaultValue restore still reopens the
+        // suggestion menu on the first focus. This is suppressed via a document-level
+        // capturing focus listener that stops the library's own focus handler from
+        // running until the user actually edits the restored value.
+        Assert.Contains("document.addEventListener('focus'", view);
+        Assert.Contains("stopImmediatePropagation", view);
+        Assert.Contains("restoredUnedited", view);
+    }
+
+    [Fact]
+    public void PupilSearch_SuppressesFocusReopenForUneditedRestoredValue()
+    {
+        var view = ViewSource("PupilSearch.cshtml");
+
+        Assert.Contains("document.addEventListener('focus'", view);
+        Assert.Contains("stopImmediatePropagation", view);
+        Assert.Contains("restoredUnedited", view);
+    }
 }

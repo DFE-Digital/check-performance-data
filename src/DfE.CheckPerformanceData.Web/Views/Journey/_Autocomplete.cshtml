@@ -105,22 +105,18 @@
         // from wiping it, but accessible-autocomplete hardcodes validChoiceMade: false
         // regardless of defaultValue, so its handleInputFocus still reopens the
         // suggestion menu the first time a restored field is focused. There is no
-        // supported option to seed validChoiceMade. focus doesn't bubble but does
-        // propagate during the capturing phase, so a document-level capturing listener
-        // runs before the library's own focus handler (attached directly to the input,
-        // at the AT_TARGET phase) and can stop that handler from ever seeing the event —
-        // without touching the vendored library or blocking the actual browser focus.
-        // The suppression lifts permanently, for this page load, the first time the
-        // user edits the field.
+        // supported option to seed validChoiceMade directly, but the library's own
+        // Escape-key handler (handleComponentBlur) sets it to true when the current
+        // query matches a seeded option — so dispatching one synthetic Escape keydown
+        // right after init reaches the same state entirely through the library's
+        // supported state machine, with none of the side effects of intercepting focus
+        // events externally (an earlier version of this fix did that and left the
+        // component's blur handling permanently desynced — AB#295434 final review).
+        // Safe only because confirmOnBlur is false below: handleComponentBlur would
+        // otherwise fire onConfirm and overwrite the hidden fields with this call.
         if (initialLabel) {
-            var input = document.getElementById(fieldName + '-input');
-            var restoredUnedited = true;
-            input.addEventListener('input', function () { restoredUnedited = false; });
-            document.addEventListener('focus', function (e) {
-                if (restoredUnedited && e.target === input) {
-                    e.stopImmediatePropagation();
-                }
-            }, true);
+            document.getElementById(fieldName + '-input').dispatchEvent(
+                new KeyboardEvent('keydown', { keyCode: 27, which: 27, key: 'Escape', bubbles: true }));
         }
     });
 </script>

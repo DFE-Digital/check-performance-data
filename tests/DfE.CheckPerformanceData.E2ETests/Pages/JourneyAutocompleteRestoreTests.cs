@@ -38,6 +38,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
     private const string Country = "Trinidad and Tobago";
     private const string CountryInput = "#q_country_originally_from-input";
     private const string CountryLabelField = "#q_country_originally_from-label-value";
+    private const string CountryCodeField = "#q_country_originally_from-code-value";
     private const string DetailsPageId = "english-not-first-language-details";
 
     [RetryFact(3)]
@@ -83,6 +84,18 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
             await Page.WaitForURLAsync($"**/Journey/{SeededWindowId}/page/{DetailsPageId}");
 
             await AssertCountryRestoredAsync("after the in-page Back link");
+
+            // AB#295434 final review regression check: editing the restored value
+            // reopens the menu as normal (the input listener lifts the seeded
+            // validChoiceMade), but then leaving WITHOUT picking a suggestion must
+            // still close it. The earlier capturing-focus-listener fix left the
+            // component's focused state permanently unset, so handleInputBlur became a
+            // no-op and the menu stayed open — this is the gap that regressed.
+            await input.ClickAsync();
+            await input.FillAsync("Trinidad");
+            await Expect(Page.Locator("li[role='option']").First).ToBeVisibleAsync();
+            await Page.Locator("body").ClickAsync(new() { Force = true });
+            Assert.Equal(0, await Page.Locator(".autocomplete__menu--visible").CountAsync());
         }
         catch (Exception ex)
         {
@@ -96,8 +109,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
         var input = Page.Locator(CountryInput);
 
         // Value present without any user interaction.
-        Assert.True(await input.InputValueAsync() == Country,
-            $"country input should show '{Country}' {when}");
+        Assert.Equal(Country, await input.InputValueAsync());
 
         // The suggestion menu must not be open over the next question.
         Assert.Equal(0, await Page.Locator(".autocomplete__menu--visible").CountAsync());
@@ -106,17 +118,24 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
         // accessible-autocomplete re-render. With the old DOM-poke initialisation the
         // component's internal state was empty and the re-render blanked the field.
         await input.ClickAsync();
-        Assert.True(await input.InputValueAsync() == Country,
-            $"country input was wiped by focusing it {when} — component state was not seeded");
+        Assert.Equal(Country, await input.InputValueAsync());
         Assert.Equal(0, await Page.Locator(".autocomplete__menu--visible").CountAsync());
 
         // The hidden label field is what actually posts; it must still carry the answer.
         Assert.Equal(Country, await Page.Locator(CountryLabelField).InputValueAsync());
 
+        // The hidden {field}_code input must round-trip the stored ISO code too — a
+        // hard-coded value="" dropped it on every validation-error resubmit (AB#295434).
+        Assert.NotEmpty(await Page.Locator(CountryCodeField).InputValueAsync());
+
         // Release focus so the next steps interact with a settled page. This page has no
         // h1/govuk-heading-l/label--l (the country question is a govuk-label--m sharing the
         // page with two date groups), so click <body> — always present, never the
-        // autocomplete input — purely to move focus off the field.
+        // autocomplete input — purely to move focus off the field. Escape first: it now
+        // has real, load-bearing meaning inside the app's own JS (AB#295434 final review
+        // — it's what the production fix dispatches programmatically on load), so this
+        // also exercises the same handleComponentBlur path as a manual sanity check that
+        // it doesn't disturb an already-settled, unedited restored field.
         await Page.Keyboard.PressAsync("Escape");
         await Page.Locator("body").ClickAsync(new() { Force = true });
     }

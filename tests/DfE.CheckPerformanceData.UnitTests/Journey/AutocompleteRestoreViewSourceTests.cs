@@ -85,27 +85,29 @@ public sealed class AutocompleteRestoreViewSourceTests
     }
 
     [Fact]
-    public void Autocomplete_SuppressesFocusReopenForUneditedRestoredValue()
+    public void Autocomplete_SeedsValidChoiceViaSyntheticEscapeForRestoredValue()
     {
         var view = ViewSource("_Autocomplete.cshtml");
 
-        // AB#295434 follow-up: accessible-autocomplete hardcodes validChoiceMade: false
-        // regardless of defaultValue, so a plain defaultValue restore still reopens the
-        // suggestion menu on the first focus. This is suppressed via a document-level
-        // capturing focus listener that stops the library's own focus handler from
-        // running until the user actually edits the restored value.
-        Assert.Contains("document.addEventListener('focus'", view);
-        Assert.Contains("stopImmediatePropagation", view);
-        Assert.Contains("restoredUnedited", view);
+        // AB#295434 final review: accessible-autocomplete hardcodes validChoiceMade:
+        // false regardless of defaultValue, so a plain defaultValue restore still
+        // reopens the suggestion menu on the first focus. A synthetic Escape keydown
+        // right after init drives the library's own handleComponentBlur, which sets
+        // validChoiceMade via its own supported state machine — no external listener,
+        // no stopImmediatePropagation. confirmOnBlur: false is the load-bearing
+        // precondition: handleComponentBlur would otherwise fire onConfirm.
+        Assert.Contains("KeyboardEvent('keydown'", view);
+        Assert.Contains("key: 'Escape'", view);
+        Assert.Contains("confirmOnBlur: false", view);
     }
 
     [Fact]
-    public void PupilSearch_SuppressesFocusReopenForUneditedRestoredValue()
+    public void PupilSearch_SeedsValidChoiceViaSyntheticEscapeForRestoredValue()
     {
         var view = ViewSource("PupilSearch.cshtml");
 
-        Assert.Contains("document.addEventListener('focus'", view);
-        Assert.Contains("stopImmediatePropagation", view);
-        Assert.Contains("restoredUnedited", view);
+        Assert.Contains("KeyboardEvent('keydown'", view);
+        Assert.Contains("key: 'Escape'", view);
+        Assert.Contains("confirmOnBlur: false", view);
     }
 }

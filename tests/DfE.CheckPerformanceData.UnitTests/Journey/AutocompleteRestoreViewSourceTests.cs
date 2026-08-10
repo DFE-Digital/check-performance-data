@@ -65,4 +65,22 @@ public sealed class AutocompleteRestoreViewSourceTests
         Assert.Contains("ExistingAnswer?.CodeValue", view);
         Assert.DoesNotContain("id=\"@(Model.FieldName)-code-value\" value=\"\"", view);
     }
+
+    [Fact]
+    public void PupilSearch_PassesRestoredLabelAsDefaultValue()
+    {
+        var view = ViewSource("PupilSearch.cshtml");
+
+        // PupilSearch mirrors _Autocomplete.cshtml (its own comment says so) and had
+        // the identical restore defect.
+        Assert.Contains("defaultValue: initialLabel", view);
+    }
+
+    [Fact]
+    public void PupilSearch_DoesNotPokeTheInputValueAfterInit()
+    {
+        var view = ViewSource("PupilSearch.cshtml");
+
+        Assert.DoesNotContain(".value = initialLabel", view);
+    }
 }

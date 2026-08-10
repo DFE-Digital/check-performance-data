@@ -111,6 +111,9 @@ else
                 displayMenu: 'overlay',
                 minLength: 2,
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+                // Restore a previously selected pupil through the component, not the DOM
+                // (AB#295434) — see _Autocomplete.cshtml for the full rationale.
+                defaultValue: initialLabel,
                 tAssistiveHint: function () { return assistiveHint; },
                 source: function (query, populateResults) {
                     var url = '/pupils/suggestions?windowId=' + windowId
@@ -134,10 +137,6 @@ else
                 },
                 confirmOnBlur: false
             });
-
-            if (initialLabel) {
-                document.getElementById('pupil-search').value = initialLabel;
-            }
         })();
     </script>
 }

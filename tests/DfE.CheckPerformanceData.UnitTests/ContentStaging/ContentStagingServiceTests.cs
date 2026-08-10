@@ -300,6 +300,82 @@ public class ContentStagingServiceTests
 
     // ── Import ─────────────────────────────────────────────────────────────
 
+    // Exporting a selection pulls in the chosen pages' ancestors, because a bundle whose pages
+    // have no parent cannot be imported. Bounding that walk by a fixed depth silently dropped the
+    // top of a deep page's chain, producing a bundle that could never fully land however many
+    // times it was imported.
+    [Fact]
+    public async Task ExportAsync_SelectingADeepPage_CarriesEveryAncestor()
+    {
+        const int depth = 14;
+        var ids = Enumerable.Range(1, depth).Select(i => new Guid($"22222222-0000-0000-0000-{i:D12}")).ToList();
+
+        var tree = new List<PageNodeTreeItemDto>();
+        for (var i = 0; i < depth; i++)
+            tree.Add(Node(ids[i], i == 0 ? null : ids[i - 1], $"level-{i:D2}", $"Level {i:D2}"));
+        _pages.GetTreeAsync().Returns(tree);
+
+        // Select only the deepest page; every ancestor has to come with it.
+        var selection = new ContentExportSelection(
+            new HashSet<Guid> { ids[^1] }, new HashSet<Guid>());
+
+        var bundle = await _sut.ExportAsync(selection);
+
+        Assert.Equal(depth, bundle.PageNodes.Count);
+        Assert.All(ids, id => Assert.Contains(bundle.PageNodes, p => p.Id == id));
+    }
+
+    // A bundle is applied in one pass, so every page has to be created after its parent. Ordering
+    // by a depth that saturates at a ceiling does not achieve that: past the ceiling every page
+    // compares equal and the SortOrder/Title tie-break decides, which can put a child first. The
+    // child then hits the "parent not found" branch and only appears on a LATER import — the
+    // symptom being an operator having to run the same import two or three times to land the
+    // whole tree, one level deeper each time.
+    //
+    // Emitted deepest-first with titles that sort children ahead of parents, so a correct
+    // implementation has to derive the order rather than inherit it from the file.
+    [Fact]
+    public async Task ImportAsync_DeeplyNestedTree_LandsEntirelyInASinglePass()
+    {
+        const int depth = 14;
+        // Offset by one so level 00 never lands on Guid.Empty, which the importer treats as
+        // "no stable identity" and would confuse this test with a different code path.
+        var ids = Enumerable.Range(1, depth).Select(i => new Guid($"11111111-0000-0000-0000-{i:D12}")).ToList();
+
+        var nodes = new List<PageNodeBundleItem>();
+        for (var i = 0; i < depth; i++)
+        {
+            nodes.Add(new PageNodeBundleItem
+            {
+                Id = ids[i],
+                ParentId = i == 0 ? null : ids[i - 1],
+                Segment = $"level-{i:D2}",
+                // Deeper pages sort alphabetically earlier, defeating the tie-break.
+                Title = $"{(char)('z' - i)} level {i:D2}",
+                PageType = "content",
+                Versions = [new() { VersionId = 1, Content = "{}" }]
+            });
+        }
+        nodes.Reverse();
+
+        _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
+        _pages.GetByPathAsync(Arg.Any<string>()).ReturnsNull();
+        _pages.CreateNodeForStagingAsync(
+                Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(),
+                Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(),
+                Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(ci => new PageNodeDto
+            {
+                Id = (Guid)ci[0]!, ParentId = (Guid?)ci[1], Segment = (string)ci[2]!,
+                Path = (string)ci[3]!, Title = (string)ci[4]!, PageType = (string)ci[7]!
+            });
+
+        var result = await _sut.ImportAsync(new ContentBundle { PageNodes = nodes }, ContentImportMode.Skip);
+
+        Assert.Empty(result.Errors);
+        Assert.Equal(depth, result.PageNodesCreated);
+    }
+
     [Fact]
     public async Task ImportAsync_NewNode_CallsCreateThenReplaceVersions()
     {

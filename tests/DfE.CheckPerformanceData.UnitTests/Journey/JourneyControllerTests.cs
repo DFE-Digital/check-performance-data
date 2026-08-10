@@ -5,6 +5,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.FileStorage;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -644,6 +645,108 @@ public class JourneyControllerTests
                 e.ErrorCodes.Contains("required") && e.WhatToChange == "Remove" && e.FromSummary == false),
             Arg.Any<CancellationToken>());
     }
+
+    // ── PagePost — cross-field date rules (AB#295246) ────────────────────────
+
+    [Fact]
+    public async Task PagePost_DateRuleViolation_AddsTheErrorUnderTheQuestionId()
+    {
+        // The ModelState key has to be the raw question id: JourneyViewModelBuilder looks the
+        // error up by it, and anything else means the message renders nowhere at all.
+        SetupDatePage();
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
+        SetupSession(ValidSession(history: ["date-page"]));
+        PostDates(aYear: "2023", bYear: "2024");
+
+        var result = await _sut.PagePost(WindowId, "date-page", fromSummary: false);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Page", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+        Assert.Equal("Dates are the wrong way round",
+            _sut.ModelState["date-a"]!.Errors.Single().ErrorMessage);
+    }
+
+    [Fact]
+    public async Task PagePost_DateRuleViolation_DoesNotDisplaceAFormatError()
+    {
+        // Only the first error per question is rendered. A comparison against a date the user
+        // never successfully entered must not replace "must be a real date".
+        SetupDatePage();
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter a real date");
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
+        SetupSession(ValidSession(history: ["date-page"]));
+        PostDates(aYear: "2023", bYear: "2024");
+
+        var result = await _sut.PagePost(WindowId, "date-page", fromSummary: false);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.Equal("Enter a real date", _sut.ModelState["date-a"]!.Errors.Single().ErrorMessage);
+    }
+
+    [Fact]
+    public async Task PagePost_DateRuleViolation_IsCodedAsInconsistentNotBadDate()
+    {
+        // A well-formed date in the wrong place is a different failure from an unparseable one,
+        // and the analytics taxonomy has to keep them apart.
+        SetupDatePage();
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation("date-a", "Dates are the wrong way round")]);
+        SetupSession(ValidSession(history: ["date-page"]));
+        PostDates(aYear: "2023", bYear: "2024");
+
+        await _sut.PagePost(WindowId, "date-page", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes.Contains("date_inconsistent") && !e.ErrorCodes.Contains("bad_date")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PagePost_NoDateRuleViolations_StillAdvances()
+    {
+        SetupDatePage();
+        SetupSession(ValidSession(history: ["date-page"]));
+        PostDates(aYear: "2024", bYear: "2023");
+
+        var result = await _sut.PagePost(WindowId, "date-page", fromSummary: false);
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    private void SetupDatePage()
+    {
+        var datePage = new JourneyPage
+        {
+            Id = "date-page",
+            Questions =
+            [
+                new Question { Id = "date-a", Type = QuestionType.Date, Title = "Date A" },
+                new Question { Id = "date-b", Type = QuestionType.Date, Title = "Date B" }
+            ],
+            NextPageId = "page-2"
+        };
+        _flowService.GetPage(Config, "date-page").Returns(datePage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "date-page", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("page-2");
+    }
+
+    private void PostDates(string aYear, string bYear) =>
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_date_a_day"] = "4", ["q_date_a_month"] = "9", ["q_date_a_year"] = aYear,
+            ["q_date_b_day"] = "8", ["q_date_b_month"] = "1", ["q_date_b_year"] = bYear
+        });
 
     // ── SaveDraft ────────────────────────────────────────────────────────────
 

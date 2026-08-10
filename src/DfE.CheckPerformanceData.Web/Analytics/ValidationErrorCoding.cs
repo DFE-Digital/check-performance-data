@@ -15,6 +15,10 @@ public static class ValidationErrorCoding
     public const string FileRequired = "file_required";
     public const string Conflict = "conflict";
 
+    /// <summary>A date that is well-formed but inconsistent with another date on the same page,
+    /// or with today — distinct from <c>bad_date</c>, which means unparseable.</summary>
+    public const string DateInconsistent = "date_inconsistent";
+
     /// <summary>Code for a question that failed validation. An unanswered required
     /// question is <c>required</c>; an answered-but-invalid one is classified by type.</summary>
     public static string ForQuestion(Question question, bool isAnswered)

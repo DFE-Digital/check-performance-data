@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Journey.DateRules;
 using DfE.CheckPerformanceData.Application.Journey.Validators;
 using DfE.CheckPerformanceData.Domain.Enums;
 
@@ -6,10 +7,19 @@ namespace DfE.CheckPerformanceData.Application.Journey;
 // Pass maxEvidencePages > 0 to the DI registration to re-enable the page-count limit.
 public sealed class JourneyValidationService(
     IEnumerable<IFormatValidator>? formatValidators = null,
-    int maxEvidencePages = 0) : IJourneyValidationService
+    int maxEvidencePages = 0,
+    TimeProvider? timeProvider = null) : IJourneyValidationService
 {
     private readonly IReadOnlyList<IFormatValidator> _formatValidators =
         formatValidators?.ToList() ?? [];
+
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
+    // Date rules compare against the UK calendar date, not UTC: between midnight and 1am BST the
+    // two disagree, and "today" to a school means today in England. Duplicated from
+    // Web/Extensions/LondonTime.cs because Application cannot reference Web; that file documents
+    // why the IANA id resolves on both the Linux deploy target and Windows.
+    private static readonly TimeZoneInfo UkZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
 
     public int MaxEvidencePages => maxEvidencePages;
 
@@ -38,6 +48,26 @@ public sealed class JourneyValidationService(
 
         return new RequireAtLeastOneResult("You must answer at least one of these questions", fieldErrors);
     }
+
+    public IReadOnlyList<DateFieldViolation> ValidatePageDates(
+        JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
+    {
+        if (!string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
+            return [];
+
+        DateOnly? Answered(string questionId) =>
+            answers.TryGetValue(questionId, out var answer) ? answer.DateValue?.ToDateOnly() : null;
+
+        return PageDateRules.Evaluate(
+            Answered(PageDateRules.StartedAtSchool),
+            Answered(PageDateRules.FirstEnglishSchool),
+            Answered(PageDateRules.ArrivedInEngland),
+            UkToday(),
+            pupilName);
+    }
+
+    private DateOnly UkToday() => DateOnly.FromDateTime(
+        TimeZoneInfo.ConvertTimeFromUtc(_timeProvider.GetUtcNow().UtcDateTime, UkZone));
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)
     {

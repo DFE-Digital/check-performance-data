@@ -235,6 +235,24 @@
           "bodyPlainText": "Post-16 performance data Performance results for sixth-form colleges, FE colleges and school sixth forms. Data is provisional until the checking window closes."
         }
       ]
+    },
+    {
+      "id": "ca9e1bc3-ed66-40d0-8313-cb6a28971d3a",
+      "parentId": "00000000-cd94-4a01-8f01-000000000004",
+      "segment": "short-page",
+      "title": "Short page",
+      "pageType": "content",
+      "sortOrder": 3,
+      "appearInSearch": true,
+      "versions": [
+        {
+          "versionId": 1,
+          "minorVersion": 0,
+          "publishFrom": "2026-08-10T19:53:42.999299Z",
+          "content": "[\n  {\n    \"kind\": \"region\",\n    \"layout\": \"single\",\n    \"columns\": [\n      [\n        {\n          \"kind\": \"widget\",\n          \"type\": \"heading\",\n          \"props\": {\n            \"level\": 2,\n            \"text\": \"Short page\"\n          }\n        },\n        {\n          \"kind\": \"widget\",\n          \"type\": \"richtext\",\n          \"props\": {\n            \"html\": \"\\u003Cp\\u003EA deliberately short page. There is not enough content here to scroll, so no back-to-top link should appear.\\u003C/p\\u003E\"\n          }\n        }\n      ]\n    ]\n  }\n]",
+          "bodyPlainText": "Short page A deliberately short page. There is not enough content here to scroll, so no back-to-top link should appear."
+        }
+      ]
     }
   ],
   "contentBlocks": []

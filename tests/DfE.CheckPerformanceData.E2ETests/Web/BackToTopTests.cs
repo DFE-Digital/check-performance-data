@@ -280,6 +280,36 @@ public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
             "back-to-top should be revealed once a full viewport has been scrolled");
     }
 
+    // A tall browser window used to lose the link entirely. The reveal threshold was a
+    // fraction of the viewport, so a big monitor was penalised twice over: the bar went up
+    // while the same document's scrollable distance went down, and pages that comfortably
+    // showed the link on a laptop became unreachable. Drive a window taller than the
+    // article's scrollable distance and confirm the link is still reachable.
+    [Fact]
+    public async Task OnATallWindow_LinkIsStillReachable_WhenThePageOutrunsTheViewportOnlyModestly()
+    {
+        await Page.SetViewportSizeAsync(1440, 1300);
+        var response = await Page.GotoAsync($"{_fixture.BaseUrl}{TargetPath}");
+        Assert.NotNull(response);
+        Assert.Equal(200, response!.Status);
+
+        await Page.Locator(".app-back-to-top__link").WaitForAsync(new() { State = WaitForSelectorState.Attached });
+        await WaitForEnhancementAsync();
+
+        // Guard the premise: on this window the page must have LESS than a viewport of
+        // scroll, which is the shape that used to be unreachable. If seeded content grows
+        // past that the test stops covering the regression, so fail loudly instead.
+        var scrollable = await Page.EvaluateAsync<int>(
+            "() => Math.round(document.documentElement.scrollHeight - window.innerHeight)");
+        Assert.InRange(scrollable, 1, 1299);
+
+        await ScrollToAsync("document.documentElement.scrollHeight");
+
+        var state = await Page.EvaluateAsync<RevealSnap>(RevealSnapScript);
+        Assert.True(state.HasVisibleClass,
+            $"back-to-top must stay reachable on a tall window (scrollable={scrollable}px, viewport=1300px)");
+    }
+
     // Wait for the progressive enhancement to claim the page AND for the resulting fade
     // to finish. The module sets the marker on <html>, which switches the CSS from the
     // no-JS always-visible fallback to the hidden-until-revealed state — but that switch

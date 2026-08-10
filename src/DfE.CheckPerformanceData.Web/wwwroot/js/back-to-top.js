@@ -26,19 +26,40 @@
     var containers = document.querySelectorAll('.app-back-to-top');
     if (containers.length === 0) return;
 
-    // One rule, measured in viewports rather than pixels: the reader must have put very
-    // nearly a whole screenful behind them before the link appears. Until then the top of
-    // the document is still one flick of the wheel away, so offering a shortcut is noise.
-    //
-    // Screenfuls rather than pixels because "how far has the reader travelled" is a
-    // question about screens — a pixel threshold tuned on a laptop means something quite
-    // different on a phone or a tall external monitor.
-    //
-    // This also delivers the GDS guidance to "avoid using this component on short pages or
-    // on pages designed to fit the entire viewport" without a second rule: a page that fits
-    // the viewport has nothing to scroll, and a page with only a third of a screen of
-    // scroll can never reach the threshold, so neither ever reveals the link.
+    // The reader must have put nearly a whole screenful behind them before the link
+    // appears — until then the top of the document is one flick of the wheel away, so a
+    // shortcut to it is noise. Measured in screenfuls rather than pixels because "how far
+    // has the reader travelled" is a question about screens: a pixel threshold tuned on a
+    // laptop means something quite different on a phone or a tall external monitor.
     var REVEAL_AFTER_VIEWPORTS = 0.9;
+
+    // ...but a screenful alone is not enough, because a tall window is penalised twice: the
+    // threshold goes up while the same document's scrollable distance goes down. A page of
+    // ~2000px is 1.3 screens of scrolling on a 900px window and only 0.6 of one at 1300px,
+    // so a fixed fraction of the viewport silently stops being reachable on big monitors —
+    // the component disappears from most of the site for anyone with a large screen.
+    //
+    // So cap the threshold at a fraction of what the page actually offers. Long articles
+    // still reveal after a screenful (the cap is far away); pages that only just outrun the
+    // window reveal halfway down instead of never.
+    var REVEAL_AFTER_PAGE_FRACTION = 0.5;
+
+    // Below this there is not enough page to be worth a shortcut — the GDS guidance to
+    // "avoid using this component on short pages or on pages designed to fit the entire
+    // viewport". Two floors, and the page has to clear both:
+    //
+    //   * half a screen, so the judgement scales with the reader's window;
+    //   * an absolute distance, because "is scrolling back to the top a chore?" is a
+    //     question about travel, not about screens. Without it, a page that fits a desktop
+    //     window comfortably becomes 1.8 screens on a small laptop and starts showing a
+    //     link it has no business showing — the very complaint this component was reported
+    //     for. 600px is about two-thirds of a laptop screen.
+    //
+    // These are the only pixel-denominated numbers here, and deliberately so: the reveal
+    // threshold answers "how far has the reader come" (screens), this answers "is there
+    // enough page to bother" (distance).
+    var MIN_SCROLLABLE_VIEWPORTS = 0.5;
+    var MIN_SCROLLABLE_PIXELS = 600;
 
     // Flip the initialisation marker on the document root so the corresponding CSS
     // block (which hides the link) takes effect. Non-JS environments never see this
@@ -50,7 +71,19 @@
     function apply() {
         ticking = false;
 
-        var visible = window.scrollY > window.innerHeight * REVEAL_AFTER_VIEWPORTS;
+        // Layout reads first, DOM writes after, so the frame costs one style recalc rather
+        // than one per container. scrollHeight is re-read every time rather than cached at
+        // start-up: content that grows or shrinks after load (lazy images settling, a
+        // <details> being opened, a filter collapsing a list) moves the threshold, and
+        // neither of those fires a resize event.
+        var viewport = window.innerHeight;
+        var scrollable = document.documentElement.scrollHeight - viewport;
+
+        var worthShowing = scrollable > Math.max(viewport * MIN_SCROLLABLE_VIEWPORTS,
+                                                MIN_SCROLLABLE_PIXELS);
+        var threshold = Math.min(viewport * REVEAL_AFTER_VIEWPORTS,
+                                 scrollable * REVEAL_AFTER_PAGE_FRACTION);
+        var visible = worthShowing && window.scrollY > threshold;
 
         // Skip the DOM write when the visibility state didn't change since the last frame.
         // classList.toggle('is-visible', visible) is not free on low-power devices — every

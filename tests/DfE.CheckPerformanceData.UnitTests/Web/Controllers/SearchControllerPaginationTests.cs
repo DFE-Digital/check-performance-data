@@ -20,9 +20,10 @@ namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 //   3. A zero or negative stored setting falls back to 20 (defence-in-depth for
 //      divide-by-zero on the paging math).
 //
-// The ?page query-string is clamped to at least 1 up front; the upper clamp cannot land
-// until the service reports TotalPages, so an over-clamp forces a second SearchAsync call
-// at the last valid page. When the service comes back with
+// The ?page query-string is clamped to at least 1 up front; the upper clamp belongs to the
+// search service, which pages an already-materialised list and lands on the last valid page
+// within the same call. The controller issues one SearchAsync and reads the page back off
+// the result. When the service comes back with
 // SearchInvalidReason.DataStoreUnavailable, the controller writes HTTP 503, renders the
 // "Unavailable" view and preserves the user's typed query on the retry link. The DB-down
 // branch MUST NOT re-call the service — Plan 02 wired the guard so a bad-page-plus-outage
@@ -53,6 +54,16 @@ public sealed class SearchControllerPaginationTests
             .Returns(callInfo =>
             {
                 var q = callInfo.Arg<SiteSearchQuery>();
+
+                // Mirror the real service's in-place over-clamp: a page past the end lands
+                // on the last valid page rather than coming back empty. The controller
+                // reads the page off the result, so the double is only faithful if it
+                // clamps too.
+                var totalPages = q.PageSize > 0 && totalCount > 0
+                    ? (totalCount + q.PageSize - 1) / q.PageSize
+                    : 0;
+                var landedPage = totalPages > 0 && q.Page > totalPages ? totalPages : q.Page;
+
                 return Task.FromResult(new SiteSearchPagedResult
                 {
                     CurrentQuery = q.Query ?? string.Empty,
@@ -62,7 +73,7 @@ public sealed class SearchControllerPaginationTests
                     TotalCount = totalCount,
                     // Internal state is zero-indexed to match the shared pagination view model;
                     // the controller re-serialises to the one-indexed URL boundary on render.
-                    Page = q.Page - 1,
+                    Page = landedPage - 1,
                     PageSize = q.PageSize,
                 });
             });
@@ -198,9 +209,11 @@ public sealed class SearchControllerPaginationTests
         await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.Page == 1));
     }
 
-    // Over-clamp costs one extra SearchAsync call in the pathological case: the first call
-    // proves the corpus size, the second re-issues at the last valid page. Received(2) pins
-    // the count so a regression that loops the re-issue cannot mask itself.
+    // Over-clamp is the search service's job — it pages an already-materialised list, so it
+    // can land on the last valid page in the same pass. The controller must therefore issue
+    // exactly ONE SearchAsync and take the page from the result. Received(1) pins that: a
+    // re-issue from here would run both corpus searches again and record a second telemetry
+    // event, double-counting one user request across every analytics chart.
     [Fact]
     [Trait("search-case", "pagination")]
     public async Task Index_PageAboveTotalPages_ClampsToLastValidPage()
@@ -217,10 +230,8 @@ public sealed class SearchControllerPaginationTests
 
         var result = await sut.Index("demo", scope: null, includePages: null, includeContentBlocks: null, page: 99, pageSize: null);
 
-        await _searchService.Received(2).SearchAsync(Arg.Any<SiteSearchQuery>());
-        // TotalPages = ceil(45 / 20) = 3 — the second call must land there exactly.
+        await _searchService.Received(1).SearchAsync(Arg.Any<SiteSearchQuery>());
         await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.Page == 99));
-        await _searchService.Received(1).SearchAsync(Arg.Is<SiteSearchQuery>(q => q.Page == 3));
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.NotEqual("Unavailable", view.ViewName);

@@ -10,7 +10,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // invalid token returns 404 — never a redirect into the DfE OIDC challenge. The admin generates
 // tokens from the role-gated /admin/share surface. All assertions are DOM-level.
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class ShareLinkTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;

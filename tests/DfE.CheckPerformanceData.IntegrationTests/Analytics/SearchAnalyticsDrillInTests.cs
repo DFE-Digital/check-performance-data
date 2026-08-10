@@ -3,17 +3,17 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -29,7 +29,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // Npgsql — the read path has no injection surface even though the paging inputs (page, pageSize)
 // arrive from the query string.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsDrillInTests
 {
     private readonly PostgresFixture _fixture;
@@ -443,7 +442,9 @@ public sealed class SearchAnalyticsDrillInTests
     private SearchAnalyticsController SutWithPageSize(int pageSize)
     {
         var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var settings = Substitute.For<ISettingService>();
         settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(pageSize);
         return new SearchAnalyticsController(query, settings);
@@ -509,7 +510,9 @@ public sealed class SearchAnalyticsDrillInTests
     // --- Helpers ---
 
     private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+        new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

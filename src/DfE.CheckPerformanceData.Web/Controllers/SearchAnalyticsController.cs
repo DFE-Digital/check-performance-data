@@ -704,7 +704,14 @@ public sealed class SearchAnalyticsController : Controller
             && to is { } toRaw)
         {
             var fromUtc = AsUtc(fromRaw);
-            var toUtc = AsUtc(toRaw);
+
+            // `to` is an INCLUSIVE end date. It arrives from an <input type="date">, so the
+            // bound value is midnight at the *start* of the chosen day; every analytics query
+            // uses an exclusive upper bound (occurred_at_utc < @to), so taking it verbatim
+            // would drop the whole of that day. Advance to the following midnight so the
+            // selected end day is covered, and so from == to resolves to that single day
+            // instead of a zero-width window.
+            var toUtc = AsUtc(toRaw).Date.AddDays(1);
 
             // Clamp to the sink's 90-day retention window: nothing older exists, and this
             // blocks a decade-of-events range that would seq-scan the whole table.

@@ -167,5 +167,53 @@ public class ZendeskApiClientTests
 
     }
 
+    // docker-compose passes SchoolCheckingExercise__GroupId / __BrandId through from .env
+    // unconditionally, and .env.example ships both blank — so on a fresh clone the keys are
+    // PRESENT with an empty string rather than absent. Binding "" to a non-nullable long threw
+    // InvalidOperationException inside OptionsFactory, which killed rules_engine at host start
+    // (exit 139) before it consumed a single message. The IDs are genuinely optional — every
+    // consumer already falls back to 0 — so blank must bind to "not configured", not crash.
+    private static IConfiguration CreateCheckingExerciseConfiguration(string groupId, string brandId)
+    {
+        var settings = new Dictionary<string, string?>
+        {
+            { $"{ZendeskSettings.SectionName}:Subdomain", "test-subdomain" },
+            { $"{ZendeskSettings.SectionName}:Domain", "example" },
+            { $"{ZendeskSettings.SectionName}:Email", "test@example.com" },
+            { $"{ZendeskSettings.SectionName}:ApiToken", "example" },
+            { $"{SchoolCheckingExerciseSettings.SectionName}:TargetViewTitle", "Schools checking exercise View" },
+            { $"{SchoolCheckingExerciseSettings.SectionName}:GroupId", groupId },
+            { $"{SchoolCheckingExerciseSettings.SectionName}:BrandId", brandId },
+        };
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(settings)
+            .Build();
+    }
+
+    [Fact]
+    public void AddZendeskApiClient_WithBlankCheckingExerciseIds_BindsToNullInsteadOfThrowing()
+    {
+        var services = new ServiceCollection();
+        DependencyManager.AddZendeskApiClient(services, CreateCheckingExerciseConfiguration(string.Empty, string.Empty));
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<SchoolCheckingExerciseSettings>>();
+
+        Assert.Null(options.Value.GroupId);
+        Assert.Null(options.Value.BrandId);
+    }
+
+    [Fact]
+    public void AddZendeskApiClient_WithPopulatedCheckingExerciseIds_BindsTheConfiguredValues()
+    {
+        var services = new ServiceCollection();
+        DependencyManager.AddZendeskApiClient(services, CreateCheckingExerciseConfiguration("360000123456", "42"));
+
+        var options = services.BuildServiceProvider().GetRequiredService<IOptions<SchoolCheckingExerciseSettings>>();
+
+        Assert.Equal(360000123456L, options.Value.GroupId);
+        Assert.Equal(42L, options.Value.BrandId);
+    }
+
     #endregion
 }

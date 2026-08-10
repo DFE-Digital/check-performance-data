@@ -1,5 +1,6 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // semantically different — a page is a URL, a block is a snippet — and mixing them on one
 // card produces a "Top pages" list with non-navigable entries mid-list.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsTopBlocksTests
 {
     private readonly PostgresFixture _fixture;
@@ -99,7 +99,9 @@ public sealed class SearchAnalyticsTopBlocksTests
     // ── Helpers ────────────────────────────────────────────────────────────────────
 
     private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+        new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc, string sessionId, string queryNormalised,

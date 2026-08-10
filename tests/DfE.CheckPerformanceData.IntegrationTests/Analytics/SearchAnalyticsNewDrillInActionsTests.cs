@@ -3,8 +3,8 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -18,7 +18,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // testcontainer so route model binding, defensive clamps, and empty-state renders exercise
 // the same code path the browser hits.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsNewDrillInActionsTests
 {
     private readonly PostgresFixture _fixture;
@@ -196,7 +195,9 @@ public sealed class SearchAnalyticsNewDrillInActionsTests
     private SearchAnalyticsController Sut()
     {
         var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var settings = Substitute.For<ISettingService>();
         settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
         return new SearchAnalyticsController(query, settings);

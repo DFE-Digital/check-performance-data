@@ -10,7 +10,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Admin;
 // the transient "Saved" toast while staying on the edit page. Linux-only [SkippableFact],
 // matching the repo's Playwright-interaction convention (see AdminLandingGroupedTests).
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class AdminRulesEditAsyncTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
     private const string EditUrl = "/admin/rules/outcomes/Inclusion/branches/INC-REJ/edit";

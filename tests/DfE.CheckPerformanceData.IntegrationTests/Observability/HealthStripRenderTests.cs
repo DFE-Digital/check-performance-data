@@ -21,7 +21,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // naming each signal that crossed a threshold and the actual-vs-limit figures, while a flowing
 // light surfaces none. The Explain logic itself is unit-tested; this proves the model the
 // controller assembles renders into the markup a stakeholder actually sees.
-[Trait("Category", "W0")]
 public sealed class HealthStripRenderTests
 {
     private static HealthState NeedsAttention =>

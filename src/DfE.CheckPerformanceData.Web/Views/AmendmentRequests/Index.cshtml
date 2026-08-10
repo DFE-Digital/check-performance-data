@@ -126,7 +126,7 @@
         {
             <button type="submit" class="govuk-button" data-module="govuk-button">Submit selected requests</button>
         }
-        <a class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
+        <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--secondary" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Raise a new request</a>
     </div>
 </form>
 

@@ -1,47 +1,11 @@
-using Azure.Storage.Blobs;
-using Community.Microsoft.Extensions.Caching.PostgreSql;
-using Microsoft.AspNetCore.DataProtection;
-using DfE.CheckPerformanceData.Application;
-using DfE.CheckPerformanceData.Application.CurrentUser;
-using DfE.CheckPerformanceData.Application.PageTree;
-using DfE.CheckPerformanceData.Infrastructure;
-using DfE.CheckPerformanceData.Web.Authentication;
-using DfE.CheckPerformanceData.Web.Diagnostics;
-using DfE.CheckPerformanceData.Web.Middleware;
-using DfE.CheckPerformanceData.Web.Services;
-using DfE.CheckPerformanceData.Persistence;
-using DfE.CheckPerformanceData.Persistence.Contexts;
-using DfE.CheckPerformanceData.Persistence.Seeding;
-using DfE.CheckPerformanceData.Web.Extensions;
-using DfE.CheckPerformanceData.Application.RequestSubmission;
-using DfE.CheckPerformanceData.Application.FileStorage;
-using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.Queue;
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
-using DfE.CheckPerformanceData.Application.Notify;
-using DfE.CheckPerformanceData.Application.Settings;
-using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
-using DfE.CheckPerformanceData.Infrastructure.Queue;
-using DfE.CheckPerformanceData.Web.Seeding;
-using DfE.CheckPerformanceData.Web.Controllers.Journey;
-using DfE.CheckPerformanceData.Web.Settings;
-using DfE.CheckPerformanceData.Web.PageTree;
-using DfE.CheckPerformanceData.Web.Analytics;
-using DfE.CheckPerformanceData.Application.Analytics;
-using DfE.CheckPerformanceData.Infrastructure.Analytics;
-using Dfe.Analytics;
-using Dfe.Analytics.AspNetCore;
-using DfE.CheckPerformanceData.Infrastructure.Ingress;
-using GovUk.Frontend.AspNetCore;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Newtonsoft.Json.Schema;
 using Serilog;
 using Serilog.Formatting.Compact;
-using Serilog.Templates;
-using Serilog.Templates.Themes;
+using DfE.CheckPerformanceData.Application;
+using DfE.CheckPerformanceData.Infrastructure;
+using DfE.CheckPerformanceData.Persistence;
+using DfE.CheckPerformanceData.Web.Extensions;
+using DfE.CheckPerformanceData.Web.Startup;
+using GovUk.Frontend.AspNetCore;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
@@ -51,459 +15,50 @@ try
 {
     Log.Information("Starting application");
 
-    var builder = WebApplication.CreateBuilder(args);
-
-    // WebApplication.CreateBuilder already configures the configuration sources in
-    // the correct precedence (last wins): appsettings.json, appsettings.{Environment}.json,
-    // user secrets (Development), environment variables, command line. Re-adding
-    // appsettings.json here previously landed it after appsettings.{Environment}.json
-    // and silently clobbered environment-specific overrides.
+    var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder(args);
+    
     var configuration = builder.Configuration;
 
-    // writeToProviders: true so ILogger events are forwarded to every ILoggerProvider registered
-    // through DI (Serilog does not become the exclusive sink). Required for the Postgres
-    // DatabaseLoggerProvider to receive events; without it Serilog handles everything itself
-    // and other providers silently receive nothing.
-    builder.Host.UseSerilog((context, services, config) =>
-    {
-        var isDevelopment = context.HostingEnvironment.IsDevelopment();
+    builder.UseCpdSerilog();
 
-        config
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services)
-            .Enrich.FromLogContext()
-            .WriteTo.Console(isDevelopment
-                ? new ExpressionTemplate(
-                    "[{@t:HH:mm:ss} {@l:u3}] {SourceContext}\n  {@m}\n{@x}",
-                    theme: TemplateTheme.Code)
-                : new CompactJsonFormatter());
-    }, writeToProviders: true);
+    builder.AddCpdCoreWeb();
 
-    // WebApplication.CreateBuilder registers a default Console provider. With Serilog's
-    // writeToProviders: true, that default provider ALSO receives every event and prints a
-    // second copy (the "info: Category[0]" line) alongside Serilog's own console sink.
-    // Clear the defaults so Serilog owns the console; the additive DatabaseLoggerProvider is
-    // registered later (below) and is unaffected, since ClearProviders only removes what is
-    // already registered.
-    builder.Logging.ClearProviders();
-
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
-    {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
-        options.KnownProxies.Clear();
-    });
-
-    builder.Services.AddHttpContextAccessor();
-   
-    builder.Services.Configure<GtmSettings>(builder.Configuration.GetSection("GoogleTagManager"));
-    builder.Services.Configure<ClaritySettings>(builder.Configuration.GetSection("Clarity"));
-    var seedData = builder.Environment.IsDevelopment() || configuration["SeedDevelopmentData"] == "true";
-    
     builder.Services
+        .AddCpdSettings(configuration)
         .AddDfeApiClient(builder.Configuration)
         .AddDfeSignInAuthentication(builder.Configuration)
         .AddGovUkFrontend()
         .AddPersistenceDependencies(configuration)
         .AddApplicationDependencies()
         .AddNotifyService(builder.Configuration)
-        .AddAdminNavEntries(includeDangerZone: !builder.Environment.IsProduction());
+        .AddAdminNavEntries(
+            includeDangerZone: !builder.Environment.IsProduction(),
+            // Same whitelist TestDataController enforces, so the tile and the page it links
+            // to appear and disappear together instead of the tile leading to a 404.
+            includeSampleSearchData: builder.Environment.IsSampleDataAdminEnvironment())
+        .AddCpdSearchTelemetry()
+        .AddCpdNotifications()
+        .AddCpdAppLogSink(configuration)
+        .AddCpdQueue(configuration)
+        .AddCpdJourneyAndCmsServices()
+        .AddCpdBlobStorage(configuration)
+        .AddCpdBigQueryAnalytics(configuration);
 
-    // Gates the /search <!-- rank: N --> debug comment AND the log-level promotion of
-    // per-hit / per-exclusion telemetry breadcrumbs. Backed by the CMS settings store so
-    // operators can flip CMS:SearchDebugOn from the admin settings page without a
-    // container restart. Scoped because it captures ISettingService (Scoped) — registering
-    // as Singleton would pin the first request's settings-repository to the process lifetime
-    // and starve subsequent requests of the current toggle value.
-    builder.Services.AddScoped<
-        DfE.CheckPerformanceData.Application.Search.ISearchDebugOptions,
-        DfE.CheckPerformanceData.Application.Search.CmsSettingsSearchDebugOptions>();
+    builder.AddCpdDevImpersonation();
 
-    // Emits a structured log per search request (Info summary, Debug/Info per-hit and
-    // per-exclusion depending on the debug toggle, Warn zero-result). Registered as the
-    // CONCRETE type so the composite decorator below can resolve it directly without a
-    // self-recursive lookup through ISearchTelemetry. Scoped because it depends on
-    // Scoped ISearchDebugOptions — a Scoped service captured inside a Singleton would
-    // leak the first request's toggle read across every subsequent request.
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Search.LoggerSearchTelemetry>();
+    builder.AddCpdDataProtection();
 
-    // Composite decorator: wraps LoggerSearchTelemetry (as the inner) with an enqueue
-    // onto the analytics channel. Registered against ISearchTelemetry so every /search
-    // caller resolves the fan-out shape; the inner logger keeps working exactly as
-    // before.
-    builder.Services.AddScoped<
-        DfE.CheckPerformanceData.Application.Search.ISearchTelemetry,
-        DfE.CheckPerformanceData.Application.Analytics.SinkAndLogSearchTelemetry>();
-
-    // Analytics channel + writer + drop counter. The channel is a singleton (the same
-    // instance must be seen by every request-scope decorator and the singleton writer
-    // that drains it). The ChannelWriter side is factory-registered so the decorator's
-    // ctor gets a typed writer without having to know about the wrapper.
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>();
-    builder.Services.AddSingleton(sp =>
-        sp.GetRequiredService<DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsChannel>()
-          .Channel.Writer);
-    builder.Services.AddSingleton<
-        DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsDroppedCounter,
-        DfE.CheckPerformanceData.Application.Analytics.SearchAnalyticsDroppedCounter>();
-    builder.Services.AddScoped<
-        DfE.CheckPerformanceData.Application.Analytics.ISearchAnalyticsSessionProvider,
-        DfE.CheckPerformanceData.Web.Analytics.HttpContextSearchAnalyticsSessionProvider>();
-    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Analytics.SearchEventWriter>();
-
-    // In-memory job store for the dev-only seed-sample-search-data admin page. Singleton
-    // because the POST creates a job on one request and subsequent GETs (progress polls +
-    // Cancel DELETE) must read the same instance across the request lifetime. Backed by
-    // a ConcurrentDictionary; auto-evicts completed jobs after 5 minutes on new-job insert.
-    builder.Services.AddSingleton<
-        DfE.CheckPerformanceData.Application.Analytics.ISampleSearchDataSeedJobStore,
-        DfE.CheckPerformanceData.Application.Analytics.InMemorySampleSearchDataSeedJobStore>();
-
-    // Process-lifetime counter of zero-result searches. Interlocked-backed; safe under
-    // concurrent request throughput. Read out-of-band by diagnostic surfaces.
-    builder.Services.AddSingleton<
-        DfE.CheckPerformanceData.Application.Search.ISearchZeroResultsCounter,
-        DfE.CheckPerformanceData.Application.Search.SearchZeroResultsCounter>();
-
-    string? newtonsoftLicenseKey = configuration
-        .GetSection("NewtonsoftLicenseKey")
-        .Get<string>() ?? null;
-
-    if (newtonsoftLicenseKey is not null)
-    {
-        License.RegisterLicense(newtonsoftLicenseKey);
-    }
-
-    // Orchestrates the full dev-data seeding sequence, shared by startup seeding (below) and
-    // the admin Danger zone "Reset seed data" action.
-    builder.Services.AddScoped<IDevDataSeedingOrchestrator, DevDataSeedingOrchestrator>();
-
-    builder.Services.AddScoped<IEmailLinkGenerator, DfE.CheckPerformanceData.Web.Notify.EmailLinkGenerator>();
-
-    // Dev-only impersonation: a second auth scheme + a policy scheme that picks between
-    // it and the real DfE cookie scheme based on which cookie is present. Registered
-    // ONLY where the dev tooling surface is enabled (Dev:ToolsEnabled) — i.e. local dev
-    // and ephemeral PR/review apps — AND never in Production. This matches the gate used
-    // by the sibling /dev/* controllers (DevQueueSeed, DevPipeline, DevUat), so deployed
-    // DEV/QA/Preproduction (which never set Dev:ToolsEnabled) cannot serve these routes or
-    // carry the marker cookie. The IsProduction() guard is belt-and-braces on top of the
-    // flag. Don't move this block outside either condition.
-    if (!builder.Environment.IsProduction()
-        && configuration.GetValue<bool>(SettingKeys.DevToolsEnabled))
-    {
-        const string DevAwareScheme = "DevAware";
-
-        builder.Services.AddAuthentication()
-            .AddScheme<AuthenticationSchemeOptions, DevImpersonationAuthHandler>(
-                DevImpersonationConstants.Scheme,
-                _ => { })
-            .AddPolicyScheme(DevAwareScheme, DevAwareScheme, options =>
-            {
-                options.ForwardDefaultSelector = context =>
-                {
-                    // Prefer the real DfE Sign-In auth cookie if present so an
-                    // already-signed-in manual tester keeps their real claims
-                    // (organisationid, name, etc.) when they flip the impersonation
-                    // cookie. The transformer then overlays the editor role on top.
-                    // Only fall back to the synthetic DevImpersonation scheme when
-                    // there's no real session — the E2E case.
-                    if (context.Request.Cookies.ContainsKey(".AspNetCore.Cookies"))
-                        return CookieAuthenticationDefaults.AuthenticationScheme;
-                    if (context.Request.Cookies.ContainsKey(DevImpersonationConstants.CookieName))
-                        return DevImpersonationConstants.Scheme;
-                    return CookieAuthenticationDefaults.AuthenticationScheme;
-                };
-            });
-
-        // Override only DefaultAuthenticateScheme so [Authorize] checks pass through
-        // the policy scheme. DefaultChallengeScheme stays as OpenIdConnect so DfE
-        // Sign-In still triggers for unauthenticated users; DefaultSignInScheme stays
-        // as Cookies so the OIDC callback still writes the real auth cookie.
-        builder.Services.Configure<AuthenticationOptions>(options =>
-        {
-            options.DefaultAuthenticateScheme = DevAwareScheme;
-        });
-
-        builder.Services.AddScoped<IClaimsTransformation, DevImpersonationClaimsTransformer>();
-    }
-
-    builder.Services.AddScoped<IRequestNotificationService, DfE.CheckPerformanceData.Infrastructure.Notify.RequestNotificationService>();
-
-    // Email sending is fire-and-forget: the request thread enqueues onto an in-process channel
-    // (ChannelNotificationDispatcher, a singleton shared with the background worker) and returns;
-    // NotificationBackgroundService drains the channel and resolves recipients + sends off-thread
-    // via NotificationSender. The INotificationDispatcher seam lets this become a durable queue later.
-    builder.Services.AddScoped<INotificationSender, DfE.CheckPerformanceData.Infrastructure.Notify.NotificationSender>();
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>();
-    builder.Services.AddSingleton<INotificationDispatcher>(sp =>
-        sp.GetRequiredService<DfE.CheckPerformanceData.Web.Notify.ChannelNotificationDispatcher>());
-    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Notify.NotificationBackgroundService>();
-
-    // Postgres log sink. The provider is additive: Serilog / console keep working. Options
-    // bind from AppLogSink:{MinLevel,BatchSize,FlushInterval,…}; sensible defaults apply if
-    // the section is missing.
-    var logSinkOptions = new DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions();
-    builder.Configuration.GetSection(DfE.CheckPerformanceData.Application.Logging.AppLogSinkOptions.SectionName)
-        .Bind(logSinkOptions);
-    builder.Services.AddSingleton(logSinkOptions);
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.AppLogChannel>();
-    // Singleton because DatabaseLoggerProvider is a singleton. Under the hood it reads
-    // IHttpContextAccessor.HttpContext (backed by AsyncLocal) so per-request path / user
-    // / correlation resolve correctly. Background-service logs (no request in flight)
-    // simply get nulls.
-    builder.Services.AddSingleton<DfE.CheckPerformanceData.Application.Logging.ILogRequestContext,
-        DfE.CheckPerformanceData.Web.Logging.HttpLogRequestContext>();
-    // The provider is a singleton that resolves the shared channel + options from DI. Registering
-    // it as ILoggerProvider hooks it into the ambient logger factory alongside console/Serilog.
-    builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider,
-        DfE.CheckPerformanceData.Application.Logging.DatabaseLoggerProvider>();
-    builder.Services.AddHostedService<DfE.CheckPerformanceData.Web.Logging.DatabaseLogWriter>();
-
-    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
-    builder.Services.AddScoped<IFileStorageService, EvidenceBlobStorageService>();
-    builder.Services.AddScoped<IJourneyViewModelBuilder, JourneyViewModelBuilder>();
-
-    builder.Services.Configure<QueueOptions>(builder.Configuration.GetSection("QueueOptions"));
-    builder.Services.AddScoped<IQueueService, PostgresQueueService>();
-    builder.Services.AddScoped<IQueueAdminService, QueueAdminService>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Application.Observability.SubmittedMetricRecorder>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Controllers.DevPipelineRunner>();
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Web.Services.GuidanceContentCopyService>();
-    builder.Services.AddSingleton<PayloadRedactor>();
-
-    builder.Services.AddSingleton<IReservedRouteProvider, EndpointReservedRouteProvider>();
-    builder.Services.AddScoped<PageNodePathValidator>();
-
-    // ASP.NET Core Data Protection key ring. Production runs multiple web replicas, so the
-    // key ring MUST be shared across all web replicas: the OIDC 'state' and correlation cookie are
-    // protected when the user is redirected TO DfE Sign-in and unprotected on the /auth/callback
-    // return. With the default in-memory keys, each pod has its own ring, so a callback that
-    // load-balances to a different pod fails with "Unable to unprotect the message.State." and
-    // the user lands on the no-access page. Persisting keys to the shared blob storage account
-    // (and pinning the application name so all instances derive the same purpose strings) makes
-    // every replica agree. When no storage connection string is configured the default
-    // in-memory provider is used (single-instance local dev), which is fine.
-    var dataProtection = builder.Services.AddDataProtection()
-        .SetApplicationName("check-performance-data");
-    var dataProtectionConn = builder.Configuration.GetConnectionString("AzureStorage");
-    if (!string.IsNullOrEmpty(dataProtectionConn))
-    {
-        var keyRingContainer = new BlobServiceClient(dataProtectionConn)
-            .GetBlobContainerClient("data-protection-keys");
-        keyRingContainer.CreateIfNotExists();
-        dataProtection.PersistKeysToAzureBlobStorage(keyRingContainer.GetBlobClient("keys.xml"));
-    }
-
-    builder.Services.AddSingleton(_ =>
-        new BlobServiceClient(builder.Configuration.GetConnectionString("AzureStorage")));
-
-    builder.Services.AddSingleton<IReadOnlyDictionary<string, BlobServiceClient>>(_ =>
-    {
-        var clients = new Dictionary<string, BlobServiceClient>();
-        var appConn = builder.Configuration.GetConnectionString("AzureStorage");
-        if (!string.IsNullOrEmpty(appConn))
-            clients["app"] = new BlobServiceClient(appConn);
-        var ingressConn = builder.Configuration.GetConnectionString("IngressStorage");
-        if (!string.IsNullOrEmpty(ingressConn))
-            clients["ingress"] = new BlobServiceClient(ingressConn);
-        return clients;
-    });
-    builder.Services.Configure<DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions>(
-        builder.Configuration.GetSection(
-            DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesProviderOptions.SectionName));
-    builder.Services.TryAddSingleton(TimeProvider.System);
-    builder.Services.AddScoped<
-        DfE.CheckPerformanceData.Application.RulesConfig.IRulesConfigStore,
-        DfE.CheckPerformanceData.Infrastructure.RulesEngine.BlobRulesConfigStore>();
-    // Lets the dev-data seeding orchestrator self-seed the rules-config blobs in dev/E2E. In
-    // deployed environments the rules-engine worker seeds them; that worker isn't part of the
-    // local web stack, so without this the admin rules editor 404s on a fresh environment.
-    builder.Services.AddScoped<DfE.CheckPerformanceData.Infrastructure.RulesEngine.RulesConfigSeeder>();
-    // TODO: revert to QuestionFlowBlobClient once storage permissions are configured for deployed environments
-    //if (builder.Environment.IsDevelopment())
-        builder.Services.AddSingleton<IQuestionFlowBlobClient, QuestionFlowBlobClient>();
-    // else
-    //     builder.Services.AddSingleton<IQuestionFlowBlobClient>(_ =>
-    //         new FileSystemQuestionFlowClient(builder.Environment.ContentRootPath));
-    builder.Services.AddScoped<IRequestBlobClient, RequestBlobClient>();
-    builder.Services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
-    builder.Services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
-    builder.Services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
-
-    builder.Services.AddAntiforgery(options =>
-    {
-        options.HeaderName = "X-XSRF-TOKEN";
-    });
-    
-    // Setting to null to allow controller-level request size limits
-    builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = null);
-
-    builder.Services.AddControllersWithViews();
-
-    builder.Services.AddAuthorization(options =>
-    {
-        options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .Build();
-    });
-
-    builder.Services.AddMemoryCache();
-    // Session must be backed by a store shared across all web replicas. Production runs multiple
-    // pods, so the default AddDistributedMemoryCache (per-pod, despite the name) would lose the
-    // in-progress journey RequestState whenever a follow-up request load-balances to a different
-    // pod — the user gets bounced back to Check Your Pupil Data. Back it with the PostgreSQL we
-    // already run instead. CreateInfrastructure lets the cache table be created on startup; the
-    // app already self-migrates with this same connection (see MigrateDatabaseAsync), so the DB
-    // user has the required rights, and the create is idempotent across concurrently-starting pods.
-    builder.Services.AddDistributedPostgreSqlCache(options =>
-    {
-        options.ConnectionString = builder.Configuration.GetConnectionString("Postgres");
-        options.SchemaName = "public";
-        options.TableName = "session_cache";
-        options.CreateInfrastructure = true;
-    });
-    builder.Services.AddCpdSession(builder.Configuration, builder.Environment);
-
-    builder.Services.AddHealthChecks();
-
-    // DfE Analytics: stream a web_request event to BigQuery per request when configured.
-    // Deployed envs wire DfeAnalytics:* via Terraform; guarded on DatasetId so dev,
-    // review and local boot without GCP. The matching middleware is added below under
-    // the same flag. The RequestFilter keeps health-probe noise out of the dataset.
-    var analyticsEnabled = !string.IsNullOrEmpty(builder.Configuration["DfeAnalytics:DatasetId"]);
-    if (analyticsEnabled)
-    {
-        builder.Services
-            .AddDfeAnalytics()
-            .AddAspNetCoreIntegration(options =>
-                options.RequestFilter = ctx => !ctx.Request.Path.StartsWithSegments("/healthcheck"));
-        builder.Services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
-        // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
-        // is sent as its own row, auto-enriched with request + organisation context.
-        builder.Services.AddTransient<IAnalyticsService, DfeAnalyticsService>();
-    }
-    else
-    {
-        // No-op so controllers can always inject IAnalyticsService; dev/review/local
-        // boot without GCP.
-        builder.Services.AddSingleton<IAnalyticsService, NullAnalyticsService>();
-    }
+    builder.AddCpdSessionStore();
 
     var app = builder.Build();
 
-    await app.MigrateDatabaseAsync();
+    await app.RunCpdStartupTasksAsync();
 
-    using (var scope = app.Services.CreateScope())
-    {
-        // Countries back the country autocomplete and must exist in every environment,
-        // including Production. Seeded idempotently and content-aware: a no-op when the table
-        // already matches the embedded seed data, a full reseed when the CSV/entries change.
-        // Safe to run unconditionally on every startup, unlike the dev-only data seeding below.
-        await SeedCountries.ExecuteSeed(scope.ServiceProvider.GetRequiredService<IPortalDbContext>());
-
-        await scope.ServiceProvider.GetRequiredService<DefaultPageNodeSeeder>().SeedAsync();
-        await scope.ServiceProvider
-            .GetRequiredService<DfE.CheckPerformanceData.Application.Admin.DefaultAdminAccessSeeder>()
-            .SeedIfEmptyAsync();
-    }
-
-    app.UseForwardedHeaders();
-
-    app.UseSerilogRequestLogging(options =>
-    {
-        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
-        {
-            diagnosticContext.Set("RequestPath", httpContext.Request.Path);
-            diagnosticContext.Set("StatusCode", httpContext.Response.StatusCode);
-            diagnosticContext.Set("RequestMethod", httpContext.Request.Method);
-            diagnosticContext.Set("UserAgent", httpContext.Request.Headers.UserAgent.ToString());
-        };
-    });
-
-    app.UseGovUkFrontend();
-
-    app.MapHealthChecks("/healthcheck").AllowAnonymous();
-
-// Configure the HTTP request pipeline.
-    if (!app.Environment.IsDevelopment())
-    {
-        app.UseExceptionHandler("/Home/Error");
-        // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-        app.UseHsts();
-    }
-
-    if (seedData)
-    {
-        using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<IDevDataSeedingOrchestrator>().RunAsync();
-    }
-
-    app.UseHttpsRedirection();
-
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers.Append("Content-Security-Policy",
-            "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
-            "style-src 'self' 'unsafe-inline' https://*.googletagmanager.com https://fonts.googleapis.com; " +
-            "img-src 'self' data: blob: https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms https://fonts.gstatic.com; " +
-            "font-src 'self' data: https://fonts.gstatic.com; " +
-            "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.clarity.ms; " +
-            "frame-src 'self' https://*.googletagmanager.com; " +
-            "object-src 'none'; " +
-            "base-uri 'self'; " +
-            "form-action 'self'");
-        await next();
-    });
-
-    app.UseSession();
-
-    // Sits immediately after UseSession() so it can call Session.LoadAsync(); its
-    // SetString on first access is what commits the session cookie (framework
-    // lazy-writes on first store mutation). Downstream consumers therefore see a
-    // stable Session.Id across requests. Also enforces the server-side absolute
-    // lifetime cap that Cookie.MaxAge (a browser-side hint only) cannot.
-    app.UseMiddleware<SessionAbsoluteLifetimeMiddleware>();
-
-    app.UseRouting();
-
-    // Re-executes unmapped-route 404 responses through the MVC pipeline so users see a
-    // text/html page (with the shared layout, and therefore the injected session
-    // comment) instead of the framework default text/plain "Status Code: 404" body.
-    // Sits after UseRouting per the framework's placement contract for status-code
-    // page middleware.
-    app.UseStatusCodePagesWithReExecute("/Home/NotFound");
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    // After auth so the event captures the signed-in user's id + organisation claims;
-    // the RequestFilter configured above excludes health probes from the dataset.
-    if (analyticsEnabled)
-        app.UseDfeAnalytics();
-
-    // Sits after auth so the diagnostic comment sees the final principal claims;
-    // before controllers so it can wrap their response body. The middleware itself
-    // is a no-op when env.IsProduction() or when Diagnostics:ShowSessionFooter
-    // is false / unset.
-    app.UseMiddleware<DiagnosticFooterMiddleware>();
-
-    // Emits `<!-- session: {id} -->` before </body> on every text/html response so
-    // users can quote the session id back to support. Placed after auth so any
-    // future admin-only variants would still see the right principal; placed after
-    // SessionAbsoluteLifetimeMiddleware so Session.Id is stable (cookie committed).
-    app.UseMiddleware<SessionSourceCommentMiddleware>();
-
-    app.MapStaticAssets().AllowAnonymous();
-
-    app.MapControllerRoute(
-            name: "default",
-            pattern: "{controller=Home}/{action=Index}/{id?}")
-        .WithStaticAssets();
-
+    app.UseCpdRequestPipeline();
 
     app.Run();
 }
-catch (Exception e)
+catch (System.Exception e)
 {
     Log.Fatal(e, "Application terminated unexpectedly");
 }

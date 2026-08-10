@@ -114,10 +114,11 @@ public static class SettingDefinitions
             "When true, per-hit rank breakdowns and per-exclusion filter breadcrumbs are logged at Info level and the /search page renders the internal rank as an HTML comment. Editors and ops use it to debug why a page didn't appear. Off by default.",
             "false",
             SettingKind.Bool),
-        new(SettingKeys.SearchAnalyticsSessionIdleMinutes,
-            "How long a browser session can be idle before ASP.NET drops the server-side state. Applies to the whole app.",
-            "60",
-            SettingKind.Int),
+        // SearchAnalytics:SessionIdleMinutes is deliberately NOT declared here. It is
+        // applied to SessionOptions when the request pipeline is built and the framework
+        // reads it once, so nothing can honour a stored value per request. Listing it as
+        // editable produced a control that saved and redisplayed but changed nothing —
+        // configure it in appsettings instead.
         new(SettingKeys.SearchAnalyticsSessionAbsoluteHours,
             "The maximum lifetime of a session even under continuous activity. A replayed cookie past this limit gets a fresh session id. Hard max 168 h (1 week) enforced in code.",
             "24",

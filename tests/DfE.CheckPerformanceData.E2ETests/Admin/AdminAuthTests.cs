@@ -5,7 +5,6 @@ using DfE.CheckPerformanceData.E2ETests.Helpers;
 namespace DfE.CheckPerformanceData.E2ETests.Admin;
 
 [Collection("E2E")]
-[Trait("Category", "W4")]
 public sealed class AdminAuthTests(PlaywrightFixture fixture)
 {
     private readonly PlaywrightFixture _fixture = fixture;

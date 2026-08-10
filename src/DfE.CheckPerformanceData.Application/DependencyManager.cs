@@ -23,6 +23,8 @@ public static class DependencyManager
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
         services.AddScoped<IClaimsEnrichmentService, ClaimsEnrichmentService>();
+        services.AddScoped<Dashboard.IOrganisationLoginRecorder, Dashboard.OrganisationLoginRecorder>();
+        services.AddScoped<Dashboard.IDashboardService, Dashboard.DashboardService>();
         services.AddScoped<IContentBlockService, ContentBlockService>();
         services.AddScoped<IContentBlockSearchService, ContentBlockSearchService>();
         services.AddScoped<ISiteSearchService, SiteSearchService>();

@@ -118,7 +118,8 @@ public sealed class DevPipelineRunner
             Status = RequestStatus.SubmittedUnCommitted,
             ReferenceNumber = reference,
             RequestType = RequestType.Amendment,
-            RequestTypeDescription = requestType ?? preset.WhatToChange
+            RequestTypeDescription = requestType ?? preset.WhatToChange,
+            AmendmentType = ParseAmendmentType(requestType ?? preset.WhatToChange)
         });
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -152,6 +153,15 @@ public sealed class DevPipelineRunner
             Title = "Dev Harness Window",
         });
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    // The preset's WhatToChange is a free-form string that may carry a reason suffix
+    // ("Remove - Not on roll"), so take the leading segment. Null when it names no known
+    // amendment type — a dev harness row is not worth failing over.
+    private static WhatToChange? ParseAmendmentType(string description)
+    {
+        var prefix = description.Split('-', 2)[0].Trim();
+        return Enum.TryParse<WhatToChange>(prefix, out var parsed) ? parsed : null;
     }
 
     private static string BuildMessageJson(string reference, OutcomePreset preset, Guid changeRequestId, Guid windowId, long urn, Guid? pupilId, string pupilUpn, string pupilFirstname, string pupilSurname)

@@ -118,8 +118,10 @@ jobs:
       - name: Run E2E tests
         # Skip visual regression: baselines are captured against the local containerised
         # Linux-Chromium web. The deployed AKS review app serves a different surface
-        # (fonts, CSP, seed timing) so identical pixels are not expected. Visual
-        # regression stays a local concern, run via `make test-e2e`.
+        # (fonts, CSP, seed timing) so identical pixels are not expected. The checks are
+        # also gated off by default in code (CPD_E2E_VISUAL_REGRESSION); this filter is
+        # kept so the intent is visible in the pipeline rather than only at the call site.
+        # To run them deliberately: `make test-e2e-visual`.
         run: dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release --no-build --filter "Category!=VisualRegression"
 
       # Surface the snapshot tree on failure so the "delete .png + push twice"

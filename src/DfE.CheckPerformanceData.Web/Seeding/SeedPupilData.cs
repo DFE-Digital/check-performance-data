@@ -20,6 +20,14 @@ public static class SeedPupilData
         new("123312", "931/6095", AddIncluded: true,  AddNonIncluded: true),   // Abingdon School (Independent)
     ];
 
+    // Enough pupils per tab that the pupil list pages many times over (page size 10), so the
+    // GOV.UK pagination window — first/last, current ± 1, ellipses — can be exercised locally.
+    private const int PupilsPerGroup = 120;
+
+    // Non-included pupils are generated from an index shifted well clear of the included ones so
+    // the two groups never share a generated name pair, UPN, Cypmd id or match ref.
+    private const int NonIncludedIndexOffset = 200;
+
     private static readonly Guid[] WindowIds =
     [
         DevDataSeeder.KeyStage4JuneCheckingWindowId,
@@ -34,10 +42,10 @@ public static class SeedPupilData
             var pupils = new List<PupilRecord>();
 
             if (school.AddIncluded)
-                pupils.AddRange(GeneratePupils(count: 15, includedPincl: true, firstnameOffset: 0, surnameOffset: 0, windowId, school));
+                pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: true, indexOffset: 0, windowId, school));
 
             if (school.AddNonIncluded)
-                pupils.AddRange(GeneratePupils(count: 15, includedPincl: false, firstnameOffset: 10, surnameOffset: 5, windowId, school));
+                pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: false, NonIncludedIndexOffset, windowId, school));
 
             if (pupils.Count > 0)
                 await client.UploadPupilsAsync(windowId, school.Laestab, pupils);
@@ -56,10 +64,10 @@ public static class SeedPupilData
             var pupils = new List<Post16PupilRecord>();
 
             if (school.AddIncluded)
-                pupils.AddRange(GeneratePost16Pupils(count: 15, included: true, firstnameOffset: 0, surnameOffset: 0, school));
+                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: true, indexOffset: 0, school));
 
             if (school.AddNonIncluded)
-                pupils.AddRange(GeneratePost16Pupils(count: 15, included: false, firstnameOffset: 10, surnameOffset: 5, school));
+                pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, school));
 
             if (pupils.Count > 0)
                 await client.UploadPupilsAsync(DevDataSeeder.Post16CheckingWindowId, school.Laestab, pupils);
@@ -71,9 +79,10 @@ public static class SeedPupilData
     private static readonly int[] Post16PinclCodes = [501, 502, 505, 506];
 
     private static IEnumerable<Post16PupilRecord> GeneratePost16Pupils(
-        int count, bool included, int firstnameOffset, int surnameOffset, School school) =>
+        int count, bool included, int indexOffset, School school) =>
         Enumerable.Range(0, count).Select(i =>
         {
+            var n = i + indexOffset;
             var dob = new DateOnly(2007, (i % 12) + 1, (i % 28) + 1);
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var age = today.Year - dob.Year;
@@ -85,8 +94,8 @@ public static class SeedPupilData
                 CheckingWindowId = DevDataSeeder.Post16CheckingWindowId,
                 Included = included,
                 Laestab = school.Laestab,
-                Firstname = Firstnames[(i + firstnameOffset) % Firstnames.Length],
-                Surname = Surnames[(i + surnameOffset) % Surnames.Length],
+                Firstname = Firstnames[n % Firstnames.Length],
+                Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
                 // The 16-19 supplier sends DOB as a timestamp string, so the seed mirrors that
                 // to exercise PupilDateFormatter's timestamp branch.
@@ -95,10 +104,10 @@ public static class SeedPupilData
                 // The non-included supplier file has no P_INCL column at all.
                 Pincl = included ? Post16PinclCodes[i % Post16PinclCodes.Length] : null,
                 PinclAims = included ? (i % 2 == 0 ? 503 : 504) : null,
-                Cypmd_Id = $"5{(i + firstnameOffset + 1):D5}",
+                Cypmd_Id = $"5{(n + 1):D5}",
                 Urn = school.Urn,
                 Ukprn = $"1000{(i % 9) + 1:D4}",
-                Uln = $"99{(i + firstnameOffset + 1):D8}",
+                Uln = $"99{(n + 1):D8}",
                 CampId0 = included ? string.Empty : $"C{i % 3}",
                 CampId1 = included ? string.Empty : $"C{(i + 1) % 3}"
             };
@@ -134,10 +143,11 @@ public static class SeedPupilData
 
     private static readonly int[] NonIncludedPinclCodes = [402, 404, 407, 408, 410, 413, 422, 430];
 
-    private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int firstnameOffset,
-        int surnameOffset, Guid checkingWindowId, School school) =>
+    private static IEnumerable<PupilRecord> GeneratePupils(int count, bool includedPincl, int indexOffset,
+        Guid checkingWindowId, School school) =>
         Enumerable.Range(0, count).Select(i =>
         {
+            var n = i + indexOffset;
             var dob = new DateOnly(2010, (i % 12) + 1, (i % 28) + 1);
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var age = today.Year - dob.Year;
@@ -149,8 +159,10 @@ public static class SeedPupilData
                 Id = Guid.NewGuid(),
                 CheckingWindowId = checkingWindowId,
                 Laestab = school.Laestab,
-                Firstname = Firstnames[(i + firstnameOffset) % Firstnames.Length],
-                Surname = Surnames[(i + surnameOffset) % Surnames.Length],
+                // Firstname cycles every 20 while surname advances once per full cycle, so the
+                // name pair stays unique across all 400 combinations rather than repeating every 20.
+                Firstname = Firstnames[n % Firstnames.Length],
+                Surname = Surnames[(n / Firstnames.Length) % Surnames.Length],
                 Sex = Sexes[i % 2],
                 DateOfBirth = dob.ToString("dd/MM/yyyy"),
                 Age = age,
@@ -158,13 +170,13 @@ public static class SeedPupilData
                 Pincl = pinclCodes[i % pinclCodes.Length],
                 NewMobile = i % 5 == 0,
                 ActualYearGroup = YearGroups[i % YearGroups.Length],
-                Ethnicity = EthnicityCodes[(i + firstnameOffset) % EthnicityCodes.Length],
+                Ethnicity = EthnicityCodes[n % EthnicityCodes.Length],
                 SenF = SenCodes[i % SenCodes.Length],
                 EntryDate = new DateTime(2021, 9, (i % 20) + 1, 0, 0, 0, DateTimeKind.Utc).ToString("dd/MM/yyyy"),
                 Urn = long.Parse(school.Urn),
-                Cypmd_Id = $"{(i + firstnameOffset + 1):D6}",
-                MatchRef = 10000 + i + firstnameOffset,
-                Upn = $"A8604070{(i + firstnameOffset + 1):D4}B"
+                Cypmd_Id = $"{(n + 1):D6}",
+                MatchRef = 10000 + n,
+                Upn = $"A8604070{(n + 1):D4}B"
             };
         });
 }

@@ -222,18 +222,16 @@ scale-worker: get-cluster-credentials
 	kubectl -n ${NAMESPACE} scale deployment/${SERVICE_NAME}${DSUFFIX}-worker --replicas ${REPLICAS}
 
 .PHONY: test-e2e
-test-e2e: ## Run full E2E suite inside the Linux Playwright container; auto-bootstraps visual-regression baselines when the Snapshots dir is empty, then re-runs to verify stability
-	@SNAPSHOT_DIR=tests/DfE.CheckPerformanceData.E2ETests/Snapshots; \
-	if [ -z "$$(ls -A $$SNAPSHOT_DIR 2>/dev/null)" ]; then \
-		echo ">>> No visual-regression baselines found — running bootstrap pass to write PNGs..."; \
-		docker compose --profile e2e run --rm e2e-tests; \
-		echo ">>> Bootstrap complete. Re-running to verify baselines are stable..."; \
-	fi; \
+test-e2e: ## Run the E2E suite inside the Linux Playwright container (visual regression stays off)
 	docker compose --profile e2e run --rm e2e-tests
 
+.PHONY: test-e2e-visual
+test-e2e-visual: ## Run the E2E suite WITH visual regression, in the container the baselines were captured in
+	CPD_E2E_VISUAL_REGRESSION=1 docker compose --profile e2e run --rm e2e-tests
+
 .PHONY: test-e2e-fast
-test-e2e-fast: ## Run E2E suite natively on host SDK, skipping visual regression (fast TDD inner loop)
-	dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --filter "Category!=VisualRegression" --configuration Release
+test-e2e-fast: ## Run E2E suite natively on host SDK (fast TDD inner loop)
+	dotnet test tests/DfE.CheckPerformanceData.E2ETests/ --configuration Release
 
 .PHONY: dev-deps
 dev-deps: ## Start local dependency containers (Postgres + Azurite) for VS in-container debugging

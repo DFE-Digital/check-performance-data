@@ -495,6 +495,10 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AmendmentType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("CrmId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -945,6 +949,38 @@ namespace DfE.CheckPerformanceData.Persistence.Migrations
                         .HasDatabaseName("ix_dev_zendesk_outbox_created_at");
 
                     b.ToTable("dev_zendesk_outbox", (string)null);
+                });
+
+            modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.OrganisationLogin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("Laestab")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("LoggedInAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OrganisationName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long>("OrganisationUrn")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoggedInAtUtc");
+
+                    b.HasIndex("OrganisationUrn", "LoggedInAtUtc");
+
+                    b.ToTable("OrganisationLogins");
                 });
 
             modelBuilder.Entity("DfE.CheckPerformanceData.Persistence.Entities.PageNode", b =>

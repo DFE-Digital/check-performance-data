@@ -4,10 +4,10 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
-using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Admin.Nav;
-using DfE.CheckPerformanceData.Web.Controllers;
+using DfE.CheckPerformanceData.Web.Admin;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSubstitute;
@@ -20,7 +20,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // against a seeded corpus — by calling the Index action directly against a real IPortalDbContext
 // so the query service exercises the same SQL production runs.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsControllerTests
 {
     private readonly PostgresFixture _fixture;
@@ -395,7 +394,9 @@ public sealed class SearchAnalyticsControllerTests
     private SearchAnalyticsController Sut()
     {
         var context = _fixture.CreateContext();
-        var query = new SearchAnalyticsQueryService(context);
+        var query = new SearchAnalyticsQueryService(
+                context,
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
         var settings = Substitute.For<ISettingService>();
         settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
         return new SearchAnalyticsController(query, settings);

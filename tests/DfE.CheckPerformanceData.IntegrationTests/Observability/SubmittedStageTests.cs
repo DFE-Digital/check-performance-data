@@ -17,7 +17,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // enqueue time — not at the first consumer ack. Real Postgres: the submission flow enqueues a
 // queue row AND writes a Submitted metric row, and the journey query returns it first.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SubmittedStageTests
 {
     private readonly PostgresFixture _fixture;

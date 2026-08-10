@@ -1,5 +1,6 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // pre-fill helper). Every window bound is a server-owned DateTime and every SQL parameter
 // binds via Npgsql so the read path has no injection surface.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsQueryServiceTests
 {
     private readonly PostgresFixture _fixture;
@@ -315,7 +315,9 @@ public sealed class SearchAnalyticsQueryServiceTests
     // --- Helpers ---
 
     private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+        new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

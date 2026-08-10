@@ -6,6 +6,7 @@ namespace DfE.CheckPerformanceData.Web.Admin.Nav;
 // string-typing the relationship.
 public static class AdminNavKeys
 {
+    public const string Dashboard = "dashboard";
     public const string CmsAdmin = "cms-admin";
     public const string SystemAdmin = "system-admin";
     public const string AmendmentRequestsAdmin = "amendment-requests-admin";

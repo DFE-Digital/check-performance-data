@@ -24,7 +24,6 @@ namespace DfE.CheckPerformanceData.E2ETests.Web;
 // of layout check (long body, Wiki.cshtml render path). The behaviour is layout-
 // agnostic though — every Content/Wiki page picks the same partial + CSS up.
 [Collection("E2E")]
-[Trait("Category", "W1")]
 public sealed class BackToTopTests(PlaywrightFixture fixture) : PageTest
 {
     private readonly PlaywrightFixture _fixture = fixture;

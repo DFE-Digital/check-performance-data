@@ -12,7 +12,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Observability;
 // actually happened. Real Postgres so the ordering and window bounds are exercised against
 // the real engine.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class BoardReplayTests
 {
     private const string RulesEngineQueue = "rules-engine";

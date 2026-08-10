@@ -28,6 +28,7 @@ public interface IPortalDbContext
     DbSet<PageNodeVersion> PageNodeVersions { get; }
     DbSet<AdminSectionAccess> AdminSectionAccesses { get; }
     DbSet<AppLog> AppLogs { get; }
+    DbSet<OrganisationLogin> OrganisationLogins { get; }
     DbSet<SearchEvent> SearchEvents { get; }
     DbSet<SearchEventResult> SearchEventResults { get; }
     DbSet<SearchMessage> SearchMessages { get; }

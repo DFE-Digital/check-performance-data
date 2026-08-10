@@ -88,7 +88,8 @@ public static class SeedChangeRequests
                 SubmittedByEmail = SubmittedByEmail,
                 Status = scenario.Status,
                 RequestType = RequestType.Amendment,
-                RequestTypeDescription = RequestTypeDescription
+                RequestTypeDescription = RequestTypeDescription,
+                AmendmentType = WhatToChange.Remove
             });
 
             var state = new RequestState

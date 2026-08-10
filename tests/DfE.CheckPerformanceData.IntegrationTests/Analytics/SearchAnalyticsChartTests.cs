@@ -1,17 +1,18 @@
 using DfE.CheckPerformance.Persistence.Entities;
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
 using DfE.CheckPerformanceData.Persistence.Analytics;
 using DfE.CheckPerformanceData.Web.Controllers;
 using GovUk.Frontend.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,6 @@ namespace DfE.CheckPerformanceData.IntegrationTests.Analytics;
 // less bucket by hour; anything wider buckets by day. Every bucket bound + generate_series
 // step is server-computed and parameterised — the read path has no injection surface.
 [Collection(nameof(PostgresCollection))]
-[Trait("Category", "W0")]
 public sealed class SearchAnalyticsChartTests
 {
     private readonly PostgresFixture _fixture;
@@ -755,7 +755,9 @@ public sealed class SearchAnalyticsChartTests
         DateTime.SpecifyKind(new DateTime(value.Year, value.Month, 1, 0, 0, 0), DateTimeKind.Utc);
 
     private ISearchAnalyticsQueryService CreateService() =>
-        new SearchAnalyticsQueryService(_fixture.CreateContext());
+        new SearchAnalyticsQueryService(
+                _fixture.CreateContext(),
+                new StubSettingService(SettingKeys.SearchAnalyticsRetentionDays, 90));
 
     private static SearchEvent NewEvent(
         DateTime occurredAtUtc,

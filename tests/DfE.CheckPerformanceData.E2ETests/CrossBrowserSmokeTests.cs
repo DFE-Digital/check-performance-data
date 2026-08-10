@@ -20,7 +20,6 @@ using Microsoft.Playwright;
 namespace DfE.CheckPerformanceData.E2ETests;
 
 [Collection("E2E")]
-[Trait("Category", "W0")]
 public sealed class CrossBrowserSmokeTests
 {
     private readonly PlaywrightFixture _fixture;

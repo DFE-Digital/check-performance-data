@@ -2,6 +2,7 @@ using System.Globalization;
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
+using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,9 +14,9 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 // searches they ran.
 //
 // Two invariants carry this controller:
-//   - context.Session.Id is the ONLY source of the persisted session id. Any form field
-//     the client sends under the SessionIdDisplayOnly name is discarded. The readonly
-//     input on the form exists only so the user can quote the id.
+//   - The server-side CpdSessionIdentity is the ONLY source of the persisted session id.
+//     Any form field the client sends under the SessionIdDisplayOnly name is discarded.
+//     The readonly input on the form exists only so the user can quote the id.
 //   - Hide-my-email means DROP the value before persist. There is no encryption, no
 //     reveal audit — what isn't stored can't leak.
 [AllowAnonymous]
@@ -44,7 +45,7 @@ public sealed class SearchFeedbackController : Controller
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         await HttpContext.Session.LoadAsync(ct);
-        var sessionId = HttpContext.Session.Id;
+        var sessionId = CpdSessionIdentity.Ensure(HttpContext.Session);
 
         // The prior-search block is best-effort: if the query service returns null (no
         // matching row for the session), the form still renders without the panel.
@@ -72,7 +73,7 @@ public sealed class SearchFeedbackController : Controller
         // Server-side session id — IGNORES any SessionIdDisplayOnly form field the client
         // sent. The view-model has no such property; even if the browser posted one under
         // that name the model binder has nowhere to put it.
-        var sessionId = HttpContext.Session.Id;
+        var sessionId = CpdSessionIdentity.Ensure(HttpContext.Session);
 
         if (!ModelState.IsValid)
         {
@@ -121,7 +122,7 @@ public sealed class SearchFeedbackController : Controller
     public IActionResult Confirmation()
     {
         var sessionId = TempData.Peek(ConfirmationSessionIdKey) as string
-                        ?? HttpContext.Session.Id;
+                        ?? CpdSessionIdentity.Ensure(HttpContext.Session);
         var model = new SearchFeedbackViewModel { SessionId = sessionId };
         return View("~/Views/Search/FeedbackConfirmation.cshtml", model);
     }

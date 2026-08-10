@@ -54,8 +54,7 @@ public sealed class ContentBlockSearchServiceTests
         // canonical hit. The kept-block cap still bounds total block count, but URL
         // duplicates no longer disappear at this layer.
         var path = "/guidance/ks4-june-2026-key-dates";
-        _pageNodeRepository.GetPublishedByPathAsync(path)
-            .Returns(new PublishedPageInfoDto(path, "Key dates — KS4 June 2026"));
+        StubPublished(path, "Key dates — KS4 June 2026");
 
         _repository.SearchAsync("key", Arg.Any<int>()).Returns(
         [
@@ -129,11 +128,35 @@ public sealed class ContentBlockSearchServiceTests
     // --- Success path: published PageNode + static routes ---
 
     [Fact]
+    public async Task SearchAsync_TrimsLeadingSlash_BeforeLookingUpThePageNode()
+    {
+        // LastSeenPath is a request path ("/help/foo") because it comes from
+        // HttpContext.Request.Path; PageNode.Path is stored without the leading slash
+        // ("help/foo"). Comparing them verbatim can never match, so a block on a live
+        // CMS page would be dropped as "unpublished-target" and never surface in search.
+        _pageNodeRepository.GetPublishedByPathAsync("help/data-checks")
+            .Returns(new PublishedPageInfoDto("help/data-checks", "Data checks"));
+
+        _repository.SearchAsync("term", Arg.Any<int>()).Returns(
+        [
+            Block("help-data-checks-intro", "matches term", lastSeenPath: "/help/data-checks")
+        ]);
+
+        var outcome = await _sut.SearchAsync("term");
+
+        var hit = Assert.Single(outcome.Hits);
+        Assert.Equal("help-data-checks-intro", hit.Key);
+        Assert.Equal("Data checks", hit.PageTitle);
+        // The user-facing URL keeps the leading slash — only the lookup is normalised.
+        Assert.Equal("/help/data-checks", hit.Url);
+        Assert.Empty(outcome.Exclusions);
+    }
+
+    [Fact]
     public async Task SearchAsync_UsesLastSeenPath_AsUrl_AndPageNodeTitle_AsTitle()
     {
         var path = "/guidance/ks4-june-2026-get-support";
-        _pageNodeRepository.GetPublishedByPathAsync(path)
-            .Returns(new PublishedPageInfoDto(path, "Get support — KS4 June 2026"));
+        StubPublished(path, "Get support — KS4 June 2026");
 
         _repository.SearchAsync("term", Arg.Any<int>()).Returns(
         [
@@ -157,7 +180,8 @@ public sealed class ContentBlockSearchServiceTests
         // toggled out of search returns null from that lookup — mirroring the DB behaviour keeps
         // this test faithful to the real code path.
         var path = "/guidance/toggled-off-page";
-        _pageNodeRepository.GetPublishedByPathAsync(path).Returns((PublishedPageInfoDto?)null);
+        _pageNodeRepository.GetPublishedByPathAsync(path.TrimStart('/'))
+            .Returns((PublishedPageInfoDto?)null);
 
         _repository.SearchAsync("term", Arg.Any<int>()).Returns(
         [
@@ -357,9 +381,15 @@ public sealed class ContentBlockSearchServiceTests
         Assert.Empty(outcome.Exclusions);
     }
 
-    private void StubPublished(string path, string title) =>
-        _pageNodeRepository.GetPublishedByPathAsync(path)
-            .Returns(new PublishedPageInfoDto(path, title));
+    // Takes the request-path form the block records ("/guidance/foo") and stubs the
+    // repository under the stored form ("guidance/foo") — mirroring the normalisation
+    // the service applies, so call sites can keep thinking in request paths.
+    private void StubPublished(string path, string title)
+    {
+        var stored = path.TrimStart('/');
+        _pageNodeRepository.GetPublishedByPathAsync(stored)
+            .Returns(new PublishedPageInfoDto(stored, title));
+    }
 
     private static ContentBlockDto Block(string key, string value, string? lastSeenPath = null) => new()
     {

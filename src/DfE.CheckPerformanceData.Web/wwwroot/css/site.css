@@ -1830,8 +1830,9 @@ main.govuk-main-wrapper:has(.cpb-breadcrumbs) { padding-top: 0 !important; }
 
    Reveal-on-scroll is done by a tiny JS enhancement (back-to-top.js): once the module
    has run, it flips data-back-to-top-init on <html>, which activates the hidden-by-
-   default state below. Until the reader scrolls past ~100 px, the link is opacity: 0 +
-   visibility: hidden. Past that threshold the module adds .is-visible on the container
+   default state below. Until the reader has scrolled nearly a full viewport the link is
+   opacity: 0 + visibility: hidden, and on a page short enough to fit the viewport it
+   never reveals at all. Past the threshold the module adds .is-visible on the container
    and CSS transitions it in. Without JS neither the marker nor the .is-visible class
    is ever set, so the link stays visible as a graceful accessibility fallback. */
 .app-back-to-top {

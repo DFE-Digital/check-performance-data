@@ -31,6 +31,17 @@ public sealed class ZendeskTicketFieldSettings
     public long? CorrectionReason31Id { get; set; }
     public long? ReasonForRemovalId { get; set; }
     public long? CypmdId { get; set; }
+    public long? DciRefCypmdId { get; set; }
+    public long? AgeCypmdId { get; set; }
+    public long? DecisionReasonApprovedId { get; set; }
+    public long? DecisionReasonRejectedId { get; set; }
+
+    /// <summary>
+    /// When <c>true</c>, AutoRejected decisions populate the "Decision Reason - Rejected"
+    /// tagger field (AutoApproved always populates the "Decision Reason - Approved" field
+    /// when mapped). Scrutiny decisions are never tagged. Defaults to <c>false</c>.
+    /// </summary>
+    public bool PopulateDecisionReasonForAutoRejected { get; set; }
 
     /// <summary>
     /// Gets the field ID by field name.
@@ -57,6 +68,10 @@ public sealed class ZendeskTicketFieldSettings
             ZendeskTicketFieldConstants.CorrectionReason31Name => CorrectionReason31Id,
             ZendeskTicketFieldConstants.ReasonForRemovalName => ReasonForRemovalId,
             ZendeskTicketFieldConstants.CypmdName => CypmdId,
+            ZendeskTicketFieldConstants.DciRefCypmdName => DciRefCypmdId,
+            ZendeskTicketFieldConstants.AgeCypmdName => AgeCypmdId,
+            ZendeskTicketFieldConstants.DecisionReasonApprovedName => DecisionReasonApprovedId,
+            ZendeskTicketFieldConstants.DecisionReasonRejectedName => DecisionReasonRejectedId,
             _ => null
         };
     }
@@ -85,7 +100,11 @@ public sealed class ZendeskTicketFieldSettings
             (ZendeskTicketFieldConstants.SexName, SexId),
             (ZendeskTicketFieldConstants.CorrectionReason31Name, CorrectionReason31Id),
             (ZendeskTicketFieldConstants.ReasonForRemovalName, ReasonForRemovalId),
-            (ZendeskTicketFieldConstants.CypmdName, CypmdId)
+            (ZendeskTicketFieldConstants.CypmdName, CypmdId),
+            (ZendeskTicketFieldConstants.DciRefCypmdName, DciRefCypmdId),
+            (ZendeskTicketFieldConstants.AgeCypmdName, AgeCypmdId),
+            (ZendeskTicketFieldConstants.DecisionReasonApprovedName, DecisionReasonApprovedId),
+            (ZendeskTicketFieldConstants.DecisionReasonRejectedName, DecisionReasonRejectedId)
         };
     }
 }

@@ -46,6 +46,19 @@ public sealed class PupilDto
     /// <summary>Inclusion status code from the pupil record (e.g. 401). Not required so
     /// sessions serialised before this field existed still deserialise; 0 = not supplied.</summary>
     public int Pincl { get; set; }
+
+    /// <summary>LDS match reference (MATCHREF) from the pupil record. Not required so sessions
+    /// serialised before this field existed still deserialise; 0 = not supplied.</summary>
+    public int MatchRef { get; set; }
+
+    /// <summary>DfE establishment number (LAESTAB) from the pupil record. Not required so
+    /// sessions serialised before this field existed still deserialise; empty = not supplied.</summary>
+    public string Laestab { get; set; } = string.Empty;
+
+    /// <summary>School admission date (ENTRYDAT) from the pupil record, the source of the
+    /// Admission date ticket field (FR-012). Raw string whose format is supplier-defined;
+    /// empty = not supplied.</summary>
+    public string EntryDate { get; set; } = string.Empty;
 }
 
 public record PupilSuggestionDto(Guid Id, string Label);

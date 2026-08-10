@@ -90,7 +90,8 @@ public sealed class AdminRequestsService(
             School = new SchoolDetails
             {
                 Urn = row.OrganisationUrn.ToString(),
-                Name = string.Empty
+                Name = string.Empty,
+                Laestab = pupil.Laestab
             },
             Pupil = ToPupilDetails(pupil),
             MatchedPupil = journey.MatchedPupil is { } mp ? ToPupilDetails(mp) : null,
@@ -108,7 +109,9 @@ public sealed class AdminRequestsService(
         Sex = p.Sex,
         Age = p.Age,
         Upn = p.Identifier,
-        Pincl = p.Pincl
+        Pincl = p.Pincl,
+        MatchRef = p.MatchRef,
+        EntryDate = p.EntryDate
     };
 
     private static AnswerRecord BuildAnswerRecord(Question question, QuestionAnswer? answer, string pupilName)

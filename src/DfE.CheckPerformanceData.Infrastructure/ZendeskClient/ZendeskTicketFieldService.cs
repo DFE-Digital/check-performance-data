@@ -118,4 +118,6 @@ public sealed class ZendeskTicketFieldService : IZendeskTicketFieldService
     {
         return ZendeskTicketFieldOptions.GetOptionValue(fieldName, optionName);
     }
+
+    public bool PopulateDecisionReasonForAutoRejected => _settings.PopulateDecisionReasonForAutoRejected;
 }

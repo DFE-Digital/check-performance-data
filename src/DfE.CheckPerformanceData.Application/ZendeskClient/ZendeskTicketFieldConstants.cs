@@ -29,6 +29,10 @@ public static class ZendeskTicketFieldConstants
     public const string CorrectionReason31Name = "Correction reason (31)";
     public const string ReasonForRemovalName = "Reason for removal";
     public const string CypmdName = "CYPMD_ID";
+    public const string DciRefCypmdName = "DCI Ref (CYPMD)";
+    public const string AgeCypmdName = "Age (CYPMD)";
+    public const string DecisionReasonApprovedName = "Decision Reason - Approved";
+    public const string DecisionReasonRejectedName = "Decision Reason - Rejected";
 
 
     /// <summary>
@@ -55,7 +59,11 @@ public static class ZendeskTicketFieldConstants
             SexName,
             CorrectionReason31Name,
             ReasonForRemovalName,
-            CypmdName
+            CypmdName,
+            DciRefCypmdName,
+            AgeCypmdName,
+            DecisionReasonApprovedName,
+            DecisionReasonRejectedName
         };
     }
 }

@@ -27,6 +27,26 @@ public class DateAnswerTests
         Assert.Equal(string.Empty, date.ToDisplayString());
     }
 
+    [Fact]
+    public void ToDateOnly_ValidDate_ReturnsTheDate()
+    {
+        var date = new DateAnswer { Day = 12, Month = 3, Year = 2025 };
+
+        Assert.Equal(new DateOnly(2025, 3, 12), date.ToDateOnly());
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0)]      // blank optional date
+    [InlineData(12, 0, 2025)]  // part-filled
+    [InlineData(31, 2, 2025)]  // impossible calendar date
+    [InlineData(15, 6, 26)]    // two-digit year
+    public void ToDateOnly_IncompleteOrInvalidDate_ReturnsNull(int day, int month, int year)
+    {
+        var date = new DateAnswer { Day = day, Month = month, Year = year };
+
+        Assert.Null(date.ToDateOnly());
+    }
+
     [Theory]
     [InlineData(12, 3, 2025, true)]
     [InlineData(29, 2, 2024, true)]   // leap day

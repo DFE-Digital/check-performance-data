@@ -36,5 +36,13 @@ public interface IZendeskTicketFieldService
     /// For example: GetOptionValue("Sex", "male") returns "m"
     /// </summary>
     string? GetOptionValue(string fieldName, string optionName);
+
+    /// <summary>
+    /// Gets whether AutoRejected decisions should populate the "Decision Reason - Rejected"
+    /// field (AutoApproved decisions always populate the "Decision Reason - Approved" field
+    /// when mapped; Scrutiny never does).
+    /// Backed by <see cref="ZendeskTicketFieldSettings.PopulateDecisionReasonForAutoRejected"/>.
+    /// </summary>
+    bool PopulateDecisionReasonForAutoRejected { get; }
 }
 

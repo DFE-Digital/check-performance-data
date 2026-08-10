@@ -20,4 +20,10 @@ public sealed class DateAnswer
     // date is not a complete, valid answer — so summary/confirmation rendering never throws.
     public string ToDisplayString() =>
         IsCompleteDate ? $"{Day} {new DateTime(Year, Month, Day):MMMM yyyy}" : string.Empty;
+
+    // Comparable form for date rules. Null rather than throwing for the incomplete and
+    // out-of-range cases IsCompleteDate already covers, so callers can treat "no usable date"
+    // and "no answer" identically.
+    public DateOnly? ToDateOnly() =>
+        IsCompleteDate ? new DateOnly(Year, Month, Day) : null;
 }

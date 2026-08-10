@@ -34,8 +34,10 @@
 
     @* Label hidden field — submitted as TextValue by ReadFormAnswer default case *@
     <input type="hidden" name="@Model.FieldName" id="@(Model.FieldName)-label-value" value="@existingLabel" />
-    @* Code hidden field — available for downstream use *@
-    <input type="hidden" name="@(Model.FieldName)_code" id="@(Model.FieldName)-code-value" value="" />
+    @* Code hidden field — available for downstream use. Re-rendered with the stored code
+       (AB#295434): a hard-coded "" dropped the ISO code on every validation-error
+       resubmit, leaving OriginCountryLanguageCapture's exact-name lookup to recover it. *@
+    <input type="hidden" name="@(Model.FieldName)_code" id="@(Model.FieldName)-code-value" value="@(Model.ExistingAnswer?.CodeValue)" />
 
     <div id="@containerId"></div>
 </div>
@@ -66,6 +68,12 @@
             displayMenu: 'overlay',
             minLength: 2,
             inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+            // Restore a previously selected value through the component, not the DOM
+            // (AB#295434). defaultValue seeds accessible-autocomplete's internal state,
+            // so its re-renders (focus, hover) keep the value and the menu stays closed.
+            // A post-init DOM poke left that state empty and the next re-render wiped
+            // the input, forcing the user to reselect.
+            defaultValue: initialLabel,
             tAssistiveHint: function () { return assistiveHint; },
             source: function (query, populateResults) {
                 fetch(suggestionsUrl + '?query=' + encodeURIComponent(query))
@@ -92,9 +100,5 @@
         };
 
         accessibleAutocomplete(autocompleteConfig);
-
-        if (initialLabel) {
-            document.getElementById(fieldName + '-input').value = initialLabel;
-        }
     });
 </script>

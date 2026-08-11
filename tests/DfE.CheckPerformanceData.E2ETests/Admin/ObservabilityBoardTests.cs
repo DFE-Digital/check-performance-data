@@ -122,6 +122,74 @@ public sealed class ObservabilityBoardTests(PlaywrightFixture fixture)
 [Collection("E2E")]
 public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : SeedingPageTest(fixture)
 {
+    // start() closes the feed the previous engine owned so a board root only ever has one writer.
+    // The guard reads a handle the function has to record when it subscribes; when that recording
+    // was missing the guard could never fire, the live EventSource stayed connected, and two
+    // engines wrote into the same transitions list. That is unobservable until something else
+    // writes to the DOM at the wrong moment, so pin it directly rather than through its symptom.
+    [Fact]
+    public async Task Dashboard_StartingASecondFeed_ClosesTheFirst_SoOneWriterOwnsTheBoard()
+    {
+        try
+        {
+            var adminCookie = await AuthHelpers.ImpersonateAsAdminAsync(Fixture);
+            if (!string.IsNullOrEmpty(adminCookie))
+            {
+                var equalsIndex = adminCookie.IndexOf('=');
+                if (equalsIndex > 0)
+                {
+                    await Context.AddCookiesAsync([new Microsoft.Playwright.Cookie
+                    {
+                        Name = adminCookie[..equalsIndex],
+                        Value = adminCookie[(equalsIndex + 1)..],
+                        Url = Fixture.BaseUrl
+                    }]);
+                }
+            }
+
+            await Page.GotoAsync($"{Fixture.BaseUrl}/admin/observability");
+            await Page.WaitForLoadStateAsync(LoadState.Load);
+
+            var handover = await Page.EvaluateAsync<FeedHandover>(@"() => {
+                const root = document.querySelector('[data-obs-board]');
+                const url = root.getAttribute('data-stream-url') || '/admin/observability/stream';
+
+                // Own a live feed, keeping hold of whatever start() recorded for it.
+                window.ObservabilityBoard.start(root, window.ObservabilityBoard.liveFeed(url));
+                const firstHandle = root.__obsEs;
+
+                // Hand the root to a feed that owns nothing; the live one must be closed.
+                window.ObservabilityBoard.start(root, { subscribe: () => {} });
+
+                return {
+                    recordedFirstFeed: !!firstHandle,
+                    // EventSource.CLOSED === 2
+                    firstFeedClosed: firstHandle ? firstHandle.readyState === 2 : false,
+                    handleClearedForFeedThatOwnsNothing: !root.__obsEs
+                };
+            }");
+
+            Assert.True(handover.RecordedFirstFeed,
+                "start() must record the subscription it opened, or the close-previous guard can never fire");
+            Assert.True(handover.FirstFeedClosed,
+                "starting a second feed must close the first, or two engines write to one board");
+            Assert.True(handover.HandleClearedForFeedThatOwnsNothing,
+                "a feed with nothing to close must clear the handle rather than leave a stale one");
+        }
+        finally
+        {
+            await AuthHelpers.ImpersonateAsEditorAsync(Fixture);
+        }
+    }
+
+    // Playwright instantiates this by reflection, so it is a plain settable class.
+    public sealed class FeedHandover
+    {
+        public bool RecordedFirstFeed { get; set; }
+        public bool FirstFeedClosed { get; set; }
+        public bool HandleClearedForFeedThatOwnsNothing { get; set; }
+    }
+
     [Fact]
     public async Task Dashboard_BoardBinds_LiveRegionPresent_AndTokensAreFocusable()
     {
@@ -151,23 +219,28 @@ public sealed class ObservabilityBoardBrowserTests(PlaywrightFixture fixture) : 
             Assert.Equal(1, await liveRegion.CountAsync());
             Assert.Equal("polite", await liveRegion.GetAttributeAsync("aria-live"));
 
-            // Clear any real SSE data that may have arrived, then drive a controlled snapshot
-            // through the engine. The live SSE feed from the running server can pollute the
-            // live region with real transition data (DEV-*) before our test snapshot arrives,
-            // so we must clear the DOM first and wait for the engine to be ready.
-            // Use an async IIFE because Page.EvaluateAsync passes a plain (non-async) function string.
-            await Page.EvaluateAsync(@"async () => {
+            // Take the board over with a feed that publishes nothing, then drive one controlled
+            // snapshot through it.
+            //
+            // Order matters. start() closes the feed the previous engine owned, so calling it
+            // FIRST disconnects the live stream; only then is it safe to clear the DOM, because
+            // nothing can write into it afterwards. The previous version cleared first and started
+            // second, leaving a window in which a real transition could repopulate the region — on
+            // a busy environment that is exactly what happened, and the assertion below read a real
+            // request instead of this snapshot.
+            //
+            // No sleep: start() returns a live engine synchronously and onSnapshot renders
+            // synchronously, so there is nothing to wait for.
+            await Page.EvaluateAsync(@"() => {
                 const root = document.querySelector('[data-obs-board]');
-                // Clear any existing tokens from real SSE data
+                const engine = window.ObservabilityBoard.start(root, { subscribe: () => {} });
+
                 for (const token of root.querySelectorAll('.obs-board__token')) {
                     token.remove();
                 }
-                // Clear the live region
                 const liveRegion = root.querySelector('[data-obs-transitions]');
                 if (liveRegion) liveRegion.textContent = '';
-                const engine = window.ObservabilityBoard.start(root, { subscribe: () => {} });
-                // Small delay to ensure the engine is fully initialized before driving snapshot
-                await new Promise(r => setTimeout(r, 100));
+
                 engine.onSnapshot({
                     depths: [{ queueName: 'rules-engine', depth: 2 }],
                     recentTransitions: [

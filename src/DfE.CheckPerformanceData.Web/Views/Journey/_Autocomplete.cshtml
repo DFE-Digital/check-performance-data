@@ -34,8 +34,10 @@
 
     @* Label hidden field — submitted as TextValue by ReadFormAnswer default case *@
     <input type="hidden" name="@Model.FieldName" id="@(Model.FieldName)-label-value" value="@existingLabel" />
-    @* Code hidden field — available for downstream use *@
-    <input type="hidden" name="@(Model.FieldName)_code" id="@(Model.FieldName)-code-value" value="" />
+    @* Code hidden field — available for downstream use. Re-rendered with the stored code
+       (AB#295434): a hard-coded "" dropped the ISO code on every validation-error
+       resubmit, leaving OriginCountryLanguageCapture's exact-name lookup to recover it. *@
+    <input type="hidden" name="@(Model.FieldName)_code" id="@(Model.FieldName)-code-value" value="@(Model.ExistingAnswer?.CodeValue)" />
 
     <div id="@containerId"></div>
 </div>
@@ -66,6 +68,12 @@
             displayMenu: 'overlay',
             minLength: 2,
             inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+            // Restore a previously selected value through the component, not the DOM
+            // (AB#295434). defaultValue seeds accessible-autocomplete's internal state,
+            // so its re-renders (focus, hover) keep the value and the menu stays closed.
+            // A post-init DOM poke left that state empty and the next re-render wiped
+            // the input, forcing the user to reselect.
+            defaultValue: initialLabel,
             tAssistiveHint: function () { return assistiveHint; },
             source: function (query, populateResults) {
                 fetch(suggestionsUrl + '?query=' + encodeURIComponent(query))
@@ -93,8 +101,22 @@
 
         accessibleAutocomplete(autocompleteConfig);
 
+        // AB#295434 follow-up: defaultValue restores the value and stops re-renders
+        // from wiping it, but accessible-autocomplete hardcodes validChoiceMade: false
+        // regardless of defaultValue, so its handleInputFocus still reopens the
+        // suggestion menu the first time a restored field is focused. There is no
+        // supported option to seed validChoiceMade directly, but the library's own
+        // Escape-key handler (handleComponentBlur) sets it to true when the current
+        // query matches a seeded option — so dispatching one synthetic Escape keydown
+        // right after init reaches the same state entirely through the library's
+        // supported state machine, with none of the side effects of intercepting focus
+        // events externally (an earlier version of this fix did that and left the
+        // component's blur handling permanently desynced — AB#295434 final review).
+        // Safe only because confirmOnBlur is false below: handleComponentBlur would
+        // otherwise fire onConfirm and overwrite the hidden fields with this call.
         if (initialLabel) {
-            document.getElementById(fieldName + '-input').value = initialLabel;
+            document.getElementById(fieldName + '-input').dispatchEvent(
+                new KeyboardEvent('keydown', { keyCode: 27, which: 27, key: 'Escape', bubbles: true }));
         }
     });
 </script>

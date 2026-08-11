@@ -64,6 +64,7 @@ public static class DependencyManager
         // format check rather than throwing anywhere.
         services.AddScoped<IFormatValidator, WholeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
+        services.AddScoped<IUrnAmendmentRequestsService, UrnAmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();

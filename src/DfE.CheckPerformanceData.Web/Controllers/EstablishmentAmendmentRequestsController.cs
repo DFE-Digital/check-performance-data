@@ -1,25 +1,36 @@
+using DfE.CheckPerformanceData.Application.AmendmentRequests;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DfE.CheckPerformanceData.Web.Controllers;
 
-public class EstablishmentAmendmentRequestsController: Controller
+public class EstablishmentAmendmentRequestsController(IUrnAmendmentRequestsService service): Controller
 {
     [Route("/establishment-amendment-requests")]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
-        var viewModel = new EstablishmentAmendmentRequestsViewModel
+        UrnAmendmentRequestsResult result = await service.GetAllSubmittedAmendmentRequestsAsync(cancellationToken);
+        HashSet<Guid> openWindowIds = result.OpenWindows.Select(w => w.WindowId).ToHashSet();
+        EstablishmentAmendmentRequestsViewModel viewModel = new EstablishmentAmendmentRequestsViewModel
         {
-            ActiveWindows = new List<ActiveWindow>()
+            ActiveWindows = result.OpenWindows.Select(w => new ActiveWindow
             {
-                new ActiveWindow() { WindowTitle = "dave", DeadlineText = "test"}
-            },
-            Rows = new List<AmendmentItem>
+                WindowId = w.WindowId.ToString(),
+                WindowTitle = w.WindowName,
+                DeadlineText = w.WindowEndDate.ToString("dd-MM-yyyy")
+            }).ToList(),
+            Rows = result.SubmittedRows.Select(r => new AmendmentItem
             {
-                new AmendmentItem { PupilName = "Row 1", ReferenceNumber = "Seedx001", RequestType = "Remove", Status = "Submitted", WindowName = "Window 1", DateSubmitted = "2023-01-01", WindowId = "1", WindowIsOpen = false},
-                new AmendmentItem { PupilName = "Row 2", ReferenceNumber = "Seedx002", RequestType = "Delete", Status = "Withdraw", WindowName = "Window 1", DateSubmitted = "2023-01-01", WindowId = "2", WindowIsOpen = true}
+                PupilName = r.PupilName,
+                ReferenceNumber = r.ReferenceNumber,
+                RequestType = r.RequestType.ToString(),
+                Status = r.Status.ToString(),
+                DateSubmitted = r.Submitted.ToString("dd-MM-yyyy"),
+                WindowName = r.WindowName,
+                WindowId = r.WindowId.ToString(),
+                WindowIsOpen = openWindowIds.Contains(r.WindowId)
+            }).ToList()
 
-            }
         };
         return View(viewModel);
     }

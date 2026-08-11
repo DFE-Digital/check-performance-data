@@ -30,6 +30,15 @@ public sealed class CheckingWindowDto
     public string IngressFileChecksum { get; set; } = string.Empty;
     public string SchemaFile { get; set; } = string.Empty;
     public string SchemaFileChecksum { get; set; } = string.Empty;
+    public bool Validated { get; set; }
+    public DateTime? ValidatedAt { get; set; }
+    public bool IsOpen {
+        get
+        {
+            DateTimeOffset now = DateTime.UtcNow;
+            return (StartDate <= now.DateTime && now.DateTime <= EndDate);
+
+        } set; }
     public bool IsOpen { get; set; }
     public string TurnaroundCommitment { get; set; } = string.Empty;
 

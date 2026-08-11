@@ -13,6 +13,7 @@ public sealed class ClientEventsControllerTests
     private ClientEventsController NewSut(string? referer = null)
     {
         var httpContext = new DefaultHttpContext();
+        httpContext.Request.Host = new HostString("host");
         if (referer is not null)
         {
             httpContext.Request.Headers.Referer = referer;
@@ -131,5 +132,31 @@ public sealed class ClientEventsControllerTests
 
         var e = Assert.IsType<EvidenceFileSelectedEvent>(Captured());
         Assert.Null(e.PagePath);
+    }
+
+    [Fact]
+    public async Task Cross_origin_referer_yields_null_page_path()
+    {
+        // AB#286387 whole-branch review Finding 2: only same-origin referers are trusted
+        // as a page_path source.
+        var sut = NewSut("https://evil.example/Journey/x");
+
+        await sut.Post(new ClientEventsController.ClientEventRequest { EventName = "evidence_file_selected" });
+
+        var e = Assert.IsType<EvidenceFileSelectedEvent>(Captured());
+        Assert.Null(e.PagePath);
+    }
+
+    [Fact]
+    public async Task Long_same_origin_referer_path_is_truncated()
+    {
+        var longPath = "/" + new string('a', 250);
+        var sut = NewSut($"https://host{longPath}");
+
+        await sut.Post(new ClientEventsController.ClientEventRequest { EventName = "evidence_file_selected" });
+
+        var e = Assert.IsType<EvidenceFileSelectedEvent>(Captured());
+        Assert.Equal(100, e.PagePath!.Length);
+        Assert.Equal(longPath[..100], e.PagePath);
     }
 }

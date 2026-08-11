@@ -36,11 +36,7 @@ public sealed class ContactController(
     [HttpGet("/feedback-link")]
     public async Task<IActionResult> FeedbackLink()
     {
-        string? pagePath = null;
-        if (Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var referer))
-        {
-            pagePath = referer.AbsolutePath;
-        }
+        var pagePath = RefererPagePath.From(Request);
 
         await analytics.TrackSafeAsync(new FeedbackClickedEvent { PagePath = pagePath }, HttpContext.RequestAborted);
 

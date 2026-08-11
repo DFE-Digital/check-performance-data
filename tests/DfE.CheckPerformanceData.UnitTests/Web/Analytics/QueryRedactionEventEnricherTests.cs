@@ -72,4 +72,68 @@ public sealed class QueryRedactionEventEnricherTests
 
         Assert.Null(@event.RequestQuery);
     }
+
+    private static async Task<Event> EnrichRefererAsync(string? referer)
+    {
+        var httpContext = new DefaultHttpContext();
+        var @event = new Event
+        {
+            EventType = "web_request",
+            Environment = "test",
+            RequestReferer = referer,
+        };
+
+        await new QueryRedactionEventEnricher()
+            .EnrichEventAsync(new EnrichWebRequestEventContext(@event, httpContext));
+
+        return @event;
+    }
+
+    [Fact]
+    public async Task Masks_denylisted_param_values_in_request_referer()
+    {
+        // AB#286387 whole-branch review Finding 1: Event.RequestReferer is a separate
+        // raw-string field (the Referer header verbatim) that must be scrubbed
+        // independently of RequestQuery.
+        var ev = await EnrichRefererAsync(
+            "https://host/CheckYourPupilData/abc?includedSearch=John+Smith&activeTab=included");
+
+        Assert.Equal(
+            "https://host/CheckYourPupilData/abc?includedSearch=%5Bredacted%5D&activeTab=included",
+            ev.RequestReferer);
+    }
+
+    [Fact]
+    public async Task Leaves_request_referer_without_denylisted_params_unchanged()
+    {
+        var ev = await EnrichRefererAsync("https://host/CheckYourPupilData/abc?activeTab=included");
+
+        Assert.Equal("https://host/CheckYourPupilData/abc?activeTab=included", ev.RequestReferer);
+    }
+
+    [Fact]
+    public async Task Leaves_request_referer_without_query_string_unchanged()
+    {
+        var ev = await EnrichRefererAsync("https://host/CheckYourPupilData/abc");
+
+        Assert.Equal("https://host/CheckYourPupilData/abc", ev.RequestReferer);
+    }
+
+    [Fact]
+    public async Task Leaves_null_request_referer_unchanged()
+    {
+        var ev = await EnrichRefererAsync(null);
+
+        Assert.Null(ev.RequestReferer);
+    }
+
+    [Theory]
+    [InlineData("not a url")]
+    [InlineData("/relative/only?includedSearch=John")]
+    public async Task Leaves_malformed_or_non_absolute_request_referer_unchanged_without_throwing(string referer)
+    {
+        var ev = await EnrichRefererAsync(referer);
+
+        Assert.Equal(referer, ev.RequestReferer);
+    }
 }

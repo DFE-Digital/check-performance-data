@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Analytics;
+using DfE.CheckPerformanceData.Web.Analytics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,7 +9,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 /// Beacon endpoint for client-side analytics (AB#286387 R18/R19/R23).
 /// Allowlisted event names only; the server constructs the typed event so
 /// clients cannot inject arbitrary fields. page_path comes from the Referer
-/// path — its query string is dropped because it can carry search terms.
+/// path via <see cref="RefererPagePath"/> — same-origin only, its query string
+/// dropped (it can carry search terms), and length-capped.
 /// </summary>
 [AllowAnonymous]
 public sealed class ClientEventsController(IAnalyticsService analytics) : Controller
@@ -55,10 +57,7 @@ public sealed class ClientEventsController(IAnalyticsService analytics) : Contro
         return NoContent();
     }
 
-    private string? RefererPath()
-        => Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var referer)
-            ? referer.AbsolutePath
-            : null;
+    private string? RefererPath() => RefererPagePath.From(Request);
 
     private static string MapDestination(string hostname)
     {

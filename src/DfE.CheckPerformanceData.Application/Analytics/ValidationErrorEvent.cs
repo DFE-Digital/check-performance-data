@@ -9,6 +9,7 @@ public sealed record ValidationErrorEvent : AnalyticsEvent
 {
     public required int ErrorCount { get; init; }
     public required IReadOnlyList<string> ErrorCodes { get; init; }
+    public IReadOnlyList<string>? ErrorFields { get; init; }
     public string? WhatToChange { get; init; }
     public bool? FromSummary { get; init; }
 
@@ -18,6 +19,7 @@ public sealed record ValidationErrorEvent : AnalyticsEvent
     [
         new("error_count", ErrorCount),
         new("error_codes", ErrorCodes),
+        new("error_fields", ErrorFields),
         new("what_to_change", WhatToChange),
         new("from_summary", FromSummary),
     ];

@@ -108,6 +108,7 @@ public sealed class JourneyController(
             {
                 ErrorCount = 1,
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
+                ErrorFields = ["selectedPupilId"],
                 WhatToChange = journey.SelectedWhatToChange?.ToString(),
             });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
@@ -123,6 +124,7 @@ public sealed class JourneyController(
             {
                 ErrorCount = 1,
                 ErrorCodes = [ValidationErrorCoding.SamePupil],
+                ErrorFields = ["selectedPupilId"],
                 WhatToChange = journey.SelectedWhatToChange?.ToString(),
             });
             return View("PupilSearch", viewModelBuilder.BuildPupilSearchVm(windowId, pageId, page, journey, config));
@@ -164,6 +166,7 @@ public sealed class JourneyController(
                 {
                     ErrorCount = 1,
                     ErrorCodes = [ValidationErrorCoding.Conflict],
+                    ErrorFields = ["selectedPupilId"],
                     WhatToChange = journey.SelectedWhatToChange?.ToString(),
                 });
                 var pupilName = $"{pupil.Firstname} {pupil.Surname}".Trim();
@@ -344,22 +347,25 @@ public sealed class JourneyController(
         if (!isValid)
         {
             var codes = new List<string>();
+            var fields = new List<string>();
             foreach (var q in page.Questions)
             {
                 if (!ModelState.TryGetValue(q.Id, out var entry) || entry.Errors.Count == 0) continue;
-                if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); continue; }
+                if (q.Type == QuestionType.FileUpload) { codes.Add(ValidationErrorCoding.FileRequired); fields.Add(q.Id); continue; }
                 // A cross-field failure is a well-formed date in the wrong place, not a malformed
                 // one — coding it as bad_date would hide the distinction the rule exists to make.
-                if (dateRuleQuestionIds.Contains(q.Id)) { codes.Add(ValidationErrorCoding.DateInconsistent); continue; }
+                if (dateRuleQuestionIds.Contains(q.Id)) { codes.Add(ValidationErrorCoding.DateInconsistent); fields.Add(q.Id); continue; }
                 newAnswers.TryGetValue(q.Id, out var ans);
                 var answered = ans is not null && journeyService.IsAnswered(q, ans);
                 codes.Add(ValidationErrorCoding.ForQuestion(q, answered));
+                fields.Add(q.Id);
             }
-            if (atLeastOne is not null) codes.Add(ValidationErrorCoding.AtLeastOne);
+            if (atLeastOne is not null) { codes.Add(ValidationErrorCoding.AtLeastOne); fields.Add("page"); }
             await analytics.TrackSafeAsync(new ValidationErrorEvent
             {
                 ErrorCount = ModelState.ErrorCount,
                 ErrorCodes = codes,
+                ErrorFields = fields,
                 WhatToChange = journey.SelectedWhatToChange?.ToString(),
                 FromSummary = fromSummary,
             });

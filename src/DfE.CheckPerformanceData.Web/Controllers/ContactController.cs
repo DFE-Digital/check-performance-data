@@ -43,6 +43,7 @@ public sealed class ContactController(
             {
                 ErrorCount = 1,
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
+                ErrorFields = [nameof(ContactViewModel.EnquiryType)],
             });
 
             var redisplay = await BuildViewModelAsync();

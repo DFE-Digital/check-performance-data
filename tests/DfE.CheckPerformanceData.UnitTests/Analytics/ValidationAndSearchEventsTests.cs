@@ -34,6 +34,32 @@ public sealed class ValidationAndSearchEventsTests
     }
 
     [Fact]
+    public void ValidationErrorEvent_projects_error_fields_parallel_to_codes()
+    {
+        var e = new ValidationErrorEvent
+        {
+            ErrorCount = 2,
+            ErrorCodes = ["required", "bad_date"],
+            ErrorFields = ["howEvidenceSupports", "dateOfArrival"],
+            WhatToChange = "Remove",
+            FromSummary = false,
+        };
+
+        var byName = e.Fields.ToDictionary(f => f.Name);
+        Assert.Equal(["howEvidenceSupports", "dateOfArrival"],
+            (IEnumerable<string>)byName["error_fields"].Value!);
+        Assert.False(byName["error_fields"].Hidden);
+    }
+
+    [Fact]
+    public void ValidationErrorEvent_error_fields_defaults_to_null_and_is_omitted()
+    {
+        var e = new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = ["no_selection"] };
+        var byName = e.Fields.ToDictionary(f => f.Name);
+        Assert.Null(byName["error_fields"].Value); // null values are omitted at send
+    }
+
+    [Fact]
     public void PupilDataSearchResultsEvent_projects_count_and_tab()
     {
         var e = new PupilDataSearchResultsEvent { ResultCount = 7, ActiveTab = "included" };

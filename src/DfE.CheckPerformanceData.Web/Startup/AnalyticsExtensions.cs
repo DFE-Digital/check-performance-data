@@ -31,6 +31,10 @@ public static class AnalyticsExtensions
                     options.RequestFilter = AnalyticsRequestFilter.ShouldTrack);
 
             services.AddSingleton<IWebRequestEventEnricher, OrganisationEventEnricher>();
+            // AspNetCoreEventSender resolves IEnumerable<IWebRequestEventEnricher> and runs
+            // every registered enricher, so this masks pupil-name query params (AB#286387 R3)
+            // alongside the organisation enricher above rather than replacing it.
+            services.AddSingleton<IWebRequestEventEnricher, QueryRedactionEventEnricher>();
             // Custom events go through the same IEventSender (AspNetCoreEventSender), so each
             // is sent as its own row, auto-enriched with request + organisation context.
             services.AddTransient<IAnalyticsService, DfeAnalyticsService>();

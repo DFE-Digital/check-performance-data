@@ -30,6 +30,23 @@ public sealed class ContactController(
         return View(vm);
     }
 
+    // The Beta phase-banner "feedback" link routes through here so we can record the
+    // click server-side before handing off to the same Contact Us form. page_path is
+    // the referer's path only — never its query string, which may carry a search term.
+    [HttpGet("/feedback-link")]
+    public async Task<IActionResult> FeedbackLink()
+    {
+        string? pagePath = null;
+        if (Uri.TryCreate(Request.Headers.Referer.ToString(), UriKind.Absolute, out var referer))
+        {
+            pagePath = referer.AbsolutePath;
+        }
+
+        await analytics.TrackSafeAsync(new FeedbackClickedEvent { PagePath = pagePath }, HttpContext.RequestAborted);
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost("/contact")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Submit(ContactViewModel form)

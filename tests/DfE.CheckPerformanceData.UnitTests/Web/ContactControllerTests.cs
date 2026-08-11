@@ -156,6 +156,20 @@ public sealed class ContactControllerTests
         Assert.Equal("/guidance", Assert.IsType<RedirectResult>(result).Url);
     }
 
+    [Fact]
+    public async Task FeedbackLink_tracks_referer_path_only_and_redirects_to_index()
+    {
+        var sut = CreateSut(authenticated: false, out var ctx);
+        ctx.Request.Headers.Referer = "https://host/CheckYourPupilData/x?includedSearch=Smith";
+
+        var result = await sut.FeedbackLink();
+
+        Assert.Equal(nameof(ContactController.Index), Assert.IsType<RedirectToActionResult>(result).ActionName);
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<FeedbackClickedEvent>(e => e.PagePath == "/CheckYourPupilData/x"),
+            Arg.Any<CancellationToken>());
+    }
+
     private static ContactViewModel Model(IActionResult result) =>
         Assert.IsType<ContactViewModel>(Assert.IsType<ViewResult>(result).Model);
 }

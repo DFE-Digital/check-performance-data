@@ -24,6 +24,13 @@ public sealed class AnalyticsRequestFilterTests
     public void Excludes_exact_paths(string path) =>
         Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString(path)));
 
+    // /feedback-link (AB#286387 R20) emits its own feedback_clicked event and then
+    // redirects to /contact; without this exclusion the redirect hop would double-count
+    // the click as a web_request page view too.
+    [Fact]
+    public void Excludes_the_feedback_link_tracking_redirect() =>
+        Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString("/feedback-link")));
+
     // Prefix matches — tested with a trailing segment so the prefix rule is what fires.
     [Theory]
     [InlineData("/administrator/index.php")]

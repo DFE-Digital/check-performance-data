@@ -69,4 +69,15 @@ public sealed class ValidationAndSearchEventsTests
         Assert.Equal(7, byName["result_count"].Value);
         Assert.Equal("included", byName["active_tab"].Value);
     }
+
+    [Fact]
+    public void SearchResultCountEvent_projects_count_and_scope()
+    {
+        var e = new SearchResultCountEvent { ResultCount = 0, Scope = "guidance" };
+        Assert.Equal("search_result_count", e.EventType);
+        var byName = e.Fields.ToDictionary(f => f.Name);
+        Assert.Equal(0, byName["result_count"].Value);
+        Assert.Equal("guidance", byName["scope"].Value);
+        Assert.All(e.Fields, f => Assert.False(f.Hidden));
+    }
 }

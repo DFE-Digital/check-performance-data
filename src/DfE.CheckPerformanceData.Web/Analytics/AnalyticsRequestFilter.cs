@@ -24,6 +24,7 @@ public static class AnalyticsRequestFilter
         "/.vscode/sftp.json",    // exposed configuration
         "/api",                  // technical/API
         "/api-docs",             // technical/API
+        "/client-events",        // AB#286387 R18/R19/R23: beacon endpoint emits its own event; not a page view
         "/debug",                // technical/API
         "/docs",                 // technical/API
         "/favicon.ico",          // static asset

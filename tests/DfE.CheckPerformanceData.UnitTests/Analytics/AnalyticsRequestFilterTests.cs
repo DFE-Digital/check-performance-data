@@ -31,6 +31,13 @@ public sealed class AnalyticsRequestFilterTests
     public void Excludes_the_feedback_link_tracking_redirect() =>
         Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString("/feedback-link")));
 
+    // /client-events (AB#286387 R18/R19/R23) is the client-side beacon endpoint; it emits
+    // its own typed event (help_details_expanded / external_link_clicked /
+    // evidence_file_selected), so tracking the POST itself as a web_request would be noise.
+    [Fact]
+    public void Excludes_the_client_events_beacon_endpoint() =>
+        Assert.False(AnalyticsRequestFilter.ShouldTrack(new PathString("/client-events")));
+
     // Prefix matches — tested with a trailing segment so the prefix rule is what fires.
     [Theory]
     [InlineData("/administrator/index.php")]

@@ -1,137 +1,83 @@
+using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
 using NSubstitute;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.PageTree;
 
+// The seeder replays the shipped sample-content bundle through the content-staging importer
+// rather than assembling pages itself, so what is worth pinning here is the contract it hands to
+// the importer — the modes decide whether re-seeding is additive or destructive — and how it
+// reports back to the admin screen. What the bundle actually contains is covered by
+// SampleContentSeedBundleTests.
 public class SamplePageNodeSeederTests
 {
-    private static PageNodeDto Root(string segment) => new()
+    private static (SamplePageNodeSeeder Seeder, IContentStagingService Staging) Build(
+        ContentImportResult? result = null)
     {
-        Id       = Guid.NewGuid(),
-        Segment  = segment,
-        Path     = segment,
-        Title    = segment,
-        PageType = "content"
-    };
+        var staging = Substitute.For<IContentStagingService>();
+        staging.ImportAsync(
+                Arg.Any<ContentBundle>(),
+                Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(),
+                Arg.Any<ContentImportMode>())
+            .Returns(result ?? new ContentImportResult { PageNodesCreated = 13 });
 
-    private static IPageNodeService WithRoots(params PageNodeDto[] roots)
+        return (new SamplePageNodeSeeder(staging), staging);
+    }
+
+    // Skip on collision is what makes re-seeding safe: a developer who has edited a sample page,
+    // or an environment carrying real content at the same path, must not have it overwritten by
+    // pressing the seed button. Replace for new items means "create the ones that are missing".
+    [Fact]
+    public async Task Seeds_Additively_LeavingExistingContentAlone()
     {
-        var svc = Substitute.For<IPageNodeService>();
+        var (seeder, staging) = Build();
 
-        // Root lookups return the supplied stubs.
-        foreach (var r in roots)
-        {
-            var captured = r;
-            svc.GetNodeByPathAsync(captured.Path).Returns(captured);
-        }
+        await seeder.SeedAsync();
 
-        // Any other path — the child sample lookups — returns null so the seeder creates them.
-        svc.GetNodeByPathAsync(Arg.Is<string>(p => !roots.Any(r => r.Path == p)))
-           .Returns((PageNodeDto?)null);
-
-        // Create returns a stub with a fresh id.
-        svc.CreatePageAsync(default, default!, default!, default!, default)
-           .ReturnsForAnyArgs(ci => new PageNodeDto
-           {
-               Id       = Guid.NewGuid(),
-               Segment  = (string)ci[1]!,
-               Path     = "x",
-               Title    = (string)ci[2]!,
-               PageType = (string)ci[3]!,
-               ParentId = (Guid?)ci[0]
-           });
-
-        return svc;
+        await staging.Received(1).ImportAsync(
+            Arg.Any<ContentBundle>(),
+            ContentImportMode.Skip,
+            Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(),
+            ContentImportMode.Replace);
     }
 
     [Fact]
-    public async Task WhenAllRootsPresent_SeedsExpectedPagesUnderEachRoot()
+    public async Task PassesTheShippedBundle_ToTheImporter()
     {
-        var wiki     = Root("wiki");
-        var help     = Root("help");
-        var support  = Root("support");
-        var guidance = Root("guidance");
-        var svc = WithRoots(wiki, help, support, guidance);
+        var (seeder, staging) = Build();
 
-        var created = await new SamplePageNodeSeeder(svc).SeedAsync();
+        await seeder.SeedAsync();
 
-        // 4 under /wiki (3 content + 1 wiki-typed) + 3 under /help + 3 under /support
-        // + 4 under /guidance (3 topic pages + the deliberately short sample).
-        Assert.Equal(14, created);
-        await svc.Received(3).CreatePageAsync(wiki.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
-        await svc.Received(1).CreatePageAsync(wiki.Id,     "wiki-sandbox",    Arg.Any<string>(), "wiki",    "system");
-        await svc.Received(3).CreatePageAsync(help.Id,     Arg.Any<string>(), Arg.Any<string>(), "content", "system");
-        await svc.Received(3).CreatePageAsync(support.Id,  Arg.Any<string>(), Arg.Any<string>(), "content", "system");
-        await svc.Received(4).CreatePageAsync(guidance.Id, Arg.Any<string>(), Arg.Any<string>(), "content", "system");
+        await staging.Received(1).ImportAsync(
+            Arg.Is<ContentBundle>(b =>
+                b.SchemaVersion == ContentBundle.CurrentSchemaVersion && b.PageNodes.Count > 0),
+            Arg.Any<ContentImportMode>(),
+            Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>?>(),
+            Arg.Any<ContentImportMode>());
     }
 
+    // The admin screen reports "Added N sample pages", so the seeder returns pages created — not
+    // pages skipped, and not content blocks.
     [Fact]
-    public async Task EachCreatedPageIsPublishedWithAWorkingContentSave()
+    public async Task ReturnsTheNumberOfPagesCreated()
     {
-        var svc = WithRoots(Root("wiki"), Root("help"), Root("support"), Root("guidance"));
+        var (seeder, _) = Build(new ContentImportResult { PageNodesCreated = 4, PageNodesSkipped = 9 });
 
-        await new SamplePageNodeSeeder(svc).SeedAsync();
+        var created = await seeder.SeedAsync();
 
-        // Every created page has both a working-content save and a publish call.
-        await svc.Received(14).SaveWorkingContentAsync(
-            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), "system");
-        await svc.Received(14).PublishDraftAsync(Arg.Any<Guid>(), "system");
+        Assert.Equal(4, created);
     }
 
+    // Re-running on a fully seeded environment adds nothing, which the admin screen renders as
+    // "Sample pages are already present."
     [Fact]
-    public async Task WhenRootMissing_SkipsThatRootsSamples()
+    public async Task ReturnsZero_WhenEverySampleIsAlreadyPresent()
     {
-        // Only /wiki exists — the other three roots are missing.
-        var svc = WithRoots(Root("wiki"));
+        var (seeder, _) = Build(new ContentImportResult { PageNodesCreated = 0, PageNodesSkipped = 13 });
 
-        var created = await new SamplePageNodeSeeder(svc).SeedAsync();
-
-        Assert.Equal(4, created);   // 3 content + 1 wiki under /wiki
-        await svc.Received(3).CreatePageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<string>(), "content", "system");
-        await svc.Received(1).CreatePageAsync(Arg.Any<Guid>(), "wiki-sandbox",    Arg.Any<string>(), "wiki",    "system");
-    }
-
-    [Fact]
-    public async Task IsIdempotent_SkipsSamplesWhosePathAlreadyExists()
-    {
-        // /wiki/dsi-roles already exists. The seeder should skip that one and create the rest of
-        // the /wiki set — 4 samples minus the pre-existing one.
-        var svc = Substitute.For<IPageNodeService>();
-        var wiki = Root("wiki");
-        var existing = new PageNodeDto
-        {
-            Id = Guid.NewGuid(), Segment = "dsi-roles", Path = "wiki/dsi-roles",
-            Title = "Existing", PageType = "content", ParentId = wiki.Id
-        };
-        svc.GetNodeByPathAsync("wiki").Returns(wiki);
-        svc.GetNodeByPathAsync("wiki/dsi-roles").Returns(existing);
-        svc.GetNodeByPathAsync(Arg.Is<string>(p => p != "wiki" && p != "wiki/dsi-roles")).Returns((PageNodeDto?)null);
-        svc.CreatePageAsync(default, default!, default!, default!, default)
-           .ReturnsForAnyArgs(ci => new PageNodeDto
-           {
-               Id = Guid.NewGuid(), Segment = (string)ci[1]!, Path = "x",
-               Title = (string)ci[2]!, PageType = (string)ci[3]!, ParentId = (Guid?)ci[0]
-           });
-
-        var created = await new SamplePageNodeSeeder(svc).SeedAsync();
-
-        Assert.Equal(3, created);
-        await svc.DidNotReceive().CreatePageAsync(wiki.Id, "dsi-roles", Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
-    }
-
-    [Fact]
-    public async Task ReRunOnFullyPopulatedTree_CreatesZero()
-    {
-        var svc = Substitute.For<IPageNodeService>();
-        svc.GetNodeByPathAsync(Arg.Any<string>()).Returns(ci => new PageNodeDto
-        {
-            Id = Guid.NewGuid(), Segment = "x", Path = (string)ci[0]!,
-            Title = "x", PageType = "content"
-        });
-
-        var created = await new SamplePageNodeSeeder(svc).SeedAsync();
+        var created = await seeder.SeedAsync();
 
         Assert.Equal(0, created);
-        await svc.DidNotReceiveWithAnyArgs().CreatePageAsync(default, default!, default!, default!, default);
     }
 }

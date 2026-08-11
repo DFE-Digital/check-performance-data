@@ -24,7 +24,8 @@ public sealed class PageTreeAdminControllerTests
     private readonly IHtmlRenderingService _renderer = Substitute.For<IHtmlRenderingService>();
     private readonly IPageNodeContentEditor _contentEditor = Substitute.For<IPageNodeContentEditor>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
-    private readonly SamplePageNodeSeeder _sampleSeeder = new(Substitute.For<IPageNodeService>());
+    private readonly SamplePageNodeSeeder _sampleSeeder =
+        new(Substitute.For<DfE.CheckPerformanceData.Application.ContentStaging.IContentStagingService>());
 
     private PageTreeAdminController Sut(PageNodePathValidator? validator = null)
     {

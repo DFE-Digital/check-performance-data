@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
+using DfE.CheckPerformanceData.Domain.Time;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
 
@@ -32,13 +33,6 @@ public sealed class CheckingWindowDto
     public string SchemaFileChecksum { get; set; } = string.Empty;
     public bool Validated { get; set; }
     public DateTime? ValidatedAt { get; set; }
-    public bool IsOpen {
-        get
-        {
-            DateTimeOffset now = DateTime.UtcNow;
-            return (StartDate <= now.DateTime && now.DateTime <= EndDate);
-
-        } set; }
     public bool IsOpen { get; set; }
     public string TurnaroundCommitment { get; set; } = string.Empty;
 

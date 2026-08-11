@@ -1,4 +1,5 @@
 using System.Globalization;
+using DfE.CheckPerformanceData.Domain.Time;
 
 namespace DfE.CheckPerformanceData.Web.Extensions;
 
@@ -13,11 +14,9 @@ namespace DfE.CheckPerformanceData.Web.Extensions;
 /// </summary>
 public static class LondonTime
 {
-    /// <summary>
-    /// The Europe/London zone. The IANA id resolves on the Linux deploy target and,
-    /// via .NET's ICU mapping, on Windows too. Resolved once at type load.
-    /// </summary>
-    public static readonly TimeZoneInfo Zone = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+    /// <summary>The Europe/London zone. Single definition, shared with the domain's
+    /// <see cref="UkTime"/> so display and window-boundary logic can never diverge.</summary>
+    public static readonly TimeZoneInfo Zone = UkTime.Zone;
 
     /// <summary>Friendly format for service-user views, e.g. "24 Jun 2026 13:05".</summary>
     public const string Friendly = "d MMM yyyy HH:mm";

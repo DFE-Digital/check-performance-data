@@ -1,22 +1,27 @@
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Time;
 
 namespace DfE.CheckPerformanceData.Application.AmendmentRequests;
 
 public sealed class UrnAmendmentRequestsService(
     IRequestRepository requestRepository,
     IWindowRepository windowRepository,
-    ICurrentUserService currentUserService) : IUrnAmendmentRequestsService
+    ICurrentUserService currentUserService,
+    TimeProvider timeProvider) : IUrnAmendmentRequestsService
 {
     public async Task<UrnAmendmentRequestsResult> GetAllSubmittedAmendmentRequestsAsync(CancellationToken cancellationToken)
     {
-        
+
         long urn = long.Parse(currentUserService.OrganisationUrn);
         IReadOnlyList<SubmittedRequestData> submitted = await requestRepository.GetAllSubmittedRequestsAsync(urn);
         List<CheckingWindowDto> allWindows = await windowRepository.GetAllWindowsAsync(cancellationToken);
+
+        // The repository returns raw rows, so IsOpen is unset here — evaluate against the clock.
+        DateTime now = UkTime.Now(timeProvider);
         List<OpenWindow> currentOpenWindows = allWindows
-            .Where(w => w.IsOpen)
+            .Where(w => w.IsOpenAt(now))
             .Select(w => new OpenWindow
             {
                 WindowId = w.Id,

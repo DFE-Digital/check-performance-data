@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Domain.Time;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
@@ -6,7 +7,13 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
 {
     public async Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken)
     {
+        DateTime now = UkTime.Now(timeProvider);
         List<CheckingWindowDto> windows = await windowRepository.GetAllWindowsAsync(cancellationToken);
+
+        foreach (CheckingWindowDto window in windows)
+        {
+            window.IsOpen = window.IsOpenAt(now);
+        }
 
         return new PageResult
         {

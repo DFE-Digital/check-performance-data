@@ -195,6 +195,7 @@ locals {
     DfeAnalytics__CredentialsJson = module.dfe_analytics[0].google_cloud_credentials
   } : {}
 
+  # Redis configuration to switch between legacy Cache for Redis and Managed Redis based on the redis_mode variable
   redis = {
     legacy = {
       cache_url = module.redis-cache.url

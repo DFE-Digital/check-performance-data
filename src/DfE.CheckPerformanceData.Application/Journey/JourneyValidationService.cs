@@ -125,6 +125,14 @@ public sealed class JourneyValidationService(
             $"which exceeds the {maxEvidencePages}-page limit.";
     }
 
+    // Deliberately a separate method from ValidateFileUpload: the controller maps that
+    // method's non-null return to the "page_limit_exceeded" analytics reason, so folding
+    // this check in would mislabel duplicate rejections in BigQuery.
+    public string? ValidateDuplicateFileName(string fileName, IReadOnlyList<FileAnswer> existingFiles) =>
+        existingFiles.Any(f => string.Equals(f.OriginalFileName, fileName, StringComparison.OrdinalIgnoreCase))
+            ? "The file name has already been used. Upload a file with a different name."
+            : null;
+
     public string GenerateReference(CheckingWindowType? windowType)
     {
         var type = windowType?.ToString() ?? "Unknown";

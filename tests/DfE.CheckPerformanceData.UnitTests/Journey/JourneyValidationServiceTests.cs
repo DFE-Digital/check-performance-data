@@ -365,6 +365,46 @@ public class JourneyValidationServiceTests
         Assert.DoesNotContain("1 pages", result);
     }
 
+    // ── ValidateDuplicateFileName (AB#296081) ───────────────────────────────
+    // A request must never hold two evidence files with the same name — storage cost
+    // and user confusion. Comparison is on OriginalFileName (what the user sees in the
+    // uploaded-files table), case-insensitive because file systems the user comes from
+    // treat "Evidence.PDF" and "evidence.pdf" as the same file.
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNameAlreadyUsed_ReturnsTicketWording()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "evidence.pdf") };
+
+        var result = _sut.ValidateDuplicateFileName("evidence.pdf", existing);
+
+        Assert.Equal(
+            "The file name has already been used. Upload a file with a different name.",
+            result);
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_IsCaseInsensitive()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "Evidence.PDF") };
+
+        Assert.NotNull(_sut.ValidateDuplicateFileName("evidence.pdf", existing));
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNameIsNew_ReturnsNull()
+    {
+        var existing = new[] { MakeFileAnswer(originalFileName: "evidence.pdf") };
+
+        Assert.Null(_sut.ValidateDuplicateFileName("other.pdf", existing));
+    }
+
+    [Fact]
+    public void ValidateDuplicateFileName_WhenNoFilesYet_ReturnsNull()
+    {
+        Assert.Null(_sut.ValidateDuplicateFileName("evidence.pdf", []));
+    }
+
     // ── GenerateReference ───────────────────────────────────────────────────
 
     [Fact]
@@ -710,6 +750,6 @@ public class JourneyValidationServiceTests
             ]
         };
 
-    private static FileAnswer MakeFileAnswer(int pageCount) =>
-        new() { StoredFileName = Guid.NewGuid().ToString(), OriginalFileName = "file.pdf", PageCount = pageCount };
+    private static FileAnswer MakeFileAnswer(int pageCount = 1, string originalFileName = "file.pdf") =>
+        new() { StoredFileName = Guid.NewGuid().ToString(), OriginalFileName = originalFileName, PageCount = pageCount };
 }

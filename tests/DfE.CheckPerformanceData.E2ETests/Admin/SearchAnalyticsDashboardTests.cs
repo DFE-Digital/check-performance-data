@@ -1428,17 +1428,44 @@ public sealed class SearchAnalyticsDashboardTests(PlaywrightFixture fixture) : S
                 return;
             }
 
-            await link.First.ClickAsync();
-            await Page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            // Hold on to the navigation response. The assertion below is about whether the page
+            // rendered at all, so when it fails the first thing worth knowing is whether the
+            // server even served it — and the previous version could not say. It asserted a
+            // count and nothing else, so a page that came back as an error reported only
+            // "count was 0", which is indistinguishable from a page that rendered empty.
+            var navigation = await Page.RunAndWaitForResponseAsync(
+                async () => await link.First.ClickAsync(),
+                r => r.Request.IsNavigationRequest
+                     && r.Url.Contains("/admin/Search/ZeroResultJourneys", StringComparison.Ordinal));
+
+            Assert.True(navigation.Status == 200,
+                $"ZeroResultJourneys should serve 200 — got {navigation.Status} for {navigation.Url}.");
 
             Assert.Contains("/admin/Search/ZeroResultJourneys", Page.Url, StringComparison.Ordinal);
 
-            // Recovery-summary card + at least one journey card (or a graceful empty-state
-            // if the seed happens to have no zero-result-having sessions in the default
-            // window). Either shape counts as "the page rendered".
+            // Wait for the page's own heading before reading its content. The action runs two
+            // analytics queries before the view renders, and on a review app deployed moments
+            // earlier the first hit on this route is slow; NetworkIdle can settle while the
+            // document is still the one we navigated from. Waiting on something only this page
+            // renders is what makes the read below deterministic.
+            await Expect(Page.Locator("main h1")).ToHaveTextAsync(
+                "Zero-result recovery journeys",
+                new LocatorAssertionsToHaveTextOptions { Timeout = 15_000 });
+
+            // The recovery-summary card is rendered unconditionally by the view — the
+            // no-zero-results case is a paragraph INSIDE it — so this asserts the page rendered,
+            // not that the environment happened to hold zero-result sessions.
             var summaryCard = Page.Locator("main .govuk-summary-card, main .govuk-inset-text");
-            Assert.True(await summaryCard.CountAsync() > 0,
-                "ZeroResultJourneys page should render at least one summary-card or inset panel.");
+            if (await summaryCard.CountAsync() == 0)
+            {
+                // .Last: the admin layout nests an inner <main> inside the GOV.UK wrapper, so a
+                // bare "main" locator is ambiguous and would throw here instead of reporting.
+                var main = (await Page.Locator("main").Last.InnerTextAsync()).Trim().ReplaceLineEndings(" ");
+                Assert.Fail(
+                    "ZeroResultJourneys rendered no summary-card or inset panel. " +
+                    $"status={navigation.Status} url={Page.Url} " +
+                    $"main begins: {main[..Math.Min(400, main.Length)]}");
+            }
         }
         finally
         {

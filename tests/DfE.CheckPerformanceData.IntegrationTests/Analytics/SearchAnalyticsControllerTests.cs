@@ -346,10 +346,16 @@ public sealed class SearchAnalyticsControllerTests
     {
         await ResetSearchEventsAsync();
 
-        // Seed: 5 events on the same weekday-hour cell (say, today's date at now.Hour),
-        // spread across 2 distinct session ids. Aggregate reader collapses them into one
-        // cell where searches=5, unique sessions=2.
-        var now = DateTime.UtcNow;
+        // Seed: 5 events on the same weekday-hour cell, spread across 2 distinct session ids.
+        // The aggregate reader collapses them into one cell where searches=5, unique sessions=2.
+        //
+        // Anchored to half past an hour rather than read from the wall clock. The five events are
+        // spread backwards over five minutes, so taking "now" as the anchor put some of them in
+        // the previous weekday-hour cell whenever a run happened to start in the first four
+        // minutes of an hour — about one run in fifteen — splitting the count asserted below and
+        // failing for a reason that has nothing to do with the code under test. Half past leaves
+        // half an hour of clearance either side, so the cell is the same whatever time CI starts.
+        var now = HourAligned(DateTime.UtcNow).AddMinutes(-30);
         var events = new List<SearchEvent>();
         for (var i = 0; i < 5; i++)
         {
@@ -390,6 +396,11 @@ public sealed class SearchAnalyticsControllerTests
     }
 
     // --- Helpers ---
+
+    // Truncates to the top of the hour, so a test can anchor seeded events a known distance from
+    // a bucket edge instead of wherever the wall clock happens to sit.
+    private static DateTime HourAligned(DateTime value) =>
+        DateTime.SpecifyKind(new DateTime(value.Year, value.Month, value.Day, value.Hour, 0, 0), DateTimeKind.Utc);
 
     private SearchAnalyticsController Sut()
     {

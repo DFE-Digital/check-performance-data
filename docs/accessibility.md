@@ -19,6 +19,8 @@ The title is the first thing a screen reader announces after a navigation, and i
 
 The layout triggers the prefix on `!ModelState.IsValid`. When a page's errors live **only** on its view model rather than in `ModelState` — the Summary page's duplicate-request conflict banner, for example — set `ViewData["HasError"] = true` in the view. `WithErrorPrefix` is idempotent, so a view that has genuinely already prefixed its own title won't double up.
 
+**The GOV.UK Frontend library must not also apply the prefix.** `GovUk.Frontend.AspNetCore` ships a `TitleTagHelper` targeting `<title>` inside `<head>`; with `GovUkFrontendOptions.PrependErrorToTitle` (its default is `true`) it appends `"Error: "` whenever a `<govuk-error-summary>` has been rendered on the page. Combined with the layout, every error page that used the library's error summary component announced `"Error: Error: …"`. `AddCpdGovUkFrontend` (`Web/Startup/GovUkFrontendExtensions.cs`) turns the option off, so the layouts are the single owner — register GOV.UK Frontend through that extension, never `AddGovUkFrontend()` directly. The layouts keep ownership rather than the tag helper because the tag helper only fires for the library's own error summary, while `WithErrorPrefix` also covers `ViewData["HasError"]` pages. `GovUkFrontendExtensionsTests` guards the option.
+
 ## Headings
 
 **Exactly one `<h1>` per page.**

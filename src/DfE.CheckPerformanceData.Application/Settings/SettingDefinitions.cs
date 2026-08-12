@@ -6,6 +6,7 @@ public static class SettingKeys
 {
     public const string CmsPageLength = "CMS:PageLength";
     public const string SearchDebugOn = "CMS:SearchDebugOn";
+    public const string ShowDeleteAllButton = "CMS:ShowDeleteAllButton";
 
     public const string DlqFullPayloadEnabled = "Dlq:FullPayloadEnabled";
     public const string DlqAlertThreshold = "Dlq:AlertThreshold";
@@ -62,6 +63,12 @@ public static class SettingDefinitions
             "Number of rows shown per page on paged lists.",
             "20",
             SettingKind.Int),
+        new(SettingKeys.ShowDeleteAllButton,
+            "Whether the content-staging page offers the Clear all CMS content button, which deletes " +
+            "every page and content block in this environment. Off by default, and unavailable in " +
+            "production and on QA and preproduction whatever this is set to.",
+            "false",
+            SettingKind.Bool),
         new(SettingKeys.DlqFullPayloadEnabled,
             "Whether operators may view the full original payload of a dead-lettered message. Off by default.",
             "false",

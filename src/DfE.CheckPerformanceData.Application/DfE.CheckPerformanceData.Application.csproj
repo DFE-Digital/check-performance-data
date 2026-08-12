@@ -17,4 +17,11 @@
     <ItemGroup>
       <ProjectReference Include="..\DfE.CheckPerformanceData.Domain\DfE.CheckPerformanceData.Domain.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+      <!-- Sample CMS content, shipped as a content-staging bundle and replayed through the
+           importer by SamplePageNodeSeeder. Embedded so it travels with the assembly and
+           needs no deployment-relative file path. -->
+      <EmbeddedResource Include="PageTree/SeedContent/sample-content.json" />
+    </ItemGroup>
 </Project>

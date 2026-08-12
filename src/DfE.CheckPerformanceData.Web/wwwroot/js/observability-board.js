@@ -729,7 +729,15 @@
     function start(root, feed) {
         if (root.__obsEs) { root.__obsEs.close(); }
         var engine = BoardEngine(root);
-        feed.subscribe(engine.onSnapshot, engine.onError);
+        var subscription = feed.subscribe(engine.onSnapshot, engine.onError);
+
+        // Remember whatever the feed handed back, so the close above can actually fire next time.
+        // Without this the guard is unreachable — the handle it tests was never recorded — and a
+        // second start() on the same root leaves the previous EventSource connected, with two
+        // engines writing into one transitions list. Feeds that own no closeable resource (the
+        // recorded feed, a test stub) return nothing, which correctly clears the handle.
+        root.__obsEs = subscription && typeof subscription.close === 'function' ? subscription : null;
+
         return engine;
     }
 

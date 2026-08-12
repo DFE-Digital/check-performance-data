@@ -307,7 +307,7 @@ public sealed class PageTreeAdminController(
     [RequireAdminSection(AdminNavKeys.SeedSamplePages)]
     public async Task<IActionResult> SampleSeed()
     {
-        var created = await samplePageSeeder.SeedAsync(User?.Identity?.Name);
+        var created = await samplePageSeeder.SeedAsync();
         TempData["SampleSeedResult"] = created switch
         {
             0 => "Sample pages are already present. Nothing was added.",

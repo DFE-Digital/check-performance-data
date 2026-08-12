@@ -96,7 +96,7 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 | `draft_resumed` | `reference_number`, `what_to_change`, `checking_window_type` | `AmendmentRequestsController.Edit` | `reference_number` |
 | `request_submitted` | `what_to_change`, `checking_window_type`, `reference_number` | `JourneyController.SummaryConfirm` (success) | `reference_number` |
 | `request_submission_failed` | `failure_reason`, `what_to_change`, `checking_window_type` | `JourneyController.SummaryConfirm` (duplicate) | — |
-| `validation_error` | `error_count`, `error_codes`, `what_to_change`, `from_summary` | `JourneyController` (pupil search, page POST), `WhatToChangeController`, `CheckYourPupilDataController` | — |
+| `validation_error` | `error_count`, `error_codes`, `error_fields`, `what_to_change`, `from_summary` | `JourneyController` (pupil search, page POST), `WhatToChangeController`, `CheckYourPupilDataController` | — |
 | `evidence_upload_attempted` | `outcome`, `failure_reason`, `page_count`, `file_size_bytes` | `JourneyController.UploadFile` | — |
 | `evidence_continue` | `file_count`, `page_count`, `evidence_text_length` | `JourneyController.PagePost` (evidence page) | — |
 | `evidence_file_removed` | `files_before`, `files_after` | `JourneyController.RemoveFile` | — |
@@ -105,6 +105,11 @@ All custom events carry **no PII as plain fields**; a hidden field is noted belo
 | `amendment_request_deleted` | `reference_number`, `was_hard_deleted` | `SubmittedRequestController.Delete` (amendment row) | `reference_number` |
 | `confirmation_deleted` | `reference_number` | `SubmittedRequestController.Delete` (ConfirmCorrect row) | `reference_number` |
 | `request_decision` | `decision_status`, `outcome_key`, `matched_rule_id`, `rules_version`, `request_type_code`, `checking_window_type`, `is_synthetic_fallback` | `RulesConsumer` (worker) | — |
+| `search_result_count` | `result_count`, `scope` | `SearchController.Index` (query entered) | — |
+| `feedback_clicked` | `page_path` | `ContactController.FeedbackLink` (via `/feedback-link`) | — |
+| `help_details_expanded` | `expand_text`, `page_path` | `ClientEventsController` (JS beacon) | — |
+| `external_link_clicked` | `destination`, `page_path` | `ClientEventsController` (JS beacon) | — |
+| `evidence_file_selected` | `page_path` | `ClientEventsController` (JS beacon) | — |
 
 Plus the library-provided **`web_request`** event, emitted automatically per request and enriched with the user and organisation.
 
@@ -128,6 +133,8 @@ flowchart LR
 ## PII handling
 
 The `reference_number` is the only identifier currently sent, and only ever as a **hidden** field, pending its DPIA classification. In BigQuery the `hidden_data` column is protected by a policy tag and a SHA256 masking rule, so the raw value is masked at rest while its hash still links the funnel steps. Everything else — free-text reasons, file names, search terms, the pupil's name — is deliberately excluded from events. Counts and lengths (e.g. `evidence_text_length`) are sent in place of the content itself.
+
+The built-in `web_request` event's query string is also redacted: `QueryRedactionEventEnricher` strips the values of pupil-name-bearing query parameters (`includedSearch`, `nonIncludedSearch`, `query`) before the request is sent, so a pupil search term never reaches BigQuery via the request URL.
 
 ---
 

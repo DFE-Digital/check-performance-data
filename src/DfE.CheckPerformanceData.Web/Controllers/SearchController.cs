@@ -1,4 +1,5 @@
 using System.Net;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels;
@@ -19,7 +20,8 @@ namespace DfE.CheckPerformanceData.Web.Controllers;
 [AllowAnonymous]
 public sealed class SearchController(
     ISiteSearchService searchService,
-    ISettingService settings) : Controller
+    ISettingService settings,
+    IAnalyticsService analytics) : Controller
 {
     [HttpGet("/search")]
     public Task<IActionResult> Index(
@@ -103,6 +105,20 @@ public sealed class SearchController(
                 PageSize = effectivePageSize,
                 TotalCount = 0,
             });
+        }
+
+        // Mirrors the view's feedback-inset gate (Index.cshtml): only emit when a query was
+        // actually run. DataStoreUnavailable cannot occur here — that branch already returned
+        // above — so the condition need only exclude the empty-query landing and the
+        // below-minimum-length invalid branch, same as the view.
+        if (!string.IsNullOrEmpty(result.CurrentQuery)
+            && result.InvalidReason != SearchInvalidReason.BelowMinimumLength)
+        {
+            await analytics.TrackSafeAsync(new SearchResultCountEvent
+            {
+                ResultCount = result.TotalCount,
+                Scope = scope,
+            }, HttpContext.RequestAborted);
         }
 
         // Page over-clamp is handled inside the search service, which pages an already-

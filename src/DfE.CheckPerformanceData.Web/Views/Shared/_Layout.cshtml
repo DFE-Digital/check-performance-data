@@ -5,6 +5,7 @@
 @using DfE.CheckPerformanceData.Web.Controllers
 @inject Microsoft.Extensions.Hosting.IHostEnvironment HostEnvironment
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     Layout = "_GovUkPageTemplate";
     // "Real DfE auth" = any authenticated identity that isn't the synthetic dev
@@ -59,6 +60,10 @@
         !ViewData.ModelState.IsValid || ViewData["HasError"] is true);
 }
 <head>
+    @* Form-less pages (CMS/guidance) have no __RequestVerificationToken hidden input, so
+       expose the antiforgery token here for wwwroot/js/analytics-events.js (and
+       test-data-seed.js's existing fallback probe) to read via fetch. *@
+    <meta name="request-verification-token" content="@Antiforgery.GetAndStoreTokens(Context).RequestToken" />
     @await Html.PartialAsync("_GtmHead")
     @await Html.PartialAsync("_ClarityHead")
     @Html.GovUkFrontendStyleImports()
@@ -145,7 +150,7 @@
                 Beta
             </strong>
             <span class="govuk-phase-banner__text">
-                This is a new service – your <a class="govuk-link" href="#">feedback</a> will help us to improve it.
+                This is a new service – your <a class="govuk-link" href="/feedback-link">feedback</a> will help us to improve it.
             </span>
         </p>
     </div>
@@ -254,5 +259,8 @@
        flash of the yet-to-be-hidden link before the hide-until-init script runs.
        The script no-ops on pages that don't render the .app-back-to-top container. *@
     <script src="~/js/back-to-top.js" defer asp-append-version="true"></script>
+    @* Client-side analytics beacons (AB#286387 R18/R19/R23): help-details expand,
+       external-link clicks, evidence-file selection. Fire-and-forget; never throws. *@
+    <script src="~/js/analytics-events.js" defer asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

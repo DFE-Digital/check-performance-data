@@ -11,6 +11,10 @@ namespace DfE.CheckPerformanceData.Web.Seeding;
 // flow (ticking multiple ReadyToSubmit drafts, editing an InProgress draft, hitting the
 // already-submitted/duplicate-pupil warnings). Runs after SeedPupilData, which is where the
 // pupils referenced here come from.
+//
+// Two windows are seeded: the open KS4 June window (the in-flight scenarios above) and the
+// closed KS4 June window from last year, with half as many rows, so the establishment-wide
+// Amendment requests grid has both an editable and a read-only (window closed) window in it.
 public static class SeedChangeRequests
 {
     private const string Laestab = "860/4070"; // Kingsmead School
@@ -32,7 +36,21 @@ public static class SeedChangeRequests
     // seeded rows read identically to genuine requests in the Amendment requests / bulk grids.
     private const string RequestTypeDescription = "Remove - " + ReasonLabel;
 
+    private readonly record struct Scenario(string Reference, RequestStatus Status, IPupilRecord Pupil);
+
     public static async Task ExecuteSeedAsync(
+        IPupilDataBlobClient pupilClient,
+        IRequestRepository requestRepository,
+        IRequestStateBlobClient requestStateBlobClient,
+        ICheckYourPupilDataService checkYourPupilDataService)
+    {
+        await SeedOpenWindowAsync(pupilClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
+        await SeedClosedWindowAsync(pupilClient, requestRepository, requestStateBlobClient, checkYourPupilDataService);
+    }
+
+    // The live KS4 June window: in-flight statuses, duplicate pairs and drafts, so the bulk
+    // submission and validation journeys can all be exercised.
+    private static async Task SeedOpenWindowAsync(
         IPupilDataBlobClient pupilClient,
         IRequestRepository requestRepository,
         IRequestStateBlobClient requestStateBlobClient,
@@ -44,33 +62,84 @@ public static class SeedChangeRequests
         var pupils = await pupilClient.GetPupilsAsync(
             windowId, CheckingExerciseType.PupilData, Laestab, CheckingWindowType.KS4June);
         if (pupils is null || pupils.Count == 0) return;
+        var p = await GetIncludedPupilsAsync(pupilClient, windowId, required: 9);
+        if (p is null) return;
+
+        var scenarios = new[]
+        {
+            new Scenario("CYPMD_KS4June_SEED001", RequestStatus.ReadyToSubmit, p[0]),
+            new Scenario("CYPMD_KS4June_SEED002", RequestStatus.ReadyToSubmit, p[1]),
+            new Scenario("CYPMD_KS4June_SEED003", RequestStatus.ReadyToSubmit, p[2]),
+            new Scenario("CYPMD_KS4June_SEED004", RequestStatus.ReadyToSubmit, p[3]),
+            new Scenario("CYPMD_KS4June_SEED005", RequestStatus.ReadyToSubmit, p[4]),
+            new Scenario("CYPMD_KS4June_SEED006", RequestStatus.ReadyToSubmit, p[5]),
+            new Scenario("CYPMD_KS4June_SEED007", RequestStatus.ReadyToSubmit, p[5]), // duplicate of SEED006
+            new Scenario("CYPMD_KS4June_SEED008", RequestStatus.SubmittedUnCommitted, p[6]),
+            new Scenario("CYPMD_KS4June_SEED009", RequestStatus.ReadyToSubmit, p[6]), // duplicate of already-submitted SEED008
+            new Scenario("CYPMD_KS4June_SEED010", RequestStatus.InProgress, p[7]),
+            new Scenario("CYPMD_KS4June_SEED011", RequestStatus.InProgress, p[8])
+        };
+
+        await SeedScenariosAsync(requestRepository, requestStateBlobClient, checkYourPupilDataService,
+            windowId, scenarios, DateTime.UtcNow);
+    }
+
+    // Last year's closed KS4 June window: half as many rows as the open window, and only the
+    // statuses a window can be left in once its requests have been committed — nothing stays
+    // InProgress / ReadyToSubmit / SubmittedUnCommitted after commit. Gives the establishment
+    // Amendment requests grid a window whose rows are view-only (no Edit link).
+    private static async Task SeedClosedWindowAsync(
+        IPupilDataBlobClient pupilClient,
+        IRequestRepository requestRepository,
+        IRequestStateBlobClient requestStateBlobClient,
+        ICheckYourPupilDataService checkYourPupilDataService)
+    {
+        var windowId = DevDataSeeder.ClosedKeyStage4JuneCheckingWindowId;
+
+        var p = await GetIncludedPupilsAsync(pupilClient, windowId, required: 6);
+        if (p is null) return;
+
+        var scenarios = new[]
+        {
+            new Scenario("CYPMD_KS4June_CLOSED001", RequestStatus.SubmittedCommitted, p[0]),
+            new Scenario("CYPMD_KS4June_CLOSED002", RequestStatus.SubmittedCommitted, p[1]),
+            new Scenario("CYPMD_KS4June_CLOSED003", RequestStatus.SubmittedCommitted, p[2]),
+            new Scenario("CYPMD_KS4June_CLOSED004", RequestStatus.Withdrawn, p[3]),
+            new Scenario("CYPMD_KS4June_CLOSED005", RequestStatus.NotSubmitted, p[4]), // draft left unsubmitted at commit
+            new Scenario("CYPMD_KS4June_CLOSED006", RequestStatus.NotSubmitted, p[5])
+        };
+
+        // SeedCheckingWindows dates this window a year back, so the rows must be dated inside
+        // it — otherwise they sort above the live window's rows on the establishment grid.
+        await SeedScenariosAsync(requestRepository, requestStateBlobClient, checkYourPupilDataService,
+            windowId, scenarios, DateTime.UtcNow.AddYears(-1));
+    }
+
+    // Seeded change requests are KS4-only, so both dev windows read as KS4June.
+    private static async Task<List<IPupilRecord>?> GetIncludedPupilsAsync(
+        IPupilDataBlobClient pupilClient, Guid windowId, int required)
+    {
+        var pupils = await pupilClient.GetPupilsAsync(windowId, Laestab, CheckingWindowType.KS4June);
+        if (pupils is null || pupils.Count == 0) return null;
 
         var included = pupils
             .Where(p => PupilInclusion.IsKs4Included(p.Pincl))
             .DistinctBy(p => p.Id)
-            .Take(9)
+            .Take(required)
             .ToList();
 
-        if (included.Count < 9) return;
+        return included.Count < required ? null : included;
+    }
 
+    private static async Task SeedScenariosAsync(
+        IRequestRepository requestRepository,
+        IRequestStateBlobClient requestStateBlobClient,
+        ICheckYourPupilDataService checkYourPupilDataService,
+        Guid windowId,
+        IEnumerable<Scenario> scenarios,
+        DateTime timestamp)
+    {
         var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-
-        var p = included; // p[0]..p[8]
-
-        var scenarios = new[]
-        {
-            (Reference: "CYPMD_KS4June_SEED001", Status: RequestStatus.ReadyToSubmit, Pupil: p[0]),
-            (Reference: "CYPMD_KS4June_SEED002", Status: RequestStatus.ReadyToSubmit, Pupil: p[1]),
-            (Reference: "CYPMD_KS4June_SEED003", Status: RequestStatus.ReadyToSubmit, Pupil: p[2]),
-            (Reference: "CYPMD_KS4June_SEED004", Status: RequestStatus.ReadyToSubmit, Pupil: p[3]),
-            (Reference: "CYPMD_KS4June_SEED005", Status: RequestStatus.ReadyToSubmit, Pupil: p[4]),
-            (Reference: "CYPMD_KS4June_SEED006", Status: RequestStatus.ReadyToSubmit, Pupil: p[5]),
-            (Reference: "CYPMD_KS4June_SEED007", Status: RequestStatus.ReadyToSubmit, Pupil: p[5]), // duplicate of SEED006
-            (Reference: "CYPMD_KS4June_SEED008", Status: RequestStatus.SubmittedUnCommitted, Pupil: p[6]),
-            (Reference: "CYPMD_KS4June_SEED009", Status: RequestStatus.ReadyToSubmit, Pupil: p[6]), // duplicate of already-submitted SEED008
-            (Reference: "CYPMD_KS4June_SEED010", Status: RequestStatus.InProgress, Pupil: p[7]),
-            (Reference: "CYPMD_KS4June_SEED011", Status: RequestStatus.InProgress, Pupil: p[8])
-        };
 
         foreach (var scenario in scenarios)
         {
@@ -83,7 +152,7 @@ public static class SeedChangeRequests
                 PupilUpn = scenario.Pupil.Identifier,
                 PupilFirstname = scenario.Pupil.Firstname,
                 PupilSurname = scenario.Pupil.Surname,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = timestamp,
                 SubmittedById = SubmittedById,
                 SubmittedByName = SubmittedByName,
                 SubmittedByEmail = SubmittedByEmail,

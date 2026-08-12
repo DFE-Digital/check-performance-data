@@ -156,6 +156,50 @@ public sealed class ContactControllerTests
         Assert.Equal("/guidance", Assert.IsType<RedirectResult>(result).Url);
     }
 
+    [Fact]
+    public async Task FeedbackLink_tracks_referer_path_only_and_redirects_to_index()
+    {
+        var sut = CreateSut(authenticated: false, out var ctx);
+        ctx.Request.Headers.Referer = "https://localhost/CheckYourPupilData/x?includedSearch=Smith";
+
+        var result = await sut.FeedbackLink();
+
+        Assert.Equal(nameof(ContactController.Index), Assert.IsType<RedirectToActionResult>(result).ActionName);
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<FeedbackClickedEvent>(e => e.PagePath == "/CheckYourPupilData/x"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FeedbackLink_cross_origin_referer_yields_null_page_path()
+    {
+        // AB#286387 whole-branch review Finding 2: only same-origin referers are trusted
+        // as a page_path source.
+        var sut = CreateSut(authenticated: false, out var ctx);
+        ctx.Request.Headers.Referer = "https://evil.example/CheckYourPupilData/x";
+
+        await sut.FeedbackLink();
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<FeedbackClickedEvent>(e => e.PagePath == null),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task FeedbackLink_long_same_origin_referer_path_is_truncated()
+    {
+        var longPath = "/" + new string('a', 250);
+        var expectedTruncated = longPath[..100];
+        var sut = CreateSut(authenticated: false, out var ctx);
+        ctx.Request.Headers.Referer = $"https://localhost{longPath}";
+
+        await sut.FeedbackLink();
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<FeedbackClickedEvent>(e => e.PagePath == expectedTruncated),
+            Arg.Any<CancellationToken>());
+    }
+
     private static ContactViewModel Model(IActionResult result) =>
         Assert.IsType<ContactViewModel>(Assert.IsType<ViewResult>(result).Model);
 }

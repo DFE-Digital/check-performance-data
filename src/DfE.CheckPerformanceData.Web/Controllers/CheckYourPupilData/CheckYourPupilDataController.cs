@@ -98,7 +98,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
         if (viewModel.SelectedNextStep is null)
         {
             ModelState.AddModelError(nameof(CheckYourPupilDataViewModel.SelectedNextStep), "Select what you would like to do");
-            await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection] });
+            await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(CheckYourPupilDataViewModel.SelectedNextStep)] });
             var model = await BuildIndexModelAsync(windowId, 0, 0, null, null);
             return View("Index", model);
         }

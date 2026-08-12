@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -22,6 +23,7 @@ public sealed class SearchControllerTests
 {
     private readonly ISiteSearchService _searchService = Substitute.For<ISiteSearchService>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
 
     private SearchController CreateSut()
     {
@@ -29,7 +31,7 @@ public sealed class SearchControllerTests
             .SearchAsync(Arg.Any<SiteSearchQuery>())
             .Returns(callInfo => Task.FromResult(EmptyResultFor(callInfo.Arg<SiteSearchQuery>())));
         _settings.GetIntAsync(SettingKeys.CmsPageLength).Returns(20);
-        return new SearchController(_searchService, _settings)
+        return new SearchController(_searchService, _settings, _analytics)
         {
             // The 503 branch writes Response.StatusCode; even the happy-path tests keep the
             // context wired so a future assertion that reaches Response cannot NRE on a null

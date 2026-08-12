@@ -1,4 +1,5 @@
 using System.Net;
+using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.Search;
 using DfE.CheckPerformanceData.Application.Settings;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -37,6 +38,7 @@ public sealed class SearchControllerPaginationTests
 {
     private readonly ISiteSearchService _searchService = Substitute.For<ISiteSearchService>();
     private readonly ISettingService _settings = Substitute.For<ISettingService>();
+    private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
 
     // Compose a controller with a mocked service that echoes the requested paging window back
     // to the caller. The optional invalidReason lets a single helper drive both the happy path
@@ -78,7 +80,7 @@ public sealed class SearchControllerPaginationTests
                 });
             });
 
-        var controller = new SearchController(_searchService, _settings)
+        var controller = new SearchController(_searchService, _settings, _analytics)
         {
             ControllerContext = new ControllerContext
             {

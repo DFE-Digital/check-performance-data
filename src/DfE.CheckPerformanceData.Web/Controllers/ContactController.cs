@@ -30,6 +30,19 @@ public sealed class ContactController(
         return View(vm);
     }
 
+    // The Beta phase-banner "feedback" link routes through here so we can record the
+    // click server-side before handing off to the same Contact Us form. page_path is
+    // the referer's path only — never its query string, which may carry a search term.
+    [HttpGet("/feedback-link")]
+    public async Task<IActionResult> FeedbackLink()
+    {
+        var pagePath = RefererPagePath.From(Request);
+
+        await analytics.TrackSafeAsync(new FeedbackClickedEvent { PagePath = pagePath }, HttpContext.RequestAborted);
+
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost("/contact")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Submit(ContactViewModel form)
@@ -43,6 +56,7 @@ public sealed class ContactController(
             {
                 ErrorCount = 1,
                 ErrorCodes = [ValidationErrorCoding.NoSelection],
+                ErrorFields = [nameof(ContactViewModel.EnquiryType)],
             });
 
             var redisplay = await BuildViewModelAsync();

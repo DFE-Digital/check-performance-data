@@ -12,7 +12,12 @@
     function existingNames(input) {
         var raw = input.getAttribute('data-existing-file-names');
         if (!raw) { return []; }
-        try { return JSON.parse(raw); } catch (err) { return []; }
+        try {
+            var parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+            return [];
+        }
     }
 
     function clearWarning(input) {
@@ -33,6 +38,10 @@
 
     function showWarning(input) {
         clearWarning(input);
+        // A server-rendered error (from the POST round-trip) may already carry the exact
+        // same wording — avoid injecting a second, textually identical error paragraph.
+        var served = document.getElementById('fileUpload-error');
+        if (served && served.textContent.indexOf(MESSAGE) !== -1) { return; }
         var p = document.createElement('p');
         p.className = 'govuk-error-message';
         p.id = ERROR_ID;

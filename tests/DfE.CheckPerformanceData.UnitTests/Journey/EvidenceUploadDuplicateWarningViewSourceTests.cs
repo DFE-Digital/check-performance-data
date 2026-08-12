@@ -32,6 +32,8 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
         // Courtesy warning only: the script must not block the server round-trip.
         Assert.DoesNotContain("disabled", source);
         Assert.DoesNotContain("preventDefault", source);
+        Assert.DoesNotContain(".value =", source);
+        Assert.DoesNotContain("submit", source);
     }
 
     [Fact]

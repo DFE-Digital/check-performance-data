@@ -21,7 +21,27 @@ public sealed class ContentStagingService(
     IHtmlRenderingService htmlRenderer,
     ILogger<ContentStagingService>? logger = null) : IContentStagingService
 {
-    private const int MaxDepth = 10;
+    // Ancestor walks used to be bounded by a fixed depth ceiling. The ceiling was only ever there
+    // to stop a malformed bundle spinning forever, but it silently truncated legitimately deep
+    // trees as well — and each truncation was its own defect: a saturated depth made every page
+    // past the ceiling sort equal (so the import could attempt a child before its parent, record
+    // it as "parent not found", and only create it on a later run), a truncated path made the
+    // preview compare the wrong path for collisions, and a truncated ancestor set let a selective
+    // export omit the top of a deep page's chain, producing a bundle that could never fully land.
+    //
+    // Walking until the chain repeats a node stops a cycle just as firmly, without putting a
+    // ceiling on how deep a real page tree is allowed to be.
+    private static IEnumerable<T> SelfAndAncestors<T>(T start, Func<T, Guid> idOf, Func<T, T?> parentOf)
+        where T : class
+    {
+        var seen = new HashSet<Guid>();
+        var cursor = start;
+        while (cursor is not null && seen.Add(idOf(cursor)))
+        {
+            yield return cursor;
+            cursor = parentOf(cursor);
+        }
+    }
 
     private readonly ILogger<ContentStagingService> _log =
         logger ?? NullLogger<ContentStagingService>.Instance;
@@ -484,17 +504,8 @@ public sealed class ContentStagingService(
     {
         var byId = BundleById(pages);
 
-        int DepthOfPage(PageNodeBundleItem page)
-        {
-            var depth = 0;
-            var cursor = page;
-            while (cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) && depth < MaxDepth)
-            {
-                depth++;
-                cursor = parent;
-            }
-            return depth;
-        }
+        int DepthOfPage(PageNodeBundleItem page) =>
+            SelfAndAncestors(page, p => p.Id, p => BundleParent(p, byId)).Count() - 1;
 
         return pages
             .OrderBy(DepthOfPage)
@@ -506,17 +517,19 @@ public sealed class ContentStagingService(
     // The materialised path a bundle item would land at, rebuilt from parent segments.
     private static string VirtualPath(PageNodeBundleItem page, IReadOnlyDictionary<Guid, PageNodeBundleItem> byId)
     {
-        var segments = new List<string>();
-        PageNodeBundleItem? cursor = page;
-        var depth = 0;
-        while (cursor is not null && depth < MaxDepth)
-        {
-            segments.Insert(0, cursor.Segment);
-            cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
-            depth++;
-        }
+        var segments = SelfAndAncestors(page, p => p.Id, p => BundleParent(p, byId))
+            .Select(p => p.Segment)
+            .Reverse();
         return string.Join("/", segments);
     }
+
+    private static PageNodeBundleItem? BundleParent(
+        PageNodeBundleItem page, IReadOnlyDictionary<Guid, PageNodeBundleItem> byId) =>
+        page.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
+
+    private static PageNodeTreeItemDto? TreeParent(
+        PageNodeTreeItemDto node, IReadOnlyDictionary<Guid, PageNodeTreeItemDto> byId) =>
+        node.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
 
     // ---- export-side helpers ----------------------------------------------------------------
 
@@ -547,17 +560,8 @@ public sealed class ContentStagingService(
         return ordered;
     }
 
-    private static int DepthOf(PageNodeTreeItemDto node, Dictionary<Guid, PageNodeTreeItemDto> byId)
-    {
-        var depth = 0;
-        var cursor = node;
-        while (cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) && depth < MaxDepth)
-        {
-            depth++;
-            cursor = parent;
-        }
-        return depth;
-    }
+    private static int DepthOf(PageNodeTreeItemDto node, Dictionary<Guid, PageNodeTreeItemDto> byId) =>
+        SelfAndAncestors(node, n => n.Id, n => TreeParent(n, byId)).Count() - 1;
 
     private static HashSet<Guid> ExpandWithAncestors(
         IReadOnlySet<Guid> selected, Dictionary<Guid, PageNodeTreeItemDto> byId)
@@ -567,13 +571,8 @@ public sealed class ContentStagingService(
         foreach (var guid in selected)
         {
             if (!byId.TryGetValue(guid, out var cursor)) continue;
-            var depth = 0;
-            while (cursor is not null && depth < MaxDepth)
-            {
-                included.Add(cursor.Id);
-                cursor = cursor.ParentId is { } pid && byId.TryGetValue(pid, out var parent) ? parent : null;
-                depth++;
-            }
+            foreach (var node in SelfAndAncestors(cursor, n => n.Id, n => TreeParent(n, byId)))
+                included.Add(node.Id);
         }
 
         return included;

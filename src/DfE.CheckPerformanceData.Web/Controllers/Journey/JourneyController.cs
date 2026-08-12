@@ -501,6 +501,19 @@ public sealed class JourneyController(
     // Returns null on success, or a user-facing error message on failure. Assumes a non-empty file.
     private async Task<string?> CommitUploadedFileAsync(Guid windowId, string questionId, RequestState journey, IFormFile file)
     {
+        // AB#296081: a request must never store two evidence files with the same name.
+        // Uniqueness is per amendment request, so gather every question's files, not
+        // just this question's.
+        var allRequestFiles = journey.QuestionAnswers.Values
+            .SelectMany(a => a.FileValues ?? [])
+            .ToList();
+        var duplicateError = journeyService.ValidateDuplicateFileName(file.FileName, allRequestFiles);
+        if (duplicateError is not null)
+        {
+            await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "duplicate_name", FileSizeBytes = file.Length });
+            return duplicateError;
+        }
+
         if (file.Length > MaxUploadBytes)
         {
             await analytics.TrackSafeAsync(new EvidenceUploadAttemptedEvent { Outcome = "failed", FailureReason = "too_large", FileSizeBytes = file.Length });

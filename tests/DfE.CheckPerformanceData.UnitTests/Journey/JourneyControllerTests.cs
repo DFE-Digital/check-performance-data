@@ -95,6 +95,9 @@ public class JourneyControllerTests
         _optionalityService.GetConditionallyOptionalQuestionIds(Arg.Any<JourneyPage>(), Arg.Any<JourneyConditionContext>())
             .Returns(new HashSet<string>());
 
+        // NSubstitute returns "" for string by default; null means "no duplicate" (AB#296081).
+        _journeyService.ValidateDuplicateFileName(default!, default!).ReturnsForAnyArgs((string?)null);
+
         _httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
         var viewModelBuilder = new JourneyViewModelBuilder(
@@ -1389,6 +1392,76 @@ public class JourneyControllerTests
             Arg.Is<EvidenceUploadAttemptedEvent>(e =>
                 e.Outcome == "success" && e.PageCount == 1 && e.FileSizeBytes == bytes.Length),
             Arg.Any<CancellationToken>());
+    }
+
+    // AB#296081: a file whose name is already used anywhere in the request must be
+    // rejected at the Upload action — before any bytes are stored — with the exact
+    // ticket wording, and recorded in analytics as duplicate_name (never the file name).
+
+    [Fact]
+    public async Task UploadFile_WhenFileNameAlreadyUsed_SetsErrorAndDoesNotStore()
+    {
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "s1", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 10 }]
+            }
+        };
+        SetupSession(ValidSession(answers: answers));
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "evidence.pdf");
+        _journeyService.ValidateDuplicateFileName("evidence.pdf", Arg.Any<IReadOnlyList<FileAnswer>>())
+            .Returns("The file name has already been used. Upload a file with a different name.");
+
+        var result = await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        Assert.Equal(
+            "The file name has already been used. Upload a file with a different name.",
+            _sut.TempData["UploadError"]);
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "duplicate_name"),
+            Arg.Any<CancellationToken>());
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Page", redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task UploadFile_ChecksNamesAcrossEveryQuestionInTheRequest()
+    {
+        // Uniqueness is per amendment request (ticket scope A), not per question: the
+        // already-used name lives under a DIFFERENT question id than the one uploaded to,
+        // and must still reach the validator.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["other-question"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "s1", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 10 }]
+            }
+        };
+        SetupSession(ValidSession(answers: answers));
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "new.pdf");
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        _journeyService.Received(1).ValidateDuplicateFileName("new.pdf",
+            Arg.Is<IReadOnlyList<FileAnswer>>(files => files.Any(f => f.OriginalFileName == "evidence.pdf")));
+    }
+
+    [Fact]
+    public async Task UploadFile_WhenFileNameIsNew_StoresTheFile()
+    {
+        SetupSession(ValidSession());
+        var bytes = MinimalPdf();
+        var file = new FormFile(new MemoryStream(bytes), 0, bytes.Length, "fileUpload", "new.pdf");
+        _fileStorageService.SaveAsync(WindowId, Arg.Any<byte[]>()).Returns("stored-guid");
+        _journeyService.ValidateFileUpload(default!, 0, default!).ReturnsForAnyArgs((string?)null);
+
+        await _sut.UploadFile(WindowId, "evidence-page", "evidence", fromSummary: false, file);
+
+        await _fileStorageService.Received(1).SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
     }
 
     [Fact]

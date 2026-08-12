@@ -1171,6 +1171,41 @@ public class JourneyControllerTests
     }
 
     [Fact]
+    public async Task PagePost_WithDuplicatePendingFile_ReRendersAndDoesNotStore()
+    {
+        // AB#296081 review finding: the duplicate check lives inside CommitUploadedFileAsync
+        // and therefore covers the Continue-with-staged-file path (Browse → Continue without
+        // clicking "Upload file"), but nothing pinned that. This guards against a future
+        // "keep validation in the action" refactor moving the check into UploadFile only —
+        // which would let a staged duplicate slip through Continue and store two files with
+        // the same name.
+        var answers = new Dictionary<string, QuestionAnswer>
+        {
+            ["evidence"] = new()
+            {
+                FileValues = [new FileAnswer { StoredFileName = "s1", OriginalFileName = "evidence.pdf", PageCount = 1, FileSizeBytes = 10 }]
+            }
+        };
+        SetupSession(ValidSession(history: ["evidence-page"], answers: answers));
+        _flowService.GetPage(Config, "evidence-page").Returns(EvidencePage);
+        _journeyService.ValidateDuplicateFileName("evidence.pdf", Arg.Any<IReadOnlyList<FileAnswer>>())
+            .Returns("The file name has already been used. Upload a file with a different name.");
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>());
+
+        var result = await _sut.PagePost(WindowId, "evidence-page", fromSummary: false,
+            fileUpload: FakePdfFile(ValidPdfBytes(), "evidence.pdf"));
+
+        await _fileStorageService.DidNotReceive().SaveAsync(Arg.Any<Guid>(), Arg.Any<byte[]>());
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<EvidenceUploadAttemptedEvent>(e => e.Outcome == "failed" && e.FailureReason == "duplicate_name"),
+            Arg.Any<CancellationToken>());
+        var saved = _session.GetRequestState(WindowId).QuestionAnswers["evidence"].FileValues!;
+        Assert.Single(saved);
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("EvidenceUpload", view.ViewName);
+    }
+
+    [Fact]
     public async Task PagePost_NoPendingFileButFileAlreadyUploaded_Advances()
     {
         // Regression: existing uploaded files still satisfy the page without a pending file.

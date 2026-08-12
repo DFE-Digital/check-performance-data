@@ -131,7 +131,7 @@ public sealed class JourneyViewModelBuilder(
                     : q.Options ?? [],
                 // AB#296081: request-wide file names for the selection-time duplicate warning.
                 ExistingFileNames = q.Type == QuestionType.FileUpload
-                    ? answers.Values.SelectMany(a => a.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
+                    ? answers.Values.SelectMany(qa => qa.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
                     : []
             };
         }).ToList();

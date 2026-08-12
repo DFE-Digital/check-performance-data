@@ -20,6 +20,13 @@
         }
     }
 
+    function removeFromDescribedBy(input, id) {
+        var ids = (input.getAttribute('aria-describedby') || '')
+            .split(/\s+/).filter(function (existing) { return existing && existing !== id; });
+        if (ids.length) { input.setAttribute('aria-describedby', ids.join(' ')); }
+        else { input.removeAttribute('aria-describedby'); }
+    }
+
     function clearWarning(input) {
         var warning = document.getElementById(ERROR_ID);
         if (warning) { warning.remove(); }
@@ -30,30 +37,36 @@
             if (group) { group.classList.remove('govuk-form-group--error'); }
             input.classList.remove('govuk-file-upload--error');
         }
-        var ids = (input.getAttribute('aria-describedby') || '')
-            .split(/\s+/).filter(function (id) { return id && id !== ERROR_ID; });
-        if (ids.length) { input.setAttribute('aria-describedby', ids.join(' ')); }
-        else { input.removeAttribute('aria-describedby'); }
+        removeFromDescribedBy(input, ERROR_ID);
     }
 
     function showWarning(input) {
         clearWarning(input);
         // A server-rendered error (from the POST round-trip) may already carry the exact
-        // same wording — avoid injecting a second, textually identical error paragraph.
+        // same wording. Replace it with the script-owned paragraph rather than skipping:
+        // skipping meant a SECOND duplicate selection after a server rejection produced no
+        // announcement at all for screen-reader users (review finding, AB#296081). A server
+        // error with different wording (e.g. too large) is left in place — both are true.
         var served = document.getElementById('fileUpload-error');
-        if (served && served.textContent.indexOf(MESSAGE) !== -1) { return; }
+        if (served && served.textContent.indexOf(MESSAGE) !== -1) {
+            served.remove();
+            removeFromDescribedBy(input, 'fileUpload-error');
+        }
         var p = document.createElement('p');
         p.className = 'govuk-error-message';
         p.id = ERROR_ID;
         // Injected after page load, so role=alert is needed for screen readers to hear it —
         // the static GDS pattern relies on a page reload instead.
         p.setAttribute('role', 'alert');
+        // Insert the region EMPTY and populate it afterwards: assistive technologies
+        // reliably announce content added to a live region already in the DOM, but are
+        // inconsistent about a region that arrives pre-populated (review finding).
+        input.parentNode.insertBefore(p, input);
         var prefix = document.createElement('span');
         prefix.className = 'govuk-visually-hidden';
         prefix.textContent = 'Error:';
         p.appendChild(prefix);
         p.appendChild(document.createTextNode(' ' + MESSAGE));
-        input.parentNode.insertBefore(p, input);
         var group = input.closest('.govuk-form-group');
         if (group) { group.classList.add('govuk-form-group--error'); }
         input.classList.add('govuk-file-upload--error');

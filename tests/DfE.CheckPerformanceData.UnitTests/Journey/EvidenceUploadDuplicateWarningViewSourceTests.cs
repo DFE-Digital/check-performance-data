@@ -29,11 +29,28 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
     {
         var source = ReadWebFile(@"wwwroot\js\evidence-upload-validation.js");
         Assert.Contains(TicketWording, source);
-        // Courtesy warning only: the script must not block the server round-trip.
-        Assert.DoesNotContain("disabled", source);
+        // Courtesy warning only: the script must not block the server round-trip. Matched
+        // as code shapes, not bare words, so a comment mentioning "disabled" or "submit"
+        // can't fail the build (review finding, AB#296081).
+        Assert.DoesNotMatch(@"\.disabled\s*=|setAttribute\(\s*['""]disabled", source);
         Assert.DoesNotContain("preventDefault", source);
-        Assert.DoesNotContain(".value =", source);
-        Assert.DoesNotContain("submit", source);
+        Assert.DoesNotMatch(@"\.value\s*=", source);
+        Assert.DoesNotMatch(@"\.submit\s*\(|requestSubmit", source);
+    }
+
+    [Fact]
+    public void Script_ReadsTheDataAttribute_AndFollowsTheGdsErrorPattern()
+    {
+        // Reader-side wiring: the writer side (_FileUpload.cshtml) is pinned above, but the
+        // script could silently stop consuming the attribute or drop the accessible error
+        // markup without failing any test (review finding, AB#296081).
+        var source = ReadWebFile(@"wwwroot\js\evidence-upload-validation.js");
+        Assert.Contains("data-existing-file-names", source);
+        Assert.Contains("govuk-error-message", source);
+        Assert.Contains("govuk-visually-hidden", source);
+        Assert.Contains("fileUpload-duplicate-error", source);
+        Assert.Matches(@"setAttribute\(\s*'role',\s*'alert'\s*\)", source);
+        Assert.Contains("aria-describedby", source);
     }
 
     [Fact]

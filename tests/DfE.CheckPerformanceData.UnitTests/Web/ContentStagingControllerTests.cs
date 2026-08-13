@@ -24,7 +24,17 @@ public sealed class ContentStagingControllerTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IPageNodeRepository _pageNodeRepository = Substitute.For<IPageNodeRepository>();
     private readonly ILogger<ContentStagingController> _logger = Substitute.For<ILogger<ContentStagingController>>();
+    private readonly IContentStagingSessionStore _sessions = Substitute.For<IContentStagingSessionStore>();
     private readonly ContentStagingController _sut;
+
+    // Registers a stored bundle with the session-store substitute and hands back its id, so a
+    // test can post the confirm form the way the preview page would.
+    private Guid SessionWith(string bundleJson)
+    {
+        var id = Guid.NewGuid();
+        _sessions.GetBundleJsonAsync(id, Arg.Any<CancellationToken>()).Returns(bundleJson);
+        return id;
+    }
 
     public ContentStagingControllerTests()
     {
@@ -57,7 +67,7 @@ public sealed class ContentStagingControllerTests
             .Returns(showButton);
 
         return new ContentStagingController(
-            _staging, _currentUser, _pageNodeRepository, _logger, configuration, host, settings, dbContext, importLock)
+            _staging, _currentUser, _pageNodeRepository, _logger, configuration, host, settings, _sessions, dbContext, importLock)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
@@ -299,17 +309,83 @@ public sealed class ContentStagingControllerTests
         await _staging.DidNotReceive().PreviewAsync(Arg.Any<ContentBundle>());
     }
 
+    // ── Server-side preview session ─────────────────────────────────────────
+
+    // The bundle stays on the server between Preview and Import. The view model carries the
+    // session id and nothing else — if the bundle ever leaks back into the page the round-trip
+    // (and the request-size ceiling it forced) is back.
     [Fact]
-    public async Task Preview_ValidFile_ReturnsPreviewView_WithBundleJson()
+    public async Task Preview_ValidFile_StoresBundleInSession_AndReturnsOnlyTheSessionId()
     {
+        var sessionId = Guid.NewGuid();
         _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        _sessions.CreateAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(sessionId);
 
         var result = await _sut.Preview(FileFrom(ValidBundleJson()));
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<ImportPreviewViewModel>(view.Model);
-        Assert.Contains(ContentBundle.CurrentSchema, model.BundleJson);
+        Assert.Equal(sessionId, model.SessionId);
+        await _sessions.Received(1).CreateAsync(
+            Arg.Is<string>(j => j.Contains(ContentBundle.CurrentSchema)),
+            "editor@education.gov.uk",
+            Arg.Any<CancellationToken>());
         await _staging.Received(1).PreviewAsync(Arg.Is<ContentBundle>(b => b.PageNodes.Count == 1));
+    }
+
+    // Creating a session is the natural moment to drop the ones nobody came back for — it needs
+    // no scheduler, and a table that only ever holds in-flight previews cannot grow without
+    // somebody starting a new one.
+    [Fact]
+    public async Task Preview_ValidFile_PurgesExpiredSessions()
+    {
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+
+        await _sut.Preview(FileFrom(ValidBundleJson()));
+
+        await _sessions.Received(1).PurgeExpiredAsync(Arg.Any<CancellationToken>());
+    }
+
+    // An id with no live session behind it — expired, already imported, or simply made up.
+    [Fact]
+    public async Task Import_UnknownSession_SetsExpiredError_AndImportsNothing()
+    {
+        var result = await _sut.Import(new ImportConfirmFormModel { SessionId = Guid.NewGuid() });
+
+        var redirect = Assert.IsType<RedirectResult>(result);
+        Assert.Equal("/admin/content-staging", redirect.Url);
+        Assert.Contains("expired", _sut.TempData["ContentStagingError"]!.ToString()!);
+        await _staging.DidNotReceiveWithAnyArgs().ImportAsync(default!, default);
+    }
+
+    // A spent session is a used ticket: the bundle has landed, so the row goes.
+    [Fact]
+    public async Task Import_Successful_DeletesTheSession()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        await _sessions.Received(1).DeleteAsync(sessionId, Arg.Any<CancellationToken>());
+    }
+
+    // A failed import keeps its session, so the operator can fix the cause and confirm again
+    // without re-uploading a bundle that may have taken minutes to transfer.
+    [Fact]
+    public async Task Import_WhenServiceThrows_KeepsTheSessionForRetry()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns<ContentImportResult>(_ => throw new InvalidOperationException("boom"));
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        await _sessions.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     // ── Upload size cap ────────────────────────────────────────────────────
@@ -377,9 +453,9 @@ public sealed class ContentStagingControllerTests
     }
 
     [Fact]
-    public async Task Import_NoBundleJson_SetsError_AndRedirects()
+    public async Task Import_NoSessionId_SetsError_AndRedirects()
     {
-        var result = await _sut.Import(new ImportConfirmFormModel { BundleJson = null });
+        var result = await _sut.Import(new ImportConfirmFormModel { SessionId = Guid.Empty });
 
         var redirect = Assert.IsType<RedirectResult>(result);
         Assert.Equal("/admin/content-staging", redirect.Url);
@@ -396,7 +472,7 @@ public sealed class ContentStagingControllerTests
 
         var model = new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Skip,
             Decisions = [new() { Id = id, Action = ContentImportMode.Replace }]
         };
@@ -421,7 +497,7 @@ public sealed class ContentStagingControllerTests
 
         var model = new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
             Decisions = [new() { Id = Guid.NewGuid(), Action = null }]
         };
@@ -442,7 +518,7 @@ public sealed class ContentStagingControllerTests
 
         var result = await _sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Fail
         });
 
@@ -509,7 +585,7 @@ public sealed class ContentStagingControllerTests
 
         await sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -537,7 +613,7 @@ public sealed class ContentStagingControllerTests
 
         await sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -558,7 +634,7 @@ public sealed class ContentStagingControllerTests
 
         var result = await _sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -583,7 +659,7 @@ public sealed class ContentStagingControllerTests
 
         var result = await sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -610,7 +686,7 @@ public sealed class ContentStagingControllerTests
 
         await sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -632,7 +708,7 @@ public sealed class ContentStagingControllerTests
 
         await sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Replace,
         });
 
@@ -661,7 +737,7 @@ public sealed class ContentStagingControllerTests
         Assert.Contains("multipart/form-data", consumes!.ContentTypes);
     }
 
-    // Same shape for Import: takes a form-urlencoded body (BundleJson + collision mode
+    // Same shape for Import: takes a form-urlencoded body (session id + collision mode
     // radios); reject anything else.
     [Fact]
     public void Import_OnlyConsumesFormUrlEncoded()
@@ -684,7 +760,7 @@ public sealed class ContentStagingControllerTests
 
         var result = await _sut.Import(new ImportConfirmFormModel
         {
-            BundleJson = ValidBundleJson(),
+            SessionId = SessionWith(ValidBundleJson()),
             GlobalMode = ContentImportMode.Skip
         });
 
@@ -705,7 +781,7 @@ public sealed class ContentStagingControllerTests
                 Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
             .Returns(withWarning);
 
-        await _sut.Import(new ImportConfirmFormModel { BundleJson = ValidBundleJson() });
+        await _sut.Import(new ImportConfirmFormModel { SessionId = SessionWith(ValidBundleJson()) });
 
         Assert.NotNull(_sut.TempData["ContentStagingWarnings"]);
     }

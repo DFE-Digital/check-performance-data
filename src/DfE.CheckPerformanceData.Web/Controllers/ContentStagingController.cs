@@ -26,6 +26,7 @@ public sealed class ContentStagingController(
     IConfiguration configuration,
     IHostEnvironment hostEnvironment,
     ISettingService settingService,
+    IContentStagingSessionStore sessions,
     IPortalDbContext? dbContext = null,
     IContentStagingLock? importLock = null) : Controller
 {
@@ -124,14 +125,13 @@ public sealed class ContentStagingController(
     }
 
     // Content-staging bundles from a real environment are commonly 5–20 MB (they carry
-    // full version history and base64-embedded images). Raise the two ASP.NET default
-    // request-size limits that would otherwise reject a legitimate export with an empty-
-    // body 400 before the controller sees it:
-    //  * Kestrel MaxRequestBodySize default ~28.6 MB — bumped to 64 MB for the file upload.
-    //  * FormOptions ValueLengthLimit default ~4 MB per form value — bumped to 64 MB so the
-    //    round-tripped BundleJson hidden field between Preview and Import gets through.
-    // Attribute-scoped so the raised limits apply ONLY to these two endpoints, not the
-    // whole app.
+    // full version history and base64-embedded images), against a Kestrel MaxRequestBodySize
+    // default of ~28.6 MB. Raised to 64 MB so a legitimate export is not rejected with an
+    // empty-body 400 before the controller sees it, and attribute-scoped so the raised limit
+    // applies only to the upload endpoint rather than the whole app.
+    //
+    // Only Preview needs it. Confirm posts a session id, so the FormOptions ValueLengthLimit
+    // that used to gate the round-tripped bundle no longer has anything large to carry.
     private const int LargeBundleLimitBytes = 64 * 1024 * 1024;
 
     // Step 1 of import: read the uploaded file, analyse it against the current environment, and
@@ -201,10 +201,18 @@ public sealed class ContentStagingController(
                 "Bundle failed validation:\n" + string.Join("\n", ex.Issues.Select(i => "• " + i.Message));
             return Redirect("/admin/content-staging");
         }
+        // Sweep before storing. A session table that only ever holds in-flight previews needs no
+        // scheduler to bound it: the one action that adds a row is also the one that can afford
+        // to drop the rows nobody came back for.
+        await sessions.PurgeExpiredAsync();
+
+        var sessionId = await sessions.CreateAsync(
+            ContentStagingJson.Serialize(parsed!), currentUser.Email);
+
         return View(new ImportPreviewViewModel
         {
             Preview = preview,
-            BundleJson = ContentStagingJson.Serialize(parsed!)
+            SessionId = sessionId
         });
     }
 
@@ -241,20 +249,17 @@ public sealed class ContentStagingController(
     }
 
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
-    // overrides. The bundle round-trips through a hidden field so no server-side state is needed —
-    // that field is BundleJson and can easily exceed the 4 MB default ValueLengthLimit for a real
-    // environment export, so the form-limits attribute below has to raise the ceiling or the
-    // model binder rejects the request with an empty-body 400 before this action runs.
+    // overrides. The body is a session id plus the mode radios, so it stays small no matter how
+    // big the bundle is — the bundle itself never left the server.
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
-    [RequestSizeLimit(LargeBundleLimitBytes)]
-    [RequestFormLimits(ValueLengthLimit = LargeBundleLimitBytes)]
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
         ContentBundle? parsed = null;
         string? error = null;
-        if (string.IsNullOrEmpty(model.BundleJson) || !TryParseBundle(model.BundleJson, out parsed, out error))
+        var bundleJson = await sessions.GetBundleJsonAsync(model.SessionId);
+        if (string.IsNullOrEmpty(bundleJson) || !TryParseBundle(bundleJson, out parsed, out error))
         {
             TempData["ContentStagingError"] = error ?? "The import session expired. Upload the file again.";
             return Redirect("/admin/content-staging");
@@ -294,7 +299,12 @@ public sealed class ContentStagingController(
             // an incident-responder can reconstruct "who imported what, when" without
             // grepping app logs. Only successful imports are recorded (failed imports have
             // no net effect worth tracing). Matches QueueAdminController's audit pattern.
-            await WriteImportAuditAsync(result, model.BundleJson?.Length ?? 0);
+            await WriteImportAuditAsync(result, bundleJson!.Length);
+
+            // The session is a ticket, spent once the bundle has landed. It is deliberately kept
+            // on any failure below: the operator can fix the cause and confirm again without
+            // re-uploading a bundle that may have taken minutes to transfer.
+            await sessions.DeleteAsync(model.SessionId);
         }
         catch (ContentImportConflictException ex)
         {

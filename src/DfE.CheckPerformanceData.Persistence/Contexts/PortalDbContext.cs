@@ -17,6 +17,7 @@ public sealed class PortalDbContext(
     public DbSet<CheckingWindowDataset> CheckingWindowDatasets => Set<CheckingWindowDataset>();
     public DbSet<ContentBlock> ContentBlocks => Set<ContentBlock>();
     public DbSet<ContentBlockVersion> ContentBlockVersions => Set<ContentBlockVersion>();
+    public DbSet<ContentStagingSession> ContentStagingSessions => Set<ContentStagingSession>();
     public DbSet<RulesConfigVersion> RulesConfigVersions => Set<RulesConfigVersion>();
     public DbSet<ChangeRequest> ChangeRequests => Set<ChangeRequest>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
@@ -42,6 +43,7 @@ public sealed class PortalDbContext(
         modelBuilder.ApplyConfiguration(new CheckingWindowDatasetConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockConfiguration());
         modelBuilder.ApplyConfiguration(new ContentBlockVersionConfiguration());
+        modelBuilder.ApplyConfiguration(new ContentStagingSessionConfiguration());
         modelBuilder.ApplyConfiguration(new RulesConfigVersionConfiguration());
         modelBuilder.ApplyConfiguration(new ChangeRequestConfiguration());
         modelBuilder.ApplyConfiguration(new AuditEntryConfiguration());

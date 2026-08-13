@@ -16,6 +16,7 @@ public interface IPortalDbContext
     DbSet<CheckingWindowDataset> CheckingWindowDatasets { get; }
     DbSet<ContentBlock> ContentBlocks { get; }
     DbSet<ContentBlockVersion> ContentBlockVersions { get; }
+    DbSet<ContentStagingSession> ContentStagingSessions { get; }
     DbSet<RulesConfigVersion> RulesConfigVersions { get; }
     DbSet<Setting> Settings { get; }
     DbSet<Country> Countries { get; }

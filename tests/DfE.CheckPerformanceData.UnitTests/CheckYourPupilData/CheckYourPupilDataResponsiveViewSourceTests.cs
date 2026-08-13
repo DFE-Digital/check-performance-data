@@ -32,4 +32,26 @@ public sealed class CheckYourPupilDataResponsiveViewSourceTests
         Assert.Contains("flex-direction: column", block);
         Assert.Contains("align-items: stretch", block);
     }
+
+    [Fact]
+    public void Pupil_section_wraps_the_table_in_an_accessible_scrollable_pane()
+    {
+        var view = ReadWebSource("Views/CheckYourPupilData/_PupilSection.cshtml");
+
+        // MOJ scrollable pane (CSS ships in moj-frontend-9.0.0.min.css, already linked by
+        // _Layout) gives wide KS4 tables horizontal scroll instead of off-screen overflow.
+        Assert.Contains("moj-scrollable-pane", view);
+
+        // The scroll region must be keyboard-reachable and announceable: tabindex lets
+        // keyboard users scroll it (WCAG 2.1.1), role+label give it an accessible name.
+        Assert.Contains("tabindex=\"0\"", view);
+        Assert.Contains("role=\"region\"", view);
+        Assert.Contains("aria-label=\"@Model.Section.Heading\"", view);
+
+        // The pane must open before the table partial renders, i.e. it wraps the table.
+        var paneIndex = view.IndexOf("moj-scrollable-pane", StringComparison.Ordinal);
+        var tableIndex = view.IndexOf("_PupilTable", StringComparison.Ordinal);
+        Assert.True(paneIndex >= 0 && paneIndex < tableIndex,
+            "the moj-scrollable-pane container must wrap the _PupilTable partial");
+    }
 }

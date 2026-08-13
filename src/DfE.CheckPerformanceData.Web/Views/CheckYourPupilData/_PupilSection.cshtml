@@ -33,7 +33,14 @@ else
     })
     @if (Model.Section.HasData)
     {
-        @await Html.PartialAsync("_PupilTable", Model.Section.Table)
+        @* MOJ scrollable pane (CSS already shipped via moj-frontend-9.0.0.min.css): the KS4
+           column set is wider than small screens, so the table scrolls inside this region
+           instead of pushing the page off-screen (issue #271). tabindex="0" makes the region
+           keyboard-scrollable and role + aria-label give it an accessible name — the pane's
+           own :focus style comes from the MOJ stylesheet. *@
+        <div class="moj-scrollable-pane" role="region" tabindex="0" aria-label="@Model.Section.Heading">
+            @await Html.PartialAsync("_PupilTable", Model.Section.Table)
+        </div>
         @await Html.PartialAsync("_Pagination", new PaginationViewModel
         {
             WindowId = Model.WindowId,

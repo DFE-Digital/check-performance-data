@@ -35,7 +35,12 @@ public sealed class ContentStagingControllerTests
 
     // Clear-all is gated the way the other destructive dev surfaces are: the Dev:ToolsEnabled
     // flag AND not-production. Build a controller for a given environment so each case is explicit.
-    private ContentStagingController Build(bool devToolsEnabled, string environment, bool showButton = true)
+    private ContentStagingController Build(
+        bool devToolsEnabled,
+        string environment,
+        bool showButton = true,
+        IPortalDbContext? dbContext = null,
+        IContentStagingLock? importLock = null)
     {
         var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -51,7 +56,8 @@ public sealed class ContentStagingControllerTests
         settings.GetBoolAsync(DfE.CheckPerformanceData.Application.Settings.SettingKeys.ShowDeleteAllButton)
             .Returns(showButton);
 
-        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, configuration, host, settings)
+        return new ContentStagingController(
+            _staging, _currentUser, _pageNodeRepository, _logger, configuration, host, settings, dbContext, importLock)
         {
             TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
         };
@@ -562,10 +568,7 @@ public sealed class ContentStagingControllerTests
 
     private ContentStagingController NewSutWith(IPortalDbContext dbContext, IContentStagingLock? importLock = null)
     {
-        return new ContentStagingController(_staging, _currentUser, _pageNodeRepository, _logger, dbContext, importLock)
-        {
-            TempData = new TempDataDictionary(new DefaultHttpContext(), Substitute.For<ITempDataProvider>())
-        };
+        return Build(devToolsEnabled: true, environment: "Development", dbContext: dbContext, importLock: importLock);
     }
 
     // ── Concurrent-import advisory lock ──────────────────────────────────────

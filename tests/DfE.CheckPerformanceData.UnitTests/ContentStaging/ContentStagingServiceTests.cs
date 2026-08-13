@@ -583,7 +583,7 @@ public class ContentStagingServiceTests
     // ── Validator integration ────────────────────────────────────────────────
 
     private ContentStagingService SutWithSanitiser() =>
-        new(_pages, _blockRepo, new ContentBundleSanitiser(new HtmlRenderingService()));
+        new(_pages, _blockRepo, new HtmlRenderingService(), new ContentBundleSanitiser(new HtmlRenderingService()));
 
     [Fact]
     public async Task PreviewAsync_FatalValidatorIssue_Throws_ContentImportValidationException()
@@ -617,7 +617,7 @@ public class ContentStagingServiceTests
             () => _sut.ImportAsync(bundle, ContentImportMode.Replace));
         await _pages.DidNotReceive().CreateNodeForStagingAsync(
             Arg.Any<Guid>(), Arg.Any<Guid?>(), Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<string?>());
+            Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<int>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<string?>());
     }
 
     // ── Sanitiser integration ────────────────────────────────────────────────
@@ -628,7 +628,7 @@ public class ContentStagingServiceTests
         _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
         _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
         _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
-        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>())
             .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
 
         var bundle = new ContentBundle
@@ -654,7 +654,8 @@ public class ContentStagingServiceTests
         Assert.DoesNotContain("steal()", bundle.ContentBlocks[0].Value);
         // Repository receives the cleaned value, never the raw payload.
         await _blockRepo.Received(1).AddBlockAsync(
-            "banner", "Content", Arg.Is<string>(v => !v.Contains("<script") && !v.Contains("steal()")), Arg.Any<Guid?>());
+            "banner", "Content", Arg.Is<string>(v => !v.Contains("<script") && !v.Contains("steal()")),
+            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>());
     }
 
     [Fact]
@@ -663,7 +664,7 @@ public class ContentStagingServiceTests
         _pages.GetByIdAsync(Arg.Any<Guid>()).ReturnsNull();
         _blockRepo.GetByContentIdAsync(Arg.Any<Guid>()).ReturnsNull();
         _blockRepo.GetByKeyAsync(Arg.Any<string>()).ReturnsNull();
-        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>())
+        _blockRepo.AddBlockAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<bool>(), Arg.Any<string?>())
             .Returns(new ContentBlockDto { Id = 1, ContentId = GuidB, Key = "banner", BlockType = "Content", Value = "" });
 
         var bundle = new ContentBundle

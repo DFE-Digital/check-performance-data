@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.Common;
 using DfE.CheckPerformanceData.Application.ContentStaging;
 using DfE.CheckPerformanceData.Application.PageTree;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -38,7 +39,7 @@ public sealed class ContentStagingImportFailureTests(PostgresFixture fixture)
         ctx = _fixture.CreateContext();
         var pageRepo = new PageNodeRepository(ctx);
         var blockRepo = new ContentBlockRepository(ctx);
-        return new ContentStagingService(pageRepo, blockRepo);
+        return new ContentStagingService(pageRepo, blockRepo, new HtmlRenderingService());
     }
 
     // Validator-fatal issue → whole-bundle rejection, zero writes.

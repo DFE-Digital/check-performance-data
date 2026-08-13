@@ -28,6 +28,21 @@
   margin-bottom: 0;
 }
 
+/* On narrow viewports the Search (and optional Clear) buttons' intrinsic widths leave the
+   flex-shrunk input only a few characters wide, so it reads as a broken field — the same
+   failure the landing-page search box had (see .cypmd-search__row further down). Stack the
+   row instead: input full width on its own line, buttons on the lines below. The existing
+   10px flex gap keeps the stacked controls spaced. */
+@media (max-width: 40.0625em) {
+  .pupil-search__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pupil-search__row .govuk-button {
+    align-self: flex-start;
+  }
+}
+
 .dfe-card-container{
   .govuk-heading-m {
     color: #347CA9;

@@ -153,7 +153,7 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
             {
                 Key = "nonIncluded",
                 TabLabel = "Non-included pupils",
-                Heading = "Pupil non-include",
+                Heading = "Pupil non-included",
                 DownloadAction = nameof(DownloadNonIncluded),
                 DownloadLinkText = "pupil non-included",
                 EmptyContentKey = "check-pupil-data-no-non-included-data-content",

@@ -190,7 +190,7 @@ public sealed class ContentStagingControllerTests
     [Fact]
     public async Task Export_ReturnsJsonFile_StampedWithSchemaAndUser()
     {
-        _staging.ExportAsync().Returns(new ContentBundle
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle
         {
             PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
@@ -208,7 +208,7 @@ public sealed class ContentStagingControllerTests
     [Fact]
     public async Task Export_StampsSchemaVersion()
     {
-        _staging.ExportAsync().Returns(new ContentBundle
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle
         {
             PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
         });
@@ -307,6 +307,58 @@ public sealed class ContentStagingControllerTests
         Assert.IsType<RedirectResult>(result);
         Assert.NotNull(_sut.TempData["ContentStagingError"]);
         await _staging.DidNotReceive().PreviewAsync(Arg.Any<ContentBundle>());
+    }
+
+    // ── Export version-history controls ────────────────────────────────────
+
+    // The whole-environment export asks for everything (null id sets) and carries only the
+    // history preference — an empty set would mean "no pages at all".
+    [Fact]
+    public async Task Export_ByDefault_RequestsEverything_WithTheHistoryCap()
+    {
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle());
+
+        await _sut.Export();
+
+        await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection?>(s =>
+            s!.PageNodeIds == null
+            && s.ContentBlockIds == null
+            && s.MaxVersionsPerNode == ContentExportSelection.DefaultMaxVersionsPerNode));
+    }
+
+    [Fact]
+    public async Task Export_WithFullHistory_LiftsTheCap()
+    {
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle());
+
+        await _sut.Export(fullHistory: true);
+
+        await _staging.Received(1).ExportAsync(
+            Arg.Is<ContentExportSelection?>(s => s!.MaxVersionsPerNode == null));
+    }
+
+    [Fact]
+    public async Task ExportSelected_CarriesTheHistoryPreference_AlongsideTheTickedIds()
+    {
+        var pageId = Guid.NewGuid();
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle());
+
+        await _sut.ExportSelected([pageId], null, fullHistory: true);
+
+        await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection?>(s =>
+            s!.PageNodeIds!.Contains(pageId) && s.MaxVersionsPerNode == null));
+    }
+
+    [Fact]
+    public async Task ExportSelected_ByDefault_AppliesTheHistoryCap()
+    {
+        var pageId = Guid.NewGuid();
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle());
+
+        await _sut.ExportSelected([pageId], null);
+
+        await _staging.Received(1).ExportAsync(Arg.Is<ContentExportSelection?>(s =>
+            s!.MaxVersionsPerNode == ContentExportSelection.DefaultMaxVersionsPerNode));
     }
 
     // ── Server-side preview session ─────────────────────────────────────────

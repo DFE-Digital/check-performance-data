@@ -67,6 +67,72 @@ public class ContentStagingServiceTests
     private static ContentBlockDto Block(int id, string key, string type, string value, Guid contentId = default) =>
         new() { Id = id, ContentId = contentId, Key = key, BlockType = type, Value = value };
 
+    // ── Export version-history controls ────────────────────────────────────
+
+    // A node whose version history is longer than the cap. Versions 1..count, version
+    // `currentVersionId` flagged live.
+    private void NodeWithVersions(int count, int currentVersionId)
+    {
+        _pages.GetTreeAsync().Returns([Node(GuidA, null, "page", "Page")]);
+        _pages.GetVersionsAsync(GuidA).Returns(
+            Enumerable.Range(1, count)
+                .Select(i => Version(i, content: $"v{i}", current: i == currentVersionId))
+                .ToList());
+    }
+
+    // Routine exports carry recent history, not the whole archive. A page with a hundred
+    // versions of embedded images is what turns a 5 MB bundle into a 250 MB one.
+    [Fact]
+    public async Task ExportAsync_ByDefault_KeepsOnlyTheMostRecentVersions()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 12);
+
+        var bundle = await _sut.ExportAsync();
+
+        var versions = bundle.PageNodes.Single().Versions;
+        Assert.Equal(ContentExportSelection.DefaultMaxVersionsPerNode, versions.Count);
+        Assert.Equal([8, 9, 10, 11, 12], versions.Select(v => v.VersionId));
+    }
+
+    // Cross-environment migration still needs the lot; that is what the opt-out is for.
+    [Fact]
+    public async Task ExportAsync_WithFullHistoryRequested_KeepsEveryVersion()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 12);
+
+        var bundle = await _sut.ExportAsync(
+            new ContentExportSelection(new HashSet<Guid> { GuidA }, new HashSet<Guid>(), MaxVersionsPerNode: null));
+
+        Assert.Equal(12, bundle.PageNodes.Single().Versions.Count);
+    }
+
+    // The live version is resolved from publish windows, so it is NOT necessarily the
+    // highest-numbered one: stack a few future-dated drafts on a page and the version the
+    // environment actually serves sits below them. Trimming by recency alone would export a
+    // bundle that renders differently from the environment it came from.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_AlwaysKeepsTheLiveVersion()
+    {
+        NodeWithVersions(count: 12, currentVersionId: 2);
+
+        var bundle = await _sut.ExportAsync();
+
+        var versions = bundle.PageNodes.Single().Versions;
+        Assert.Contains(2, versions.Select(v => v.VersionId));
+        Assert.Equal([2, 8, 9, 10, 11, 12], versions.Select(v => v.VersionId));
+    }
+
+    // Under the cap, nothing is dropped and nothing is reordered.
+    [Fact]
+    public async Task ExportAsync_NodeWithFewerVersionsThanTheCap_IsUntouched()
+    {
+        NodeWithVersions(count: 3, currentVersionId: 3);
+
+        var bundle = await _sut.ExportAsync();
+
+        Assert.Equal([1, 2, 3], bundle.PageNodes.Single().Versions.Select(v => v.VersionId));
+    }
+
     // ── Export ─────────────────────────────────────────────────────────────
 
     [Fact]

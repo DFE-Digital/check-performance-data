@@ -85,14 +85,36 @@
 <h2 class="govuk-heading-l">Export</h2>
 <p class="govuk-body">
     Download pages and content blocks from this environment as a
-    <code>@ContentBundle.CurrentSchema</code> bundle.
+    <code>@ContentBundle.CurrentSchema</code> bundle. Each page brings its most recent
+    @ContentExportSelection.DefaultMaxVersionsPerNode versions, plus whichever version is
+    currently live.
 </p>
-<a draggable="false" class="govuk-button" data-module="govuk-button" href="/admin/content-staging/export" role="button">
-    Export everything
-</a>
-<a draggable="false" class="govuk-button govuk-button--secondary" data-module="govuk-button" href="/admin/content-staging/select" role="button">
-    Choose what to export
-</a>
+
+@* GET so the response is still a plain download the browser can retry from history. An
+   unticked checkbox is simply absent from the query string, which binds to false. *@
+<form method="get" action="/admin/content-staging/export">
+    <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes__item">
+                <input class="govuk-checkboxes__input" id="full-history" name="fullHistory" type="checkbox" value="true">
+                <label class="govuk-label govuk-checkboxes__label" for="full-history">
+                    Include full version history
+                </label>
+                <div id="full-history-hint" class="govuk-hint govuk-checkboxes__hint">
+                    Exports every saved version of every page. Only needed when migrating an
+                    environment wholesale — it can make the bundle many times larger.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="govuk-button" data-module="govuk-button" type="submit">
+        Export everything
+    </button>
+    <a draggable="false" class="govuk-button govuk-button--secondary" data-module="govuk-button" href="/admin/content-staging/select" role="button">
+        Choose what to export
+    </a>
+</form>
 
 <h2 class="govuk-heading-l">Import</h2>
 <p class="govuk-body">

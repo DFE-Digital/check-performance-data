@@ -57,6 +57,12 @@ public sealed class ContentStagingService(
         var tree = await pageNodeRepository.GetTreeAsync();
         var byId = tree.ToDictionary(n => n.Id);
 
+        // A null selection is "export everything", which still gets the default history cap —
+        // the whole-environment export is the one most likely to be enormous.
+        var maxVersionsPerNode = selection is null
+            ? ContentExportSelection.DefaultMaxVersionsPerNode
+            : selection.MaxVersionsPerNode;
+
         var pageItems = new List<PageNodeBundleItem>();
         foreach (var node in OrderPreOrder(tree))
         {
@@ -76,8 +82,7 @@ public sealed class ContentStagingService(
                 SortOrder = node.SortOrder,
                 AppearInSearch = node.AppearInSearch,
                 Keywords = node.Keywords,
-                Versions = versions
-                    .OrderBy(v => v.VersionId)
+                Versions = TrimHistory(versions, maxVersionsPerNode)
                     .Select(v => new PageNodeVersionBundleItem
                     {
                         VersionId = v.VersionId,
@@ -97,11 +102,17 @@ public sealed class ContentStagingService(
             .OrderBy(b => b.Key, StringComparer.Ordinal)
             .ToList();
 
-        if (selection is not null)
+        // Null id sets mean "no filter" — an export can be whole-environment and still carry a
+        // history preference, so the two are decided independently.
+        if (selection?.PageNodeIds is { } selectedPages)
         {
-            var included = ExpandWithAncestors(selection.PageNodeIds, byId);
+            var included = ExpandWithAncestors(selectedPages, byId);
             pageItems = pageItems.Where(i => included.Contains(i.Id)).ToList();
-            blockItems = blockItems.Where(i => selection.ContentBlockIds.Contains(i.Id)).ToList();
+        }
+
+        if (selection?.ContentBlockIds is { } selectedBlocks)
+        {
+            blockItems = blockItems.Where(i => selectedBlocks.Contains(i.Id)).ToList();
         }
 
         return new ContentBundle
@@ -110,6 +121,36 @@ public sealed class ContentStagingService(
             PageNodes = pageItems,
             ContentBlocks = blockItems
         };
+    }
+
+    // Keeps the most recent `max` versions of a node, in ascending version order.
+    //
+    // The live version is always kept, whether or not recency would have caught it. Which
+    // version is live comes from the publish windows (IsCurrent is that resolution, persisted),
+    // so it is NOT necessarily the highest-numbered one — a page carrying several future-dated
+    // drafts serves a version underneath them. Trimming by recency alone would export a bundle
+    // that renders differently from the environment it was taken from, which is the one thing
+    // an export must never do. The kept-live version is rare enough that the result is
+    // `max` items in the ordinary case and `max + 1` in the stacked-drafts case.
+    private static List<PageNodeVersionDto> TrimHistory(List<PageNodeVersionDto> versions, int? max)
+    {
+        if (max is not int cap || versions.Count <= cap)
+        {
+            return versions.OrderBy(v => v.VersionId).ToList();
+        }
+
+        var recent = versions
+            .OrderByDescending(v => v.VersionId)
+            .Take(cap)
+            .ToList();
+
+        var live = versions.FirstOrDefault(v => v.IsCurrent);
+        if (live is not null && recent.TrueForAll(v => v.VersionId != live.VersionId))
+        {
+            recent.Add(live);
+        }
+
+        return recent.OrderBy(v => v.VersionId).ToList();
     }
 
     public async Task<ContentCatalog> GetCatalogAsync()

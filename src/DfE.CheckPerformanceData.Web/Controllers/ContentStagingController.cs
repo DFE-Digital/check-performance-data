@@ -72,13 +72,20 @@ public sealed class ContentStagingController(
         return View();
     }
 
-    // Whole-environment export (the "export everything" convenience button).
+    // Whole-environment export (the "export everything" convenience button). Null id sets ask
+    // for everything; only the history preference is carried.
     [HttpGet("export")]
-    public async Task<IActionResult> Export()
+    public async Task<IActionResult> Export(bool fullHistory = false)
     {
-        var bundle = await staging.ExportAsync();
+        var bundle = await staging.ExportAsync(
+            new ContentExportSelection(MaxVersionsPerNode: MaxVersionsFor(fullHistory)));
         return ExportFile(bundle);
     }
+
+    // "Include full version history" on either export form. Off means the default per-page cap;
+    // on lifts it entirely, which is what a cross-environment migration needs.
+    private static int? MaxVersionsFor(bool fullHistory) =>
+        fullHistory ? null : ContentExportSelection.DefaultMaxVersionsPerNode;
 
     // The selection page: choose which pages and blocks to export.
     [HttpGet("select")]
@@ -91,13 +98,15 @@ public sealed class ContentStagingController(
     // Export only the ticked pages/blocks (ancestors of selected pages are added by the service).
     [HttpPost("export")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ExportSelected(List<Guid>? pageNodeIds, List<Guid>? contentBlockIds)
+    public async Task<IActionResult> ExportSelected(
+        List<Guid>? pageNodeIds, List<Guid>? contentBlockIds, bool fullHistory = false)
     {
         var selection = new ContentExportSelection(
             pageNodeIds?.ToHashSet() ?? [],
-            contentBlockIds?.ToHashSet() ?? []);
+            contentBlockIds?.ToHashSet() ?? [],
+            MaxVersionsFor(fullHistory));
 
-        if (selection.PageNodeIds.Count == 0 && selection.ContentBlockIds.Count == 0)
+        if (selection.PageNodeIds!.Count == 0 && selection.ContentBlockIds!.Count == 0)
         {
             TempData["ContentStagingError"] = "Select at least one page or content block to export.";
             return Redirect("/admin/content-staging/select");

@@ -128,9 +128,13 @@ public sealed class ContentStagingController(
             ContentBlocks = bundle.ContentBlocks
         };
 
-        var bytes = Encoding.UTF8.GetBytes(ContentStagingJson.Serialize(stamped));
-        var fileName = $"cpd-content-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
-        return File(bytes, "application/json", fileName);
+        // Zipped on the wire: bundles are repetitive JSON, so this is roughly an order of
+        // magnitude off the download and the subsequent re-upload into the target environment.
+        // Import sniffs the content, so a bundle exported before this still imports and a
+        // hand-unzipped one does too.
+        var bytes = ContentBundleArchive.ToZip(ContentStagingJson.Serialize(stamped));
+        var fileName = $"cpd-content-{DateTime.UtcNow:yyyyMMdd-HHmmss}.zip";
+        return File(bytes, "application/zip", fileName);
     }
 
     // Content-staging bundles from a real environment are commonly 5–20 MB (they carry
@@ -172,24 +176,29 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
+        // Buffer the upload before decoding it. The 50 MB cap above already bounds this, and the
+        // bytes have to be in hand either way to tell a zipped bundle from a plain one.
+        using var uploaded = new MemoryStream();
+        await bundle.CopyToAsync(uploaded);
+
         string json;
-        // Strict UTF-8: reject invalid byte sequences up front rather than silently
-        // substituting U+FFFD replacement chars, which would corrupt content invisibly
-        // and could round-trip through Import to land malformed strings in the DB.
-        var strictUtf8 = new System.Text.UTF8Encoding(
-            encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
         try
         {
-            // detectEncodingFromByteOrderMarks:false — a leading 0xFF 0xFE would otherwise flip
-            // StreamReader into UTF-16 LE mode, bypassing our strict UTF-8 encoding.
-            using var reader = new StreamReader(
-                bundle.OpenReadStream(), strictUtf8, detectEncodingFromByteOrderMarks: false);
-            json = await reader.ReadToEndAsync();
+            // Sniffs zip vs JSON rather than trusting the extension, decodes as strict UTF-8
+            // (invalid sequences are rejected rather than silently becoming U+FFFD, which would
+            // corrupt content invisibly and could land malformed strings in the DB), and bounds
+            // the decompressed size so a small hostile zip cannot expand to fill memory.
+            json = ContentBundleArchive.ReadBundleJson(uploaded.ToArray(), MaxBundleBytes);
         }
         catch (System.Text.DecoderFallbackException)
         {
             TempData["ContentStagingError"] =
                 "Bundle file contains invalid UTF-8 bytes. Re-export from a supported environment.";
+            return Redirect("/admin/content-staging");
+        }
+        catch (ContentBundleFormatException ex)
+        {
+            TempData["ContentStagingError"] = ex.Message;
             return Redirect("/admin/content-staging");
         }
 

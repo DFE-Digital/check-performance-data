@@ -126,9 +126,12 @@
 
     <div class="govuk-form-group">
         <label class="govuk-label govuk-label--m" for="bundle">Content bundle file</label>
-        <div id="bundle-hint" class="govuk-hint">Select the <code>.json</code> bundle exported from another environment.</div>
+        <div id="bundle-hint" class="govuk-hint">
+            Select the <code>.zip</code> bundle exported from another environment. Bundles
+            exported as <code>.json</code> by earlier releases still work, zipped or not.
+        </div>
         <input class="govuk-file-upload" id="bundle" name="bundle" type="file"
-               accept="application/json,.json" aria-describedby="bundle-hint">
+               accept="application/zip,.zip,application/json,.json" aria-describedby="bundle-hint">
     </div>
 
     <button class="govuk-button" data-module="govuk-button" data-prevent-double-click="true" type="submit">

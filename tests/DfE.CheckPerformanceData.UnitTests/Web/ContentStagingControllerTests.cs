@@ -168,11 +168,11 @@ public sealed class ContentStagingControllerTests
         await _pageNodeRepository.DidNotReceiveWithAnyArgs().TruncateAllContentAsync();
     }
 
-    private static IFormFile FileFrom(string content)
-    {
-        var bytes = Encoding.UTF8.GetBytes(content);
-        return new FormFile(new MemoryStream(bytes), 0, bytes.Length, "bundle", "bundle.json");
-    }
+    private static IFormFile FileFrom(string content) =>
+        FileFrom(Encoding.UTF8.GetBytes(content), "bundle.json");
+
+    private static IFormFile FileFrom(byte[] bytes, string fileName = "bundle.zip") =>
+        new FormFile(new MemoryStream(bytes), 0, bytes.Length, "bundle", fileName);
 
     private static string ValidBundleJson() => ContentStagingJson.Serialize(new ContentBundle
     {
@@ -187,8 +187,13 @@ public sealed class ContentStagingControllerTests
         Assert.Equal(AdminNavKeys.ContentStaging, gate!.SectionKey);
     }
 
+    // The download is a zip now. Unwrap it the way the import side does, so these keep pinning
+    // the bundle's contents rather than its transport.
+    private static string ExportedJson(FileContentResult file) =>
+        ContentBundleArchive.ReadBundleJson(file.FileContents, 50L * 1024 * 1024);
+
     [Fact]
-    public async Task Export_ReturnsJsonFile_StampedWithSchemaAndUser()
+    public async Task Export_ReturnsZipFile_StampedWithSchemaAndUser()
     {
         _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle
         {
@@ -198,9 +203,9 @@ public sealed class ContentStagingControllerTests
         var result = await _sut.Export();
 
         var file = Assert.IsType<FileContentResult>(result);
-        Assert.Equal("application/json", file.ContentType);
-        Assert.EndsWith(".json", file.FileDownloadName);
-        var json = Encoding.UTF8.GetString(file.FileContents);
+        Assert.Equal("application/zip", file.ContentType);
+        Assert.EndsWith(".zip", file.FileDownloadName);
+        var json = ExportedJson(file);
         Assert.Contains(ContentBundle.CurrentSchema, json);
         Assert.Contains("editor@education.gov.uk", json);
     }
@@ -215,11 +220,39 @@ public sealed class ContentStagingControllerTests
 
         var result = await _sut.Export();
 
-        var file = Assert.IsType<FileContentResult>(result);
-        var json = Encoding.UTF8.GetString(file.FileContents);
+        var json = ExportedJson(Assert.IsType<FileContentResult>(result));
         Assert.Contains("schemaVersion", json);
         var roundTripped = ContentStagingJson.Deserialize(json)!;
         Assert.Equal(ContentBundle.CurrentSchemaVersion, roundTripped.SchemaVersion);
+    }
+
+    // The pair that matters most: what Export hands out is exactly what Preview accepts back.
+    [Fact]
+    public async Task Export_ThenPreview_AcceptsItsOwnZippedBundle()
+    {
+        _staging.ExportAsync(Arg.Any<ContentExportSelection?>()).Returns(new ContentBundle
+        {
+            PageNodes = [new() { Id = Guid.NewGuid(), Title = "Alpha", Segment = "alpha", PageType = "content" }]
+        });
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+        var exported = Assert.IsType<FileContentResult>(await _sut.Export());
+
+        var result = await _sut.Preview(FileFrom(exported.FileContents));
+
+        Assert.IsType<ViewResult>(result);
+        await _staging.Received(1).PreviewAsync(Arg.Is<ContentBundle>(b => b.PageNodes.Count == 1));
+    }
+
+    // Bundles downloaded from earlier releases are plain JSON and must keep importing.
+    [Fact]
+    public async Task Preview_StillAcceptsAPlainJsonBundle()
+    {
+        _staging.PreviewAsync(Arg.Any<ContentBundle>()).Returns(new ContentImportPreview([], []));
+
+        var result = await _sut.Preview(FileFrom(ValidBundleJson()));
+
+        Assert.IsType<ViewResult>(result);
+        await _staging.Received(1).PreviewAsync(Arg.Any<ContentBundle>());
     }
 
     [Fact]

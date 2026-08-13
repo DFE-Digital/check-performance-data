@@ -28,6 +28,29 @@
   margin-bottom: 0;
 }
 
+/* On narrow viewports the Search (and optional Clear) buttons' intrinsic widths leave the
+   flex-shrunk input only a few characters wide, so it reads as a broken field — the same
+   failure the landing-page search box had (see .cypmd-search__row further down). Stack the
+   row instead: input full width on its own line, buttons on the lines below. The existing
+   10px flex gap keeps the stacked controls spaced. */
+@media (max-width: 40.0625em) {
+  .pupil-search__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pupil-search__row .govuk-button {
+    align-self: flex-start;
+  }
+}
+
+/* The MOJ pane ships overflow-x: scroll, which on classic-scrollbar platforms (Windows
+   Chrome/Firefox) paints a permanent disabled scrollbar track under every pupil table even
+   when nothing overflows. auto keeps the pane's scroll, shadows and focus behaviour
+   identical when content does overflow, and removes the empty gutter when it doesn't. */
+.moj-scrollable-pane {
+  overflow-x: auto;
+}
+
 .dfe-card-container{
   .govuk-heading-m {
     color: #347CA9;

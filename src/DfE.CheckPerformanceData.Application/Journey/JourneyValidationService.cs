@@ -52,18 +52,27 @@ public sealed class JourneyValidationService(
     public IReadOnlyList<DateFieldViolation> ValidatePageDates(
         JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName)
     {
-        if (!string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
-            return [];
+        // Each rule set owns a disjoint set of pages: the EAL page has its own cross-field rules
+        // (PageDateRules), and the six removal pages share the future-date rule
+        // (RemovalJourneyDateRules). A page can belong to only one, and neither runs on a page
+        // the other owns — the wording (and the whole rule) differ.
+        if (string.Equals(page.Id, PageDateRules.EalDetailsPageId, StringComparison.Ordinal))
+        {
+            DateOnly? Answered(string questionId) =>
+                answers.TryGetValue(questionId, out var answer) ? answer.DateValue?.ToDateOnly() : null;
 
-        DateOnly? Answered(string questionId) =>
-            answers.TryGetValue(questionId, out var answer) ? answer.DateValue?.ToDateOnly() : null;
+            return PageDateRules.Evaluate(
+                Answered(PageDateRules.StartedAtSchool),
+                Answered(PageDateRules.FirstEnglishSchool),
+                Answered(PageDateRules.ArrivedInEngland),
+                UkToday(),
+                pupilName);
+        }
 
-        return PageDateRules.Evaluate(
-            Answered(PageDateRules.StartedAtSchool),
-            Answered(PageDateRules.FirstEnglishSchool),
-            Answered(PageDateRules.ArrivedInEngland),
-            UkToday(),
-            pupilName);
+        if (RemovalJourneyDateRules.AppliesToPage(page.Id))
+            return RemovalJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
+
+        return [];
     }
 
     private DateOnly UkToday() => DateOnly.FromDateTime(
@@ -71,17 +80,26 @@ public sealed class JourneyValidationService(
 
     public string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null)
     {
+        // The six removal journeys want the question's own "Enter the date …" wording for every
+        // invalid-date failure, not the generic messages. Scoped to the removal date question
+        // ids so the excluded EAL page and any generic date question keep their messages; the
+        // blank case still honours resolvedValidationFailure as it always has.
+        var scopedDateFailure = resolvedValidationFailure is not null &&
+            RemovalJourneyDateRules.RemovalDateQuestionIds.Contains(question.Id)
+            ? resolvedValidationFailure
+            : null;
+
         var baseError = question.Type switch
         {
             QuestionType.Date when answer.DateValue is not { Day: > 0, Month: > 0, Year: > 0 }
-                => resolvedValidationFailure ?? $"{resolvedTitle} is required",
+                => scopedDateFailure ?? resolvedValidationFailure ?? $"{resolvedTitle} is required",
             // A 4-digit year is required (GOV.UK date input pattern): "26" would otherwise be
             // accepted as the literal year 0026. Checked before IsValidDate, which must only
             // see years DateTime.DaysInMonth accepts (1-9999).
             QuestionType.Date when answer.DateValue!.Year is < 1000 or > 9999
-                => $"{resolvedTitle} must include a 4-digit year",
+                => scopedDateFailure ?? $"{resolvedTitle} must include a 4-digit year",
             QuestionType.Date when !IsValidDate(answer.DateValue!)
-                => $"{resolvedTitle} must be a real date",
+                => scopedDateFailure ?? $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
             QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value

@@ -409,7 +409,7 @@
           "title": "When was {pupilName} removed from your roll?",
           "hint": "For example, 27 3 2026",
           "summaryTitle": "Date removed from roll",
-          "validationFailure": "Enter the date {pupilName} was removed from your roll"
+          "validationFailure": "Enter the date {pupilName} was removed from your school roll"
         }
       ]
     },

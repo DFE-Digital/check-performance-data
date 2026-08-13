@@ -12,7 +12,7 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
     [Fact]
     public void FileUploadPartial_RendersExistingFileNamesDataAttribute()
     {
-        var source = ReadWebFile(@"Views\Journey\_FileUpload.cshtml");
+        var source = ReadWebFile("Views", "Journey", "_FileUpload.cshtml");
         Assert.Contains("data-existing-file-names", source);
         Assert.Contains("JsonSerializer.Serialize(Model.ExistingFileNames)", source);
     }
@@ -20,14 +20,14 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
     [Fact]
     public void Layout_RegistersEvidenceUploadValidationScript()
     {
-        var source = ReadWebFile(@"Views\Shared\_Layout.cshtml");
+        var source = ReadWebFile("Views", "Shared", "_Layout.cshtml");
         Assert.Contains("evidence-upload-validation.js", source);
     }
 
     [Fact]
     public void Script_UsesTicketWording_AndNeverDisablesTheUploadPath()
     {
-        var source = ReadWebFile(@"wwwroot\js\evidence-upload-validation.js");
+        var source = ReadWebFile("wwwroot", "js", "evidence-upload-validation.js");
         Assert.Contains(TicketWording, source);
         // Courtesy warning only: the script must not block the server round-trip. Matched
         // as code shapes, not bare words, so a comment mentioning "disabled" or "submit"
@@ -44,7 +44,7 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
         // Reader-side wiring: the writer side (_FileUpload.cshtml) is pinned above, but the
         // script could silently stop consuming the attribute or drop the accessible error
         // markup without failing any test (review finding, AB#296081).
-        var source = ReadWebFile(@"wwwroot\js\evidence-upload-validation.js");
+        var source = ReadWebFile("wwwroot", "js", "evidence-upload-validation.js");
         Assert.Contains("data-existing-file-names", source);
         Assert.Contains("govuk-error-message", source);
         Assert.Contains("govuk-visually-hidden", source);
@@ -56,18 +56,21 @@ public sealed class EvidenceUploadDuplicateWarningViewSourceTests
     [Fact]
     public void ServerAndClient_ShareTheExactTicketWording()
     {
-        var service = ReadSrcFile(@"DfE.CheckPerformanceData.Application\Journey\JourneyValidationService.cs");
+        var service = ReadSrcFile("DfE.CheckPerformanceData.Application", "Journey", "JourneyValidationService.cs");
         Assert.Contains(TicketWording, service);
     }
 
     // ReadWebFile / ReadSrcFile: build on the LayoutRenderTests path-resolution helper,
-    // rooted at src\DfE.CheckPerformanceData.Web\ and src\ respectively.
+    // rooted at src/DfE.CheckPerformanceData.Web and src respectively. Callers pass one
+    // segment per directory and let Path.Combine insert the separator: CI builds and runs
+    // these tests on Linux, where a literal "Views\Shared\_Layout.cshtml" is not a path
+    // but a single legal filename, so an embedded backslash passes on Windows and throws
+    // FileNotFoundException on the runner.
+    private static string ReadWebFile(params string[] relativeSegments) =>
+        ReadSrcFile(["DfE.CheckPerformanceData.Web", .. relativeSegments]);
 
-    private static string ReadWebFile(string relativePath) =>
-        File.ReadAllText(Path.Combine(SrcRoot(), "DfE.CheckPerformanceData.Web", relativePath));
-
-    private static string ReadSrcFile(string relativePath) =>
-        File.ReadAllText(Path.Combine(SrcRoot(), relativePath));
+    private static string ReadSrcFile(params string[] relativeSegments) =>
+        File.ReadAllText(Path.Combine([SrcRoot(), .. relativeSegments]));
 
     private static string SrcRoot()
     {

@@ -43,6 +43,14 @@
   }
 }
 
+/* The MOJ pane ships overflow-x: scroll, which on classic-scrollbar platforms (Windows
+   Chrome/Firefox) paints a permanent disabled scrollbar track under every pupil table even
+   when nothing overflows. auto keeps the pane's scroll, shadows and focus behaviour
+   identical when content does overflow, and removes the empty gutter when it doesn't. */
+.moj-scrollable-pane {
+  overflow-x: auto;
+}
+
 .dfe-card-container{
   .govuk-heading-m {
     color: #347CA9;

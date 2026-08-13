@@ -28,7 +28,7 @@ public sealed class CheckYourPupilDataResponsiveViewSourceTests
 
         // And the stack must be a column with full-width children, not just any media rule.
         var mediaIndex = css.IndexOf("@media (max-width: 40.0625em) {\n  .pupil-search__row {", StringComparison.Ordinal);
-        var block = css[mediaIndex..(mediaIndex + 400)];
+        var block = css[mediaIndex..Math.Min(mediaIndex + 400, css.Length)];
         Assert.Contains("flex-direction: column", block);
         Assert.Contains("align-items: stretch", block);
     }
@@ -40,16 +40,17 @@ public sealed class CheckYourPupilDataResponsiveViewSourceTests
 
         // MOJ scrollable pane (CSS ships in moj-frontend-9.0.0.min.css, already linked by
         // _Layout) gives wide KS4 tables horizontal scroll instead of off-screen overflow.
-        Assert.Contains("moj-scrollable-pane", view);
-
+        // Assert the full opening tag as one literal — role="region" alone also matches the
+        // unrelated "no data" alert markup earlier in this view, and separate attribute
+        // assertions wouldn't prove tabindex/role/aria-label all sit on the same element.
         // The scroll region must be keyboard-reachable and announceable: tabindex lets
         // keyboard users scroll it (WCAG 2.1.1), role+label give it an accessible name.
-        Assert.Contains("tabindex=\"0\"", view);
-        Assert.Contains("role=\"region\"", view);
-        Assert.Contains("aria-label=\"@Model.Section.Heading\"", view);
+        const string paneOpenTag =
+            "<div class=\"moj-scrollable-pane\" role=\"region\" tabindex=\"0\" aria-label=\"@Model.Section.Heading\">";
+        Assert.Contains(paneOpenTag, view);
 
         // The pane must open before the table partial renders, i.e. it wraps the table.
-        var paneIndex = view.IndexOf("moj-scrollable-pane", StringComparison.Ordinal);
+        var paneIndex = view.IndexOf(paneOpenTag, StringComparison.Ordinal);
         var tableIndex = view.IndexOf("_PupilTable", StringComparison.Ordinal);
         Assert.True(paneIndex >= 0 && paneIndex < tableIndex,
             "the moj-scrollable-pane container must wrap the _PupilTable partial");

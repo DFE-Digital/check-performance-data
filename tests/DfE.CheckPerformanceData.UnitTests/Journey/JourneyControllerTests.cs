@@ -722,6 +722,116 @@ public class JourneyControllerTests
         Assert.IsType<RedirectToActionResult>(result);
     }
 
+    // The same four behaviours against a removal journey page. The controller substitutes
+    // ValidatePageDates, so what matters here is the wiring (raw question id as ModelState key,
+    // first-error-wins, the date_inconsistent code, advance on no violations), not the rule.
+
+    [Fact]
+    public async Task PagePost_RemovalDateRuleViolation_AddsTheErrorUnderTheQuestionId()
+    {
+        SetupRemovalDatePage();
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation(
+                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "Date Jane Smith was removed from your school roll must be in the past")]);
+        SetupSession(ValidSession(history: ["pupil-died"]));
+        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+
+        var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("Page", view.ViewName);
+        Assert.False(_sut.ModelState.IsValid);
+        Assert.Equal("Date Jane Smith was removed from your school roll must be in the past",
+            _sut.ModelState[RemovalJourneyDateRules.DateRemovedFromRoll]!.Errors.Single().ErrorMessage);
+    }
+
+    [Fact]
+    public async Task PagePost_RemovalDateRuleViolation_DoesNotDisplaceAFormatError()
+    {
+        SetupRemovalDatePage();
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter a real date");
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation(
+                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "Date Jane Smith was removed from your school roll must be in the past")]);
+        SetupSession(ValidSession(history: ["pupil-died"]));
+        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+
+        var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
+
+        Assert.IsType<ViewResult>(result);
+        Assert.Equal("Enter a real date",
+            _sut.ModelState[RemovalJourneyDateRules.DateRemovedFromRoll]!.Errors.Single().ErrorMessage);
+    }
+
+    [Fact]
+    public async Task PagePost_RemovalDateRuleViolation_IsCodedAsInconsistentNotBadDate()
+    {
+        SetupRemovalDatePage();
+        _journeyService.IsAnswered(Arg.Any<Question>(), Arg.Any<QuestionAnswer>()).Returns(true);
+        _journeyService.ValidatePageDates(Arg.Any<JourneyPage>(),
+                Arg.Any<IReadOnlyDictionary<string, QuestionAnswer>>(), Arg.Any<string>())
+            .Returns([new DateFieldViolation(
+                RemovalJourneyDateRules.DateRemovedFromRoll,
+                "Date Jane Smith was removed from your school roll must be in the past")]);
+        SetupSession(ValidSession(history: ["pupil-died"]));
+        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2027");
+
+        await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
+
+        await _analytics.Received(1).TrackAsync(
+            Arg.Is<ValidationErrorEvent>(e =>
+                e.ErrorCodes.Contains("date_inconsistent") && !e.ErrorCodes.Contains("bad_date")),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task PagePost_RemovalDateNoViolations_StillAdvances()
+    {
+        SetupRemovalDatePage();
+        SetupSession(ValidSession(history: ["pupil-died"]));
+        PostSingleDate(RemovalJourneyDateRules.DateRemovedFromRoll, year: "2026");
+
+        var result = await _sut.PagePost(WindowId, "pupil-died", fromSummary: false);
+
+        Assert.IsType<RedirectToActionResult>(result);
+    }
+
+    private void SetupRemovalDatePage()
+    {
+        var page = new JourneyPage
+        {
+            Id = RemovalJourneyDateRules.PupilDiedPageId,
+            Questions =
+            [
+                new Question
+                {
+                    Id = RemovalJourneyDateRules.DateRemovedFromRoll,
+                    Type = QuestionType.Date,
+                    Title = "Date the pupil was removed from your roll"
+                }
+            ],
+            NextPageId = "page-2"
+        };
+        _flowService.GetPage(Config, RemovalJourneyDateRules.PupilDiedPageId).Returns(page);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, RemovalJourneyDateRules.PupilDiedPageId, Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("page-2");
+    }
+
+    private void PostSingleDate(string questionId, string year) =>
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            [$"q_{questionId}_day"] = "4",
+            [$"q_{questionId}_month"] = "9",
+            [$"q_{questionId}_year"] = year
+        });
+
     private void SetupDatePage()
     {
         var datePage = new JourneyPage

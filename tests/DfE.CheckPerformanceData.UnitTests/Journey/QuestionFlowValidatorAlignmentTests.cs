@@ -109,6 +109,76 @@ public sealed class QuestionFlowValidatorAlignmentTests
             $"is now mandatory, confirm that is still the intended behaviour.");
     }
 
+    /// <summary>
+    /// The same guard for the removal journey date rules in
+    /// <see cref="RemovalJourneyDateRules"/>. The six removal page ids and their three date
+    /// question ids are addressed by code, and nothing at runtime notices if one is renamed in
+    /// the flow JSON — the future-date check would simply stop matching and the validation would
+    /// silently stop happening.
+    /// </summary>
+    [Fact]
+    public void RemovalJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
+    {
+        string[] removalPageIds =
+        [
+            RemovalJourneyDateRules.PermanentExclusionPageId,
+            RemovalJourneyDateRules.ChildMissingEducationPageId,
+            RemovalJourneyDateRules.PupilDiedPageId,
+            RemovalJourneyDateRules.ElectiveHomeEducationPageId,
+            RemovalJourneyDateRules.PermanentlyExcludedPageId,
+            RemovalJourneyDateRules.PermanentlyLeftEnglandPageId
+        ];
+
+        foreach (var pageId in removalPageIds)
+        {
+            var page = AllFlowPages().SingleOrDefault(p => p.Page.Id == pageId);
+            Assert.True(page.Page is not null,
+                $"No flow config contains a page '{pageId}', which RemovalJourneyDateRules " +
+                $"addresses by id — its future-date rule would never run.");
+
+            var inScopeDateQuestions = page.Page!.Questions
+                .Where(q => q.Type == QuestionType.Date
+                    && RemovalJourneyDateRules.RemovalDateQuestionIds.Contains(q.Id))
+                .ToList();
+
+            Assert.True(inScopeDateQuestions.Count == 1,
+                $"{page.File}: page '{pageId}' should carry exactly one in-scope Date question " +
+                $"(a single removal/exclusion date compared against today), but found " +
+                $"{inScopeDateQuestions.Count}: {string.Join(", ", inScopeDateQuestions.Select(q => q.Id))}.");
+        }
+
+        // The three date question ids must all be covered by the config, so a typo'd constant
+        // (or a renamed question) cannot silently leave one rule without a target page.
+        foreach (var questionId in RemovalJourneyDateRules.RemovalDateQuestionIds)
+        {
+            var page = AllFlowPages().FirstOrDefault(p =>
+                p.Page.Questions.Any(q => q.Id == questionId));
+            Assert.True(page.Page is not null,
+                $"No flow config page contains a question '{questionId}', which " +
+                $"RemovalJourneyDateRules evaluates — that rule would silently never fire.");
+        }
+    }
+
+    /// <summary>
+    /// Pins the scenario-006 invalid-date wording. The removal journeys substitute the
+    /// question's own <c>validationFailure</c> for every invalid-date failure, so this string
+    /// is the message users see — a copy edit here changes what gets shown. The generic EAL
+    /// wording must NOT replace it (that page is excluded from the substitution).
+    /// </summary>
+    [Fact]
+    public void PermanentlyLeftEngland_RollDateValidationFailure_IsThePinnedWording()
+    {
+        var page = AllFlowPages().Single(p => p.Page.Id == RemovalJourneyDateRules.PermanentlyLeftEnglandPageId);
+
+        var validationFailure = page.Page.Questions
+            .Single(q => q.Id == RemovalJourneyDateRules.DateRemovedFromRoll)
+            .ValidationFailure;
+
+        Assert.Equal(
+            "Enter the date {pupilName} was removed from your school roll",
+            validationFailure);
+    }
+
     private static IEnumerable<string> ReferencedConditionNames(Question question)
     {
         foreach (var name in question.OptionalWhen ?? [])

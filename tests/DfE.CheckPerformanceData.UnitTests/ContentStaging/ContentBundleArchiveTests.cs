@@ -152,6 +152,27 @@ public class ContentBundleArchiveTests
         Assert.Equal(json, ContentBundleArchive.ReadBundleJson(buffer.ToArray(), Cap));
     }
 
+    // ZipArchiveEntry.Name is the leaf filename, so matching on it would let a nested
+    // payload/bundle.json win over the root one an operator sees when they open the archive.
+    // What gets imported has to be what the file appears to contain.
+    [Fact]
+    public void Read_ZipWithANestedBundleJson_PrefersTheRootEntry()
+    {
+        using var buffer = new MemoryStream();
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            // Written first so it would be found first by any FirstOrDefault over Entries.
+            using (var nested = new StreamWriter(archive.CreateEntry("payload/bundle.json").Open()))
+            {
+                nested.Write("{\"which\":\"nested\"}");
+            }
+            using var root = new StreamWriter(archive.CreateEntry("bundle.json").Open());
+            root.Write("{\"which\":\"root\"}");
+        }
+
+        Assert.Equal("{\"which\":\"root\"}", ContentBundleArchive.ReadBundleJson(buffer.ToArray(), Cap));
+    }
+
     private static byte[] ZipContaining(string entryName, byte[] content)
     {
         using var buffer = new MemoryStream();

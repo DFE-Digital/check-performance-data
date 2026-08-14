@@ -79,11 +79,18 @@ public static class ContentBundleArchive
 
         using (archive)
         {
-            // Prefer the .json entry over whatever happens to come first: a zip round-tripped
-            // through macOS picks up __MACOSX resource forks that would otherwise shadow it.
+            // An export is defined as a single entry named exactly bundle.json at the root, so
+            // that is matched on FullName and taken first. Matching on Name instead would match
+            // the leaf of any path, and a nested payload/bundle.json sorted earlier would then
+            // be imported in preference to the bundle.json an operator sees when they open the
+            // archive — what gets imported has to be what the file appears to contain.
+            //
+            // The looser searches exist only for archives we did not write: a bundle re-zipped
+            // by hand, or one round-tripped through macOS, which picks up __MACOSX resource
+            // forks that would otherwise shadow the real entry.
             var entry =
                 archive.Entries.FirstOrDefault(e =>
-                    e.Name.Equals(EntryName, StringComparison.OrdinalIgnoreCase))
+                    e.FullName.Equals(EntryName, StringComparison.OrdinalIgnoreCase))
                 ?? archive.Entries.FirstOrDefault(e =>
                     e.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                     && !e.FullName.StartsWith("__MACOSX/", StringComparison.Ordinal))

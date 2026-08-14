@@ -216,7 +216,7 @@ public sealed class ContentStagingController(
         catch (ContentImportValidationException ex)
         {
             TempData["ContentStagingError"] =
-                "Bundle failed validation:\n" + string.Join("\n", ex.Issues.Select(i => "• " + i.Message));
+                "Bundle failed validation:\n" + Banner(ex.Issues.Select(i => "• " + i.Message).ToList());
             return Redirect("/admin/content-staging");
         }
         // Sweep before storing. A session table that only ever holds in-flight previews needs no
@@ -269,8 +269,18 @@ public sealed class ContentStagingController(
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
     // overrides. The body is a session id plus the mode radios, so it stays small no matter how
     // big the bundle is — the bundle itself never left the server.
+    // The body is small — a session id and the mode radios — but it is not short. The preview
+    // renders a row per item and each row posts two fields, so a bundle of a few hundred items
+    // runs past FormOptions.ValueCountLimit, which defaults to 1024. That limit rejects the
+    // request at the model binder with the same empty-body 400 this flow set out to eliminate,
+    // so with the bundle no longer round-tripping, the field COUNT becomes the binding ceiling
+    // where the field SIZE used to be. The validator admits 5000 pages plus 5000 blocks; allow
+    // enough fields for those to be decided individually, with headroom for the form's own.
+    private const int MaxImportFormValues = 4 * 5000 + 64;
+
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
+    [RequestFormLimits(ValueCountLimit = MaxImportFormValues)]
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
@@ -309,20 +319,36 @@ public sealed class ContentStagingController(
             var result = await staging.ImportAsync(parsed!, model.GlobalMode, decisions, model.GlobalNewMode);
             TempData["ContentStagingResult"] = BuildSummary(result);
             if (result.Errors.Count > 0)
-                TempData["ContentStagingError"] = string.Join("\n", result.Errors);
+                TempData["ContentStagingError"] = Banner(result.Errors);
             if (result.Warnings.Count > 0)
-                TempData["ContentStagingWarnings"] = string.Join("\n", result.Warnings);
+                TempData["ContentStagingWarnings"] = Banner(result.Warnings);
 
             // Forensic trail — every bulk destructive admin action lands in AuditEntries so
             // an incident-responder can reconstruct "who imported what, when" without
             // grepping app logs. Only successful imports are recorded (failed imports have
             // no net effect worth tracing). Matches QueueAdminController's audit pattern.
-            await WriteImportAuditAsync(result, bundleJson!.Length);
+            //
+            // Outside the session delete below, and swallowing its own failure: the import has
+            // already been applied at this point, so letting an audit-write error reach the
+            // outer catch would report "import failed" for an import that succeeded, and leave
+            // the session inviting a re-run.
+            try
+            {
+                await WriteImportAuditAsync(result, bundleJson!.Length);
+            }
+            catch (Exception auditEx)
+            {
+                logger.LogError(auditEx, "Import controller: the import succeeded but its audit entry could not be written");
+            }
 
-            // The session is a ticket, spent once the bundle has landed. It is deliberately kept
-            // on any failure below: the operator can fix the cause and confirm again without
-            // re-uploading a bundle that may have taken minutes to transfer.
-            await sessions.DeleteAsync(model.SessionId);
+            // The session is a ticket, spent once the bundle has fully landed. It is kept
+            // whenever anything went wrong — including per-item errors, which leave part of the
+            // bundle unapplied — so the operator can fix the cause and confirm again without
+            // re-uploading something that may have taken minutes to transfer.
+            if (result.Errors.Count == 0)
+            {
+                await sessions.DeleteAsync(model.SessionId);
+            }
         }
         catch (ContentImportConflictException ex)
         {
@@ -334,7 +360,7 @@ public sealed class ContentStagingController(
             // with. Surface the specific issues rather than a generic message so the operator
             // can see exactly what's wrong with the payload.
             TempData["ContentStagingError"] =
-                "Bundle failed validation on import:\n" + string.Join("\n", ex.Issues.Select(i => "• " + i.Message));
+                "Bundle failed validation on import:\n" + Banner(ex.Issues.Select(i => "• " + i.Message).ToList());
         }
         catch (Exception ex)
         {
@@ -386,6 +412,27 @@ public sealed class ContentStagingController(
 
         error = null;
         return true;
+    }
+
+    // How many individual messages a banner will list before summarising the rest.
+    //
+    // TempData here is cookie-backed, so whatever goes in comes back up as request headers on
+    // the redirect. A bundle may carry thousands of items and the validator emits an issue per
+    // bad one, so joining them all could produce tens of kilobytes of cookie and push every
+    // subsequent request past Kestrel's header limit — a 431 for that browser until its cookies
+    // are cleared, triggered by uploading one junk file. The first few messages are what an
+    // operator acts on anyway; the count tells them how much more there is.
+    private const int MaxBannerMessages = 20;
+
+    private static string Banner(IReadOnlyCollection<string> messages)
+    {
+        if (messages.Count <= MaxBannerMessages)
+        {
+            return string.Join("\n", messages);
+        }
+
+        return string.Join("\n", messages.Take(MaxBannerMessages))
+               + $"\n… and {messages.Count - MaxBannerMessages} more. See the application logs for the full list.";
     }
 
     private static string BuildSummary(ContentImportResult r) =>

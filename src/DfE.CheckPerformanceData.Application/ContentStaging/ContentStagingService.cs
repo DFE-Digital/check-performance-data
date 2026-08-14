@@ -123,15 +123,27 @@ public sealed class ContentStagingService(
         };
     }
 
-    // Keeps the most recent `max` versions of a node, in ascending version order.
+    // Keeps the most recent `max` versions of a node, in ascending version order, plus every
+    // version the target environment would still need to behave like the source.
     //
-    // The live version is always kept, whether or not recency would have caught it. Which
-    // version is live comes from the publish windows (IsCurrent is that resolution, persisted),
-    // so it is NOT necessarily the highest-numbered one — a page carrying several future-dated
-    // drafts serves a version underneath them. Trimming by recency alone would export a bundle
-    // that renders differently from the environment it was taken from, which is the one thing
-    // an export must never do. The kept-live version is rare enough that the result is
-    // `max` items in the ordinary case and `max + 1` in the stacked-drafts case.
+    // Two kinds of version are kept regardless of recency, because losing either changes what
+    // the environment does rather than merely how much history it remembers:
+    //
+    //  * The one that is live NOW. Liveness is resolved from the publish windows on every
+    //    request, so it is not necessarily the highest-numbered version — a page carrying a
+    //    stack of unpublished drafts serves something underneath them. Resolved here with the
+    //    same LiveVersionResolver the renderer uses, deliberately NOT with the IsCurrent
+    //    column: that column is a cache written only when something writes to the page, and
+    //    nothing recomputes it as time passes, so a temporary notice that expired months ago
+    //    still carries the flag while the site has long since fallen back to an older version.
+    //    Trusting it would drop the version actually being served and, where the stale one's
+    //    window has closed, leave the imported page with no live version at all.
+    //
+    //  * Anything scheduled to go live later. A future-dated version is not current yet and is
+    //    not recent once drafts pile on top of it, so both other rules miss it — and the
+    //    scheduled publish would then simply never happen in the target.
+    //
+    // Both are rare, so in the ordinary case this returns exactly `max` versions.
     private static List<PageNodeVersionDto> TrimHistory(List<PageNodeVersionDto> versions, int? max)
     {
         if (max is not int cap || versions.Count <= cap)
@@ -139,18 +151,27 @@ public sealed class ContentStagingService(
             return versions.OrderBy(v => v.VersionId).ToList();
         }
 
-        var recent = versions
-            .OrderByDescending(v => v.VersionId)
-            .Take(cap)
-            .ToList();
+        var nowUtc = DateTime.UtcNow;
+        var kept = versions.OrderByDescending(v => v.VersionId).Take(cap).ToList();
+        var keptIds = kept.Select(v => v.VersionId).ToHashSet();
 
-        var live = versions.FirstOrDefault(v => v.IsCurrent);
-        if (live is not null && recent.TrueForAll(v => v.VersionId != live.VersionId))
+        var liveId = LiveVersionResolver.Resolve(
+            versions.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo)),
+            nowUtc);
+        if (liveId is int id && keptIds.Add(id))
         {
-            recent.Add(live);
+            kept.Add(versions.First(v => v.VersionId == id));
         }
 
-        return recent.OrderBy(v => v.VersionId).ToList();
+        foreach (var scheduled in versions.Where(v => v.PublishFrom is { } from && from > nowUtc))
+        {
+            if (keptIds.Add(scheduled.VersionId))
+            {
+                kept.Add(scheduled);
+            }
+        }
+
+        return kept.OrderBy(v => v.VersionId).ToList();
     }
 
     public async Task<ContentCatalog> GetCatalogAsync()

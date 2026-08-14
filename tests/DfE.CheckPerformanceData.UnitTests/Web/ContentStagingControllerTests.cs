@@ -458,6 +458,64 @@ public sealed class ContentStagingControllerTests
         await _sessions.Received(1).DeleteAsync(sessionId, Arg.Any<CancellationToken>());
     }
 
+    // A per-item failure leaves part of the bundle unapplied, so the session has to survive for
+    // the same reason a thrown import does — the operator fixes the cause and confirms again.
+    [Fact]
+    public async Task Import_WithPerItemErrors_KeepsTheSessionForRetry()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        var partial = new ContentImportResult { PageNodesCreated = 1 };
+        partial.Errors.Add("Skipped 'a/b' — parent not found.");
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(partial);
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        await _sessions.DidNotReceive().DeleteAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+    }
+
+    // An audit-write failure must not be reported as an import failure: the import has already
+    // been applied by then, and saying otherwise invites a re-run.
+    [Fact]
+    public async Task Import_WhenTheAuditWriteFails_StillReportsSuccess()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        dbContext.SaveChangesAsync(Arg.Any<CancellationToken>())
+            .Returns<int>(_ => throw new InvalidOperationException("audit table unavailable"));
+        var sut = NewSutWith(dbContext);
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+
+        await sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        Assert.NotNull(sut.TempData["ContentStagingResult"]);
+        Assert.Null(sut.TempData["ContentStagingError"]);
+    }
+
+    // A long list of validation issues goes into cookie-backed TempData and comes back up as
+    // request headers on the redirect, so it has to be bounded or one junk upload 431s the
+    // browser until its cookies are cleared.
+    [Fact]
+    public async Task Import_WithVeryManyErrors_TruncatesTheBanner()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        var noisy = new ContentImportResult();
+        for (var i = 0; i < 500; i++) noisy.Errors.Add($"Item {i} failed for some long-winded reason.");
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(noisy);
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        var banner = _sut.TempData["ContentStagingError"] as string;
+        Assert.NotNull(banner);
+        Assert.Contains("and 480 more", banner);
+        Assert.True(banner!.Length < 4096, $"banner was {banner.Length} chars — too big for a cookie");
+    }
+
     // A failed import keeps its session, so the operator can fix the cause and confirm again
     // without re-uploading a bundle that may have taken minutes to transfer.
     [Fact]

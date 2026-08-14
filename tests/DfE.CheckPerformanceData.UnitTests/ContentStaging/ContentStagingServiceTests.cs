@@ -69,15 +69,27 @@ public class ContentStagingServiceTests
 
     // ── Export version-history controls ────────────────────────────────────
 
-    // A node whose version history is longer than the cap. Versions 1..count, version
-    // `currentVersionId` flagged live.
+    private static readonly DateTime LongAgo = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime FarFuture = new(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+    // A node whose version history is longer than the cap. Versions 1..count; version
+    // `currentVersionId` carries an open-ended publish window that started long ago, so it is
+    // genuinely the one the environment serves. The rest are unpublished drafts.
     private void NodeWithVersions(int count, int currentVersionId)
     {
         _pages.GetTreeAsync().Returns([Node(GuidA, null, "page", "Page")]);
         _pages.GetVersionsAsync(GuidA).Returns(
             Enumerable.Range(1, count)
-                .Select(i => Version(i, content: $"v{i}", current: i == currentVersionId))
+                .Select(i => i == currentVersionId
+                    ? Version(i, content: $"v{i}", from: LongAgo, current: true)
+                    : Version(i, content: $"v{i}"))
                 .ToList());
+    }
+
+    private void NodeWithExactVersions(params PageNodeVersionDto[] versions)
+    {
+        _pages.GetTreeAsync().Returns([Node(GuidA, null, "page", "Page")]);
+        _pages.GetVersionsAsync(GuidA).Returns(versions.ToList());
     }
 
     // Routine exports carry recent history, not the whole archive. A page with a hundred
@@ -120,6 +132,51 @@ public class ContentStagingServiceTests
         var versions = bundle.PageNodes.Single().Versions;
         Assert.Contains(2, versions.Select(v => v.VersionId));
         Assert.Equal([2, 8, 9, 10, 11, 12], versions.Select(v => v.VersionId));
+    }
+
+    // IsCurrent is a cache, written only when something writes to the page — nothing recomputes
+    // it as time passes. The page a visitor gets is resolved fresh from the publish windows on
+    // every request, so the flag and reality drift apart the moment a temporary notice expires.
+    //
+    // Here v1 has been live since 2024 with an open-ended window; v2 was a notice that expired in
+    // February and still carries the stale flag; v3+ are drafts. Trusting IsCurrent would keep v2
+    // and drop v1 — and since v2's window has closed and the drafts have none, the imported page
+    // would have no live version at all and 404 in the target.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsTheVersionTheSiteServes_NotAStaleIsCurrentFlag()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live-since-2024", from: LongAgo),
+                Version(2, content: "expired-notice", from: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    to: new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), current: true),
+                .. Enumerable.Range(3, 10).Select(i => Version(i, content: $"draft{i}")),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(1, kept);
+    }
+
+    // A version scheduled to go live later is not current yet and is not recent, so recency plus
+    // liveness would both miss it — and the scheduled publish would simply never happen in the
+    // target environment.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsVersionsScheduledForTheFuture()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live", from: LongAgo, current: true),
+                Version(2, content: "scheduled", from: FarFuture),
+                .. Enumerable.Range(3, 10).Select(i => Version(i, content: $"draft{i}")),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(1, kept);
+        Assert.Contains(2, kept);
     }
 
     // Under the cap, nothing is dropped and nothing is reordered.

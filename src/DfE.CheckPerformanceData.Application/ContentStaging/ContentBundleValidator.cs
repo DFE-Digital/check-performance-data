@@ -128,6 +128,20 @@ public static partial class ContentBundleValidator
                 $"Page '{label}' uses reserved Segment '{page.Segment}'."));
         }
 
+        // Creating a content or wiki page always writes an initial version, so a non-folder
+        // page with no versions is not a state the CMS can produce — it comes from a
+        // hand-edited bundle or a faulty export. It imports without complaint and lands a page
+        // in the tree that resolves to no live version and permanently 404s, and a re-export
+        // carries it onward. Not fatal, because refusing a whole bundle over one such page
+        // would be a harsher change than the defect warrants, but the operator has to be told.
+        if (page.PageType is "content" or "wiki" && page.Versions.Count == 0)
+        {
+            issues.Add(new ValidationIssue(
+                ValidationSeverity.Warning,
+                "PAGE_HAS_NO_VERSIONS",
+                $"Page '{label}' is a {page.PageType} page with no versions — it will not render until content is added."));
+        }
+
         // Wiki pages carry HTML that hits the sanitiser + render pipeline; content pages
         // carry widget-tree JSON that can legitimately include base64-encoded embedded
         // images. Apply the right cap per PageType and skip the check for folders

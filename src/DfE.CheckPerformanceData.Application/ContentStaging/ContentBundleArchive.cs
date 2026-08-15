@@ -66,18 +66,25 @@ public static class ContentBundleArchive
 
     private static byte[] Inflate(byte[] zipped, long maxDecompressedBytes)
     {
-        ZipArchive archive;
+        // Every step here is inside one guard, because a zip is parsed lazily and in stages:
+        // the constructor reads the End Of Central Directory record, enumerating Entries parses
+        // the central directory, and Open/read inflates the data. Corruption anywhere raises
+        // InvalidDataException at whichever stage first touches it, so guarding only the
+        // obvious stages leaves the rest reaching the operator as a 500 instead of a banner.
         try
         {
-            archive = new ZipArchive(new MemoryStream(zipped), ZipArchiveMode.Read);
+            return ReadEntry(zipped, maxDecompressedBytes);
         }
         catch (InvalidDataException ex)
         {
             throw new ContentBundleFormatException(
                 $"The bundle file is not a readable zip archive ({ex.Message}).");
         }
+    }
 
-        using (archive)
+    private static byte[] ReadEntry(byte[] zipped, long maxDecompressedBytes)
+    {
+        using (var archive = new ZipArchive(new MemoryStream(zipped), ZipArchiveMode.Read))
         {
             // An export is defined as a single entry named exactly bundle.json at the root, so
             // that is matched on FullName and taken first. Matching on Name instead would match
@@ -87,14 +94,23 @@ public static class ContentBundleArchive
             //
             // The looser searches exist only for archives we did not write: a bundle re-zipped
             // by hand, or one round-tripped through macOS, which picks up __MACOSX resource
-            // forks that would otherwise shadow the real entry.
+            // forks that would otherwise shadow the real entry. Both are ordered so the choice
+            // is deterministic rather than dependent on the order entries happen to sit in —
+            // shallowest first, then by name, so a top-level bundle beats a buried one and a
+            // reader can predict which entry an ambiguous archive will yield.
+            var candidates = archive.Entries
+                .Where(e => !e.FullName.StartsWith("__MACOSX/", StringComparison.Ordinal))
+                .Where(e => !e.FullName.EndsWith('/'))
+                .OrderBy(e => e.FullName.Count(c => c == '/'))
+                .ThenBy(e => e.FullName, StringComparer.Ordinal)
+                .ToList();
+
             var entry =
-                archive.Entries.FirstOrDefault(e =>
+                candidates.FirstOrDefault(e =>
                     e.FullName.Equals(EntryName, StringComparison.OrdinalIgnoreCase))
-                ?? archive.Entries.FirstOrDefault(e =>
-                    e.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-                    && !e.FullName.StartsWith("__MACOSX/", StringComparison.Ordinal))
-                ?? archive.Entries.FirstOrDefault(e => e.Length > 0);
+                ?? candidates.FirstOrDefault(e =>
+                    e.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                ?? candidates.FirstOrDefault(e => e.Length > 0);
 
             if (entry is null)
             {

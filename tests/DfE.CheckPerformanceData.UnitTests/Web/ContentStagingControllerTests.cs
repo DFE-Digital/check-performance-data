@@ -516,6 +516,86 @@ public sealed class ContentStagingControllerTests
         Assert.True(banner!.Length < 4096, $"banner was {banner.Length} chars — too big for a cookie");
     }
 
+    // The count cap alone is no protection: validator and import messages quote the offending
+    // Title/Segment/Key verbatim and none of those is length-limited, so ONE message can be
+    // megabytes. This is the case the earlier count-only test missed by generating short ones.
+    [Fact]
+    public async Task Import_WithOneEnormousErrorMessage_StillProducesACookieSizedBanner()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        var huge = new ContentImportResult();
+        huge.Errors.Add("Page '" + new string('A', 2 * 1024 * 1024) + "' has an invalid Segment.");
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(huge);
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        var banner = _sut.TempData["ContentStagingError"] as string;
+        Assert.NotNull(banner);
+        Assert.True(banner!.Length < 4096, $"banner was {banner.Length} chars — too big for a cookie");
+    }
+
+    // The catch-all path bypassed Banner entirely, and a database exception routinely quotes the
+    // offending statement and its parameters — which carry the bundle's own content.
+    [Fact]
+    public async Task Import_WhenTheExceptionMessageIsEnormous_StillProducesACookieSizedBanner()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns<ContentImportResult>(_ => throw new InvalidOperationException(new string('B', 2 * 1024 * 1024)));
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        var banner = _sut.TempData["ContentStagingError"] as string;
+        Assert.NotNull(banner);
+        Assert.True(banner!.Length < 4096, $"banner was {banner.Length} chars — too big for a cookie");
+    }
+
+    // Releasing the lock is the last thing to run, so its failure would otherwise discard the
+    // redirect and the success banner for an import that had already been applied.
+    [Fact]
+    public async Task Import_WhenReleasingTheLockThrows_StillReportsTheImportResult()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        var importLock = Substitute.For<IContentStagingLock>();
+        importLock.TryAcquireAsync(Arg.Any<CancellationToken>()).Returns(true);
+        importLock.ReleaseAsync(Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new InvalidOperationException("connection broken"));
+        var sut = NewSutWith(dbContext, importLock);
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+
+        var result = await sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        Assert.IsType<RedirectResult>(result);
+        Assert.NotNull(sut.TempData["ContentStagingResult"]);
+    }
+
+    // All three confirm-step ceilings have to admit any bundle the validator does, or an import
+    // that validated and previewed cleanly dies on confirm.
+    [Fact]
+    public void Import_LimitsAdmitAnyBundleTheValidatorAccepts()
+    {
+        var method = typeof(ContentStagingController).GetMethod(nameof(ContentStagingController.Import))!;
+        var maxItems = ContentBundleValidator.MaxPageNodes + ContentBundleValidator.MaxContentBlocks;
+
+        var formLimits = method.GetCustomAttribute<RequestFormLimitsAttribute>();
+        Assert.NotNull(formLimits);
+        Assert.True(formLimits!.ValueCountLimit >= maxItems * 2,
+            $"ValueCountLimit {formLimits.ValueCountLimit} cannot carry two fields for {maxItems} items");
+
+        // Kestrel's MaxRequestBodySize is disabled application-wide, so without this the
+        // endpoint accepts an unbounded body.
+        Assert.NotNull(method.GetCustomAttribute<RequestSizeLimitAttribute>());
+
+        Assert.True(ContentStagingFormLimits.MaxDecisions >= maxItems,
+            "the model binder's collection ceiling must admit every item the validator does");
+    }
+
     // A failed import keeps its session, so the operator can fix the cause and confirm again
     // without re-uploading a bundle that may have taken minutes to transfer.
     [Fact]

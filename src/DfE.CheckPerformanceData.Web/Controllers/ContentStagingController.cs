@@ -269,18 +269,23 @@ public sealed class ContentStagingController(
     // Step 2 of import: apply the previewed bundle with the chosen global mode and any per-item
     // overrides. The body is a session id plus the mode radios, so it stays small no matter how
     // big the bundle is — the bundle itself never left the server.
-    // The body is small — a session id and the mode radios — but it is not short. The preview
-    // renders a row per item and each row posts two fields, so a bundle of a few hundred items
-    // runs past FormOptions.ValueCountLimit, which defaults to 1024. That limit rejects the
-    // request at the model binder with the same empty-body 400 this flow set out to eliminate,
-    // so with the bundle no longer round-tripping, the field COUNT becomes the binding ceiling
-    // where the field SIZE used to be. The validator admits 5000 pages plus 5000 blocks; allow
-    // enough fields for those to be decided individually, with headroom for the form's own.
-    private const int MaxImportFormValues = 4 * 5000 + 64;
-
+    // The body is small — a session id and the mode radios — but it is neither short nor
+    // self-limiting, and all three ceilings have to agree or a bundle that validated and
+    // previewed cleanly dies on confirm:
+    //
+    //  * Field count. The preview renders a row per item and each row posts two fields, so a
+    //    bundle of a few hundred items runs past FormOptions.ValueCountLimit's default of 1024.
+    //    With the bundle no longer round-tripping, field COUNT is the binding ceiling where
+    //    field SIZE used to be.
+    //  * Collection size. MvcOptions.MaxModelBindingCollectionSize caps the bound Decisions
+    //    list at 1024 by default, and exceeding it throws rather than adding a model error — a
+    //    500, not a 400. Raised to match in CoreWebExtensions.
+    //  * Body size. Kestrel's MaxRequestBodySize is disabled application-wide, so without an
+    //    explicit limit here this endpoint accepts an unbounded body.
     [HttpPost("import")]
     [ValidateAntiForgeryToken]
-    [RequestFormLimits(ValueCountLimit = MaxImportFormValues)]
+    [RequestSizeLimit(ContentStagingFormLimits.MaxConfirmBodyBytes)]
+    [RequestFormLimits(ValueCountLimit = ContentStagingFormLimits.MaxFormValues)]
     [Consumes("application/x-www-form-urlencoded")]
     public async Task<IActionResult> Import(ImportConfirmFormModel model)
     {
@@ -369,17 +374,32 @@ public sealed class ContentStagingController(
             // that the parser missed. Log the full exception so the review-app logs surface it,
             // and hand the user a coherent error instead of a blank 500 page.
             logger.LogError(ex, "Import controller: bundle import failed with an unhandled exception");
-            TempData["ContentStagingError"] =
-                $"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace.";
+            // Through Banner like every other message: a database exception routinely quotes the
+            // offending statement and parameters, which can carry the bundle's own content.
+            TempData["ContentStagingError"] = Banner(
+                [$"Import failed: {ex.GetType().Name} — {ex.Message}. Check the application logs for the full stack trace."]);
         }
         finally
         {
             // Always release — even if the import threw, we must free the lock for the
             // next caller. Advisory-lock release is scoped to the session we acquired on,
             // so a peer's separate session is unaffected either way.
+            //
+            // Its own failure is swallowed for the same reason the audit write's is: by this
+            // point the import has been applied, and letting an exception out of the finally
+            // would discard the redirect and the result banner and hand the operator a 500 for
+            // an import that succeeded. A lock left held is recovered when the connection
+            // closes at the end of the request, which drops session-scoped advisory locks.
             if (lockAcquired && _importLock is not null)
             {
-                await _importLock.ReleaseAsync();
+                try
+                {
+                    await _importLock.ReleaseAsync();
+                }
+                catch (Exception releaseEx)
+                {
+                    logger.LogError(releaseEx, "Import controller: the import finished but its advisory lock could not be released");
+                }
             }
         }
 
@@ -414,26 +434,39 @@ public sealed class ContentStagingController(
         return true;
     }
 
-    // How many individual messages a banner will list before summarising the rest.
+    // Bounds on anything that reaches a banner.
     //
     // TempData here is cookie-backed, so whatever goes in comes back up as request headers on
-    // the redirect. A bundle may carry thousands of items and the validator emits an issue per
-    // bad one, so joining them all could produce tens of kilobytes of cookie and push every
-    // subsequent request past Kestrel's header limit — a 431 for that browser until its cookies
-    // are cleared, triggered by uploading one junk file. The first few messages are what an
-    // operator acts on anyway; the count tells them how much more there is.
+    // the next request. Past Kestrel's header limit that is a 431 for that browser until its
+    // cookies are cleared — self-inflicted, and triggerable by uploading one junk file.
+    //
+    // Both a count and a character budget are needed, and the budget is the one that matters.
+    // Validator and import messages embed the offending Title, Segment or Key verbatim, and
+    // none of those is length-limited — a segment is quoted back precisely because it failed
+    // the format rule, so its content is the uploader's choice. Twenty messages is therefore no
+    // protection at all if one of them is two megabytes.
     private const int MaxBannerMessages = 20;
+    private const int MaxBannerChars = 2048;
+    private const int MaxBannerMessageChars = 200;
 
     private static string Banner(IReadOnlyCollection<string> messages)
     {
-        if (messages.Count <= MaxBannerMessages)
+        var shown = messages.Take(MaxBannerMessages).Select(Clip).ToList();
+        var omitted = messages.Count - shown.Count;
+
+        var text = string.Join("\n", shown);
+        if (text.Length > MaxBannerChars)
         {
-            return string.Join("\n", messages);
+            text = text[..MaxBannerChars] + "…";
         }
 
-        return string.Join("\n", messages.Take(MaxBannerMessages))
-               + $"\n… and {messages.Count - MaxBannerMessages} more. See the application logs for the full list.";
+        return omitted > 0
+            ? text + $"\n… and {omitted} more. See the application logs for the full list."
+            : text;
     }
+
+    private static string Clip(string message) =>
+        message.Length <= MaxBannerMessageChars ? message : message[..MaxBannerMessageChars] + "…";
 
     private static string BuildSummary(ContentImportResult r) =>
         $"Import complete. Pages: {r.PageNodesCreated} added, {r.PageNodesUpdated} updated, " +

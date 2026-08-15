@@ -18,14 +18,27 @@ public sealed class ContentBundle
     // the schema string; import rejects versions it does not understand.
     public const int CurrentSchemaVersion = 2;
 
+    private readonly string _schema = CurrentSchema;
+
     [JsonPropertyName("$schema")]
-    public string Schema { get; init; } = CurrentSchema;
+    public string Schema { get => _schema; init => _schema = BundleMemberDefaults.OrEmpty(value); }
 
     public int SchemaVersion { get; init; } = CurrentSchemaVersion;
 
     public DateTime? ExportedAtUtc { get; init; }
     public string? ExportedBy { get; init; }
 
-    public List<PageNodeBundleItem> PageNodes { get; init; } = [];
-    public List<ContentBlockBundleItem> ContentBlocks { get; init; } = [];
+    private readonly List<PageNodeBundleItem> _pageNodes = [];
+    public List<PageNodeBundleItem> PageNodes
+    {
+        get => _pageNodes;
+        init => _pageNodes = BundleMemberDefaults.NonNullItems(value);
+    }
+
+    private readonly List<ContentBlockBundleItem> _contentBlocks = [];
+    public List<ContentBlockBundleItem> ContentBlocks
+    {
+        get => _contentBlocks;
+        init => _contentBlocks = BundleMemberDefaults.NonNullItems(value);
+    }
 }

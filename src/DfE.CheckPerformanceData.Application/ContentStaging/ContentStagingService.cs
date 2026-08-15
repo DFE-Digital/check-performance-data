@@ -139,9 +139,11 @@ public sealed class ContentStagingService(
     //    Trusting it would drop the version actually being served and, where the stale one's
     //    window has closed, leave the imported page with no live version at all.
     //
-    //  * Anything scheduled to go live later. A future-dated version is not current yet and is
-    //    not recent once drafts pile on top of it, so both other rules miss it — and the
-    //    scheduled publish would then simply never happen in the target.
+    //  * Anything the page will serve LATER — a version scheduled to go live, and the version
+    //    that takes over when a temporary notice's window closes. Publishing never closes the
+    //    previous version's window, so an evergreen page sitting underneath a notice is a
+    //    supported state; dropping it means the target 404s the day the notice expires, which
+    //    is worse than an import that fails outright because nothing looks wrong until then.
     //
     // Both are rare, so in the ordinary case this returns exactly `max` versions.
     private static List<PageNodeVersionDto> TrimHistory(List<PageNodeVersionDto> versions, int? max)
@@ -155,19 +157,32 @@ public sealed class ContentStagingService(
         var kept = versions.OrderByDescending(v => v.VersionId).Take(cap).ToList();
         var keptIds = kept.Select(v => v.VersionId).ToHashSet();
 
-        var liveId = LiveVersionResolver.Resolve(
-            versions.Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo)),
-            nowUtc);
-        if (liveId is int id && keptIds.Add(id))
-        {
-            kept.Add(versions.First(v => v.VersionId == id));
-        }
+        var windows = versions
+            .Select(v => new PageVersionWindow(v.VersionId, v.PublishFrom, v.PublishTo))
+            .ToList();
 
-        foreach (var scheduled in versions.Where(v => v.PublishFrom is { } from && from > nowUtc))
+        // The live version can only change at a moment when some window opens or closes, so
+        // those instants are the complete set of times worth asking about. Resolving at each of
+        // them keeps every version this page is going to serve, not merely the one it serves
+        // today — which covers both directions the naive rules missed: a version scheduled to
+        // go live later is the answer at its own PublishFrom, and the evergreen version
+        // underneath an expiring notice is the answer at that notice's PublishTo.
+        //
+        // Bounded by the cap so a page scheduled over and over cannot lift the ceiling
+        // indefinitely; the earliest boundaries are the ones that matter soonest.
+        var boundaries = windows
+            .SelectMany(w => new[] { w.PublishFrom, w.PublishTo })
+            .Where(t => t is { } instant && instant > nowUtc)
+            .Select(t => t!.Value)
+            .Distinct()
+            .Order()
+            .Take(cap);
+
+        foreach (var moment in boundaries.Prepend(nowUtc))
         {
-            if (keptIds.Add(scheduled.VersionId))
+            if (LiveVersionResolver.Resolve(windows, moment) is int id && keptIds.Add(id))
             {
-                kept.Add(scheduled);
+                kept.Add(versions.First(v => v.VersionId == id));
             }
         }
 
@@ -257,9 +272,9 @@ public sealed class ContentStagingService(
     {
         ArgumentNullException.ThrowIfNull(bundle);
 
-        // Re-validate at Import time. The bundle round-trips through a hidden form field
-        // between Preview and Import — belt-and-braces so a tampered field can't smuggle a
-        // fatal issue past the earlier check.
+        // Re-validate at Import time. The bundle is reloaded from its preview session between
+        // the two steps — belt-and-braces so a tampered session row can't smuggle a fatal
+        // issue past the earlier check.
         var issues = ContentBundleValidator.Validate(bundle);
         if (issues.Any(i => i.Severity == ValidationSeverity.Fatal))
         {
@@ -298,6 +313,14 @@ public sealed class ContentStagingService(
         {
             result.Warnings.Add(
                 $"Sanitised HTML in {sanitised} bundle item(s) on import (script tags, event handlers, or javascript: URLs were removed).");
+        }
+
+        // Non-fatal validator issues were computed and then dropped, so anything the validator
+        // could only warn about — a page that will not render, say — reached nobody. They are
+        // the cases where the import proceeds but the operator needs to know what landed.
+        foreach (var issue in issues.Where(i => i.Severity == ValidationSeverity.Warning))
+        {
+            result.Warnings.Add(issue.Message);
         }
 
         // Bundle node GUID -> materialised path, so a child resolves its parent's path without
@@ -403,12 +426,21 @@ public sealed class ContentStagingService(
                 if (page.ParentId is { } bundleParent && localIdByBundleId.TryGetValue(bundleParent, out var localParent))
                     effectiveParentId = localParent;
 
-                var created = await pageNodeRepository.CreateNodeForStagingAsync(
-                    page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
-                    page.AppearInSearch, page.Keywords, userId: null);
-                if (page.PageType != "folder")
-                    await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
-                        created.Id, MapVersions(page.Versions), userId: null);
+                // A node and its versions land together or not at all. Written separately, a
+                // version write that failed — a duplicate VersionId, a byte the column will not
+                // take — left the node committed with no versions: a page in the tree that
+                // permanently 404s, while the counter below never ran so the summary reported
+                // nothing created. The per-item catch then reports an error for an item that
+                // did partly land, which is the worst of both.
+                await pageNodeRepository.ExecuteInTransactionAsync(async () =>
+                {
+                    var created = await pageNodeRepository.CreateNodeForStagingAsync(
+                        page.Id, effectiveParentId, page.Segment, path, page.Title, page.Subtitle, page.PageName, page.PageType, page.SortOrder,
+                        page.AppearInSearch, page.Keywords, userId: null);
+                    if (page.PageType != "folder")
+                        await pageNodeRepository.ReplaceAllVersionsForStagingAsync(
+                            created.Id, MapVersions(page.Versions), userId: null);
+                });
                 _log.LogDebug("ContentStaging: page {PageId} ‘{Title}’ created ({VersionCount} versions)", page.Id, page.Title, page.Versions.Count);
                 result.PageNodesCreated++;
                 pathByContentId[page.Id] = path;

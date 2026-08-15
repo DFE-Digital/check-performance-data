@@ -173,6 +173,54 @@ public class ContentBundleArchiveTests
         Assert.Equal("{\"which\":\"root\"}", ContentBundleArchive.ReadBundleJson(buffer.ToArray(), Cap));
     }
 
+    // The central directory is parsed lazily, when Entries is first touched — not by the
+    // ZipArchive constructor. Corruption in that region therefore surfaces later than the
+    // obvious place to guard, and an InvalidDataException escaping here reaches the operator
+    // as a 500 rather than the "not a readable zip" banner.
+    [Fact]
+    public void Read_ZipWithCorruptCentralDirectory_ThrowsAFormatError()
+    {
+        var zip = ContentBundleArchive.ToZip(SampleJson());
+
+        // The End Of Central Directory record is the last 22 bytes of an archive with no
+        // comment; bytes 10-11 are its entry count. Claiming more entries than the central
+        // directory holds is rejected when Entries is enumerated, not when the archive is
+        // constructed.
+        zip[^12] = 0xFF;
+        zip[^11] = 0xFF;
+
+        Assert.Throws<ContentBundleFormatException>(
+            () => ContentBundleArchive.ReadBundleJson(zip, Cap));
+    }
+
+    // Whole-file sweep: no single-byte corruption anywhere in a bundle zip may produce anything
+    // other than a bundle, a format error, or an encoding error. Anything else is a 500.
+    [Fact]
+    public void Read_AnySingleByteCorruption_NeverEscapesAsAnUnexpectedException()
+    {
+        var original = ContentBundleArchive.ToZip(SampleJson());
+        var escapes = new List<string>();
+
+        for (var i = 0; i < original.Length; i++)
+        {
+            var mutated = (byte[])original.Clone();
+            mutated[i] ^= 0xFF;
+            try
+            {
+                ContentBundleArchive.ReadBundleJson(mutated, Cap);
+            }
+            catch (ContentBundleFormatException) { }
+            catch (DecoderFallbackException) { }
+            catch (Exception ex)
+            {
+                escapes.Add($"byte {i}: {ex.GetType().Name}");
+            }
+        }
+
+        Assert.True(escapes.Count == 0,
+            $"{escapes.Count} corruptions escaped as unexpected exceptions: {string.Join("; ", escapes.Take(5))}");
+    }
+
     private static byte[] ZipContaining(string entryName, byte[] content)
     {
         using var buffer = new MemoryStream();

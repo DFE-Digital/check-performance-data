@@ -14,6 +14,11 @@ public sealed class ContentStagingSessionStore(IPortalDbContext dbContext, TimeP
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
+    // Matches the column width. CreatedBy is a breadcrumb for a support query, never a key or
+    // an authorisation input, so clipping an improbably long address is strictly better than
+    // failing the preview it was recorded on — and the column would otherwise throw 22001.
+    private const int MaxCreatedByLength = 200;
+
     public async Task<Guid> CreateAsync(
         string bundleJson, string? createdBy, CancellationToken cancellationToken = default)
     {
@@ -22,7 +27,9 @@ public sealed class ContentStagingSessionStore(IPortalDbContext dbContext, TimeP
         {
             Id = Guid.NewGuid(),
             BundleJson = bundleJson,
-            CreatedBy = createdBy,
+            CreatedBy = createdBy is { Length: > MaxCreatedByLength }
+                ? createdBy[..MaxCreatedByLength]
+                : createdBy,
             CreatedAtUtc = now,
             ExpiresAtUtc = now.Add(ContentStagingSessionDefaults.Lifetime)
         };

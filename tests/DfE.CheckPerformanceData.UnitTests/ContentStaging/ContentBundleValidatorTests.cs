@@ -12,6 +12,9 @@ public sealed class ContentBundleValidatorTests
         ContentBlocks = blocks ?? []
     };
 
+    // Content and wiki pages get a version, because that is what the CMS produces — creating one
+    // always writes an initial version, so a non-folder page with an empty history is not a
+    // state the product can reach and the validator now says so. Folders never carry versions.
     private static PageNodeBundleItem Page(
         string segment = "help", string type = "folder", string title = "Help") =>
         new()
@@ -19,7 +22,10 @@ public sealed class ContentBundleValidatorTests
             Id = Guid.NewGuid(),
             Segment = segment,
             Title = title,
-            PageType = type
+            PageType = type,
+            Versions = type is "content" or "wiki"
+                ? [new PageNodeVersionBundleItem { VersionId = 1, Content = "" }]
+                : []
         };
 
     private static ContentBlockBundleItem Block(string type = "Content", string key = "banner") =>

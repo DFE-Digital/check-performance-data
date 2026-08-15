@@ -27,6 +27,10 @@ public class ContentStagingServiceTests
         _blockRepo.GetAllAsync().Returns([]);
         _blockRepo.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
             .Returns(ci => ((Func<Task>)ci[0])());
+        // Page creation runs its node + versions writes inside a transaction, so the substitute
+        // has to invoke the delegate or the work inside it silently never happens.
+        _pages.ExecuteInTransactionAsync(Arg.Any<Func<Task>>())
+            .Returns(ci => ((Func<Task>)ci[0])());
         _html.RenderHtml(Arg.Any<string?>()).Returns(ci => (string?)ci[0]);
         _html.StripTagsToPlainText(Arg.Any<string?>()).Returns(ci => (string?)ci[0] ?? string.Empty);
     }
@@ -177,6 +181,50 @@ public class ContentStagingServiceTests
         var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
         Assert.Contains(1, kept);
         Assert.Contains(2, kept);
+    }
+
+    // The live version is not always the one that stays live. A service notice published with a
+    // PublishTo shadows the evergreen page underneath it, and publishing never closes the
+    // previous version's window — so when the notice expires the page falls back.
+    //
+    // Here v1 is the evergreen page (open-ended, live since 2024), v20 is a notice that expires
+    // next week and is live right now, and v2-v19 are drafts. Keeping only "live now" plus
+    // recency keeps v16-v20 and drops v1. The import looks fine; a week later the notice expires
+    // and the target page 404s because nothing underneath it came across.
+    [Fact]
+    public async Task ExportAsync_WhenTrimming_KeepsTheVersionThatTakesOverWhenTheLiveOneExpires()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "evergreen", from: LongAgo),
+                .. Enumerable.Range(2, 18).Select(i => Version(i, content: $"draft{i}")),
+                Version(20, content: "temporary-notice", from: LongAgo.AddYears(2), to: FarFuture, current: true),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions.Select(v => v.VersionId).ToList();
+        Assert.Contains(20, kept);
+        Assert.Contains(1, kept);
+    }
+
+    // The cap exists to bound bundle size. Keeping every future-dated version unconditionally
+    // gives it no ceiling at all for a page that has been scheduled repeatedly.
+    [Fact]
+    public async Task ExportAsync_WithManyScheduledVersions_StillBoundsTheExport()
+    {
+        NodeWithExactVersions(
+            [
+                Version(1, content: "live", from: LongAgo, current: true),
+                .. Enumerable.Range(2, 300).Select(i => Version(i, content: $"scheduled{i}", from: FarFuture)),
+            ]);
+
+        var bundle = await _sut.ExportAsync();
+
+        var kept = bundle.PageNodes.Single().Versions;
+        Assert.True(kept.Count <= 3 * ContentExportSelection.DefaultMaxVersionsPerNode,
+            $"a page with 300 scheduled versions exported {kept.Count} of them — the cap bounds nothing");
+        Assert.Contains(1, kept.Select(v => v.VersionId));
     }
 
     // Under the cap, nothing is dropped and nothing is reordered.

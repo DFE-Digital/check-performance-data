@@ -10,7 +10,6 @@
     },
     {
       "id": "cohort-scope",
-      "title": "Does the incorrect grade affect the whole cohort?",
       "questions": [
         {
           "id": "q-cohort-scope",
@@ -38,7 +37,6 @@
     },
     {
       "id": "cohort-count",
-      "title": "Enter the number of students who have an incorrect grade for this qualification",
       "nextPageId": "select-student-cohort",
       "questions": [
         {
@@ -98,13 +96,12 @@
     },
     {
       "id": "additional-info",
-      "title": "Additional information (Optional)",
       "pageTitle": "Additional information",
       "questions": [
         {
           "id": "q-additional-info",
           "type": "TextArea",
-          "title": "Additional information (Optional)",
+          "title": "Additional information",
           "hint": "You can provide us with any additional information to support your query if you need to.",
           "optional": true,
           "characterLimit": 250,

@@ -96,7 +96,8 @@ public sealed class IncorrectGradeFlowTests
         var question = Question("cohort-scope", "q-cohort-scope");
 
         Assert.Equal(PageType.Question, page.Type);
-        Assert.Equal("Does the incorrect grade affect the whole cohort?", page.Title);
+        // No page-level title — see Single_question_pages_leave_the_page_title_empty.
+        Assert.Null(page.Title);
         Assert.Equal(QuestionType.Radio, question.Type);
         Assert.Equal("Does the incorrect grade affect the whole cohort?", question.Title);
         Assert.Equal("Select one option", question.Hint);
@@ -137,7 +138,10 @@ public sealed class IncorrectGradeFlowTests
         var page = Page("cohort-count");
         var question = Question("cohort-count", "q-cohort-count");
 
-        Assert.Equal("Enter the number of students who have an incorrect grade for this qualification", page.Title);
+        Assert.Null(page.Title);
+        Assert.Equal(
+            "Enter the number of students who have an incorrect grade for this qualification",
+            question.Title);
         Assert.Equal("select-student-cohort", page.NextPageId);
         Assert.Equal(QuestionType.FreeText, question.Type);
         Assert.Equal("Enter the number of students", question.Hint);
@@ -227,8 +231,11 @@ public sealed class IncorrectGradeFlowTests
         var page = Page("additional-info");
         var question = Question("additional-info", "q-additional-info");
 
-        Assert.Equal("Additional information (Optional)", page.Title);
+        Assert.Null(page.Title);
         Assert.Equal("Additional information", page.PageTitle);
+        // "(Optional)" is appended by JourneyViewModelBuilder when Optional is true — putting it in
+        // the title too rendered "Additional information (Optional) (Optional)".
+        Assert.Equal("Additional information", question.Title);
         Assert.Null(page.NextPageId); // the last page — Continue goes to the summary
         Assert.Equal(QuestionType.TextArea, question.Type);
         Assert.True(question.Optional);

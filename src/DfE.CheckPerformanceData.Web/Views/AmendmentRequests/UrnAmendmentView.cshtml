@@ -1,11 +1,5 @@
 @using DfE.CheckPerformanceData.Domain.Enums
-@using DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest
-@model SubmittedRequestViewModel
-
-@{
-    ViewBag.Title = Model.ConfirmingDelete ? Model.ConfirmDeleteTitle : "Submitted amendment request";
-    Layout = "_Layout";
-}
+@model DfE.CheckPerformanceData.Web.Controllers.SubmittedRequest.SubmittedRequestViewModel
 
 <a class="govuk-back-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Back</a>
 
@@ -20,7 +14,7 @@
         </strong>
     </div>
 }
-else if (!Model.AllEst)
+else
 {
     <h1 class="govuk-heading-xl">Submitted amendment request</h1>
     <h2 class="govuk-heading-m">Details for the @Model.WhatToChangeNoun of @Model.PupilName</h2>
@@ -123,32 +117,6 @@ else if (!Model.AllEst)
     }
 </dl>
 
-@if (Model.ConfirmingDelete)
-{
-    <form method="post" action="@Url.Action("Delete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">
-        @Html.AntiForgeryToken()
-        <govuk-button type="submit" class="govuk-button--warning">Delete request</govuk-button>
-    </form>
-
-    <p class="govuk-body">
-        @if (!Model.AllEst)
-        {
-            <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Cancel and go back to amendment requests summary</a>
-        }
-        else
-        {
-            <a class="govuk-link" href="@Url.Action("Index", "EstablishmentAmendmentRequests")">Cancel and go back to amendment requests summary</a>
-        }
-    </p>
-}
-else
-{
-    if (Model.ShowDeleteButton)
-    {
-        <a role="button" draggable="false" data-module="govuk-button" class="govuk-button govuk-button--warning" href="@Url.Action("ConfirmDelete", "SubmittedRequest", new { windowId = Model.WindowId, referenceNumber = Model.ReferenceNumber })">Delete request</a>
-    }
-
-    <p class="govuk-body">
-        <a class="govuk-link" href="@Url.Action("Index", "AmendmentRequests", new { windowId = Model.WindowId })">Go back to amendment requests summary</a>
-    </p>
-}
+<p class="govuk-body">
+    <a class="govuk-link" href="@Url.Action("Index", "EstablishmentAmendmentRequests")">Go back to amendment requests summary</a>
+</p>

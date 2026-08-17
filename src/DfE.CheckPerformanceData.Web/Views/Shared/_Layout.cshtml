@@ -95,23 +95,15 @@
                         @{
                             var selectedWindowId = Context.Session.GetString("SelectedWindowId");
                         }
-                        <li class="govuk-service-navigation__item">
-                            <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
-                        </li>
                         @if (User.Identity is { IsAuthenticated: true })
                         {
-                            @if (selectedWindowId is not null)
-                            {
-                                <li class="govuk-service-navigation__item">
-                                    <a class="govuk-service-navigation__link"
-                                       href="@Url.Action("Index", "CheckYourPupilData", new { windowId = selectedWindowId })">Pupils</a>
-                                </li>
-                            }
-
                             <li class="govuk-service-navigation__item">
                                 <a class="govuk-service-navigation__link" href="@Url.Action("Index", "EstablishmentAmendmentRequests")">Amendment requests</a>
                             </li>
                         }
+                        <li class="govuk-service-navigation__item">
+                            <a class="govuk-service-navigation__link" href="/guidance">Guidance</a>
+                        </li>
                         @* Sign in / Sign out cluster.
                            States:
                              - Real DfE auth:                  "Sign out"                            -> DfeSignOut

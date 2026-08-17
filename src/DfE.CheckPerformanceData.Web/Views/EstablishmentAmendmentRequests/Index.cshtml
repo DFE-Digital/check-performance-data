@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Domain.Enums
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.EstablishmentAmendmentRequestsViewModel
 
 <span class="govuk-caption-l">Amendment requests</span>
@@ -45,29 +46,24 @@
                     <td class="govuk-table__cell">@row.ReferenceNumber</td>
                     <td class="govuk-table__cell">@row.RequestType</td>
                     <td class="govuk-table__cell">
-                    @* <strong class="govuk-tag @GetStatusTagClass(row.Status)"> *@
-                    <strong class="govuk-tag">
-                            @row.Status
+                        <strong class="govuk-tag @(row.Status == RequestStatus.ReadyToSubmit ? "govuk-tag--blue" : "govuk-tag--orange")">
+                             @row.Status.ToString()
                         </strong>
                     </td>
                     <td class="govuk-table__cell">@row.WindowName</td>
                     <td class="govuk-table__cell">@row.DateSubmitted</td>
                     <td class="govuk-table__cell">
+                        <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("View", "EstablishmentAmendmentRequests", new { windowId = row.WindowId, referenceNumber = row.ReferenceNumber })">
+                            View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
+                        </a>
                         @if (row.WindowIsOpen)
                         {
-                            <a class="govuk-link govuk-link--warning" href="@Url.Action("Edit", "AmendmentRequests", new { windowId = row.WindowId, referenceNumber = row.ReferenceNumber })">
-                                Edit<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
+                            <a class="govuk-link govuk-link--warning" href="@Url.Action("Delete", "SubmittedRequest", new { windowId = row.WindowId, referenceNumber = row.ReferenceNumber, allEst = true })">
+                                Delete<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
                             </a>
-                        }
-                        else
-                        {
-                            <a class="govuk-link govuk-!-margin-right-2" href="@Url.Action("Index", "AmendmentRequests", new { windowId = row.WindowId })">
-                                View<span class="govuk-visually-hidden"> request @row.ReferenceNumber for @row.PupilName</span>
-                            </a>
-
                         }
                     </td>                
-                    </tr>
+                </tr>
             }
         }
     </tbody>

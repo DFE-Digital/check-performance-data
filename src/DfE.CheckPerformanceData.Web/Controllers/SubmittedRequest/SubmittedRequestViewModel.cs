@@ -20,6 +20,7 @@ public sealed class SubmittedRequestViewModel
     public DateTime? SubmittedAt { get; init; }
     public string? WithdrawnByEmail { get; init; }
     public string WithdrawnAtText { get; init; } = string.Empty;
+    public bool AllEst { get; set; }
 
     public string WhatToChangeLabel => WhatToChange switch
     {

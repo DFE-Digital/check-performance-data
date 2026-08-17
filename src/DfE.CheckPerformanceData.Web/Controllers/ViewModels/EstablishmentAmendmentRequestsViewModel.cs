@@ -1,3 +1,5 @@
+using DfE.CheckPerformanceData.Domain.Enums;
+
 namespace DfE.CheckPerformanceData.Web.Controllers.ViewModels;
 
 public sealed class EstablishmentAmendmentRequestsViewModel
@@ -18,7 +20,7 @@ public sealed class AmendmentItem {
     public string PupilName { get; init; }
     public string ReferenceNumber { get; init; }
     public string RequestType { get; init; }
-    public string Status { get; init; }
+    public RequestStatus Status { get; init; }
     public string WindowName { get; init; }
     public string DateSubmitted { get; init; }
     public string WindowId { get; init; }

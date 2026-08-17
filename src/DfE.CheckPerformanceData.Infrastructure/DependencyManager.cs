@@ -12,6 +12,7 @@ using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -58,6 +59,10 @@ public static class DependencyManager
         // the Web host) because the Persistence repositories that consume it are pulled in
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+
+        // AB#296648: the 16-19 exam results a school can raise an enquiry against, held in the same
+        // per-window container under the results-enquiry activity prefix.
+        services.AddScoped<IStudentResultsClient, StudentResultsBlobClient>();
 
         // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is
         // configured (deployed envs wire it via Terraform), else a no-op so dev/review/

@@ -7,5 +7,9 @@ public enum WhatToChange
     Remove,
     // No Add journey exists yet (there is no Add_*.json flow config) — the member exists so
     // ChangeRequest.AmendmentType can already model it. Appended last so existing values are unmoved.
-    Add
+    Add,
+    // AB#296648: the 16-19 "report an incorrect grade" results-enquiry journey. Belongs to the
+    // ResultsEnquiry window activity rather than pupil-data checking — see WhatToChangeActivityMap.
+    // Appended last so existing values are unmoved.
+    IncorrectGrade
 }

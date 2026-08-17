@@ -17,6 +17,24 @@ public interface IJourneyValidationService
     IReadOnlyList<DateFieldViolation> ValidatePageDates(JourneyPage page, IReadOnlyDictionary<string, QuestionAnswer> answers, string pupilName);
 
     string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null);
+
+    /// <summary>
+    /// The revised-grade rules for a <see cref="QuestionType.GradeSelect"/> question (AB#296648).
+    ///
+    /// A separate method rather than a parameter on <see cref="ValidateAnswer"/>: the rules need
+    /// inputs no other question type has (the qualification's grade scale, and the grade the result
+    /// currently holds), and the caller must resolve the scale asynchronously before validating —
+    /// which <see cref="ValidateAnswer"/> deliberately stays clear of.
+    /// </summary>
+    /// <param name="reference">The QAN's grade scale, or null when the qualification is absent from
+    /// the AODC reference data — in which case nothing can be submitted.</param>
+    /// <param name="currentGrade">The grade the selected result holds, or null when unknown.</param>
+    string? ValidateGradeSelect(
+        Question question,
+        QuestionAnswer? answer,
+        ResultsEnquiry.GradeReference? reference,
+        string? currentGrade,
+        string? resolvedValidationFailure = null);
     string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles);
 
     /// <summary>
@@ -27,6 +45,9 @@ public interface IJourneyValidationService
     string? ValidateDuplicateFileName(string fileName, IReadOnlyList<FileAnswer> existingFiles);
 
     string GenerateReference(CheckingWindowType? windowType);
+
+    /// <summary>AB#296648: the reference for a 16-19 results enquiry, <c>CYPMD_16to19_RE_{7 hex}</c>.</summary>
+    string GenerateEnquiryReference();
     EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null);
 }

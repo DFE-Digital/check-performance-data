@@ -1,0 +1,140 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.ResultSearchViewModel
+
+@{
+    @* The student's name is in Model.Title, so the browser title (which also reaches analytics)
+       uses a name-free form instead. *@
+    ViewBag.Title = "Which result is incorrect?";
+    Layout = "_Layout";
+    var hasError = !ViewData.ModelState.IsValid;
+    var fieldErrorMessage = ViewData.ModelState["selectedResultKey"]?.Errors.FirstOrDefault()?.ErrorMessage
+        ?? "Enter which result is incorrect";
+    var hintText = Model.Hint ?? "Start typing to search for results by subject or QAN";
+}
+
+@if (Model.BackPageId is not null)
+{
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey"
+       asp-route-windowId="@Model.WindowId"
+       asp-route-pageId="@Model.BackPageId"
+       class="govuk-back-link">Back</a>
+}
+else
+{
+    <a asp-action="Index" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
+}
+
+@if (hasError)
+{
+    <govuk-error-summary>
+        <govuk-error-summary-title>There is a problem</govuk-error-summary-title>
+        <govuk-error-summary-item href="#result-search">@fieldErrorMessage</govuk-error-summary-item>
+    </govuk-error-summary>
+}
+
+@* Progressive enhancement: a real <select> carrying every result the student holds, which
+   accessible-autocomplete upgrades in place via enhanceSelectElement. With script off the page is a
+   working GOV.UK select; with script on it becomes a type-ahead. This is why the options are rendered
+   server-side rather than fetched — a student holds a handful of results, so there is nothing to gain
+   from a round-trip, and a fetch-only version would not work without JavaScript at all.
+
+   enhanceSelectElement hides the select, moves its id to "{id}-select" and gives the new input the
+   original id, so the <label for="result-search"> keeps naming whichever control is visible. The
+   select keeps its name, so it is still what posts. *@
+<form method="post" action="@Url.Action("ResultSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
+    @Html.AntiForgeryToken()
+
+    <div class="govuk-form-group @(hasError ? "govuk-form-group--error" : "")">
+        <h1 class="govuk-label-wrapper">
+            <label class="govuk-label govuk-label--l" for="result-search">@Model.Title</label>
+        </h1>
+        <div class="govuk-hint" id="result-search-hint">@hintText</div>
+        @if (hasError)
+        {
+            <p id="result-search-error" class="govuk-error-message">
+                <span class="govuk-visually-hidden">Error:</span>
+                @fieldErrorMessage
+            </p>
+        }
+        <select class="govuk-select @(hasError ? "govuk-select--error" : "")"
+                id="result-search" name="selectedResultKey"
+                aria-describedby="result-search-hint @(hasError ? "result-search-error" : "")">
+            @* Empty first option so nothing is preselected — the user must choose. *@
+            <option value=""></option>
+            @foreach (var result in Model.AvailableResults)
+            {
+                <option value="@result.CompositeKey" selected="@(result.CompositeKey == Model.SelectedResultKey)">
+                    @DfE.CheckPerformanceData.Application.ResultsEnquiry.ResultLabel.For(result)
+                </option>
+            }
+        </select>
+    </div>
+
+    @if (Model.SelectedResult is not null)
+    {
+        <govuk-summary-list>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>Qualification name and subject</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.QualificationName</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>Qualification number (QAN)</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.Qan</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>Syllabus code</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.SyllabusCode</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>Session</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.Session</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>Current Grade</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.Grade</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+            <govuk-summary-list-row>
+                <govuk-summary-list-row-key>CSV file</govuk-summary-list-row-key>
+                <govuk-summary-list-row-value>@Model.SelectedResult.SourceFile</govuk-summary-list-row-value>
+            </govuk-summary-list-row>
+        </govuk-summary-list>
+    }
+
+    <govuk-button type="submit">Continue</govuk-button>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var select = document.getElementById('result-search');
+            if (!select || typeof accessibleAutocomplete === 'undefined') return;
+
+            var hasError = @(hasError ? "true" : "false");
+            var hintText = @Json.Serialize(hintText);
+            var errorText = @Json.Serialize(fieldErrorMessage);
+
+            // accessible-autocomplete owns the input's aria-describedby, rewriting it on every
+            // re-render, so tAssistiveHint is the supported way to get the hint and error announced.
+            // See PupilSearch.cshtml for the full rationale.
+            var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
+                + hintText + '. '
+                + 'When autocomplete results are available use up and down arrows to review and '
+                + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
+
+            accessibleAutocomplete.enhanceSelectElement({
+                selectElement: select,
+                // The empty first <option> is a placeholder, not a choice, so it must not appear in
+                // the suggestion list.
+                preserveNullOptions: false,
+                // Qualification titles are long and a student holds few results, so showing the whole
+                // list on focus is more useful than making them guess a search term.
+                showAllValues: true,
+                // Never silently pick the first match — the user must confirm which result is wrong.
+                autoselect: false,
+                confirmOnBlur: false,
+                defaultValue: @Json.Serialize(Model.SelectedResultLabel ?? ""),
+                inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
+                tAssistiveHint: function () { return assistiveHint; }
+            });
+        })();
+    </script>
+}

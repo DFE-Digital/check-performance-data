@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 
 namespace DfE.CheckPerformanceData.Application.Journey;
 
@@ -13,6 +14,16 @@ public sealed class RequestState
     public string? MatchedPupilId { get; set; }
     public string? MatchedPupilLabel { get; set; }
     public PupilDto? MatchedPupil { get; set; }
+    /// <summary>AB#296648: the exam result chosen on a ResultSearch page, re-resolved server-side
+    /// from the results blob so a forged posted key cannot put an unheld result into the journey.
+    /// Null until one is chosen.</summary>
+    public StudentResultRecord? SelectedResult { get; set; }
+
+    /// <summary>AB#296648: the display label of the exam result chosen on a ResultSearch page,
+    /// re-rendered into the autocomplete on validation redisplay. Null until one is chosen.
+    /// The typed record itself is <c>SelectedResult</c>.</summary>
+    public string? SelectedResultLabel { get; set; }
+
     public CheckingWindowDto? CheckingWindow { get; set; }
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();

@@ -55,6 +55,11 @@ public sealed class CheckYourPupilDataRepository(
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
+        //
+        // AB#297004: matching and label text differ by window type (16-19 searches on date of birth
+        // too and shows its identifiers), so both live in PupilSuggestionFormat where they can be
+        // unit-tested against pinned copy.
+        var window = await GetCheckingWindowAsync(windowId);
         var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
             .Where(p => filter switch
             {
@@ -62,10 +67,7 @@ public sealed class CheckYourPupilDataRepository(
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => p.Identifier.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Cypmd_Id.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Surname.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase));
+            .Where(p => PupilSuggestionFormat.Matches(p, query, window.CheckingWindowType));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -73,7 +75,7 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {PupilDateFormatter.ToDisplayDate(p.DateOfBirth)}"))
+            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, window.CheckingWindowType)))
             .ToList();
     }
 

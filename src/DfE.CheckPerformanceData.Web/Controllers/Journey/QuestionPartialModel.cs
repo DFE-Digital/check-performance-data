@@ -22,7 +22,20 @@ public sealed class QuestionPartialModel
     };
     public bool HasError => Error is not null;
     public string ResolvedTitle { get; init; } = string.Empty;
+    /// <summary>
+    /// The options to render. For a Radio these are the config's options after visibility filtering;
+    /// for a <see cref="QuestionType.GradeSelect"/> they are the qualification's grades, pass before
+    /// fail, built from the AODC reference data.
+    /// </summary>
     public IReadOnlyList<QuestionOption> VisibleOptions { get; init; } = [];
+
+    /// <summary>
+    /// True when this is a grade picker with nothing to pick — which can only mean the result's QAN
+    /// is absent from the AODC reference data, since every qualification in that data has at least one
+    /// grade. Drives the "we cannot list grades for this qualification yet" message. AB#297130.
+    /// </summary>
+    public bool GradeOptionsUnavailable =>
+        Question.Type == QuestionType.GradeSelect && VisibleOptions.Count == 0;
 
     public int MaxEvidencePages { get; init; }
 

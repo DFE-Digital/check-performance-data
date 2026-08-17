@@ -123,7 +123,11 @@ public class PupilSearchJourneyTests
 
         _sut = new JourneyController(_flowService, _journeyService, _fileStorageService,
             _requestService, _pupilDataService, viewModelBuilder, _analytics, _currentUserService,
-            _optionVisibilityService, _optionalityService, _languageCapture)
+            _optionVisibilityService, _optionalityService, _languageCapture,
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
+            Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
             TempData = new TempDataDictionary(_httpContext, Substitute.For<ITempDataProvider>())

@@ -35,6 +35,23 @@ public sealed class RequestNotificationService(
         });
     }
 
+    public async Task NotifyResultsEnquirySubmittedAsync(string referenceNumber)
+    {
+        await dispatcher.EnqueueAsync(new EmailNotification
+        {
+            Type = NotificationType.ResultsEnquirySubmitted,
+            ReferenceNumber = referenceNumber,
+            // No deadline: an enquiry is not something the school must come back and finish. The
+            // template is worded accordingly.
+            Deadline = string.Empty,
+            Ukprn = currentUserService.Ukprn,
+            OriginatorEmail = currentUserService.Email,
+            // The submitter only. Nothing is being asked of the rest of the school, so copying every
+            // user would be noise.
+            IncludeOrganisationUsers = false
+        });
+    }
+
     public async Task NotifyBulkSubmissionConfirmedAsync(
         Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers)
     {

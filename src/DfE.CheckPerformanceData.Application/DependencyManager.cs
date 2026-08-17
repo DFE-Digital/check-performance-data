@@ -53,11 +53,17 @@ public static class DependencyManager
         services.AddScoped<IJourneyCondition, EalWouldBeAutoRejectedCondition>();
         services.AddScoped<IOriginCountryLanguageCapture, OriginCountryLanguageCapture>();
         services.AddScoped<IFormatValidator, DfeNumberFormatValidator>();
+        // AB#296648: the cohort-count question. Registration is load-bearing — the journey engine
+        // fails OPEN on an unregistered validator name, so a missing line here silently skips the
+        // format check rather than throwing anywhere.
+        services.AddScoped<IFormatValidator, WholeNumberFormatValidator>();
         services.AddScoped<IAmendmentRequestsService, AmendmentRequestsService>();
         services.AddScoped<IBulkSubmissionService, BulkSubmissionService>();
         services.AddScoped<ISubmittedRequestService, SubmittedRequestService>();
         services.AddScoped<IEditAdviceService, EditAdviceService>();
         services.AddScoped<UncommittedRequests.IAdminRequestsService, UncommittedRequests.AdminRequestsService>();
+        // AB#296648: the single derivation of "the second late results file has landed".
+        services.AddScoped<ResultsEnquiry.ILateResultsAvailability, ResultsEnquiry.LateResultsAvailability>();
 
         services.AddSingleton<Observability.IHealthEvaluator, Observability.HealthEvaluator>();
         services.AddSingleton<Observability.StatusSentenceBuilder>();

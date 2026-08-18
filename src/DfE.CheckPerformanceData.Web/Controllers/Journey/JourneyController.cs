@@ -978,7 +978,16 @@ public sealed class JourneyController(
 
         // Everything after this point is best-effort: the enquiry is already persisted, so a failure
         // to email or to record analytics must not tell the school their submission failed.
-        await requestNotificationService.NotifyResultsEnquirySubmittedAsync(reference);
+        try
+        {
+            await requestNotificationService.NotifyResultsEnquirySubmittedAsync(reference);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Results enquiry {ReferenceNumber} submitted but the confirmation notification failed",
+                reference);
+        }
 
         await analytics.TrackSafeAsync(new ResultsEnquirySubmittedEvent
         {

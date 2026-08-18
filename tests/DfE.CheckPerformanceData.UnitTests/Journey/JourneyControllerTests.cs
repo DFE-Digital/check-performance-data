@@ -32,6 +32,8 @@ public class JourneyControllerTests
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
     private readonly ICheckYourPupilDataService _pupilDataService = Substitute.For<ICheckYourPupilDataService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService _requestNotificationService =
+        Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>();
     private readonly FakeSession _session = new();
     private readonly DefaultHttpContext _httpContext = new();
     private readonly JourneyController _sut;
@@ -108,7 +110,7 @@ public class JourneyControllerTests
             _optionVisibilityService, _optionalityService, _languageCapture,
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
-            Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
+            _requestNotificationService,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },
@@ -470,6 +472,47 @@ public class JourneyControllerTests
             Arg.Is<RequestSubmissionFailedEvent>(e =>
                 e.FailureReason == "duplicate_request" && e.WhatToChange == "Remove"),
             Arg.Any<CancellationToken>());
+    }
+
+    // ── SummaryConfirm — results enquiry notification failure (AB#296648) ────
+
+    [Fact]
+    public async Task SummaryConfirm_WhenEnquiryNotificationFails_StillRedirectsToEnquiryConfirmation()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_KS4June_ABC1234");
+        _requestNotificationService.NotifyResultsEnquirySubmittedAsync(Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("notify queue unavailable"));
+
+        var result = await _sut.SummaryConfirm(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal(nameof(JourneyController.EnquiryConfirmation), redirect.ActionName);
+    }
+
+    [Fact]
+    public async Task SummaryConfirm_WhenEnquiryNotificationFails_ResetsSessionToWindowAndReference()
+    {
+        var state = ValidSession(history: ["page-1"]);
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _requestService.SubmitResultsEnquiryAsync(WindowId, Arg.Any<RequestState>())
+            .Returns("CYPMD_KS4June_ABC1234");
+        _requestNotificationService.NotifyResultsEnquirySubmittedAsync(Arg.Any<string>())
+            .Returns(_ => throw new InvalidOperationException("notify queue unavailable"));
+
+        await _sut.SummaryConfirm(WindowId);
+
+        var remaining = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_KS4June_ABC1234", remaining.ReferenceNumber);
+        Assert.NotNull(remaining.CheckingWindow);
+        Assert.Null(remaining.SelectedWhatToChange);
+        Assert.Null(remaining.SelectedPupil);
+        Assert.Empty(remaining.QuestionAnswers);
+        Assert.Empty(remaining.QuestionHistory);
     }
 
     // ── PagePost — Autocomplete code capture ─────────────────────────────────

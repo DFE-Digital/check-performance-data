@@ -9,7 +9,7 @@ public enum WhatToChange
     // ChangeRequest.AmendmentType can already model it. Appended last so existing values are unmoved.
     Add,
     // AB#296648: the 16-19 "report an incorrect grade" results-enquiry journey. Belongs to the
-    // ResultsEnquiry window activity rather than pupil-data checking — see WhatToChangeActivityMap.
-    // Appended last so existing values are unmoved.
+    // ResultsEnquiry checking exercise rather than pupil-data checking — see
+    // WhatToChangeCheckingExerciseMap. Appended last so existing values are unmoved.
     IncorrectGrade
 }

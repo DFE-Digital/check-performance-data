@@ -88,8 +88,8 @@ public sealed class CheckYourPupilDataResultsEnquiryOptionTests
     public async Task A_closed_window_offers_nothing_at_all()
     {
         // The whole radio group is already hidden when the window is shut; the new option must not
-        // reintroduce a way in. PARKED: per-activity visibility replaces this when the window-model
-        // activity dates land.
+        // reintroduce a way in. PARKED: per-exercise visibility replaces this when the window-model
+        // checking-exercise dates land.
         Window(CheckingWindowType.Post16, open: false);
 
         var model = await IndexModel();

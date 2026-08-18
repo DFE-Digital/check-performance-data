@@ -6,7 +6,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.ResultsEnquiry;
 
-// AB#296648: the results blob client against real blob storage — the blob path (activity-scoped
+// AB#296648: the results blob client against real blob storage — the blob path (exercise-scoped
 // per docs/16-19-window-model.md), the per-student filter, the source-tag probe that drives late
 // results availability, and the caching that keeps a journey from re-downloading the file on
 // every page.
@@ -53,9 +53,9 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
     }
 
     [Fact]
-    public async Task GetResultsAsync_reads_the_activity_scoped_blob_path()
+    public async Task GetResultsAsync_reads_the_exercise_scoped_blob_path()
     {
-        // Pinning the path proves the reader and the (future) per-activity ingress agree.
+        // Pinning the path proves the reader and the (future) per-exercise ingress agree.
         var (windowId, service) = await SeededWindowAsync();
         var blob = service.GetBlobContainerClient(windowId.ToString())
             .GetBlobClient("results-enquiry/data/8604070_results.json");

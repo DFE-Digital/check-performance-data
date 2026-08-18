@@ -61,7 +61,7 @@ public static class DependencyManager
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
         // AB#296648: the 16-19 exam results a school can raise an enquiry against, held in the same
-        // per-window container under the results-enquiry activity prefix.
+        // per-window container under the results-enquiry checking-exercise prefix.
         services.AddScoped<IStudentResultsClient, StudentResultsBlobClient>();
 
         // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is

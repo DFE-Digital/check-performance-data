@@ -103,10 +103,10 @@ public sealed class StudentResultRecordTests
     }
 
     [Fact]
-    public void Blob_path_is_scoped_to_the_results_enquiry_activity()
+    public void Blob_path_is_scoped_to_the_results_enquiry_exercise()
     {
-        // docs/16-19-window-model.md consequence #2: each activity owns its blob prefix, so a
-        // per-activity ingress sweep cannot destroy another activity's output.
+        // docs/16-19-window-model.md consequence #2: each checking exercise owns its blob prefix,
+        // so a per-exercise ingress sweep cannot destroy another exercise's output.
         Assert.Equal("results-enquiry/data/", ResultsEnquiryBlobPaths.ResultsPrefix);
         Assert.Equal("results-enquiry/data/9334070_results.json", ResultsEnquiryBlobPaths.ResultsBlobName("933/4070"));
     }

@@ -195,8 +195,9 @@ public sealed class CheckYourPupilDataController(ICheckYourPupilDataService chec
     /// Whether a window type has a results-enquiry journey. AB#296648: 16-19 only — the other key
     /// stages have neither results data nor an <c>IncorrectGrade_*</c> flow config.
     ///
-    /// PARKED: becomes an <c>IWindowActivityService.OpenActivities</c> check when the activity model
-    /// lands (docs/16-19-window-model.md) and results enquiry gets its own dates.
+    /// PARKED: becomes an <c>ICheckingExerciseService.OpenCheckingExercises</c> check when the
+    /// checking-exercise model lands (docs/16-19-window-model.md) and results enquiry gets its own
+    /// dates.
     /// </summary>
     private static bool OffersResultsEnquiry(CheckingWindowType windowType) =>
         windowType == CheckingWindowType.Post16;

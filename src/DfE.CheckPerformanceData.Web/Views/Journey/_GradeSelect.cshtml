@@ -58,7 +58,7 @@
 
     <select class="govuk-select @(Model.HasError ? "govuk-select--error" : "")"
             id="@Model.FieldName" name="@Model.FieldName"
-            @(describedBy.Length > 0 ? $"aria-describedby=\"{describedBy}\"" : "")>
+            aria-describedby="@(describedBy.Length > 0 ? describedBy : null)">
         <option value="">Select revised grade</option>
         @foreach (var option in Model.VisibleOptions)
         {
@@ -68,7 +68,7 @@
 </div>
 
 <script>
-    (function () {
+    document.addEventListener('DOMContentLoaded', function () {
         var select = document.getElementById('@Model.FieldName');
         if (!select || typeof accessibleAutocomplete === 'undefined') return;
         // Nothing to enhance when the reference data has no grades for this qualification.
@@ -87,5 +87,5 @@
             confirmOnBlur: false,
             inputClasses: 'govuk-input@(Model.HasError ? " govuk-input--error" : "")'
         });
-    })();
+    });
 </script>

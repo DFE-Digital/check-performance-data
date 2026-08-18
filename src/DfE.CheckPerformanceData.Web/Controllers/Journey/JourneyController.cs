@@ -157,7 +157,13 @@ public sealed class JourneyController(
 
         var pupil = await pupilDataService.GetPupilAsync(windowId, pupilId);
 
-        if (page.PupilKey != JourneyPage.MatchKey)
+        // AB#296648: the one-request-per-pupil rule belongs to the pupil-data checking exercise —
+        // a results enquiry and a pupil-data amendment may legitimately coexist for the same pupil.
+        var isResultsEnquiry = journey.SelectedWhatToChange is { } whatToChange
+            && WhatToChangeCheckingExerciseMap.CheckingExerciseFor(whatToChange)
+                == WhatToChangeCheckingExerciseMap.ResultsEnquiry;
+
+        if (page.PupilKey != JourneyPage.MatchKey && !isResultsEnquiry)
         {
             var result = await requestService.HasSubmittedRequestAsync(windowId, pupil.Id, long.Parse(currentUserService.OrganisationUrn));
             if (result is not DuplicateCheckResult.NoConflict)

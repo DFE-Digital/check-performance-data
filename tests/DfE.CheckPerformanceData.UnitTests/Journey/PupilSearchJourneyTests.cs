@@ -504,6 +504,43 @@ public class PupilSearchJourneyTests
         Assert.Equal("Summary", redirect.ActionName);
     }
 
+    // ── PupilSearchPost — results-enquiry duplicate-check exemption (AB#296648) ─
+
+    [Fact]
+    public async Task PupilSearchPost_WhenEnquiryJourney_SkipsDuplicateCheckAndSucceeds()
+    {
+        var state = SessionWithoutPupil();
+        state.SelectedWhatToChange = WhatToChange.IncorrectGrade;
+        SetupSession(state);
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(PrimaryPupil);
+        _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
+            .Returns(new DuplicateCheckResult.OtherSubmitted("REF001", "IncorrectGrade", "Pupil data", "A Teacher"));
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("reason", redirect.RouteValues!["pageId"]);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Equal(PrimaryPupilId, saved.SelectedPupil?.Id);
+        await _requestService.DidNotReceive().HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
+    [Fact]
+    public async Task PupilSearchPost_WhenAmendmentJourneyAndConflict_StillBlocksSelection()
+    {
+        SetupSession(SessionWithoutPupil());
+        _pupilDataService.GetPupilAsync(WindowId, PrimaryPupilId).Returns(PrimaryPupil);
+        _requestService.HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>())
+            .Returns(new DuplicateCheckResult.OtherSubmitted("REF001", "Remove", "Pupil data", "A Teacher"));
+
+        var result = await _sut.PupilSearchPost(WindowId, "select-pupil", PrimaryPupilId.ToString(), "Smith, Jane");
+
+        var view = Assert.IsType<ViewResult>(result);
+        Assert.Equal("PupilSearch", view.ViewName);
+        Assert.True(_sut.ModelState.ContainsKey("selectedPupilId"));
+        await _requestService.Received(1).HasSubmittedRequestAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<long>());
+    }
+
     // ── Summary — merge pupil display ───────────────────────────────────────
 
     [Fact]

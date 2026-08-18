@@ -64,9 +64,9 @@ Container `{windowId}`, blob `results-enquiry/data/{laestab}_results.json`. One 
 school across all six supplier files, each row stamped with its source tag.
 
 The `results-enquiry/` prefix is deliberate: per consequence #2 of `docs/16-19-window-model.md` each
-window activity owns its own blob prefix, so when ingress becomes per-activity no migration is needed
-and one activity's sweep cannot destroy another's output. Pupil-data checking keeps its bare `data/`
-prefix. Every path segment lives in `ResultsEnquiryBlobPaths`.
+checking exercise owns its own blob prefix, so when ingress becomes per-exercise no migration is
+needed and one exercise's sweep cannot destroy another's output. Pupil-data checking keeps its bare
+`data/` prefix. Every path segment lives in `ResultsEnquiryBlobPaths`.
 
 Source tags (`ResultsFileTags`, verbatim from AB#296999 — a data contract with ingestion):
 
@@ -234,18 +234,18 @@ docker compose --profile web --profile database --profile storage up -d --build
 
 ## Alignment with the 16-19 window model
 
-Per `docs/16-19-window-model.md`, without building any of the activity model:
+Per `docs/16-19-window-model.md`, without building any of the checking-exercise model:
 
-- **Naming** is `ResultsEnquiry` (plural) throughout, matching `CheckingWindowActivityType`.
-- **Journey identity** uses Option A: `WhatToChangeActivityMap.ActivityFor` is the one lookup from a
-  `WhatToChange` to its activity. The future `IsSessionReady` gating consumes it; nothing else may
-  hardcode the mapping.
-- **Blob layout** is born activity-scoped (`results-enquiry/data/`).
-- **The entry radio** shows for any open 16-19 window. `// PARKED` comments mark where visibility moves
-  to `IWindowActivityService.OpenActivities`.
+- **Naming** is `ResultsEnquiry` (plural) throughout, matching `CheckingExerciseType`.
+- **Journey identity** uses Option A: `WhatToChangeCheckingExerciseMap.CheckingExerciseFor` is the
+  one lookup from a `WhatToChange` to its checking exercise. The future `IsSessionReady` gating
+  consumes it; nothing else may hardcode the mapping.
+- **Blob layout** is born exercise-scoped (`results-enquiry/data/`).
+- **The entry radio** shows for any open 16-19 window. `// PARKED` comments mark where visibility
+  moves to `ICheckingExerciseService.OpenCheckingExercises`.
 
-Not built here: `CheckingWindowActivity` entity and migrations, `IWindowActivityService`, read-only page
-states, dataset reparenting, per-activity ingress, draft-across-boundary rules.
+Not built here: `CheckingExercise` entity and migrations, `ICheckingExerciseService`, read-only page
+states, dataset reparenting, per-exercise ingress, draft-across-boundary rules.
 
 ## Deliberately out of scope
 

@@ -43,7 +43,15 @@ builder.Services.AddDbContext<PortalDbContext>(options =>
         sql => sql.EnableRetryOnFailure()));
 builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalDbContext>());
 
-builder.Services.AddZendeskApiClient(builder.Configuration);
+// Whether the real Zendesk client is the one that will actually serve requests decides how
+// strict its configuration has to be. With the fake selected — the default, so that a fresh dev
+// or test environment never pushes to real Zendesk — blank settings are expected rather than an
+// error, and demanding them would stop the worker starting in exactly the environment the fake
+// exists to serve. The consumers and the retention jobs share this process, so that is all of
+// them, over an integration none of them is using.
+builder.Services.AddZendeskApiClient(
+    builder.Configuration,
+    requireRealClient: !ZendeskServiceRegistration.ShouldUseFake(builder.Configuration));
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
 builder.Services.AddNotifyService(builder.Configuration);
 

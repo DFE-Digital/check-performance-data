@@ -18,6 +18,14 @@ public interface IJourneyValidationService
 
     string? ValidateAnswer(Question question, QuestionAnswer answer, string resolvedTitle, string? resolvedValidationFailure = null);
     string? ValidateFileUpload(string fileName, int newPageCount, IReadOnlyList<FileAnswer> existingFiles);
+
+    /// <summary>
+    /// Rejects a file whose name is already used by any evidence file in the request
+    /// (AB#296081). Case-insensitive on <see cref="FileAnswer.OriginalFileName"/>.
+    /// Returns the user-facing error, or null when the name is new.
+    /// </summary>
+    string? ValidateDuplicateFileName(string fileName, IReadOnlyList<FileAnswer> existingFiles);
+
     string GenerateReference(CheckingWindowType? windowType);
     EvidenceValidationResult? ValidateEvidencePage(JourneyPage page, RequestState journey, string pupilName,
         IReadOnlySet<string>? conditionallyOptionalQuestionIds = null);

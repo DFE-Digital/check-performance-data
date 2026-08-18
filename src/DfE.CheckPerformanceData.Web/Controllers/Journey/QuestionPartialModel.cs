@@ -26,6 +26,13 @@ public sealed class QuestionPartialModel
 
     public int MaxEvidencePages { get; init; }
 
+    /// <summary>
+    /// Every evidence file name already uploaded anywhere in this request (AB#296081) —
+    /// rendered as data-existing-file-names on the file input for the selection-time
+    /// duplicate warning. Request-wide, not per-question, to match the server rule.
+    /// </summary>
+    public IReadOnlyList<string> ExistingFileNames { get; init; } = [];
+
     // File upload computed properties
     public IReadOnlyList<FileAnswer> UploadedFiles => ExistingAnswer?.FileValues ?? [];
     public int TotalPages => UploadedFiles.Sum(f => f.PageCount);

@@ -27,7 +27,10 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
             if (placeholders.Contains(ApiToken, StringComparer.OrdinalIgnoreCase))
                 invalidValues.Add(nameof(ApiToken));
 
-            // Validation is performed via DI options validation in DependencyManager.AddZendeskApiClient().
+            // Blank values are checked in DependencyManager.AddZendeskApiClient, which reports
+            // the specific settings that are missing when the real client is the one in use.
+            // This placeholder check is not wired into that and is retained only for callers
+            // that still reference it.
         }
     }
 

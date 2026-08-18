@@ -262,5 +262,8 @@
     @* Client-side analytics beacons (AB#286387 R18/R19/R23): help-details expand,
        external-link clicks, evidence-file selection. Fire-and-forget; never throws. *@
     <script src="~/js/analytics-events.js" defer asp-append-version="true"></script>
+    @* AB#296081: courtesy client-side duplicate evidence file-name warning at selection
+       time. Progressive enhancement only — the server remains the authority. *@
+    <script src="~/js/evidence-upload-validation.js" defer asp-append-version="true"></script>
     @RenderSection("Scripts", required: false)
 }

@@ -44,6 +44,12 @@ public class JourneyViewModelBuilderTests
         Id = "info", Type = PageType.Content
     };
 
+    private static readonly JourneyPage EvidencePage = new()
+    {
+        Id = "evidence-page",
+        Questions = [new Question { Id = "evidence", Type = QuestionType.FileUpload, Title = "Upload evidence" }]
+    };
+
     private static readonly QuestionFlowConfig Config = new()
     {
         FirstPageId = "select-pupil",
@@ -305,6 +311,29 @@ public class JourneyViewModelBuilderTests
             fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
 
         Assert.Equal("Why is Jane Smith leaving?", vm.QuestionModels[0].ResolvedTitle);
+    }
+
+    // AB#296081: the selection-time duplicate warning needs every file name already in
+    // the request (not just this question's) rendered onto the file input, so the JS can
+    // warn before the user clicks Upload. Request-wide to match the server rule.
+    [Fact]
+    public void BuildPageVm_FileUploadQuestion_CarriesEveryUploadedFileNameInRequest()
+    {
+        var journey = JourneyWithHistory(["select-pupil"]);
+        journey.QuestionAnswers["evidence"] = new QuestionAnswer
+        {
+            FileValues = [new FileAnswer { StoredFileName = "s1", OriginalFileName = "a.pdf", PageCount = 1, FileSizeBytes = 10 }]
+        };
+        journey.QuestionAnswers["other-question"] = new QuestionAnswer
+        {
+            FileValues = [new FileAnswer { StoredFileName = "s2", OriginalFileName = "b.pdf", PageCount = 1, FileSizeBytes = 10 }]
+        };
+
+        var vm = _sut.BuildPageVm(WindowId, EvidencePage, journey.QuestionAnswers, journey,
+            fromSummary: false, modelState: new ModelStateDictionary(), config: Config);
+
+        var fileModel = vm.QuestionModels.Single(m => m.Question.Type == QuestionType.FileUpload);
+        Assert.Equal(new[] { "a.pdf", "b.pdf" }, fileModel.ExistingFileNames.OrderBy(n => n).ToArray());
     }
 
     // ── BuildPupilSearchVm ───────────────────────────────────────────────────

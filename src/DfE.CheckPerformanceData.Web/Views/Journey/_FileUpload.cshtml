@@ -1,4 +1,5 @@
 @using DfE.CheckPerformanceData.Web.Controllers.Journey
+@using System.Text.Json
 @model QuestionPartialModel
 
 @if (Model.IsPageHeading)
@@ -80,7 +81,8 @@ else
         <input class="govuk-file-upload @(fileError is not null ? "govuk-file-upload--error" : "")"
                id="fileUpload" name="fileUpload" type="file"
                accept=".pdf,application/pdf"
-               aria-describedby="@Model.DescribedBy">
+               aria-describedby="@Model.DescribedBy"
+               data-existing-file-names="@JsonSerializer.Serialize(Model.ExistingFileNames)">
     </div>
 
     <govuk-button type="submit" class="govuk-button--secondary"

@@ -128,7 +128,11 @@ public sealed class JourneyViewModelBuilder(
                 ResolvedTitle = JourneyTemplate.Resolve(q.Title, pupilName) + (q.Optional ? " (Optional)" : ""),
                 VisibleOptions = q.Type == QuestionType.Radio
                     ? optionVisibilityService.GetVisibleOptions(q, conditionContext)
-                    : q.Options ?? []
+                    : q.Options ?? [],
+                // AB#296081: request-wide file names for the selection-time duplicate warning.
+                ExistingFileNames = q.Type == QuestionType.FileUpload
+                    ? answers.Values.SelectMany(qa => qa.FileValues ?? []).Select(f => f.OriginalFileName).ToList()
+                    : []
             };
         }).ToList();
 

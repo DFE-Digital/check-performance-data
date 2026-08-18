@@ -1,4 +1,4 @@
-using DfE.CheckPerformanceData.Application.CheckYourPupilData;
+﻿using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
@@ -42,7 +42,7 @@ public sealed class SearchPupilsCachingTests(PostgresFixture fixture)
         Title = "Test Window",
         StartDate = Unspecified(DateTime.UtcNow.AddDays(-7)),
         EndDate = Unspecified(DateTime.UtcNow.AddDays(7)),
-        KeyStage = KeyStages.KS4,
+        KeyStage = type == CheckingWindowType.Post16 ? KeyStages.Post16 : KeyStages.KS4,
         CheckingWindowType = type,
     };
 
@@ -67,6 +67,24 @@ public sealed class SearchPupilsCachingTests(PostgresFixture fixture)
         Cypmd_Id = Guid.NewGuid().ToString(),
         MatchRef = 1,
         Upn = upn,
+    };
+
+    // Post16 is the only window type with its own suggestion format, and it reads fields KS4's
+    // label never touches: CYPMD ID, ULN (IPupilRecord.Identifier) and the inclusion flag.
+    private static Post16PupilRecord NewPost16Pupil(Guid windowId, string surname) => new()
+    {
+        Id = Guid.NewGuid(),
+        CheckingWindowId = windowId,
+        Included = true,
+        Cypmd_Id = "500001",
+        Surname = surname,
+        Firstname = "Test",
+        Sex = "M",
+        DateOfBirth = "2007-03-12 00:00:00.0000000",
+        Age = 17,
+        Laestab = TestLaestab,
+        Urn = TestUrn,
+        Uln = "9900000001",
     };
 
     private async Task<Guid> SeedWindowAsync(CheckingWindowType type)
@@ -119,8 +137,12 @@ public sealed class SearchPupilsCachingTests(PostgresFixture fixture)
     public async Task SecondSearch_ForSameWindowAndSchool_StillUsesCorrectWindowTypeLabel()
     {
         await ResetAsync();
-        var windowId = await SeedWindowAsync(CheckingWindowType.KS4June);
-        var pupil = NewPupil(windowId, "Smith", "A100000000001");
+        // Post16 deliberately: it is the only type PupilSuggestionFormat.Label formats differently,
+        // so it is the only seed under which this assertion CAN fail. Seeding KS4June proved nothing
+        // — it is the enum's first member (value 0, the default), so a cached type that was lost or
+        // defaulted would produce the identical label and the assertion would still pass.
+        var windowId = await SeedWindowAsync(CheckingWindowType.Post16);
+        var pupil = NewPost16Pupil(windowId, "Smith");
 
         var blobClient = new FakePupilDataBlobClient();
         blobClient.SetPupils(windowId, TestLaestab, [pupil]);
@@ -133,8 +155,10 @@ public sealed class SearchPupilsCachingTests(PostgresFixture fixture)
 
         var second = await repo.SearchPupilsAsync(windowId, TestLaestab, TestUrn, "Smith", PupilFilter.Included);
 
-        // KS4June's label format (surname, forename, DOB) — proves the cached window type,
-        // not a default/blank one, drove the second call's formatting.
-        Assert.Equal("Smith, Test, 01/01/2000", second[0].Label);
+        // Post16's label format — forename first, then every identifier and the inclusion tag.
+        // A defaulted window type would fall to the KS4 format "Smith, Test, 12/03/2007" and fail.
+        Assert.Equal(
+            "Test, Smith, (CYPMD ID:500001, ULN:9900000001, DOB:12/03/2007, INCLUDED)",
+            second[0].Label);
     }
 }

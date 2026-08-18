@@ -19,11 +19,6 @@ public sealed class RequestState
     /// Null until one is chosen.</summary>
     public StudentResultRecord? SelectedResult { get; set; }
 
-    /// <summary>AB#296648: the display label of the exam result chosen on a ResultSearch page,
-    /// re-rendered into the autocomplete on validation redisplay. Null until one is chosen.
-    /// The typed record itself is <c>SelectedResult</c>.</summary>
-    public string? SelectedResultLabel { get; set; }
-
     public CheckingWindowDto? CheckingWindow { get; set; }
     public string? ReferenceNumber { get; set; }
     public Dictionary<string, QuestionAnswer> QuestionAnswers { get; set; } = new();

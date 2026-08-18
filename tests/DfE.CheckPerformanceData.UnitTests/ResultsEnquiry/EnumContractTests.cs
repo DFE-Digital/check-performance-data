@@ -37,14 +37,6 @@ public sealed class EnumContractTests
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
     }
 
-    [Fact]
-    public void RequestState_carries_the_selected_result_label()
-    {
-        var state = new RequestState { SelectedResultLabel = "GCSE (9-1) French, QAN: 60181576" };
-
-        Assert.Equal("GCSE (9-1) French, QAN: 60181576", state.SelectedResultLabel);
-    }
-
     [Theory]
     [InlineData(WhatToChange.IncorrectGrade, "ResultsEnquiry")]
     [InlineData(WhatToChange.Merge, "PupilData")]

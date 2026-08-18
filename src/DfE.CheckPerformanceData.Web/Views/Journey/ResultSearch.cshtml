@@ -131,7 +131,6 @@ else
                 // Never silently pick the first match — the user must confirm which result is wrong.
                 autoselect: false,
                 confirmOnBlur: false,
-                defaultValue: @Json.Serialize(Model.SelectedResultLabel ?? ""),
                 inputClasses: 'govuk-input' + (hasError ? ' govuk-input--error' : ''),
                 tAssistiveHint: function () { return assistiveHint; }
             });

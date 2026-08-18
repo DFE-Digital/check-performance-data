@@ -196,7 +196,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney();
 
-        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "anything at all");
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
 
         var stored = _session.GetRequestState(WindowId).SelectedResult;
         Assert.NotNull(stored);
@@ -207,24 +207,12 @@ public sealed class JourneyControllerResultSearchTests
     }
 
     [Fact]
-    public async Task Post_stores_the_label_so_the_autocomplete_can_be_repopulated()
-    {
-        ReadyJourney();
-
-        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey, "GCSE (9-1) French, QAN: 60181576, Session: S2024");
-
-        Assert.Equal(
-            "GCSE (9-1) French, QAN: 60181576, Session: S2024",
-            _session.GetRequestState(WindowId).SelectedResultLabel);
-    }
-
-    [Fact]
     public async Task Post_continues_to_the_next_page()
     {
         ReadyJourney();
 
         var redirect = Assert.IsType<RedirectToActionResult>(
-            await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label"));
+            await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey));
 
         Assert.Equal(nameof(JourneyController.Page), redirect.ActionName);
         Assert.Equal("grade-details", redirect.RouteValues!["pageId"]);
@@ -235,7 +223,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney();
 
-        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label");
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
 
         await _results.Received(1).GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>());
     }
@@ -245,7 +233,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney(s => s.QuestionHistory = ["select-student-single"]);
 
-        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label");
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
 
         Assert.Contains("select-result", _session.GetRequestState(WindowId).QuestionHistory);
     }
@@ -258,7 +246,7 @@ public sealed class JourneyControllerResultSearchTests
         ReadyJourney();
 
         var view = Assert.IsType<ViewResult>(
-            await _sut.ResultSearchPost(WindowId, "select-result", null, null));
+            await _sut.ResultSearchPost(WindowId, "select-result", null));
 
         Assert.Equal("ResultSearch", view.ViewName);
         Assert.Equal(
@@ -271,7 +259,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney();
 
-        await _sut.ResultSearchPost(WindowId, "select-result", "", null);
+        await _sut.ResultSearchPost(WindowId, "select-result", "");
 
         await _analytics.Received(1).TrackSafeAsync(Arg.Is<ValidationErrorEvent>(e =>
             e.ErrorCodes.Contains("no_selection") && e.ErrorFields.Contains("selectedResultKey")));
@@ -284,7 +272,7 @@ public sealed class JourneyControllerResultSearchTests
         ReadyJourney();
 
         var view = Assert.IsType<ViewResult>(
-            await _sut.ResultSearchPost(WindowId, "select-result", "99999999|S2024|16to19_MAIN", "Forged"));
+            await _sut.ResultSearchPost(WindowId, "select-result", "99999999|S2024|16to19_MAIN"));
 
         Assert.Equal("ResultSearch", view.ViewName);
         Assert.Null(_session.GetRequestState(WindowId).SelectedResult);
@@ -301,7 +289,7 @@ public sealed class JourneyControllerResultSearchTests
         ReadyJourney();
         _results.GetResultsAsync(WindowId, Laestab, CypmdId, Arg.Any<CancellationToken>()).Returns([French]);
 
-        Assert.IsType<ViewResult>(await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label"));
+        Assert.IsType<ViewResult>(await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey));
         Assert.Null(_session.GetRequestState(WindowId).SelectedResult);
     }
 
@@ -310,7 +298,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney(s => { s.SelectedPupil = null; s.SelectedPupilId = null; });
 
-        Assert.IsType<ViewResult>(await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label"));
+        Assert.IsType<ViewResult>(await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey));
         await _results.DidNotReceiveWithAnyArgs().GetResultsAsync(default, default!, default!);
     }
 
@@ -319,7 +307,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney();
 
-        var result = await _sut.ResultSearchPost(WindowId, "select-result", "bogus", "label");
+        var result = await _sut.ResultSearchPost(WindowId, "select-result", "bogus");
 
         Assert.IsNotType<RedirectToActionResult>(result);
     }
@@ -334,11 +322,10 @@ public sealed class JourneyControllerResultSearchTests
         ReadyJourney(s =>
         {
             s.SelectedResult = BusStuds;
-            s.SelectedResultLabel = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
             s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "7" };
         });
 
-        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey, "GCSE (9-1) French, QAN: 60181576, Session: S2024");
+        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey);
 
         var state = _session.GetRequestState(WindowId);
         Assert.Equal("60181576", state.SelectedResult!.Qan);
@@ -356,7 +343,7 @@ public sealed class JourneyControllerResultSearchTests
             s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "7" };
         });
 
-        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label");
+        await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey);
 
         Assert.Equal("7", _session.GetRequestState(WindowId).QuestionAnswers["q-revised-grade"].TextValue);
     }
@@ -373,7 +360,7 @@ public sealed class JourneyControllerResultSearchTests
             s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "7" };
         });
 
-        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey, "label");
+        await _sut.ResultSearchPost(WindowId, "select-result", FrenchKey);
 
         var answers = _session.GetRequestState(WindowId).QuestionAnswers;
         Assert.Equal("yes", answers["q-cohort-scope"].TextValue);
@@ -385,7 +372,7 @@ public sealed class JourneyControllerResultSearchTests
     {
         ReadyJourney();
 
-        Assert.IsType<NotFoundResult>(await _sut.ResultSearchPost(WindowId, "grade-details", BusStudsKey, "label"));
+        Assert.IsType<NotFoundResult>(await _sut.ResultSearchPost(WindowId, "grade-details", BusStudsKey));
     }
 
     [Fact]
@@ -404,7 +391,7 @@ public sealed class JourneyControllerResultSearchTests
         ReadyJourney();
 
         var redirect = Assert.IsType<RedirectToActionResult>(
-            await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey, "label"));
+            await _sut.ResultSearchPost(WindowId, "select-result", BusStudsKey));
 
         Assert.Equal(nameof(JourneyController.Summary), redirect.ActionName);
     }
@@ -515,7 +502,6 @@ public sealed class JourneyControllerResultSearchTests
         {
             s.QuestionHistory = ["select-student-single", "select-result", "grade-details"];
             s.SelectedResult = BusStuds;
-            s.SelectedResultLabel = "GCSE (9-1) Bus. Studs:Single, QAN: 6037116X, Session: S2024";
             s.QuestionAnswers["q-revised-grade"] = new QuestionAnswer { TextValue = "7" };
         });
 
@@ -524,7 +510,6 @@ public sealed class JourneyControllerResultSearchTests
         var state = _session.GetRequestState(WindowId);
         Assert.Empty(state.QuestionAnswers);
         Assert.Null(state.SelectedResult);
-        Assert.Null(state.SelectedResultLabel);
         Assert.Equal(["select-student-single"], state.QuestionHistory);
     }
 

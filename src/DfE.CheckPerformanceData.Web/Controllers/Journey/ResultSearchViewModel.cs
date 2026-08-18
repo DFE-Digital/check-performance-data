@@ -23,8 +23,6 @@ public sealed class ResultSearchViewModel
     /// </summary>
     public string? SelectedResultKey { get; set; }
 
-    public string? SelectedResultLabel { get; set; }
-
     /// <summary>The resolved result, shown as a confirmation summary once one is chosen.</summary>
     public StudentResultRecord? SelectedResult { get; set; }
 

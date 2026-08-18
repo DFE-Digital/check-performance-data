@@ -261,7 +261,6 @@ public sealed class JourneyController(
                 // re-resolution on the result page would catch a stale key, but the summary and the
                 // grade page read SelectedResult directly.
                 s.SelectedResult = null;
-                s.SelectedResultLabel = null;
                 s.QuestionHistory = [.. historyBefore, pageId];
                 s.MatchedPupil = null;
                 s.MatchedPupilId = null;
@@ -307,7 +306,7 @@ public sealed class JourneyController(
     [ValidateAntiForgeryToken]
     [Route("/Journey/{windowId}/result-search/{pageId}")]
     public async Task<IActionResult> ResultSearchPost(
-        Guid windowId, string pageId, string? selectedResultKey, string? selectedResultLabel, CancellationToken ct = default)
+        Guid windowId, string pageId, string? selectedResultKey, CancellationToken ct = default)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
         if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
@@ -352,7 +351,6 @@ public sealed class JourneyController(
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedResult = resolved;
-            s.SelectedResultLabel = selectedResultLabel;
             if (resultChanged)
                 s.QuestionAnswers.Remove(RevisedGradeQuestionId);
         });

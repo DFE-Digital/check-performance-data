@@ -313,7 +313,6 @@ public sealed class ResultIssueControllerTests
             SelectedWhatToChange = WhatToChange.Remove,
             SelectedPupilId = Guid.NewGuid().ToString(),
             SelectedPupilLabel = "Smith, Jane",
-            SelectedResultLabel = "GCSE (9-1) French, QAN: 60181576, Session: S2024",
             SelectedResult = new StudentResultRecord { Qan = "60181576", Grade = "6" },
             ReferenceNumber = "CYPMD_16to19_RE_ABCDEF1",
             OriginCountryCode = "FR",
@@ -330,7 +329,6 @@ public sealed class ResultIssueControllerTests
         Assert.Null(state.SelectedPupilLabel);
         Assert.Null(state.SelectedPupil);
         Assert.Null(state.SelectedResult);
-        Assert.Null(state.SelectedResultLabel);
         Assert.Null(state.ReferenceNumber);
         Assert.Null(state.OriginCountryCode);
         Assert.Empty(state.QuestionAnswers);

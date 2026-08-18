@@ -20,11 +20,16 @@ public interface IContentStagingSessionStore
     Task<Guid> CreateAsync(string bundleJson, string? createdBy, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns the stored bundle, or null when the id is unknown or the session has expired.
-    /// An expired row reads as absent whether or not the purge has caught up with it, so a
-    /// late Import can never resurrect a bundle past its lifetime.
+    /// Returns the stored bundle, or null when the id is unknown, the session has expired, or
+    /// it belongs to somebody else.
+    ///
+    /// An expired row reads as absent whether or not the purge has caught up with it, so a late
+    /// Import can never resurrect a bundle past its lifetime. Ownership is checked for the sake
+    /// of the review step rather than as a privilege boundary — everyone who can reach this
+    /// holds the same grant — but the preview exists so that whoever confirms an import has
+    /// seen what it will do, and redeeming somebody else's session breaks exactly that.
     /// </summary>
-    Task<string?> GetBundleJsonAsync(Guid sessionId, CancellationToken cancellationToken = default);
+    Task<string?> GetBundleJsonAsync(Guid sessionId, string? requestedBy, CancellationToken cancellationToken = default);
 
     /// <summary>Drops a session once its import has succeeded.</summary>
     Task DeleteAsync(Guid sessionId, CancellationToken cancellationToken = default);

@@ -45,7 +45,75 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
 
         var id = await store.CreateAsync(json, "editor@education.gov.uk");
 
-        Assert.Equal(json, await store.GetBundleJsonAsync(id));
+        Assert.Equal(json, await store.GetBundleJsonAsync(id, "editor@education.gov.uk"));
+    }
+
+    // A preview session belongs to the administrator who uploaded it. The whole point of the
+    // preview step is that the person who confirms an import has seen what it will do; letting
+    // anyone else redeem the id turns "approve what you reviewed" into "approve what somebody
+    // else reviewed". Both parties hold the same grant, so this is not a privilege boundary —
+    // it is the integrity of the review step, and the owner is already recorded.
+    [Fact]
+    public async Task Get_ByADifferentUser_ReturnsNull()
+    {
+        await ResetAsync();
+        await using var ctx = _fixture.CreateContext();
+        var store = new ContentStagingSessionStore(ctx);
+
+        var id = await store.CreateAsync("{\"mine\":true}", "alice@education.gov.uk");
+
+        Assert.Null(await store.GetBundleJsonAsync(id, "bob@education.gov.uk"));
+        Assert.Equal("{\"mine\":true}", await store.GetBundleJsonAsync(id, "alice@education.gov.uk"));
+    }
+
+    // Addresses are clipped to the column width on the way in, so the comparison has to clip
+    // the same way or an improbably long address could never redeem its own session.
+    [Fact]
+    public async Task Get_ByAnOverlongOwner_StillMatchesItsOwnSession()
+    {
+        await ResetAsync();
+        await using var ctx = _fixture.CreateContext();
+        var store = new ContentStagingSessionStore(ctx);
+        var longEmail = new string('a', 250) + "@education.gov.uk";
+
+        var id = await store.CreateAsync("{}", longEmail);
+
+        Assert.NotNull(await store.GetBundleJsonAsync(id, longEmail));
+    }
+
+    // Nothing else bounds this table — the sweep only takes rows already past expiry, and it
+    // runs before the insert — so without this an operator previewing repeatedly stores a copy
+    // of the bundle every time and deletes none of them. At the upload ceiling that is enough
+    // to fill the database's storage from a surface that needs no confirm step.
+    [Fact]
+    public async Task Create_ReplacesTheSameOperatorsPreviousSession()
+    {
+        await ResetAsync();
+        await using var ctx = _fixture.CreateContext();
+        var store = new ContentStagingSessionStore(ctx);
+
+        var first = await store.CreateAsync("{\"n\":1}", "alice@education.gov.uk");
+        var second = await store.CreateAsync("{\"n\":2}", "alice@education.gov.uk");
+
+        Assert.Equal(1, await ctx.ContentStagingSessions.CountAsync());
+        Assert.Null(await store.GetBundleJsonAsync(first, "alice@education.gov.uk"));
+        Assert.Equal("{\"n\":2}", await store.GetBundleJsonAsync(second, "alice@education.gov.uk"));
+    }
+
+    // One operator starting a new preview must not cancel anybody else's.
+    [Fact]
+    public async Task Create_LeavesOtherOperatorsSessionsAlone()
+    {
+        await ResetAsync();
+        await using var ctx = _fixture.CreateContext();
+        var store = new ContentStagingSessionStore(ctx);
+
+        var bobs = await store.CreateAsync("{\"whose\":\"bob\"}", "bob@education.gov.uk");
+        await store.CreateAsync("{\"whose\":\"alice\"}", "alice@education.gov.uk");
+        await store.CreateAsync("{\"whose\":\"alice2\"}", "alice@education.gov.uk");
+
+        Assert.Equal("{\"whose\":\"bob\"}", await store.GetBundleJsonAsync(bobs, "bob@education.gov.uk"));
+        Assert.Equal(2, await ctx.ContentStagingSessions.CountAsync());
     }
 
     [Fact]
@@ -55,7 +123,7 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
         await using var ctx = _fixture.CreateContext();
         var store = new ContentStagingSessionStore(ctx);
 
-        Assert.Null(await store.GetBundleJsonAsync(Guid.NewGuid()));
+        Assert.Null(await store.GetBundleJsonAsync(Guid.NewGuid(), null));
     }
 
     // Expiry is enforced on read, not merely by the sweep, so a session cannot be redeemed
@@ -71,7 +139,7 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
         var id = await store.CreateAsync("{}", "editor@education.gov.uk");
         clock.Advance(ContentStagingSessionDefaults.Lifetime + TimeSpan.FromMinutes(1));
 
-        Assert.Null(await store.GetBundleJsonAsync(id));
+        Assert.Null(await store.GetBundleJsonAsync(id, "editor@education.gov.uk"));
         Assert.Equal(1, await ctx.ContentStagingSessions.CountAsync());
     }
 
@@ -86,7 +154,7 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
         var id = await store.CreateAsync("{\"a\":1}", null);
         clock.Advance(ContentStagingSessionDefaults.Lifetime - TimeSpan.FromMinutes(1));
 
-        Assert.Equal("{\"a\":1}", await store.GetBundleJsonAsync(id));
+        Assert.Equal("{\"a\":1}", await store.GetBundleJsonAsync(id, null));
     }
 
     [Fact]
@@ -99,7 +167,7 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
         var id = await store.CreateAsync("{}", null);
         await store.DeleteAsync(id);
 
-        Assert.Null(await store.GetBundleJsonAsync(id));
+        Assert.Null(await store.GetBundleJsonAsync(id, null));
         Assert.Equal(0, await ctx.ContentStagingSessions.CountAsync());
     }
 
@@ -121,8 +189,8 @@ public sealed class ContentStagingSessionStoreTests(PostgresFixture fixture)
         var purged = await store.PurgeExpiredAsync();
 
         Assert.Equal(2, purged);
-        Assert.Null(await store.GetBundleJsonAsync(stale1));
-        Assert.Null(await store.GetBundleJsonAsync(stale2));
-        Assert.Equal("{\"n\":3}", await store.GetBundleJsonAsync(live));
+        Assert.Null(await store.GetBundleJsonAsync(stale1, null));
+        Assert.Null(await store.GetBundleJsonAsync(stale2, null));
+        Assert.Equal("{\"n\":3}", await store.GetBundleJsonAsync(live, null));
     }
 }

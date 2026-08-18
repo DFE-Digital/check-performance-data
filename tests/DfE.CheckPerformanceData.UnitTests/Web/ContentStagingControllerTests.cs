@@ -32,7 +32,7 @@ public sealed class ContentStagingControllerTests
     private Guid SessionWith(string bundleJson)
     {
         var id = Guid.NewGuid();
-        _sessions.GetBundleJsonAsync(id, Arg.Any<CancellationToken>()).Returns(bundleJson);
+        _sessions.GetBundleJsonAsync(id, Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(bundleJson);
         return id;
     }
 
@@ -594,6 +594,40 @@ public sealed class ContentStagingControllerTests
 
         Assert.True(ContentStagingFormLimits.MaxDecisions >= maxItems,
             "the model binder's collection ceiling must admit every item the validator does");
+    }
+
+    // The confirm step reloads the bundle from its session, and that session belongs to whoever
+    // previewed it — so the identity has to reach the store, not just the id.
+    [Fact]
+    public async Task Import_LooksTheSessionUpAsTheSignedInUser()
+    {
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult());
+
+        await _sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        await _sessions.Received(1).GetBundleJsonAsync(
+            sessionId, "editor@education.gov.uk", Arg.Any<CancellationToken>());
+    }
+
+    // Acquiring the lock is a database call like any other on this path. Unguarded, a connection
+    // blip during acquire was the one failure that reached the operator as a bare 500.
+    [Fact]
+    public async Task Import_WhenAcquiringTheLockThrows_SurfacesABanner_AndImportsNothing()
+    {
+        var (dbContext, _) = SubstituteDbContext();
+        var importLock = Substitute.For<IContentStagingLock>();
+        importLock.TryAcquireAsync(Arg.Any<CancellationToken>())
+            .Returns<bool>(_ => throw new InvalidOperationException("connection reset"));
+        var sut = NewSutWith(dbContext, importLock);
+
+        var result = await sut.Import(new ImportConfirmFormModel { SessionId = SessionWith(ValidBundleJson()) });
+
+        Assert.IsType<RedirectResult>(result);
+        Assert.NotNull(sut.TempData["ContentStagingError"]);
+        await _staging.DidNotReceiveWithAnyArgs().ImportAsync(default!, default);
     }
 
     // A failed import keeps its session, so the operator can fix the cause and confirm again

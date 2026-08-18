@@ -176,7 +176,46 @@ public sealed class ContentStagingController(
             return Redirect("/admin/content-staging");
         }
 
-        // Buffer the upload before decoding it. The 50 MB cap above already bounds this, and the
+        // Analysing a bundle costs several times its own size in memory — it is buffered,
+        // inflated, decoded to UTF-16, deserialised into an object graph, and re-serialised for
+        // storage, and each of those is a separate large allocation live at the same time. A
+        // bundle at the ceiling therefore peaks in the hundreds of megabytes against a pod
+        // limited to a few gigabytes, and a well-compressed upload costs the sender almost
+        // nothing. Nothing else bounds it: the advisory lock guards Import, not Preview.
+        //
+        // So let a pod analyse a small fixed number at once and turn the rest away politely
+        // rather than let a handful of concurrent requests take it out of memory.
+        // HttpContext is absent when the controller is exercised directly, so fall back rather
+        // than depend on the ambient request being there.
+        var aborted = HttpContext?.RequestAborted ?? CancellationToken.None;
+        if (!await PreviewSlots.WaitAsync(PreviewQueueTimeout, aborted))
+        {
+            logger.LogWarning("ContentStaging: preview refused — {Slots} concurrent analyses already in progress", MaxConcurrentPreviews);
+            TempData["ContentStagingError"] =
+                "The service is busy analysing another bundle. Wait a few moments and try again.";
+            return Redirect("/admin/content-staging");
+        }
+
+        try
+        {
+            return await PreviewCoreAsync(bundle);
+        }
+        finally
+        {
+            PreviewSlots.Release();
+        }
+    }
+
+    // Deliberately small: this bounds peak memory per pod, and the work is interactive and
+    // infrequent — an operator runs one import at a time. The wait is short so a queued caller
+    // gets a clear "busy, try again" rather than holding a request open.
+    private const int MaxConcurrentPreviews = 2;
+    private static readonly TimeSpan PreviewQueueTimeout = TimeSpan.FromSeconds(10);
+    private static readonly SemaphoreSlim PreviewSlots = new(MaxConcurrentPreviews, MaxConcurrentPreviews);
+
+    private async Task<IActionResult> PreviewCoreAsync(IFormFile bundle)
+    {
+        // Buffer the upload before decoding it. The size cap above already bounds this, and the
         // bytes have to be in hand either way to tell a zipped bundle from a plain one.
         using var uploaded = new MemoryStream();
         await bundle.CopyToAsync(uploaded);
@@ -291,7 +330,7 @@ public sealed class ContentStagingController(
     {
         ContentBundle? parsed = null;
         string? error = null;
-        var bundleJson = await sessions.GetBundleJsonAsync(model.SessionId);
+        var bundleJson = await sessions.GetBundleJsonAsync(model.SessionId, currentUser.Email);
         if (string.IsNullOrEmpty(bundleJson) || !TryParseBundle(bundleJson, out parsed, out error))
         {
             TempData["ContentStagingError"] = error ?? "The import session expired. Upload the file again.";
@@ -311,12 +350,31 @@ public sealed class ContentStagingController(
         // on each of two pods — would race on individual pages and produce a chaotic mixed
         // outcome. Acquire a Postgres advisory lock first; if a peer holds it, surface a
         // specific "another import is in progress" banner rather than let them collide.
-        var lockAcquired = _importLock is not null && await _importLock.TryAcquireAsync();
-        if (_importLock is not null && !lockAcquired)
+        //
+        // Acquiring talks to the database, so it can fail the way any other query can. Every
+        // other database call on this path is guarded; without this one being guarded too, a
+        // connection blip during acquire is the one failure that reaches the operator as a bare
+        // 500 instead of a banner. A failure to acquire is treated as "somebody else has it",
+        // which is the safe reading — proceeding unguarded is the outcome the lock exists to
+        // prevent.
+        var lockAcquired = false;
+        if (_importLock is not null)
         {
-            TempData["ContentStagingError"] =
-                "Another import is already in progress. Wait for it to finish and try again.";
-            return Redirect("/admin/content-staging");
+            try
+            {
+                lockAcquired = await _importLock.TryAcquireAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Import controller: could not acquire the import lock");
+            }
+
+            if (!lockAcquired)
+            {
+                TempData["ContentStagingError"] =
+                    "Another import is already in progress. Wait for it to finish and try again.";
+                return Redirect("/admin/content-staging");
+            }
         }
 
         try

@@ -397,7 +397,7 @@ public sealed class ContentStagingController(
             // the session inviting a re-run.
             try
             {
-                await WriteImportAuditAsync(result, bundleJson!.Length);
+                await WriteImportAuditAsync(result, bundleJson!, model.SessionId, parsed);
             }
             catch (Exception auditEx)
             {
@@ -531,16 +531,36 @@ public sealed class ContentStagingController(
         $"{r.PageNodesSkipped} skipped. Content blocks: {r.ContentBlocksCreated} added, " +
         $"{r.ContentBlocksUpdated} updated, {r.ContentBlocksSkipped} skipped.";
 
-    // Records an AuditEntry for a successful content-staging import. NewValues carries a
-    // JSON summary of the mutation counts so an incident-responder can reconstruct "who
-    // changed how much" without replaying the bundle. Guarded on _dbContext so tests that
-    // construct the controller without a context (all pre-existing tests) don't NRE.
-    private async Task WriteImportAuditAsync(ContentImportResult result, int bundleJsonBytes)
+    // Records an AuditEntry for a content-staging import, so an incident responder can answer
+    // "who imported what, when" without replaying the bundle.
+    //
+    // Three things beyond the mutation counts make that question answerable:
+    //
+    //  * The session id as EntityId. Every import used to record the literal string "import",
+    //    which identifies nothing. The session id ties the row to the preview it came from —
+    //    and, within the session lifetime, to a table still holding the exact bundle.
+    //  * A hash of the bundle, plus the header the source environment stamped on it. That is
+    //    what lets somebody prove two environments received the same content, or attribute a
+    //    bundle to where it was exported from. The hash is of the canonical JSON, so it is
+    //    stable across the zip.
+    //  * The outcome. A partially-applied import is the case an incident responder most needs
+    //    and the one that previously wrote no row at all, because the audit only ran on the
+    //    clean path.
+    //
+    // Guarded on _dbContext so tests that construct the controller without a context don't NRE.
+    private async Task WriteImportAuditAsync(
+        ContentImportResult result, string bundleJson, Guid sessionId, ContentBundle? bundle)
     {
         if (_dbContext is null) return;
 
         var summary = JsonSerializer.Serialize(new
         {
+            Outcome = result.Errors.Count == 0 ? "Succeeded" : "PartiallyApplied",
+            SessionId = sessionId,
+            BundleSha256 = Sha256Of(bundleJson),
+            SourceExportedBy = bundle?.ExportedBy,
+            SourceExportedAtUtc = bundle?.ExportedAtUtc,
+            ImportedBy = currentUser?.Email,
             result.PageNodesCreated,
             result.PageNodesUpdated,
             result.PageNodesSkipped,
@@ -549,13 +569,13 @@ public sealed class ContentStagingController(
             result.ContentBlocksSkipped,
             WarningCount = result.Warnings.Count,
             ErrorCount = result.Errors.Count,
-            BundleJsonBytes = bundleJsonBytes,
+            BundleJsonBytes = bundleJson.Length,
         });
 
         _dbContext.AuditEntries.Add(new AuditEntry
         {
             EntityType = "ContentBundle",
-            EntityId = "import",
+            EntityId = sessionId.ToString(),
             Action = "Import",
             NewValues = summary,
             Timestamp = DateTime.UtcNow,
@@ -563,4 +583,7 @@ public sealed class ContentStagingController(
         });
         await _dbContext.SaveChangesAsync();
     }
+
+    private static string Sha256Of(string value) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 }

@@ -630,6 +630,46 @@ public sealed class ContentStagingControllerTests
         await _staging.DidNotReceiveWithAnyArgs().ImportAsync(default!, default);
     }
 
+    // "Who imported what, when" has to be answerable from the audit row alone. It used to record
+    // the literal string "import" as its entity id, which identifies nothing.
+    [Fact]
+    public async Task Import_AuditEntry_IdentifiesTheBundleAndTheSession()
+    {
+        var (dbContext, audits) = SubstituteDbContext();
+        var sut = NewSutWith(dbContext);
+        var sessionId = SessionWith(ValidBundleJson());
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(new ContentImportResult { PageNodesCreated = 1 });
+
+        await sut.Import(new ImportConfirmFormModel { SessionId = sessionId });
+
+        audits.Received(1).Add(Arg.Is<AuditEntry>(e =>
+            e.EntityId == sessionId.ToString()
+            && e.NewValues!.Contains("BundleSha256")
+            && e.NewValues.Contains("\"Outcome\":\"Succeeded\"")
+            && e.NewValues.Contains("editor@education.gov.uk")));
+    }
+
+    // A partially-applied import is the case an incident responder most needs, and it used to
+    // write no audit row at all because the audit only ran on the clean path.
+    [Fact]
+    public async Task Import_WithPerItemErrors_StillWritesAnAuditEntry_MarkedPartial()
+    {
+        var (dbContext, audits) = SubstituteDbContext();
+        var sut = NewSutWith(dbContext);
+        var partial = new ContentImportResult { PageNodesCreated = 1 };
+        partial.Errors.Add("Skipped 'a/b' — parent not found.");
+        _staging.ImportAsync(Arg.Any<ContentBundle>(), Arg.Any<ContentImportMode>(),
+                Arg.Any<IReadOnlyDictionary<Guid, ContentImportMode>>())
+            .Returns(partial);
+
+        await sut.Import(new ImportConfirmFormModel { SessionId = SessionWith(ValidBundleJson()) });
+
+        audits.Received(1).Add(Arg.Is<AuditEntry>(e =>
+            e.NewValues!.Contains("\"Outcome\":\"PartiallyApplied\"")));
+    }
+
     // A failed import keeps its session, so the operator can fix the cause and confirm again
     // without re-uploading a bundle that may have taken minutes to transfer.
     [Fact]
@@ -840,15 +880,18 @@ public sealed class ContentStagingControllerTests
             });
         var sut = NewSutWith(dbContext);
 
+        var sessionId = SessionWith(ValidBundleJson());
         await sut.Import(new ImportConfirmFormModel
         {
-            SessionId = SessionWith(ValidBundleJson()),
+            SessionId = sessionId,
             GlobalMode = ContentImportMode.Replace,
         });
 
         audits.Received(1).Add(Arg.Is<AuditEntry>(a =>
             a.EntityType == "ContentBundle" &&
-            a.EntityId == "import" &&
+            // Was the literal "import" on every row, which identifies nothing; the session id
+            // ties the audit back to the preview the bundle came from.
+            a.EntityId == sessionId.ToString() &&
             a.Action == "Import" &&
             a.UserId == "editor@education.gov.uk" &&
             a.NewValues != null &&

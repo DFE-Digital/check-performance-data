@@ -1,4 +1,4 @@
-namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
+﻿namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
 // Source-text assertions pinning two defects found in the lead developer's PR review of
 // _GradeSelect.cshtml (AB#296648).
@@ -64,5 +64,33 @@ public sealed class GradeSelectViewSourceTests
         // @RenderBody(), so a script that runs immediately (an IIFE executing mid-parse) always
         // sees accessibleAutocomplete as undefined and bails out.
         Assert.Contains("document.addEventListener('DOMContentLoaded', function () {", view);
+    }
+
+    // Defect C (still open after the first two fixes): in the ENHANCED state the server-rendered
+    // aria-describedby on the now-hidden <select> never reaches the visible input, because
+    // accessible-autocomplete owns its input's aria-describedby and points it at its own generated
+    // "#{id}__assistiveHint" element. tAssistiveHint is the only supported way in — see
+    // PupilSearch.cshtml for the full rationale.
+    [Fact]
+    public void GradeSelect_PassesTAssistiveHintToTheEnhancement()
+    {
+        var view = ViewSource();
+
+        Assert.Contains("tAssistiveHint: function () { return assistiveHint; }", view);
+    }
+
+    [Fact]
+    public void GradeSelect_AssistiveHintAnnouncesTheErrorTheUnavailableInsetAndTheHint()
+    {
+        var view = ViewSource();
+
+        // The error, so a screen-reader user on the enhanced control hears the validation failure.
+        Assert.Contains("@Json.Serialize(Model.Error ?? \"\")", view);
+        // The reference-data inset — copy kept verbatim in step with the inset div above.
+        Assert.Contains(
+            "@Json.Serialize(Model.GradeOptionsUnavailable ? \"We cannot list grades for this qualification yet\" : \"\")",
+            view);
+        // The question hint.
+        Assert.Contains("@Json.Serialize(Model.Question.Hint ?? \"\")", view);
     }
 }

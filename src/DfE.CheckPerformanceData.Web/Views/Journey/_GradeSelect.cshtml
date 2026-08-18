@@ -1,4 +1,4 @@
-@using DfE.CheckPerformanceData.Web.Controllers.Journey
+﻿@using DfE.CheckPerformanceData.Web.Controllers.Journey
 @model QuestionPartialModel
 
 @*
@@ -74,6 +74,20 @@
         // Nothing to enhance when the reference data has no grades for this qualification.
         if (select.options.length <= 1) return;
 
+        var hasError = @(Model.HasError ? "true" : "false");
+        var errorText = @Json.Serialize(Model.Error ?? "");
+        var unavailableText = @Json.Serialize(Model.GradeOptionsUnavailable ? "We cannot list grades for this qualification yet" : "");
+        var hintText = @Json.Serialize(Model.Question.Hint ?? "");
+
+        // accessible-autocomplete owns the input's aria-describedby, rewriting it on every
+        // re-render, so tAssistiveHint is the supported way to get the hint, the reference-data
+        // inset and the error announced. See PupilSearch.cshtml for the full rationale.
+        var assistiveHint = (hasError ? 'Error: ' + errorText + '. ' : '')
+            + (unavailableText ? unavailableText + '. ' : '')
+            + (hintText ? hintText + '. ' : '')
+            + 'When autocomplete results are available use up and down arrows to review and '
+            + 'enter to select. Touch device users, explore by touch or with swipe gestures.';
+
         accessibleAutocomplete.enhanceSelectElement({
             selectElement: select,
             // "Select revised grade" is a placeholder, not a grade.
@@ -85,7 +99,8 @@
             // silently choose a pass where the user meant a fail.
             autoselect: false,
             confirmOnBlur: false,
-            inputClasses: 'govuk-input@(Model.HasError ? " govuk-input--error" : "")'
+            inputClasses: 'govuk-input@(Model.HasError ? " govuk-input--error" : "")',
+            tAssistiveHint: function () { return assistiveHint; }
         });
     });
 </script>

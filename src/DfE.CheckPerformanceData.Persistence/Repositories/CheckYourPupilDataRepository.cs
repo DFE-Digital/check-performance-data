@@ -2,6 +2,7 @@ using System.Globalization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -59,15 +60,15 @@ public sealed class CheckYourPupilDataRepository(
         // AB#297004: matching and label text differ by window type (16-19 searches on date of birth
         // too and shows its identifiers), so both live in PupilSuggestionFormat where they can be
         // unit-tested against pinned copy.
-        var window = await GetCheckingWindowAsync(windowId);
-        var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
+        var (pupils0, windowType) = await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab);
+        var pupils = pupils0
             .Where(p => filter switch
             {
                 PupilFilter.All => true,
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => PupilSuggestionFormat.Matches(p, query, window.CheckingWindowType));
+            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -75,21 +76,27 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, window.CheckingWindowType)))
+            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, windowType)))
             .ToList();
     }
 
+    private sealed record SchoolPupilsCacheEntry(IReadOnlyList<IPupilRecord> Pupils, CheckingWindowType WindowType);
+
     private async Task<IReadOnlyList<IPupilRecord>> GetSchoolPupilsAsync(Guid windowId, string laestab)
+        => (await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab)).Pupils;
+
+    private async Task<SchoolPupilsCacheEntry> GetSchoolPupilsWithWindowTypeAsync(Guid windowId, string laestab)
     {
         var key = $"pupils:{windowId}:{laestab}";
-        if (cache.TryGetValue(key, out IReadOnlyList<IPupilRecord>? cached) && cached is not null)
+        if (cache.TryGetValue(key, out SchoolPupilsCacheEntry? cached) && cached is not null)
             return cached;
 
         // The blob's record shape depends on the window type, so the window is resolved first.
         var window = await GetCheckingWindowAsync(windowId);
         var pupils = await pupilDataBlobClient.GetPupilsAsync(windowId, laestab, window.CheckingWindowType) ?? [];
-        cache.Set(key, pupils, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
-        return pupils;
+        var entry = new SchoolPupilsCacheEntry(pupils, window.CheckingWindowType);
+        cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
+        return entry;
     }
 
     private static PupilDto ToPupilDto(IPupilRecord p) => new()

@@ -49,6 +49,6 @@ public sealed class EnumContractTests
     [InlineData(WhatToChange.IncorrectGrade, "ResultsEnquiry")]
     [InlineData(WhatToChange.Merge, "PupilData")]
     [InlineData(WhatToChange.Remove, "PupilData")]
-    public void WhatToChange_maps_to_its_window_activity(WhatToChange change, string activity)
-        => Assert.Equal(activity, WhatToChangeActivityMap.ActivityFor(change));
+    public void WhatToChange_maps_to_its_checking_exercise(WhatToChange change, string exercise)
+        => Assert.Equal(exercise, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
 }

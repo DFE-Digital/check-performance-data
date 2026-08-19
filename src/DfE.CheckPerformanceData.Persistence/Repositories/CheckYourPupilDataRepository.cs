@@ -52,7 +52,7 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null)
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
@@ -72,6 +72,12 @@ public sealed class CheckYourPupilDataRepository(
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
+
+        // Applied here rather than after the cap below: ten pupils who hold no results would
+        // otherwise crowd out the one who does. The set carries its own comparer (the results
+        // client builds it case-insensitively), so Contains is asked, never a re-implementation.
+        if (cypmdIdAllowList is not null)
+            pupils = pupils.Where(p => cypmdIdAllowList.Contains(p.Cypmd_Id));
 
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)

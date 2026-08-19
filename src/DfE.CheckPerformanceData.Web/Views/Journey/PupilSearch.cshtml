@@ -85,6 +85,7 @@ else
         (function () {
             var windowId = '@Model.WindowId';
             var filter = '@Model.Filter.ToString().ToLower()';
+            var requireResults = @(Model.RequireResults ? "true" : "false");
             var excludePupilId = '@(Model.ExcludePupilId?.ToString() ?? "")';
             var hasError = @(hasError ? "true" : "false");
             var initialLabel = @Json.Serialize(Model.SelectedPupilLabel ?? "");
@@ -115,11 +116,19 @@ else
                 // (AB#295434) — see _Autocomplete.cshtml for the full rationale.
                 defaultValue: initialLabel,
                 tAssistiveHint: function () { return assistiveHint; },
+                // On a restricted search the component's default "No results found" reads as "you
+                // typed it wrong", when the student may simply hold no results. Saying which it is
+                // here is the only place the user sees it — the hint above is gone once they type.
+                // FLAGGED: copy needs content sign-off.
+                tNoResults: function () {
+                    return requireResults ? 'No students found with results' : 'No results found';
+                },
                 source: function (query, populateResults) {
                     var url = '/pupils/suggestions?windowId=' + windowId
                         + '&query=' + encodeURIComponent(query)
                         + '&filter=' + filter;
                     if (excludePupilId) url += '&excludePupilId=' + excludePupilId;
+                    if (requireResults) url += '&requireResults=true';
 
                     fetch(url)
                         .then(function (r) { return r.json(); })

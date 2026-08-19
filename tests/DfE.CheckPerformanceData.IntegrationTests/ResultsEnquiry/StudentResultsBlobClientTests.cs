@@ -194,4 +194,57 @@ public sealed class StudentResultsBlobClientTests(AzuriteFixture azurite)
         Assert.Equal("5", only.Grade);
         Assert.Equal(ResultsFileTags.Post16Main, only.SourceFile);
     }
+
+    // ── Students with results (AB#296648 follow-up) ──────────────────────────
+
+    [Fact]
+    public async Task GetStudentIdsWithResultsAsync_returns_each_student_once()
+    {
+        // The pupil search restricts itself to this set, so a student holding two results must not
+        // make the set report them twice.
+        var (windowId, service) = await SeededWindowAsync();
+
+        var ids = await NewClient(service).GetStudentIdsWithResultsAsync(windowId, Laestab);
+
+        Assert.Equal(2, ids.Count);
+        Assert.Contains("1606464434", ids);
+        Assert.Contains("9999999999", ids);
+    }
+
+    [Fact]
+    public async Task GetStudentIdsWithResultsAsync_matches_a_student_id_regardless_of_case()
+    {
+        // GetResultsAsync compares ids case-insensitively, and a set the search filters on must
+        // agree with it or a student would be listed and then found to hold nothing.
+        var (windowId, service) = await SeededWindowAsync("""
+        [{ "CYPMD_ID": "a1b2", "QAN": "60180882", "SESSION": "S2024", "GRADE": "9", "SOURCE": "16to19_MAIN" }]
+        """);
+
+        var ids = await NewClient(service).GetStudentIdsWithResultsAsync(windowId, Laestab);
+
+        Assert.Contains("A1B2", ids);
+    }
+
+    [Fact]
+    public async Task GetStudentIdsWithResultsAsync_missing_blob_returns_empty()
+    {
+        var service = new BlobServiceClient(azurite.ConnectionString);
+
+        Assert.Empty(await NewClient(service).GetStudentIdsWithResultsAsync(Guid.NewGuid(), Laestab));
+    }
+
+    [Fact]
+    public async Task GetStudentIdsWithResultsAsync_shares_the_cached_file()
+    {
+        // One autocomplete keystroke must not cost a blob download.
+        var (windowId, service) = await SeededWindowAsync();
+        var client = NewClient(service);
+
+        await client.GetResultsAsync(windowId, Laestab, "1606464434");
+        await service.GetBlobContainerClient(windowId.ToString())
+            .GetBlobClient(ResultsEnquiryBlobPaths.ResultsBlobName(Laestab))
+            .UploadAsync(BinaryData.FromString("[]"), overwrite: true);
+
+        Assert.Equal(2, (await client.GetStudentIdsWithResultsAsync(windowId, Laestab)).Count);
+    }
 }

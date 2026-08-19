@@ -9,6 +9,10 @@ public sealed class PupilSearchViewModel
     public string Title { get; set; } = string.Empty;
     public PupilFilter Filter { get; set; }
     public Guid? ExcludePupilId { get; set; }
+
+    /// <summary>Ask the suggestions endpoint for students who hold results only. See
+    /// <see cref="Application.Journey.JourneyPage.RequireResults"/>.</summary>
+    public bool RequireResults { get; set; }
     public string? SelectedPupilId { get; set; }
     public string? SelectedPupilLabel { get; set; }
     public string? Hint { get; set; }

@@ -182,6 +182,28 @@ public sealed class IncorrectGradeFlowTests
         Assert.Equal("select-result", page.NextPageId);
     }
 
+    [Theory]
+    [InlineData("select-student-cohort")]
+    [InlineData("select-student-single")]
+    public void Both_student_search_pages_list_only_students_who_hold_results(string pageId)
+    {
+        // There is no grade to correct for a student with no result, so they are not a candidate.
+        Assert.True(Page(pageId).RequireResults);
+    }
+
+    [Theory]
+    [InlineData("select-student-cohort")]
+    [InlineData("select-student-single")]
+    public void Both_student_search_pages_say_why_a_student_may_be_missing(string pageId)
+    {
+        // The restriction above hides students. Without saying so, a school cannot tell a typo
+        // from "this student has no results". FLAGGED: copy needs content sign-off.
+        Assert.Equal(
+            "Start typing to search by name, ULN, CYPMD ID or date of birth. "
+            + "You can only search for students who have results.",
+            Page(pageId).Subheading);
+    }
+
     // ── Result search ────────────────────────────────────────────────────────
 
     [Fact]

@@ -25,6 +25,13 @@ public sealed class CheckingWindow
     /// mirror the first dataset — kept for one release so a rollback is safe.
     /// </summary>
     public List<CheckingWindowDataset> Datasets { get; init; } = [];
+
+    /// <summary>
+    /// The window's checking exercises, in sort order. A configured window is meant to have at
+    /// least one, and the window's own StartDate/EndDate is meant to equal the union of these
+    /// rows — neither is enforced yet. The service that owns those rules arrives in #315.
+    /// </summary>
+    public List<CheckingExercise> CheckingExercises { get; init; } = [];
 }
 
 public sealed class WindowValidated

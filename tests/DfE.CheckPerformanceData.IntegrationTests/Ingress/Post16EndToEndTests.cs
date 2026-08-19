@@ -154,7 +154,10 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
             new PupilDataBlobClient(_blobs),
             new MemoryCache(new MemoryCacheOptions()));
 
-        return new CheckYourPupilDataService(repository, currentUser);
+        // The real results client: this window seeds no results file, so it reports nobody — which
+        // is only ever consulted by a results enquiry, and this test makes none.
+        return new CheckYourPupilDataService(repository, currentUser,
+            new StudentResultsBlobClient(_blobs, new MemoryCache(new MemoryCacheOptions())));
     }
 
     [Fact]

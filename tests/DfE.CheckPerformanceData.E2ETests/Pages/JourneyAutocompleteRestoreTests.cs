@@ -46,6 +46,7 @@ public sealed class JourneyAutocompleteRestoreTests(PlaywrightFixture fixture) :
     {
         // No stale DEV-* conflict requests: a leftover conflict for Alice Smith would
         // divert the pupil-search step into the duplicate-attention banner.
+        Page.SetDefaultTimeout(60000); // 60 seconds instead of default 30 seconds
         await SeedHelpers.CleanupDevRequestsAsync(_fixture.SeedClient);
         await ImpersonateInBrowserAsync();
 

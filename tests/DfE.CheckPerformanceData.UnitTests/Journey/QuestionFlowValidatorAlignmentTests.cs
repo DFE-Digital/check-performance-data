@@ -160,6 +160,42 @@ public sealed class QuestionFlowValidatorAlignmentTests
     }
 
     /// <summary>
+    /// The same guard for the Add-a-pupil journey's date rules (AB#297310) in
+    /// <see cref="AddJourneyDateRules"/>. Its two page ids and their date question ids are
+    /// addressed by code, and nothing at runtime notices if one is renamed in the flow JSON —
+    /// the future-date check would simply stop matching and the validation would silently stop
+    /// happening.
+    /// </summary>
+    [Fact]
+    public void AddJourneyDateRules_PageAndQuestionIds_MatchTheShippedFlowConfig()
+    {
+        (string PageId, string QuestionId)[] pairs =
+        [
+            (AddJourneyDateRules.LearnerDetailsPageId, AddJourneyDateRules.DateOfBirth),
+            (AddJourneyDateRules.AdmissionDetailsPageId, AddJourneyDateRules.AdmissionDate)
+        ];
+
+        foreach (var (pageId, questionId) in pairs)
+        {
+            var pages = AllFlowPages().Where(p => p.Page.Id == pageId).ToList();
+            Assert.True(pages.Count > 0,
+                $"No flow config contains a page '{pageId}', which AddJourneyDateRules " +
+                $"addresses by id — its future-date rule would never run.");
+
+            foreach (var page in pages)
+            {
+                var question = page.Page.Questions.SingleOrDefault(q => q.Id == questionId);
+                Assert.True(question is not null,
+                    $"{page.File}: page '{pageId}' has no question '{questionId}', which " +
+                    $"AddJourneyDateRules compares — that rule would silently never fire.");
+                Assert.True(question!.Type == QuestionType.Date,
+                    $"{page.File}: question '{questionId}' is {question.Type}, not Date — " +
+                    $"AddJourneyDateRules reads it as a date answer and would always see it as unanswered.");
+            }
+        }
+    }
+
+    /// <summary>
     /// Pins the scenario-006 invalid-date wording. The removal journeys substitute the
     /// question's own <c>validationFailure</c> for every invalid-date failure, so this string
     /// is the message users see — a copy edit here changes what gets shown. The generic EAL

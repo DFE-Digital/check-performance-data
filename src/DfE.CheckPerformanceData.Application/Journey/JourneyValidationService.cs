@@ -73,6 +73,9 @@ public sealed class JourneyValidationService(
         if (RemovalJourneyDateRules.AppliesToPage(page.Id))
             return RemovalJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
 
+        if (AddJourneyDateRules.AppliesToPage(page.Id))
+            return AddJourneyDateRules.EvaluateFutureDates(page, answers, UkToday(), pupilName);
+
         return [];
     }
 

@@ -139,7 +139,10 @@ public class NotifyService : INotifyService
 
         // GOV.UK Notify raises on BOTH missing and extra personalisation keys, so each key is
         // gated per notification type: the keys added here must exactly match the templates.
-        personalisation["ce name"] = substitutions.CeName;
+        if (notificationType is not NotificationType.ResultsEnquirySubmitted)
+        {
+            personalisation["ce name"] = substitutions.CeName;
+        }
 
         if (notificationType is NotificationType.DataCheckConfirmed
             or NotificationType.DataCheckWithdrawn

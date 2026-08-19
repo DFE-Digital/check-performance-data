@@ -52,6 +52,11 @@ builder.Services.AddScoped<IPortalDbContext>(sp => sp.GetRequiredService<PortalD
 builder.Services.AddZendeskApiClient(
     builder.Configuration,
     requireRealClient: !ZendeskServiceRegistration.ShouldUseFake(builder.Configuration));
+// AddInfrastructureDependencies registers StudentResultsBlobClient (IStudentResultsClient),
+// which caches per-school results JSON via IMemoryCache. The worker opts out of
+// AddPersistenceDependencies (see above), which is where every other host gets this from, so it
+// has to be registered here directly or service-provider validation fails at startup.
+builder.Services.AddMemoryCache();
 builder.Services.AddInfrastructureDependencies(builder.Configuration);
 builder.Services.AddNotifyService(builder.Configuration);
 

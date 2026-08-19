@@ -86,6 +86,24 @@ public class JourneyValidationServiceTests
     }
 
     [Fact]
+    public void ValidateAnswer_FreeText_WhenExceedsCharacterLimit_ReturnsError()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = new string('a', 151) };
+
+        Assert.Equal("My question must be 150 characters or less", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenAtCharacterLimit_ReturnsNull()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = new string('a', 150) };
+
+        Assert.Null(_sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
     public void ValidateAnswer_Date_WhenAllFieldsProvided_ReturnsNull()
     {
         var question = MakeQuestion(QuestionType.Date);

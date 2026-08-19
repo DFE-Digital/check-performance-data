@@ -139,7 +139,8 @@ public sealed class JourneyValidationService(
                 => scopedDateFailure ?? $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
-            QuestionType.TextArea when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
+            QuestionType.TextArea or QuestionType.FreeText
+                when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
                 => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
             QuestionType.Date => null,
             _ when string.IsNullOrWhiteSpace(answer.TextValue)

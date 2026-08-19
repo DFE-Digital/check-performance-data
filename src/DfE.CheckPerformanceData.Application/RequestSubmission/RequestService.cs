@@ -82,11 +82,20 @@ public sealed class RequestService(
         // rules engine worker can write its decision back to that row.
         var changeRequestId = await requestRepository.UpsertAsync(
             BuildChangeRequestData(windowId, journey, RequestStatus.SubmittedUnCommitted, config));
-        var document = BuildRequestDocument(context, config, changeRequestId);
 
-        // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
-        // picks it up, evaluates it and writes the decision back to the row.
-        await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+        // PARKED AB#297310: an Add-pupil request has no rules-engine outcomes (ticket B2) — its
+        // downstream is the LDS egress (LDS_CYPMD_Data specification v2.4), a separate story. So
+        // no enqueue: the ChangeRequests row + the journey blob saved below are the record that
+        // egress will read. When the egress story lands, its dispatch goes THERE, not here — and
+        // the matching exclusion in AdminRequestsService.ProcessCloseWindowEvent comes out with it.
+        if (journey.SelectedWhatToChange != WhatToChange.Add)
+        {
+            var document = BuildRequestDocument(context, config, changeRequestId);
+
+            // Enqueue onto the Postgres rules-engine queue; the worker's RulesConsumer
+            // picks it up, evaluates it and writes the decision back to the row.
+            await queueService.EnqueueAsync(QueueOptions.RulesEngineQueue, document);
+        }
 
         // Persist the stamped journey so the read-only submitted-request view can
         // rebuild its summary (and "Submitted by" section) from the journey alone —

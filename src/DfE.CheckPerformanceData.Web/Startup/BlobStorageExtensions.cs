@@ -48,6 +48,17 @@ public static class BlobStorageExtensions
         services.AddScoped<IRequestBlobClient, RequestBlobClient>();
         services.AddScoped<IRequestStateBlobClient, RequestStateBlobClient>();
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+        // AB#296648: the 16-19 exam results the incorrect-grade enquiry journey reads. Registered
+        // here as well as in the Infrastructure DependencyManager because the web host builds its
+        // blob-client set from this seam and never calls AddInfrastructureDependencies.
+        services.AddScoped<Application.ResultsEnquiry.IStudentResultsClient, StudentResultsBlobClient>();
+        // AB#297130: the AODC grade reference lives beside rules.json in the rules-config container.
+        // The concrete type is registered too, because the startup seeder needs SeedIfMissingAsync
+        // (a seeding concern that has no business on the read interface).
+        services.AddScoped<GradeReferenceBlobClient>();
+        services.AddScoped<Application.ResultsEnquiry.IGradeReferenceClient>(
+            sp => sp.GetRequiredService<GradeReferenceBlobClient>());
+        services.AddHostedService<Seeding.GradeReferenceSeedingService>();
         services.AddScoped<ICsvSchemaFileProcessor, CsvSchemaFileProcessor>();
 
         return services;

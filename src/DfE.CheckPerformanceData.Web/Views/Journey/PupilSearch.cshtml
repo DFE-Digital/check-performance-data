@@ -10,7 +10,7 @@
 
 @if (Model.BackPageId is not null)
 {
-    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey"
        asp-route-windowId="@Model.WindowId"
        asp-route-pageId="@Model.BackPageId"
        class="govuk-back-link">Back</a>

@@ -10,6 +10,15 @@ public interface IRequestNotificationService
     Task NotifyBulkSubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers, EmailSubstitutions substitutions);
     Task NotifyDataCheckConfirmedAsync(DateTime deadlineDate, string referenceNumber, EmailSubstitutions substitutions);
 
+    /// <summary>
+    /// Confirms a submitted 16-19 results enquiry to the person who submitted it (AB#296648).
+    ///
+    /// Unlike an amendment confirmation this carries no deadline: an enquiry is not something the
+    /// school must come back and finish before the window closes. It goes to the submitter only, not
+    /// the whole organisation — the school has not been asked to do anything further.
+    /// </summary>
+    Task NotifyResultsEnquirySubmittedAsync(string referenceNumber);
+
     Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions);
 
     Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions);

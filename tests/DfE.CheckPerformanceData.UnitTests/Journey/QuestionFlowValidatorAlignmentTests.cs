@@ -211,6 +211,50 @@ public sealed class QuestionFlowValidatorAlignmentTests
             .ToHashSet(StringComparer.Ordinal);
     }
 
+    /// <summary>
+    /// A single-question page must NOT set a page-level <c>title</c>.
+    ///
+    /// <c>JourneyViewModelBuilder</c> sets <c>IsPageHeading = isSingleQuestion &amp;&amp;
+    /// string.IsNullOrEmpty(page.Title)</c>, and <c>Page.cshtml</c> renders its own <c>h1</c> only
+    /// when the page has MORE than one question. So a single-question page that also sets a page
+    /// title renders no <c>h1</c> at all — that title feeds only the browser title, and the
+    /// question's legend/label drops from <c>--l</c> to <c>--m</c>.
+    ///
+    /// A page with no heading is a WCAG 2.2 AA failure that nothing else notices: the page still
+    /// renders, still validates and still submits. Use <c>pageTitle</c> when the browser title needs
+    /// to differ from the question (e.g. to keep a pupil name out of it).
+    /// </summary>
+    [Fact]
+    public void SingleQuestionPages_LeaveThePageTitleEmpty_SoTheQuestionBecomesTheHeading()
+    {
+        foreach (var (file, page) in AllFlowPages())
+        {
+            if (page.Type != PageType.Question || page.Questions.Count != 1) continue;
+
+            Assert.True(string.IsNullOrEmpty(page.Title),
+                $"{file}: page '{page.Id}' has a single question but also sets a page-level title " +
+                $"('{page.Title}'), which suppresses IsPageHeading and leaves the page with no <h1>. " +
+                "Remove the page title; use 'pageTitle' if the browser title must differ.");
+        }
+    }
+
+    /// <summary>
+    /// An optional question's title must not spell out "(Optional)" — <c>JourneyViewModelBuilder</c>
+    /// appends it, so a title containing it renders "… (Optional) (Optional)".
+    /// </summary>
+    [Fact]
+    public void OptionalQuestions_DoNotRepeatTheOptionalSuffixInTheirTitle()
+    {
+        foreach (var (file, question) in AllFlowQuestions())
+        {
+            if (!question.Optional) continue;
+
+            Assert.False(question.Title.Contains("(Optional)", StringComparison.OrdinalIgnoreCase),
+                $"{file}: optional question '{question.Id}' spells out \"(Optional)\" in its title " +
+                $"('{question.Title}'). The view model appends it, so this renders it twice.");
+        }
+    }
+
     private static IEnumerable<(string File, Question Question)> AllFlowQuestions() =>
         AllFlowPages().SelectMany(p => p.Page.Questions.Select(q => (p.File, q)));
 

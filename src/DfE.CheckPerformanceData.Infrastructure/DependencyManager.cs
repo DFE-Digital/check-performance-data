@@ -12,6 +12,7 @@ using DfE.CheckPerformanceData.Infrastructure.Analytics;
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.Application.Notify;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Application.RulesConfig;
 using DfE.CheckPerformanceData.Application.RulesEngine;
 using DfE.CheckPerformanceData.Application.ZendeskClient;
@@ -58,6 +59,10 @@ public static class DependencyManager
         // the Web host) because the Persistence repositories that consume it are pulled in
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
+
+        // AB#296648: the 16-19 exam results a school can raise an enquiry against, held in the same
+        // per-window container under the results-enquiry checking-exercise prefix.
+        services.AddScoped<IStudentResultsClient, StudentResultsBlobClient>();
 
         // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is
         // configured (deployed envs wire it via Terraform), else a no-op so dev/review/
@@ -280,7 +285,37 @@ public static class DependencyManager
         return services;
     }
 
-    public static IServiceCollection AddZendeskApiClient(this IServiceCollection services, IConfiguration config)
+    // Host used when the settings are incomplete and the real client is not the one that will
+    // be used. .invalid is reserved by RFC 2606 and can never resolve, so a call that somehow
+    // reached it fails immediately and obviously rather than reaching a real host.
+    private const string UnconfiguredZendeskHost = "https://zendesk.invalid";
+
+    // Named in the error rather than referenced from Application, which Infrastructure does not
+    // depend on. Kept in step with SettingKeys.ZendeskUseFake.
+    private const string ZendeskUseFakeKey = "Zendesk:UseFake";
+
+    // Only the two that form the hostname are structural — a blank Email or ApiToken produces a
+    // client that authenticates badly rather than one that cannot be constructed — but all four
+    // are required for the real client to work, so all four are reported together.
+    internal static List<string> MissingZendeskSettings(ZendeskSettings settings)
+    {
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(settings.Subdomain)) missing.Add(nameof(settings.Subdomain));
+        if (string.IsNullOrWhiteSpace(settings.Domain)) missing.Add(nameof(settings.Domain));
+        if (string.IsNullOrWhiteSpace(settings.Email)) missing.Add(nameof(settings.Email));
+        if (string.IsNullOrWhiteSpace(settings.ApiToken)) missing.Add(nameof(settings.ApiToken));
+        return missing;
+    }
+
+    /// <param name="requireRealClient">
+    /// Whether the real Zendesk client is the one that will actually be used. When false — the
+    /// fake service is selected, which is the default for a fresh dev or test environment —
+    /// incomplete settings are tolerated and the client is pointed at an unresolvable host,
+    /// because nothing will call it. When true, incomplete settings are a misconfiguration and
+    /// are reported as one.
+    /// </param>
+    public static IServiceCollection AddZendeskApiClient(
+        this IServiceCollection services, IConfiguration config, bool requireRealClient = true)
     {
         services.AddTransient<RefitLoggingHandler>();
 
@@ -290,6 +325,23 @@ public static class DependencyManager
         {
             throw new InvalidOperationException("ZendeskSettings section is missing in the configuration.");
         }
+
+        // The base address is built by interpolating Subdomain and Domain, so blank values
+        // produce "https://..com" — not a parseable hostname. Left unchecked that surfaces as a
+        // UriFormatException thrown while the host resolves its hosted services, which kills the
+        // process before anything starts and says nothing about which setting is missing. An
+        // unset variable in a compose file or a deployment slot is the likeliest way to get
+        // here, so it is worth naming the culprits.
+        var missing = MissingZendeskSettings(settings);
+        if (missing.Count > 0 && requireRealClient)
+        {
+            throw new InvalidOperationException(
+                $"ZendeskSettings is incomplete: {string.Join(", ", missing)} " +
+                $"{(missing.Count == 1 ? "is" : "are")} blank. Set the corresponding " +
+                $"ZendeskSettings__* configuration values, or set {ZendeskUseFakeKey}=true to run " +
+                "against the fake Zendesk service instead.");
+        }
+
         services.Configure<ZendeskSettings>(s => s = settings);
 
         services.AddRefitClient<IZendeskApi>(new RefitSettings
@@ -298,7 +350,9 @@ public static class DependencyManager
         })
            .ConfigureHttpClient(c =>
            {
-               c.BaseAddress = new Uri($"https://{settings.Subdomain}.{settings.Domain}.com");
+               c.BaseAddress = missing.Count == 0
+                   ? new Uri($"https://{settings.Subdomain}.{settings.Domain}.com")
+                   : new Uri(UnconfiguredZendeskHost);
                var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{settings.Email}/token:{settings.ApiToken}"));
                c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
                c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -319,10 +373,19 @@ public static class DependencyManager
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<SchoolCheckingExerciseSettings>()
-            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName))
-            .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
-            .ValidateOnStart();
+        // Same reasoning as the client settings above: this names a view that exists in a real
+        // Zendesk instance, so it is only required when a real Zendesk is the one being talked
+        // to. Validated on start, so demanding it regardless is another way for one unset
+        // variable to stop the worker — and with it the queue consumers and every retention job
+        // — over an integration none of them is using.
+        var checkingExercise = services.AddOptions<SchoolCheckingExerciseSettings>()
+            .Bind(config.GetSection(SchoolCheckingExerciseSettings.SectionName));
+        if (requireRealClient)
+        {
+            checkingExercise
+                .Validate(s => !string.IsNullOrEmpty(s.TargetViewTitle), "TargetViewTitle is required")
+                .ValidateOnStart();
+        }
 
         return services;
     }

@@ -44,8 +44,22 @@ public class NotifyService : INotifyService
             NotificationType.DataCheckConfirmed => _settings.PupilDataCheckConfirmTemplateId,
             NotificationType.AmendmentWithdrawn => _settings.WithdrawNotificationTemplateId,
             NotificationType.DataCheckWithdrawn => _settings.PupilDataCheckWithdrawTemplateId,
+            NotificationType.ResultsEnquirySubmitted => _settings.ResultsEnquirySubmittedTemplateId,
             _ => throw new ArgumentOutOfRangeException(nameof(notificationType))
         };
+
+        // A template id that is not configured yet — the results-enquiry template is still to be
+        // created (AB#296648) — would otherwise be sent to Notify once per recipient and rejected
+        // once per recipient. One warning is the useful signal, and it keeps the caller's outcome
+        // independent of email delivery as this interface promises.
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            _logger.LogWarning(
+                "No GOV.UK Notify template is configured for {NotificationType}; skipping {RecipientCount} " +
+                "email(s) for ref {ReferenceNumber}. Set the corresponding Notify:*TemplateId setting.",
+                notificationType, recipientEmails.Count, referenceNumber);
+            return;
+        }
 
         _logger.LogInformation(
             "Sending {NotificationType} notifications for ref {ReferenceNumber} to {RecipientCount} recipient(s)",

@@ -9,7 +9,10 @@ public enum NotificationType
     BulkSubmissionConfirmed,
     DataCheckConfirmed,
     AmendmentWithdrawn,
-    DataCheckWithdrawn
+    DataCheckWithdrawn,
+    // AB#296648: confirmation that a 16-19 results enquiry was submitted. Appended last so existing
+    // stored/serialised values are unmoved.
+    ResultsEnquirySubmitted
 }
 
 /// <summary>

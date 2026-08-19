@@ -2,6 +2,7 @@ using System.Globalization;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -55,17 +56,19 @@ public sealed class CheckYourPupilDataRepository(
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
-        var pupils = (await GetSchoolPupilsAsync(windowId, laestab))
+        //
+        // AB#297004: matching and label text differ by window type (16-19 searches on date of birth
+        // too and shows its identifiers), so both live in PupilSuggestionFormat where they can be
+        // unit-tested against pinned copy.
+        var (pupils0, windowType) = await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab);
+        var pupils = pupils0
             .Where(p => filter switch
             {
                 PupilFilter.All => true,
                 PupilFilter.Included => p.IsIncluded,
                 _ => !p.IsIncluded
             })
-            .Where(p => p.Identifier.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Cypmd_Id.StartsWith(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Surname.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                        p.Firstname.Contains(query, StringComparison.OrdinalIgnoreCase));
+            .Where(p => PupilSuggestionFormat.Matches(p, query, windowType));
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
@@ -73,21 +76,27 @@ public sealed class CheckYourPupilDataRepository(
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
             .Take(10)
-            .Select(p => new PupilSuggestionDto(p.Id, $"{p.Surname}, {p.Firstname}, {PupilDateFormatter.ToDisplayDate(p.DateOfBirth)}"))
+            .Select(p => new PupilSuggestionDto(p.Id, PupilSuggestionFormat.Label(p, windowType)))
             .ToList();
     }
 
+    private sealed record SchoolPupilsCacheEntry(IReadOnlyList<IPupilRecord> Pupils, CheckingWindowType WindowType);
+
     private async Task<IReadOnlyList<IPupilRecord>> GetSchoolPupilsAsync(Guid windowId, string laestab)
+        => (await GetSchoolPupilsWithWindowTypeAsync(windowId, laestab)).Pupils;
+
+    private async Task<SchoolPupilsCacheEntry> GetSchoolPupilsWithWindowTypeAsync(Guid windowId, string laestab)
     {
         var key = $"pupils:{windowId}:{laestab}";
-        if (cache.TryGetValue(key, out IReadOnlyList<IPupilRecord>? cached) && cached is not null)
+        if (cache.TryGetValue(key, out SchoolPupilsCacheEntry? cached) && cached is not null)
             return cached;
 
         // The blob's record shape depends on the window type, so the window is resolved first.
         var window = await GetCheckingWindowAsync(windowId);
         var pupils = await pupilDataBlobClient.GetPupilsAsync(windowId, laestab, window.CheckingWindowType) ?? [];
-        cache.Set(key, pupils, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
-        return pupils;
+        var entry = new SchoolPupilsCacheEntry(pupils, window.CheckingWindowType);
+        cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
+        return entry;
     }
 
     private static PupilDto ToPupilDto(IPupilRecord p) => new()

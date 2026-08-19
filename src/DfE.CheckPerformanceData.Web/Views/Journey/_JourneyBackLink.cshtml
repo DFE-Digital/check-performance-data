@@ -6,9 +6,18 @@
 }
 else if (Model.BackPageId is not null)
 {
-    <a asp-action="@(Model.BackPageIsPupilSearch ? "PupilSearchPage" : "Page")" asp-controller="Journey"
+    @* BackPageAction rather than a bool: there are three page routes now (Page, PupilSearchPage,
+       ResultSearchPage) and a back link pointing at the wrong one 404s. *@
+    <a asp-action="@Model.BackPageAction" asp-controller="Journey"
        asp-route-windowId="@Model.WindowId" asp-route-pageId="@Model.BackPageId"
        class="govuk-back-link">Back</a>
+}
+else if (Model.WhatToChange == DfE.CheckPerformanceData.Application.CheckYourPupilData.WhatToChange.IncorrectGrade)
+{
+    @* A results enquiry started at the ResultIssue page, not the pupil-data amendment chooser.
+       AB#296648: the guidance page is the journey's first page when the second late results file has
+       not landed, so this is the branch it takes. *@
+    <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId" class="govuk-back-link">Back</a>
 }
 else
 {

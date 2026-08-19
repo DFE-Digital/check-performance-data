@@ -98,10 +98,12 @@ public sealed class RequestService(
     {
         await SubmitRequestAsync(windowId, journey);
         await requestNotificationService.NotifySubmissionConfirmedAsync(
-            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty);
+            windowId, journey.CheckingWindow!.EndDate, journey.ReferenceNumber ?? string.Empty,
+            EmailSubstitutions.From(journey.CheckingWindow));
     }
 
-    public async Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate)
+    public async Task ConfirmDataCorrectAsync(
+        Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions)
     {
         await requestRepository.UpsertAsync(new ChangeRequestData
         {
@@ -120,7 +122,8 @@ public sealed class RequestService(
             RequestTypeDescription = "Confirm Pupil Data Declaration"
         });
 
-        await requestNotificationService.NotifyDataCheckConfirmedAsync(endDate, referenceNumber);
+        await requestNotificationService.NotifyDataCheckConfirmedAsync(
+            endDate, referenceNumber, substitutions);
     }
 
     public async Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status)
@@ -169,11 +172,13 @@ public sealed class RequestService(
 
         if (row?.RequestType == RequestType.Amendment)
         {
-            await requestNotificationService.NotifyAmendmentWithdrawnAsync(referenceNumber, deadline);
+            await requestNotificationService.NotifyAmendmentWithdrawnAsync(
+                referenceNumber, deadline, EmailSubstitutions.From(window));
         }
         else if (row?.RequestType == RequestType.ConfirmCorrect)
         {
-            await requestNotificationService.NotifyDataCheckWithdrawnAsync(referenceNumber, deadline);
+            await requestNotificationService.NotifyDataCheckWithdrawnAsync(
+                referenceNumber, deadline, EmailSubstitutions.From(window));
         }
         else
         {

@@ -26,6 +26,8 @@ public interface INotifyService
     /// <param name="deadline">Display-friendly deadline text.</param>
     /// <param name="recipientEmails">Deduplicated recipient email addresses.</param>
     /// <param name="notificationType">Which notification template to use.</param>
+    /// <param name="substitutions">Checking-exercise-specific values (<c>ce name</c>, <c>learner noun</c>,
+    /// <c>turnaround commitment</c>) gated per notification type.</param>
     /// <param name="url">Optional URL (e.g. "submit others" or withdrawal link).</param>
     /// <param name="referenceNumbers">
     /// For a consolidated bulk submission email: every reference in the batch, listed in the
@@ -37,6 +39,7 @@ public interface INotifyService
         string deadline,
         IReadOnlyCollection<string> recipientEmails,
         NotificationType notificationType,
+        EmailSubstitutions substitutions,
         string? url = null,
         IReadOnlyCollection<string>? referenceNumbers = null);
 

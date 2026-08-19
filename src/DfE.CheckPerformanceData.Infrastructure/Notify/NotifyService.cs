@@ -33,6 +33,7 @@ public class NotifyService : INotifyService
         string deadline,
         IReadOnlyCollection<string> recipientEmails,
         NotificationType notificationType,
+        EmailSubstitutions substitutions,
         string? url = null,
         IReadOnlyCollection<string>? referenceNumbers = null)
     {
@@ -54,7 +55,7 @@ public class NotifyService : INotifyService
         {
             try
             {
-                await SendEmailAsync(email, referenceNumber, deadline, templateId, url, referenceNumbers);
+                await SendEmailAsync(email, referenceNumber, deadline, templateId, url, referenceNumbers, notificationType, substitutions);
             }
             catch (Exception ex)
             {
@@ -100,7 +101,9 @@ public class NotifyService : INotifyService
         string deadline,
         string templateId,
         string? url,
-        IReadOnlyCollection<string>? referenceNumbers = null)
+        IReadOnlyCollection<string>? referenceNumbers,
+        NotificationType notificationType,
+        EmailSubstitutions substitutions)
     {
         var personalisation = new Dictionary<string, object>
         {
@@ -118,6 +121,22 @@ public class NotifyService : INotifyService
         {
             // Notify renders newline-joined text as separate lines / bullet items.
             personalisation["references"] = string.Join("\n", referenceNumbers);
+        }
+
+        // GOV.UK Notify raises on BOTH missing and extra personalisation keys, so each key is
+        // gated per notification type: the keys added here must exactly match the templates.
+        personalisation["ce name"] = substitutions.CeName;
+
+        if (notificationType is NotificationType.DataCheckConfirmed
+            or NotificationType.DataCheckWithdrawn
+            or NotificationType.AmendmentWithdrawn)
+        {
+            personalisation["learner noun"] = substitutions.LearnerNoun;
+        }
+
+        if (!string.IsNullOrEmpty(substitutions.TurnaroundCommitment))
+        {
+            personalisation["turnaround commitment"] = substitutions.TurnaroundCommitment;
         }
 
         if (_resiliencePipeline is not null)

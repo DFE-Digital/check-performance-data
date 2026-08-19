@@ -18,7 +18,8 @@ public sealed class RequestNotificationService(
     INotificationDispatcher dispatcher,
     IOptions<NotifySettings> notifySettings) : IRequestNotificationService
 {
-    public async Task NotifySubmissionConfirmedAsync(Guid windowId, DateTime deadlineDate, string referenceNumber)
+    public async Task NotifySubmissionConfirmedAsync(
+        Guid windowId, DateTime deadlineDate, string referenceNumber, EmailSubstitutions substitutions)
     {
         var linkUrl = emailLinkGenerator.GenerateLink(
             "WhatToChange", "Index", new { windowId }, "SubmissionNotification");
@@ -31,12 +32,15 @@ public sealed class RequestNotificationService(
             LinkUrl = linkUrl,
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
-            IncludeOrganisationUsers = true
+            IncludeOrganisationUsers = true,
+            CeName = substitutions.CeName,
+            LearnerNoun = substitutions.LearnerNoun,
+            TurnaroundCommitment = substitutions.TurnaroundCommitment
         });
     }
 
     public async Task NotifyBulkSubmissionConfirmedAsync(
-        Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers)
+        Guid windowId, DateTime deadlineDate, IReadOnlyList<string> referenceNumbers, EmailSubstitutions substitutions)
     {
         if (referenceNumbers.Count == 0) return;
 
@@ -58,7 +62,10 @@ public sealed class RequestNotificationService(
                     LinkUrl = linkUrl,
                     Ukprn = currentUserService.Ukprn,
                     OriginatorEmail = currentUserService.Email,
-                    IncludeOrganisationUsers = true
+                    IncludeOrganisationUsers = true,
+                    CeName = substitutions.CeName,
+                    LearnerNoun = substitutions.LearnerNoun,
+                    TurnaroundCommitment = substitutions.TurnaroundCommitment
                 });
             }
             return;
@@ -74,11 +81,15 @@ public sealed class RequestNotificationService(
             LinkUrl = linkUrl,
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
-            IncludeOrganisationUsers = true
+            IncludeOrganisationUsers = true,
+            CeName = substitutions.CeName,
+            LearnerNoun = substitutions.LearnerNoun,
+            TurnaroundCommitment = substitutions.TurnaroundCommitment
         });
     }
 
-    public async Task NotifyDataCheckConfirmedAsync(DateTime deadlineDate, string referenceNumber)
+    public async Task NotifyDataCheckConfirmedAsync(
+        DateTime deadlineDate, string referenceNumber, EmailSubstitutions substitutions)
     {
         await dispatcher.EnqueueAsync(new EmailNotification
         {
@@ -87,11 +98,15 @@ public sealed class RequestNotificationService(
             Deadline = FormatDeadline(deadlineDate),
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
-            IncludeOrganisationUsers = true
+            IncludeOrganisationUsers = true,
+            CeName = substitutions.CeName,
+            LearnerNoun = substitutions.LearnerNoun,
+            TurnaroundCommitment = substitutions.TurnaroundCommitment
         });
     }
 
-    public async Task NotifyAmendmentWithdrawnAsync(string referenceNumber, DateTime deadlineDate)
+    public async Task NotifyAmendmentWithdrawnAsync(
+        string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions)
     {
         await dispatcher.EnqueueAsync(new EmailNotification
         {
@@ -100,11 +115,15 @@ public sealed class RequestNotificationService(
             Deadline = FormatDeadline(deadlineDate),
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
-            IncludeOrganisationUsers = false
+            IncludeOrganisationUsers = false,
+            CeName = substitutions.CeName,
+            LearnerNoun = substitutions.LearnerNoun,
+            TurnaroundCommitment = substitutions.TurnaroundCommitment
         });
     }
 
-    public async Task NotifyDataCheckWithdrawnAsync(string referenceNumber, DateTime deadlineDate)
+    public async Task NotifyDataCheckWithdrawnAsync(
+        string referenceNumber, DateTime deadlineDate, EmailSubstitutions substitutions)
     {
         await dispatcher.EnqueueAsync(new EmailNotification
         {
@@ -113,7 +132,10 @@ public sealed class RequestNotificationService(
             Deadline = FormatDeadline(deadlineDate),
             Ukprn = currentUserService.Ukprn,
             OriginatorEmail = currentUserService.Email,
-            IncludeOrganisationUsers = true
+            IncludeOrganisationUsers = true,
+            CeName = substitutions.CeName,
+            LearnerNoun = substitutions.LearnerNoun,
+            TurnaroundCommitment = substitutions.TurnaroundCommitment
         });
     }
 

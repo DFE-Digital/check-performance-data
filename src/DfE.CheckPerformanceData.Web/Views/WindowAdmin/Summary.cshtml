@@ -43,6 +43,13 @@
       <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
     </row-actions>
   </row>
+  <row>
+    <key>Turnaround commitment</key>
+    <value>@(string.IsNullOrWhiteSpace(Model.TurnaroundCommitment) ? "Not set" : Model.TurnaroundCommitment)</value>
+    <row-actions>
+      <action href="@Model.TurnaroundCommitmentLink" visually-hidden-text="Turnaround commitment">Change</action>
+    </row-actions>
+  </row>
 
 </govuk-summary-list>
 

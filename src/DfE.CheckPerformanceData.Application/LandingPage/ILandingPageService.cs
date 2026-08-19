@@ -29,5 +29,6 @@ public sealed class CheckingWindowDto
     public required CheckingWindowType CheckingWindowType { get; init; }
     public bool HasPupilData { get; init; }
     public required DateTime StartDate { get; init; }
+    public string TurnaroundCommitment { get; init; } = string.Empty;
 }
 

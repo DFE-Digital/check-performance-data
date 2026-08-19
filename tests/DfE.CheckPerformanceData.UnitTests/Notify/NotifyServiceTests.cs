@@ -20,6 +20,8 @@ public sealed class NotifyServiceTests
         BulkSubmissionNotificationTemplateId = "bulk-template-id"
     };
     private const string DeadlineText = "28 February 2025";
+    private static readonly EmailSubstitutions Substitutions =
+        new("KS4 June", "Pupil", "updated in the Autumn");
     private readonly ILogger<Infrastructure.Notify.NotifyService> _logger =
         Substitute.For<ILogger<Infrastructure.Notify.NotifyService>>();
     private readonly Infrastructure.Notify.NotifyService _sut;
@@ -41,7 +43,8 @@ public sealed class NotifyServiceTests
             "REF001",
             DeadlineText,
             recipients,
-            NotificationType.SubmissionConfirmed);
+            NotificationType.SubmissionConfirmed,
+            Substitutions);
 
         await _client.Received(1).SendEmailAsync(
             recipients[0],
@@ -63,7 +66,8 @@ public sealed class NotifyServiceTests
             "REF001",
             DeadlineText,
             recipients,
-            NotificationType.SubmissionConfirmed);
+            NotificationType.SubmissionConfirmed,
+            Substitutions);
 
         await _client.Received(1).SendEmailAsync(
             Arg.Any<string>(),
@@ -80,7 +84,8 @@ public sealed class NotifyServiceTests
             "REF001",
             DeadlineText,
             recipients,
-            NotificationType.DataCheckConfirmed);
+            NotificationType.DataCheckConfirmed,
+            Substitutions);
 
         await _client.Received(1).SendEmailAsync(
             Arg.Any<string>(),
@@ -99,6 +104,7 @@ public sealed class NotifyServiceTests
             DeadlineText,
             recipients,
             NotificationType.SubmissionConfirmed,
+            Substitutions,
             url);
 
         await _client.Received(1).SendEmailAsync(
@@ -124,6 +130,7 @@ public sealed class NotifyServiceTests
             deadline: "5pm on Friday 26 June 2026",
             recipientEmails: new[] { "a@x.gov.uk" },
             notificationType: NotificationType.BulkSubmissionConfirmed,
+            substitutions: Substitutions,
             url: "https://link",
             referenceNumbers: new[] { "REF001", "REF002" });
 
@@ -147,6 +154,95 @@ public sealed class NotifyServiceTests
             Arg.Any<Dictionary<string, object>>());
     }
 
+    [Theory]
+    [InlineData(NotificationType.SubmissionConfirmed)]
+    [InlineData(NotificationType.BulkSubmissionConfirmed)]
+    [InlineData(NotificationType.DataCheckConfirmed)]
+    [InlineData(NotificationType.DataCheckWithdrawn)]
+    [InlineData(NotificationType.AmendmentWithdrawn)]
+    public async Task SendNotificationsAsync_IncludesCeNameKey_ForAllNotificationTypes(NotificationType type)
+    {
+        var recipients = new[] { "test@school.edu" };
+
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, type, Substitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.ContainsKey("ce name") && p["ce name"].ToString() == "KS4 June"));
+    }
+
+    [Theory]
+    [InlineData(NotificationType.DataCheckConfirmed)]
+    [InlineData(NotificationType.DataCheckWithdrawn)]
+    [InlineData(NotificationType.AmendmentWithdrawn)]
+    public async Task SendNotificationsAsync_IncludesLearnerNounKey_ForDataCheckAndAmendmentWithdrawnTypes(NotificationType type)
+    {
+        var recipients = new[] { "test@school.edu" };
+
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, type, Substitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.ContainsKey("learner noun") && p["learner noun"].ToString() == "Pupil"));
+    }
+
+    [Theory]
+    [InlineData(NotificationType.SubmissionConfirmed)]
+    [InlineData(NotificationType.BulkSubmissionConfirmed)]
+    public async Task SendNotificationsAsync_DoesNotIncludeLearnerNounKey_ForSubmissionTypes(NotificationType type)
+    {
+        var recipients = new[] { "test@school.edu" };
+
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, type, Substitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p => !p.ContainsKey("learner noun")));
+    }
+
+    [Theory]
+    [InlineData(NotificationType.SubmissionConfirmed)]
+    [InlineData(NotificationType.BulkSubmissionConfirmed)]
+    [InlineData(NotificationType.DataCheckConfirmed)]
+    [InlineData(NotificationType.DataCheckWithdrawn)]
+    [InlineData(NotificationType.AmendmentWithdrawn)]
+    public async Task SendNotificationsAsync_IncludesTurnaroundCommitmentKey_WhenNonEmpty(NotificationType type)
+    {
+        var recipients = new[] { "test@school.edu" };
+
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, type, Substitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p =>
+                p.ContainsKey("turnaround commitment") && p["turnaround commitment"].ToString() == "updated in the Autumn"));
+    }
+
+    [Theory]
+    [InlineData(NotificationType.SubmissionConfirmed)]
+    [InlineData(NotificationType.BulkSubmissionConfirmed)]
+    [InlineData(NotificationType.DataCheckConfirmed)]
+    [InlineData(NotificationType.DataCheckWithdrawn)]
+    [InlineData(NotificationType.AmendmentWithdrawn)]
+    public async Task SendNotificationsAsync_OmitsTurnaroundCommitmentKey_WhenEmpty(NotificationType type)
+    {
+        var recipients = new[] { "test@school.edu" };
+        var emptySubstitutions = new EmailSubstitutions("KS4 June", "Pupil", "");
+
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, type, emptySubstitutions);
+
+        await _client.Received(1).SendEmailAsync(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Is<Dictionary<string, object>>(p => !p.ContainsKey("turnaround commitment")));
+    }
+
     [Fact]
     public async Task SendNotificationsAsync_CatchesException_DoesNotRethrow()
     {
@@ -155,7 +251,7 @@ public sealed class NotifyServiceTests
             .Returns(x => throw new InvalidOperationException("Notify API failure"));
 
         var exception = await Record.ExceptionAsync(() =>
-            _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed));
+            _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed, Substitutions));
 
         Assert.Null(exception);
     }
@@ -167,7 +263,7 @@ public sealed class NotifyServiceTests
         _client.SendEmailAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
             .Returns(x => throw new InvalidOperationException("Notify API failure"));
 
-        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed, Substitutions);
 
         _logger.Received(1).Log(
             Arg.Is<LogLevel>(l => l == LogLevel.Error),
@@ -186,7 +282,7 @@ public sealed class NotifyServiceTests
         _client.SendEmailAsync(recipients[1], Arg.Any<string>(), Arg.Any<Dictionary<string, object>>())
             .Returns(Task.CompletedTask);
 
-        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed, Substitutions);
 
         await _client.Received(1).SendEmailAsync(recipients[1], Arg.Any<string>(), Arg.Any<Dictionary<string, object>>());
     }
@@ -219,7 +315,7 @@ public sealed class NotifyServiceTests
                 return Task.CompletedTask;
             });
 
-        await sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed, Substitutions);
 
         Assert.Equal(3, callCount);
     }
@@ -236,7 +332,7 @@ public sealed class NotifyServiceTests
                 throw new HttpRequestException("Transient network error");
             });
 
-        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed);
+        await _sut.SendNotificationsAsync("REF001", DeadlineText, recipients, NotificationType.SubmissionConfirmed, Substitutions);
 
         Assert.Equal(1, callCount);
     }

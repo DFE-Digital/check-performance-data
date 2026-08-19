@@ -12,6 +12,7 @@ public sealed class DevConsoleNotifyServiceTests
 {
     private readonly ILogger<DevConsoleNotifyService> _logger = Substitute.For<ILogger<DevConsoleNotifyService>>();
     private readonly DevConsoleNotifyService _sut;
+    private static readonly EmailSubstitutions Substitutions = new("KS4 June", "Pupil", "");
 
     public DevConsoleNotifyServiceTests()
     {
@@ -28,12 +29,36 @@ public sealed class DevConsoleNotifyServiceTests
             "28 February 2025",
             recipients,
             NotificationType.SubmissionConfirmed,
+            Substitutions,
             "https://example.com/submit");
 
         _logger.Received(1).Log(
             LogLevel.Information,
             Arg.Any<EventId>(),
             Arg.Is<object>(o => o.ToString()!.Contains("SubmissionConfirmed")),
+            Arg.Any<Exception>(),
+            Arg.Any<Func<object, Exception?, string>>());
+    }
+
+    [Fact]
+    public async Task SendNotificationsAsync_LogsSubstitutionValues()
+    {
+        var recipients = new[] { "alice@school.edu" };
+
+        await _sut.SendNotificationsAsync(
+            "REF-001",
+            "28 February 2025",
+            recipients,
+            NotificationType.SubmissionConfirmed,
+            new EmailSubstitutions("KS4 June", "Pupil", "updated in the Autumn"));
+
+        _logger.Received(1).Log(
+            LogLevel.Information,
+            Arg.Any<EventId>(),
+            Arg.Is<object>(o =>
+                o.ToString()!.Contains("KS4 June") &&
+                o.ToString()!.Contains("Pupil") &&
+                o.ToString()!.Contains("updated in the Autumn")),
             Arg.Any<Exception>(),
             Arg.Any<Func<object, Exception?, string>>());
     }
@@ -60,7 +85,8 @@ public sealed class DevConsoleNotifyServiceTests
             "REF-001",
             "28 February 2025",
             recipients,
-            NotificationType.SubmissionConfirmed);
+            NotificationType.SubmissionConfirmed,
+            Substitutions);
 
         Assert.True(true, "No exception means no outbound call dependency was required");
     }
@@ -74,7 +100,8 @@ public sealed class DevConsoleNotifyServiceTests
             "REF-001",
             "28 February 2025",
             recipients,
-            NotificationType.DataCheckConfirmed);
+            NotificationType.DataCheckConfirmed,
+            Substitutions);
 
         _logger.Received(1).Log(
             LogLevel.Information,
@@ -89,7 +116,7 @@ public sealed class NotifyServiceRegistrationTests
 {
     private sealed class StubNotifyService : INotifyService
     {
-        public Task SendNotificationsAsync(string referenceNumber, string deadline, IReadOnlyCollection<string> recipientEmails, NotificationType notificationType, string? url = null, IReadOnlyCollection<string>? referenceNumbers = null) =>
+        public Task SendNotificationsAsync(string referenceNumber, string deadline, IReadOnlyCollection<string> recipientEmails, NotificationType notificationType, EmailSubstitutions substitutions, string? url = null, IReadOnlyCollection<string>? referenceNumbers = null) =>
             Task.CompletedTask;
         public Task SendDlqThresholdEmailAsync(string toEmail, int dlqDepth, int threshold) =>
             Task.CompletedTask;

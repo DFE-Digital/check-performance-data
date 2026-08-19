@@ -36,6 +36,10 @@ public sealed class NotificationSender(
             notification.Deadline,
             recipients,
             notification.Type,
+            new EmailSubstitutions(
+                notification.CeName,
+                notification.LearnerNoun,
+                notification.TurnaroundCommitment),
             notification.LinkUrl,
             notification.ReferenceNumbers);
     }

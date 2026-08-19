@@ -129,6 +129,43 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal("Index", redirect.ActionName);
     }
 
+    // AB#297310: starting a fresh Add journey must not inherit a previous journey's identity.
+    // AddPupilJourney.BuildPupil reuses SelectedPupil.Id/ReferenceNumber for stability across
+    // re-edits WITHIN one journey — but without a reset here, a stale ReferenceNumber/SelectedPupil
+    // left over from an earlier, already-submitted Add request in the same browser session would
+    // be silently reused for a brand-new one, colliding with (and overwriting) that submitted row.
+    [Fact]
+    public async Task Confirm_ForAdd_ClearsAnyStaleIdentityFromAPreviousJourney()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June)
+            .Returns(new QuestionFlowConfig { FirstPageId = "learner-details", Pages = [] });
+        _session.SaveRequestState(WindowId, s =>
+        {
+            s.ReferenceNumber = "CYPMD_KS4June_STALE01";
+            s.SelectedPupil = new PupilDto
+            {
+                Id = Guid.NewGuid(), Firstname = "Alice", Surname = "Newpupil", Sex = "F",
+                DateOfBirth = "01/09/2010", Age = 0, Cypmd_Id = "", Identifier = "A123456789012"
+            };
+            s.SelectedPupilId = "some-stale-id";
+            s.SelectedPupilLabel = "Newpupil, Alice";
+            s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
+            s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
+        });
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
+
+        var journey = _session.GetRequestState(WindowId);
+        Assert.Null(journey.ReferenceNumber);
+        Assert.Null(journey.SelectedPupil);
+        Assert.Null(journey.SelectedPupilId);
+        Assert.Null(journey.SelectedPupilLabel);
+        Assert.Empty(journey.QuestionAnswers);
+        Assert.Empty(journey.QuestionHistory);
+    }
+
     private static CheckingWindowDto Ks4JuneWindow() => new()
     {
         Id = Guid.NewGuid(),

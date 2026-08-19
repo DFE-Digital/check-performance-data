@@ -67,7 +67,7 @@
           "type": "Date",
           "title": "Admission date",
           "summaryTitle": "Admission date",
-          "hint": "The date {pupilName} was admitted to your school",
+          "hint": "The date the pupil was admitted to your school",
           "validationFailure": "Enter the date {pupilName} was admitted to your school"
         },
         {

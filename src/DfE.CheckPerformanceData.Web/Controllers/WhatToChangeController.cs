@@ -43,6 +43,24 @@ public sealed class WhatToChangeController(
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
+
+            // AB#297310: the Add journey has no pupil-search step to naturally refresh
+            // SelectedPupil/ReferenceNumber the way every other flow's PupilSearchPost does (it
+            // unconditionally regenerates both on every pupil selection). AddPupilJourney.BuildPupil
+            // instead reuses them for stability across re-edits WITHIN one journey — so without a
+            // reset here, restarting Add in the same browser session after a previous Add request
+            // was already submitted would silently reuse its reference and pupil id, colliding with
+            // (and overwriting) that submitted row. "A freshly started journey is never an edit of
+            // an existing request" (see below) has to be made true for Add explicitly.
+            if (vm.SelectedWhatToChange == WhatToChange.Add)
+            {
+                s.ReferenceNumber = null;
+                s.SelectedPupil = null;
+                s.SelectedPupilId = null;
+                s.SelectedPupilLabel = null;
+                s.QuestionAnswers = new();
+                s.QuestionHistory = new();
+            }
         });
         // A freshly started journey is never an edit of an existing request.
         HttpContext.Session.ClearBulkEditMode(windowId);

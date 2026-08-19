@@ -401,6 +401,45 @@ public class QuestionFlowServiceTests
         Assert.Equal(string.Empty, _sut.ResolveRequestType(_config, journey));
     }
 
+    // AB#297310: the Add journey's learner-details page has no useAsRequestType question — its
+    // first question is the pupil's own typed first name. Without a guard, the generic
+    // "fall back to the first answered question" rule would surface it as if it were a request
+    // category (observed live: "Add - Alice"), which is meaningless — an Add request has no
+    // sub-category the way Remove has "reason".
+    [Fact]
+    public void ResolveRequestType_WhenHistoryIncludesAPupilFromAnswersPage_ReturnsEmptyString()
+    {
+        var config = new QuestionFlowConfig
+        {
+            FirstPageId = "learner-details",
+            Pages =
+            [
+                new JourneyPage
+                {
+                    Id = "learner-details",
+                    PupilFromAnswers = true,
+                    Questions = [new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" }],
+                    NextPageId = "admission-details"
+                },
+                new JourneyPage
+                {
+                    Id = "admission-details",
+                    Questions = [new Question { Id = "year-group", Type = QuestionType.Radio, Title = "Year group",
+                        Options = [new QuestionOption { Value = "10", Label = "Year 10" }] }]
+                }
+            ]
+        };
+        var journey = MakeJourney(
+            history: ["learner-details", "admission-details"],
+            answers: new()
+            {
+                ["first-name"] = new() { TextValue = "Alice" },
+                ["year-group"] = new() { TextValue = "10" }
+            });
+
+        Assert.Equal(string.Empty, _sut.ResolveRequestType(config, journey));
+    }
+
     // ── ResolveRequestTypeValue ─────────────────────────────────────────────
 
     [Fact]

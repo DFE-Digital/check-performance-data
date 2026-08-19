@@ -42,6 +42,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "Remove a pupil from data",
         WhatToChange.Include => "Include a pupil in data",
         WhatToChange.Merge => "Merge duplicate pupil records",
+        WhatToChange.Add => "Add a pupil to data",
         _ => WhatToChange.ToString()
     };
 
@@ -50,6 +51,7 @@ public sealed class SummaryViewModel
         WhatToChange.Remove => "removal",
         WhatToChange.Include => "inclusion",
         WhatToChange.Merge => "merge",
+        WhatToChange.Add => "addition",
         _ => WhatToChange.ToString().ToLower()
     };
 

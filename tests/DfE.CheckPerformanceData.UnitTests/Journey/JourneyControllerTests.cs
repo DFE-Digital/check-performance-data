@@ -788,6 +788,86 @@ public class JourneyControllerTests
         Assert.Equal("Alicia", resaved.SelectedPupil.Firstname);
     }
 
+    // The edit-from-summary branch has its own save point and its own MintSyntheticPupilIfNeeded
+    // call. It must mint on exactly the same terms as the normal branch — same pupil id, same
+    // reference, updated answers — or a name corrected from the summary would leave the row and
+    // the blob showing the old one.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_FromSummary_UpdatesThePupilAndKeepsItsIdentity()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        PostLearnerDetails(firstName: "Corrected");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var edited = _session.GetRequestState(WindowId);
+        Assert.Equal("Corrected", edited.SelectedPupil!.Firstname);
+        Assert.Equal("Smith, Corrected", edited.SelectedPupilLabel);
+        Assert.Equal(pupilId, edited.SelectedPupil.Id);
+        Assert.Equal(reference, edited.ReferenceNumber);
+    }
+
+    // The mint runs after the validation gate, not before it. If it ever moved above the
+    // early return, a rejected page would still stamp a pupil and a reference onto the session —
+    // giving the journey an identity (and a draft row, once one is saved) built from answers the
+    // user was just told were invalid.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_MintsNothing()
+    {
+        SetupLearnerDetailsPage();
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        SetupSession(AddSession());
+        PostLearnerDetails(firstName: "");
+
+        var result = await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        Assert.IsType<ViewResult>(result);
+        var saved = _session.GetRequestState(WindowId);
+        Assert.Null(saved.SelectedPupil);
+        Assert.Null(saved.SelectedPupilId);
+        Assert.Null(saved.SelectedPupilLabel);
+        Assert.Null(saved.ReferenceNumber);
+    }
+
+    // The same gate once a pupil already exists: a rejected edit must leave the stored pupil as it
+    // was, not overwrite it with the invalid answers the user is being sent back to fix.
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_WhenValidationFails_LeavesAnAlreadyMintedPupilUntouched()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var minted = _session.GetRequestState(WindowId);
+        var pupilId = minted.SelectedPupil!.Id;
+        var reference = minted.ReferenceNumber;
+
+        _journeyService.ValidateAnswer(
+                Arg.Is<Question>(q => q.Id == "first-name"), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns("Enter the pupil's first name");
+        PostLearnerDetails(firstName: "");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: true);
+
+        var after = _session.GetRequestState(WindowId);
+        Assert.Equal("Alice", after.SelectedPupil!.Firstname);
+        Assert.Equal(pupilId, after.SelectedPupil.Id);
+        Assert.Equal(reference, after.ReferenceNumber);
+    }
+
     // ── PagePost — cross-field date rules (AB#295246) ────────────────────────
 
     [Fact]

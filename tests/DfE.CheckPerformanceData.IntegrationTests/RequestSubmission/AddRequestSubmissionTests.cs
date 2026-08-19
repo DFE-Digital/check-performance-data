@@ -15,6 +15,7 @@ using DfE.CheckPerformanceData.Persistence.Entities;
 using DfE.CheckPerformanceData.Persistence.Repositories;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using NSubstitute;
@@ -61,13 +62,47 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         }
     }
 
-    private static QuestionFlowConfig LoadAddKs4JuneConfig()
+    private static QuestionFlowConfig LoadAddKs4JuneConfig() => LoadFlowConfig("Add_KS4June.json");
+
+    private static QuestionFlowConfig LoadFlowConfig(string fileName) =>
+        JsonSerializer.Deserialize<QuestionFlowConfig>(
+            File.ReadAllText(LocateFlowFile(fileName)), FlowJsonOptions)!;
+
+    /// <summary>
+    /// Serves the shipped flow files by the same <c>{WhatToChange}_{CheckingWindowType}</c> key the
+    /// real blob client uses, so the whole <see cref="QuestionFlowService"/> — config lookup,
+    /// page lookup, request-type resolution — runs for real against the configs that ship.
+    /// </summary>
+    private sealed class ShippedFlowFileClient(QuestionFlowConfig? addOverride) : IQuestionFlowBlobClient
     {
-        var path = LocateFlowFile("Add_KS4June.json");
-        return JsonSerializer.Deserialize<QuestionFlowConfig>(File.ReadAllText(path), FlowJsonOptions)!;
+        public Task<QuestionFlowConfig?> GetConfigAsync(WhatToChange whatToChange, CheckingWindowType windowType)
+        {
+            if (whatToChange == WhatToChange.Add && addOverride is not null)
+                return Task.FromResult<QuestionFlowConfig?>(addOverride);
+
+            var fileName = $"{whatToChange}_{windowType}.json";
+            return Task.FromResult(File.Exists(TryLocateFlowFile(fileName))
+                ? LoadFlowConfig(fileName)
+                : null);
+        }
+
+        public Task UploadConfigAsync(WhatToChange whatToChange, CheckingWindowType windowType, string json) =>
+            Task.CompletedTask;
     }
 
-    private static string LocateFlowFile(string fileName)
+    private static IQuestionFlowService BuildFlowService(QuestionFlowConfig? addOverride = null) =>
+        new QuestionFlowService(
+            new ShippedFlowFileClient(addOverride),
+            new MemoryCache(new MemoryCacheOptions()));
+
+    private static string LocateFlowFile(string fileName) =>
+        TryLocateFlowFile(fileName) is { } path && File.Exists(path)
+            ? path
+            : throw new FileNotFoundException($"Could not locate {fileName} from " + AppContext.BaseDirectory);
+
+    // Returns the path a flow file would occupy, whether or not it exists — the flow client has to
+    // be able to answer "no such flow" (e.g. Add_Post16) without throwing.
+    private static string TryLocateFlowFile(string fileName)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
@@ -77,10 +112,11 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             if (File.Exists(candidate)) return candidate;
             dir = dir.Parent;
         }
-        throw new FileNotFoundException($"Could not locate {fileName} from " + AppContext.BaseDirectory);
+        return fileName;
     }
 
-    private (RequestService Service, InMemoryRequestStateBlobClient Blob) BuildService(QuestionFlowConfig addConfig)
+    private (RequestService Service, InMemoryRequestStateBlobClient Blob, IQuestionFlowService Flows) BuildService(
+        QuestionFlowConfig addConfig)
     {
         var currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(UserId.ToString());
@@ -90,8 +126,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         currentUser.Email.Returns("ada@school.test");
 
         var blob = new InMemoryRequestStateBlobClient();
-        var flowService = Substitute.For<IQuestionFlowService>();
-        flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June).Returns(addConfig);
+        var flowService = BuildFlowService(addConfig);
 
         var service = new RequestService(
             flowService,
@@ -103,7 +138,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
             Substitute.For<IRequestNotificationService>(),
             Substitute.For<ICheckYourPupilDataService>());
 
-        return (service, blob);
+        return (service, blob, flowService);
     }
 
     // Mints the synthetic pupil the same way JourneyController.PagePost does, from a
@@ -149,7 +184,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, _) = BuildService(LoadAddKs4JuneConfig());
+        var (service, _, _) = BuildService(LoadAddKs4JuneConfig());
         var journey = AddJourney(windowId, "CYPMD_KS4June_ADD0001");
 
         await service.SubmitRequestAsync(windowId, journey);
@@ -172,7 +207,7 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, _) = BuildService(LoadAddKs4JuneConfig());
+        var (service, _, _) = BuildService(LoadAddKs4JuneConfig());
 
         var first = AddJourney(windowId, "CYPMD_KS4June_ADD0002");
         var second = AddJourney(windowId, "CYPMD_KS4June_ADD0003");
@@ -192,33 +227,92 @@ public sealed class AddRequestSubmissionTests(PostgresFixture fixture)
         Assert.Equal(2, rows.Select(r => r.PupilId).Distinct().Count());
     }
 
+    // The Add row must be skipped BECAUSE it is an Add — not incidentally, because some
+    // collaborator returned nothing. So the replay runs the real QuestionFlowService over the
+    // shipped configs, and a Remove row sits in the same batch: if the guard is removed the Add
+    // row is replayed and committed just like its sibling, and this fails. The sibling also
+    // proves the guard `continue`s rather than short-circuiting the loop.
     [Fact]
-    public async Task WindowCloseReplay_LeavesAddRowUncommitted()
+    public async Task WindowCloseReplay_CommitsTheRemoveRow_AndLeavesTheAddRowUncommitted()
     {
         await TruncateAsync();
         var windowId = await SeedKs4JuneWindowAsync();
-        var (service, blob) = BuildService(LoadAddKs4JuneConfig());
-        var journey = AddJourney(windowId, "CYPMD_KS4June_ADD0004");
+        var (service, blob, _) = BuildService(LoadAddKs4JuneConfig());
 
-        await service.SubmitRequestAsync(windowId, journey);
+        await service.SubmitRequestAsync(windowId, AddJourney(windowId, "CYPMD_KS4June_ADD0004"));
+        await service.SubmitRequestAsync(windowId, RemoveJourney(windowId, "CYPMD_KS4June_RMV0004"));
+
+        // Baseline: the Remove submission enqueued to the rules engine, the Add one did not.
+        await using (var seeded = _fixture.CreateContext())
+        {
+            Assert.Equal(1, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.RulesEngineQueue));
+            Assert.Equal(0, await seeded.QueueMessages.CountAsync(m => m.QueueName == QueueOptions.ZendeskQueue));
+        }
 
         var adminService = new AdminRequestsService(
             new UncommittedRequestsRepository(_fixture.CreateContext()),
             blob,
-            Substitute.For<IQuestionFlowService>(),
+            BuildFlowService(LoadAddKs4JuneConfig()),
             new PostgresQueueService(_fixture.CreateContext()),
             TimeProvider.System);
 
         var replayedCount = await adminService.ProcessCloseWindowEvent(CancellationToken.None);
 
-        Assert.Equal(0, replayedCount);
-        await using var ctx = _fixture.CreateContext();
-        var row = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0004");
-        Assert.Equal(RequestStatus.SubmittedUnCommitted, row.Status);
+        Assert.Equal(1, replayedCount);
 
-        var queueCount = await ctx.QueueMessages.CountAsync();
-        Assert.Equal(0, queueCount);
+        await using var ctx = _fixture.CreateContext();
+        var addRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_ADD0004");
+        var removeRow = await ctx.ChangeRequests.SingleAsync(r => r.ReferenceNumber == "CYPMD_KS4June_RMV0004");
+
+        Assert.Equal(RequestStatus.SubmittedUnCommitted, addRow.Status);
+        Assert.Equal(RequestStatus.SubmittedCommitted, removeRow.Status);
+
+        // Exactly one Zendesk document, and it is the Remove one — the Add reference appears on
+        // no queue at all.
+        var zendesk = await ctx.QueueMessages
+            .Where(m => m.QueueName == QueueOptions.ZendeskQueue)
+            .Select(m => m.Payload)
+            .ToListAsync();
+        Assert.Single(zendesk);
+        Assert.Contains("CYPMD_KS4June_RMV0004", zendesk[0]);
+
+        var allPayloads = await ctx.QueueMessages.Select(m => m.Payload).ToListAsync();
+        Assert.DoesNotContain(allPayloads, p => p.Contains("CYPMD_KS4June_ADD0004"));
     }
+
+    // A roll pupil going through the Remove journey — the ordinary amendment the replay is built
+    // for, and the control the Add row is measured against.
+    private static RequestState RemoveJourney(Guid windowId, string reference) => new()
+    {
+        SelectedWhatToChange = WhatToChange.Remove,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Id = windowId,
+            Title = "KS4 June 2026",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(-10), DateTimeKind.Unspecified),
+            EndDate = DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(20), DateTimeKind.Unspecified)
+        },
+        ReferenceNumber = reference,
+        SelectedPupil = new PupilDto
+        {
+            Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+            Firstname = "Ian",
+            Surname = "Rollpupil",
+            Sex = "M",
+            DateOfBirth = "02/02/2010",
+            Age = 15,
+            Cypmd_Id = "CYPMD-1",
+            Identifier = "A86040700009B"
+        },
+        QuestionAnswers = new Dictionary<string, QuestionAnswer>
+        {
+            ["reason"] = new() { TextValue = "permanent-exclusion" },
+            ["date-pupil-excluded"] = new() { DateValue = new DateAnswer { Day = 1, Month = 3, Year = 2026 } }
+        },
+        QuestionHistory = ["select-pupil", "reason", "permanent-exclusion"]
+    };
 
     private async Task TruncateAsync()
     {

@@ -218,6 +218,25 @@ public sealed class AddFlowTests
             Assert.False((page.PageTitle ?? "").Contains("{pupilName}"), $"{flow}: page '{page.Id}' leaks {{pupilName}} into the browser title.");
     }
 
+    /// <summary>
+    /// Hints are the one copy field the journey engine renders verbatim — _FreeText/_Date/_Radio
+    /// all emit <c>Question.Hint</c> straight into the markup, with none of the
+    /// <see cref="JourneyTemplate"/> resolution that Title and ValidationFailure get. A
+    /// <c>{pupilName}</c> in a hint therefore ships to the user as those literal characters, which
+    /// is exactly what the admission-date hint did before it was reworded (AB#297310). Nothing at
+    /// runtime notices, so this is the only thing standing between the flows and a repeat.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(AllFlows))]
+    public void No_hint_embeds_the_pupil_name(string flow)
+    {
+        foreach (var question in Flows[flow].Pages.SelectMany(p => p.Questions))
+            Assert.False((question.Hint ?? "").Contains("{pupilName}"),
+                $"{flow}: question '{question.Id}' has {{pupilName}} in its hint, which is never " +
+                $"template-resolved — it would render to the user as those literal characters. " +
+                $"Reword the hint, or teach the engine to resolve hints.");
+    }
+
     [Theory]
     [MemberData(nameof(AllFlows))]
     public void Every_non_optional_question_has_validationFailure_copy(string flow)

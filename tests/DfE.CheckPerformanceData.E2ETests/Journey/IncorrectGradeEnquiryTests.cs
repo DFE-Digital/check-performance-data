@@ -209,7 +209,9 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         // The GCSE 9-1 scale for this QAN, pass grades before fail grades, with a placeholder first.
         await NavigateToGradePageAsync();
 
-        var values = await Page.Locator("#q_q_revised_grade option").EvaluateAllAsync<string[]>(
+        // By name, not id: enhancement renames the select's id to "-select" but keeps its name,
+        // so this locator finds the full server-rendered scale whether or not the script has run.
+        var values = await Page.Locator("select[name='q_q_revised_grade'] option").EvaluateAllAsync<string[]>(
             "options => options.map(o => o.value)");
 
         Assert.Equal(["", "9", "8", "7", "6", "5", "4", "3", "2", "1", "U", "X"], values);
@@ -317,13 +319,26 @@ public sealed class IncorrectGradeEnquiryTests(PlaywrightFixture fixture) : Seed
         await ContinueAsync();
     }
 
-    // The grade picker is also an enhanced select, so the option list lives in the DOM either way;
-    // setting the underlying select keeps this robust whether or not the enhancement has run.
+    // The grade picker is a server-rendered <select> that accessible-autocomplete upgrades in
+    // place: the select is renamed "#q_q_revised_grade-select" and hidden, and the visible control
+    // becomes an <input> that takes the select's original id. Driving the input is the point — it
+    // proves the enhancement works, exactly like ChooseStudentAsync and ChooseResultAsync do for
+    // the other two autocompletes. There is deliberately no fallback to the raw select: if the
+    // enhancement stops activating, these tests must fail, not quietly route around it.
     private async Task SelectGradeAsync(string grade)
     {
-        var enhanced = Page.Locator("#q_q_revised_grade-select");
-        var target = await enhanced.CountAsync() > 0 ? enhanced : Page.Locator("#q_q_revised_grade");
-        await target.SelectOptionAsync(grade);
+        var input = Page.Locator("input#q_q_revised_grade");
+        await Expect(input).ToBeVisibleAsync();
+        await input.FillAsync(grade);
+
+        var option = Page.Locator("#q_q_revised_grade__listbox li[role='option']")
+            .GetByText(grade, new() { Exact = true });
+        await Expect(option.First).ToBeVisibleAsync();
+        await option.First.ClickAsync();
+
+        // Confirming the option writes the value into the hidden select, which is what the form
+        // posts — waiting on it here makes the subsequent Continue deterministic.
+        await Expect(Page.Locator("select[name='q_q_revised_grade']")).ToHaveValueAsync(grade);
     }
 
     private async Task FillAdditionalInfoAsync(string text)

@@ -1,4 +1,5 @@
 @model DfE.CheckPerformanceData.Web.Controllers.WhatToChangeViewModel;
+@using DfE.CheckPerformanceData.Domain.Enums
 
 @{
     // Matches the <h1> the radios legend renders (is-page-heading="true").
@@ -23,6 +24,12 @@
             <govuk-radios-item value="@WhatToChange.Merge">Merge duplicate pupil records</govuk-radios-item>
             <govuk-radios-item value="@WhatToChange.Include">Include a pupil in data</govuk-radios-item>
             <govuk-radios-item value="@WhatToChange.Remove">Remove a pupil from data</govuk-radios-item>
+            @if (Model.CheckingWindowType is CheckingWindowType.KS4June
+                or CheckingWindowType.KS4Autumn
+                or CheckingWindowType.KS2)
+            {
+                <govuk-radios-item value="@WhatToChange.Add">Add a pupil to data</govuk-radios-item>
+            }
         </govuk-radios-fieldset>
     </govuk-radios>
 

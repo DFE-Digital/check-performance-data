@@ -13,13 +13,15 @@ public sealed class WhatToChangeController(
     IAnalyticsService analytics) : Controller
 {
     [Route("/WhatToChange/{windowId}")]
-    public IActionResult Index(Guid windowId)
+    public async Task<IActionResult> Index(Guid windowId)
     {
         var journey = HttpContext.Session.GetRequestState(windowId);
+        var window = await service.GetCheckingWindowAsync(windowId);
         return View(new WhatToChangeViewModel
         {
             WindowId = windowId,
-            SelectedWhatToChange = journey.SelectedWhatToChange
+            SelectedWhatToChange = journey.SelectedWhatToChange,
+            CheckingWindowType = window.CheckingWindowType
         });
     }
 
@@ -28,14 +30,14 @@ public sealed class WhatToChangeController(
     [Route("/WhatToChange/{windowId}")]
     public async Task<IActionResult> Confirm(Guid windowId, WhatToChangeViewModel vm)
     {
+        var window = await service.GetCheckingWindowAsync(windowId);
+
         if (vm.SelectedWhatToChange == null)
         {
             ModelState.AddModelError(nameof(WhatToChangeViewModel.SelectedWhatToChange), "Select what pupil data you would like to change");
             await analytics.TrackSafeAsync(new ValidationErrorEvent { ErrorCount = 1, ErrorCodes = [ValidationErrorCoding.NoSelection], ErrorFields = [nameof(WhatToChangeViewModel.SelectedWhatToChange)] });
-            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null });
+            return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType });
         }
-
-        var window = await service.GetCheckingWindowAsync(windowId);
 
         HttpContext.Session.SaveRequestState(windowId, s =>
         {

@@ -58,6 +58,8 @@ public sealed class WhatToChangeControllerTests
     [Fact]
     public async Task Confirm_WhenNoSelection_DoesNotEmitChangeTypeSelected()
     {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
         await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
 
@@ -67,6 +69,8 @@ public sealed class WhatToChangeControllerTests
     [Fact]
     public async Task Confirm_WhenNoSelection_EmitsValidationError()
     {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
         await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
 
@@ -74,6 +78,66 @@ public sealed class WhatToChangeControllerTests
             Arg.Is<ValidationErrorEvent>(e => e.ErrorCount == 1 && e.ErrorCodes.Contains("no_selection")),
             Arg.Any<CancellationToken>());
     }
+
+    // ── AB#297310: CheckingWindowType feeds the Add-radio gate ───────────────
+
+    [Fact]
+    public async Task Index_PopulatesCheckingWindowType()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
+        var result = await _sut.Index(WindowId);
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<WhatToChangeViewModel>(view.Model);
+        Assert.Equal(CheckingWindowType.KS4June, vm.CheckingWindowType);
+    }
+
+    [Fact]
+    public async Task Confirm_WithNoSelection_RetainsCheckingWindowType()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = null });
+
+        var view = Assert.IsType<ViewResult>(result);
+        var vm = Assert.IsType<WhatToChangeViewModel>(view.Model);
+        Assert.Equal(CheckingWindowType.KS4June, vm.CheckingWindowType);
+    }
+
+    [Fact]
+    public async Task Confirm_AddOnPost16_WithNoAddFlow_RedirectsToCheckYourPupilData()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "W",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.Post16,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(10)
+        });
+        _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.Post16)
+            .Returns((QuestionFlowConfig?)null);
+
+        var result = await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal("Index", redirect.ActionName);
+    }
+
+    private static CheckingWindowDto Ks4JuneWindow() => new()
+    {
+        Id = Guid.NewGuid(),
+        Title = "W",
+        KeyStage = KeyStages.KS4,
+        CheckingWindowType = CheckingWindowType.KS4June,
+        StartDate = DateTime.UtcNow.AddDays(-1),
+        EndDate = DateTime.UtcNow.AddDays(10)
+    };
 
     private sealed class FakeSession : ISession
     {

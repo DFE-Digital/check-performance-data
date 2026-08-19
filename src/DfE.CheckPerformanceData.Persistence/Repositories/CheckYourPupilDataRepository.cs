@@ -4,6 +4,9 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -43,7 +46,27 @@ public sealed class CheckYourPupilDataRepository(
         => await dbContext.CheckingWindows
             .AsNoTracking()
             .Where(w => w.Id == windowId)
-            .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate })
+            .Select(w => new CheckingWindowDto
+            {
+                EndDate = w.EndDate,
+                Title = w.Title,
+                KeyStage = w.KeyStage,
+                CheckingWindowType = w.CheckingWindowType,
+                StartDate = w.StartDate,
+                // #315: ICheckingExerciseService answers "is this exercise open" from these rows,
+                // so every read path that reaches Web has to carry them.
+                Exercises = w.CheckingExercises
+                    .OrderBy(e => e.SortOrder)
+                    .Select(e => new CheckingExerciseDto
+                    {
+                        Id = e.Id,
+                        ExerciseType = e.ExerciseType,
+                        StartDate = e.StartDate,
+                        EndDate = e.EndDate,
+                        SortOrder = e.SortOrder
+                    })
+                    .ToList()
+            })
             .SingleAsync();
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId)

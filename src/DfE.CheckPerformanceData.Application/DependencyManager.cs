@@ -40,6 +40,9 @@ public static class DependencyManager
         services.AddScoped<Settings.ISettingService, Settings.SettingService>();
         services.AddScoped<ILandingPageService, LandingPageService>();
         services.AddScoped<IWindowService, WindowService>();
+        // #315: the single place that compares an exercise's dates against the clock. Nothing else
+        // in the solution may do that comparison for itself.
+        services.AddScoped<ICheckingExerciseService, CheckingExerciseService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();

@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.DfESignInApiClient;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.LandingPage;
@@ -29,5 +30,14 @@ public sealed class CheckingWindowDto
     public required CheckingWindowType CheckingWindowType { get; init; }
     public bool HasPupilData { get; init; }
     public required DateTime StartDate { get; init; }
+
+    /// <summary>
+    /// The window's checking exercises, in sort order. Pass this to
+    /// <see cref="ICheckingExerciseService"/> to ask whether a given exercise is open — the outer
+    /// StartDate/EndDate above only say whether the window as a whole is running, and a Post16
+    /// window runs pupil data checking and results enquiry on different ranges inside it.
+    /// Only the exercise dates are projected here; the landing page has no use for the datasets.
+    /// </summary>
+    public List<CheckingExerciseDto> Exercises { get; init; } = [];
 }
 

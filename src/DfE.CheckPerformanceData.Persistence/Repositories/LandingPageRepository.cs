@@ -1,6 +1,9 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -27,7 +30,20 @@ public sealed class LandingPageRepository(
                 w.KeyStage,
                 w.CheckingWindowType,
                 w.Title,
-                w.Id
+                w.Id,
+                // #315: the landing page cannot tell whether a Post16 window's results enquiry is
+                // running from the window's own dates — only the exercise rows say that.
+                Exercises = w.CheckingExercises
+                    .OrderBy(e => e.SortOrder)
+                    .Select(e => new CheckingExerciseDto
+                    {
+                        Id = e.Id,
+                        ExerciseType = e.ExerciseType,
+                        StartDate = e.StartDate,
+                        EndDate = e.EndDate,
+                        SortOrder = e.SortOrder
+                    })
+                    .ToList()
             })
             .ToListAsync(cancellationToken);
 
@@ -55,7 +71,8 @@ public sealed class LandingPageRepository(
                 CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
                 Id = w.Id,
-                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(w.Id, laestab)
+                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(w.Id, laestab),
+                Exercises = w.Exercises
             });
         }
 

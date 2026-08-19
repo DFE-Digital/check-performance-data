@@ -222,7 +222,11 @@ accident.
 or hide content. Read-only content is available for the whole outer window.
 
 The window DTOs that reach Web must carry the exercise list, so the `LandingPageRepository`
-projection and the `CheckYourPupilData` window read both need the extra `.Select`.
+projection and the `CheckYourPupilData` window read both need the extra `.Select`. The property is
+`Exercises` on both `CheckingWindowDto` classes — `WindowManagement` named it that when datasets
+were reparented onto the exercise, and the two read paths match it rather than introducing a second
+name for the same list. Persistence aliases the shared `CheckingExerciseDto` on import, because
+importing the whole `WindowManagement` namespace would make `CheckingWindowDto` ambiguous there.
 
 ---
 

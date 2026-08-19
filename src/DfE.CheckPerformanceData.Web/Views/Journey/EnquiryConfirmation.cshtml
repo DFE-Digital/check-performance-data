@@ -1,0 +1,35 @@
+@model DfE.CheckPerformanceData.Web.Controllers.Journey.EnquiryConfirmationViewModel
+
+@{
+    ViewBag.Title = "Results enquiry submitted";
+    Layout = "_Layout";
+}
+
+@* No Back link: the enquiry is submitted and the journey state is gone, so there is nothing to go
+   back to. The onward links below are the only routes out. *@
+<govuk-panel>
+    <govuk-panel-title>Results enquiry submitted</govuk-panel-title>
+    <govuk-panel-body>
+        Your reference number<br><strong>@Model.ReferenceNumber</strong>
+    </govuk-panel-body>
+</govuk-panel>
+
+<p class="govuk-body">
+    We have sent you an email to confirm that you have successfully submitted an enquiry.
+</p>
+
+<p class="govuk-body">
+    @* Lands on the ResultIssue page, which builds a fresh RequestState — so the AC "none of my
+       previous answers are carried over" holds by construction rather than by remembering to clear. *@
+    <a asp-action="Index" asp-controller="ResultIssue" asp-route-windowId="@Model.WindowId"
+       class="govuk-link">Report another issue with an exam result</a>
+</p>
+
+<h2 class="govuk-heading-m">What happens next</h2>
+
+<p class="govuk-body">After you submit your changes:</p>
+
+<ul class="govuk-list govuk-list--bullet">
+    <li>the DfE will review your enquiry</li>
+    <li>your performance data will be updated in the Spring, if required</li>
+</ul>

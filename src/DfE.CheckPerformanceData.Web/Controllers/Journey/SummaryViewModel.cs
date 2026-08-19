@@ -24,6 +24,17 @@ public sealed class SummaryViewModel
     public string? MatchedPupilPageId { get; init; }
     public bool BackPageIsPupilSearch { get; init; }
 
+    /// <summary>The JourneyController action that serves <see cref="BackPageId"/>.</summary>
+    public string BackPageAction { get; init; } = nameof(JourneyController.Page);
+
+    /// <summary>
+    /// AB#296648: the enquiry-shaped summary data, set only for a results enquiry. Its presence is
+    /// what switches <see cref="Lines"/> onto the enquiry row set.
+    /// </summary>
+    public ResultsEnquirySummary? Enquiry { get; init; }
+
+    public bool IsResultsEnquiry => Enquiry is not null;
+
     public int TotalPagesUsed => FileRows.Sum(r => r.PageCount);
 
     public string WhatToChangeLabel => WhatToChange switch
@@ -54,6 +65,8 @@ public sealed class SummaryViewModel
     {
         get
         {
+            if (Enquiry is { } enquiry) return enquiry.Lines;
+
             var lines = new List<SummaryLine>
             {
                 new("What pupil data would you like to change?", WhatToChangeLabel, null, false, null)

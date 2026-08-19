@@ -36,6 +36,13 @@ public sealed class AdminRequestsService(
             if (journey.SelectedWhatToChange == CheckYourPupilData.WhatToChange.IncorrectGrade)
                 continue;
 
+            // PARKED AB#297310: an Add-pupil request never goes to the rules engine or Zendesk
+            // (ticket B2 — no rules-engine outcomes); its downstream is the LDS egress, a separate
+            // story. This replay builds pupil-amendment Zendesk tickets, which an Add does not fit,
+            // and flipping the row to SubmittedCommitted would hide it from that egress.
+            if (journey.SelectedWhatToChange == CheckYourPupilData.WhatToChange.Add)
+                continue;
+
             var config = await flowService.GetConfigAsync(
                 journey.SelectedWhatToChange.Value, journey.CheckingWindow.CheckingWindowType);
             if (config is null)

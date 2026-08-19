@@ -27,6 +27,33 @@ The what-to-change page (`WhatToChangeController`) gains a fourth radio, **Add a
 (`WhatToChange.Add`), shown only when `WhatToChangeViewModel.CheckingWindowType` is `KS4June`,
 `KS4Autumn` or `KS2`. Post16 has no `Add_Post16.json` flow and the option is never offered there.
 
+### Starting clean: the pupil-search-less reset
+
+`Confirm` clears the whole per-request identity — reference number, selected pupil, matched pupil,
+selected result, answers, history — whenever the chosen flow has **no `PageType.PupilSearch` page**.
+
+This is not an Add special case, it is the invariant Add was the first flow to need. Every other
+journey opens with a pupil search, and `JourneyController.PupilSearchPost` unconditionally
+regenerates the reference and the selected pupil and nulls the matched pupil and result on every
+selection — so those flows have always started clean by accident of their shape. A flow without one
+inherits whatever the previous journey left in session. Two things went wrong before this reset
+existed:
+
+- **A submitted request's reference was reused.** `SummaryConfirm` clears every other per-request
+  field after a successful submission but deliberately keeps `ReferenceNumber`, because the
+  confirmation page reads it back out of session to render. `AddPupilJourney.BuildPupil` then reuses
+  it (`refreshed.ReferenceNumber ?? …`, correct for re-edits *within* one journey), and the upsert
+  overwrote the already-submitted row.
+- **An abandoned Merge journey's matched pupil surfaced on the Add summary.**
+  `JourneyViewModelBuilder` and `SubmittedRequestService.BuildMergeDisplays` build the
+  "First/Second record to merge" rows from `MatchedPupil != null && SelectedPupil != null` alone,
+  with no check on `WhatToChange` — so the Add summary replaced its "Pupil name" row with an
+  unrelated pupil's name and CYPMD id, and that pupil's full `PupilDto` was persisted into the Add
+  request's journey blob.
+
+Keying the reset on the flow's shape rather than on `WhatToChange.Add` means the next
+pupil-search-less journey inherits the guarantee instead of the bug.
+
 ## The synthetic pupil
 
 Every other amendment journey starts with a pupil-search step that resolves a real dataset pupil
@@ -78,9 +105,21 @@ defensible to keep either way.
 
 ## LDS bound values
 
-These are a hard contract: the values egress later via each answer's `RawValue`
-(`BuildAnswerRecord` puts a Radio option's stable **value** in `RawValue` and its display **label**
-in `Value`), against the `LDS_CYPMD_Data specification v2.4` the future egress story reads from.
+These are a hard contract against the `LDS_CYPMD_Data specification v2.4` the future egress story
+reads from.
+
+**Where the egress story will find them.** Not in a `RequestDocument`: `BuildAnswerRecord` and its
+`RawValue`/`Value` split only exist inside `RequestService.BuildRequestDocument`, which an Add
+submission never reaches (no rules-engine enqueue — see below). The record is the **persisted
+journey blob**, and it stores raw `RequestState.QuestionAnswers`:
+
+- **Radio answers** (sex, year group, SEN status) store the option's stable **value** — the LDS code —
+  in `QuestionAnswer.TextValue`. The display label lives only in the flow config and is looked up at
+  render time, so copy changes cannot move the code. This half is exactly as intended.
+- **Date answers** store a `DateAnswer { Day, Month, Year }` object, **not** an ISO string. Nothing
+  in the Add path produces `YYYY-MM-DD`, so the egress story has to format the parts itself (a
+  one-liner — `DateAnswer.ToDateOnly()` already hands back a `DateOnly` for a complete date). Worth
+  knowing before that story assumes an ISO string is waiting for it.
 
 | Field | Question id | Bound values |
 |---|---|---|
@@ -90,7 +129,7 @@ in `Value`), against the `LDS_CYPMD_Data specification v2.4` the future egress s
 | Year group (KS2) | `year-group` | `3`, `4`, `5`, `6` |
 | First/last name | `first-name` / `last-name` | Free text, ≤150 characters |
 | UPN | `upn` | Free text, ≤13 characters, optional |
-| Date of birth / admission date | `date-of-birth` / `admission-date` | Real calendar date, not in the future — stored `YYYY-MM-DD` via the engine's existing `RawValue` Date handling; no extra transform was added |
+| Date of birth / admission date | `date-of-birth` / `admission-date` | Real calendar date, not in the future — persisted in the journey blob as `DateAnswer { Day, Month, Year }`, to be formatted to `YYYY-MM-DD` by the egress story |
 
 ## Submission — no rules-engine outcomes
 

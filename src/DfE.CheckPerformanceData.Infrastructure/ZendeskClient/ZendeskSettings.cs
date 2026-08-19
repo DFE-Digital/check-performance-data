@@ -1,6 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-
 namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
 {
     public sealed class ZendeskSettings
@@ -10,28 +7,6 @@ namespace DfE.CheckPerformanceData.Infrastructure.ZendeskClient
         public required string Domain { get; set; }
         public required string Email { get; set; }
         public required string ApiToken { get; set; }
-
-        /// <summary>
-        /// Validates that credentials are configured with actual values (not placeholders).
-        /// </summary>
-        [Obsolete("This method is deprecated; use the DI-based configuration validation instead.")]
-        public void ValidateOrWarn()
-        {
-            var placeholders = new[] { "the subdomain", "the domain", "[PLACE THESE IN YOUR USER SECRETS]" };
-            var invalidValues = new List<string>();
-
-            if (placeholders.Contains(Subdomain, StringComparer.OrdinalIgnoreCase))
-                invalidValues.Add(nameof(Subdomain));
-            if (placeholders.Contains(Domain, StringComparer.OrdinalIgnoreCase))
-                invalidValues.Add(nameof(Domain));
-            if (placeholders.Contains(ApiToken, StringComparer.OrdinalIgnoreCase))
-                invalidValues.Add(nameof(ApiToken));
-
-            // Blank values are checked in DependencyManager.AddZendeskApiClient, which reports
-            // the specific settings that are missing when the real client is the one in use.
-            // This placeholder check is not wired into that and is retained only for callers
-            // that still reference it.
-        }
     }
 
     public sealed class PollySettings

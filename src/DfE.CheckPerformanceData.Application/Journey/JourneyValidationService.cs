@@ -142,8 +142,13 @@ public sealed class JourneyValidationService(
                 => scopedDateFailure ?? $"{resolvedTitle} must be a real date",
             QuestionType.TextArea when string.IsNullOrWhiteSpace(answer.TextValue)
                 => resolvedValidationFailure ?? $"{resolvedTitle} is required",
+            // Null-conditional, not null-forgiving: TextArea reaches here only after the arm above
+            // has ruled out a blank value, but FreeText has no such arm — its emptiness is handled
+            // by the generic "is required" arm further down. A FreeText field whose form key never
+            // arrived reads back as null, and measuring its length would throw instead of reporting
+            // the missing answer. A null length compares false against the limit, so it falls through.
             QuestionType.TextArea or QuestionType.FreeText
-                when question.CharacterLimit.HasValue && answer.TextValue!.Length > question.CharacterLimit.Value
+                when question.CharacterLimit.HasValue && answer.TextValue?.Length > question.CharacterLimit.Value
                 => $"{resolvedTitle} must be {question.CharacterLimit} characters or less",
             QuestionType.Date => null,
             _ when string.IsNullOrWhiteSpace(answer.TextValue)

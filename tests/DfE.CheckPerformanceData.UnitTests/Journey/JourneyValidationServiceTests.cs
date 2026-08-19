@@ -103,6 +103,38 @@ public class JourneyValidationServiceTests
         Assert.Null(_sut.ValidateAnswer(question, answer, "My question"));
     }
 
+    // A FreeText field whose form key never arrived (a hand-crafted POST, or a page whose input
+    // was removed) reads back as a null TextValue. The character-limit arm runs before the
+    // generic "is required" arm, so it must not measure the length of a value that isn't there —
+    // the answer is missing, not too long.
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenValueIsNullAndACharacterLimitIsSet_ReportsItAsRequired()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("My question is required", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_FreeText_WhenValueIsNull_UsesTheQuestionsOwnValidationFailure()
+    {
+        var question = MakeQuestion(QuestionType.FreeText, characterLimit: 150);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("Enter the pupil's first name",
+            _sut.ValidateAnswer(question, answer, "First name", "Enter the pupil's first name"));
+    }
+
+    [Fact]
+    public void ValidateAnswer_TextArea_WhenValueIsNullAndACharacterLimitIsSet_ReportsItAsRequired()
+    {
+        var question = MakeQuestion(QuestionType.TextArea, characterLimit: 1000);
+        var answer = new QuestionAnswer { TextValue = null };
+
+        Assert.Equal("My question is required", _sut.ValidateAnswer(question, answer, "My question"));
+    }
+
     [Fact]
     public void ValidateAnswer_Date_WhenAllFieldsProvided_ReturnsNull()
     {

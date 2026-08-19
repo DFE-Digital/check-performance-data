@@ -33,10 +33,40 @@ public sealed class CheckingWindowDto
     public bool IsOpen { get; set; }
 
     /// <summary>
-    /// The CSV + schema pairs ingested for this window, in sort order. A Post16 window has two
-    /// (included + non-included); every other type has one. The legacy scalar
+    /// The window's checking exercises, in sort order. A dataset belongs to the exercise that
+    /// consumes it, so this is the only route to the window's ingress files. The legacy scalar
     /// IngressFile/SchemaFile properties above are kept for one release for rollback safety and
     /// mirror the first dataset.
+    /// </summary>
+    public List<CheckingExerciseDto> Exercises { get; set; } = [];
+
+    /// <summary>
+    /// Every dataset the window ingests, in exercise order then dataset order. Transitional: the
+    /// ingest still runs all of a window's files in one pass and the summary page still lists them
+    /// as one table. #316 scopes ingress to the exercise and #319 makes the wizard per-exercise;
+    /// both retire this flattening.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> AllDatasets =>
+        Exercises
+            .OrderBy(e => e.SortOrder)
+            .SelectMany(e => e.Datasets.OrderBy(d => d.SortOrder))
+            .ToList();
+
+    /// <summary>The dataset with this name, held by whichever exercise consumes it.</summary>
+    public CheckingWindowDatasetDto? FindDataset(string name) =>
+        AllDatasets.SingleOrDefault(d => d.Name == name);
+}
+
+public sealed class CheckingExerciseDto
+{
+    public Guid Id { get; init; }
+    public required CheckingExerciseType ExerciseType { get; init; }
+    public required DateTime StartDate { get; set; }
+    public required DateTime EndDate { get; set; }
+    public int SortOrder { get; init; }
+
+    /// <summary>
+    /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none.
     /// </summary>
     public List<CheckingWindowDatasetDto> Datasets { get; set; } = [];
 }

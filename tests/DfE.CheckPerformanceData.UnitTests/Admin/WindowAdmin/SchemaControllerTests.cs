@@ -140,7 +140,18 @@ public class SchemaControllerTests
             EndDate = new DateTime(2027, 2, 1),
             KeyStage = KeyStages.KS2,
             CheckingWindowType = CheckingWindowType.KS2,
-            Datasets = [new CheckingWindowDatasetDto { Name = Dataset, SortOrder = 0 }]
+            // The slot hangs off the exercise that consumes it (#314).
+            Exercises =
+            [
+                new CheckingExerciseDto
+                {
+                    ExerciseType = CheckingExerciseType.PupilData,
+                    StartDate = new DateTime(2027, 1, 1),
+                    EndDate = new DateTime(2027, 2, 1),
+                    SortOrder = 0,
+                    Datasets = [new CheckingWindowDatasetDto { Name = Dataset, SortOrder = 0 }]
+                }
+            ]
         };
 
     [Fact]

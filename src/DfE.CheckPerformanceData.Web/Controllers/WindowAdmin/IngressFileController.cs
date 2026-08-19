@@ -189,7 +189,7 @@ public sealed class IngressFileController(ILogger<IngressFileController> logger,
             },
             cancellationToken);
 
-        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDatasetDto? target = window.FindDataset(dataset);
 
         if (target is null)
         {

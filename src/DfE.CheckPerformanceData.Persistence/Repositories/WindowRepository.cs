@@ -25,18 +25,29 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Validated = w.Validated != null,
                 ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
-                Datasets = w.Datasets
-                    .OrderBy(d => d.SortOrder)
-                    .Select(d => new CheckingWindowDatasetDto
+                Exercises = w.CheckingExercises
+                    .OrderBy(e => e.SortOrder)
+                    .Select(e => new CheckingExerciseDto
                     {
-                        Id = d.Id,
-                        Name = d.Name,
-                        IngressFile = d.IngressFile,
-                        IngressFileChecksum = d.IngressFileChecksum,
-                        SchemaFile = d.SchemaFile,
-                        SchemaFileChecksum = d.SchemaFileChecksum,
-                        Included = d.Included,
-                        SortOrder = d.SortOrder
+                        Id = e.Id,
+                        ExerciseType = e.ExerciseType,
+                        StartDate = e.StartDate,
+                        EndDate = e.EndDate,
+                        SortOrder = e.SortOrder,
+                        Datasets = e.Datasets
+                            .OrderBy(d => d.SortOrder)
+                            .Select(d => new CheckingWindowDatasetDto
+                            {
+                                Id = d.Id,
+                                Name = d.Name,
+                                IngressFile = d.IngressFile,
+                                IngressFileChecksum = d.IngressFileChecksum,
+                                SchemaFile = d.SchemaFile,
+                                SchemaFileChecksum = d.SchemaFileChecksum,
+                                Included = d.Included,
+                                SortOrder = d.SortOrder
+                            })
+                            .ToList()
                     })
                     .ToList()
             })
@@ -60,18 +71,29 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 SchemaFileChecksum = w.SchemaFileChecksum,
                 Validated = w.Validated != null,
                 ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
-                Datasets = w.Datasets
-                    .OrderBy(d => d.SortOrder)
-                    .Select(d => new CheckingWindowDatasetDto
+                Exercises = w.CheckingExercises
+                    .OrderBy(e => e.SortOrder)
+                    .Select(e => new CheckingExerciseDto
                     {
-                        Id = d.Id,
-                        Name = d.Name,
-                        IngressFile = d.IngressFile,
-                        IngressFileChecksum = d.IngressFileChecksum,
-                        SchemaFile = d.SchemaFile,
-                        SchemaFileChecksum = d.SchemaFileChecksum,
-                        Included = d.Included,
-                        SortOrder = d.SortOrder
+                        Id = e.Id,
+                        ExerciseType = e.ExerciseType,
+                        StartDate = e.StartDate,
+                        EndDate = e.EndDate,
+                        SortOrder = e.SortOrder,
+                        Datasets = e.Datasets
+                            .OrderBy(d => d.SortOrder)
+                            .Select(d => new CheckingWindowDatasetDto
+                            {
+                                Id = d.Id,
+                                Name = d.Name,
+                                IngressFile = d.IngressFile,
+                                IngressFileChecksum = d.IngressFileChecksum,
+                                SchemaFile = d.SchemaFile,
+                                SchemaFileChecksum = d.SchemaFileChecksum,
+                                Included = d.Included,
+                                SortOrder = d.SortOrder
+                            })
+                            .ToList()
                     })
                     .ToList()
             })
@@ -80,9 +102,10 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         // Loaded and mutated rather than Update(new CheckingWindow{...}) — a detached overwrite
-        // would leave the window's dataset rows untracked and strand them.
+        // would leave the window's exercise and dataset rows untracked and strand them.
         CheckingWindow entity = await dbContext.CheckingWindows
-            .Include(w => w.Datasets)
+            .Include(w => w.CheckingExercises)
+            .ThenInclude(e => e.Datasets)
             .SingleAsync(w => w.Id == window.Id, cancellationToken);
 
         dbContext.Entry(entity).CurrentValues.SetValues(new
@@ -100,15 +123,52 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 
         entity.Validated = new WindowValidated { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow };
 
-        SyncDatasets(entity, window.Datasets);
+        SyncExercises(entity, window.Exercises);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    // Datasets are keyed by Name within a window: existing rows are updated in place so their
-    // Ids (and any files already uploaded against them) survive, new ones are added, and rows
-    // no longer wanted (e.g. after a window type change) are removed.
-    private static void SyncDatasets(CheckingWindow entity, List<CheckingWindowDatasetDto> wanted)
+    // Exercises are keyed by type within a window (the unique index), datasets by name within an
+    // exercise: existing rows are updated in place so their Ids — and any files already uploaded
+    // against them — survive, new ones are added, and rows no longer wanted are removed.
+    private static void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
+    {
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        foreach (CheckingExerciseDto dto in wanted)
+        {
+            CheckingExercise? existing =
+                entity.CheckingExercises.SingleOrDefault(e => e.ExerciseType == dto.ExerciseType);
+
+            if (existing is null)
+            {
+                existing = new CheckingExercise
+                {
+                    CheckingWindowId = entity.Id,
+                    ExerciseType = dto.ExerciseType,
+                    StartDate = dto.StartDate,
+                    EndDate = dto.EndDate,
+                    SortOrder = dto.SortOrder
+                };
+                entity.CheckingExercises.Add(existing);
+            }
+
+            SyncDatasets(entity, existing, dto.Datasets);
+        }
+
+        foreach (CheckingExercise stale in entity.CheckingExercises
+                     .Where(e => wanted.All(x => x.ExerciseType != e.ExerciseType))
+                     .ToList())
+        {
+            entity.CheckingExercises.Remove(stale);
+        }
+    }
+
+    private static void SyncDatasets(
+        CheckingWindow window, CheckingExercise exercise, List<CheckingWindowDatasetDto> wanted)
     {
         if (wanted.Count == 0)
         {
@@ -117,21 +177,11 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
 
         foreach (CheckingWindowDatasetDto dto in wanted)
         {
-            CheckingWindowDataset? existing = entity.Datasets.SingleOrDefault(d => d.Name == dto.Name);
+            CheckingWindowDataset? existing = exercise.Datasets.SingleOrDefault(d => d.Name == dto.Name);
 
             if (existing is null)
             {
-                entity.Datasets.Add(new CheckingWindowDataset
-                {
-                    CheckingWindowId = entity.Id,
-                    Name = dto.Name,
-                    IngressFile = dto.IngressFile,
-                    IngressFileChecksum = dto.IngressFileChecksum,
-                    SchemaFile = dto.SchemaFile,
-                    SchemaFileChecksum = dto.SchemaFileChecksum,
-                    Included = dto.Included,
-                    SortOrder = dto.SortOrder
-                });
+                exercise.Datasets.Add(NewDataset(window, dto));
                 continue;
             }
 
@@ -141,16 +191,37 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             existing.SchemaFileChecksum = dto.SchemaFileChecksum;
         }
 
-        foreach (CheckingWindowDataset stale in entity.Datasets.Where(d => wanted.All(x => x.Name != d.Name)).ToList())
+        foreach (CheckingWindowDataset stale in exercise.Datasets
+                     .Where(d => wanted.All(x => x.Name != d.Name))
+                     .ToList())
         {
-            entity.Datasets.Remove(stale);
+            exercise.Datasets.Remove(stale);
         }
     }
+
+    // The legacy CheckingWindowId column is still written, though nothing reads it: it is what
+    // makes a rollback to the previous release safe. The follow-up ticket that drops the column
+    // drops this too.
+    private static CheckingWindowDataset NewDataset(CheckingWindow window, CheckingWindowDatasetDto dto) =>
+        new()
+        {
+            CheckingWindowId = window.Id,
+            Name = dto.Name,
+            IngressFile = dto.IngressFile,
+            IngressFileChecksum = dto.IngressFileChecksum,
+            SchemaFile = dto.SchemaFile,
+            SchemaFileChecksum = dto.SchemaFileChecksum,
+            Included = dto.Included,
+            SortOrder = dto.SortOrder
+        };
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         var entity = new CheckingWindow
         {
+            // The id is assigned here rather than by the database default, because the legacy
+            // CheckingWindowId stamped onto each dataset row below needs it before the save.
+            Id = window.Id == Guid.Empty ? Guid.NewGuid() : window.Id,
             StartDate = window.StartDate,
             EndDate = window.EndDate,
             KeyStage = window.KeyStage,
@@ -160,23 +231,22 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             IngressFileChecksum = window.IngressFileChecksum,
             SchemaFile = window.SchemaFile,
             SchemaFileChecksum = window.SchemaFileChecksum,
-            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow },
-            // A window is born with the dataset slots its type requires.
-            Datasets = (window.Datasets.Count > 0
-                    ? window.Datasets
-                    : WindowDatasets.DefaultsFor(window.CheckingWindowType).ToList())
-                .Select(d => new CheckingWindowDataset
-                {
-                    Name = d.Name,
-                    IngressFile = d.IngressFile,
-                    IngressFileChecksum = d.IngressFileChecksum,
-                    SchemaFile = d.SchemaFile,
-                    SchemaFileChecksum = d.SchemaFileChecksum,
-                    Included = d.Included,
-                    SortOrder = d.SortOrder
-                })
-                .ToList()
+            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
         };
+
+        // A window is born with its exercises, each holding the dataset slots its type requires.
+        // WindowService supplies a pupil-data exercise when the caller names none.
+        foreach (CheckingExerciseDto dto in window.Exercises.OrderBy(e => e.SortOrder))
+        {
+            entity.CheckingExercises.Add(new CheckingExercise
+            {
+                ExerciseType = dto.ExerciseType,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                SortOrder = dto.SortOrder,
+                Datasets = dto.Datasets.Select(d => NewDataset(entity, d)).ToList()
+            });
+        }
 
         await dbContext.CheckingWindows.AddAsync(entity, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);

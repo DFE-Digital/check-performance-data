@@ -65,8 +65,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
 
         // A Post16 window supplies two datasets (included + non-included); every other type one.
         // They are ingested in a single run so both populations land in one blob per school.
-        IReadOnlyList<IngressDataset> datasets = window.Datasets
-            .OrderBy(d => d.SortOrder)
+        IReadOnlyList<IngressDataset> datasets = window.AllDatasets
             .Select(d => new IngressDataset(
                 d.Name,
                 d.IngressFile,

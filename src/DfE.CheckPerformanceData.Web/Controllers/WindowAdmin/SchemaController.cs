@@ -27,7 +27,7 @@ public class SchemaController(
             return NotFound();
         }
 
-        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDatasetDto? target = window.FindDataset(dataset);
 
         if (target is null)
         {
@@ -105,7 +105,7 @@ public class SchemaController(
             },
             cancellationToken);
 
-        CheckingWindowDatasetDto? target = window.Datasets.SingleOrDefault(d => d.Name == dataset);
+        CheckingWindowDatasetDto? target = window.FindDataset(dataset);
 
         if (target is null)
         {

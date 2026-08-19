@@ -20,14 +20,8 @@ public sealed class CheckingWindow
     public WindowValidated? Validated { get; set; }
 
     /// <summary>
-    /// The window's ingress datasets. A Post16 window has two (included + non-included); every
-    /// other type has one. The scalar IngressFile/SchemaFile properties above are legacy and
-    /// mirror the first dataset — kept for one release so a rollback is safe.
-    /// </summary>
-    public List<CheckingWindowDataset> Datasets { get; init; } = [];
-
-    /// <summary>
-    /// The window's checking exercises, in sort order. A configured window is meant to have at
+    /// The window's checking exercises, in sort order, and the only route to its ingress files —
+    /// a dataset belongs to the exercise that consumes it. A configured window is meant to have at
     /// least one, and the window's own StartDate/EndDate is meant to equal the union of these
     /// rows — neither is enforced yet. The service that owns those rules arrives in #315.
     /// </summary>

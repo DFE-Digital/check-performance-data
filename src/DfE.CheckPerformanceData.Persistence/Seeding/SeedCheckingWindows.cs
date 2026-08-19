@@ -8,7 +8,8 @@ namespace DfE.CheckPerformanceData.Persistence.Seeding;
 public static class SeedCheckingWindows
 {
     // A KS4-style window ingests one supplier file; a Post16 window ingests two (included +
-    // non-included), so each window is seeded with the dataset slots its type requires.
+    // non-included), so each pupil-data exercise is seeded with the dataset slots its window type
+    // requires. The results-enquiry exercise reads the school results file and has no slots.
     private static List<CheckingWindowDataset> DatasetsFor(CheckingWindowType type) =>
         type == CheckingWindowType.Post16
             ?
@@ -35,7 +36,8 @@ public static class SeedCheckingWindows
                     // 14 days from a start of yesterday, which is the same fortnight the KS4
                     // windows run for. Results enquiry then carries on to the window's own end.
                     EndDate = startDate.AddDays(14).Date.AddHours(17),
-                    SortOrder = 0
+                    SortOrder = 0,
+                    Datasets = DatasetsFor(CheckingWindowType.Post16)
                 },
                 new CheckingExercise
                 {
@@ -52,7 +54,8 @@ public static class SeedCheckingWindows
                     ExerciseType = CheckingExerciseType.PupilData,
                     StartDate = startDate,
                     EndDate = endDate,
-                    SortOrder = 0
+                    SortOrder = 0,
+                    Datasets = DatasetsFor(type)
                 }
             ];
 
@@ -72,7 +75,6 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "Key Stage 4 June",
-            Datasets = DatasetsFor(CheckingWindowType.KS4June),
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, openKs4Start, openKs4End)
         };
 
@@ -87,7 +89,6 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "KS4 June",
-            Datasets = DatasetsFor(CheckingWindowType.KS4June),
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, closedKs4Start, closedKs4End)
         };
 
@@ -105,7 +106,6 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19",
-            Datasets = DatasetsFor(CheckingWindowType.Post16),
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End)
         };
 

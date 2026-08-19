@@ -10,8 +10,8 @@ namespace DfE.CheckPerformanceData.Persistence.Entities;
 /// and the window's outer StartDate/EndDate is their union.
 /// </summary>
 /// <remarks>
-/// The ingress CSV + schema pairs an exercise consumes are not here yet. CheckingWindowDataset
-/// still hangs off the window; #314 reparents it onto this entity.
+/// Each exercise has its own inputs, on its own dates, validated against its own schemas — so the
+/// ingress CSV + schema pairs hang off this entity rather than off the window.
 /// </remarks>
 public sealed class CheckingExercise
 {
@@ -23,6 +23,12 @@ public sealed class CheckingExercise
 
     /// <summary>Display order in the admin wizard and on any per-exercise list.</summary>
     public int SortOrder { get; init; }
+
+    /// <summary>
+    /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none —
+    /// an exercise whose files have not been loaded yet has an empty collection.
+    /// </summary>
+    public List<CheckingWindowDataset> Datasets { get; init; } = [];
 }
 
 public sealed class CheckingExerciseConfiguration : IEntityTypeConfiguration<CheckingExercise>

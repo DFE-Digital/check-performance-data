@@ -19,8 +19,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            Datasets = w.Datasets
-                .OrderBy(d => d.SortOrder)
+            Datasets = w.AllDatasets
                 .Select(d => new DatasetSummaryRow
                 {
                     WindowId = w.Id,

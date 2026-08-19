@@ -696,6 +696,98 @@ public class JourneyControllerTests
             Arg.Any<CancellationToken>());
     }
 
+    // ── PagePost — synthetic pupil from answers (AB#297310) ─────────────────
+
+    private static readonly JourneyPage LearnerDetailsPage = new()
+    {
+        Id = "learner-details",
+        PupilFromAnswers = true,
+        Questions =
+        [
+            new Question { Id = "first-name", Type = QuestionType.FreeText, Title = "First name" },
+            new Question { Id = "last-name", Type = QuestionType.FreeText, Title = "Last name" },
+            new Question { Id = "date-of-birth", Type = QuestionType.Date, Title = "Date of birth" },
+            new Question
+            {
+                Id = "sex", Type = QuestionType.Radio, Title = "Sex",
+                Options = [new QuestionOption { Value = "F", Label = "Female" }, new QuestionOption { Value = "M", Label = "Male" }]
+            },
+            new Question { Id = "upn", Type = QuestionType.FreeText, Title = "UPN", Optional = true }
+        ],
+        NextPageId = "page-2"
+    };
+
+    private void SetupLearnerDetailsPage()
+    {
+        _flowService.GetPage(Config, "learner-details").Returns(LearnerDetailsPage);
+        _journeyService.ValidateAnswer(Arg.Any<Question>(), Arg.Any<QuestionAnswer>(), Arg.Any<string>(), Arg.Any<string?>())
+            .Returns((string?)null);
+        _flowService.GetNextPageId(Config, "learner-details", Arg.Any<Dictionary<string, QuestionAnswer>>())
+            .Returns("page-2");
+        _journeyService.GenerateReference(Arg.Any<CheckingWindowType?>()).Returns("CYPMD_KS4June_TEST123");
+    }
+
+    private void PostLearnerDetails(string firstName = "Alice", string sex = "F", string upn = "A123456789012") =>
+        _httpContext.Request.Form = new FormCollection(new Dictionary<string, StringValues>
+        {
+            ["q_first_name"] = firstName,
+            ["q_last_name"] = "Smith",
+            ["q_date_of_birth_day"] = "1",
+            ["q_date_of_birth_month"] = "9",
+            ["q_date_of_birth_year"] = "2010",
+            ["q_sex"] = sex,
+            ["q_upn"] = upn
+        });
+
+    private static RequestState AddSession() => new()
+    {
+        SelectedWhatToChange = WhatToChange.Add,
+        CheckingWindow = new CheckingWindowDto
+        {
+            Id = Guid.NewGuid(),
+            Title = "Test Window",
+            KeyStage = KeyStages.KS4,
+            CheckingWindowType = CheckingWindowType.KS4June,
+            StartDate = DateTime.UtcNow.AddDays(-1),
+            EndDate = DateTime.UtcNow.AddDays(13)
+        },
+        QuestionHistory = [],
+        QuestionAnswers = new()
+    };
+
+    [Fact]
+    public async Task PagePost_OnPupilFromAnswersPage_MintsSyntheticPupilAndReference()
+    {
+        SetupLearnerDetailsPage();
+        SetupSession(AddSession());
+        PostLearnerDetails();
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var saved = _session.GetRequestState(WindowId);
+        Assert.NotNull(saved.SelectedPupil);
+        Assert.Equal("Alice", saved.SelectedPupil!.Firstname);
+        Assert.Equal("Smith", saved.SelectedPupil.Surname);
+        Assert.Equal("01/09/2010", saved.SelectedPupil.DateOfBirth);
+        Assert.Equal("A123456789012", saved.SelectedPupil.Identifier);
+        Assert.Equal("Smith, Alice", saved.SelectedPupilLabel);
+        Assert.False(string.IsNullOrEmpty(saved.ReferenceNumber));
+
+        var firstPupilId = saved.SelectedPupil.Id;
+        var firstReference = saved.ReferenceNumber;
+
+        // A second post (e.g. editing from the summary) with a changed first name must keep
+        // the same synthetic pupil Id and reference — not mint a fresh one each time.
+        PostLearnerDetails(firstName: "Alicia");
+
+        await _sut.PagePost(WindowId, "learner-details", fromSummary: false);
+
+        var resaved = _session.GetRequestState(WindowId);
+        Assert.Equal(firstPupilId, resaved.SelectedPupil!.Id);
+        Assert.Equal(firstReference, resaved.ReferenceNumber);
+        Assert.Equal("Alicia", resaved.SelectedPupil.Firstname);
+    }
+
     // ── PagePost — cross-field date rules (AB#295246) ────────────────────────
 
     [Fact]

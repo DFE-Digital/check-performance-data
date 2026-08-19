@@ -649,6 +649,7 @@ public sealed class JourneyController(
                 s.OriginCountryCode = journey.OriginCountryCode;
                 s.OriginCountryLanguages = journey.OriginCountryLanguages;
             });
+            MintSyntheticPupilIfNeeded(windowId, page);
 
             var newNextId = flowService.GetNextPageId(config, pageId, journey.QuestionAnswers);
 
@@ -692,6 +693,7 @@ public sealed class JourneyController(
             s.OriginCountryCode = journey.OriginCountryCode;
             s.OriginCountryLanguages = journey.OriginCountryLanguages;
         });
+        MintSyntheticPupilIfNeeded(windowId, page);
 
         return nextId is null
             ? RedirectToAction(nameof(Summary), new { windowId })
@@ -1177,6 +1179,31 @@ public sealed class JourneyController(
         {
             foreach (var (qId, answer) in answers)
                 s.QuestionAnswers[qId] = answer;
+        });
+    }
+
+    // AB#297310: the Add journey has no roll pupil — the learner-details page IS the pupil.
+    // Minting SelectedPupil here keeps every downstream consumer (summary {pupilName}
+    // templating, drafts, BuildChangeRequestData, the amendment grid) working unchanged.
+    //
+    // AB#297780 SEAM: this POST's successful completion is the "learner details continued"
+    // event the soft-match story will intercept — hook there, before the redirect that
+    // follows this call, to branch into the match/query journeys.
+    private void MintSyntheticPupilIfNeeded(Guid windowId, JourneyPage page)
+    {
+        if (!page.PupilFromAnswers) return;
+
+        var refreshed = HttpContext.Session.GetRequestState(windowId);
+        var pupil = AddPupilJourney.BuildPupil(refreshed, refreshed.SelectedPupil?.Id);
+        var reference = refreshed.ReferenceNumber
+            ?? journeyService.GenerateReference(refreshed.CheckingWindow?.CheckingWindowType);
+
+        HttpContext.Session.SaveRequestState(windowId, s =>
+        {
+            s.SelectedPupil = pupil;
+            s.SelectedPupilId = pupil.Id.ToString();
+            s.SelectedPupilLabel = $"{pupil.Surname}, {pupil.Firstname}";
+            s.ReferenceNumber = reference;
         });
     }
 

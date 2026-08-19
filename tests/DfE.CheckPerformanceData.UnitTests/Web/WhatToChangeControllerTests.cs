@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers;
 using DfE.CheckPerformanceData.Web.Session;
@@ -129,30 +130,22 @@ public sealed class WhatToChangeControllerTests
         Assert.Equal("Index", redirect.ActionName);
     }
 
-    // AB#297310: starting a fresh Add journey must not inherit a previous journey's identity.
-    // AddPupilJourney.BuildPupil reuses SelectedPupil.Id/ReferenceNumber for stability across
-    // re-edits WITHIN one journey — but without a reset here, a stale ReferenceNumber/SelectedPupil
-    // left over from an earlier, already-submitted Add request in the same browser session would
-    // be silently reused for a brand-new one, colliding with (and overwriting) that submitted row.
+    // AB#297310: starting a fresh journey must not inherit a previous one's identity.
+    //
+    // Every flow that opens with a pupil search is protected by PupilSearchPost, which
+    // unconditionally regenerates the reference and the selected pupil and nulls the matched
+    // pupil and result. A flow WITHOUT one — the Add journey is the first — has nothing that
+    // refreshes any of it, so a reference and pupil left in session by an already-submitted
+    // request in the same browser session would be silently reused for a brand-new one (the
+    // upsert then overwrites the submitted row), and an abandoned Merge journey's matched pupil
+    // would surface on the Add summary as "Second record to merge".
     [Fact]
-    public async Task Confirm_ForAdd_ClearsAnyStaleIdentityFromAPreviousJourney()
+    public async Task Confirm_ForAFlowWithNoPupilSearchPage_ClearsEveryPerRequestIdentityField()
     {
         _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
         _flowService.GetConfigAsync(WhatToChange.Add, CheckingWindowType.KS4June)
-            .Returns(new QuestionFlowConfig { FirstPageId = "learner-details", Pages = [] });
-        _session.SaveRequestState(WindowId, s =>
-        {
-            s.ReferenceNumber = "CYPMD_KS4June_STALE01";
-            s.SelectedPupil = new PupilDto
-            {
-                Id = Guid.NewGuid(), Firstname = "Alice", Surname = "Newpupil", Sex = "F",
-                DateOfBirth = "01/09/2010", Age = 0, Cypmd_Id = "", Identifier = "A123456789012"
-            };
-            s.SelectedPupilId = "some-stale-id";
-            s.SelectedPupilLabel = "Newpupil, Alice";
-            s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
-            s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
-        });
+            .Returns(FlowWithoutPupilSearch);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
 
         await _sut.Confirm(WindowId,
             new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Add });
@@ -162,8 +155,71 @@ public sealed class WhatToChangeControllerTests
         Assert.Null(journey.SelectedPupil);
         Assert.Null(journey.SelectedPupilId);
         Assert.Null(journey.SelectedPupilLabel);
+        Assert.Null(journey.MatchedPupil);
+        Assert.Null(journey.MatchedPupilId);
+        Assert.Null(journey.MatchedPupilLabel);
+        Assert.Null(journey.SelectedResult);
         Assert.Empty(journey.QuestionAnswers);
         Assert.Empty(journey.QuestionHistory);
+    }
+
+    // The other side of the same rule: Remove/Include/Merge/IncorrectGrade all open with a pupil
+    // search that does this refresh itself, and re-entering one of those mid-journey must keep
+    // behaving exactly as it did before the Add journey existed.
+    [Fact]
+    public async Task Confirm_ForAFlowWithAPupilSearchPage_LeavesTheSessionIdentityAlone()
+    {
+        _service.GetCheckingWindowAsync(WindowId).Returns(Ks4JuneWindow());
+        _flowService.GetConfigAsync(WhatToChange.Merge, CheckingWindowType.KS4June)
+            .Returns(FlowWithPupilSearch);
+        _session.SaveRequestState(WindowId, SeedStaleIdentity);
+
+        await _sut.Confirm(WindowId,
+            new WhatToChangeViewModel { WindowId = WindowId, SelectedWhatToChange = WhatToChange.Merge });
+
+        var journey = _session.GetRequestState(WindowId);
+        Assert.Equal("CYPMD_KS4June_STALE01", journey.ReferenceNumber);
+        Assert.NotNull(journey.SelectedPupil);
+        Assert.NotNull(journey.MatchedPupil);
+        Assert.NotEmpty(journey.QuestionAnswers);
+        Assert.NotEmpty(journey.QuestionHistory);
+    }
+
+    private static readonly QuestionFlowConfig FlowWithoutPupilSearch = new()
+    {
+        FirstPageId = "learner-details",
+        Pages = [new JourneyPage { Id = "learner-details", PupilFromAnswers = true }]
+    };
+
+    private static readonly QuestionFlowConfig FlowWithPupilSearch = new()
+    {
+        FirstPageId = "select-pupil",
+        Pages =
+        [
+            new JourneyPage { Id = "select-pupil", Type = PageType.PupilSearch, PupilKey = JourneyPage.PrimaryKey },
+            new JourneyPage { Id = "evidence", Type = PageType.EvidenceUpload }
+        ]
+    };
+
+    private static PupilDto StalePupil(string firstName, string surname) => new()
+    {
+        Id = Guid.NewGuid(), Firstname = firstName, Surname = surname, Sex = "F",
+        DateOfBirth = "01/09/2010", Age = 0, Cypmd_Id = "", Identifier = "A123456789012"
+    };
+
+    private static void SeedStaleIdentity(RequestState s)
+    {
+        s.ReferenceNumber = "CYPMD_KS4June_STALE01";
+        s.SelectedPupil = StalePupil("Alice", "Newpupil");
+        s.SelectedPupilId = "some-stale-id";
+        s.SelectedPupilLabel = "Newpupil, Alice";
+        // Left behind by a Merge journey the user started and walked away from.
+        s.MatchedPupil = StalePupil("Ian", "Smith");
+        s.MatchedPupilId = "some-stale-match-id";
+        s.MatchedPupilLabel = "Smith, Ian";
+        s.SelectedResult = new StudentResultRecord();
+        s.QuestionAnswers = new() { ["first-name"] = new QuestionAnswer { TextValue = "Alice" } };
+        s.QuestionHistory = ["learner-details", "admission-details", "evidence"];
     }
 
     private static CheckingWindowDto Ks4JuneWindow() => new()

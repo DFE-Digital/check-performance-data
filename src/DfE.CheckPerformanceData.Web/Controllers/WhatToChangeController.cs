@@ -39,28 +39,37 @@ public sealed class WhatToChangeController(
             return View("Index", new WhatToChangeViewModel { WindowId = windowId, SelectedWhatToChange = null, CheckingWindowType = window.CheckingWindowType });
         }
 
+        var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);
+
+        // AB#297310: a flow that opens with a pupil search refreshes the whole per-request identity
+        // itself — PupilSearchPost regenerates the reference and the selected pupil, and nulls the
+        // matched pupil and the selected result, on every pupil selection. A flow WITHOUT one (the
+        // Add journey is the first) has nothing that does any of that, so whatever the previous
+        // journey left in session survives into the new one: an already-submitted request's
+        // reference would be reused and its row overwritten by the upsert, and an abandoned Merge
+        // journey's matched pupil would surface on the Add summary as "Second record to merge".
+        // Keyed on the flow's shape rather than on WhatToChange.Add so the next pupil-search-less
+        // journey inherits the guarantee instead of the bug.
+        var refreshedByPupilSearch = config is not null
+            && config.Pages.Any(p => p.Type == PageType.PupilSearch);
+
         HttpContext.Session.SaveRequestState(windowId, s =>
         {
             s.SelectedWhatToChange = vm.SelectedWhatToChange;
             s.CheckingWindow = window;
 
-            // AB#297310: the Add journey has no pupil-search step to naturally refresh
-            // SelectedPupil/ReferenceNumber the way every other flow's PupilSearchPost does (it
-            // unconditionally regenerates both on every pupil selection). AddPupilJourney.BuildPupil
-            // instead reuses them for stability across re-edits WITHIN one journey — so without a
-            // reset here, restarting Add in the same browser session after a previous Add request
-            // was already submitted would silently reuse its reference and pupil id, colliding with
-            // (and overwriting) that submitted row. "A freshly started journey is never an edit of
-            // an existing request" (see below) has to be made true for Add explicitly.
-            if (vm.SelectedWhatToChange == WhatToChange.Add)
-            {
-                s.ReferenceNumber = null;
-                s.SelectedPupil = null;
-                s.SelectedPupilId = null;
-                s.SelectedPupilLabel = null;
-                s.QuestionAnswers = new();
-                s.QuestionHistory = new();
-            }
+            if (refreshedByPupilSearch) return;
+
+            s.ReferenceNumber = null;
+            s.SelectedPupil = null;
+            s.SelectedPupilId = null;
+            s.SelectedPupilLabel = null;
+            s.MatchedPupil = null;
+            s.MatchedPupilId = null;
+            s.MatchedPupilLabel = null;
+            s.SelectedResult = null;
+            s.QuestionAnswers = new();
+            s.QuestionHistory = new();
         });
         // A freshly started journey is never an edit of an existing request.
         HttpContext.Session.ClearBulkEditMode(windowId);
@@ -72,7 +81,6 @@ public sealed class WhatToChangeController(
             CheckingWindowType = window.CheckingWindowType.ToString(),
         });
 
-        var config = await flowService.GetConfigAsync(vm.SelectedWhatToChange.Value, window.CheckingWindowType);
         if (config is null) return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
 
         return RedirectToAction("Page", "Journey", new { windowId, pageId = config.FirstPageId });

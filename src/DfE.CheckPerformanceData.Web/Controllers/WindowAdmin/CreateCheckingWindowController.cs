@@ -42,13 +42,16 @@ public sealed class CreateCheckingWindowController(ILogger<CreateCheckingWindowC
             return BadRequest("Invalid data");
         }
 
-        CheckingWindowDto checkingWindowDto = new CheckingWindowDto() 
+        CheckingWindowDto checkingWindowDto = new CheckingWindowDto()
         {
              Title = draft.Title!,
+             // Derived from the exercises, never typed by the admin (#319). CreateAsync re-derives
+             // them anyway; they are set here because the DTO requires them.
              StartDate = draft.StartDate!.Value,
              EndDate = draft.EndDate!.Value,
              CheckingWindowType = draft.CheckingWindowType!.Value,
              KeyStage = draft.KeyStage!.Value,
+             Exercises = draft.ToExerciseDtos()
          };
         CheckingWindowDto window = await windowService.CreateAsync(checkingWindowDto, cancellationToken);
         

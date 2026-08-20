@@ -5,41 +5,13 @@ using NSubstitute;
 namespace DfE.CheckPerformanceData.Application.UnitTests.Admin;
 
 // A dataset is an input to one exercise, not to the window (#314). The window DTO therefore holds
-// exercises, and reaches its files only through them. AllDatasets is the transitional flattening
-// the single-run ingest and the summary page still need; #316 and #319 make both per-exercise.
+// exercises, and reaches its files only through them. #319 retired AllDatasets: the wizard, the
+// summary page and the validate run all name the exercise they mean, so the flattening that made
+// two exercises' datasets look like one list has no callers left.
 public class WindowExercisesTests
 {
     [Fact]
-    public void AllDatasets_flattens_across_exercises_in_exercise_then_dataset_order()
-    {
-        CheckingWindowDto window = Window();
-        window.Exercises =
-        [
-            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 1, datasets: [Dataset("results", 0)]),
-            Exercise(CheckingExerciseType.PupilData, sortOrder: 0,
-                datasets: [Dataset("nonincluded", 1), Dataset("included", 0)])
-        ];
-
-        Assert.Equal(
-            ["included", "nonincluded", "results"],
-            window.AllDatasets.Select(d => d.Name));
-    }
-
-    [Fact]
-    public void An_exercise_with_no_datasets_contributes_nothing_and_does_not_throw()
-    {
-        CheckingWindowDto window = Window();
-        window.Exercises =
-        [
-            Exercise(CheckingExerciseType.PupilData, sortOrder: 0, datasets: [Dataset("pupils", 0)]),
-            Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 1, datasets: [])
-        ];
-
-        Assert.Equal("pupils", Assert.Single(window.AllDatasets).Name);
-    }
-
-    [Fact]
-    public void FindDataset_finds_a_dataset_held_by_any_exercise()
+    public void FindExercise_returns_the_exercise_of_that_type()
     {
         CheckingWindowDto window = Window();
         window.Exercises =
@@ -48,10 +20,104 @@ public class WindowExercisesTests
             Exercise(CheckingExerciseType.ResultsEnquiry, sortOrder: 1, datasets: [Dataset("results", 0)])
         ];
 
-        Assert.Equal("results", window.FindDataset("results")!.Name);
-        Assert.Null(window.FindDataset("nothing-by-this-name"));
+        Assert.Equal(
+            "results",
+            Assert.Single(window.FindExercise(CheckingExerciseType.ResultsEnquiry)!.Datasets).Name);
     }
 
+    [Fact]
+    public void FindExercise_returns_null_for_an_exercise_the_window_does_not_run()
+    {
+        CheckingWindowDto window = Window();
+        window.Exercises = [Exercise(CheckingExerciseType.PupilData, sortOrder: 0, datasets: [])];
+
+        Assert.Null(window.FindExercise(CheckingExerciseType.ResultsEnquiry));
+    }
+
+    // #319: the outer pair is derived, not typed, so it always equals the union of the exercises.
+    [Fact]
+    public void The_windows_dates_are_the_union_of_its_exercises_dates()
+    {
+        CheckingWindowDto window = Window();
+        window.Exercises =
+        [
+            Dated(CheckingExerciseType.PupilData, new DateTime(2026, 10, 7), new DateTime(2026, 10, 18, 17, 0, 0), 0),
+            Dated(CheckingExerciseType.ResultsEnquiry, new DateTime(2026, 10, 7), new DateTime(2027, 3, 31, 17, 0, 0), 1)
+        ];
+
+        window.DeriveDatesFromExercises();
+
+        Assert.Equal(new DateTime(2026, 10, 7), window.StartDate);
+        Assert.Equal(new DateTime(2027, 3, 31, 17, 0, 0), window.EndDate);
+    }
+
+    [Fact]
+    public void The_windows_start_widens_when_a_second_exercise_starts_earlier()
+    {
+        CheckingWindowDto window = Window();
+        window.Exercises =
+        [
+            Dated(CheckingExerciseType.PupilData, new DateTime(2026, 10, 7), new DateTime(2026, 10, 18), 0),
+            Dated(CheckingExerciseType.ResultsEnquiry, new DateTime(2026, 9, 1), new DateTime(2026, 10, 10), 1)
+        ];
+
+        window.DeriveDatesFromExercises();
+
+        Assert.Equal(new DateTime(2026, 9, 1), window.StartDate);
+        Assert.Equal(new DateTime(2026, 10, 18), window.EndDate);
+    }
+
+    [Fact]
+    public void A_window_with_no_exercises_keeps_the_dates_it_has()
+    {
+        CheckingWindowDto window = Window();
+
+        window.DeriveDatesFromExercises();
+
+        Assert.Equal(new DateTime(2027, 1, 1), window.StartDate);
+        Assert.Equal(new DateTime(2027, 1, 14), window.EndDate);
+    }
+
+    [Fact]
+    public async Task CreateAsync_derives_the_windows_dates_from_the_exercises_it_is_given()
+    {
+        (WindowService service, Func<CheckingWindowDto?> persisted) = ServiceCapturingCreate();
+
+        CheckingWindowDto window = Window();
+        window.CheckingWindowType = CheckingWindowType.Post16;
+        window.Exercises =
+        [
+            Dated(CheckingExerciseType.PupilData, new DateTime(2026, 10, 7), new DateTime(2026, 10, 18, 17, 0, 0), 0),
+            Dated(CheckingExerciseType.ResultsEnquiry, new DateTime(2026, 10, 7), new DateTime(2027, 3, 31, 17, 0, 0), 1)
+        ];
+
+        await service.CreateAsync(window, CancellationToken.None);
+
+        Assert.Equal(new DateTime(2026, 10, 7), persisted()!.StartDate);
+        Assert.Equal(new DateTime(2027, 3, 31, 17, 0, 0), persisted()!.EndDate);
+    }
+
+    // The admin chooses the exercises since #319, so a window that runs no pupil data checking must
+    // not have one invented for it — that would silently undo their choice.
+    [Fact]
+    public async Task A_window_running_only_results_enquiry_does_not_gain_a_pupil_data_exercise()
+    {
+        (WindowService service, Func<CheckingWindowDto?> persisted) = ServiceCapturingCreate();
+
+        CheckingWindowDto window = Window();
+        window.Exercises =
+        [
+            Dated(CheckingExerciseType.ResultsEnquiry, new DateTime(2027, 1, 1), new DateTime(2027, 3, 1), 1)
+        ];
+
+        await service.CreateAsync(window, CancellationToken.None);
+
+        Assert.Equal(
+            CheckingExerciseType.ResultsEnquiry,
+            Assert.Single(persisted()!.Exercises).ExerciseType);
+    }
+
+    // A caller that names no exercises at all predates the wizard and keeps the old shape.
     [Fact]
     public async Task CreateAsync_gives_a_new_window_a_pupil_data_exercise_on_the_window_dates()
     {
@@ -159,6 +225,10 @@ public class WindowExercisesTests
             SortOrder = sortOrder,
             Datasets = datasets
         };
+
+    private static CheckingExerciseDto Dated(
+        CheckingExerciseType type, DateTime start, DateTime end, int sortOrder) =>
+        new() { ExerciseType = type, StartDate = start, EndDate = end, SortOrder = sortOrder };
 
     private static CheckingWindowDatasetDto Dataset(string name, int sortOrder) =>
         new() { Name = name, SortOrder = sortOrder };

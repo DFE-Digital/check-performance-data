@@ -24,7 +24,7 @@ public class SchemaControllerTests
         var windowService = Substitute.For<IWindowService>();
         var controller = BuildController(windowService);
 
-        var result = await controller.Index(Guid.NewGuid(), Dataset, CancellationToken.None);
+        var result = await controller.Index(Guid.NewGuid(), CheckingExerciseType.PupilData, Dataset, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -38,7 +38,7 @@ public class SchemaControllerTests
 
         var controller = BuildController(windowService);
 
-        var result = await controller.Index(id, Dataset, CancellationToken.None);
+        var result = await controller.Index(id, CheckingExerciseType.PupilData, Dataset, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<SchemaItem>(view.Model);
@@ -52,7 +52,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = Guid.NewGuid() };
-        var result = await controller.Submit(Guid.NewGuid(), Dataset, model, CancellationToken.None);
+        var result = await controller.Submit(Guid.NewGuid(), CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
@@ -66,7 +66,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = null };
-        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
+        var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Same(model, view.Model);
@@ -82,7 +82,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
-        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
+        var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
         await windowService.DidNotReceive().UpdateAsync(Arg.Any<CheckingWindowDto>(), Arg.Any<CancellationToken>());
@@ -98,7 +98,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService);
 
         var model = new SchemaItem { WindowId = id, Schema = FileFrom("this is not json") };
-        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
+        var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 
         var view = Assert.IsType<ViewResult>(result);
         Assert.Same(model, view.Model);
@@ -163,7 +163,7 @@ public class SchemaControllerTests
 
         var controller = BuildController(windowService);
 
-        var result = await controller.Index(id, "nonincluded", CancellationToken.None);
+        var result = await controller.Index(id, CheckingExerciseType.PupilData, "nonincluded", CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -180,7 +180,7 @@ public class SchemaControllerTests
         var controller = BuildController(windowService, blobs);
 
         var model = new SchemaItem { WindowId = id, Schema = FileFrom(ValidSchema) };
-        var result = await controller.Submit(id, Dataset, model, CancellationToken.None);
+        var result = await controller.Submit(id, CheckingExerciseType.PupilData, Dataset, model, CancellationToken.None);
 
         // No "app" blob client is configured, so the upload short-circuits before persisting.
         // The dataset lookup and validation still had to succeed to get that far.

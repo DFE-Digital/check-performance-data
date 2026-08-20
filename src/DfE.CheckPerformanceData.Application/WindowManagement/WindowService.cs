@@ -28,37 +28,50 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     public async Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
+        window.DeriveDatesFromExercises();
         await windowRepository.UpdateAsync(window, cancellationToken);
     }
 
     public async Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken)
     {
         EnsureDatasetsMatchType(window);
+        window.DeriveDatesFromExercises();
         return await windowRepository.CreateAsync(window, cancellationToken);
     }
 
     /// <summary>
     /// A window's dataset set is decided by its type, so changing the type (e.g. KS4June -> Post16)
     /// adds or removes dataset slots. Files already uploaded to a slot that survives are kept.
-    /// The slots hang off the pupil-data exercise, which a window without one gains here on the
-    /// window's own dates — the shape every single-exercise window type has today. Capturing an
-    /// exercise's own dates, and any second exercise, is #319's job.
+    /// The slots hang off the pupil-data exercise.
     /// </summary>
+    /// <remarks>
+    /// A window that runs no pupil-data exercise gets no dataset slots and no exercise invented for
+    /// it — since #319 the admin chooses the exercises, so a results-enquiry-only window is a thing
+    /// an admin can legitimately build, and silently adding pupil data checking back would undo
+    /// their choice. The one exception is a window with no exercises at all: that is a caller which
+    /// predates the wizard, and it keeps the old shape of one pupil-data exercise across the whole
+    /// window.
+    ///
+    /// The results-enquiry exercise gets no dataset slots yet — its six-file ingress is #324.
+    /// </remarks>
     private static void EnsureDatasetsMatchType(CheckingWindowDto window)
     {
-        CheckingExerciseDto? pupilData =
-            window.Exercises.SingleOrDefault(e => e.ExerciseType == CheckingExerciseType.PupilData);
-
-        if (pupilData is null)
+        if (window.Exercises.Count == 0)
         {
-            pupilData = new CheckingExerciseDto
+            window.Exercises.Add(new CheckingExerciseDto
             {
                 ExerciseType = CheckingExerciseType.PupilData,
                 StartDate = window.StartDate,
                 EndDate = window.EndDate,
-                SortOrder = 0
-            };
-            window.Exercises.Add(pupilData);
+                SortOrder = WindowExercises.SortOrderFor(CheckingExerciseType.PupilData)
+            });
+        }
+
+        CheckingExerciseDto? pupilData = window.FindExercise(CheckingExerciseType.PupilData);
+
+        if (pupilData is null)
+        {
+            return;
         }
 
         List<CheckingWindowDatasetDto> wanted = [];

@@ -2,7 +2,6 @@ using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 using DfE.CheckPerformanceData.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
-using WindowValidated = DfE.CheckPerformanceData.Persistence.Entities.WindowValidated;
 
 namespace DfE.CheckPerformanceData.Persistence.Repositories;
 
@@ -23,8 +22,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 IngressFileChecksum = w.IngressFileChecksum,
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
-                Validated = w.Validated != null,
-                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
                 Exercises = w.CheckingExercises
                     .OrderBy(e => e.SortOrder)
                     .Select(e => new CheckingExerciseDto
@@ -34,6 +31,14 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
                         SortOrder = e.SortOrder,
+                        // #319: the validation stamp lives on the exercise now. The checksums say
+                        // which files it was taken over, so a stamp left behind by a since-replaced
+                        // ingress file reads as stale rather than as validated.
+                        ValidatedAt = e.Validated != null ? e.Validated.ValidatedAt : null,
+                        ValidatedIngressChecksum =
+                            e.Validated != null ? e.Validated.IngressValidationChecksum : string.Empty,
+                        ValidatedSchemaChecksum =
+                            e.Validated != null ? e.Validated.SchemaValidationChecksum : string.Empty,
                         Datasets = e.Datasets
                             .OrderBy(d => d.SortOrder)
                             .Select(d => new CheckingWindowDatasetDto
@@ -69,8 +74,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 IngressFileChecksum = w.IngressFileChecksum,
                 SchemaFile = w.SchemaFile,
                 SchemaFileChecksum = w.SchemaFileChecksum,
-                Validated = w.Validated != null,
-                ValidatedAt = (w.Validated != null ? w.Validated.ValidatedAt : null),
                 Exercises = w.CheckingExercises
                     .OrderBy(e => e.SortOrder)
                     .Select(e => new CheckingExerciseDto
@@ -80,6 +83,14 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                         StartDate = e.StartDate,
                         EndDate = e.EndDate,
                         SortOrder = e.SortOrder,
+                        // #319: the validation stamp lives on the exercise now. The checksums say
+                        // which files it was taken over, so a stamp left behind by a since-replaced
+                        // ingress file reads as stale rather than as validated.
+                        ValidatedAt = e.Validated != null ? e.Validated.ValidatedAt : null,
+                        ValidatedIngressChecksum =
+                            e.Validated != null ? e.Validated.IngressValidationChecksum : string.Empty,
+                        ValidatedSchemaChecksum =
+                            e.Validated != null ? e.Validated.SchemaValidationChecksum : string.Empty,
                         Datasets = e.Datasets
                             .OrderBy(d => d.SortOrder)
                             .Select(d => new CheckingWindowDatasetDto
@@ -121,8 +132,6 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             window.SchemaFileChecksum
         });
 
-        entity.Validated = new WindowValidated { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow };
-
         SyncExercises(entity, window.Exercises);
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -131,7 +140,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
     // Exercises are keyed by type within a window (the unique index), datasets by name within an
     // exercise: existing rows are updated in place so their Ids — and any files already uploaded
     // against them — survive, new ones are added, and rows no longer wanted are removed.
-    private static void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
+    private void SyncExercises(CheckingWindow entity, List<CheckingExerciseDto> wanted)
     {
         if (wanted.Count == 0)
         {
@@ -155,6 +164,20 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 };
                 entity.CheckingExercises.Add(existing);
             }
+            else
+            {
+                // #319: an exercise's dates are editable now, so an existing row has to take them.
+                // Before the wizard captured them nothing could change an exercise's dates, and
+                // this loop only ever reconciled datasets.
+                dbContext.Entry(existing).CurrentValues.SetValues(new
+                {
+                    dto.StartDate,
+                    dto.EndDate,
+                    dto.SortOrder
+                });
+            }
+
+            existing.Validated = StampFor(dto);
 
             SyncDatasets(entity, existing, dto.Datasets);
         }
@@ -166,6 +189,19 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             entity.CheckingExercises.Remove(stale);
         }
     }
+
+    // Null when the exercise has never validated. Written from the DTO rather than invented here:
+    // the old window-level stamp was set unconditionally on every create and update, so it said
+    // nothing at all about whether anything had been validated.
+    private static ExerciseValidated? StampFor(CheckingExerciseDto dto) =>
+        dto.ValidatedAt is null
+            ? null
+            : new ExerciseValidated
+            {
+                ValidatedAt = dto.ValidatedAt.Value,
+                IngressValidationChecksum = dto.ValidatedIngressChecksum,
+                SchemaValidationChecksum = dto.ValidatedSchemaChecksum
+            };
 
     private static void SyncDatasets(
         CheckingWindow window, CheckingExercise exercise, List<CheckingWindowDatasetDto> wanted)
@@ -230,8 +266,7 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             IngressFile = window.IngressFile,
             IngressFileChecksum = window.IngressFileChecksum,
             SchemaFile = window.SchemaFile,
-            SchemaFileChecksum = window.SchemaFileChecksum,
-            Validated = new WindowValidated() { ValidatedAt = window.ValidatedAt ?? DateTime.UtcNow }
+            SchemaFileChecksum = window.SchemaFileChecksum
         };
 
         // A window is born with its exercises, each holding the dataset slots its type requires.
@@ -244,7 +279,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 SortOrder = dto.SortOrder,
-                Datasets = dto.Datasets.Select(d => NewDataset(entity, d)).ToList()
+                Datasets = dto.Datasets.Select(d => NewDataset(entity, d)).ToList(),
+                Validated = StampFor(dto)
             });
         }
 
@@ -263,8 +299,31 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             IngressFileChecksum = entity.IngressFileChecksum,
             SchemaFile = entity.SchemaFile,
             SchemaFileChecksum = entity.SchemaFileChecksum,
-            Validated = entity.Validated != null,
-            ValidatedAt = entity.Validated?.ValidatedAt
+            Exercises = entity.CheckingExercises
+                .OrderBy(e => e.SortOrder)
+                .Select(e => new CheckingExerciseDto
+                {
+                    Id = e.Id,
+                    ExerciseType = e.ExerciseType,
+                    StartDate = e.StartDate,
+                    EndDate = e.EndDate,
+                    SortOrder = e.SortOrder,
+                    Datasets = e.Datasets
+                        .OrderBy(d => d.SortOrder)
+                        .Select(d => new CheckingWindowDatasetDto
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            IngressFile = d.IngressFile,
+                            IngressFileChecksum = d.IngressFileChecksum,
+                            SchemaFile = d.SchemaFile,
+                            SchemaFileChecksum = d.SchemaFileChecksum,
+                            Included = d.Included,
+                            SortOrder = d.SortOrder
+                        })
+                        .ToList()
+                })
+                .ToList()
         };
     }
 }

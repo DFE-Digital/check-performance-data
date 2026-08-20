@@ -28,9 +28,10 @@ public sealed class CheckingWindowDto
     public string IngressFileChecksum { get; set; } = string.Empty;
     public string SchemaFile { get; set; } = string.Empty;
     public string SchemaFileChecksum { get; set; } = string.Empty;
-    public bool Validated { get; set; }
-    public DateTime? ValidatedAt { get; set; }
     public bool IsOpen { get; set; }
+
+    // #319: Validated / ValidatedAt are gone from here. A window is not validated as a whole — ask
+    // a CheckingExerciseDto, or fold the answer across Exercises.
 
     /// <summary>
     /// The window's checking exercises, in sort order. A dataset belongs to the exercise that
@@ -40,21 +41,26 @@ public sealed class CheckingWindowDto
     /// </summary>
     public List<CheckingExerciseDto> Exercises { get; set; } = [];
 
-    /// <summary>
-    /// Every dataset the window ingests, in exercise order then dataset order. Transitional: the
-    /// ingest still runs all of a window's files in one pass and the summary page still lists them
-    /// as one table. #316 scopes ingress to the exercise and #319 makes the wizard per-exercise;
-    /// both retire this flattening.
-    /// </summary>
-    public IReadOnlyList<CheckingWindowDatasetDto> AllDatasets =>
-        Exercises
-            .OrderBy(e => e.SortOrder)
-            .SelectMany(e => e.Datasets.OrderBy(d => d.SortOrder))
-            .ToList();
+    // #319: AllDatasets is gone. It flattened every exercise's datasets into one list, which was
+    // only ever right while a single exercise held them all — the admin wizard, the summary page
+    // and the validate run are all per-exercise now, and each asks the exercise it means.
 
-    /// <summary>The dataset with this name, held by whichever exercise consumes it.</summary>
-    public CheckingWindowDatasetDto? FindDataset(string name) =>
-        AllDatasets.SingleOrDefault(d => d.Name == name);
+    /// <summary>The exercise of this type, or null when the window does not run it.</summary>
+    public CheckingExerciseDto? FindExercise(CheckingExerciseType exercise) =>
+        Exercises.SingleOrDefault(e => e.ExerciseType == exercise);
+
+    /// <summary>
+    /// The outer pair derived from the exercises: earliest start, latest end. The wizard never asks
+    /// an admin for the window's own dates, so the two can never disagree. A window with no
+    /// exercises keeps whatever it has — there is nothing to derive from.
+    /// </summary>
+    public void DeriveDatesFromExercises()
+    {
+        if (Exercises.Count == 0) return;
+
+        StartDate = Exercises.Min(e => e.StartDate);
+        EndDate = Exercises.Max(e => e.EndDate);
+    }
 }
 
 public sealed class CheckingExerciseDto
@@ -69,6 +75,41 @@ public sealed class CheckingExerciseDto
     /// The CSV + schema pairs this exercise ingests, in sort order. Any number, including none.
     /// </summary>
     public List<CheckingWindowDatasetDto> Datasets { get; set; } = [];
+
+    /// <summary>When this exercise last validated cleanly. Null = never (#319).</summary>
+    public DateTime? ValidatedAt { get; set; }
+
+    /// <summary>
+    /// The dataset checksums the stamp was taken over. When these no longer match the exercise's
+    /// current datasets, the stamp describes files that have since been replaced.
+    /// </summary>
+    public string ValidatedIngressChecksum { get; set; } = string.Empty;
+    public string ValidatedSchemaChecksum { get; set; } = string.Empty;
+
+    /// <summary>Every dataset has both its files, so the exercise can be validated.</summary>
+    public bool HasRequiredFiles => Datasets.Count > 0 && Datasets.All(d => d.IsComplete);
+
+    /// <summary>
+    /// Validated, and against the files it currently holds. A stamp taken before an ingress file
+    /// was swapped is stale, and saying so is the only reason the checksums are stored.
+    /// </summary>
+    public bool IsValidated =>
+        ValidatedAt is not null
+        && ValidatedIngressChecksum == CurrentIngressChecksum
+        && ValidatedSchemaChecksum == CurrentSchemaChecksum;
+
+    /// <summary>The dataset ingress checksums as they stand, in dataset order.</summary>
+    public string CurrentIngressChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.IngressFileChecksum));
+
+    /// <summary>The dataset schema checksums as they stand, in dataset order.</summary>
+    public string CurrentSchemaChecksum => Combine(Datasets.OrderBy(d => d.SortOrder).Select(d => d.SchemaFileChecksum));
+
+    // Hashed rather than joined: each part is 64 hex characters, and an exercise with six datasets
+    // (the results-enquiry shape) would overflow the 256-character column on a plain join.
+    private static string Combine(IEnumerable<string> checksums) =>
+        Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(string.Join("|", checksums))));
 }
 
 public sealed class CheckingWindowDatasetDto

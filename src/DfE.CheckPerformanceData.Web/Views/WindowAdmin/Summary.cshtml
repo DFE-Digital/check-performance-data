@@ -1,9 +1,14 @@
 @model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowEditItem
 
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = Model.Title;
+}
+
 <govuk-back-link asp-controller="WindowAdmin" asp-action="Index" />
 
 <h1 class="govuk-heading-xl">@Model.Title</h1>
-<h1 class="govuk-heading-l">Checking Window</h1>
+
 <h2 class="govuk-heading-m">Window details</h2>
 
 <govuk-summary-list>
@@ -22,19 +27,15 @@
     <key>Is Open</key>
     <value>@Model.IsOpen</value>
   </row>
+  @* #319: the window's own dates are the union of its exercises' dates and are never typed, so
+     there is no Change link here. Move an exercise's dates to move the window's. *@
   <row>
     <key>Start Date</key>
-    <value>@Model.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
-    <row-actions>
-      <action href="@Model.StartDateLink" visually-hidden-text="Start Date">Change</action>
-    </row-actions>
+    <value>@Model.StartDate.ToString("dd/MM/yyyy HH:mm") <span class="govuk-hint govuk-!-display-inline">(earliest exercise start)</span></value>
   </row>
   <row>
     <key>End Date</key>
-    <value>@Model.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
-    <row-actions>
-      <action href="@Model.EndDateLink" visually-hidden-text="End date">Change</action>
-    </row-actions>
+    <value>@Model.EndDate.ToString("dd/MM/yyyy HH:mm") <span class="govuk-hint govuk-!-display-inline">(latest exercise end)</span></value>
   </row>
   <row>
     <key>Window Type</key>
@@ -43,32 +44,85 @@
       <action href="@Model.CheckingWindowTypeLink" visually-hidden-text="Window Type">Change</action>
     </row-actions>
   </row>
-
+  <row>
+    <key>Checking exercises</key>
+    <value>@(Model.Exercises.Count == 0 ? "None" : string.Join(", ", Model.Exercises.Select(e => e.Label)))</value>
+    <row-actions>
+      <action href="@Model.ExercisesLink" visually-hidden-text="Checking exercises">Change</action>
+    </row-actions>
+  </row>
 </govuk-summary-list>
 
-<h2 class="govuk-heading-m">File details</h2>
+@* One section per checking exercise. Each validates independently — a window is usable while
+   another of its exercises is still unvalidated. *@
+@foreach (var exercise in Model.Exercises)
+{
+  <h2 class="govuk-heading-m">@exercise.Label</h2>
 
-@* One ingress/schema pair per dataset. A 16-19 window has two (included + non-included),
-   because LDS supplies its pupils as two files that are ingested together in one run. *@
-<govuk-summary-list>
-  @foreach (var dataset in Model.Datasets)
+  <govuk-summary-list>
+    <row>
+      <key>Start Date</key>
+      <value>@exercise.StartDate.ToString("dd/MM/yyyy HH:mm")</value>
+      <row-actions>
+        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label start date">Change</action>
+      </row-actions>
+    </row>
+    <row>
+      <key>End Date</key>
+      <value>@exercise.EndDate.ToString("dd/MM/yyyy HH:mm")</value>
+      <row-actions>
+        <action href="@exercise.DatesLink" visually-hidden-text="@exercise.Label end date">Change</action>
+      </row-actions>
+    </row>
+    <row>
+      <key>Validated</key>
+      <value>
+        @if (exercise.IsValidated)
+        {
+          @($"Yes, {exercise.ValidatedAt:dd/MM/yyyy HH:mm}")
+        }
+        else if (exercise.IsStale)
+        {
+          @* The stamp's checksums no longer match the files the exercise holds, so it describes
+             data that has since been replaced. Saying "No" would lose that distinction. *@
+          @($"Not since the files changed (last validated {exercise.ValidatedAt:dd/MM/yyyy HH:mm})")
+        }
+        else
+        {
+          @:No
+        }
+      </value>
+    </row>
+  </govuk-summary-list>
+
+  @if (exercise.Datasets.Count == 0)
   {
-    <row>
-      <key>@dataset.Label — ingress file</key>
-      <value>@dataset.IngressFile</value>
-      <row-actions>
-        <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
-      </row-actions>
-    </row>
-    <row>
-      <key>@dataset.Label — schema file</key>
-      <value>@dataset.SchemaFile</value>
-      <row-actions>
-        <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
-      </row-actions>
-    </row>
+    <p class="govuk-body">This exercise has no ingress files to load.</p>
   }
-</govuk-summary-list>
+  else
+  {
+    <govuk-summary-list>
+      @foreach (var dataset in exercise.Datasets)
+      {
+        <row>
+          <key>@dataset.Label — ingress file</key>
+          <value>@dataset.IngressFile</value>
+          <row-actions>
+            <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
+          </row-actions>
+        </row>
+        <row>
+          <key>@dataset.Label — schema file</key>
+          <value>@dataset.SchemaFile</value>
+          <row-actions>
+            <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
+          </row-actions>
+        </row>
+      }
+    </govuk-summary-list>
 
-
-<govuk-button-link disabled="@(!Model.IsValidatable)" href="@Model.PostUrl">Validate Window</govuk-button-link>
+    <govuk-button-link disabled="@(!exercise.IsValidatable)" href="@exercise.ValidateLink">
+      Validate @exercise.Label
+    </govuk-button-link>
+  }
+}

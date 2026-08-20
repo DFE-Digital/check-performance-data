@@ -1,0 +1,81 @@
+@model DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin.ExerciseDatesItem
+
+@{
+    // Matches the <h1> below.
+    ViewBag.Title = $"{Model.ExerciseLabel} dates";
+    var exampleDate = DateTime.UtcNow.AddMonths(4).ToString("dd MM yyyy");
+}
+
+<h1 class="govuk-heading-l">@Model.ExerciseLabel dates</h1>
+
+<p class="govuk-body">
+    These are this exercise's own dates. The window's overall dates are worked out from every
+    exercise it runs, so you are not asked for them separately.
+</p>
+
+<form method="post" action="@Model.PostUrl" novalidate>
+    @Html.AntiForgeryToken()
+
+    <input type="hidden" asp-for="@Model.WindowId" />
+
+    <govuk-date-input for="@Model.StartDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">
+                When does it open?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, @exampleDate</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="StartDate" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-fieldset role="group">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--s">What time does it open?</govuk-fieldset-legend>
+        <govuk-fieldset-hint>Use the 24-hour clock, for example 09 30 or 17 00.</govuk-fieldset-hint>
+        <div class="govuk-date-input">
+            <div class="govuk-date-input__item">
+                <govuk-input for="StartHour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="StartHour" />
+                </govuk-input>
+            </div>
+            <div class="govuk-date-input__item">
+                <govuk-input for="StartMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="StartMinute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
+    <govuk-date-input for="@Model.EndDate">
+        <govuk-date-input-fieldset>
+            <govuk-date-input-fieldset-legend class="govuk-fieldset__legend--m">
+                When does it close?
+            </govuk-date-input-fieldset-legend>
+            <govuk-date-input-hint>For example, @exampleDate</govuk-date-input-hint>
+            <govuk-date-input-error-message asp-validation-for="EndDate" />
+        </govuk-date-input-fieldset>
+    </govuk-date-input>
+
+    <govuk-fieldset role="group">
+        <govuk-fieldset-legend class="govuk-fieldset__legend--s">What time does it close?</govuk-fieldset-legend>
+        <govuk-fieldset-hint>Use the 24-hour clock, for example 09 30 or 17 00.</govuk-fieldset-hint>
+        <div class="govuk-date-input">
+            <div class="govuk-date-input__item">
+                <govuk-input for="EndHour" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Hour</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="EndHour" />
+                </govuk-input>
+            </div>
+            <div class="govuk-date-input__item">
+                <govuk-input for="EndMinute" inputmode="numeric" input-class="govuk-input--width-2">
+                    <govuk-input-label>Minute</govuk-input-label>
+                    <govuk-input-error-message asp-validation-for="EndMinute" />
+                </govuk-input>
+            </div>
+        </div>
+    </govuk-fieldset>
+
+    <govuk-button type="submit">Save and continue</govuk-button>
+    <a class="govuk-link" href="@Model.CancelUrl">Cancel</a>
+</form>

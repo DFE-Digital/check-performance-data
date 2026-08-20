@@ -14,6 +14,9 @@ public sealed class TurnaroundCommitmentTests(PlaywrightFixture fixture) : Seedi
     // The seeded KS4 June window (see SeedCheckingWindows in DevDataSeeder).
     private static readonly Guid SeededWindowId = Guid.Parse("F34D285B-8660-4D12-9C30-787328DEAA0A");
 
+    // What the Summary prints in place of an unset commitment.
+    private const string NotSetPlaceholder = "Not set";
+
     private string SummaryUrl => $"{Fixture.BaseUrl}/admin/windows/summary/{SeededWindowId}";
     private string EditUrl => $"{Fixture.BaseUrl}/admin/windows/{SeededWindowId}/turnaround-commitment";
 
@@ -40,9 +43,16 @@ public sealed class TurnaroundCommitmentTests(PlaywrightFixture fixture) : Seedi
         await Page.GotoAsync(SummaryUrl);
         var value = await CurrentSummaryValueAsync();
 
+        // "Not set" is what the Summary prints when there is no value — a placeholder, not the
+        // value itself, so the edit field is legitimately empty in that state. Comparing the two
+        // directly made this test depend on running before EmptySubmission_IsAllowed_AndShowsNotSet,
+        // which clears the commitment. xUnit does not order tests within a class, so whichever
+        // order a run happened to pick decided whether this passed.
+        var expected = value == NotSetPlaceholder ? string.Empty : value;
+
         await Page.GotoAsync(EditUrl);
         var input = Page.Locator("#TurnaroundCommitment");
-        await Expect(input).ToHaveValueAsync(value);
+        await Expect(input).ToHaveValueAsync(expected);
     }
 
     [Fact]
@@ -68,7 +78,7 @@ public sealed class TurnaroundCommitmentTests(PlaywrightFixture fixture) : Seedi
         await Page.WaitForURLAsync("**/admin/windows/summary/**");
 
         await Expect(Page.Locator(".govuk-error-summary")).ToHaveCountAsync(0);
-        Assert.Equal("Not set", await CurrentSummaryValueAsync());
+        Assert.Equal(NotSetPlaceholder, await CurrentSummaryValueAsync());
     }
 
     private async Task<string> CurrentSummaryValueAsync()

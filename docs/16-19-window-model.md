@@ -176,6 +176,13 @@ another's summaries. They carry the exercise prefix too — `{windowId}_summary_
 `results-enquiry/{windowId}_error_log.txt` for results enquiry — so pupil data's stay exactly where
 they already are and nothing has to move.
 
+**Backfill note (#317).** #313's migration gave every existing window a `PupilData` row and nothing
+else. Once the page's options follow the exercises, that would have silently withdrawn the
+results-enquiry option from every deployed 16-19 window, so `BackfillResultsEnquiryExercise` gives
+each `Post16` window a `ResultsEnquiry` exercise on the window's own dates — reproducing exactly the
+behaviour it has today. It is transitional and guarded by `NOT EXISTS`, so a window someone has
+configured with real enquiry dates keeps them, and #319's admin replaces the placeholder dates.
+
 `HasPupilData` on the landing page becomes a question about the pupil-data exercise's prefix. Note
 that it now only decides whether the read-only pupil content can render. It no longer decides
 whether a card appears.

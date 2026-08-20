@@ -44,6 +44,9 @@ public static class DependencyManager
         // in the solution may do that comparison for itself.
         services.AddScoped<ICheckingExerciseService, CheckingExerciseService>();
         services.AddScoped<ICheckYourPupilDataService, CheckYourPupilDataService>();
+        // #317: which next-step options the check-your-pupil-data page may offer, from the open
+        // exercises. The exercise-to-options map is domain knowledge, so it is not in the controller.
+        services.AddScoped<INextStepsService, NextStepsService>();
         services.AddScoped<IJourneyValidationService, JourneyValidationService>();
         services.AddScoped<IRequestService, RequestService>();
         services.AddSingleton<IQuestionFlowService, QuestionFlowService>();

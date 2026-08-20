@@ -1,3 +1,4 @@
+@using DfE.CheckPerformanceData.Application.CheckYourPupilData
 @using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData
 @model DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData.CheckYourPupilDataViewModel
 
@@ -18,8 +19,27 @@
 })
 
 
-<p class="govuk-body">Review your pupil data by checking the tables below. You can also download the data as a CSV
-    file. You must request any changes to pupil data before @Model.WindowEndTime on @Model.WindowEndDate</p>
+@{
+    // #317: the deadline is the pupil-data exercise's own end date, never the outer window's — on a
+    // multi-exercise window the outer date is months later and would promise slack the school does
+    // not have. Checking-window dates are UK wall-clock values rather than UTC instants, so they
+    // are formatted as they stand and never routed through LondonTime.
+    var pupilDataDeadline = Model.PupilDataEndDate is { } end
+        ? $"{end:htt}".ToLowerInvariant() + $" on {end:dddd d MMMM yyyy}"
+        : null;
+}
+
+<p class="govuk-body">
+    Review your pupil data by checking the tables below. You can also download the data as a CSV file.
+    @if (pupilDataDeadline is not null && Model.IsPupilDataOpen)
+    {
+        @:You must request any changes to pupil data before @pupilDataDeadline
+    }
+    else if (pupilDataDeadline is not null)
+    {
+        @:The window for requesting changes to pupil data closed at @pupilDataDeadline
+    }
+</p>
 
 <p class="govuk-body">
     <a asp-action="DownloadAll" asp-controller="CheckYourPupilData" asp-route-windowId="@Model.WindowId">Download all
@@ -61,7 +81,28 @@
     }
 </govuk-tabs>
 
-@if (Model.IsWindowOpen)
+@* #317: the form offers whatever the open exercises offer. Nothing open means no form at all —
+   the tables, the search and the downloads above are untouched, because a closed exercise removes
+   actions, never content. *@
+@if (Model.AvailableNextSteps.Count == 0)
+{
+    <p class="govuk-body">This window is closed for changes. You can still review and download your
+        pupil data above.</p>
+}
+else if (Model.AvailableNextSteps.Count == 1)
+{
+    @* A radio group with a single choice is a poor pattern and contradicts the "select one option"
+       hint, so the one surviving option becomes the button itself. The value still posts through a
+       hidden field, so NextStep re-derives and re-checks it exactly as it does for the radios. *@
+    var only = Model.AvailableNextSteps[0];
+
+    <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="@nameof(Model.SelectedNextStep)" value="@only"/>
+        <govuk-button type="submit">@NextStepLabels.For(only)</govuk-button>
+    </form>
+}
+else
 {
     <form method="post" action="@Url.Action("NextStep", "CheckYourPupilData", new { windowId = Model.WindowId })">
         @Html.AntiForgeryToken()
@@ -79,18 +120,18 @@
                     Select one option.
                 </govuk-radios-hint>
 
-                <govuk-radios-item value="@NextSteps.RequestChange">Request an amendment to pupil data
-                </govuk-radios-item>
-                @if (Model.ShowResultsEnquiryOption)
+                @* "Confirm pupil data is correct" is the alternative to doing anything, so it reads
+                   last, after the "or" divider — the GDS pattern, and the order this page has always
+                   rendered. Every other option keeps the service's exercise-sort order. *@
+                @foreach (var step in Model.AvailableNextSteps.Where(s => s != NextSteps.Confirm))
                 {
-                    @* AB#296648: the 16-19 way in to a results enquiry, per the agreed decision in
-                       docs/16-19-window-model.md. The full "Review exam results" tabbed page belongs
-                       to the entry-point ticket; this radio is the model-aligned route until then. *@
-                    <govuk-radios-item value="@NextSteps.ResultsEnquiry">Report an issue with an exam result
-                    </govuk-radios-item>
+                    <govuk-radios-item value="@step">@NextStepLabels.For(step)</govuk-radios-item>
                 }
-                <govuk-radios-divider>or</govuk-radios-divider>
-                <govuk-radios-item value="@NextSteps.Confirm">Confirm pupil data is correct</govuk-radios-item>
+                @if (Model.AvailableNextSteps.Contains(NextSteps.Confirm))
+                {
+                    <govuk-radios-divider>or</govuk-radios-divider>
+                    <govuk-radios-item value="@NextSteps.Confirm">@NextStepLabels.For(NextSteps.Confirm)</govuk-radios-item>
+                }
             </govuk-radios-fieldset>
         </govuk-radios>
 

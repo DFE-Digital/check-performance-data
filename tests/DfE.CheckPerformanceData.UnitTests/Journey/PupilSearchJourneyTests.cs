@@ -576,7 +576,7 @@ public class PupilSearchJourneyTests
 
         var view = Assert.IsType<ViewResult>(result);
         var vm = Assert.IsType<SummaryViewModel>(view.Model);
-        Assert.Equal("CYPMD456, John Doe", vm.SecondRecordDisplay);
+        Assert.Equal("John Doe 2 February 2010 (CYPMD456)", vm.SecondRecordDisplay);
     }
 
     [Fact]

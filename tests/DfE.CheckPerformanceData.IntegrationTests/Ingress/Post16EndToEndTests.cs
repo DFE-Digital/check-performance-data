@@ -134,7 +134,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
             new Dictionary<string, BlobServiceClient> { ["app"] = _blobs });
 
         ValidationProgress? last = null;
-        await foreach (var p in processor.ProcessAsync(windowId, Datasets(), clearExistingFiles: clearExistingFiles))
+        await foreach (var p in processor.ProcessAsync(windowId, CheckingExerciseType.PupilData, Datasets(), clearExistingFiles: clearExistingFiles))
         {
             last = p;
         }
@@ -241,7 +241,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
         Assert.True(await blob.ExistsAsync());
 
         var pupils = await new PupilDataBlobClient(_blobs)
-            .GetPupilsAsync(windowId, Laestab, CheckingWindowType.Post16);
+            .GetPupilsAsync(windowId, CheckingExerciseType.PupilData, Laestab, CheckingWindowType.Post16);
 
         Assert.NotNull(pupils);
         Assert.Equal(2, pupils!.Count);

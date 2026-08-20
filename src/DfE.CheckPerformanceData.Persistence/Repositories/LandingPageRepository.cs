@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
 // Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
 // LandingPage one ambiguous here.
@@ -71,7 +72,9 @@ public sealed class LandingPageRepository(
                 CheckingWindowType = w.CheckingWindowType,
                 Title = w.Title,
                 Id = w.Id,
-                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(w.Id, laestab),
+                // #316: "has pupil data" asks about the pupil-data exercise's prefix specifically.
+                HasPupilData = await pupilDataBlobClient.HasPupilDataAsync(
+                    w.Id, CheckingExerciseType.PupilData, laestab),
                 Exercises = w.Exercises
             });
         }

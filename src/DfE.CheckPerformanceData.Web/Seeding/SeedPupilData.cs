@@ -48,7 +48,7 @@ public static class SeedPupilData
                 pupils.AddRange(GeneratePupils(PupilsPerGroup, includedPincl: false, NonIncludedIndexOffset, windowId, school));
 
             if (pupils.Count > 0)
-                await client.UploadPupilsAsync(windowId, school.Laestab, pupils);
+                await client.UploadPupilsAsync(windowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
     }
 
@@ -70,7 +70,8 @@ public static class SeedPupilData
                 pupils.AddRange(GeneratePost16Pupils(PupilsPerGroup, included: false, NonIncludedIndexOffset, school));
 
             if (pupils.Count > 0)
-                await client.UploadPupilsAsync(DevDataSeeder.Post16CheckingWindowId, school.Laestab, pupils);
+                await client.UploadPupilsAsync(
+                    DevDataSeeder.Post16CheckingWindowId, CheckingExerciseType.PupilData, school.Laestab, pupils);
         }
     }
 

@@ -122,7 +122,8 @@ public sealed class CheckYourPupilDataRepository(
 
         // The blob's record shape depends on the window type, so the window is resolved first.
         var window = await GetCheckingWindowAsync(windowId);
-        var pupils = await pupilDataBlobClient.GetPupilsAsync(windowId, laestab, window.CheckingWindowType) ?? [];
+        var pupils = await pupilDataBlobClient.GetPupilsAsync(
+            windowId, CheckingExerciseType.PupilData, laestab, window.CheckingWindowType) ?? [];
         var entry = new SchoolPupilsCacheEntry(pupils, window.CheckingWindowType);
         cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
         return entry;

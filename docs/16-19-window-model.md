@@ -168,6 +168,14 @@ saves migrating every window's blobs. Derive the prefix from the exercise in one
 unmapped exercise type throw rather than default — a new exercise silently sharing another's prefix
 is the one failure this design exists to prevent.
 
+That one place is `Application/WindowManagement/CheckingExerciseBlobPaths.cs`. The per-school data
+files are not the whole story: a run also writes a timestamped **summary** and an **error log**, and
+both were named on the window alone, so an unscoped sweep would still have let one exercise delete
+another's summaries. They carry the exercise prefix too — `{windowId}_summary_…` and
+`{windowId}_error_log.txt` for pupil data, `results-enquiry/{windowId}_summary_…` and
+`results-enquiry/{windowId}_error_log.txt` for results enquiry — so pupil data's stay exactly where
+they already are and nothing has to move.
+
 `HasPupilData` on the landing page becomes a question about the pupil-data exercise's prefix. Note
 that it now only decides whether the read-only pupil content can render. It no longer decides
 whether a card appears.

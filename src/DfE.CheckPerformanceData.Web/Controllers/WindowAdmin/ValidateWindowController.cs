@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Infrastructure.Ingress;
 using DfE.CheckPerformanceData.Web.Controllers.ViewModels.WindowAdmin;
 using Microsoft.AspNetCore.Mvc;
@@ -63,9 +64,21 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
     {
         CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
 
+        // An ingress run belongs to a checking exercise, not to the window (#316) — the exercise
+        // scopes both the output prefix and the clear sweep. Today only the pupil-data exercise
+        // carries datasets (WindowService attaches the window type's dataset slots to it), so this
+        // resolves to one run and behaves exactly as it did. #319 makes the admin wizard
+        // per-exercise and turns this into a run per exercise.
+        CheckingExerciseDto? ingesting = window.Exercises
+            .OrderBy(e => e.SortOrder)
+            .FirstOrDefault(e => e.Datasets.Count > 0);
+
+        CheckingExerciseType exercise = ingesting?.ExerciseType ?? CheckingExerciseType.PupilData;
+
         // A Post16 window supplies two datasets (included + non-included); every other type one.
         // They are ingested in a single run so both populations land in one blob per school.
-        IReadOnlyList<IngressDataset> datasets = window.AllDatasets
+        IReadOnlyList<IngressDataset> datasets = (ingesting?.Datasets ?? [])
+            .OrderBy(d => d.SortOrder)
             .Select(d => new IngressDataset(
                 d.Name,
                 d.IngressFile,
@@ -77,6 +90,7 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
 
         await foreach (ValidationProgress progress in processor.ProcessAsync(
                            window.Id,
+                           exercise,
                            datasets,
                            cancellationToken: cancellationToken))
         {

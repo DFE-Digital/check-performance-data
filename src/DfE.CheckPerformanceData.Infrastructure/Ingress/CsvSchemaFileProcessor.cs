@@ -6,6 +6,8 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using CsvHelper;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,6 +19,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
+        CheckingExerciseType exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
@@ -35,7 +38,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             yield break;
         }
 
-        string errorLogBlobName = $"{checkingWindowId}_error_log.txt";
+        // Every output path this run touches is scoped to its exercise (#316). Two exercises share
+        // one container, so an unscoped name would let one run overwrite or delete another's output.
+        string errorLogBlobName = CheckingExerciseBlobPaths.ErrorLogBlobName(exercise, checkingWindowId);
         BlobContainerClient container = sourceBlobClient.GetBlobContainerClient(checkingWindowId.ToString());
         bool multipleDatasets = datasets.Count > 1;
 
@@ -49,13 +54,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         // A fresh, timestamped summary file is written on every real run, so runs never overwrite
         // each other's summary.
-        string summaryBlobName = $"{checkingWindowId}_summary_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+        string summaryBlobName =
+            $"{CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)}{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
 
         // Wipe output left by a previous run before anything is written. Safe now that a single
         // run produces every dataset's output.
         if (clearExistingFiles && !validateOnly)
         {
-            await ClearOutputAsync(container, checkingWindowId, errorLogBlobName, cancellationToken);
+            await ClearOutputAsync(container, checkingWindowId, exercise, errorLogBlobName, cancellationToken);
         }
 
         foreach (IngressDataset dataset in datasets)
@@ -297,7 +303,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string outputBlobName = $"data/{schoolId}_pupils.json";
+            string outputBlobName = CheckingExerciseBlobPaths.PupilsBlobName(exercise, schoolId);
             try
             {
                 await WriteAsync(container, outputBlobName, jsonArray.ToString(Formatting.Indented), cancellationToken);
@@ -398,7 +404,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         return value;
     }
 
-    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, string errorLogBlobName, CancellationToken cancellationToken)
+    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType exercise, string errorLogBlobName, CancellationToken cancellationToken)
     {
         if (!await container.ExistsAsync(cancellationToken))
         {
@@ -407,8 +413,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         List<string> blobNames = new List<string>();
 
-        // Per-school data files and every timestamped summary from previous runs.
-        foreach (string prefix in new[] { "data/", $"{checkingWindowId}_summary_" })
+        // Per-school data files and every timestamped summary from previous runs — both scoped to
+        // the running exercise. Blob prefixes match as plain strings, so sweeping "data/" does not
+        // reach "results-enquiry/data/" and vice versa.
+        foreach (string prefix in new[]
+                 {
+                     CheckingExerciseBlobPaths.DataPrefix(exercise),
+                     CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)
+                 })
         {
             await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
             {

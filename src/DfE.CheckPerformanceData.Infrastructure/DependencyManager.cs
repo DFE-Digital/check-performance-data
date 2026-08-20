@@ -60,9 +60,13 @@ public static class DependencyManager
         // by every host that calls AddPersistenceDependencies — including the worker.
         services.AddScoped<IPupilDataBlobClient, PupilDataBlobClient>();
 
-        // AB#296648: the 16-19 exam results a school can raise an enquiry against, held in the same
-        // per-window container under the results-enquiry checking-exercise prefix.
-        services.AddScoped<IStudentResultsClient, StudentResultsBlobClient>();
+        // IStudentResultsClient is deliberately NOT registered here. Its implementation takes an
+        // IMemoryCache, which this bundle's only caller — the worker — does not have: AddMemoryCache
+        // comes from AddPersistenceDependencies, and the worker opts out of that so its manual
+        // DbContext registration stays the single source of truth. Registering it here therefore
+        // failed validate-on-build and took the whole worker process down, consumers and retention
+        // jobs included, over a service the worker never resolves. Every consumer is in the web
+        // host, which assembles its own blob clients in AddCpdBlobStorage and registers it there.
 
         // Analytics sink: the real dfe-analytics adapter when DfeAnalytics:DatasetId is
         // configured (deployed envs wire it via Terraform), else a no-op so dev/review/

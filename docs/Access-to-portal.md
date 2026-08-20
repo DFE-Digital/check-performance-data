@@ -16,7 +16,8 @@
   - Minehead Middle School (933/4290) - *Included and Non-Included data*
   - Eastbrook School (301/4023) - *Non-Included data only*
   - Alderwood School (850/2729) - *Included data only*
-- Once you've been granted access to the school (can take about 24 hours and is carried out by the DfE SignIn team), let a member of the dev team know who will grant you access to the service.
+- **WAIT** for an email from DfE SignIn to confirm you have been granted access to the school.  This can take about 24 hours.
+- Let a member of the CYPMD Development team know that your account has been granted access to the school and they will add you to the CYPMD Service.
 
 ### PreProduction
 
@@ -26,7 +27,8 @@
   - Minehead Middle School (933/4290) - *Included and Non-Included data*
   - Eastbrook School (301/4023) - *Non-Included data only*
   - Alderwood School (850/2729) - *Included data only*
-- Once you've been granted access to the school (can take about 24 hours and is carried out by the DfE SignIn team), let a member of the dev team know who will grant you access to the service.
+- **WAIT** for an email from DfE SignIn to confirm you have been granted access to the school.  This can take about 24 hours.
+- Let a member of the CYPMD Development team know that your account has been granted access to the school and they will add you to the CYPMD Service.
 
 ### Production 
 

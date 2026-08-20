@@ -10,6 +10,8 @@
 
 <a asp-action="Index" asp-controller="LandingPage" class="govuk-back-link">Back</a>
 
+@await Html.PartialAsync("_ClosedExerciseBanner")
+
 @await Component.InvokeAsync("EditableTitle", new
 {
     key = "check-pupil-data-title",

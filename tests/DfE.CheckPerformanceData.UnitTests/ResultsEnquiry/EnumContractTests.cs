@@ -37,10 +37,15 @@ public sealed class EnumContractTests
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
     }
 
+    // #318: the map returns CheckingExerciseType now that the enum exists, so the gate can hand a
+    // journey's exercise straight to ICheckingExerciseService without a name lookup.
     [Theory]
-    [InlineData(WhatToChange.IncorrectGrade, "ResultsEnquiry")]
-    [InlineData(WhatToChange.Merge, "PupilData")]
-    [InlineData(WhatToChange.Remove, "PupilData")]
-    public void WhatToChange_maps_to_its_checking_exercise(WhatToChange change, string exercise)
+    [InlineData(WhatToChange.IncorrectGrade, CheckingExerciseType.ResultsEnquiry)]
+    [InlineData(WhatToChange.Merge, CheckingExerciseType.PupilData)]
+    [InlineData(WhatToChange.Remove, CheckingExerciseType.PupilData)]
+    [InlineData(WhatToChange.Include, CheckingExerciseType.PupilData)]
+    [InlineData(WhatToChange.Add, CheckingExerciseType.PupilData)]
+    public void WhatToChange_maps_to_its_checking_exercise(
+        WhatToChange change, CheckingExerciseType exercise)
         => Assert.Equal(exercise, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
 }

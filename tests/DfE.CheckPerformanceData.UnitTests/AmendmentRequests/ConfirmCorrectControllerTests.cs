@@ -7,6 +7,13 @@ using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
+// Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
+// file already uses the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using DfE.CheckPerformanceData.Web.Common;
+using Microsoft.AspNetCore.Http;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -19,11 +26,18 @@ public sealed class ConfirmCorrectControllerTests
     private readonly IJourneyValidationService _journeyService = Substitute.For<IJourneyValidationService>();
     private readonly IRequestService _requestService = Substitute.For<IRequestService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
+    private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly ConfirmCorrectController _sut;
 
     public ConfirmCorrectControllerTests()
     {
-        _sut = new ConfirmCorrectController(_service, _journeyService, _requestService, _analytics);
+        var httpContext = new DefaultHttpContext();
+        _sut = new ConfirmCorrectController(_service, _journeyService, _requestService, _checkingExercises, _analytics)
+        {
+            // #318: the closed-exercise gate stashes its message in TempData before redirecting.
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+            TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
+        };
         _service.GetCheckingWindowAsync(WindowId).Returns(new CheckingWindowDto
         {
             Id = WindowId,
@@ -56,4 +70,36 @@ public sealed class ConfirmCorrectControllerTests
             _ = _analytics.TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
         });
     }
+
+    // ── #318: closed pupil-data checking exercise ────────────────────────────
+
+    [Fact]
+    public async Task Index_WhenPupilDataExerciseClosed_RedirectsToCheckYourPupilDataWithAMessage()
+    {
+        _checkingExercises.Close();
+
+        var result = await _sut.Index(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task Confirm_WhenPupilDataExerciseClosed_RecordsNothing()
+    {
+        _checkingExercises.Close();
+
+        var result = await _sut.Confirm(WindowId);
+
+        Assert.IsType<RedirectToActionResult>(result);
+        await _requestService.DidNotReceiveWithAnyArgs()
+            .ConfirmDataCorrectAsync(default, default!, default);
+        await _analytics.DidNotReceive()
+            .TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
+    }
+
 }

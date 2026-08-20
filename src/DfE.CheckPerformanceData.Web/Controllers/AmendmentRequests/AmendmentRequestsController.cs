@@ -3,6 +3,9 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Controllers.Journey;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
@@ -17,6 +20,7 @@ public sealed class AmendmentRequestsController(
     IBulkSubmissionService bulkService,
     ICheckYourPupilDataService checkYourPupilDataService,
     IQuestionFlowService flowService,
+    ICheckingExerciseService checkingExercises,
     IJourneyViewModelBuilder viewModelBuilder) : Controller
 {
     private const string BulkSubmittedRefsKey = "BulkSubmittedRefs";
@@ -172,6 +176,17 @@ public sealed class AmendmentRequestsController(
         var journey = await requestService.ResumeDraftAsync(windowId, referenceNumber);
         if (journey is null)
             return RedirectToAction(nameof(Index), "AmendmentRequests", new { windowId });
+
+        // #318, product decision 2026-08-20: a draft saved while the exercise was open cannot be
+        // reopened once it has closed. Blocking the resume rather than the submit keeps the gate in
+        // one place and stops a user editing a request that could never be sent. The draft itself
+        // stays listed and readable on Amendment Requests — closed removes actions, never content.
+        if (journey.SelectedWhatToChange is { } draftChange && journey.CheckingWindow is not null)
+        {
+            var draftExercise = WhatToChangeCheckingExerciseMap.CheckingExerciseFor(draftChange);
+            if (!checkingExercises.IsOpen(journey.CheckingWindow.Exercises, draftExercise))
+                return this.RedirectExerciseClosed(windowId, draftExercise);
+        }
 
         HttpContext.Session.SetRequestState(windowId, journey);
 

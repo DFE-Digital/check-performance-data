@@ -15,6 +15,11 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
+// Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
+// file already uses the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using DfE.CheckPerformanceData.Web.Common;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.AmendmentRequests;
 
@@ -31,6 +36,7 @@ public class AmendmentRequestsControllerTests
     private readonly IQuestionFlowService _flowService = Substitute.For<IQuestionFlowService>();
     private readonly IJourneyViewModelBuilder _viewModelBuilder = Substitute.For<IJourneyViewModelBuilder>();
     private readonly FakeSession _session = new();
+    private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly AmendmentRequestsController _sut;
 
     public AmendmentRequestsControllerTests()
@@ -38,7 +44,7 @@ public class AmendmentRequestsControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData, _flowService, _viewModelBuilder)
+        _sut = new AmendmentRequestsController(_service, _requestService, _adviceService, _analytics, _bulkService, _checkYourPupilData, _flowService, _checkingExercises, _viewModelBuilder)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -635,4 +641,37 @@ public class AmendmentRequestsControllerTests
     {
         public ISession Session { get; set; } = session;
     }
+
+    // ── #318: a draft whose checking exercise has closed ─────────────────────
+
+    [Fact]
+    public async Task Edit_WhenTheDraftsExerciseHasClosed_RedirectsToCheckYourPupilDataWithAMessage()
+    {
+        // Product decision 2026-08-20: block the resume rather than the submit, so a user never
+        // edits a request that could not be sent.
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _adviceService.BuildAsync(WindowId, "REF001", Arg.Any<RequestState>()).Returns(SampleAdvice());
+        _checkingExercises.Close();
+
+        var result = await _sut.Edit(WindowId, "REF001");
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.PupilData),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task Edit_WhenTheDraftsExerciseHasClosed_DoesNotPrimeTheJourneySession()
+    {
+        _requestService.ResumeDraftAsync(WindowId, "REF001").Returns(SampleJourney());
+        _checkingExercises.Close();
+
+        await _sut.Edit(WindowId, "REF001");
+
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
+
 }

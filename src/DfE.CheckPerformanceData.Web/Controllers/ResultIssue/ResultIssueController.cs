@@ -3,7 +3,10 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Analytics;
+using DfE.CheckPerformanceData.Web.Common;
 using DfE.CheckPerformanceData.Web.Session;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,8 +21,14 @@ public sealed class ResultIssueController(
     IQuestionFlowService flowService,
     ILateResultsAvailability lateResults,
     ICurrentUserService currentUser,
+    ICheckingExerciseService checkingExercises,
     IAnalyticsService analytics) : Controller
 {
+    // #318: this is the results-enquiry entry point, so it gates on that exercise rather than on
+    // the outer window. A 16-19 window runs results enquiry on its own dates, and was previously
+    // reachable here for as long as the window itself was open.
+    private const CheckingExerciseType Exercise = CheckingExerciseType.ResultsEnquiry;
+
     /// <summary>
     /// Entered when the school does not yet hold a second-late-results row. Deliberately NOT the
     /// flow's <c>firstPageId</c> — whether the guidance is shown depends on the school's data at this
@@ -30,16 +39,26 @@ public sealed class ResultIssueController(
     private const string SelectionRequired = "Select what issue with the results you need to report";
 
     [Route("/{windowId:guid}/ResultIssue")]
-    public IActionResult Index(Guid windowId)
+    public async Task<IActionResult> Index(Guid windowId)
+    {
+        var window = await service.GetCheckingWindowAsync(windowId);
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+            return this.RedirectExerciseClosed(windowId, Exercise);
+
         // Never pre-selects: the confirmation page's "Report another issue" link lands here, and the
         // AC is that nothing carries over from the previous enquiry.
-        => View(new ResultIssueViewModel { WindowId = windowId });
+        return View(new ResultIssueViewModel { WindowId = windowId });
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Route("/{windowId:guid}/ResultIssue")]
     public async Task<IActionResult> Confirm(Guid windowId, ResultIssueViewModel vm, CancellationToken ct = default)
     {
+        var window = await service.GetCheckingWindowAsync(windowId);
+        if (!checkingExercises.IsOpen(window.Exercises, Exercise))
+            return this.RedirectExerciseClosed(windowId, Exercise);
+
         // Fail closed on anything that is not the one option this ticket renders, so a forged or
         // sibling-ticket value cannot start a journey with no flow behind it.
         if (vm.IssueType != ResultIssueViewModel.IncorrectGrade)
@@ -53,8 +72,6 @@ public sealed class ResultIssueController(
             });
             return View("Index", new ResultIssueViewModel { WindowId = windowId });
         }
-
-        var window = await service.GetCheckingWindowAsync(windowId);
 
         var config = await flowService.GetConfigAsync(
             Application.CheckYourPupilData.WhatToChange.IncorrectGrade, window.CheckingWindowType);

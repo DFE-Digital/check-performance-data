@@ -72,7 +72,18 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
         CheckingExerciseType exercise,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
+
+        if (window is null)
+        {
+            yield return new ValidationProgress(
+                Phase: "error",
+                Message: "This checking window no longer exists.",
+                RecordsRead: 0, RecordsProcessed: 0, FilesWritten: 0, ErrorCount: 1,
+                IsComplete: true, IsError: true);
+            yield break;
+        }
+
         CheckingExerciseDto? target = window.FindExercise(exercise);
 
         if (target is null)

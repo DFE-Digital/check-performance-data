@@ -6,7 +6,8 @@ namespace DfE.CheckPerformanceData.Application.WindowManagement;
 public interface IWindowService
 {
     Task<PageResult?> GetAllDataAsync(CancellationToken cancellationToken);
-    Task<CheckingWindowDto> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    /// Null when no window has that id — every caller is an admin route keyed on a URL segment.
+    Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task UpdateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
     Task<CheckingWindowDto> CreateAsync(CheckingWindowDto window, CancellationToken cancellationToken);
 }

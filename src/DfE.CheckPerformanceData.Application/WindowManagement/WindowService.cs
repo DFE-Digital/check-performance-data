@@ -20,7 +20,7 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
         };
     }
 
-    public async Task<CheckingWindowDto> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+    public async Task<CheckingWindowDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         await windowRepository.GetByIdAsync(id, cancellationToken);
 
     // Start and end dates carry the admin-chosen time-of-day (defaulting to 00:00 / 17:00

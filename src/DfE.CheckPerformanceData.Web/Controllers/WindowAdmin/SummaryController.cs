@@ -10,7 +10,12 @@ public sealed class SummaryController(IWindowService windowService): Controller
     [HttpGet("admin/windows/summary/{id:guid}")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
-        CheckingWindowDto w = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingWindowDto? w = await windowService.GetByIdAsync(id, cancellationToken);
+        if (w is null)
+        {
+            return NotFound();
+        }
+
         WindowEditItem vm = new WindowEditItem
         {
             WindowId = w.Id,

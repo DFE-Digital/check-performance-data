@@ -31,6 +31,18 @@ public sealed class CheckingWindowDataset
     /// <summary>Null = inclusion comes from the record's own P_INCL (KS4).</summary>
     public bool? Included { get; init; }
 
+    /// <summary>
+    /// The SOURCE tag stamped on every record from this file (#324), e.g. "16to19_LR1". Null =
+    /// nothing is stamped, which is every pupil-data dataset.
+    /// </summary>
+    public string? SourceFile { get; init; }
+
+    /// <summary>
+    /// The exercise cannot be validated until this slot holds both files. False for a slot the
+    /// supplier may not deliver at all — every results file after the main one (#324).
+    /// </summary>
+    public bool Required { get; init; } = true;
+
     public int SortOrder { get; init; }
 }
 
@@ -47,6 +59,8 @@ public sealed class CheckingWindowDatasetConfiguration : IEntityTypeConfiguratio
             .IsRequired()
             .HasMaxLength(50);
 
+        builder.Property(x => x.SourceFile).HasMaxLength(50);
+        builder.Property(x => x.Required).HasDefaultValue(true);
         builder.Property(x => x.IngressFile).HasMaxLength(255);
         builder.Property(x => x.SchemaFile).HasMaxLength(255);
         builder.Property(x => x.IngressFileChecksum).HasMaxLength(256);

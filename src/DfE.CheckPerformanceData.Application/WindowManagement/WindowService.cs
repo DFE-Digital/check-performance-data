@@ -40,19 +40,21 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
     }
 
     /// <summary>
-    /// A window's dataset set is decided by its type, so changing the type (e.g. KS4June -> Post16)
-    /// adds or removes dataset slots. Files already uploaded to a slot that survives are kept.
-    /// The slots hang off the pupil-data exercise.
+    /// A window's dataset set is decided by its type and by which exercises it runs, so changing
+    /// the type (e.g. KS4June -> Post16) adds or removes dataset slots on every exercise. Files
+    /// already uploaded to a slot that survives are kept.
     /// </summary>
     /// <remarks>
-    /// A window that runs no pupil-data exercise gets no dataset slots and no exercise invented for
-    /// it — since #319 the admin chooses the exercises, so a results-enquiry-only window is a thing
-    /// an admin can legitimately build, and silently adding pupil data checking back would undo
-    /// their choice. The one exception is a window with no exercises at all: that is a caller which
-    /// predates the wizard, and it keeps the old shape of one pupil-data exercise across the whole
-    /// window.
+    /// Every exercise is asked, not just pupil data: since #324 the results-enquiry exercise owns
+    /// one slot per source file in the results feed, which is what gives an admin somewhere to
+    /// upload them on a deployed environment.
     ///
-    /// The results-enquiry exercise gets no dataset slots yet — its six-file ingress is #324.
+    /// A window that runs no pupil-data exercise gets no pupil dataset slots and no exercise
+    /// invented for it — since #319 the admin chooses the exercises, so a results-enquiry-only
+    /// window is a thing an admin can legitimately build, and silently adding pupil data checking
+    /// back would undo their choice. The one exception is a window with no exercises at all: that
+    /// is a caller which predates the wizard, and it keeps the old shape of one pupil-data exercise
+    /// across the whole window.
     /// </remarks>
     private static void EnsureDatasetsMatchType(CheckingWindowDto window)
     {
@@ -67,21 +69,18 @@ public class WindowService(IWindowRepository windowRepository, TimeProvider time
             });
         }
 
-        CheckingExerciseDto? pupilData = window.FindExercise(CheckingExerciseType.PupilData);
-
-        if (pupilData is null)
+        foreach (CheckingExerciseDto exercise in window.Exercises)
         {
-            return;
+            List<CheckingWindowDatasetDto> wanted = [];
+
+            foreach (CheckingWindowDatasetDto expected in
+                     WindowDatasets.DefaultsFor(window.CheckingWindowType, exercise.ExerciseType))
+            {
+                CheckingWindowDatasetDto? existing = exercise.Datasets.SingleOrDefault(d => d.Name == expected.Name);
+                wanted.Add(existing ?? expected);
+            }
+
+            exercise.Datasets = wanted;
         }
-
-        List<CheckingWindowDatasetDto> wanted = [];
-
-        foreach (CheckingWindowDatasetDto expected in WindowDatasets.DefaultsFor(window.CheckingWindowType))
-        {
-            CheckingWindowDatasetDto? existing = pupilData.Datasets.SingleOrDefault(d => d.Name == expected.Name);
-            wanted.Add(existing ?? expected);
-        }
-
-        pupilData.Datasets = wanted;
     }
 }

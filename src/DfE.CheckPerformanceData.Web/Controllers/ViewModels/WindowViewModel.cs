@@ -78,10 +78,13 @@ public sealed class ExerciseSummarySection
     public string DatesLink => $"/admin/windows/{WindowId}/exercises/{ExerciseType}/dates";
     public string ValidateLink => $"/admin/windows/{WindowId}/{ExerciseType}/validate";
 
-    // Every dataset must have both files — a Post16 pupil-data exercise is not validatable until
-    // both the included and non-included CSV/schema pairs are chosen, because they ingest in one
-    // run. An exercise with no datasets at all has nothing to validate.
-    private bool HasRequiredFiles => Datasets.Count > 0 && Datasets.All(d => d.IsComplete);
+    // Every REQUIRED dataset must have both files — a Post16 pupil-data exercise is not validatable
+    // until both the included and non-included CSV/schema pairs are chosen, because they ingest in
+    // one run. An exercise with no complete dataset at all has nothing to validate. Optional slots
+    // (#324) may be empty: a results file that has not been delivered yet must not hold up the ones
+    // that have.
+    private bool HasRequiredFiles =>
+        Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
 
     private bool HasValidDates
     {
@@ -104,6 +107,9 @@ public sealed class DatasetSummaryRow
     public required string Label { get; init; }
     public string? IngressFile { get; init; }
     public string? SchemaFile { get; init; }
+
+    /// <summary>The exercise cannot be validated until this slot holds both files (#324).</summary>
+    public bool Required { get; init; } = true;
 
     public string IngressFileLink => $"/admin/windows/{WindowId}/{Exercise}/ingress-file/{Name}";
     public string SchemaFileLink => $"/admin/windows/{WindowId}/{Exercise}/schema-file/{Name}";

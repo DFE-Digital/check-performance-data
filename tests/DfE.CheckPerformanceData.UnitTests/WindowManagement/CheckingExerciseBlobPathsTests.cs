@@ -100,4 +100,43 @@ public sealed class CheckingExerciseBlobPathsTests
         Assert.Equal("results-enquiry/data/9334070_results.json",
             CheckingExerciseBlobPaths.ResultsBlobName("933/4070"));
     }
+
+    // #324: an ingress run asks for its output name by exercise, so the two naming rules below are
+    // chosen deliberately rather than by whichever method the caller reached for.
+    [Fact]
+    public void An_ingress_run_writes_the_pupil_name_for_pupil_data()
+    {
+        Assert.Equal("data/9334290_pupils.json",
+            CheckingExerciseBlobPaths.DataBlobName(CheckingExerciseType.PupilData, "933/4290"));
+    }
+
+    [Fact]
+    public void An_ingress_run_writes_the_results_name_for_a_results_enquiry()
+    {
+        // The name the results reader looks for. A results run that wrote the pupil-data name would
+        // produce files the enquiry journey cannot find.
+        Assert.Equal("results-enquiry/data/9334070_results.json",
+            CheckingExerciseBlobPaths.DataBlobName(CheckingExerciseType.ResultsEnquiry, "933/4070"));
+    }
+
+    [Fact]
+    public void The_two_names_normalise_a_laestab_differently_and_that_is_the_point()
+    {
+        // Pupil data strips only the slash, because it has to keep finding blobs already written
+        // from a verbatim supplier LAESTAB; results runs LaestabNormaliser, which is what turns a
+        // DfE Sign-in claim into a blob name.
+        Assert.Equal("data/933 4290_pupils.json",
+            CheckingExerciseBlobPaths.DataBlobName(CheckingExerciseType.PupilData, "933 /4290"));
+        Assert.Equal("results-enquiry/data/9334070_results.json",
+            CheckingExerciseBlobPaths.DataBlobName(CheckingExerciseType.ResultsEnquiry, "933 /4070"));
+    }
+
+    [Fact]
+    public void An_unmapped_exercise_type_has_no_output_name_either()
+    {
+        var unmapped = (CheckingExerciseType)999;
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => CheckingExerciseBlobPaths.DataBlobName(unmapped, "933/4070"));
+    }
 }

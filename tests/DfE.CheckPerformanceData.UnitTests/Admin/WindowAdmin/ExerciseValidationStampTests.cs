@@ -107,6 +107,57 @@ public class ExerciseValidationStampTests
         Assert.False(exercise.HasRequiredFiles);
     }
 
+    // #324: the results feed's late, revised and retention files arrive weeks apart and one may
+    // never arrive. An exercise that waited for every slot could never be validated, so a school
+    // would see no results at all rather than the ones that have landed.
+    [Fact]
+    public void An_empty_optional_slot_does_not_hold_up_the_files_that_have_arrived()
+    {
+        CheckingExerciseDto exercise = Exercise();
+        exercise.Datasets =
+        [
+            Dataset("main", required: true, complete: true),
+            Dataset("late", required: false, complete: false)
+        ];
+
+        Assert.True(exercise.HasRequiredFiles);
+
+        // And the run reads only the files that exist — an empty slot is not a file to fail on.
+        CheckingWindowDatasetDto only = Assert.Single(exercise.DatasetsToIngest);
+        Assert.Equal("main", only.Name);
+    }
+
+    [Fact]
+    public void An_empty_required_slot_still_holds_the_exercise_back()
+    {
+        CheckingExerciseDto exercise = Exercise();
+        exercise.Datasets =
+        [
+            Dataset("main", required: true, complete: false),
+            Dataset("late", required: false, complete: true)
+        ];
+
+        Assert.False(exercise.HasRequiredFiles);
+    }
+
+    [Fact]
+    public void An_exercise_whose_every_slot_is_empty_has_nothing_to_validate()
+    {
+        CheckingExerciseDto exercise = Exercise();
+        exercise.Datasets = [Dataset("late", required: false, complete: false)];
+
+        Assert.False(exercise.HasRequiredFiles);
+        Assert.Empty(exercise.DatasetsToIngest);
+    }
+
+    private static CheckingWindowDatasetDto Dataset(string name, bool required, bool complete) => new()
+    {
+        Name = name,
+        Required = required,
+        IngressFile = complete ? $"{name}.csv" : string.Empty,
+        SchemaFile = complete ? $"{name}.json" : string.Empty
+    };
+
     private static void Stamp(CheckingExerciseDto exercise)
     {
         exercise.ValidatedAt = new DateTime(2027, 1, 2, 9, 0, 0);

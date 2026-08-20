@@ -1,3 +1,4 @@
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.WindowManagement;
@@ -87,8 +88,22 @@ public sealed class CheckingExerciseDto
     public string ValidatedIngressChecksum { get; set; } = string.Empty;
     public string ValidatedSchemaChecksum { get; set; } = string.Empty;
 
-    /// <summary>Every dataset has both its files, so the exercise can be validated.</summary>
-    public bool HasRequiredFiles => Datasets.Count > 0 && Datasets.All(d => d.IsComplete);
+    /// <summary>
+    /// Every required dataset has both its files, and at least one file pair is present — so the
+    /// exercise can be validated. Optional slots may be empty (#324): the results feed's late,
+    /// revised and retention files arrive weeks apart and one of them may never arrive at all, so
+    /// waiting for every slot would mean never validating.
+    /// </summary>
+    public bool HasRequiredFiles =>
+        Datasets.Any(d => d.IsComplete) && Datasets.Where(d => d.Required).All(d => d.IsComplete);
+
+    /// <summary>
+    /// The datasets a run actually reads, in sort order — the complete ones. An empty optional slot
+    /// is a file that has not arrived, not a file to fail on, and a run rewrites the exercise's
+    /// whole output, so the same exercise is simply re-run when the next file lands.
+    /// </summary>
+    public IReadOnlyList<CheckingWindowDatasetDto> DatasetsToIngest =>
+        [.. Datasets.Where(d => d.IsComplete).OrderBy(d => d.SortOrder)];
 
     /// <summary>
     /// Validated, and against the files it currently holds. A stamp taken before an ingress file
@@ -126,6 +141,20 @@ public sealed class CheckingWindowDatasetDto
     /// inclusion signal (KS4's P_INCL).</summary>
     public bool? Included { get; init; }
 
+    /// <summary>
+    /// Stamped onto every record from this file as its SOURCE, so provenance is decided by file of
+    /// origin exactly as <see cref="Included"/> decides inclusion (#324). A
+    /// <see cref="ResultsEnquiry.ResultsFileTags"/> value on a results dataset; null on pupil data,
+    /// where nothing is stamped.
+    /// </summary>
+    public string? SourceFile { get; init; }
+
+    /// <summary>
+    /// The exercise cannot be validated until this slot holds both its files. False for a slot the
+    /// supplier may not deliver at all — every results file after the main one (#324).
+    /// </summary>
+    public bool Required { get; init; } = true;
+
     public int SortOrder { get; init; }
 
     public bool IsComplete =>
@@ -133,16 +162,34 @@ public sealed class CheckingWindowDatasetDto
 }
 
 /// <summary>
-/// Which datasets a checking window ingests, decided by its type. Post16 is the only type where
-/// the supplier delivers pupils as two files.
+/// Which datasets a checking exercise ingests, decided by the window type it sits in and the
+/// exercise itself. Pupil data checking takes the supplier's pupil files — two for Post16, because
+/// the non-included file has no P_INCL column — and a results enquiry takes one file per source in
+/// the six-file results feed, each named by its <see cref="ResultsFileTags"/> tag (#324).
 /// </summary>
+/// <remarks>
+/// An exercise type with no row here gets no dataset slots rather than a throw: an exercise is
+/// allowed to hold no datasets, so an unmapped type is an exercise nothing ingests yet — visible on
+/// the summary page as "This exercise has no ingress files to load" — not a silent misfile. That is
+/// the opposite of <see cref="CheckingExerciseBlobPaths"/>, where a missing row would let one
+/// exercise write over another's blobs and so must fail loudly.
+/// </remarks>
 public static class WindowDatasets
 {
     public const string Included = "included";
     public const string NonIncluded = "nonincluded";
     public const string Pupils = "pupils";
 
-    public static IReadOnlyList<CheckingWindowDatasetDto> DefaultsFor(CheckingWindowType type) =>
+    public static IReadOnlyList<CheckingWindowDatasetDto> DefaultsFor(
+        CheckingWindowType type, CheckingExerciseType exercise) =>
+        exercise switch
+        {
+            CheckingExerciseType.PupilData => PupilDataDefaults(type),
+            CheckingExerciseType.ResultsEnquiry => ResultsEnquiryDefaults(type),
+            _ => []
+        };
+
+    private static IReadOnlyList<CheckingWindowDatasetDto> PupilDataDefaults(CheckingWindowType type) =>
         type == CheckingWindowType.Post16
             ?
             [
@@ -150,5 +197,38 @@ public static class WindowDatasets
                 new CheckingWindowDatasetDto { Name = NonIncluded, Included = false, SortOrder = 1 }
             ]
             : [ new CheckingWindowDatasetDto { Name = Pupils, Included = null, SortOrder = 0 } ];
-}
 
+    // One slot per source file. The slot is named by the tag it stamps, so the admin uploading the
+    // files sees the supplier's own file names and a dataset can never be given the wrong tag.
+    // KS2 has no results feed, so a results enquiry on a KS2 window gets no slots at all.
+    private static IReadOnlyList<CheckingWindowDatasetDto> ResultsEnquiryDefaults(CheckingWindowType type) =>
+        type switch
+        {
+            CheckingWindowType.Post16 => Slots(
+                ResultsFileTags.Post16Main,
+                ResultsFileTags.Post16LateResults1,
+                ResultsFileTags.Post16LateResults2,
+                ResultsFileTags.Post16Revised,
+                ResultsFileTags.Post16Retention),
+            CheckingWindowType.KS4June or CheckingWindowType.KS4Autumn => Slots(
+                ResultsFileTags.Ks4Main,
+                ResultsFileTags.Ks4LateResults1,
+                ResultsFileTags.Ks4LateResults2,
+                ResultsFileTags.Ks4Revised),
+            _ => []
+        };
+
+    // Only the main file is required. The late, revised and retention files land weeks apart and
+    // one may never land — an exercise that could not be validated until all of them had arrived
+    // would leave a school with no results at all in the meantime.
+    private static IReadOnlyList<CheckingWindowDatasetDto> Slots(params string[] tags) =>
+        [.. tags.Select((tag, index) => new CheckingWindowDatasetDto
+        {
+            Name = tag,
+            SourceFile = tag,
+            // Inclusion is a pupil-data concept: a result row is not included or non-included.
+            Included = null,
+            Required = index == 0,
+            SortOrder = index
+        })];
+}

@@ -63,6 +63,14 @@ decides what "the second late results file has landed" means.
 Container `{windowId}`, blob `results-enquiry/data/{laestab}_results.json`. One merged array per
 school across all six supplier files, each row stamped with its source tag.
 
+Written by the results-enquiry checking exercise's own ingress run (#324): one dataset slot per
+source file, each stamping its `SOURCE` tag onto every record it contributes, all merged into one
+file per school in a single run. `SeedStudentResults` still writes the same blob in development, so
+a developer needs no supplier files. Only the main file is required to validate the exercise — the
+late, revised and retention files are optional slots, because they land weeks apart and one may
+never land, and each run rewrites the school's whole file from the slots that are filled. The supplier CSVs must carry a `LAESTAB` column — that is what
+splits one file into one blob per school — and a file without one fails the run by name.
+
 The `results-enquiry/` prefix is deliberate: per consequence #2 of `docs/16-19-window-model.md` each
 checking exercise owns its own blob prefix, so when ingress becomes per-exercise no migration is
 needed and one exercise's sweep cannot destroy another's output. Pupil-data checking keeps its bare
@@ -292,7 +300,8 @@ states, dataset reparenting, per-exercise ingress, draft-across-boundary rules.
 ## Deliberately out of scope
 
 The "Review exam results" / Results / Late-results tab pages and CSV/ZIP downloads (entry-point
-ticket); the six-file ingestion pipeline (FACT tickets — this feature seeds the blobs it reads);
+ticket); the six-file ingestion pipeline itself (FACT tickets — the portal side of it, the admin upload and
+ingress run that fill these blobs, is #324);
 missing-qualification and result-does-not-belong-to-student flows (sibling tickets); drafts (decided
 against); duplicate-enquiry blocking (the spec allows multiples).
 

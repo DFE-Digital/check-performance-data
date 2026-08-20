@@ -378,10 +378,31 @@ These do not block the model.
    after a bulk submit reads the **pupil-data** exercise's end, because the banner it sits in offers
    another amendment and that journey shuts when pupil data shuts; a window with no pupil-data
    exercise drops the banner rather than quoting a date from elsewhere.
-3. **Results-enquiry ingress.** Split out of #319 into **#324**. Nothing writes `results-enquiry/data/` outside
-   `Web/Seeding/SeedStudentResults.cs`, which is development-only. On a deployed environment that
-   blob does not exist and the enquiry journey's result picker has nothing to show. Per-exercise
-   ingress is what closes this, so scope it deliberately rather than treating it as a tidy-up.
+3. **Results-enquiry ingress.** Split out of #319 into #324. ~~Nothing writes `results-enquiry/data/`
+   outside `Web/Seeding/SeedStudentResults.cs`, which is development-only.~~ **Done in #324.** The
+   results-enquiry exercise owns one dataset slot per source file, named by the `ResultsFileTags`
+   tag it stamps (five for a 16-19 window, four for KS4, none for KS2 — it has no results feed), so
+   an admin uploads the supplier's files and validates the exercise exactly as for pupil data. A
+   dataset carries a `SourceFile` tag, the exact analogue of `Included`: `Included` stamps inclusion
+   by file of origin, `SourceFile` stamps provenance by file of origin, and the run stamps it onto
+   every record because no supplier CSV carries a `SOURCE` column. The run writes
+   `CheckingExerciseBlobPaths.DataBlobName(exercise, laestab)` — pupil data strips only the slash
+   from the laestab, results normalises it, and the choice is made in the lookup rather than left to
+   whichever name a caller reached for.
+
+   Only the main file is required. The late, revised and retention files land weeks apart and one
+   may never land, so `CheckingExerciseDto.HasRequiredFiles` asks that every *required* slot is
+   filled and at least one slot is, and the run reads `DatasetsToIngest` — the complete slots only.
+   A run rewrites the exercise's whole output, so the exercise is re-run when the next file lands.
+   Pupil-data slots stay required: each 16-19 pupil file carries a whole population.
+
+   Two things about the input remain assumptions rather than confirmed facts, both flagged on #324:
+   the results CSVs are read as carrying the output contract's own column names (`CYPMD_ID`, `QAN`,
+   `QUAL_NAME`, `SYLLABUS`, `SESSION`, `GRADE`), because ingress passes CSV columns through verbatim
+   against the admin-supplied JSON schema and has never had a renaming step; and they must carry a
+   `LAESTAB` column, which is what splits one supplier file into one blob per school. A file without
+   it now fails the run by name instead of throwing. If a supplier sample shows different headers,
+   the mapping step is new work — it is not a matter of editing a schema.
 4. **Window admin wizard.** ~~The exercise dates need a step.~~ **Done in #319.** The wizard asks
    which exercises the window runs, then one date page per ticked exercise, and derives the outer
    pair as their union (`CheckingWindowDto.DeriveDatesFromExercises`) so the two can never disagree.

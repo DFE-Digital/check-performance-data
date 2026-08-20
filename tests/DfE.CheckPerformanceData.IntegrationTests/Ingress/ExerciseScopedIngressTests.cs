@@ -145,8 +145,10 @@ public sealed class ExerciseScopedIngressTests(AzuriteFixture fixture)
 
         await RunAsync(windowId, CheckingExerciseType.ResultsEnquiry);
 
+        // #324: the output is named for the exercise as well as prefixed by it — a results run
+        // writes the name the enquiry journey's reader looks for.
         Assert.True(await ExistsAsync(container,
-            $"{CheckingExerciseBlobPaths.DataPrefix(CheckingExerciseType.ResultsEnquiry)}8604070_pupils.json"));
+            CheckingExerciseBlobPaths.DataBlobName(CheckingExerciseType.ResultsEnquiry, "8604070")));
         Assert.False(await ExistsAsync(container, "data/8604070_pupils.json"));
     }
 }

@@ -51,6 +51,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 SchemaFile = d.SchemaFile,
                                 SchemaFileChecksum = d.SchemaFileChecksum,
                                 Included = d.Included,
+                                SourceFile = d.SourceFile,
+                                Required = d.Required,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -104,6 +106,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                                 SchemaFile = d.SchemaFile,
                                 SchemaFileChecksum = d.SchemaFileChecksum,
                                 Included = d.Included,
+                                SourceFile = d.SourceFile,
+                                Required = d.Required,
                                 SortOrder = d.SortOrder
                             })
                             .ToList()
@@ -251,6 +255,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
             SchemaFile = dto.SchemaFile,
             SchemaFileChecksum = dto.SchemaFileChecksum,
             Included = dto.Included,
+            SourceFile = dto.SourceFile,
+            Required = dto.Required,
             SortOrder = dto.SortOrder
         };
 
@@ -324,6 +330,8 @@ public sealed class WindowRepository(PortalDbContext dbContext) : IWindowReposit
                             SchemaFile = d.SchemaFile,
                             SchemaFileChecksum = d.SchemaFileChecksum,
                             Included = d.Included,
+                            SourceFile = d.SourceFile,
+                            Required = d.Required,
                             SortOrder = d.SortOrder
                         })
                         .ToList()

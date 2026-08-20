@@ -85,18 +85,19 @@ public class ValidateWindowController(IWindowService windowService, ICsvSchemaFi
             yield break;
         }
 
-        // A Post16 pupil-data exercise supplies two datasets (included + non-included); every other
-        // one supplies a single dataset. They are ingested in a single run so both populations land
-        // in one blob per school — which is why a run is per exercise and not per dataset.
-        IReadOnlyList<IngressDataset> datasets = target.Datasets
-            .OrderBy(d => d.SortOrder)
+        // A Post16 pupil-data exercise supplies two datasets (included + non-included) and a
+        // results enquiry supplies one per source file in the results feed; every other pupil-data
+        // exercise supplies a single dataset. They are ingested in a single run so every population
+        // lands in one blob per school — which is why a run is per exercise and not per dataset.
+        IReadOnlyList<IngressDataset> datasets = target.DatasetsToIngest
             .Select(d => new IngressDataset(
                 d.Name,
                 d.IngressFile,
                 d.IngressFileChecksum,
                 d.SchemaFile,
                 d.SchemaFileChecksum,
-                d.Included))
+                d.Included,
+                d.SourceFile))
             .ToList();
 
         await foreach (ValidationProgress progress in processor.ProcessAsync(

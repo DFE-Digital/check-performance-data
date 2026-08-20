@@ -66,4 +66,29 @@ public static class CheckingExerciseBlobPaths
     /// <summary>e.g. "933/4070" -> "results-enquiry/data/9334070_results.json".</summary>
     public static string ResultsBlobName(string laestab)
         => $"{DataPrefix(CheckingExerciseType.ResultsEnquiry)}{LaestabNormaliser.Normalise(laestab)}{ResultsSuffix}";
+
+    /// <summary>
+    /// The per-school output file an ingress run writes for this exercise (#324).
+    /// </summary>
+    /// <remarks>
+    /// The two names normalise the laestab differently and the difference is deliberate, so the
+    /// choice has to be made here rather than left to whichever name a caller reached for.
+    /// <see cref="PupilsBlobName"/> only strips the slash, because it has to keep finding every
+    /// pupil blob already written from a verbatim supplier LAESTAB; <see cref="ResultsBlobName"/>
+    /// runs <see cref="LaestabNormaliser"/>, which is what the results reader uses to turn a DfE
+    /// Sign-in claim into a blob name. A results run that wrote the pupil-data name would produce
+    /// files the enquiry journey cannot find.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The exercise has no output name. No default case, for the same reason as
+    /// <see cref="ExercisePrefix"/>.
+    /// </exception>
+    public static string DataBlobName(CheckingExerciseType exercise, string laestab) => exercise switch
+    {
+        CheckingExerciseType.PupilData => PupilsBlobName(exercise, laestab),
+        CheckingExerciseType.ResultsEnquiry => ResultsBlobName(laestab),
+        _ => throw new ArgumentOutOfRangeException(nameof(exercise), exercise,
+            "This checking exercise has no per-school output blob name. Add one to " +
+            "CheckingExerciseBlobPaths before ingesting it.")
+    };
 }

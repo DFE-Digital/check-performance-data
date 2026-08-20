@@ -44,7 +44,8 @@ public sealed class SummaryController(IWindowService windowService): Controller
                             Name = d.Name,
                             Label = DatasetLabels.For(d.Name),
                             IngressFile = d.IngressFile,
-                            SchemaFile = d.SchemaFile
+                            SchemaFile = d.SchemaFile,
+                            Required = d.Required
                         })
                         .ToList()
                 })

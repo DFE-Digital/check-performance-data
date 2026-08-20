@@ -111,16 +111,19 @@
     <govuk-summary-list>
       @foreach (var dataset in exercise.Datasets)
       {
+        @* An optional slot is a file the supplier may deliver later, or not at all — the results
+           feed's late, revised and retention files. Saying so is what stops an admin waiting for a
+           file that is not coming before validating the ones that have arrived. *@
         <row>
-          <key>@dataset.Label — ingress file</key>
-          <value>@dataset.IngressFile</value>
+          <key>@dataset.Label — ingress file@(dataset.Required ? "" : " (optional)")</key>
+          <value>@(string.IsNullOrWhiteSpace(dataset.IngressFile) ? "Not supplied" : dataset.IngressFile)</value>
           <row-actions>
             <action href="@dataset.IngressFileLink" visually-hidden-text="@dataset.Label ingress file">Change</action>
           </row-actions>
         </row>
         <row>
-          <key>@dataset.Label — schema file</key>
-          <value>@dataset.SchemaFile</value>
+          <key>@dataset.Label — schema file@(dataset.Required ? "" : " (optional)")</key>
+          <value>@(string.IsNullOrWhiteSpace(dataset.SchemaFile) ? "Not supplied" : dataset.SchemaFile)</value>
           <row-actions>
             <action href="@dataset.SchemaFileLink" visually-hidden-text="@dataset.Label schema file">Change</action>
           </row-actions>

@@ -1,6 +1,7 @@
 using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
@@ -41,7 +42,7 @@ public sealed class ConfirmCorrectController(
             return this.RedirectExerciseClosed(windowId, Exercise);
 
         var reference = journeyService.GenerateReference(window.CheckingWindowType);
-        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate);
+        await requestService.ConfirmDataCorrectAsync(windowId, reference, window.EndDate, EmailSubstitutions.From(window));
 
         await analytics.TrackSafeAsync(new CorrectDataConfirmedEvent
         {

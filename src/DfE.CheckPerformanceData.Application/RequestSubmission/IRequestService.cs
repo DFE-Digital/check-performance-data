@@ -1,4 +1,5 @@
 using DfE.CheckPerformanceData.Application.Journey;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.RequestSubmission;
@@ -32,7 +33,7 @@ public interface IRequestService
     Task ConfirmRequestAsync(Guid windowId, RequestState journey);
     Task SaveDraftAsync(Guid windowId, RequestState journey, RequestStatus status);
     Task<RequestState?> ResumeDraftAsync(Guid windowId, string referenceNumber);
-    Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate);
+    Task ConfirmDataCorrectAsync(Guid windowId, string referenceNumber, DateTime endDate, EmailSubstitutions substitutions);
 
     /// <summary>
     /// Deletes a request, scoped to the current user's organisation. Drafts

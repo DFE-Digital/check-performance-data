@@ -24,6 +24,11 @@ public class WindowEditItem : AdminPage
     {
         get => $"{BaseEditUrl}/title";
     }
+    public string TurnaroundCommitment { get; set; } = string.Empty;
+    public string TurnaroundCommitmentLink
+    {
+        get => $"{BaseEditUrl}/turnaround-commitment";
+    }
     public bool IsOpen { get; set; } = false;
     // #319: derived from the exercises as their union, so there is no Change link — the outer pair
     // is never typed. To move a window's dates, move an exercise's.

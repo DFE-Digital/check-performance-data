@@ -15,6 +15,7 @@ public sealed class SummaryController(IWindowService windowService): Controller
         {
             WindowId = w.Id,
             Title = w.Title,
+            TurnaroundCommitment = w.TurnaroundCommitment,
             StartDate = w.StartDate,
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,

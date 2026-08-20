@@ -39,5 +39,6 @@ public sealed class CheckingWindowDto
     /// Only the exercise dates are projected here; the landing page has no use for the datasets.
     /// </summary>
     public List<CheckingExerciseDto> Exercises { get; init; } = [];
+    public string TurnaroundCommitment { get; init; } = string.Empty;
 }
 

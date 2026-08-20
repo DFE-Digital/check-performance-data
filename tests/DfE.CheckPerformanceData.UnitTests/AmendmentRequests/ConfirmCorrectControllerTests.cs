@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.Analytics;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers;
@@ -56,7 +57,7 @@ public sealed class ConfirmCorrectControllerTests
         var result = await _sut.Confirm(WindowId);
 
         Assert.IsType<ViewResult>(result);
-        await _requestService.Received(1).ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>());
+        await _requestService.Received(1).ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
         await _analytics.Received(1).TrackAsync(
             Arg.Is<CorrectDataConfirmedEvent>(e =>
                 e.ReferenceNumber == Reference &&
@@ -66,7 +67,7 @@ public sealed class ConfirmCorrectControllerTests
         // The event must fire only after the confirmation is persisted.
         Received.InOrder(() =>
         {
-            _ = _requestService.ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>());
+            _ = _requestService.ConfirmDataCorrectAsync(WindowId, Reference, Arg.Any<DateTime>(), Arg.Any<EmailSubstitutions>());
             _ = _analytics.TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
         });
     }
@@ -97,7 +98,7 @@ public sealed class ConfirmCorrectControllerTests
 
         Assert.IsType<RedirectToActionResult>(result);
         await _requestService.DidNotReceiveWithAnyArgs()
-            .ConfirmDataCorrectAsync(default, default!, default);
+            .ConfirmDataCorrectAsync(default, default!, default, default!);
         await _analytics.DidNotReceive()
             .TrackAsync(Arg.Any<CorrectDataConfirmedEvent>(), Arg.Any<CancellationToken>());
     }

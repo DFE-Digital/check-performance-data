@@ -75,6 +75,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "Key Stage 4 June",
+            TurnaroundCommitment = "updated in the Autumn",
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, openKs4Start, openKs4End)
         };
 
@@ -89,6 +90,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.KS4,
             CheckingWindowType = CheckingWindowType.KS4June,
             Title = "KS4 June",
+            TurnaroundCommitment = "updated in the Autumn",
             CheckingExercises = ExercisesFor(CheckingWindowType.KS4June, closedKs4Start, closedKs4End)
         };
 
@@ -106,6 +108,7 @@ public static class SeedCheckingWindows
             KeyStage = KeyStages.Post16,
             CheckingWindowType = CheckingWindowType.Post16,
             Title = "16 to 19",
+            TurnaroundCommitment = "updated in the Spring",
             CheckingExercises = ExercisesFor(CheckingWindowType.Post16, post16Start, post16End)
         };
 

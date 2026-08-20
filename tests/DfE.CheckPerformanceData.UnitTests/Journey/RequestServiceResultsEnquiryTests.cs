@@ -218,7 +218,7 @@ public sealed class RequestServiceResultsEnquiryTests
         // whether a failure to email should fail the submission (it must not).
         await _sut.SubmitResultsEnquiryAsync(WindowId, Journey());
 
-        await _notifications.DidNotReceiveWithAnyArgs().NotifySubmissionConfirmedAsync(default, default, default!);
+        await _notifications.DidNotReceiveWithAnyArgs().NotifySubmissionConfirmedAsync(default, default, default!, default!);
     }
 
     [Fact]

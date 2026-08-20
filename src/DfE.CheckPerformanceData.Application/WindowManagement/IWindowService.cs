@@ -29,6 +29,7 @@ public sealed class CheckingWindowDto
     public string SchemaFile { get; set; } = string.Empty;
     public string SchemaFileChecksum { get; set; } = string.Empty;
     public bool IsOpen { get; set; }
+    public string TurnaroundCommitment { get; set; } = string.Empty;
 
     // #319: Validated / ValidatedAt are gone from here. A window is not validated as a whole — ask
     // a CheckingExerciseDto, or fold the answer across Exercises.

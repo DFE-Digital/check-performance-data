@@ -51,6 +51,13 @@
       <action href="@Model.ExercisesLink" visually-hidden-text="Checking exercises">Change</action>
     </row-actions>
   </row>
+  <row>
+    <key>Turnaround commitment</key>
+    <value>@(string.IsNullOrWhiteSpace(Model.TurnaroundCommitment) ? "Not set" : Model.TurnaroundCommitment)</value>
+    <row-actions>
+      <action href="@Model.TurnaroundCommitmentLink" visually-hidden-text="Turnaround commitment">Change</action>
+    </row-actions>
+  </row>
 </govuk-summary-list>
 
 @* One section per checking exercise. Each validates independently — a window is usable while

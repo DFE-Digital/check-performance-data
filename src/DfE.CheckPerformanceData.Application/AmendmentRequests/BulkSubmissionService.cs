@@ -102,7 +102,8 @@ public sealed class BulkSubmissionService(
         if (submitted.Count > 0)
         {
             var window = await checkYourPupilDataService.GetCheckingWindowAsync(windowId);
-            await requestNotificationService.NotifyBulkSubmissionConfirmedAsync(windowId, window.EndDate, submitted);
+            await requestNotificationService.NotifyBulkSubmissionConfirmedAsync(
+                windowId, window.EndDate, submitted, EmailSubstitutions.From(window));
         }
 
         return new BulkSubmissionResult { Submitted = submitted, Skipped = skipped };

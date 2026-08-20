@@ -3,6 +3,9 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CheckYourPupilData.Columns;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.LandingPage;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using CheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseService;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.Controllers.CheckYourPupilData;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +34,9 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
             .Returns((PupilTable.Empty, 0));
         _service.GetCheckingWindowAsync(WindowId).Returns(Window());
 
-        _sut = new CheckYourPupilDataController(_service, TimeProvider.System, _currentUser, _analytics)
+        var checkingExercises = new CheckingExerciseService(TimeProvider.System);
+        _sut = new CheckYourPupilDataController(
+            _service, _currentUser, _analytics, new NextStepsService(checkingExercises), checkingExercises)
         {
             ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
@@ -72,8 +77,7 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
     {
         WindowId = WindowId.ToString(),
         Sections = [], SectionsAsTabs = true,
-        WindowEndDate = "", WindowEndTime = "", WindowTitle = "",
-        IsWindowOpen = true, OrganisationName = "",
+        WindowTitle = "", AvailableNextSteps = [], OrganisationName = "",
         SelectedNextStep = next,
     };
 
@@ -84,7 +88,18 @@ public sealed class CheckYourPupilDataControllerAnalyticsTests
         KeyStage = KeyStages.KS4,
         CheckingWindowType = CheckingWindowType.KS4June,
         StartDate = DateTime.UtcNow.AddDays(-1),
-        EndDate = DateTime.UtcNow.AddDays(10)
+        EndDate = DateTime.UtcNow.AddDays(10),
+        // #317: the page's options come from the exercise rows, so a window without one offers
+        // nothing and the "no selection" path below would never be reached.
+        Exercises =
+        [
+            new()
+            {
+                ExerciseType = CheckingExerciseType.PupilData,
+                StartDate = DateTime.UtcNow.AddDays(-1),
+                EndDate = DateTime.UtcNow.AddDays(10)
+            }
+        ]
     };
 
     private sealed class FakeSession : ISession

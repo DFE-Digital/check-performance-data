@@ -12,7 +12,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
+// Alias, not a namespace import: WindowManagement also declares a CheckingWindowDto and this
+// file already uses the LandingPage one.
+using ICheckingExerciseService = DfE.CheckPerformanceData.Application.WindowManagement.ICheckingExerciseService;
+using DfE.CheckPerformanceData.Web.Common;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Web.Controllers;
 
@@ -34,6 +40,7 @@ public sealed class ResultIssueControllerTests
     private readonly ICurrentUserService _currentUser = Substitute.For<ICurrentUserService>();
     private readonly IAnalyticsService _analytics = Substitute.For<IAnalyticsService>();
     private readonly FakeSession _session = new();
+    private readonly ICheckingExerciseService _checkingExercises = OpenCheckingExercises.AlwaysOpen();
     private readonly ResultIssueController _sut;
 
     private static readonly CheckingWindowDto Post16Window = new()
@@ -60,9 +67,10 @@ public sealed class ResultIssueControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Features.Set<ISessionFeature>(new TestSessionFeature(_session));
 
-        _sut = new ResultIssueController(_service, _flowService, _lateResults, _currentUser, _analytics)
+        _sut = new ResultIssueController(_service, _flowService, _lateResults, _currentUser, _checkingExercises, _analytics)
         {
-            ControllerContext = new ControllerContext { HttpContext = httpContext }
+            ControllerContext = new ControllerContext { HttpContext = httpContext },
+            TempData = new TempDataDictionary(httpContext, Substitute.For<ITempDataProvider>())
         };
     }
 
@@ -83,9 +91,9 @@ public sealed class ResultIssueControllerTests
     // ── GET ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Get_returns_the_view_with_the_window()
+    public async Task Get_returns_the_view_with_the_window()
     {
-        var result = _sut.Index(WindowId);
+        var result = await _sut.Index(WindowId);
 
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<ResultIssueViewModel>(view.Model);
@@ -94,7 +102,7 @@ public sealed class ResultIssueControllerTests
     }
 
     [Fact]
-    public void Get_does_not_preselect_an_option_even_when_a_journey_is_already_in_session()
+    public async Task Get_does_not_preselect_an_option_even_when_a_journey_is_already_in_session()
     {
         // The confirmation page's "Report another issue with an exam result" link comes back here,
         // and the AC says nothing carries over — a preselected radio would be exactly that.
@@ -104,7 +112,7 @@ public sealed class ResultIssueControllerTests
             QuestionAnswers = { ["q-cohort-scope"] = new QuestionAnswer { TextValue = "yes" } }
         });
 
-        var view = Assert.IsType<ViewResult>(_sut.Index(WindowId));
+        var view = Assert.IsType<ViewResult>(await _sut.Index(WindowId));
 
         Assert.Null(Assert.IsType<ResultIssueViewModel>(view.Model).IssueType);
     }
@@ -429,4 +437,50 @@ public sealed class ResultIssueControllerTests
     {
         public ISession Session { get; set; } = session;
     }
+
+    // ── #318: closed results-enquiry checking exercise ───────────────────────
+
+    [Fact]
+    public async Task Get_when_the_results_enquiry_exercise_has_closed_redirects_with_a_message()
+    {
+        _checkingExercises.Close();
+
+        var result = await _sut.Index(WindowId);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("CheckYourPupilData", redirect.ControllerName);
+        Assert.Equal(
+            ClosedExerciseGuard.MessageFor(CheckingExerciseType.ResultsEnquiry),
+            _sut.TempData[ClosedExerciseGuard.TempDataKey]);
+    }
+
+    [Fact]
+    public async Task Post_when_the_results_enquiry_exercise_has_closed_starts_no_enquiry()
+    {
+        _checkingExercises.Close();
+
+        var result = await _sut.Confirm(WindowId,
+            new ResultIssueViewModel { WindowId = WindowId, IssueType = ResultIssueViewModel.IncorrectGrade });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+        await _analytics.DidNotReceiveWithAnyArgs().TrackSafeAsync(Arg.Any<ResultsEnquiryStartedEvent>());
+    }
+
+    [Fact]
+    public async Task Post_gates_on_results_enquiry_not_on_pupil_data()
+    {
+        // Pupil data checking closes months before results enquiry on a 16-19 window; this entry
+        // point must follow its own exercise, not the other one and not the outer window.
+        _checkingExercises.IsOpen(default!, default)
+            .ReturnsForAnyArgs(ci => ci.ArgAt<CheckingExerciseType>(1) == CheckingExerciseType.PupilData);
+
+        var result = await _sut.Confirm(WindowId,
+            new ResultIssueViewModel { WindowId = WindowId, IssueType = ResultIssueViewModel.IncorrectGrade });
+
+        Assert.IsType<RedirectToActionResult>(result);
+        Assert.Null(_session.GetRequestState(WindowId).SelectedWhatToChange);
+    }
+
 }

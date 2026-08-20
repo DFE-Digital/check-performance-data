@@ -4,6 +4,9 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Persistence.Contexts;
+// Aliased, not imported: WindowManagement also declares a CheckingWindowDto, which would make the
+// LandingPage one ambiguous here.
+using CheckingExerciseDto = DfE.CheckPerformanceData.Application.WindowManagement.CheckingExerciseDto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -43,7 +46,28 @@ public sealed class CheckYourPupilDataRepository(
         => await dbContext.CheckingWindows
             .AsNoTracking()
             .Where(w => w.Id == windowId)
-            .Select(w => new CheckingWindowDto { EndDate = w.EndDate, Title = w.Title, KeyStage = w.KeyStage, CheckingWindowType = w.CheckingWindowType, StartDate = w.StartDate, TurnaroundCommitment = w.TurnaroundCommitment })
+            .Select(w => new CheckingWindowDto
+            {
+                EndDate = w.EndDate,
+                Title = w.Title,
+                KeyStage = w.KeyStage,
+                CheckingWindowType = w.CheckingWindowType,
+                StartDate = w.StartDate,
+                TurnaroundCommitment = w.TurnaroundCommitment,
+                // #315: ICheckingExerciseService answers "is this exercise open" from these rows,
+                // so every read path that reaches Web has to carry them.
+                Exercises = w.CheckingExercises
+                    .OrderBy(e => e.SortOrder)
+                    .Select(e => new CheckingExerciseDto
+                    {
+                        Id = e.Id,
+                        ExerciseType = e.ExerciseType,
+                        StartDate = e.StartDate,
+                        EndDate = e.EndDate,
+                        SortOrder = e.SortOrder
+                    })
+                    .ToList()
+            })
             .SingleAsync();
 
     public async Task<PupilDto> GetPupilAsync(Guid windowId, string laestab, Guid pupilId)
@@ -52,7 +76,7 @@ public sealed class CheckYourPupilDataRepository(
         return ToPupilDto(pupils.Single(p => p.Id == pupilId));
     }
 
-    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null)
+    public async Task<IReadOnlyList<PupilSuggestionDto>> SearchPupilsAsync(Guid windowId, string laestab, string urn, string query, PupilFilter filter, Guid? excludeId = null, IReadOnlySet<string>? cypmdIdAllowList = null)
     {
         // urn is retained on the signature for callers but is unused: the UPN-based exclusion
         // query it served was removed in 3f9efadf, which moved conflict detection onto pupil Id.
@@ -72,6 +96,12 @@ public sealed class CheckYourPupilDataRepository(
 
         if (excludeId.HasValue)
             pupils = pupils.Where(p => p.Id != excludeId.Value);
+
+        // Applied here rather than after the cap below: ten pupils who hold no results would
+        // otherwise crowd out the one who does. The set carries its own comparer (the results
+        // client builds it case-insensitively), so Contains is asked, never a re-implementation.
+        if (cypmdIdAllowList is not null)
+            pupils = pupils.Where(p => cypmdIdAllowList.Contains(p.Cypmd_Id));
 
         return pupils
             .OrderBy(p => p.Surname).ThenBy(p => p.Firstname)
@@ -93,7 +123,8 @@ public sealed class CheckYourPupilDataRepository(
 
         // The blob's record shape depends on the window type, so the window is resolved first.
         var window = await GetCheckingWindowAsync(windowId);
-        var pupils = await pupilDataBlobClient.GetPupilsAsync(windowId, laestab, window.CheckingWindowType) ?? [];
+        var pupils = await pupilDataBlobClient.GetPupilsAsync(
+            windowId, CheckingExerciseType.PupilData, laestab, window.CheckingWindowType) ?? [];
         var entry = new SchoolPupilsCacheEntry(pupils, window.CheckingWindowType);
         cache.Set(key, entry, new MemoryCacheEntryOptions { SlidingExpiration = CacheSlidingExpiry });
         return entry;

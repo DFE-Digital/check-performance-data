@@ -134,7 +134,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
             new Dictionary<string, BlobServiceClient> { ["app"] = _blobs });
 
         ValidationProgress? last = null;
-        await foreach (var p in processor.ProcessAsync(windowId, Datasets(), clearExistingFiles: clearExistingFiles))
+        await foreach (var p in processor.ProcessAsync(windowId, CheckingExerciseType.PupilData, Datasets(), clearExistingFiles: clearExistingFiles))
         {
             last = p;
         }
@@ -154,7 +154,10 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
             new PupilDataBlobClient(_blobs),
             new MemoryCache(new MemoryCacheOptions()));
 
-        return new CheckYourPupilDataService(repository, currentUser);
+        // The real results client: this window seeds no results file, so it reports nobody — which
+        // is only ever consulted by a results enquiry, and this test makes none.
+        return new CheckYourPupilDataService(repository, currentUser,
+            new StudentResultsBlobClient(_blobs, new MemoryCache(new MemoryCacheOptions())));
     }
 
     [Fact]
@@ -238,7 +241,7 @@ public sealed class Post16EndToEndTests(AzuriteFixture azurite, PostgresFixture 
         Assert.True(await blob.ExistsAsync());
 
         var pupils = await new PupilDataBlobClient(_blobs)
-            .GetPupilsAsync(windowId, Laestab, CheckingWindowType.Post16);
+            .GetPupilsAsync(windowId, CheckingExerciseType.PupilData, Laestab, CheckingWindowType.Post16);
 
         Assert.NotNull(pupils);
         Assert.Equal(2, pupils!.Count);

@@ -8,6 +8,7 @@ using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.Notify;
 using DfE.CheckPerformanceData.Application.RequestSubmission;
 using DfE.CheckPerformanceData.Application.ResultsEnquiry;
+using DfE.CheckPerformanceData.Application.WindowManagement;
 using DfE.CheckPerformanceData.Domain.Enums;
 using DfE.CheckPerformanceData.Web.FileStorage;
 using DfE.CheckPerformanceData.Web.Session;
@@ -30,6 +31,7 @@ public sealed class JourneyController(
     IStudentResultsClient studentResultsClient,
     IGradeReferenceClient gradeReferenceClient,
     IRequestNotificationService requestNotificationService,
+    ICheckingExerciseService checkingExerciseService,
     ILogger<JourneyController> logger) : Controller
 {
     internal static string FieldName(string questionId) => $"q_{questionId.Replace("-", "_")}";
@@ -161,7 +163,7 @@ public sealed class JourneyController(
         // a results enquiry and a pupil-data amendment may legitimately coexist for the same pupil.
         var isResultsEnquiry = journey.SelectedWhatToChange is { } whatToChange
             && WhatToChangeCheckingExerciseMap.CheckingExerciseFor(whatToChange)
-                == WhatToChangeCheckingExerciseMap.ResultsEnquiry;
+                == CheckingExerciseType.ResultsEnquiry;
 
         if (page.PupilKey != JourneyPage.MatchKey && !isResultsEnquiry)
         {
@@ -884,7 +886,9 @@ public sealed class JourneyController(
         if (!Guid.TryParse(storedFileName, out _)) return NotFound();
 
         var journey = HttpContext.Session.GetRequestState(windowId);
-        if (!IsSessionReady(journey)) return NotFound();
+        // #318 AC: no gated path returns 404. The link is an ordinary browser navigation, so the
+        // redirect renders the explanation like every other rejected entry point.
+        if (!IsSessionReady(journey)) return RedirectToCheckYourData(windowId);
 
         var fileAnswer = journey.QuestionAnswers.Values
             .SelectMany(a => a.FileValues ?? [])
@@ -1140,12 +1144,43 @@ public sealed class JourneyController(
 
     // ── Private helpers ────────────────────────────────────────────────────
 
-    private static bool IsSessionReady(RequestState journey) =>
+    /// <summary>
+    /// #318: the one gate every journey action already runs. It now also requires the journey's
+    /// own checking exercise to be open, so a bookmarked URL or a tab left open across the closing
+    /// date cannot post into a shut journey. The exercise is derived from
+    /// <see cref="RequestState.SelectedWhatToChange"/> rather than stored: a stored copy can
+    /// disagree with the journey's own change type, and adding an exercise type never has to touch
+    /// this method again.
+    /// </summary>
+    private bool IsSessionReady(RequestState journey) =>
         journey.SelectedWhatToChange is not null &&
-        journey.CheckingWindow is not null;
+        journey.CheckingWindow is not null &&
+        !IsExerciseClosed(journey);
 
-    private RedirectToActionResult RedirectToCheckYourData(Guid windowId) =>
-        RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+    // True only when the journey is otherwise complete and its exercise has closed — the one
+    // rejection reason worth explaining to the user.
+    private bool IsExerciseClosed(RequestState journey) =>
+        journey.SelectedWhatToChange is { } change &&
+        journey.CheckingWindow is not null &&
+        !checkingExerciseService.IsOpen(
+            journey.CheckingWindow.Exercises,
+            WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
+
+    /// <summary>
+    /// Every bounce out of the journey. A closed exercise is explained on the page the user lands
+    /// on; the other reasons (no session, no flow config) are silent, because a session that was
+    /// never started has nothing to tell the user.
+    /// </summary>
+    private RedirectToActionResult RedirectToCheckYourData(Guid windowId)
+    {
+        var journey = HttpContext.Session.GetRequestState(windowId);
+        if (IsExerciseClosed(journey))
+            return this.RedirectExerciseClosed(
+                windowId,
+                WhatToChangeCheckingExerciseMap.CheckingExerciseFor(journey.SelectedWhatToChange!.Value));
+
+        return RedirectToAction("Index", "CheckYourPupilData", new { windowId });
+    }
 
     private RedirectToActionResult RedirectToJourneyAction(QuestionFlowConfig config, Guid windowId, string pageId)
     {

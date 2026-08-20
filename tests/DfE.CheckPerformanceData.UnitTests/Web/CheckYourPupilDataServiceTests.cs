@@ -2,6 +2,7 @@ using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.CurrentUser;
 using DfE.CheckPerformanceData.Application.Journey;
 using DfE.CheckPerformanceData.Application.LandingPage;
+using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 using NSubstitute;
 
@@ -13,13 +14,14 @@ public class CheckYourPupilDataServiceTests
     private const string TestLaestab = "123/4567";
     private readonly ICheckYourPupilDataRepository _repository = Substitute.For<ICheckYourPupilDataRepository>();
     private readonly ICurrentUserService _currentUserService = Substitute.For<ICurrentUserService>();
+    private readonly IStudentResultsClient _studentResults = Substitute.For<IStudentResultsClient>();
     private readonly CheckYourPupilDataService _sut;
 
     public CheckYourPupilDataServiceTests()
     {
         _currentUserService.OrganisationUrn.Returns(TestUrn);
         _currentUserService.OrganisationLaestab.Returns(TestLaestab);
-        _sut = new CheckYourPupilDataService(_repository, _currentUserService);
+        _sut = new CheckYourPupilDataService(_repository, _currentUserService, _studentResults);
     }
 
     [Fact]
@@ -47,6 +49,35 @@ public class CheckYourPupilDataServiceTests
 
         await _repository.Received(1)
             .SearchPupilsAsync(windowId, TestLaestab, TestUrn, "smith", PupilFilter.Included, null);
+    }
+
+    // ── Results enquiries: only students who hold a result ───────────────────
+
+    [Fact]
+    public async Task GetPupilSuggestionsAsync_WhenResultsRequired_RestrictsToStudentsWithResults()
+    {
+        var windowId = Guid.NewGuid();
+        var withResults = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "500001" };
+        _studentResults.GetStudentIdsWithResultsAsync(windowId, TestLaestab).Returns(withResults);
+
+        await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.All, requireResults: true);
+
+        await _repository.Received(1).SearchPupilsAsync(
+            windowId, TestLaestab, TestUrn, "smith", PupilFilter.All, null, withResults);
+    }
+
+    [Fact]
+    public async Task GetPupilSuggestionsAsync_WhenResultsNotRequired_DoesNotReadTheResultsFile()
+    {
+        // Every other journey searches the whole roll, and must not pay for a results lookup.
+        var windowId = Guid.NewGuid();
+
+        await _sut.GetPupilSuggestionsAsync(windowId, "smith", PupilFilter.Included);
+
+        await _studentResults.DidNotReceive()
+            .GetStudentIdsWithResultsAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _repository.Received(1).SearchPupilsAsync(
+            windowId, TestLaestab, TestUrn, "smith", PupilFilter.Included, null, null);
     }
 
     private void StubWindow(Guid windowId, CheckingWindowType type) =>

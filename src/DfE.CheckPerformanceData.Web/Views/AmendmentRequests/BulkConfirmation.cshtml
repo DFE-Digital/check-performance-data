@@ -21,9 +21,12 @@
 
 <p class="govuk-body">We have sent you an email to confirm that you have successfully submitted your requests.</p>
 
-<govuk-notification-banner>
-    You still have until <strong>@Model.WindowCloseLabel</strong> to request any further amendments if you need to.
-</govuk-notification-banner>
+@if (Model.WindowCloseLabel is not null)
+{
+    <govuk-notification-banner>
+        You still have until <strong>@Model.WindowCloseLabel</strong> to request any further amendments if you need to.
+    </govuk-notification-banner>
+}
 
 <p class="govuk-body">
     <a class="govuk-link" href="@Url.Action("Index", "WhatToChange", new { windowId = Model.WindowId })">Request another amendment</a>

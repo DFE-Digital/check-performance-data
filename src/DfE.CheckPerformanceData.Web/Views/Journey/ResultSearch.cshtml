@@ -40,6 +40,36 @@ else
    enhanceSelectElement hides the select, moves its id to "{id}-select" and gives the new input the
    original id, so the <label for="result-search"> keeps naming whichever control is visible. The
    select keeps its name, so it is still what posts. *@
+@if (!Model.AvailableResults.Any())
+{
+    @* A student the school holds no result for has no grade to correct. Rendering the (empty)
+       autocomplete would leave the user typing into a box that can never answer, and Continue
+       could only ever fail validation — so the page states the position and offers the one move
+       left. Mirrors _GradeSelect.cshtml, which reports a reference-data gap plainly rather than
+       as a user error. FLAGGED: copy needs content sign-off.
+
+       The student search normally prevents this (its config sets requireResults), so this is the
+       back-navigation and stale-session case, not the everyday one. *@
+    <h1 class="govuk-heading-l">@Model.Title</h1>
+
+    <div class="govuk-inset-text">
+        We hold no results for this student, so there is no grade to correct.
+    </div>
+
+    <p class="govuk-body">
+        Check you selected the right student. If the student's results are missing, report that
+        instead of an incorrect grade.
+    </p>
+
+    <p class="govuk-body">
+        <a class="govuk-link" asp-action="@(Model.BackPageId is null ? "Index" : Model.BackPageAction)"
+           asp-controller="@(Model.BackPageId is null ? "CheckYourPupilData" : "Journey")"
+           asp-route-windowId="@Model.WindowId"
+           asp-route-pageId="@Model.BackPageId">Search for a different student</a>
+    </p>
+}
+else
+{
 <form method="post" action="@Url.Action("ResultSearchPost", "Journey", new { windowId = Model.WindowId, pageId = Model.PageId })">
     @Html.AntiForgeryToken()
 
@@ -101,6 +131,7 @@ else
 
     <govuk-button type="submit">Continue</govuk-button>
 </form>
+}
 
 @section Scripts {
     <script>

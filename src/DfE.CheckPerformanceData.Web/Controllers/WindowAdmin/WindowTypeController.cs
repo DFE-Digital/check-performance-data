@@ -78,7 +78,11 @@ public sealed class WindowTypeController(IWindowService windowService) : Control
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Update(Guid id, WindowTypeItem model, CancellationToken cancellationToken)
     {
-        CheckingWindowDto window = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingWindowDto? window = await windowService.GetByIdAsync(id, cancellationToken);
+        if (window is null)
+        {
+            return NotFound();
+        }
 
         if (model.WindowType == null)
         {

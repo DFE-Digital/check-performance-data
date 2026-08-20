@@ -26,8 +26,14 @@
 <span class="govuk-caption-l">Amendment requests</span>
 <h1 class="govuk-heading-xl">Amendment request summary</h1>
 
+@* #320: one line per checking exercise. The grid stays unsplit — both populations share one table
+   and one bulk submit — but they do not share a deadline: on a 16-19 window pupil data checking
+   shuts months before results enquiry does, so the outer window's end date was right for neither. *@
 <div class="govuk-inset-text">
-    <p class="govuk-body">Submit all @Model.WindowTitle requests by <strong>@Model.DeadlineText</strong></p>
+    @foreach (var deadline in Model.Deadlines)
+    {
+        <p class="govuk-body">@deadline.Sentence</p>
+    }
 </div>
 
 @{
@@ -137,7 +143,19 @@
 <govuk-tabs>
     <govuk-tabs-item id="requests" label="Requests">
         <div class="govuk-inset-text">
-            <p class="govuk-body">You can edit your @Model.WindowTitle requests any time before <strong>@Model.DeadlineText</strong></p>
+            @foreach (var deadline in Model.Deadlines.Where(d => d.IsOpen))
+            {
+                <p class="govuk-body">
+                    You can edit your @deadline.ExerciseLabel.ToLowerInvariant() requests any time
+                    before <strong>@deadline.DeadlineText</strong>
+                </p>
+            }
+            @if (Model.Deadlines.All(d => !d.IsOpen))
+            {
+                @* Every exercise has closed, so nothing here can still be edited. Saying "you can
+                   edit these" would be flatly untrue — #318 blocks the resume. *@
+                <p class="govuk-body">This window is closed. You can still view your requests.</p>
+            }
         </div>
             <table class="govuk-table">
                 <thead class="govuk-table__head">

@@ -6,6 +6,8 @@ using Azure;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using CsvHelper;
+using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,6 +19,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 {
     public async IAsyncEnumerable<ValidationProgress> ProcessAsync(
         Guid checkingWindowId,
+        CheckingExerciseType exercise,
         IReadOnlyList<IngressDataset> datasets,
         bool validateOnly = false,
         bool clearExistingFiles = false,
@@ -35,7 +38,9 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
             yield break;
         }
 
-        string errorLogBlobName = $"{checkingWindowId}_error_log.txt";
+        // Every output path this run touches is scoped to its exercise (#316). Two exercises share
+        // one container, so an unscoped name would let one run overwrite or delete another's output.
+        string errorLogBlobName = CheckingExerciseBlobPaths.ErrorLogBlobName(exercise, checkingWindowId);
         BlobContainerClient container = sourceBlobClient.GetBlobContainerClient(checkingWindowId.ToString());
         bool multipleDatasets = datasets.Count > 1;
 
@@ -49,13 +54,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         // A fresh, timestamped summary file is written on every real run, so runs never overwrite
         // each other's summary.
-        string summaryBlobName = $"{checkingWindowId}_summary_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
+        string summaryBlobName =
+            $"{CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)}{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
 
         // Wipe output left by a previous run before anything is written. Safe now that a single
         // run produces every dataset's output.
         if (clearExistingFiles && !validateOnly)
         {
-            await ClearOutputAsync(container, checkingWindowId, errorLogBlobName, cancellationToken);
+            await ClearOutputAsync(container, checkingWindowId, exercise, errorLogBlobName, cancellationToken);
         }
 
         foreach (IngressDataset dataset in datasets)
@@ -123,8 +129,21 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
             yield return new ValidationProgress("Counting", $"{records.Count} records found{label}", recordsRead, recordsValidated, 0, totalErrors, false, false);
 
+            // Every feed keys its rows to a school by a LAESTAB column, which is what lets one
+            // supplier file be split into one blob per school. A file without it cannot be split at
+            // all, so it fails the run by name rather than throwing out of the group-by.
+            if (records.Count > 0 && !records[0].ContainsKey("LAESTAB"))
+            {
+                yield return Failed(
+                    $"Ingress file '{dataset.InputCsvFile}' has no LAESTAB column, so its records " +
+                    "cannot be grouped by school.");
+                yield break;
+            }
+
             List<IGrouping<string, IDictionary<string, object>>> groupedSchools = records
-                .GroupBy(r => r["LAESTAB"]?.ToString() ?? "UnknownSchool")
+                .GroupBy(r => r.TryGetValue("LAESTAB", out object? laestab)
+                    ? laestab?.ToString() ?? "UnknownSchool"
+                    : "UnknownSchool")
                 .ToList();
 
             // Validate every school group up front, collecting all errors rather than stopping at
@@ -175,6 +194,17 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
                     if (dataset.Included is bool included && schema.Properties.ContainsKey("INCLUDED"))
                     {
                         record["INCLUDED"] = included;
+                    }
+
+                    // Provenance by file of origin, the exact analogue of INCLUDED above: the
+                    // results CSVs carry no SOURCE column, so the tag comes from the dataset slot
+                    // the file was uploaded to. Stamped BEFORE validation for the same reason
+                    // (AllowAdditionalProperties is false), and guarded by the schema check so a
+                    // pupil-data schema is untouched. StudentResultRecord.SourceFile, the result
+                    // picker's file column and ILateResultsAvailability all read this.
+                    if (dataset.SourceFile is { Length: > 0 } sourceFile && schema.Properties.ContainsKey("SOURCE"))
+                    {
+                        record["SOURCE"] = sourceFile;
                     }
 
                     if (!record.IsValid(schema, out IList<string> errorMessages))
@@ -297,7 +327,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string outputBlobName = $"data/{schoolId}_pupils.json";
+            string outputBlobName = CheckingExerciseBlobPaths.DataBlobName(exercise, schoolId);
             try
             {
                 await WriteAsync(container, outputBlobName, jsonArray.ToString(Formatting.Indented), cancellationToken);
@@ -398,7 +428,7 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
         return value;
     }
 
-    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, string errorLogBlobName, CancellationToken cancellationToken)
+    private async Task ClearOutputAsync(BlobContainerClient container, Guid checkingWindowId, CheckingExerciseType exercise, string errorLogBlobName, CancellationToken cancellationToken)
     {
         if (!await container.ExistsAsync(cancellationToken))
         {
@@ -407,8 +437,14 @@ public class CsvSchemaFileProcessor(ILogger<CsvSchemaFileProcessor> logger, IRea
 
         List<string> blobNames = new List<string>();
 
-        // Per-school data files and every timestamped summary from previous runs.
-        foreach (string prefix in new[] { "data/", $"{checkingWindowId}_summary_" })
+        // Per-school data files and every timestamped summary from previous runs — both scoped to
+        // the running exercise. Blob prefixes match as plain strings, so sweeping "data/" does not
+        // reach "results-enquiry/data/" and vice versa.
+        foreach (string prefix in new[]
+                 {
+                     CheckingExerciseBlobPaths.DataPrefix(exercise),
+                     CheckingExerciseBlobPaths.SummaryPrefix(exercise, checkingWindowId)
+                 })
         {
             await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix, cancellationToken))
             {

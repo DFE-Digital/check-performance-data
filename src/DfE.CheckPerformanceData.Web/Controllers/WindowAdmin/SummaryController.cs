@@ -10,7 +10,12 @@ public sealed class SummaryController(IWindowService windowService): Controller
     [HttpGet("admin/windows/summary/{id:guid}")]
     public async Task<IActionResult> Index(Guid id, CancellationToken cancellationToken)
     {
-        CheckingWindowDto w = await windowService.GetByIdAsync(id, cancellationToken);
+        CheckingWindowDto? w = await windowService.GetByIdAsync(id, cancellationToken);
+        if (w is null)
+        {
+            return NotFound();
+        }
+
         WindowEditItem vm = new WindowEditItem
         {
             WindowId = w.Id,
@@ -20,18 +25,36 @@ public sealed class SummaryController(IWindowService windowService): Controller
             EndDate = w.EndDate,
             KeyStage = w.KeyStage,
             CheckingWindowType = w.CheckingWindowType,
-            Datasets = w.Datasets
-                .OrderBy(d => d.SortOrder)
-                .Select(d => new DatasetSummaryRow
+            // #319: one section per checking exercise, each with its own dates, files and
+            // validation state. There is no window-level validate button any more — an exercise
+            // validates on its own, and a window is usable while another is still unvalidated.
+            Exercises = w.Exercises
+                .OrderBy(e => e.SortOrder)
+                .Select(e => new ExerciseSummarySection
                 {
                     WindowId = w.Id,
-                    Name = d.Name,
-                    Label = DatasetLabels.For(d.Name),
-                    IngressFile = d.IngressFile,
-                    SchemaFile = d.SchemaFile
+                    ExerciseType = e.ExerciseType,
+                    Label = ExerciseLabels.For(e.ExerciseType),
+                    StartDate = e.StartDate,
+                    EndDate = e.EndDate,
+                    IsValidated = e.IsValidated,
+                    ValidatedAt = e.ValidatedAt,
+                    IsStale = e.ValidatedAt is not null && !e.IsValidated,
+                    Datasets = e.Datasets
+                        .OrderBy(d => d.SortOrder)
+                        .Select(d => new DatasetSummaryRow
+                        {
+                            WindowId = w.Id,
+                            Exercise = e.ExerciseType,
+                            Name = d.Name,
+                            Label = DatasetLabels.For(d.Name),
+                            IngressFile = d.IngressFile,
+                            SchemaFile = d.SchemaFile,
+                            Required = d.Required
+                        })
+                        .ToList()
                 })
-                .ToList(),
-            PostUrl = Url.Action("Index", "ValidateWindow", new {id = w.Id})
+                .ToList()
         };
         return View("~/Views/WindowAdmin/Summary.cshtml", vm);
     }

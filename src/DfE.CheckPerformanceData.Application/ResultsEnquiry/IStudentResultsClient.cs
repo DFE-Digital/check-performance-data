@@ -16,6 +16,17 @@ public interface IStudentResultsClient
     Task<IReadOnlyList<StudentResultRecord>> GetResultsAsync(Guid windowId, string laestab, string cypmdId, CancellationToken ct = default);
 
     /// <summary>
+    /// The CYPMD ids of every student the school holds a result for. The pupil search restricts
+    /// itself to this set on a results enquiry, so that a school cannot start an incorrect-grade
+    /// enquiry for a student who has no grade to correct. Served from the same cached school file
+    /// as <see cref="GetResultsAsync"/>, so an autocomplete keystroke costs no download.
+    ///
+    /// The set is case-insensitive, matching how <see cref="GetResultsAsync"/> compares ids —
+    /// otherwise a student could be offered by the search and then be found to hold nothing.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetStudentIdsWithResultsAsync(Guid windowId, string laestab, CancellationToken ct = default);
+
+    /// <summary>
     /// Whether the school holds any result from a given source file. This is how the service works
     /// out for itself whether a supplier file has landed, rather than being told separately.
     /// </summary>

@@ -78,6 +78,27 @@ public class PupilSuggestionsControllerTests
     }
 
     [Fact]
+    public async Task Suggestions_WithRequireResults_AsksTheServiceToRestrictToStudentsWithResults()
+    {
+        _service.GetPupilSuggestionsAsync(WindowId, "Jo", PupilFilter.All, null, true).Returns([]);
+
+        await _sut.Suggestions(WindowId, "Jo", PupilFilter.All, null, requireResults: true);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(WindowId, "Jo", PupilFilter.All, null, true);
+    }
+
+    [Fact]
+    public async Task Suggestions_DefaultsToSearchingEveryPupil()
+    {
+        // Absent parameter must not restrict: the KS4 journeys call this endpoint without it.
+        _service.GetPupilSuggestionsAsync(WindowId, "Jo", PupilFilter.All, null, false).Returns([]);
+
+        await _sut.Suggestions(WindowId, "Jo", PupilFilter.All, null);
+
+        await _service.Received(1).GetPupilSuggestionsAsync(WindowId, "Jo", PupilFilter.All, null, false);
+    }
+
+    [Fact]
     public async Task Suggestions_ReturnsSuggestionsAsIdAndLabel()
     {
         var pupilId = Guid.NewGuid();

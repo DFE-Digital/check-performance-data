@@ -13,8 +13,8 @@ data), AB#297013.
 | `check-late-results` | `Content` | Guidance: check your second late results file first. Entered by the controller, not the flow's `firstPageId` — see [Late results guidance](#late-results-guidance). |
 | `cohort-scope` | `Question` / Radio | Does the incorrect grade affect the whole cohort? Branches the journey. |
 | `cohort-count` | `Question` / FreeText | How many students (cohort branch only). Validated by the `WholeNumber` format validator. |
-| `select-student-cohort` | `PupilSearch` | One student as an example (cohort branch). |
-| `select-student-single` | `PupilSearch` | The affected student (single branch). |
+| `select-student-cohort` | `PupilSearch` | One student as an example (cohort branch). Lists only students who hold results — see [Only students who hold results](#only-students-who-hold-results). |
+| `select-student-single` | `PupilSearch` | The affected student (single branch). Same restriction. |
 | `select-result` | `ResultSearch` | Which of the student's results is wrong. |
 | `grade-details` | `ResultDetails` | Shows the chosen result; asks for the revised grade. |
 | `additional-info` | `Question` / TextArea | Optional comments, 250 characters. |
@@ -63,6 +63,14 @@ decides what "the second late results file has landed" means.
 Container `{windowId}`, blob `results-enquiry/data/{laestab}_results.json`. One merged array per
 school across all six supplier files, each row stamped with its source tag.
 
+Written by the results-enquiry checking exercise's own ingress run (#324): one dataset slot per
+source file, each stamping its `SOURCE` tag onto every record it contributes, all merged into one
+file per school in a single run. `SeedStudentResults` still writes the same blob in development, so
+a developer needs no supplier files. Only the main file is required to validate the exercise — the
+late, revised and retention files are optional slots, because they land weeks apart and one may
+never land, and each run rewrites the school's whole file from the slots that are filled. The supplier CSVs must carry a `LAESTAB` column — that is what
+splits one file into one blob per school — and a file without one fails the run by name.
+
 The `results-enquiry/` prefix is deliberate: per consequence #2 of `docs/16-19-window-model.md` each
 checking exercise owns its own blob prefix, so when ingress becomes per-exercise no migration is
 needed and one exercise's sweep cannot destroy another's output. Pupil-data checking keeps its bare
@@ -103,6 +111,40 @@ never clobbered by a redeploy of an older bundled copy.
 The checked-in seed holds the three AB#297130 examples plus the dev QANs. The IB Diploma's 93-grade
 scale is derived from the ticket (44 pass: `24B`/`24D` … `45B`/`45D`; 49 fail: `00F`–`45F`, `R`, `U`,
 `X`) and is what gives the tests their `24F`-vs-`24D` case.
+
+## Only students who hold results
+
+Both `PupilSearch` pages set `"requireResults": true`. A student with no result has no grade to
+correct, so they are not a candidate, and offering them leads only to a dead end.
+
+How it is wired, layer by layer:
+
+1. `IStudentResultsClient.GetStudentIdsWithResultsAsync(windowId, laestab)` returns the school's CYPMD
+   ids, case-insensitively, from the **already cached** results file — an autocomplete keystroke costs
+   no download.
+2. `CheckYourPupilDataService.GetPupilSuggestionsAsync(..., requireResults)` resolves that set only
+   when asked, and hands it to the repository. Every other journey passes null and searches the whole
+   roll.
+3. `CheckYourPupilDataRepository.SearchPupilsAsync(..., cypmdIdAllowList)` applies it **before** the
+   ten-suggestion cap. Filtering after the cap would drop the one student who holds results whenever
+   ten who do not sort ahead of them.
+
+Persistence never learns what a result is — it receives a set of ids.
+
+The restriction is a search restriction, never a permission. It only ever narrows a search that is
+already scoped to the signed-in school's own file, so a request that forges or omits
+`requireResults=true` reaches nothing new.
+
+**Because it hides students, the pages say so.** The `subheading` ends "You can only search for
+students who have results", and the autocomplete's no-match text becomes "No students found with
+results" rather than the component's default "No results found" — otherwise a school cannot tell a
+typo from a student who holds nothing. Copy on both is FLAGGED for content sign-off.
+
+`select-result` keeps its own empty state for the cases the restriction cannot cover — back
+navigation, a stale session, or a results file that changes mid-journey. Rather than an autocomplete
+that can never answer, it states that we hold no results for the student and links back to the
+student search. It renders instead of the control and the Continue button, which could only ever
+fail validation.
 
 ## Revised-grade rules
 
@@ -218,13 +260,21 @@ Validation failures flow through the existing `validation_error` event; `GradeSe
 
 ## Local development
 
-`SeedStudentResults` writes results for Kingsmead (`860/4070`) in the seeded Post16 window. Three
-students, mixed `16to19_MAIN` / `16to19_LR1` tags, one qualification held twice in different sessions,
-and **no `16to19_LR2` rows** so the interstitial is on the happy path.
+`SeedStudentResults` writes results for Kingsmead (`860/4070`) in the seeded Post16 window: mixed
+`16to19_MAIN` / `16to19_LR1` tags, one qualification held twice in different sessions, and **no
+`16to19_LR2` rows** so the interstitial is on the happy path.
 
-The qualification fixtures come from the Figma screens, but the CYPMD ids are the ones
-`SeedPupilData` actually generates (`500001`–`500003`) — a result keyed to Figma's own id would belong
-to no selectable student and dead-end the journey.
+Three students (`500001`–`500003`) carry the Figma screens' own qualification fixtures. The CYPMD ids
+are the ones `SeedPupilData` actually generates — a result keyed to Figma's own id would belong to no
+selectable student and dead-end the journey. E2E drives `500001` by name, so those three rows are
+pinned by `SeedStudentResultsTests`.
+
+The rest is generated across both populations (every third included student, every fifth
+non-included), giving roughly a quarter of the school. That is deliberate on both sides: with the
+search restricted to students who hold results, three students leave a manual tester unable to
+exercise a common-surname search or the ten-suggestion cap, while seeding *everyone* would hide both
+the restriction and the empty state behind data that never exercises them. Generated qualifications
+come from the seeded grade reference, so the revised-grade picker can always list grades.
 
 ```
 docker compose --profile web --profile database --profile storage up -d --build
@@ -250,7 +300,8 @@ states, dataset reparenting, per-exercise ingress, draft-across-boundary rules.
 ## Deliberately out of scope
 
 The "Review exam results" / Results / Late-results tab pages and CSV/ZIP downloads (entry-point
-ticket); the six-file ingestion pipeline (FACT tickets — this feature seeds the blobs it reads);
+ticket); the six-file ingestion pipeline itself (FACT tickets — the portal side of it, the admin upload and
+ingress run that fill these blobs, is #324);
 missing-qualification and result-does-not-belong-to-student flows (sibling tickets); drafts (decided
 against); duplicate-enquiry blocking (the spec allows multiples).
 

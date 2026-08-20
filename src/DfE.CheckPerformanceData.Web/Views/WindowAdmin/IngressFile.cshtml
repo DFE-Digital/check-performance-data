@@ -17,7 +17,7 @@
             {
                 <li>
                     <a class="govuk-link"
-                       href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(container)">
+                       href="@Model.BaseUrl/browse?container=@Uri.EscapeDataString(container)">
                         @container
                     </a>
                 </li>
@@ -39,14 +39,14 @@ else
     <p class="govuk-body">
         @if (Model.ParentPath is null)
         {
-            <a class="govuk-link" href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset">
+            <a class="govuk-link" href="@Model.BaseUrl">
                 Back to Containers
             </a>
         }
         else
         {
             <a class="govuk-link"
-               href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
+               href="@Model.BaseUrl/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(Model.ParentPath)">
                 Back
             </a>
         }
@@ -69,7 +69,7 @@ else
 
                     <li>
                         <a class="govuk-link"
-                           href="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
+                           href="@Model.BaseUrl/browse?container=@Uri.EscapeDataString(Model.Container!)&path=@Uri.EscapeDataString(folder)">
                             @folderName
                         </a>
                     </li>
@@ -81,7 +81,7 @@ else
         {
             <h2 class="govuk-heading-m">Files</h2>
 
-            <form method="post" action="/admin/windows/@Model.WindowId/ingress-file/@Model.Dataset">
+            <form method="post" action="@Model.BaseUrl">
                 @Html.AntiForgeryToken()
 
                 <div class="govuk-form-group">

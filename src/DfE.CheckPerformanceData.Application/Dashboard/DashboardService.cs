@@ -1,5 +1,6 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.WindowManagement;
+using DfE.CheckPerformanceData.Domain.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
@@ -27,7 +28,11 @@ public sealed class DashboardService(
     private async Task<DashboardMetrics> BuildAsync(
         CheckingWindowDto window, CancellationToken cancellationToken)
     {
-        var eligible = (await pupilDataBlobClient.ListSchoolLaestabsAsync(window.Id, cancellationToken))
+        // "Schools eligible to request amendments" means schools that hold pupil data, so this
+        // counts the pupil-data exercise's prefix specifically (#316) — the same blobs it counted
+        // before the layout was scoped, so the figure is unchanged for an already-ingested window.
+        var eligible = (await pupilDataBlobClient.ListSchoolLaestabsAsync(
+                window.Id, CheckingExerciseType.PupilData, cancellationToken))
             .ToHashSet(StringComparer.Ordinal);
 
         // Window dates are stored without a kind; Npgsql requires Utc for timestamptz params.

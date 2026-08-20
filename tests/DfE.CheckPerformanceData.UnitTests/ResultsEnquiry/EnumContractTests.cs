@@ -1,6 +1,5 @@
 using DfE.CheckPerformanceData.Application.CheckYourPupilData;
 using DfE.CheckPerformanceData.Application.Journey;
-using DfE.CheckPerformanceData.Application.ResultsEnquiry;
 using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.ResultsEnquiry;
@@ -36,11 +35,4 @@ public sealed class EnumContractTests
         Assert.Equal(6, (int)QuestionType.GradeSelect);
         Assert.Equal(2, (int)NextSteps.ResultsEnquiry); // appended after Confirm
     }
-
-    [Theory]
-    [InlineData(WhatToChange.IncorrectGrade, "ResultsEnquiry")]
-    [InlineData(WhatToChange.Merge, "PupilData")]
-    [InlineData(WhatToChange.Remove, "PupilData")]
-    public void WhatToChange_maps_to_its_checking_exercise(WhatToChange change, string exercise)
-        => Assert.Equal(exercise, WhatToChangeCheckingExerciseMap.CheckingExerciseFor(change));
 }

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using NSubstitute;
+using DfE.CheckPerformanceData.Application.UnitTests.WindowManagement;
 
 namespace DfE.CheckPerformanceData.Application.UnitTests.Journey;
 
@@ -127,6 +128,7 @@ public class PupilSearchJourneyTests
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IStudentResultsClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.ResultsEnquiry.IGradeReferenceClient>(),
             Substitute.For<DfE.CheckPerformanceData.Application.Notify.IRequestNotificationService>(),
+            OpenCheckingExercises.AlwaysOpen(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<JourneyController>.Instance)
         {
             ControllerContext = new ControllerContext { HttpContext = _httpContext },

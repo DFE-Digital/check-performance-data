@@ -14,8 +14,15 @@ public interface ICheckYourPupilDataService
     Task<PupilTable> GetPupilCsvAsync(Guid windowId, bool included);
 
     Task<CheckingWindowDto> GetCheckingWindowAsync(Guid windowId);
+    /// <summary>
+    /// Autocomplete suggestions for the pupil search.
+    ///
+    /// <paramref name="requireResults"/> limits the search to students the school holds a result
+    /// for — a results enquiry has nothing to correct otherwise. It costs a read of the school's
+    /// (cached) results file, so it is opt-in rather than the default.
+    /// </summary>
     Task<IReadOnlyList<PupilSuggestionDto>> GetPupilSuggestionsAsync(Guid windowId, string query,
-        PupilFilter filter, Guid? excludeId = null);
+        PupilFilter filter, Guid? excludeId = null, bool requireResults = false);
 
     Task<PupilDto> GetPupilAsync(Guid windowId, Guid pupilId);
 }

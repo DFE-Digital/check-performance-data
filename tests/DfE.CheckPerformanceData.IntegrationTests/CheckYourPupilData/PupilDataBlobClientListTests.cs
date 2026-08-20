@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using DfE.CheckPerformanceData.Infrastructure.BlobStorage;
 using DfE.CheckPerformanceData.IntegrationTests.Fixtures;
+using DfE.CheckPerformanceData.Domain.Enums;
 
 namespace DfE.CheckPerformanceData.IntegrationTests.CheckYourPupilData;
 
@@ -20,7 +21,7 @@ public sealed class PupilDataBlobClientListTests(AzuriteFixture azurite)
         await container.UploadBlobAsync("data/readme.txt", BinaryData.FromString("x"));
         await container.UploadBlobAsync("schema/schema.json", BinaryData.FromString("{}"));
 
-        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(windowId);
+        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData);
 
         Assert.Equal(new[] { "8604070", "9334290" }, laestabs.OrderBy(l => l).ToArray());
     }
@@ -38,7 +39,7 @@ public sealed class PupilDataBlobClientListTests(AzuriteFixture azurite)
         await container.CreateAsync();
         await container.UploadBlobAsync("data/860/4070_pupils.json", BinaryData.FromString("[]"));
 
-        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(windowId);
+        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(windowId, CheckingExerciseType.PupilData);
 
         Assert.Equal(["8604070"], laestabs);
     }
@@ -48,7 +49,7 @@ public sealed class PupilDataBlobClientListTests(AzuriteFixture azurite)
     {
         var service = new BlobServiceClient(azurite.ConnectionString);
 
-        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(Guid.NewGuid());
+        var laestabs = await new PupilDataBlobClient(service).ListSchoolLaestabsAsync(Guid.NewGuid(), CheckingExerciseType.PupilData);
 
         Assert.Empty(laestabs);
     }
